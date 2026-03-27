@@ -44,8 +44,7 @@ message CreateBacklogItemRequest {
   // Required backlog kind.
   string kind = 6 [(buf.validate.field).string = { in: ["idea", "research", "fix", "execute", "chore"] }];
 
-  // Optional research target for research items.
-  optional string research_target = 7 [(buf.validate.field).string = { in: ["idea", "fix", "execute", "chore", "unspecified"] }];
+  reserved 7; // research_target — removed; research items execute directly.
 
   // Dependencies as "kind/name" references.
   repeated string depends_on = 8;
@@ -100,9 +99,7 @@ message UpdateBacklogItemRequest {
   // Tags for categorization.
   repeated string tags = 5 [(buf.validate.field).repeated = { unique: true }];
 
-  // Optional research target for research items.
-  // Set to the empty string to clear.
-  optional string research_target = 6 [(buf.validate.field).string = { in: ["", "idea", "fix", "execute", "chore", "unspecified"] }];
+  reserved 6; // research_target — removed; research items execute directly.
 
   // Dependencies as "kind/name" references.
   repeated string depends_on = 7;
@@ -224,21 +221,11 @@ message BacklogResearchRequest {
     "clarify",
     "suggest",
     "enhance",
-    "research",
-    "explore",
-    "investigate",
     "initialize",
     "workshop"
   ] }];
 
-  // Optional research target for research items.
-  optional string target_kind = 5 [(buf.validate.field).string = { in: [
-    "idea",
-    "fix",
-    "execute",
-    "chore",
-    "unspecified"
-  ] }];
+  reserved 5; // target_kind — removed; research items execute directly.
 
   // File paths within the backlog item to include as agent context (by reference).
   repeated string context_paths = 6;
@@ -256,15 +243,6 @@ message BacklogResearchResponse {
   string run_id = 2 [(buf.validate.field).string.min_len = 1];
   string base_url = 3 [(buf.validate.field).string.min_len = 1];
   string created = 4 [(buf.validate.field).string.min_len = 1];
-}
-
-// ConvertBacklogItemRequest moves a backlog item to another kind.
-message ConvertBacklogItemRequest {
-  // Target kind to move into.
-  string target_kind = 1 [(buf.validate.field).string = { in: ["idea", "research", "fix", "execute", "chore"] }];
-
-  // Optional new name for the moved item.
-  optional string target_name = 2;
 }
 
 // ExportBacklogRequest defines filter criteria for exporting backlog items to markdown.

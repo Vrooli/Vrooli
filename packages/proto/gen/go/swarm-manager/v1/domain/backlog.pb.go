@@ -47,8 +47,6 @@ type BacklogItem struct {
 	Updated string `protobuf:"bytes,8,opt,name=updated,proto3" json:"updated,omitempty"`
 	// Backlog kind: idea, research, fix, execute.
 	Kind string `protobuf:"bytes,9,opt,name=kind,proto3" json:"kind,omitempty"`
-	// Optional target kind for research items (idea, fix, execute, chore, unspecified).
-	ResearchTarget *string `protobuf:"bytes,10,opt,name=research_target,json=researchTarget,proto3,oneof" json:"research_target,omitempty"`
 	// Dependencies as "kind/name" references. Item won't process until all deps complete.
 	DependsOn []string `protobuf:"bytes,11,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
 	// Initiative this item belongs to.
@@ -154,13 +152,6 @@ func (x *BacklogItem) GetUpdated() string {
 func (x *BacklogItem) GetKind() string {
 	if x != nil {
 		return x.Kind
-	}
-	return ""
-}
-
-func (x *BacklogItem) GetResearchTarget() string {
-	if x != nil && x.ResearchTarget != nil {
-		return *x.ResearchTarget
 	}
 	return ""
 }
@@ -287,7 +278,7 @@ var File_swarm_manager_v1_domain_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\n" +
-	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\x82\x06\n" +
+	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\x97\x05\n" +
 	"\vBacklogItem\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
@@ -298,20 +289,18 @@ const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\x04tags\x18\x06 \x03(\tB\b\xbaH\x05\x92\x01\x02\x18\x01R\x04tags\x12!\n" +
 	"\acreated\x18\a \x01(\tB\a\xbaH\x04r\x02\x10\x01R\acreated\x12!\n" +
 	"\aupdated\x18\b \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aupdated\x12>\n" +
-	"\x04kind\x18\t \x01(\tB*\xbaH'r%R\x04ideaR\bresearchR\x03fixR\aexecuteR\x05choreR\x04kind\x12[\n" +
-	"\x0fresearch_target\x18\n" +
-	" \x01(\tB-\xbaH*r(R\x04ideaR\x03fixR\aexecuteR\x05choreR\vunspecifiedH\x00R\x0eresearchTarget\x88\x01\x01\x12\x1d\n" +
+	"\x04kind\x18\t \x01(\tB*\xbaH'r%R\x04ideaR\bresearchR\x03fixR\aexecuteR\x05choreR\x04kind\x12\x1d\n" +
 	"\n" +
 	"depends_on\x18\v \x03(\tR\tdependsOn\x12#\n" +
 	"\n" +
-	"initiative\x18\f \x01(\tH\x01R\n" +
+	"initiative\x18\f \x01(\tH\x00R\n" +
 	"initiative\x88\x01\x01\x123\n" +
-	"\x06effort\x18\r \x01(\tB\x16\xbaH\x13r\x11R\x02XSR\x01SR\x01MR\x01LR\x02XLH\x02R\x06effort\x88\x01\x01\x12)\n" +
+	"\x06effort\x18\r \x01(\tB\x16\xbaH\x13r\x11R\x02XSR\x01SR\x01MR\x01LR\x02XLH\x01R\x06effort\x88\x01\x01\x12)\n" +
 	"\x10acceptance_allow\x18\x0f \x03(\tR\x0facceptanceAllow\x12'\n" +
-	"\x0facceptance_deny\x18\x10 \x03(\tR\x0eacceptanceDenyB\x12\n" +
-	"\x10_research_targetB\r\n" +
+	"\x0facceptance_deny\x18\x10 \x03(\tR\x0eacceptanceDenyB\r\n" +
 	"\v_initiativeB\t\n" +
-	"\a_effortJ\x04\b\x0e\x10\x0f\"\xd9\x01\n" +
+	"\a_effortJ\x04\b\n" +
+	"\x10\vJ\x04\b\x0e\x10\x0f\"\xd9\x01\n" +
 	"\vBacklogFile\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1b\n" +
 	"\x04path\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04path\x12*\n" +

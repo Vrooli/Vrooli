@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file google/api/client.proto.
  */
 export const file_google_api_client: GenFile = /*@__PURE__*/
-  fileDesc("Chdnb29nbGUvYXBpL2NsaWVudC5wcm90bxIKZ29vZ2xlLmFwaSK+AQoWQ29tbW9uTGFuZ3VhZ2VTZXR0aW5ncxIeChJyZWZlcmVuY2VfZG9jc191cmkYASABKAlCAhgBEjoKDGRlc3RpbmF0aW9ucxgCIAMoDjIkLmdvb2dsZS5hcGkuQ2xpZW50TGlicmFyeURlc3RpbmF0aW9uEkgKGnNlbGVjdGl2ZV9nYXBpY19nZW5lcmF0aW9uGAMgASgLMiQuZ29vZ2xlLmFwaS5TZWxlY3RpdmVHYXBpY0dlbmVyYXRpb24i+wMKFUNsaWVudExpYnJhcnlTZXR0aW5ncxIPCgd2ZXJzaW9uGAEgASgJEi0KDGxhdW5jaF9zdGFnZRgCIAEoDjIXLmdvb2dsZS5hcGkuTGF1bmNoU3RhZ2USGgoScmVzdF9udW1lcmljX2VudW1zGAMgASgIEi8KDWphdmFfc2V0dGluZ3MYFSABKAsyGC5nb29nbGUuYXBpLkphdmFTZXR0aW5ncxItCgxjcHBfc2V0dGluZ3MYFiABKAsyFy5nb29nbGUuYXBpLkNwcFNldHRpbmdzEi0KDHBocF9zZXR0aW5ncxgXIAEoCzIXLmdvb2dsZS5hcGkuUGhwU2V0dGluZ3MSMwoPcHl0aG9uX3NldHRpbmdzGBggASgLMhouZ29vZ2xlLmFwaS5QeXRob25TZXR0aW5ncxIvCg1ub2RlX3NldHRpbmdzGBkgASgLMhguZ29vZ2xlLmFwaS5Ob2RlU2V0dGluZ3MSMwoPZG90bmV0X3NldHRpbmdzGBogASgLMhouZ29vZ2xlLmFwaS5Eb3RuZXRTZXR0aW5ncxIvCg1ydWJ5X3NldHRpbmdzGBsgASgLMhguZ29vZ2xlLmFwaS5SdWJ5U2V0dGluZ3MSKwoLZ29fc2V0dGluZ3MYHCABKAsyFi5nb29nbGUuYXBpLkdvU2V0dGluZ3MiqAMKClB1Ymxpc2hpbmcSMwoPbWV0aG9kX3NldHRpbmdzGAIgAygLMhouZ29vZ2xlLmFwaS5NZXRob2RTZXR0aW5ncxIVCg1uZXdfaXNzdWVfdXJpGGUgASgJEhkKEWRvY3VtZW50YXRpb25fdXJpGGYgASgJEhYKDmFwaV9zaG9ydF9uYW1lGGcgASgJEhQKDGdpdGh1Yl9sYWJlbBhoIAEoCRIeChZjb2Rlb3duZXJfZ2l0aHViX3RlYW1zGGkgAygJEhYKDmRvY190YWdfcHJlZml4GGogASgJEjsKDG9yZ2FuaXphdGlvbhhrIAEoDjIlLmdvb2dsZS5hcGkuQ2xpZW50TGlicmFyeU9yZ2FuaXphdGlvbhI7ChBsaWJyYXJ5X3NldHRpbmdzGG0gAygLMiEuZ29vZ2xlLmFwaS5DbGllbnRMaWJyYXJ5U2V0dGluZ3MSKQohcHJvdG9fcmVmZXJlbmNlX2RvY3VtZW50YXRpb25fdXJpGG4gASgJEigKIHJlc3RfcmVmZXJlbmNlX2RvY3VtZW50YXRpb25fdXJpGG8gASgJIuMBCgxKYXZhU2V0dGluZ3MSFwoPbGlicmFyeV9wYWNrYWdlGAEgASgJEkwKE3NlcnZpY2VfY2xhc3NfbmFtZXMYAiADKAsyLy5nb29nbGUuYXBpLkphdmFTZXR0aW5ncy5TZXJ2aWNlQ2xhc3NOYW1lc0VudHJ5EjIKBmNvbW1vbhgDIAEoCzIiLmdvb2dsZS5hcGkuQ29tbW9uTGFuZ3VhZ2VTZXR0aW5ncxo4ChZTZXJ2aWNlQ2xhc3NOYW1lc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiQQoLQ3BwU2V0dGluZ3MSMgoGY29tbW9uGAEgASgLMiIuZ29vZ2xlLmFwaS5Db21tb25MYW5ndWFnZVNldHRpbmdzIkEKC1BocFNldHRpbmdzEjIKBmNvbW1vbhgBIAEoCzIiLmdvb2dsZS5hcGkuQ29tbW9uTGFuZ3VhZ2VTZXR0aW5ncyKbAgoOUHl0aG9uU2V0dGluZ3MSMgoGY29tbW9uGAEgASgLMiIuZ29vZ2xlLmFwaS5Db21tb25MYW5ndWFnZVNldHRpbmdzEk4KFWV4cGVyaW1lbnRhbF9mZWF0dXJlcxgCIAEoCzIvLmdvb2dsZS5hcGkuUHl0aG9uU2V0dGluZ3MuRXhwZXJpbWVudGFsRmVhdHVyZXMahAEKFEV4cGVyaW1lbnRhbEZlYXR1cmVzEh0KFXJlc3RfYXN5bmNfaW9fZW5hYmxlZBgBIAEoCBInCh9wcm90b2J1Zl9weXRob25pY190eXBlc19lbmFibGVkGAIgASgIEiQKHHVudmVyc2lvbmVkX3BhY2thZ2VfZGlzYWJsZWQYAyABKAgiQgoMTm9kZVNldHRpbmdzEjIKBmNvbW1vbhgBIAEoCzIiLmdvb2dsZS5hcGkuQ29tbW9uTGFuZ3VhZ2VTZXR0aW5ncyKqAwoORG90bmV0U2V0dGluZ3MSMgoGY29tbW9uGAEgASgLMiIuZ29vZ2xlLmFwaS5Db21tb25MYW5ndWFnZVNldHRpbmdzEkkKEHJlbmFtZWRfc2VydmljZXMYAiADKAsyLy5nb29nbGUuYXBpLkRvdG5ldFNldHRpbmdzLlJlbmFtZWRTZXJ2aWNlc0VudHJ5EksKEXJlbmFtZWRfcmVzb3VyY2VzGAMgAygLMjAuZ29vZ2xlLmFwaS5Eb3RuZXRTZXR0aW5ncy5SZW5hbWVkUmVzb3VyY2VzRW50cnkSGQoRaWdub3JlZF9yZXNvdXJjZXMYBCADKAkSIAoYZm9yY2VkX25hbWVzcGFjZV9hbGlhc2VzGAUgAygJEh4KFmhhbmR3cml0dGVuX3NpZ25hdHVyZXMYBiADKAkaNgoUUmVuYW1lZFNlcnZpY2VzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ARo3ChVSZW5hbWVkUmVzb3VyY2VzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJCCgxSdWJ5U2V0dGluZ3MSMgoGY29tbW9uGAEgASgLMiIuZ29vZ2xlLmFwaS5Db21tb25MYW5ndWFnZVNldHRpbmdzIr8BCgpHb1NldHRpbmdzEjIKBmNvbW1vbhgBIAEoCzIiLmdvb2dsZS5hcGkuQ29tbW9uTGFuZ3VhZ2VTZXR0aW5ncxJFChByZW5hbWVkX3NlcnZpY2VzGAIgAygLMisuZ29vZ2xlLmFwaS5Hb1NldHRpbmdzLlJlbmFtZWRTZXJ2aWNlc0VudHJ5GjYKFFJlbmFtZWRTZXJ2aWNlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEizwIKDk1ldGhvZFNldHRpbmdzEhAKCHNlbGVjdG9yGAEgASgJEjwKDGxvbmdfcnVubmluZxgCIAEoCzImLmdvb2dsZS5hcGkuTWV0aG9kU2V0dGluZ3MuTG9uZ1J1bm5pbmcSHQoVYXV0b19wb3B1bGF0ZWRfZmllbGRzGAMgAygJGs0BCgtMb25nUnVubmluZxI1ChJpbml0aWFsX3BvbGxfZGVsYXkYASABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SHQoVcG9sbF9kZWxheV9tdWx0aXBsaWVyGAIgASgCEjEKDm1heF9wb2xsX2RlbGF5GAMgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEjUKEnRvdGFsX3BvbGxfdGltZW91dBgEIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbiJRChhTZWxlY3RpdmVHYXBpY0dlbmVyYXRpb24SDwoHbWV0aG9kcxgBIAMoCRIkChxnZW5lcmF0ZV9vbWl0dGVkX2FzX2ludGVybmFsGAIgASgIKqMBChlDbGllbnRMaWJyYXJ5T3JnYW5pemF0aW9uEisKJ0NMSUVOVF9MSUJSQVJZX09SR0FOSVpBVElPTl9VTlNQRUNJRklFRBAAEgkKBUNMT1VEEAESBwoDQURTEAISCgoGUEhPVE9TEAMSDwoLU1RSRUVUX1ZJRVcQBBIMCghTSE9QUElORxAFEgcKA0dFTxAGEhEKDUdFTkVSQVRJVkVfQUkQBypnChhDbGllbnRMaWJyYXJ5RGVzdGluYXRpb24SKgomQ0xJRU5UX0xJQlJBUllfREVTVElOQVRJT05fVU5TUEVDSUZJRUQQABIKCgZHSVRIVUIQChITCg9QQUNLQUdFX01BTkFHRVIQFDpKChBtZXRob2Rfc2lnbmF0dXJlEh4uZ29vZ2xlLnByb3RvYnVmLk1ldGhvZE9wdGlvbnMYmwggAygJUg9tZXRob2RTaWduYXR1cmU6QwoMZGVmYXVsdF9ob3N0Eh8uZ29vZ2xlLnByb3RvYnVmLlNlcnZpY2VPcHRpb25zGJkIIAEoCVILZGVmYXVsdEhvc3Q6QwoMb2F1dGhfc2NvcGVzEh8uZ29vZ2xlLnByb3RvYnVmLlNlcnZpY2VPcHRpb25zGJoIIAEoCVILb2F1dGhTY29wZXM6RAoLYXBpX3ZlcnNpb24SHy5nb29nbGUucHJvdG9idWYuU2VydmljZU9wdGlvbnMYwbqr+gEgASgJUgphcGlWZXJzaW9uQmkKDmNvbS5nb29nbGUuYXBpQgtDbGllbnRQcm90b1ABWkFnb29nbGUuZ29sYW5nLm9yZy9nZW5wcm90by9nb29nbGVhcGlzL2FwaS9hbm5vdGF0aW9uczthbm5vdGF0aW9uc6ICBEdBUEliBnByb3RvMw", [file_google_api_launch_stage, file_google_protobuf_descriptor, file_google_protobuf_duration]);
+  fileDesc("Chdnb29nbGUvYXBpL2NsaWVudC5wcm90bxIKZ29vZ2xlLmFwaSK+AQoWQ29tbW9uTGFuZ3VhZ2VTZXR0aW5ncxIeChJyZWZlcmVuY2VfZG9jc191cmkYASABKAlCAhgBEjoKDGRlc3RpbmF0aW9ucxgCIAMoDjIkLmdvb2dsZS5hcGkuQ2xpZW50TGlicmFyeURlc3RpbmF0aW9uEkgKGnNlbGVjdGl2ZV9nYXBpY19nZW5lcmF0aW9uGAMgASgLMiQuZ29vZ2xlLmFwaS5TZWxlY3RpdmVHYXBpY0dlbmVyYXRpb24i+wMKFUNsaWVudExpYnJhcnlTZXR0aW5ncxIPCgd2ZXJzaW9uGAEgASgJEi0KDGxhdW5jaF9zdGFnZRgCIAEoDjIXLmdvb2dsZS5hcGkuTGF1bmNoU3RhZ2USGgoScmVzdF9udW1lcmljX2VudW1zGAMgASgIEi8KDWphdmFfc2V0dGluZ3MYFSABKAsyGC5nb29nbGUuYXBpLkphdmFTZXR0aW5ncxItCgxjcHBfc2V0dGluZ3MYFiABKAsyFy5nb29nbGUuYXBpLkNwcFNldHRpbmdzEi0KDHBocF9zZXR0aW5ncxgXIAEoCzIXLmdvb2dsZS5hcGkuUGhwU2V0dGluZ3MSMwoPcHl0aG9uX3NldHRpbmdzGBggASgLMhouZ29vZ2xlLmFwaS5QeXRob25TZXR0aW5ncxIvCg1ub2RlX3NldHRpbmdzGBkgASgLMhguZ29vZ2xlLmFwaS5Ob2RlU2V0dGluZ3MSMwoPZG90bmV0X3NldHRpbmdzGBogASgLMhouZ29vZ2xlLmFwaS5Eb3RuZXRTZXR0aW5ncxIvCg1ydWJ5X3NldHRpbmdzGBsgASgLMhguZ29vZ2xlLmFwaS5SdWJ5U2V0dGluZ3MSKwoLZ29fc2V0dGluZ3MYHCABKAsyFi5nb29nbGUuYXBpLkdvU2V0dGluZ3MiqAMKClB1Ymxpc2hpbmcSMwoPbWV0aG9kX3NldHRpbmdzGAIgAygLMhouZ29vZ2xlLmFwaS5NZXRob2RTZXR0aW5ncxIVCg1uZXdfaXNzdWVfdXJpGGUgASgJEhkKEWRvY3VtZW50YXRpb25fdXJpGGYgASgJEhYKDmFwaV9zaG9ydF9uYW1lGGcgASgJEhQKDGdpdGh1Yl9sYWJlbBhoIAEoCRIeChZjb2Rlb3duZXJfZ2l0aHViX3RlYW1zGGkgAygJEhYKDmRvY190YWdfcHJlZml4GGogASgJEjsKDG9yZ2FuaXphdGlvbhhrIAEoDjIlLmdvb2dsZS5hcGkuQ2xpZW50TGlicmFyeU9yZ2FuaXphdGlvbhI7ChBsaWJyYXJ5X3NldHRpbmdzGG0gAygLMiEuZ29vZ2xlLmFwaS5DbGllbnRMaWJyYXJ5U2V0dGluZ3MSKQohcHJvdG9fcmVmZXJlbmNlX2RvY3VtZW50YXRpb25fdXJpGG4gASgJEigKIHJlc3RfcmVmZXJlbmNlX2RvY3VtZW50YXRpb25fdXJpGG8gASgJIuMBCgxKYXZhU2V0dGluZ3MSFwoPbGlicmFyeV9wYWNrYWdlGAEgASgJEkwKE3NlcnZpY2VfY2xhc3NfbmFtZXMYAiADKAsyLy5nb29nbGUuYXBpLkphdmFTZXR0aW5ncy5TZXJ2aWNlQ2xhc3NOYW1lc0VudHJ5EjIKBmNvbW1vbhgDIAEoCzIiLmdvb2dsZS5hcGkuQ29tbW9uTGFuZ3VhZ2VTZXR0aW5ncxo4ChZTZXJ2aWNlQ2xhc3NOYW1lc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiQQoLQ3BwU2V0dGluZ3MSMgoGY29tbW9uGAEgASgLMiIuZ29vZ2xlLmFwaS5Db21tb25MYW5ndWFnZVNldHRpbmdzIloKC1BocFNldHRpbmdzEjIKBmNvbW1vbhgBIAEoCzIiLmdvb2dsZS5hcGkuQ29tbW9uTGFuZ3VhZ2VTZXR0aW5ncxIXCg9saWJyYXJ5X3BhY2thZ2UYAiABKAkimwIKDlB5dGhvblNldHRpbmdzEjIKBmNvbW1vbhgBIAEoCzIiLmdvb2dsZS5hcGkuQ29tbW9uTGFuZ3VhZ2VTZXR0aW5ncxJOChVleHBlcmltZW50YWxfZmVhdHVyZXMYAiABKAsyLy5nb29nbGUuYXBpLlB5dGhvblNldHRpbmdzLkV4cGVyaW1lbnRhbEZlYXR1cmVzGoQBChRFeHBlcmltZW50YWxGZWF0dXJlcxIdChVyZXN0X2FzeW5jX2lvX2VuYWJsZWQYASABKAgSJwofcHJvdG9idWZfcHl0aG9uaWNfdHlwZXNfZW5hYmxlZBgCIAEoCBIkChx1bnZlcnNpb25lZF9wYWNrYWdlX2Rpc2FibGVkGAMgASgIIkIKDE5vZGVTZXR0aW5ncxIyCgZjb21tb24YASABKAsyIi5nb29nbGUuYXBpLkNvbW1vbkxhbmd1YWdlU2V0dGluZ3MiqgMKDkRvdG5ldFNldHRpbmdzEjIKBmNvbW1vbhgBIAEoCzIiLmdvb2dsZS5hcGkuQ29tbW9uTGFuZ3VhZ2VTZXR0aW5ncxJJChByZW5hbWVkX3NlcnZpY2VzGAIgAygLMi8uZ29vZ2xlLmFwaS5Eb3RuZXRTZXR0aW5ncy5SZW5hbWVkU2VydmljZXNFbnRyeRJLChFyZW5hbWVkX3Jlc291cmNlcxgDIAMoCzIwLmdvb2dsZS5hcGkuRG90bmV0U2V0dGluZ3MuUmVuYW1lZFJlc291cmNlc0VudHJ5EhkKEWlnbm9yZWRfcmVzb3VyY2VzGAQgAygJEiAKGGZvcmNlZF9uYW1lc3BhY2VfYWxpYXNlcxgFIAMoCRIeChZoYW5kd3JpdHRlbl9zaWduYXR1cmVzGAYgAygJGjYKFFJlbmFtZWRTZXJ2aWNlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEaNwoVUmVuYW1lZFJlc291cmNlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiQgoMUnVieVNldHRpbmdzEjIKBmNvbW1vbhgBIAEoCzIiLmdvb2dsZS5hcGkuQ29tbW9uTGFuZ3VhZ2VTZXR0aW5ncyK/AQoKR29TZXR0aW5ncxIyCgZjb21tb24YASABKAsyIi5nb29nbGUuYXBpLkNvbW1vbkxhbmd1YWdlU2V0dGluZ3MSRQoQcmVuYW1lZF9zZXJ2aWNlcxgCIAMoCzIrLmdvb2dsZS5hcGkuR29TZXR0aW5ncy5SZW5hbWVkU2VydmljZXNFbnRyeRo2ChRSZW5hbWVkU2VydmljZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIoIDCg5NZXRob2RTZXR0aW5ncxIQCghzZWxlY3RvchgBIAEoCRI8Cgxsb25nX3J1bm5pbmcYAiABKAsyJi5nb29nbGUuYXBpLk1ldGhvZFNldHRpbmdzLkxvbmdSdW5uaW5nEh0KFWF1dG9fcG9wdWxhdGVkX2ZpZWxkcxgDIAMoCRIxCghiYXRjaGluZxgEIAEoCzIfLmdvb2dsZS5hcGkuQmF0Y2hpbmdDb25maWdQcm90bxrNAQoLTG9uZ1J1bm5pbmcSNQoSaW5pdGlhbF9wb2xsX2RlbGF5GAEgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEh0KFXBvbGxfZGVsYXlfbXVsdGlwbGllchgCIAEoAhIxCg5tYXhfcG9sbF9kZWxheRgDIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhI1ChJ0b3RhbF9wb2xsX3RpbWVvdXQYBCABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24iUQoYU2VsZWN0aXZlR2FwaWNHZW5lcmF0aW9uEg8KB21ldGhvZHMYASADKAkSJAocZ2VuZXJhdGVfb21pdHRlZF9hc19pbnRlcm5hbBgCIAEoCCKLAQoTQmF0Y2hpbmdDb25maWdQcm90bxI1Cgp0aHJlc2hvbGRzGAEgASgLMiEuZ29vZ2xlLmFwaS5CYXRjaGluZ1NldHRpbmdzUHJvdG8SPQoQYmF0Y2hfZGVzY3JpcHRvchgCIAEoCzIjLmdvb2dsZS5hcGkuQmF0Y2hpbmdEZXNjcmlwdG9yUHJvdG8i6wIKFUJhdGNoaW5nU2V0dGluZ3NQcm90bxIfChdlbGVtZW50X2NvdW50X3RocmVzaG9sZBgBIAEoBRIeChZyZXF1ZXN0X2J5dGVfdGhyZXNob2xkGAIgASgDEjIKD2RlbGF5X3RocmVzaG9sZBgDIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIbChNlbGVtZW50X2NvdW50X2xpbWl0GAQgASgFEhoKEnJlcXVlc3RfYnl0ZV9saW1pdBgFIAEoBRIiChpmbG93X2NvbnRyb2xfZWxlbWVudF9saW1pdBgGIAEoBRIfChdmbG93X2NvbnRyb2xfYnl0ZV9saW1pdBgHIAEoBRJfCiRmbG93X2NvbnRyb2xfbGltaXRfZXhjZWVkZWRfYmVoYXZpb3IYCCABKA4yMS5nb29nbGUuYXBpLkZsb3dDb250cm9sTGltaXRFeGNlZWRlZEJlaGF2aW9yUHJvdG8iaQoXQmF0Y2hpbmdEZXNjcmlwdG9yUHJvdG8SFQoNYmF0Y2hlZF9maWVsZBgBIAEoCRIcChRkaXNjcmltaW5hdG9yX2ZpZWxkcxgCIAMoCRIZChFzdWJyZXNwb25zZV9maWVsZBgDIAEoCSqjAQoZQ2xpZW50TGlicmFyeU9yZ2FuaXphdGlvbhIrCidDTElFTlRfTElCUkFSWV9PUkdBTklaQVRJT05fVU5TUEVDSUZJRUQQABIJCgVDTE9VRBABEgcKA0FEUxACEgoKBlBIT1RPUxADEg8KC1NUUkVFVF9WSUVXEAQSDAoIU0hPUFBJTkcQBRIHCgNHRU8QBhIRCg1HRU5FUkFUSVZFX0FJEAcqZwoYQ2xpZW50TGlicmFyeURlc3RpbmF0aW9uEioKJkNMSUVOVF9MSUJSQVJZX0RFU1RJTkFUSU9OX1VOU1BFQ0lGSUVEEAASCgoGR0lUSFVCEAoSEwoPUEFDS0FHRV9NQU5BR0VSEBQqZwolRmxvd0NvbnRyb2xMaW1pdEV4Y2VlZGVkQmVoYXZpb3JQcm90bxISCg5VTlNFVF9CRUhBVklPUhAAEhMKD1RIUk9XX0VYQ0VQVElPThABEgkKBUJMT0NLEAISCgoGSUdOT1JFEAM6SgoQbWV0aG9kX3NpZ25hdHVyZRIeLmdvb2dsZS5wcm90b2J1Zi5NZXRob2RPcHRpb25zGJsIIAMoCVIPbWV0aG9kU2lnbmF0dXJlOkMKDGRlZmF1bHRfaG9zdBIfLmdvb2dsZS5wcm90b2J1Zi5TZXJ2aWNlT3B0aW9ucxiZCCABKAlSC2RlZmF1bHRIb3N0OkMKDG9hdXRoX3Njb3BlcxIfLmdvb2dsZS5wcm90b2J1Zi5TZXJ2aWNlT3B0aW9ucxiaCCABKAlSC29hdXRoU2NvcGVzOkQKC2FwaV92ZXJzaW9uEh8uZ29vZ2xlLnByb3RvYnVmLlNlcnZpY2VPcHRpb25zGMG6q/oBIAEoCVIKYXBpVmVyc2lvbkJpCg5jb20uZ29vZ2xlLmFwaUILQ2xpZW50UHJvdG9QAVpBZ29vZ2xlLmdvbGFuZy5vcmcvZ2VucHJvdG8vZ29vZ2xlYXBpcy9hcGkvYW5ub3RhdGlvbnM7YW5ub3RhdGlvbnOiAgRHQVBJYgZwcm90bzM", [file_google_api_launch_stage, file_google_protobuf_descriptor, file_google_protobuf_duration]);
 
 /**
  * Required information for every language.
@@ -280,9 +280,10 @@ export type JavaSettings = Message<"google.api.JavaSettings"> & {
    *
    * Example of a YAML configuration::
    *
-   *  publishing:
-   *    java_settings:
-   *      library_package: com.google.cloud.pubsub.v1
+   *     publishing:
+   *       library_settings:
+   *         java_settings:
+   *           library_package: com.google.cloud.pubsub.v1
    *
    * @generated from field: string library_package = 1;
    */
@@ -298,11 +299,11 @@ export type JavaSettings = Message<"google.api.JavaSettings"> & {
    *
    * Example of a YAML configuration::
    *
-   *  publishing:
-   *    java_settings:
-   *      service_class_names:
-   *        - google.pubsub.v1.Publisher: TopicAdmin
-   *        - google.pubsub.v1.Subscriber: SubscriptionAdmin
+   *     publishing:
+   *       java_settings:
+   *         service_class_names:
+   *           - google.pubsub.v1.Publisher: TopicAdmin
+   *           - google.pubsub.v1.Subscriber: SubscriptionAdmin
    *
    * @generated from field: map<string, string> service_class_names = 2;
    */
@@ -356,6 +357,24 @@ export type PhpSettings = Message<"google.api.PhpSettings"> & {
    * @generated from field: google.api.CommonLanguageSettings common = 1;
    */
   common?: CommonLanguageSettings;
+
+  /**
+   * The package name to use in Php. Clobbers the php_namespace option
+   * set in the protobuf. This should be used **only** by APIs
+   * who have already set the language_settings.php.package_name" field
+   * in gapic.yaml. API teams should use the protobuf php_namespace option
+   * where possible.
+   *
+   * Example of a YAML configuration::
+   *
+   *     publishing:
+   *       library_settings:
+   *         php_settings:
+   *           library_package: Google\Cloud\PubSub\V1
+   *
+   * @generated from field: string library_package = 2;
+   */
+  libraryPackage: string;
 };
 
 /**
@@ -570,10 +589,12 @@ export type GoSettings = Message<"google.api.GoSettings"> & {
    * service names and values are the name to be used for the service client
    * and call options.
    *
-   * publishing:
-   *   go_settings:
-   *     renamed_services:
-   *       Publisher: TopicAdmin
+   * Example:
+   *
+   *     publishing:
+   *       go_settings:
+   *         renamed_services:
+   *           Publisher: TopicAdmin
    *
    * @generated from field: map<string, string> renamed_services = 2;
    */
@@ -599,10 +620,10 @@ export type MethodSettings = Message<"google.api.MethodSettings"> & {
    *
    * Example:
    *
-   *    publishing:
-   *      method_settings:
-   *      - selector: google.storage.control.v2.StorageControl.CreateFolder
-   *        # method settings for CreateFolder...
+   *     publishing:
+   *       method_settings:
+   *       - selector: google.storage.control.v2.StorageControl.CreateFolder
+   *         # method settings for CreateFolder...
    *
    * @generated from field: string selector = 1;
    */
@@ -615,14 +636,14 @@ export type MethodSettings = Message<"google.api.MethodSettings"> & {
    *
    * Example of a YAML configuration::
    *
-   *    publishing:
-   *      method_settings:
-   *      - selector: google.cloud.speech.v2.Speech.BatchRecognize
-   *        long_running:
-   *          initial_poll_delay: 60s # 1 minute
-   *          poll_delay_multiplier: 1.5
-   *          max_poll_delay: 360s # 6 minutes
-   *          total_poll_timeout: 54000s # 90 minutes
+   *     publishing:
+   *       method_settings:
+   *       - selector: google.cloud.speech.v2.Speech.BatchRecognize
+   *         long_running:
+   *           initial_poll_delay: 60s # 1 minute
+   *           poll_delay_multiplier: 1.5
+   *           max_poll_delay: 360s # 6 minutes
+   *           total_poll_timeout: 54000s # 90 minutes
    *
    * @generated from field: google.api.MethodSettings.LongRunning long_running = 2;
    */
@@ -635,15 +656,32 @@ export type MethodSettings = Message<"google.api.MethodSettings"> & {
    *
    * Example of a YAML configuration:
    *
-   *    publishing:
-   *      method_settings:
-   *      - selector: google.example.v1.ExampleService.CreateExample
-   *        auto_populated_fields:
-   *        - request_id
+   *     publishing:
+   *       method_settings:
+   *       - selector: google.example.v1.ExampleService.CreateExample
+   *         auto_populated_fields:
+   *         - request_id
    *
    * @generated from field: repeated string auto_populated_fields = 3;
    */
   autoPopulatedFields: string[];
+
+  /**
+   * Batching configuration for an API method in client libraries.
+   *
+   * Example of a YAML configuration:
+   *
+   *     publishing:
+   *       method_settings:
+   *       - selector: google.example.v1.ExampleService.BatchCreateExample
+   *         batching:
+   *           element_count_threshold: 1000
+   *           request_byte_threshold: 100000000
+   *           delay_threshold_millis: 10
+   *
+   * @generated from field: google.api.BatchingConfigProto batching = 4;
+   */
+  batching?: BatchingConfigProto;
 };
 
 /**
@@ -738,6 +776,153 @@ export type SelectiveGapicGeneration = Message<"google.api.SelectiveGapicGenerat
  */
 export const SelectiveGapicGenerationSchema: GenMessage<SelectiveGapicGeneration> = /*@__PURE__*/
   messageDesc(file_google_api_client, 12);
+
+/**
+ * `BatchingConfigProto` defines the batching configuration for an API method.
+ *
+ * @generated from message google.api.BatchingConfigProto
+ */
+export type BatchingConfigProto = Message<"google.api.BatchingConfigProto"> & {
+  /**
+   * The thresholds which trigger a batched request to be sent.
+   *
+   * @generated from field: google.api.BatchingSettingsProto thresholds = 1;
+   */
+  thresholds?: BatchingSettingsProto;
+
+  /**
+   * The request and response fields used in batching.
+   *
+   * @generated from field: google.api.BatchingDescriptorProto batch_descriptor = 2;
+   */
+  batchDescriptor?: BatchingDescriptorProto;
+};
+
+/**
+ * Describes the message google.api.BatchingConfigProto.
+ * Use `create(BatchingConfigProtoSchema)` to create a new message.
+ */
+export const BatchingConfigProtoSchema: GenMessage<BatchingConfigProto> = /*@__PURE__*/
+  messageDesc(file_google_api_client, 13);
+
+/**
+ * `BatchingSettingsProto` specifies a set of batching thresholds, each of
+ * which acts as a trigger to send a batch of messages as a request. At least
+ * one threshold must be positive nonzero.
+ *
+ * @generated from message google.api.BatchingSettingsProto
+ */
+export type BatchingSettingsProto = Message<"google.api.BatchingSettingsProto"> & {
+  /**
+   * The number of elements of a field collected into a batch which, if
+   * exceeded, causes the batch to be sent.
+   *
+   * @generated from field: int32 element_count_threshold = 1;
+   */
+  elementCountThreshold: number;
+
+  /**
+   * The aggregated size of the batched field which, if exceeded, causes the
+   * batch to be sent. This size is computed by aggregating the sizes of the
+   * request field to be batched, not of the entire request message.
+   *
+   * @generated from field: int64 request_byte_threshold = 2;
+   */
+  requestByteThreshold: bigint;
+
+  /**
+   * The duration after which a batch should be sent, starting from the addition
+   * of the first message to that batch.
+   *
+   * @generated from field: google.protobuf.Duration delay_threshold = 3;
+   */
+  delayThreshold?: Duration;
+
+  /**
+   * The maximum number of elements collected in a batch that could be accepted
+   * by server.
+   *
+   * @generated from field: int32 element_count_limit = 4;
+   */
+  elementCountLimit: number;
+
+  /**
+   * The maximum size of the request that could be accepted by server.
+   *
+   * @generated from field: int32 request_byte_limit = 5;
+   */
+  requestByteLimit: number;
+
+  /**
+   * The maximum number of elements allowed by flow control.
+   *
+   * @generated from field: int32 flow_control_element_limit = 6;
+   */
+  flowControlElementLimit: number;
+
+  /**
+   * The maximum size of data allowed by flow control.
+   *
+   * @generated from field: int32 flow_control_byte_limit = 7;
+   */
+  flowControlByteLimit: number;
+
+  /**
+   * The behavior to take when the flow control limit is exceeded.
+   *
+   * @generated from field: google.api.FlowControlLimitExceededBehaviorProto flow_control_limit_exceeded_behavior = 8;
+   */
+  flowControlLimitExceededBehavior: FlowControlLimitExceededBehaviorProto;
+};
+
+/**
+ * Describes the message google.api.BatchingSettingsProto.
+ * Use `create(BatchingSettingsProtoSchema)` to create a new message.
+ */
+export const BatchingSettingsProtoSchema: GenMessage<BatchingSettingsProto> = /*@__PURE__*/
+  messageDesc(file_google_api_client, 14);
+
+/**
+ * `BatchingDescriptorProto` specifies the fields of the request message to be
+ * used for batching, and, optionally, the fields of the response message to be
+ * used for demultiplexing.
+ *
+ * @generated from message google.api.BatchingDescriptorProto
+ */
+export type BatchingDescriptorProto = Message<"google.api.BatchingDescriptorProto"> & {
+  /**
+   * The repeated field in the request message to be aggregated by batching.
+   *
+   * @generated from field: string batched_field = 1;
+   */
+  batchedField: string;
+
+  /**
+   * A list of the fields in the request message. Two requests will be batched
+   * together only if the values of every field specified in
+   * `request_discriminator_fields` is equal between the two requests.
+   *
+   * @generated from field: repeated string discriminator_fields = 2;
+   */
+  discriminatorFields: string[];
+
+  /**
+   * Optional. When present, indicates the field in the response message to be
+   * used to demultiplex the response into multiple response messages, in
+   * correspondence with the multiple request messages originally batched
+   * together.
+   *
+   * @generated from field: string subresponse_field = 3;
+   */
+  subresponseField: string;
+};
+
+/**
+ * Describes the message google.api.BatchingDescriptorProto.
+ * Use `create(BatchingDescriptorProtoSchema)` to create a new message.
+ */
+export const BatchingDescriptorProtoSchema: GenMessage<BatchingDescriptorProto> = /*@__PURE__*/
+  messageDesc(file_google_api_client, 15);
 
 /**
  * The organization for which the client libraries are being published.
@@ -846,6 +1031,47 @@ export const ClientLibraryDestinationSchema: GenEnum<ClientLibraryDestination> =
   enumDesc(file_google_api_client, 1);
 
 /**
+ * The behavior to take when the flow control limit is exceeded.
+ *
+ * @generated from enum google.api.FlowControlLimitExceededBehaviorProto
+ */
+export enum FlowControlLimitExceededBehaviorProto {
+  /**
+   * Default behavior, system-defined.
+   *
+   * @generated from enum value: UNSET_BEHAVIOR = 0;
+   */
+  UNSET_BEHAVIOR = 0,
+
+  /**
+   * Stop operation, raise error.
+   *
+   * @generated from enum value: THROW_EXCEPTION = 1;
+   */
+  THROW_EXCEPTION = 1,
+
+  /**
+   * Pause operation until limit clears.
+   *
+   * @generated from enum value: BLOCK = 2;
+   */
+  BLOCK = 2,
+
+  /**
+   * Continue operation, disregard limit.
+   *
+   * @generated from enum value: IGNORE = 3;
+   */
+  IGNORE = 3,
+}
+
+/**
+ * Describes the enum google.api.FlowControlLimitExceededBehaviorProto.
+ */
+export const FlowControlLimitExceededBehaviorProtoSchema: GenEnum<FlowControlLimitExceededBehaviorProto> = /*@__PURE__*/
+  enumDesc(file_google_api_client, 2);
+
+/**
  * A definition of a client library method signature.
  *
  * In client libraries, each proto RPC corresponds to one or more methods
@@ -860,15 +1086,15 @@ export const ClientLibraryDestinationSchema: GenEnum<ClientLibraryDestination> =
  *
  * For example, the proto RPC and annotation:
  *
- *   rpc CreateSubscription(CreateSubscriptionRequest)
- *       returns (Subscription) {
- *     option (google.api.method_signature) = "name,topic";
- *   }
+ *     rpc CreateSubscription(CreateSubscriptionRequest)
+ *         returns (Subscription) {
+ *       option (google.api.method_signature) = "name,topic";
+ *     }
  *
  * Would add the following Java overload (in addition to the method accepting
  * the request object):
  *
- *   public final Subscription createSubscription(String name, String topic)
+ *     public final Subscription createSubscription(String name, String topic)
  *
  * The following backwards-compatibility guidelines apply:
  *
@@ -893,10 +1119,10 @@ export const method_signature: GenExtension<MethodOptions, string[]> = /*@__PURE
  *
  * Example:
  *
- *   service Foo {
- *     option (google.api.default_host) = "foo.googleapi.com";
- *     ...
- *   }
+ *     service Foo {
+ *       option (google.api.default_host) = "foo.googleapi.com";
+ *       ...
+ *     }
  *
  * @generated from extension: string default_host = 1049;
  */
@@ -908,22 +1134,22 @@ export const default_host: GenExtension<ServiceOptions, string> = /*@__PURE__*/
  *
  * Example:
  *
- *   service Foo {
- *     option (google.api.oauth_scopes) = \
- *       "https://www.googleapis.com/auth/cloud-platform";
- *     ...
- *   }
+ *     service Foo {
+ *       option (google.api.oauth_scopes) = \
+ *         "https://www.googleapis.com/auth/cloud-platform";
+ *       ...
+ *     }
  *
  * If there is more than one scope, use a comma-separated string:
  *
  * Example:
  *
- *   service Foo {
- *     option (google.api.oauth_scopes) = \
- *       "https://www.googleapis.com/auth/cloud-platform,"
- *       "https://www.googleapis.com/auth/monitoring";
- *     ...
- *   }
+ *     service Foo {
+ *       option (google.api.oauth_scopes) = \
+ *         "https://www.googleapis.com/auth/cloud-platform,"
+ *         "https://www.googleapis.com/auth/monitoring";
+ *       ...
+ *     }
  *
  * @generated from extension: string oauth_scopes = 1050;
  */
@@ -942,9 +1168,9 @@ export const oauth_scopes: GenExtension<ServiceOptions, string> = /*@__PURE__*/
  *
  * Example:
  *
- *   service Foo {
- *     option (google.api.api_version) = "v1_20230821_preview";
- *   }
+ *     service Foo {
+ *       option (google.api.api_version) = "v1_20230821_preview";
+ *     }
  *
  * @generated from extension: string api_version = 525000001;
  */

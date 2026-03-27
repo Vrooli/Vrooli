@@ -38,6 +38,12 @@ message ExecutionRecord {
 
   // Job ID for the in-progress review.
   optional string review_job_id = 20;
+
+  // Reason review was skipped (GCT unavailable, not configured, etc.).
+  optional string review_skip_reason = 21;
+
+  // Timestamp when review job was submitted (for timeout calculation).
+  optional string review_started_at = 22;
 }
 
 // ArchiveContext captures archive parameters for spec-sync-archive executions.

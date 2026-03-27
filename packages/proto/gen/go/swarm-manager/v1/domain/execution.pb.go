@@ -49,9 +49,13 @@ type ExecutionRecord struct {
 	// Post-execution review result from git-control-tower.
 	ReviewResult *ReviewResult `protobuf:"bytes,19,opt,name=review_result,json=reviewResult,proto3,oneof" json:"review_result,omitempty"`
 	// Job ID for the in-progress review.
-	ReviewJobId   *string `protobuf:"bytes,20,opt,name=review_job_id,json=reviewJobId,proto3,oneof" json:"review_job_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ReviewJobId *string `protobuf:"bytes,20,opt,name=review_job_id,json=reviewJobId,proto3,oneof" json:"review_job_id,omitempty"`
+	// Reason review was skipped (GCT unavailable, not configured, etc.).
+	ReviewSkipReason *string `protobuf:"bytes,21,opt,name=review_skip_reason,json=reviewSkipReason,proto3,oneof" json:"review_skip_reason,omitempty"`
+	// Timestamp when review job was submitted (for timeout calculation).
+	ReviewStartedAt *string `protobuf:"bytes,22,opt,name=review_started_at,json=reviewStartedAt,proto3,oneof" json:"review_started_at,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ExecutionRecord) Reset() {
@@ -220,6 +224,20 @@ func (x *ExecutionRecord) GetReviewResult() *ReviewResult {
 func (x *ExecutionRecord) GetReviewJobId() string {
 	if x != nil && x.ReviewJobId != nil {
 		return *x.ReviewJobId
+	}
+	return ""
+}
+
+func (x *ExecutionRecord) GetReviewSkipReason() string {
+	if x != nil && x.ReviewSkipReason != nil {
+		return *x.ReviewSkipReason
+	}
+	return ""
+}
+
+func (x *ExecutionRecord) GetReviewStartedAt() string {
+	if x != nil && x.ReviewStartedAt != nil {
+		return *x.ReviewStartedAt
 	}
 	return ""
 }
@@ -516,7 +534,8 @@ var File_swarm_manager_v1_domain_execution_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\n" +
-	"'swarm-manager/v1/domain/execution.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xca\t\n" +
+	"'swarm-manager/v1/domain/execution.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xdb\n" +
+	"\n" +
 	"\x0fExecutionRecord\x12*\n" +
 	"\fexecution_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vexecutionId\x12M\n" +
 	"\fbacklog_kind\x18\x02 \x01(\tB*\xbaH'r%R\x04ideaR\x03fixR\aexecuteR\bresearchR\x05choreR\vbacklogKind\x12*\n" +
@@ -545,7 +564,9 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\rfixup_attempt\x18\x12 \x01(\x05R\ffixupAttempt\x12H\n" +
 	"\rreview_result\x18\x13 \x01(\v2\x1e.swarm_manager.v1.ReviewResultH\n" +
 	"R\freviewResult\x88\x01\x01\x12'\n" +
-	"\rreview_job_id\x18\x14 \x01(\tH\vR\vreviewJobId\x88\x01\x01B\n" +
+	"\rreview_job_id\x18\x14 \x01(\tH\vR\vreviewJobId\x88\x01\x01\x121\n" +
+	"\x12review_skip_reason\x18\x15 \x01(\tH\fR\x10reviewSkipReason\x88\x01\x01\x12/\n" +
+	"\x11review_started_at\x18\x16 \x01(\tH\rR\x0freviewStartedAt\x88\x01\x01B\n" +
 	"\n" +
 	"\b_task_idB\t\n" +
 	"\a_run_idB\x0f\n" +
@@ -559,7 +580,9 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\x10_archive_contextB\x16\n" +
 	"\x14_parent_execution_idB\x10\n" +
 	"\x0e_review_resultB\x10\n" +
-	"\x0e_review_job_id\"\x99\x02\n" +
+	"\x0e_review_job_idB\x15\n" +
+	"\x13_review_skip_reasonB\x14\n" +
+	"\x12_review_started_at\"\x99\x02\n" +
 	"\x0eArchiveContext\x12,\n" +
 	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x12,\n" +
 	"\rscenario_path\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioPath\x12-\n" +

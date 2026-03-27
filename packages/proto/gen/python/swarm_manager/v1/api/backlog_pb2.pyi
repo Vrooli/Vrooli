@@ -9,14 +9,13 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class CreateBacklogItemRequest(_message.Message):
-    __slots__ = ("name", "title", "description", "priority", "tags", "kind", "research_target", "depends_on", "initiative", "effort", "acceptance_allow", "acceptance_deny")
+    __slots__ = ("name", "title", "description", "priority", "tags", "kind", "depends_on", "initiative", "effort", "acceptance_allow", "acceptance_deny")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     PRIORITY_FIELD_NUMBER: _ClassVar[int]
     TAGS_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
-    RESEARCH_TARGET_FIELD_NUMBER: _ClassVar[int]
     DEPENDS_ON_FIELD_NUMBER: _ClassVar[int]
     INITIATIVE_FIELD_NUMBER: _ClassVar[int]
     EFFORT_FIELD_NUMBER: _ClassVar[int]
@@ -28,22 +27,20 @@ class CreateBacklogItemRequest(_message.Message):
     priority: int
     tags: _containers.RepeatedScalarFieldContainer[str]
     kind: str
-    research_target: str
     depends_on: _containers.RepeatedScalarFieldContainer[str]
     initiative: str
     effort: str
     acceptance_allow: _containers.RepeatedScalarFieldContainer[str]
     acceptance_deny: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., kind: _Optional[str] = ..., research_target: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., kind: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class UpdateBacklogItemRequest(_message.Message):
-    __slots__ = ("title", "description", "status", "priority", "tags", "research_target", "depends_on", "initiative", "effort", "acceptance_allow", "acceptance_deny")
+    __slots__ = ("title", "description", "status", "priority", "tags", "depends_on", "initiative", "effort", "acceptance_allow", "acceptance_deny")
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     PRIORITY_FIELD_NUMBER: _ClassVar[int]
     TAGS_FIELD_NUMBER: _ClassVar[int]
-    RESEARCH_TARGET_FIELD_NUMBER: _ClassVar[int]
     DEPENDS_ON_FIELD_NUMBER: _ClassVar[int]
     INITIATIVE_FIELD_NUMBER: _ClassVar[int]
     EFFORT_FIELD_NUMBER: _ClassVar[int]
@@ -54,13 +51,12 @@ class UpdateBacklogItemRequest(_message.Message):
     status: str
     priority: int
     tags: _containers.RepeatedScalarFieldContainer[str]
-    research_target: str
     depends_on: _containers.RepeatedScalarFieldContainer[str]
     initiative: str
     effort: str
     acceptance_allow: _containers.RepeatedScalarFieldContainer[str]
     acceptance_deny: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., research_target: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ListBacklogItemsResponse(_message.Message):
     __slots__ = ("items",)
@@ -147,22 +143,20 @@ class QueueBacklogItemResponse(_message.Message):
     def __init__(self, item: _Optional[_Union[_backlog_pb2.BacklogItem, _Mapping]] = ..., task_id: _Optional[str] = ..., run_id: _Optional[str] = ..., base_url: _Optional[str] = ..., created: _Optional[str] = ..., dry_run: _Optional[bool] = ..., queued: _Optional[bool] = ..., message: _Optional[str] = ..., blocking_reasons: _Optional[_Iterable[str]] = ..., unanswered_questions: _Optional[int] = ..., pending_suggestions: _Optional[int] = ...) -> None: ...
 
 class BacklogResearchRequest(_message.Message):
-    __slots__ = ("prompt", "project_root", "mode", "target_kind", "context_paths", "context_target_ids", "context_requirement_ids")
+    __slots__ = ("prompt", "project_root", "mode", "context_paths", "context_target_ids", "context_requirement_ids")
     PROMPT_FIELD_NUMBER: _ClassVar[int]
     PROJECT_ROOT_FIELD_NUMBER: _ClassVar[int]
     MODE_FIELD_NUMBER: _ClassVar[int]
-    TARGET_KIND_FIELD_NUMBER: _ClassVar[int]
     CONTEXT_PATHS_FIELD_NUMBER: _ClassVar[int]
     CONTEXT_TARGET_IDS_FIELD_NUMBER: _ClassVar[int]
     CONTEXT_REQUIREMENT_IDS_FIELD_NUMBER: _ClassVar[int]
     prompt: str
     project_root: str
     mode: str
-    target_kind: str
     context_paths: _containers.RepeatedScalarFieldContainer[str]
     context_target_ids: _containers.RepeatedScalarFieldContainer[str]
     context_requirement_ids: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, prompt: _Optional[str] = ..., project_root: _Optional[str] = ..., mode: _Optional[str] = ..., target_kind: _Optional[str] = ..., context_paths: _Optional[_Iterable[str]] = ..., context_target_ids: _Optional[_Iterable[str]] = ..., context_requirement_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, prompt: _Optional[str] = ..., project_root: _Optional[str] = ..., mode: _Optional[str] = ..., context_paths: _Optional[_Iterable[str]] = ..., context_target_ids: _Optional[_Iterable[str]] = ..., context_requirement_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class BacklogResearchResponse(_message.Message):
     __slots__ = ("task_id", "run_id", "base_url", "created")
@@ -175,14 +169,6 @@ class BacklogResearchResponse(_message.Message):
     base_url: str
     created: str
     def __init__(self, task_id: _Optional[str] = ..., run_id: _Optional[str] = ..., base_url: _Optional[str] = ..., created: _Optional[str] = ...) -> None: ...
-
-class ConvertBacklogItemRequest(_message.Message):
-    __slots__ = ("target_kind", "target_name")
-    TARGET_KIND_FIELD_NUMBER: _ClassVar[int]
-    TARGET_NAME_FIELD_NUMBER: _ClassVar[int]
-    target_kind: str
-    target_name: str
-    def __init__(self, target_kind: _Optional[str] = ..., target_name: _Optional[str] = ...) -> None: ...
 
 class ExportBacklogRequest(_message.Message):
     __slots__ = ("kinds", "statuses", "names", "priority_max", "tags", "include_prd", "include_requirements", "include_clarify_questions", "include_suggestions", "include_notes", "include_template")

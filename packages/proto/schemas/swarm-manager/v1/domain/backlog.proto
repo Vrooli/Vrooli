@@ -67,8 +67,7 @@ message BacklogItem {
   // Backlog kind: idea, research, fix, execute.
   string kind = 9 [(buf.validate.field).string = { in: ["idea", "research", "fix", "execute", "chore"] }];
 
-  // Optional target kind for research items (idea, fix, execute, chore, unspecified).
-  optional string research_target = 10 [(buf.validate.field).string = { in: ["idea", "fix", "execute", "chore", "unspecified"] }];
+  reserved 10; // research_target — removed; research items execute directly.
 
   // Dependencies as "kind/name" references. Item won't process until all deps complete.
   repeated string depends_on = 11;
