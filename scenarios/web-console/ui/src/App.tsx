@@ -1,10 +1,11 @@
 // DOC: docs/concepts/ARCHITECTURE.md#system-layers
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchHealth } from "./lib/api";
 import { HEALTH_RETRY_COUNT, HEALTH_RETRY_DELAY_MS } from "./consts/config";
 import { Button } from "./components/ui/button";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { AlertTriangle, X } from "lucide-react";
 
 const Workspace = lazy(() => import("./components/Workspace"));
 
@@ -16,49 +17,64 @@ const PageFallback = () => (
 
 export default function App() {
   const queryClient = useQueryClient();
-  const { isLoading, error, isFetching } = useQuery({
+  const [dismissed, setDismissed] = useState(false);
+  const healthQuery = useQuery({
     queryKey: ["health"],
     queryFn: fetchHealth,
     retry: HEALTH_RETRY_COUNT,
     retryDelay: HEALTH_RETRY_DELAY_MS,
+    // Keep polling so banner auto-clears when connection recovers
+    refetchInterval: (query) => query.state.status === "error" ? 10_000 : false,
   });
+  const { isLoading, error, isFetching } = healthQuery;
 
-  if (isLoading) {
-    return (
-      <div className="flex h-wc-app items-center justify-center bg-wc-surface-base text-wc-text-muted">
-        Connecting to API...
-      </div>
-    );
-  }
+  // Reset dismissed state when connection recovers or drops again
+  const showBanner = !!error && !dismissed;
 
-  if (error) {
-    return (
-      <div className="flex h-wc-app items-center justify-center bg-wc-surface-base text-wc-error-detail">
-        <div className="text-center">
-          <p className="text-lg font-medium">Unable to reach the API</p>
-          <p className="mt-2 text-sm text-wc-text-faint">
-            Make sure the scenario is running via{" "}
-            <code className="rounded bg-white/10 px-1">vrooli scenario start web-console</code>
-          </p>
+  return (
+    <ErrorBoundary region="app">
+      {/* Connection banner — shown above workspace when API is unreachable */}
+      {showBanner && (
+        <div
+          data-testid="connection-banner"
+          className="flex items-center gap-2 bg-wc-error-surface border-b border-wc-error px-4 py-2 text-sm text-wc-error-text"
+        >
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span className="flex-1">
+            Unable to reach the API — showing cached data
+          </span>
           <Button
             data-testid="health-retry-button"
             variant="outline"
             size="sm"
-            className="mt-4"
-            onClick={() => queryClient.invalidateQueries({ queryKey: ["health"] })}
+            className="shrink-0 text-xs h-7"
+            onClick={() => {
+              setDismissed(false);
+              queryClient.invalidateQueries({ queryKey: ["health"] });
+            }}
             disabled={isFetching}
           >
-            {isFetching ? "Retrying..." : "Retry Connection"}
+            {isFetching ? "Retrying..." : "Retry"}
           </Button>
+          <button
+            data-testid="connection-banner-dismiss"
+            onClick={() => setDismissed(true)}
+            className="shrink-0 p-0.5 hover:text-red-100"
+            aria-label="Dismiss"
+            type="button"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
-      </div>
-    );
-  }
+      )}
 
-  return (
-    <ErrorBoundary region="app">
+      {/* Always render workspace — even during initial load or error */}
       <Suspense fallback={<PageFallback />}>
-        <Workspace />
+        {isLoading && !error ? (
+          <PageFallback />
+        ) : (
+          <Workspace />
+        )}
       </Suspense>
     </ErrorBoundary>
   );

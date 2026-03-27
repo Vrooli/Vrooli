@@ -416,7 +416,7 @@ export default function MessagesPane({
         {/* Control strip */}
         <div
           data-testid="messages-control-strip"
-          className="sticky top-0 z-10 flex items-center justify-end gap-1.5 bg-wc-surface-base/80 py-1.5 backdrop-blur-sm"
+          className="sticky top-0 z-10 flex items-center justify-start gap-1.5 bg-wc-surface-base/80 py-1.5 backdrop-blur-sm"
         >
           <button
             data-testid="messages-search-btn"

@@ -133,14 +133,14 @@ export default function TerminalHeader({
         <button
           data-testid={`terminal-header-toggle-view-${sessionId}`}
           type="button"
-          className="flex h-5 w-5 items-center justify-center rounded shrink-0 text-wc-text-faint hover:text-wc-text-secondary"
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 shrink-0 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm"
           onClick={(e) => {
             e.stopPropagation();
             onToggleView();
           }}
           title={viewMode === "terminal" ? "Show messages" : "Show terminal"}
         >
-          {viewMode === "terminal" ? <MessageSquareText className="h-3 w-3" /> : <TerminalSquare className="h-3 w-3" />}
+          {viewMode === "terminal" ? <MessageSquareText className="h-3.5 w-3.5" /> : <TerminalSquare className="h-3.5 w-3.5" />}
         </button>
       )}
 

@@ -967,7 +967,7 @@ export default function Workspace() {
           {store.activePane && store.panes.find((pane) => pane.sessionId === store.activePane)?.supportsMessagesView && (
             <div className="absolute right-3 top-3 z-20">
               <button
-                className="flex items-center justify-center h-9 w-9 rounded-full bg-wc-surface-raised/80 border border-wc-default text-wc-text-secondary hover:text-wc-text-primary hover:bg-wc-surface-input transition-colors backdrop-blur-sm"
+                className="flex items-center justify-center h-8 w-8 rounded-full bg-wc-surface-raised/80 border border-wc-default text-wc-text-secondary hover:text-wc-text-primary hover:bg-wc-surface-input transition-colors backdrop-blur-sm"
                 onClick={() => {
                   const current = conversationViewModes[store.activePane ?? ""] ?? "terminal";
                   setConversationViewMode(store.activePane ?? "", current === "terminal" ? "messages" : "terminal");
@@ -975,8 +975,8 @@ export default function Workspace() {
                 title={(conversationViewModes[store.activePane] ?? "terminal") === "terminal" ? "Switch to messages view" : "Switch to terminal view"}
               >
                 {(conversationViewModes[store.activePane] ?? "terminal") === "terminal"
-                  ? <MessageSquareText className="h-4 w-4" />
-                  : <TerminalSquare className="h-4 w-4" />}
+                  ? <MessageSquareText className="h-3.5 w-3.5" />
+                  : <TerminalSquare className="h-3.5 w-3.5" />}
               </button>
             </div>
           )}
