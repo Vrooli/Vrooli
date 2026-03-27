@@ -11,17 +11,10 @@ func TestResolve(t *testing.T) {
 	}{
 		// Workshop mode
 		{"workshop/idea", "workshop", "idea", "swarm-manager-workshop"},
-		{"workshop/research", "workshop", "research", "swarm-manager-workshop"},
+		{"workshop/research", "workshop", "research", "swarm-manager-workshop-research"},
 		{"workshop/fix", "workshop", "fix", "swarm-manager-workshop"},
 		{"workshop/execute", "workshop", "execute", "swarm-manager-workshop"},
 		{"workshop/chore", "workshop", "chore", "swarm-manager-workshop"},
-
-		// Research mode
-		{"research/idea", "research", "idea", "swarm-manager-research-idea"},
-		{"research/fix", "research", "fix", "swarm-manager-research-fix"},
-		{"research/execute", "research", "execute", "swarm-manager-research-general"},
-		{"research/research", "research", "research", "swarm-manager-research-general"},
-		{"research/chore", "research", "chore", "swarm-manager-research-general"},
 
 		// Initialize mode
 		{"initialize/idea", "initialize", "idea", "swarm-manager-initialize-backlog"},
@@ -31,10 +24,10 @@ func TestResolve(t *testing.T) {
 		{"initialize/chore", "initialize", "chore", "swarm-manager-initialize-backlog"},
 
 		// Fallbacks
-		{"unknown mode", "unknown", "idea", "swarm-manager-research-general"},
-		{"unknown kind", "workshop", "unknown", "swarm-manager-research-general"},
-		{"both unknown", "foo", "bar", "swarm-manager-research-general"},
-		{"empty strings", "", "", "swarm-manager-research-general"},
+		{"unknown mode", "unknown", "idea", "swarm-manager-workshop"},
+		{"unknown kind", "workshop", "unknown", "swarm-manager-workshop"},
+		{"both unknown", "foo", "bar", "swarm-manager-workshop"},
+		{"empty strings", "", "", "swarm-manager-workshop"},
 	}
 
 	for _, tt := range tests {

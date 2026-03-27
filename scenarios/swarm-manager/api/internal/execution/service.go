@@ -1188,7 +1188,6 @@ type backlogItem struct {
 	Created            string   `json:"created"`
 	Updated            string   `json:"updated"`
 	Kind               string   `json:"kind"`
-	ResearchTarget     string   `json:"research_target,omitempty"`
 	SourceScenarioName string   `json:"sourceScenarioName,omitempty"`
 	AcceptanceAllow    []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny     []string `json:"acceptance_deny,omitempty"`
@@ -1232,11 +1231,7 @@ func (s *Service) updateBacklogStatus(item backlogItem, status string) error {
 	merged["created"] = item.Created
 	merged["updated"] = item.Updated
 	merged["kind"] = item.Kind
-	if strings.TrimSpace(item.ResearchTarget) != "" && item.Kind == "research" {
-		merged["research_target"] = item.ResearchTarget
-	} else {
-		delete(merged, "research_target")
-	}
+	delete(merged, "research_target")
 	return storage.WriteJSONAtomic(specPath, merged)
 }
 
@@ -1396,10 +1391,6 @@ func (s *Service) processPreflightForItem(item backlogItem, checkQueueable bool)
 
 	if checkQueueable && !isQueueableStatus(item.Kind, item.Status) {
 		preflight.BlockingReasons = append(preflight.BlockingReasons, fmt.Sprintf("backlog item cannot be queued from current status: %s", item.Status))
-	}
-
-	if strings.EqualFold(strings.TrimSpace(item.Kind), "research") {
-		preflight.BlockingReasons = append(preflight.BlockingReasons, "research items must be converted before processing")
 	}
 
 	// Check workshop readiness instead of clarify questions.

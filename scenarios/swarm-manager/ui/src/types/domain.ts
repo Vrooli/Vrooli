@@ -58,20 +58,13 @@ export type BacklogStatus =
 export type BacklogKind = "idea" | "research" | "fix" | "execute" | "chore";
 
 /**
- * Optional target kind for research items.
- */
-export type BacklogResearchTarget = "idea" | "fix" | "execute" | "chore" | "unspecified";
-
-/**
  * A backlog item represents a unit of work for the swarm.
  */
-export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind" | "researchTarget" | "dependsOn" | "initiative" | "acceptanceAllow" | "acceptanceDeny"> & {
+export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind" | "dependsOn" | "initiative" | "acceptanceAllow" | "acceptanceDeny"> & {
   /** Current lifecycle state */
   status: BacklogStatus;
   /** Backlog category */
   kind: BacklogKind;
-  /** Research target (research items only) */
-  researchTarget?: BacklogResearchTarget;
   /** Items this depends on, as "kind/name" refs. Empty array from API, optional in client code. */
   dependsOn?: string[];
   /** Initiative this item belongs to. */
@@ -93,7 +86,6 @@ export interface BacklogFormValues {
   priority: number;
   tags: string[];
   kind: BacklogKind;
-  researchTarget?: BacklogResearchTarget;
   dependsOn?: string[];
   initiative?: string;
   effort?: string;

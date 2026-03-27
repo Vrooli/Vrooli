@@ -470,7 +470,6 @@ func TestUpdate_ClearsFields(t *testing.T) {
 		Tags:            []string{"stale"},
 		Created:         "2026-01-28T00:00:00Z",
 		Updated:         "2026-01-28T00:00:00Z",
-		ResearchTarget:  "execute",
 		DependsOn:       []string{"idea/alpha"},
 		Initiative:      "release-hardening",
 		Effort:          "L",
@@ -484,7 +483,6 @@ func TestUpdate_ClearsFields(t *testing.T) {
 		"depends_on":[],
 		"initiative":"",
 		"effort":"",
-		"research_target":"",
 		"acceptance_allow":[],
 		"acceptance_deny":[]
 	}`))
@@ -510,9 +508,6 @@ func TestUpdate_ClearsFields(t *testing.T) {
 	}
 	if saved.Effort != "" {
 		t.Fatalf("expected effort to be cleared, got %q", saved.Effort)
-	}
-	if saved.ResearchTarget != "" {
-		t.Fatalf("expected research_target to be cleared, got %q", saved.ResearchTarget)
 	}
 	if len(saved.AcceptanceAllow) != 0 {
 		t.Fatalf("expected acceptance_allow to be cleared, got %v", saved.AcceptanceAllow)
@@ -1212,36 +1207,6 @@ func TestSaveItem_PreservesUnknownSpecFields(t *testing.T) {
 	if persisted["sourceScenario"] != "web-console" {
 		t.Fatalf("expected sourceScenario preserved, got %#v", persisted["sourceScenario"])
 	}
-}
-
-func TestConvert_MovesFolder(t *testing.T) {
-	h, rootDir := setupTestHandler(t)
-
-	item := BacklogItem{
-		Name:           "convert-test",
-		Title:          "Convert Test",
-		Description:    "",
-		Status:         StatusBacklog,
-		Priority:       3,
-		Tags:           []string{},
-		Created:        "2026-01-28T00:00:00Z",
-		Updated:        "2026-01-28T00:00:00Z",
-		ResearchTarget: "idea",
-	}
-	createTestItem(t, rootDir, KindResearch, item)
-
-	payload := map[string]any{"target_kind": "fix"}
-	body, _ := json.Marshal(payload)
-	req := httptest.NewRequest("POST", "/api/v1/backlog/research/convert-test/convert", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = mux.SetURLVars(req, map[string]string{"kind": "research", "name": "convert-test"})
-	w := httptest.NewRecorder()
-
-	h.Convert(w, req)
-	testutil.AssertStatusOK(t, w)
-
-	movedPath := filepath.Join(rootDir, "fix", "convert-test", "spec.json")
-	testutil.AssertFileExists(t, movedPath)
 }
 
 type mockAgentService struct {

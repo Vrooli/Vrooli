@@ -37,7 +37,6 @@
 //	DELETE /api/v1/backlog/{kind}/{name}     - Delete backlog item
 //	POST   /api/v1/backlog/{kind}/{name}/queue    - Queue backlog item for processing
 //	POST   /api/v1/backlog/{kind}/{name}/research - Spawn research agent
-//	POST   /api/v1/backlog/{kind}/{name}/convert  - Convert backlog item to another kind
 //
 // # Scenario Endpoints (P0)
 //

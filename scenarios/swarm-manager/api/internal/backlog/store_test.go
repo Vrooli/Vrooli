@@ -287,44 +287,6 @@ func TestStore_LoadItemFromPath(t *testing.T) {
 		}
 	})
 
-	t.Run("research_target cleared for non-research kinds", func(t *testing.T) {
-		store, rootDir := setupTestStore(t)
-		writeSpecJSON(t, rootDir, KindIdea, "idea-with-target", map[string]any{
-			"title":           "Idea With Target",
-			"status":          "backlog",
-			"priority":        5,
-			"created":         "2025-01-01T00:00:00Z",
-			"research_target": "fix",
-		})
-		specPath := filepath.Join(rootDir, "ideas", "idea-with-target", "spec.json")
-		item, err := store.LoadItemFromPath(KindIdea, specPath)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if item.ResearchTarget != "" {
-			t.Errorf("ResearchTarget should be cleared for non-research kind, got %s", item.ResearchTarget)
-		}
-	})
-
-	t.Run("research_target preserved for research kind", func(t *testing.T) {
-		store, rootDir := setupTestStore(t)
-		writeSpecJSON(t, rootDir, KindResearch, "research-with-target", map[string]any{
-			"title":           "Research With Target",
-			"status":          "backlog",
-			"priority":        5,
-			"created":         "2025-01-01T00:00:00Z",
-			"research_target": "execute",
-		})
-		specPath := filepath.Join(rootDir, "research", "research-with-target", "spec.json")
-		item, err := store.LoadItemFromPath(KindResearch, specPath)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if item.ResearchTarget != "execute" {
-			t.Errorf("ResearchTarget = %s, want execute", item.ResearchTarget)
-		}
-	})
-
 	t.Run("name derived from parent directory", func(t *testing.T) {
 		store, rootDir := setupTestStore(t)
 		writeSpecJSON(t, rootDir, KindChore, "my-chore-item", map[string]any{
@@ -651,53 +613,30 @@ func TestStore_SaveItem(t *testing.T) {
 		}
 	})
 
-	t.Run("research_target saved for research kind", func(t *testing.T) {
+	t.Run("research_target always cleaned from saved JSON", func(t *testing.T) {
 		store, rootDir := setupTestStore(t)
 		testutil.MakeDir(t, filepath.Join(rootDir, "research", "with-target"))
 
+		// Pre-seed a spec.json with a legacy research_target field.
+		specPath := filepath.Join(rootDir, "research", "with-target", "spec.json")
+		if err := os.WriteFile(specPath, []byte(`{"title":"Research Item","status":"backlog","priority":5,"created":"2025-01-01T00:00:00Z","research_target":"idea"}`), 0o644); err != nil {
+			t.Fatalf("WriteFile error: %v", err)
+		}
+
 		item := BacklogItem{
-			Name:           "with-target",
-			Title:          "Research Item",
-			Status:         StatusBacklog,
-			Priority:       5,
-			Tags:           []string{},
-			Created:        "2025-01-01T00:00:00Z",
-			Kind:           KindResearch,
-			ResearchTarget: "idea",
+			Name:     "with-target",
+			Title:    "Research Item",
+			Status:   StatusBacklog,
+			Priority: 5,
+			Tags:     []string{},
+			Created:  "2025-01-01T00:00:00Z",
+			Kind:     KindResearch,
 		}
 		if err := store.SaveItem(item); err != nil {
 			t.Fatalf("SaveItem error: %v", err)
 		}
 
-		loaded, err := store.LoadItem(KindResearch, "with-target")
-		if err != nil {
-			t.Fatalf("LoadItem error: %v", err)
-		}
-		if loaded.ResearchTarget != "idea" {
-			t.Errorf("ResearchTarget = %s, want idea", loaded.ResearchTarget)
-		}
-	})
-
-	t.Run("research_target omitted for non-research kind", func(t *testing.T) {
-		store, rootDir := setupTestStore(t)
-		testutil.MakeDir(t, filepath.Join(rootDir, "ideas", "no-target"))
-
-		item := BacklogItem{
-			Name:           "no-target",
-			Title:          "Idea Item",
-			Status:         StatusBacklog,
-			Priority:       5,
-			Tags:           []string{},
-			Created:        "2025-01-01T00:00:00Z",
-			Kind:           KindIdea,
-			ResearchTarget: "fix",
-		}
-		if err := store.SaveItem(item); err != nil {
-			t.Fatalf("SaveItem error: %v", err)
-		}
-
-		// Read raw JSON to verify research_target is not present
-		specPath := filepath.Join(rootDir, "ideas", "no-target", "spec.json")
+		// Read raw JSON to verify research_target is removed.
 		data, err := os.ReadFile(specPath)
 		if err != nil {
 			t.Fatalf("ReadFile error: %v", err)
@@ -707,7 +646,7 @@ func TestStore_SaveItem(t *testing.T) {
 			t.Fatalf("Unmarshal error: %v", err)
 		}
 		if _, exists := raw["research_target"]; exists {
-			t.Error("research_target should not be present for non-research kind")
+			t.Error("research_target should be removed during save")
 		}
 	})
 

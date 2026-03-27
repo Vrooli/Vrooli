@@ -27,7 +27,6 @@ export interface PromptSimulateRequest {
   item_priority?: string;
   item_tags?: string;
   item_folder?: string;
-  research_target?: string;
   variables?: Record<string, string>;
 }
 

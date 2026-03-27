@@ -59,13 +59,6 @@ func TestValidateUpdateBacklogItemRequest(t *testing.T) {
 			wantErr: "priority must be between 1 and 10",
 		},
 		{
-			name:    "research target rejected on non research items",
-			kind:    KindIdea,
-			req:     &apipb.UpdateBacklogItemRequest{ResearchTarget: stringPtr("execute")},
-			fields:  backlogUpdateFieldSet{updateFieldResearchTarget: {}},
-			wantErr: "research_target can only be set on research backlog items",
-		},
-		{
 			name:    "duplicate tags rejected",
 			kind:    KindIdea,
 			req:     &apipb.UpdateBacklogItemRequest{Tags: []string{"dup", "dup"}},
@@ -75,8 +68,8 @@ func TestValidateUpdateBacklogItemRequest(t *testing.T) {
 		{
 			name:    "valid partial update",
 			kind:    KindResearch,
-			req:     &apipb.UpdateBacklogItemRequest{Status: stringPtr("ready"), ResearchTarget: stringPtr("chore")},
-			fields:  backlogUpdateFieldSet{updateFieldStatus: {}, updateFieldResearchTarget: {}},
+			req:     &apipb.UpdateBacklogItemRequest{Status: stringPtr("ready")},
+			fields:  backlogUpdateFieldSet{updateFieldStatus: {}},
 			wantErr: "",
 		},
 	}

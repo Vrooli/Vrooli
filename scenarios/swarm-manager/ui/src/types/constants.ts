@@ -9,7 +9,6 @@ import { Circle, CheckCircle, AlertCircle, type LucideIcon } from "lucide-react"
 import { formatDisplayText } from "../lib";
 import type {
   BacklogKind,
-  BacklogResearchTarget,
   BacklogStatus,
   ExecutionMode,
   ExecutionStatus,
@@ -30,14 +29,6 @@ export const BACKLOG_KIND_LABELS: Record<BacklogKind, string> = {
   chore: "Chore",
 };
 
-export const BACKLOG_RESEARCH_TARGETS: BacklogResearchTarget[] = [
-  "idea",
-  "fix",
-  "execute",
-  "chore",
-  "unspecified",
-];
-
 export const BACKLOG_STATUSES: BacklogStatus[] = [
   "backlog",
   "researching",
@@ -48,14 +39,6 @@ export const BACKLOG_STATUSES: BacklogStatus[] = [
   "failed",
   "archived",
 ];
-
-export const BACKLOG_RESEARCH_TARGET_LABELS: Record<BacklogResearchTarget, string> = {
-  idea: "Idea",
-  fix: "Fix",
-  execute: "Execute",
-  chore: "Chore",
-  unspecified: "Unspecified",
-};
 
 /**
  * Maps backlog status to tailwind background color classes

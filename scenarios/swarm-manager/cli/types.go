@@ -25,7 +25,6 @@ type BacklogItem struct {
 	Created         string   `json:"created"`
 	Updated         string   `json:"updated"`
 	Kind            string   `json:"kind"`
-	ResearchTarget  string   `json:"research_target,omitempty"`
 	DependsOn       []string `json:"depends_on,omitempty"`
 	Initiative      string   `json:"initiative,omitempty"`
 	Effort          string   `json:"effort,omitempty"`
@@ -48,7 +47,6 @@ type CreateBacklogRequest struct {
 	Priority        int      `json:"priority,omitempty"`
 	Tags            []string `json:"tags,omitempty"`
 	Kind            string   `json:"kind"`
-	ResearchTarget  string   `json:"research_target,omitempty"`
 	DependsOn       []string `json:"depends_on,omitempty"`
 	Initiative      string   `json:"initiative,omitempty"`
 	Effort          string   `json:"effort,omitempty"`
@@ -62,7 +60,6 @@ type UpdateBacklogRequest struct {
 	Status          *string   `json:"status,omitempty"`
 	Priority        *int      `json:"priority,omitempty"`
 	Tags            *[]string `json:"tags,omitempty"`
-	ResearchTarget  *string   `json:"research_target,omitempty"`
 	DependsOn       *[]string `json:"depends_on,omitempty"`
 	Initiative      *string   `json:"initiative,omitempty"`
 	Effort          *string   `json:"effort,omitempty"`
@@ -76,7 +73,6 @@ func (r UpdateBacklogRequest) Empty() bool {
 		r.Status == nil &&
 		r.Priority == nil &&
 		r.Tags == nil &&
-		r.ResearchTarget == nil &&
 		r.DependsOn == nil &&
 		r.Initiative == nil &&
 		r.Effort == nil &&

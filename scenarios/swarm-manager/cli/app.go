@@ -105,7 +105,6 @@ func (a *App) registerSubcommandGroups() []cliapp.SubcommandGroup {
 				{Name: "queue", NeedsAPI: true, Description: "Preview/queue a backlog item (--kind KIND --name NAME [--execute] [--force])", Run: a.cmdBacklogQueue},
 				{Name: "research", NeedsAPI: true, Description: "Spawn research agent (--kind KIND --name NAME [--data JSON])", Run: a.cmdBacklogResearch},
 				{Name: "prompt-trace", NeedsAPI: true, Description: "Get latest backlog research prompt trace (--kind KIND --name NAME)", Run: a.cmdBacklogPromptTrace},
-				{Name: "convert", NeedsAPI: true, Description: "Convert backlog item kind (--kind KIND --name NAME --target-kind TARGET_KIND [--target-name TARGET_NAME])", Run: a.cmdBacklogConvert},
 				{Name: "batch-create", NeedsAPI: true, Description: "Batch create backlog items from a plan file (--file items.json [--preview])", Run: a.cmdBacklogBatchCreate},
 				{Name: "batch-queue", NeedsAPI: true, Description: "Batch queue backlog items (--items kind/name,kind/name [--execute] [--force] [--mode MODE])", Run: a.cmdBacklogBatchQueue},
 				{Name: "export", NeedsAPI: true, Description: "Export backlog items to markdown for offline editing", Run: a.cmdBacklogExport},

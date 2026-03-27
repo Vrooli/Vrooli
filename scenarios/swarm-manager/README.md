@@ -118,7 +118,6 @@ swarm-manager backlog file-get --kind <kind> --name <name> --path <path> [--out 
 swarm-manager backlog file-upload --kind <kind> --name <name> --path <path> --file <local-file>
 swarm-manager backlog queue --kind <kind> --name <name> [--execute] [--force] [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver]
 swarm-manager backlog research --kind <kind> --name <name> --data '<json>'
-swarm-manager backlog convert --kind <kind> --name <name> --target-kind <target-kind> [--target-name target-name]
 swarm-manager backlog prompt-trace --kind <kind> --name <name>
 
 swarm-manager scenarios list [--search ... --status ... --tags ...]

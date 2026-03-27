@@ -125,9 +125,6 @@ func (s *FileStore) LoadItemFromPath(kind BacklogKind, specPath string) (Backlog
 	if item.Tags == nil {
 		item.Tags = []string{}
 	}
-	if item.ResearchTarget != "" && item.Kind != KindResearch {
-		item.ResearchTarget = ""
-	}
 	// Normalize status to valid proto values. On-disk data may contain
 	// legacy values (e.g. "done") that are not in the proto enum.
 	if !validateBacklogStatus(string(item.Status)) {
@@ -189,11 +186,7 @@ func (s *FileStore) SaveItem(item BacklogItem) error {
 	merged["created"] = item.Created
 	merged["updated"] = item.Updated
 	merged["kind"] = item.Kind
-	if item.Kind == KindResearch && strings.TrimSpace(item.ResearchTarget) != "" {
-		merged["research_target"] = item.ResearchTarget
-	} else {
-		delete(merged, "research_target")
-	}
+	delete(merged, "research_target")
 	if len(item.DependsOn) > 0 {
 		merged["depends_on"] = item.DependsOn
 	} else {

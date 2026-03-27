@@ -25,6 +25,7 @@ import { defaultQueryOptions, useResolvedTheme } from "../../lib";
 import { renderMarkdown } from "../../lib/render-markdown";
 import { backlogService } from "../../services";
 import type { BacklogKind } from "../../types";
+import { getDeliverablePath } from "../../lib/workshop-files";
 import { Button } from "../ui/button";
 import { ErrorState } from "../ui/error-state";
 import { selectors } from "../../consts/selectors";
@@ -34,8 +35,6 @@ export interface PlanPanelProps {
   backlogName: string;
   className?: string;
 }
-
-const PLAN_FILE_PATH = "plan.md";
 
 const EDITOR_OPTIONS = {
   minimap: { enabled: false },
@@ -64,6 +63,10 @@ export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProp
   const queryClient = useQueryClient();
   const resolvedTheme = useResolvedTheme();
 
+  const deliverablePath = getDeliverablePath(backlogKind);
+  const isResearch = backlogKind === "research";
+  const deliverableLabel = isResearch ? "conclusion" : "plan";
+
   const [viewMode, setViewMode] = useState<"rendered" | "raw">("rendered");
   const [draftContent, setDraftContent] = useState("");
   const [copySuccess, setCopySuccess] = useState(false);
@@ -77,7 +80,7 @@ export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProp
     refetch,
   } = useQuery<string>({
     queryKey,
-    queryFn: () => backlogService.getFileContent(backlogKind, backlogName, PLAN_FILE_PATH),
+    queryFn: () => backlogService.getFileContent(backlogKind, backlogName, deliverablePath),
     ...defaultQueryOptions,
   });
 
@@ -91,7 +94,7 @@ export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProp
 
   const saveMutation = useMutation({
     mutationFn: (content: string) =>
-      backlogService.saveFileContent(backlogKind, backlogName, PLAN_FILE_PATH, content),
+      backlogService.saveFileContent(backlogKind, backlogName, deliverablePath, content),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
     },
@@ -133,8 +136,8 @@ export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProp
         data-testid={selectors.backlogDetails.promptPanel}
       >
         <FileText className="h-10 w-10 text-slate-600" />
-        <p className="text-sm font-medium text-slate-400">No plan yet</p>
-        <p className="text-xs text-slate-500">Run a workshop session to generate a plan.</p>
+        <p className="text-sm font-medium text-slate-400">No {deliverableLabel} yet</p>
+        <p className="text-xs text-slate-500">Run a workshop session to generate a {deliverableLabel}.</p>
       </div>
     );
   }
@@ -218,7 +221,7 @@ export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProp
           size="sm"
           className="h-8 px-2.5 text-xs"
           onClick={handleCopy}
-          aria-label="Copy plan"
+          aria-label={`Copy ${deliverableLabel}`}
         >
           {copySuccess ? (
             <Check className="mr-1.5 h-3.5 w-3.5 text-green-400" />
@@ -232,7 +235,7 @@ export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProp
       {/* Save feedback */}
       {saveMutation.isSuccess && (
         <div className="border-b border-green-500/20 bg-green-500/10 px-4 py-1.5 text-xs text-green-400">
-          Plan saved.
+          {isResearch ? "Conclusion" : "Plan"} saved.
         </div>
       )}
       {saveMutation.isError && (

@@ -21,7 +21,6 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import {
   Archive,
-  ArrowRight,
   ArrowRightLeft,
   ArrowUpRight,
   CheckCircle2,
@@ -97,7 +96,6 @@ import { selectors } from "../consts/selectors";
 import {
   BACKLOG_KIND_LABELS,
   BACKLOG_KINDS,
-  BACKLOG_RESEARCH_TARGET_LABELS,
   BACKLOG_STATUS_COLORS,
   EXECUTION_STATUS_COLORS,
   formatBacklogStatus,
@@ -110,7 +108,6 @@ import type {
   ArchiveTargetFormValues,
   BacklogFile,
   BacklogKind,
-  BacklogResearchTarget,
   BacklogStatus,
   ExecutionRecord,
   ExecutionStatus,
@@ -476,19 +473,6 @@ export function BacklogDetailsPage() {
     ...defaultQueryOptions,
   });
 
-  const hasResearchOutput = useMemo(() => {
-    if (!files || files.length === 0) return false;
-    const hasNonSpecFile = (entries: BacklogFile[]): boolean => {
-      return entries.some((entry) => {
-        if (entry.type === "directory") {
-          return entry.children ? hasNonSpecFile(entry.children) : false;
-        }
-        return entry.path !== "spec.json";
-      });
-    };
-    return hasNonSpecFile(files);
-  }, [files]);
-
   const itemActions: ItemActions | null = useMemo(() => {
     if (!item) return null;
     return getItemActions({
@@ -500,9 +484,8 @@ export function BacklogDetailsPage() {
         (r) => r.items?.some((wi) => wi.type === "decision" && wi.selected == null),
       ),
       hasExecutionHistory: (executionHistory?.length ?? 0) > 0,
-      hasResearchOutput,
     });
-  }, [item, allBacklogItems, readinessData, agentRunIsActive, workshopRounds, executionHistory, hasResearchOutput]);
+  }, [item, allBacklogItems, readinessData, agentRunIsActive, workshopRounds, executionHistory]);
   const isLocked = itemActions?.locked ?? false;
   const isTerminal = itemActions?.terminal ?? false;
   const workshopBlockedDeps = itemActions?.blockingDepKeys ?? [];
@@ -540,7 +523,6 @@ export function BacklogDetailsPage() {
       status: BacklogStatus;
       priority: number;
       tags: string[];
-      researchTarget?: BacklogResearchTarget;
     }) => {
       if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
       return backlogService.update(backlogKind, name, {
@@ -549,7 +531,6 @@ export function BacklogDetailsPage() {
         status: values.status,
         priority: values.priority,
         tags: values.tags,
-        researchTarget: values.researchTarget,
       });
     },
     onSuccess: (updatedItem) => {
@@ -574,10 +555,9 @@ export function BacklogDetailsPage() {
   });
 
   const agentMutation = useMutation({
-    mutationFn: ({ mode, prompt, targetKind, contextPaths, contextTargetIds, contextRequirementIds }: {
+    mutationFn: ({ mode, prompt, contextPaths, contextTargetIds, contextRequirementIds }: {
       mode?: string;
       prompt: string;
-      targetKind?: BacklogResearchTarget;
       contextPaths?: string[];
       contextTargetIds?: string[];
       contextRequirementIds?: string[];
@@ -586,7 +566,6 @@ export function BacklogDetailsPage() {
       return backlogService.research(backlogKind, name, {
         mode,
         prompt,
-        targetKind,
         contextPaths,
         contextTargetIds,
         contextRequirementIds,
@@ -634,19 +613,6 @@ export function BacklogDetailsPage() {
           createdAt: new Date().toISOString(),
         });
       }
-    },
-  });
-
-  const convertMutation = useMutation({
-    mutationFn: async (targetKind: BacklogKind) => {
-      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
-      return backlogService.convert(backlogKind, name, { targetKind });
-    },
-    onSuccess: (convertedItem) => {
-      if (!backlogKind || !name) return;
-      removeItem(name, backlogKind);
-      upsertItem(convertedItem);
-      navigate(`/backlog/${convertedItem.kind}/${convertedItem.name}`);
     },
   });
 
@@ -1037,13 +1003,7 @@ export function BacklogDetailsPage() {
   const _workshopSaveError = workshopSaveMutation.isError
     ? workshopSaveMutation.error instanceof Error ? workshopSaveMutation.error.message : "Failed to save workshop round."
     : null;
-  const convertError = convertMutation.isError
-    ? convertMutation.error instanceof Error ? convertMutation.error.message : "Failed to convert backlog item. Please try again."
-    : null;
-
   const canWorkshopAction = itemActions?.canWorkshop ?? false;
-  const canConvert = itemActions?.canConvert ?? false;
-  const convertTarget = canConvert && item?.researchTarget ? (item.researchTarget as BacklogKind) : null;
   const searchResults = useMemo(
     () => collectMatchingFiles(files ?? [], fileSearch),
     [files, fileSearch]
@@ -1265,7 +1225,7 @@ export function BacklogDetailsPage() {
     );
   }
 
-  const agentLabel = item?.kind === "idea" ? "Idea Agent" : item?.kind === "research" ? "Research Agent" : "Research";
+  const agentLabel = item?.kind === "idea" ? "Idea Agent" : "Workshop";
   const isProtectedSelectedFile = selectedFile?.path === "spec.json";
 
   const renderFileActionItems = (target: BacklogFile, closeMenu: () => void) => {
@@ -1690,6 +1650,7 @@ export function BacklogDetailsPage() {
       {readinessData && !isTerminal && (
         <ReadinessDetailsPanel
           data={readinessData}
+          kind={backlogKind as BacklogKind}
           onRun={itemActions?.canRun ? () => setShowRunModal(true) : undefined}
         />
       )}
@@ -1728,7 +1689,7 @@ export function BacklogDetailsPage() {
         isOpen={showForceWorkshopConfirm}
         onClose={() => setShowForceWorkshopConfirm(false)}
         title="Start Workshop Despite Unplanned Dependencies?"
-        description={`Dependencies not yet planned: ${workshopBlockedDeps.join(", ")}. Starting now may produce a plan that needs revision when these dependencies are finalized.`}
+        description={`Dependencies not yet planned: ${workshopBlockedDeps.join(", ")}. Starting now may produce a ${backlogKind === "research" ? "conclusion" : "plan"} that needs revision when these dependencies are finalized.`}
         confirmLabel="Start Workshop"
         onConfirm={() => {
           setShowForceWorkshopConfirm(false);
@@ -2002,24 +1963,6 @@ export function BacklogDetailsPage() {
         {itemActions?.notQueueableReason && !itemActions.locked && !itemActions.terminal && !itemActions.canRun && !itemActions.runDisabled && !itemActions.canWorkshop && !itemActions.workshopDisabled ? (
           <p className="text-xs text-slate-500">{itemActions.notQueueableReason}</p>
         ) : null}
-        {canConvert && convertTarget && (
-          <Button
-            variant="default"
-            size="sm"
-            className={primaryRowButtonClass}
-            onClick={() => runAction(() => convertMutation.mutate(convertTarget))}
-            disabled={convertMutation.isPending}
-          >
-            {convertMutation.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <ArrowRight className="mr-2 h-4 w-4" />
-            )}
-            {convertMutation.isPending
-              ? "Converting..."
-              : `Convert to ${BACKLOG_KIND_LABELS[convertTarget]}`}
-          </Button>
-        )}
         <Button
           variant="outline"
           size="sm"
@@ -2063,7 +2006,6 @@ export function BacklogDetailsPage() {
                 status: "archived",
                 priority: item.priority,
                 tags: item.tags,
-                researchTarget: item.researchTarget,
               });
             })}
             disabled={updateMutation.isPending}
@@ -2091,7 +2033,6 @@ export function BacklogDetailsPage() {
                     status: newStatus,
                     priority: item.priority,
                     tags: item.tags,
-                    researchTarget: item.researchTarget,
                   });
                   if (closeOnAction) setShowActionsSheet(false);
                 }
@@ -2200,18 +2141,11 @@ export function BacklogDetailsPage() {
 
   const mobileInfoView = (
     <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3 pb-4">
-      {(deleteError || convertError) && (
+      {deleteError && (
         <Card padding="sm" className="space-y-2 rounded-lg border-slate-700/60 bg-slate-900/45">
-          {convertError && (
-            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-              {convertError}
-            </div>
-          )}
-          {deleteError && (
-            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-              {deleteError}
-            </div>
-          )}
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+            {deleteError}
+          </div>
         </Card>
       )}
       {activeRunBanner}
@@ -2349,7 +2283,7 @@ export function BacklogDetailsPage() {
                 </TabsTrigger>
                 <TabsTrigger value="prompt" className="gap-2" data-testid={selectors.backlogDetails.tabPrompt}>
                   <Sparkles className="h-4 w-4" />
-                  Prompt
+                  {backlogKind === "research" ? "Conclusion" : "Plan"}
                 </TabsTrigger>
                 <TabsTrigger value="files" className="gap-2" data-testid={selectors.backlogDetails.tabFiles}>
                   <Files className="h-4 w-4" />
@@ -2396,7 +2330,6 @@ export function BacklogDetailsPage() {
                               status: newStatus,
                               priority: item.priority,
                               tags: item.tags,
-                              researchTarget: item.researchTarget,
                             });
                           }
                         }}
@@ -2414,11 +2347,6 @@ export function BacklogDetailsPage() {
                   <span className="rounded-full bg-slate-700 px-3 py-1 text-xs text-slate-300 sm:text-sm">
                     Priority {item.priority}
                   </span>
-                  {item.kind === "research" && (
-                    <span className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300">
-                      Target: {item.researchTarget ? BACKLOG_RESEARCH_TARGET_LABELS[item.researchTarget] : "Unspecified"}
-                    </span>
-                  )}
                 </div>
                 <h1
                   className="text-xl font-bold text-slate-100 sm:text-2xl"
@@ -2455,24 +2383,6 @@ export function BacklogDetailsPage() {
                 {itemActions?.notQueueableReason && !itemActions.locked && !itemActions.terminal && !itemActions.canRun && !itemActions.runDisabled && !itemActions.canWorkshop && !itemActions.workshopDisabled ? (
                   <span className="max-w-xs text-xs text-slate-500">{itemActions.notQueueableReason}</span>
                 ) : null}
-                {canConvert && convertTarget && (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => convertMutation.mutate(convertTarget)}
-                    disabled={convertMutation.isPending}
-                    data-testid={selectors.backlogDetails.convertButton}
-                  >
-                    {convertMutation.isPending ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <ArrowRight className="mr-2 h-4 w-4" />
-                    )}
-                    {convertMutation.isPending
-                      ? "Converting..."
-                      : `Convert to ${BACKLOG_KIND_LABELS[convertTarget]}`}
-                  </Button>
-                )}
                 <Button
                   variant="outline"
                   size="sm"
@@ -2516,18 +2426,11 @@ export function BacklogDetailsPage() {
               </div>
             </div>
 
-            {(deleteError || convertError) && (
+            {deleteError && (
               <div className="mt-4 space-y-2">
-                {convertError && (
-                  <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-                    {convertError}
-                  </div>
-                )}
-                {deleteError && (
-                  <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-                    {deleteError}
-                  </div>
-                )}
+                <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                  {deleteError}
+                </div>
               </div>
             )}
           </Card>
@@ -2543,7 +2446,7 @@ export function BacklogDetailsPage() {
                 </TabsTrigger>
                 <TabsTrigger value="prompt" className="gap-2" data-testid={selectors.backlogDetails.tabPrompt}>
                   <Sparkles className="h-4 w-4" />
-                  Prompt
+                  {backlogKind === "research" ? "Conclusion" : "Plan"}
                 </TabsTrigger>
                 <TabsTrigger value="files" className="gap-2" data-testid={selectors.backlogDetails.tabFiles}>
                   <Files className="h-4 w-4" />
@@ -2622,7 +2525,6 @@ export function BacklogDetailsPage() {
             priority: item.priority,
             tags: item.tags,
             kind: item.kind,
-            researchTarget: item.researchTarget,
           }}
           isSubmitting={updateMutation.isPending}
           submitError={updateError}
@@ -2637,7 +2539,6 @@ export function BacklogDetailsPage() {
               status: values.status,
               priority: values.priority,
               tags: values.tags,
-              researchTarget: values.researchTarget,
             })
           }
         />
@@ -2760,7 +2661,6 @@ export function BacklogDetailsPage() {
         backlogKind={backlogKind}
         backlogTitle={item?.title ?? name ?? ""}
         itemStatus={item?.status}
-        researchTarget={item?.researchTarget}
         errorMessage={agentError}
         files={files}
         archiveTargets={archiveTargets}

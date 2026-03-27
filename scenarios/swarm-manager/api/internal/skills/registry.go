@@ -8,17 +8,10 @@ package skills
 var researchSkillIDs = map[string]map[string]string{
 	"workshop": {
 		"idea":     "swarm-manager-workshop",
-		"research": "swarm-manager-workshop",
+		"research": "swarm-manager-workshop-research",
 		"fix":      "swarm-manager-workshop",
 		"execute":  "swarm-manager-workshop",
 		"chore":    "swarm-manager-workshop",
-	},
-	"research": {
-		"idea":     "swarm-manager-research-idea",
-		"fix":      "swarm-manager-research-fix",
-		"execute":  "swarm-manager-research-general",
-		"research": "swarm-manager-research-general",
-		"chore":    "swarm-manager-research-general",
 	},
 	"initialize": {
 		"idea":     "swarm-manager-initialize-backlog",
@@ -41,7 +34,7 @@ func Resolve(mode, kind string) string {
 			return id
 		}
 	}
-	return "swarm-manager-research-general"
+	return "swarm-manager-workshop"
 }
 
 // ClassifyCaptureSkillID returns the skill ID used for capture classification.

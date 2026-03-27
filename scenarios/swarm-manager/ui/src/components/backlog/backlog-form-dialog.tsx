@@ -5,7 +5,7 @@ import { Input } from "../ui/input";
 import { Select } from "../ui/select";
 import { selectors } from "../../consts/selectors";
 import { sanitizeBacklogName } from "../../lib";
-import type { BacklogFormValues, BacklogKind, BacklogResearchTarget, BacklogStatus } from "../../types";
+import type { BacklogFormValues, BacklogKind, BacklogStatus } from "../../types";
 import { useBacklogFormStore } from "../../stores";
 
 export type BacklogFormMode = "create" | "edit";
@@ -39,14 +39,6 @@ const KIND_OPTIONS: Array<{ value: BacklogKind; label: string; helper: string }>
   { value: "chore", label: "Chore", helper: "Maintenance, cleanup, dependency updates, or infrastructure work." },
 ];
 
-const RESEARCH_TARGET_OPTIONS: Array<{ value: BacklogResearchTarget; label: string; helper: string }> = [
-  { value: "idea", label: "Idea", helper: "Research feeds scenario ideation." },
-  { value: "fix", label: "Fix", helper: "Research supports a fix backlog item." },
-  { value: "execute", label: "Execute", helper: "Research supports a task to execute." },
-  { value: "chore", label: "Chore", helper: "Research supports a chore or maintenance task." },
-  { value: "unspecified", label: "Unspecified", helper: "Open-ended research with no target yet." },
-];
-
 const kindLabelFor = (kind: BacklogKind): string =>
   KIND_OPTIONS.find((option) => option.value === kind)?.label ?? "Backlog";
 
@@ -69,7 +61,7 @@ export function BacklogFormDialog({
   const setNameDirty = useBacklogFormStore((state) => state.setNameDirty);
   const setError = useBacklogFormStore((state) => state.setError);
   const initialize = useBacklogFormStore((state) => state.initialize);
-  const { name, title, description, status, priority, kind, researchTarget, tags, initiative, dependsOn, effort, acceptanceAllow, acceptanceDeny } = values;
+  const { name, title, description, status, priority, kind, tags, initiative, dependsOn, effort, acceptanceAllow, acceptanceDeny } = values;
 
   const isEditMode = mode === "edit";
 
@@ -106,7 +98,6 @@ export function BacklogFormDialog({
       priority,
       tags,
       kind,
-      researchTarget: kind === "research" ? researchTarget : undefined,
       dependsOn: dependsOn && dependsOn.length > 0 ? dependsOn : undefined,
       initiative: initiative?.trim() || undefined,
       effort: effort?.trim() || undefined,
@@ -170,35 +161,6 @@ export function BacklogFormDialog({
             )}
           </div>
         </div>
-
-        {kind === "research" && (
-          <div>
-            <label htmlFor="backlog-form-research-target" className="text-sm font-medium text-slate-300">
-              Research target
-            </label>
-            <div className="mt-2">
-              <Select
-                id="backlog-form-research-target"
-                value={researchTarget}
-                onChange={(e) => {
-                  setField("researchTarget", e.target.value as BacklogResearchTarget);
-                  if (error) setError(null);
-                }}
-                data-testid={selectors.backlogForm.researchTargetSelect}
-                disabled={isSubmitting}
-              >
-                {RESEARCH_TARGET_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <p className="mt-1 text-xs text-slate-500">
-              {RESEARCH_TARGET_OPTIONS.find((option) => option.value === researchTarget)?.helper}
-            </p>
-          </div>
-        )}
 
         <div>
           <label htmlFor="backlog-form-title" className="text-sm font-medium text-slate-300">

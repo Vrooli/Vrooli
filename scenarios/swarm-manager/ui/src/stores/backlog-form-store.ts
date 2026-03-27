@@ -32,7 +32,6 @@ const buildFormValues = (
     priority: initialValues?.priority ?? 5,
     tags: initialValues?.tags ?? [],
     kind: nextKind,
-    researchTarget: initialValues?.researchTarget ?? "idea",
     dependsOn: initialValues?.dependsOn ?? [],
     initiative: initialValues?.initiative ?? "",
     effort: initialValues?.effort ?? "",

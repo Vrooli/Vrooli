@@ -929,7 +929,6 @@ export function BacklogPage() {
                           agentRunning: activeRunKeys.has(itemKey),
                           hasPendingDecisions: (pendingQuestionsMap.get(itemKey)?.length ?? 0) > 0,
                           hasExecutionHistory: item.status === "completed" || item.status === "failed",
-                          hasResearchOutput: false,
                         })}
                         attentionReasons={reasons}
                         pendingQuestions={pendingQuestionsMap.get(itemKey)}

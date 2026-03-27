@@ -20,7 +20,6 @@
 
 import {
   CreateBacklogItemRequestSchema,
-  ConvertBacklogItemRequestSchema,
   BacklogResearchRequestSchema,
   BacklogFileOperationRequestSchema,
   QueueBacklogItemRequestSchema,
@@ -43,7 +42,7 @@ import {
 import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
-import type { ArchiveRequirementRecord, ArchiveTargetFormValues, ArchiveTargetsResponse, BacklogItem, BacklogFile, BacklogKind, BacklogResearchTarget, BacklogSummaryResponse, FeedbackSummaryResponse, MaturitySummaryResponse, ModuleFormValues, PendingQuestionsResponse, ResearchResponse, ReviewUpdate } from "../types";
+import type { ArchiveRequirementRecord, ArchiveTargetFormValues, ArchiveTargetsResponse, BacklogItem, BacklogFile, BacklogKind, BacklogSummaryResponse, FeedbackSummaryResponse, MaturitySummaryResponse, ModuleFormValues, PendingQuestionsResponse, ResearchResponse, ReviewUpdate } from "../types";
 
 /**
  * Response from queueing a backlog item for processing.
@@ -70,7 +69,7 @@ export interface BacklogFileOperationResult {
 
 export type BacklogUpdatePatch = Partial<Pick<
   BacklogItem,
-  "title" | "description" | "status" | "priority" | "tags" | "researchTarget" | "dependsOn" | "initiative" | "effort" | "acceptanceAllow" | "acceptanceDeny"
+  "title" | "description" | "status" | "priority" | "tags" | "dependsOn" | "initiative" | "effort" | "acceptanceAllow" | "acceptanceDeny"
 >>;
 
 /** Result of auto-advance decision from the workshop save endpoint. */
@@ -134,17 +133,11 @@ export interface IBacklogService {
       prompt?: string;
       projectRoot?: string;
       mode?: string;
-      targetKind?: BacklogResearchTarget;
       contextPaths?: string[];
       contextTargetIds?: string[];
       contextRequirementIds?: string[];
     }
   ): Promise<ResearchResponse>;
-  convert(
-    kind: BacklogKind,
-    name: string,
-    payload: { targetKind: BacklogKind; targetName?: string }
-  ): Promise<BacklogItem>;
   getArchiveTargets(kind: BacklogKind, name: string): Promise<ArchiveTargetsResponse>;
   createArchiveTarget(kind: string, name: string, target: ArchiveTargetFormValues): Promise<void>;
   updateArchiveTarget(kind: string, name: string, targetId: string, target: ArchiveTargetFormValues): Promise<void>;
@@ -205,7 +198,6 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
     if (patch.status !== undefined) payload.status = patch.status;
     if (patch.priority !== undefined) payload.priority = patch.priority;
     if (patch.tags !== undefined) payload.tags = patch.tags;
-    if (patch.researchTarget !== undefined) payload.research_target = patch.researchTarget;
     if (patch.dependsOn !== undefined) payload.depends_on = patch.dependsOn;
     if (patch.initiative !== undefined) payload.initiative = patch.initiative;
     if (patch.effort !== undefined) payload.effort = patch.effort;
@@ -275,7 +267,6 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
         priority: item.priority || undefined,
         tags: item.tags,
         kind: item.kind,
-        researchTarget: item.researchTarget || undefined,
         dependsOn: item.dependsOn ?? [],
         initiative: item.initiative || undefined,
       });
@@ -394,7 +385,6 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
         prompt?: string;
         projectRoot?: string;
         mode?: string;
-        targetKind?: BacklogResearchTarget;
         contextPaths?: string[];
         contextTargetIds?: string[];
         contextRequirementIds?: string[];
@@ -404,7 +394,6 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
         prompt: payload?.prompt,
         projectRoot: payload?.projectRoot,
         mode: payload?.mode,
-        targetKind: payload?.targetKind,
         contextPaths: payload?.contextPaths ?? [],
         contextTargetIds: payload?.contextTargetIds ?? [],
         contextRequirementIds: payload?.contextRequirementIds ?? [],
@@ -414,20 +403,6 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
         toProtoJson(BacklogResearchRequestSchema, message)
       );
       return parseProtoResponse(backlogResearchResponseSchema, data, "backlog research");
-    },
-
-    async convert(
-      kind: BacklogKind,
-      name: string,
-      payload: { targetKind: BacklogKind; targetName?: string }
-    ): Promise<BacklogItem> {
-      const message = buildMessage(ConvertBacklogItemRequestSchema, {
-        targetKind: payload.targetKind,
-        targetName: payload.targetName || undefined,
-      });
-      const data = await apiClient.post<unknown>(API_ENDPOINTS.backlogConvert(kind, name), toProtoJson(ConvertBacklogItemRequestSchema, message));
-      const parsed = parseProtoResponse(backlogItemResponseSchema, data, "backlog item");
-      return mapProtoBacklogItem(requireProtoField(parsed.item, "backlog item"));
     },
 
     async getArchiveTargets(kind: BacklogKind, name: string): Promise<ArchiveTargetsResponse> {

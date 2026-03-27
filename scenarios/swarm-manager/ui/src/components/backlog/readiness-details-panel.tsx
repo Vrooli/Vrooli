@@ -7,11 +7,14 @@
 import { Play } from "lucide-react";
 import { cn } from "../../lib";
 import { Button } from "../ui/button";
-import { READINESS_DIMENSIONS, DIMENSION_LABELS, SCORE_COLORS } from "../../lib/maturity";
+import { READINESS_DIMENSIONS, SCORE_COLORS, getDimensionLabel } from "../../lib/maturity";
 import type { ReadinessIndicatorData } from "../../lib/maturity";
+import type { BacklogKind } from "../../types";
 
 interface ReadinessDetailsPanelProps {
   data: ReadinessIndicatorData;
+  /** Backlog item kind — used for kind-specific dimension labels. */
+  kind?: BacklogKind;
   /** When provided and data.ready is true, renders a "Run" CTA button. */
   onRun?: () => void;
 }
@@ -23,13 +26,14 @@ const SCORE_BG_CLASSES: Record<string, string> = {
   emerald: "bg-emerald-500/20 text-emerald-400",
 };
 
-export function ReadinessDetailsPanel({ data, onRun }: ReadinessDetailsPanelProps) {
+export function ReadinessDetailsPanel({ data, kind, onRun }: ReadinessDetailsPanelProps) {
+  const isResearch = kind === "research";
   if (data.roundsCompleted === 0) return null;
 
   return (
     <div className="space-y-3 rounded-lg border border-slate-700 bg-slate-800/50 p-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-slate-200">Workshop Readiness</h3>
+        <h3 className="text-sm font-medium text-slate-200">{isResearch ? "Research Readiness" : "Workshop Readiness"}</h3>
         <span className="rounded bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
           Round {data.roundsCompleted}
         </span>
@@ -41,7 +45,7 @@ export function ReadinessDetailsPanel({ data, onRun }: ReadinessDetailsPanelProp
           const color = SCORE_COLORS[score] ?? "slate";
           return (
             <div key={dim} className="flex items-center justify-between">
-              <span className="text-xs text-slate-400">{DIMENSION_LABELS[dim]}</span>
+              <span className="text-xs text-slate-400">{getDimensionLabel(dim, kind)}</span>
               <span
                 className={cn(
                   "rounded px-2 py-0.5 text-xs font-medium",
@@ -64,7 +68,7 @@ export function ReadinessDetailsPanel({ data, onRun }: ReadinessDetailsPanelProp
       {data.ready && (
         <div className="space-y-2">
           <div className="rounded-md border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-sm text-emerald-400">
-            Ready for execution
+            {isResearch ? "Research complete" : "Ready for execution"}
           </div>
           {onRun && (
             <Button

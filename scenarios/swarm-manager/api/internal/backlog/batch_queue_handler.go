@@ -155,13 +155,6 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 
 		result := batchQueueItemResult{Item: ref}
 
-		// Check if item kind is research (not queueable).
-		if item.Kind == KindResearch {
-			result.Message = "Research items must be converted before processing"
-			results = append(results, result)
-			continue
-		}
-
 		// Check if item status is queueable.
 		if !isQueueableStatus(item.Kind, item.Status) {
 			result.Message = fmt.Sprintf("Cannot queue from current status: %s", item.Status)

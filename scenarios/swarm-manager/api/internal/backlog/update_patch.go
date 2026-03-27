@@ -20,7 +20,6 @@ const (
 	updateFieldStatus          = "status"
 	updateFieldPriority        = "priority"
 	updateFieldTags            = "tags"
-	updateFieldResearchTarget  = "research_target"
 	updateFieldDependsOn       = "depends_on"
 	updateFieldInitiative      = "initiative"
 	updateFieldEffort          = "effort"
@@ -135,10 +134,6 @@ func normalizeUpdateBacklogPatch(req *apipb.UpdateBacklogItemRequest, fields bac
 		normalized := strings.ToLower(strings.TrimSpace(*req.Status))
 		req.Status = &normalized
 	}
-	if fields.Has(updateFieldResearchTarget) && req.ResearchTarget != nil {
-		normalized := strings.ToLower(strings.TrimSpace(*req.ResearchTarget))
-		req.ResearchTarget = &normalized
-	}
 	if fields.Has(updateFieldInitiative) && req.Initiative != nil {
 		trimmed := strings.TrimSpace(*req.Initiative)
 		req.Initiative = &trimmed
@@ -176,14 +171,6 @@ func validateUpdateBacklogItemRequest(req *apipb.UpdateBacklogItemRequest, field
 			return err.Error()
 		}
 	}
-	if fields.Has(updateFieldResearchTarget) {
-		if kind != KindResearch {
-			return "research_target can only be set on research backlog items"
-		}
-		if _, err := normalizeResearchTarget(req.GetResearchTarget()); err != nil {
-			return err.Error()
-		}
-	}
 	if fields.Has(updateFieldEffort) {
 		if _, err := validateEffort(req.GetEffort()); err != nil {
 			return err.Error()
@@ -218,9 +205,6 @@ func applyUpdateBacklogPatch(item *BacklogItem, req *apipb.UpdateBacklogItemRequ
 	}
 	if fields.Has(updateFieldTags) {
 		item.Tags = cloneStringsOrEmpty(req.Tags)
-	}
-	if fields.Has(updateFieldResearchTarget) {
-		item.ResearchTarget = req.GetResearchTarget()
 	}
 	if fields.Has(updateFieldDependsOn) {
 		item.DependsOn = cloneStrings(req.DependsOn)

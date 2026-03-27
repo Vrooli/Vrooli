@@ -183,14 +183,25 @@ func CountPendingDecisions(round *Round) int {
 
 // HasPlan checks whether a plan.md file exists for the item.
 func HasPlan(itemDir string) bool {
-	_, err := os.Stat(filepath.Join(itemDir, "plan.md"))
+	return HasPlanByName(itemDir, "plan.md")
+}
+
+// HasPlanByName checks whether the named deliverable file exists for the item.
+func HasPlanByName(itemDir, filename string) bool {
+	_, err := os.Stat(filepath.Join(itemDir, filename))
 	return err == nil
 }
 
 // LoadPlanContent reads plan.md and returns its content. Returns empty string
 // if the file does not exist.
 func LoadPlanContent(itemDir string) string {
-	data, err := os.ReadFile(filepath.Join(itemDir, "plan.md"))
+	return LoadPlanContentByName(itemDir, "plan.md")
+}
+
+// LoadPlanContentByName reads the named deliverable file and returns its content.
+// Returns empty string if the file does not exist.
+func LoadPlanContentByName(itemDir, filename string) string {
+	data, err := os.ReadFile(filepath.Join(itemDir, filename))
 	if err != nil {
 		return ""
 	}

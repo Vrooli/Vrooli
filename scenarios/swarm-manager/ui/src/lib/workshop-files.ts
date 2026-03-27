@@ -7,7 +7,7 @@
  * DOC: docs/internal/SEAMS.md#workshop-parsing
  */
 
-import type { BacklogFile, DecisionOption, WorkshopItem, WorkshopRound } from "../types/domain";
+import type { BacklogFile, BacklogKind, DecisionOption, WorkshopItem, WorkshopRound } from "../types/domain";
 
 /** Sentinel value for the manually-appended "Other" freeform option. */
 export const OTHER_KEY = "__other__";
@@ -17,7 +17,18 @@ export function filterAgentOther(options: DecisionOption[]): DecisionOption[] {
   return options.filter((opt) => opt.label.toLowerCase().trim() !== "other");
 }
 
+/**
+ * Returns the deliverable filename for a given backlog item kind.
+ * Research items produce `conclusion.md`; all others produce `plan.md`.
+ * Extensible: add new kind overrides here as needed.
+ */
+export function getDeliverablePath(kind: BacklogKind): string {
+  if (kind === "research") return "conclusion.md";
+  return "plan.md";
+}
+
 export const WORKSHOP_FILE_PATHS = {
+  /** @deprecated Use getDeliverablePath(kind) for kind-aware deliverable path */
   plan: "plan.md",
   workshopDir: "workshop/",
 } as const;

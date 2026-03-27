@@ -71,7 +71,6 @@ type batchCreateItem struct {
 	Kind            string   `json:"kind"`
 	Priority        *int32   `json:"priority,omitempty"`
 	Tags            []string `json:"tags,omitempty"`
-	ResearchTarget  *string  `json:"research_target,omitempty"`
 	DependsOn       []string `json:"depends_on,omitempty"`
 	Initiative      string   `json:"initiative,omitempty"`
 	Effort          *string  `json:"effort,omitempty"`
@@ -239,16 +238,6 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 			tags = []string{}
 		}
 
-		researchTarget := ""
-		if raw.ResearchTarget != nil && kind == KindResearch {
-			normalized, err := normalizeResearchTarget(*raw.ResearchTarget)
-			if err != nil {
-				httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("item[%d]: %s", i, err.Error()))
-				return
-			}
-			researchTarget = normalized
-		}
-
 		dependsOn := raw.DependsOn
 		if dependsOn == nil {
 			dependsOn = []string{}
@@ -287,7 +276,6 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 			Created:         now,
 			Updated:         now,
 			Kind:            kind,
-			ResearchTarget:  researchTarget,
 			DependsOn:       dependsOn,
 			Initiative:      initiativeName,
 			Effort:          effort,

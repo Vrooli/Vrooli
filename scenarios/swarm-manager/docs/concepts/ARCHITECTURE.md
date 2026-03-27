@@ -162,7 +162,7 @@ api/internal/
 │   ├── research.go    # Research spawn handlers
 │   ├── queue_ops.go   # Queue/dequeue handlers
 │   ├── archive_handlers.go  # Archive operations
-│   ├── convert.go     # Kind conversion handlers
+│   ├── kind_config.go # Per-kind metadata (deliverable filename, directory)
 │   ├── batch_handler.go     # Batch create (all-or-nothing)
 │   └── batch_queue_handler.go # Batch queue (topological order)
 ├── depgraph/          # Dependency graph (pure computation)
@@ -183,7 +183,7 @@ api/internal/
 ## API Boundaries
 
 - `/health`, `/api/v1/health` - health and readiness
-- `/api/v1/backlog/*` - backlog CRUD, queue, research, convert
+- `/api/v1/backlog/*` - backlog CRUD, queue, research (workshop)
 - `/api/v1/backlog/batch` - batch create (all-or-nothing with dependency validation)
 - `/api/v1/backlog/batch/queue` - batch queue (topologically sorted, dependency-aware)
 - `/api/v1/initiatives/*` - initiative CRUD with rollup status from member items
@@ -203,7 +203,7 @@ The `swarm-manager-meta-orchestrator` skill is the primary entry point for turni
 1. Parse high-level input into clusters and candidate items
 2. Discuss and refine the plan with the user, potentially across many turns before creation
 3. Inspect existing scenarios/codepaths when the target systems already exist
-4. Shape items with canonical backlog fields (`initiative`, `depends_on`, `acceptance_allow`, `acceptance_deny`, `research_target`)
+4. Shape items with canonical backlog fields (`initiative`, `depends_on`, `acceptance_allow`, `acceptance_deny`)
 5. Preview the multi-initiative import through `backlog batch-create --preview`
 6. Create the items only after user approval
 

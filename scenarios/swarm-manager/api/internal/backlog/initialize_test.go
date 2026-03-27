@@ -188,7 +188,10 @@ func TestResearch_InitializeMode_AgentUnavailable(t *testing.T) {
 }
 
 func TestParseResearchMode_Initialize(t *testing.T) {
-	got := parseResearchMode("initialize")
+	got, err := parseResearchMode("initialize")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if got != ResearchModeInitialize {
 		t.Errorf("expected ResearchModeInitialize, got %q", got)
 	}

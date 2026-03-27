@@ -1,0 +1,120 @@
+{
+  "round": 3,
+  "generated_at": "2026-03-26T23:45:00Z",
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 2,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "needs_fixup status: add to BacklogStatus or drop from attention feed?",
+      "context": "The spec calls for 'needs_fixup' items in the Needs Attention feed, but this status does not exist in the current BacklogStatus union type (backlog, researching, ready, queued, in_progress, completed, failed, archived). Either we add it as a new status or use an existing status (e.g., 'failed') to represent items needing manual fixup.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Add 'needs_fixup' and 'needs_review' to BacklogStatus",
+          "rationale": "Matches the spec's intent. Items that failed execution but need human intervention (not just re-run) get a distinct status. Requires proto schema update, status validation changes, and UI status filter updates. Recommended because it provides a clearer signal than overloading 'failed'.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Drop needs_fixup from the MVP attention feed",
+          "rationale": "Use 'failed' for all failure cases. Simpler — no schema change needed. The attention feed still catches failed items. Can add needs_fixup later if the distinction proves valuable."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Rollup granularity: enhance API or compute client-side?",
+      "context": "The current RollupStatus has 5 fields (total, completed, in_progress, failed, pending) where 'pending' merges backlog+ready+researching+queued into one number. The initiative card wants to show separate 'ready' counts for the status breakdown and 'Next up' logic. Two approaches: enhance the rollup API to return finer-grained counts, or have the UI fetch the full item list per initiative and compute counts client-side.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Enhance rollup API to return per-status counts",
+          "rationale": "Add fields like 'ready', 'queued', 'researching', 'backlog' to the RollupStatus proto message. Single API call gives the card everything it needs. Recommended because it keeps the UI thin and the rollup computation server-side where it belongs. The change is additive and backward-compatible.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Compute client-side from full item list",
+          "rationale": "Use existing backlog list endpoint filtered by initiative. No API change needed. But requires fetching all items just to count statuses, which is wasteful for large initiatives."
+        },
+        {
+          "key": "C",
+          "label": "Hybrid: use current rollup for progress bar, fetch items only for 'Next up'",
+          "rationale": "Progress bar uses existing rollup (completed/total). Only fetch item list when user clicks a card or for the 'Next up' line. Avoids API change but makes 'ready' count unavailable on the card surface."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Execute item decomposition: bundle settings dialog with schema work or with nav changes?",
+      "context": "Round 2 settled on 3 execute items. The conclusion currently bundles settings dialog with the schema/service work (item 1). An alternative is to bundle it with the nav changes (item 3) since the gear icon trigger is part of the header/navigation. This affects implementation order and PR scope.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Keep as-is: settings dialog in item 1 (schema + service + dialog)",
+          "rationale": "Item 1 delivers all the infrastructure pieces. The dialog is independent of the dashboard page and can be built/tested in isolation. Recommended because it front-loads more of the non-dashboard work and keeps item 2 focused purely on dashboard components.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Move settings dialog to item 3 (nav changes + settings dialog)",
+          "rationale": "Pairs the gear icon trigger with its dialog. Item 3 becomes 'all navigation/header changes'. Item 1 stays purely schema+service. More cohesive grouping by UI area."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Critical gap found: The UI has NO service layer for the initiatives API. The backend has full CRUD+rollup at /api/v1/initiatives (List, Create, Get, Update, Delete, AddItems, RemoveItems) but the frontend has zero references to these endpoints — no initiative-service.ts, no api-endpoints.ts entry. The dashboard cannot render initiative cards without first creating this service. This should be the first task in the implementation sequence."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "BacklogPage already supports URL-synced status filtering via useUrlState('status', ...) which maps to ?status=<value> query params. The stats bar click-through for status-based filters (in_progress, failed, ready, completed) will work with the existing filter mechanism. However, there is no 'initiative' or 'unassigned' filter param — these need to be added to BacklogPage for the initiative card 'View Items' action and the stats bar 'Unassigned' click."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Conclusion has been converted from the old plan.md format (13-section implementation plan) to the proper research conclusion format (Research Question, Summary, Methodology, Findings, Limitations, Actions) as flagged by the migration note in the previous version."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "This research appears ready for conclusion. All major design decisions are settled (8/8 from rounds 1-2), the conclusion covers all 5 research goals from the spec, and the 3 remaining decisions in this round are implementation-detail scoping questions rather than fundamental design choices. Consider reviewing and processing after resolving the round 3 decisions."
+    }
+  ],
+  "plan_updates": "Rewrote conclusion.md from old plan.md format into proper research conclusion format. Added 8 findings with evidence from codebase investigation. Documented the critical initiative service gap (Finding 2), the needs_fixup status gap (Finding 6 / Limitation 1), and the rollup granularity limitation (Limitation 4). Added 3 concrete actions as execute backlog items with full metadata. Updated Limitations section with 5 specific gaps."
+}

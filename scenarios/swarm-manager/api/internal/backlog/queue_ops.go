@@ -142,11 +142,6 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		startedBy = "swarm-manager"
 	}
 
-	if kind == KindResearch {
-		httputil.BadRequest(w, "[backlog] queue", "research items must be converted before processing")
-		return
-	}
-
 	executionService := execution.NewService(execution.ServiceConfig{
 		RootDir:        h.rootDir,
 		StorePath:      filepath.Join(h.rootDir, ".vrooli", "execution-runs.json"),

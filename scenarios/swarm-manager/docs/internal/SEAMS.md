@@ -434,7 +434,7 @@ api/
     │   ├── research.go           # Research spawn handlers
     │   ├── queue_ops.go          # Queue/dequeue handlers
     │   ├── archive_handlers.go   # Archive operations
-    │   ├── convert.go            # Kind conversion handlers
+    │   ├── kind_config.go        # Per-kind metadata (deliverable, directory)
     │   ├── batch_handler.go      # POST /batch (all-or-nothing create)
     │   ├── batch_queue_handler.go # POST /batch/queue (topological order)
     │   └── *_test.go             # Tests for each module

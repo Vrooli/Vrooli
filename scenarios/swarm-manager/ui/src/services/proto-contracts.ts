@@ -61,7 +61,6 @@ import type {
 } from "../types";
 import {
   BACKLOG_KINDS,
-  BACKLOG_RESEARCH_TARGETS,
   BACKLOG_STATUSES,
   SCENARIO_STATUSES,
   EXECUTION_STATUSES,
@@ -91,7 +90,6 @@ function isJsonValue(value: unknown): value is JsonValue {
 
 const backlogStatusSet = new Set<string>(BACKLOG_STATUSES);
 const backlogKindSet = new Set<string>(BACKLOG_KINDS);
-const backlogResearchTargetSet = new Set<string>(BACKLOG_RESEARCH_TARGETS);
 const scenarioStatusSet = new Set<string>(SCENARIO_STATUSES);
 const fileTypeSet = new Set<string>(["file", "directory"]);
 const executionStatusSet = new Set<string>(EXECUTION_STATUSES);
@@ -103,10 +101,6 @@ function isBacklogStatus(value: unknown): value is BacklogItemDomain["status"] {
 
 function isBacklogKind(value: unknown): value is BacklogItemDomain["kind"] {
   return typeof value === "string" && backlogKindSet.has(value);
-}
-
-function isBacklogResearchTarget(value: unknown): value is BacklogItemDomain["researchTarget"] {
-  return typeof value === "string" && backlogResearchTargetSet.has(value);
 }
 
 function isScenarioStatus(value: unknown): value is ScenarioDomain["status"] {
@@ -278,7 +272,6 @@ export { DeleteScenarioRequestSchema, PreserveFilesRequestSchema, SpecSyncArchiv
 export function mapProtoBacklogItem(protoItem: BacklogItem): BacklogItemDomain {
   const status = isBacklogStatus(protoItem.status) ? protoItem.status : "backlog";
   const kind = isBacklogKind(protoItem.kind) ? protoItem.kind : "idea";
-  const researchTarget = isBacklogResearchTarget(protoItem.researchTarget) ? protoItem.researchTarget : undefined;
   return {
     name: protoItem.name ?? "",
     title: protoItem.title ?? "",
@@ -289,7 +282,6 @@ export function mapProtoBacklogItem(protoItem: BacklogItem): BacklogItemDomain {
     created: protoItem.created ?? "",
     updated: protoItem.updated ?? "",
     kind,
-    ...(researchTarget ? { researchTarget } : {}),
     ...(protoItem.dependsOn?.length ? { dependsOn: protoItem.dependsOn } : {}),
     ...(protoItem.initiative ? { initiative: protoItem.initiative } : {}),
     ...(protoItem.acceptanceAllow?.length ? { acceptanceAllow: protoItem.acceptanceAllow } : {}),

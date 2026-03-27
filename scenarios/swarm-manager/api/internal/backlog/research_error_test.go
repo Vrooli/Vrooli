@@ -74,7 +74,7 @@ func TestResearch_AgentUnavailable(t *testing.T) {
 	}
 	createTestItem(t, rootDir, KindIdea, item)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/idea/idea-2/research", bytes.NewBufferString(`{"mode":"clarify"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/idea/idea-2/research", bytes.NewBufferString(`{"mode":"workshop"}`))
 	req.Header.Set("Content-Type", "application/json")
 	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "idea-2"})
 	w := httptest.NewRecorder()
@@ -100,7 +100,7 @@ func TestResearch_AgentError(t *testing.T) {
 	}
 	createTestItem(t, rootDir, KindIdea, item)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/idea/idea-3/research", bytes.NewBufferString(`{"mode":"clarify"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/idea/idea-3/research", bytes.NewBufferString(`{"mode":"workshop"}`))
 	req.Header.Set("Content-Type", "application/json")
 	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "idea-3"})
 	w := httptest.NewRecorder()

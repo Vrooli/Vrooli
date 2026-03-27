@@ -37,13 +37,14 @@ const (
 )
 
 // backlogKindDirs maps each BacklogKind to its on-disk directory name.
-var backlogKindDirs = map[BacklogKind]string{
-	KindIdea:     "ideas",
-	KindResearch: "research",
-	KindFix:      "fix",
-	KindExecute:  "execute",
-	KindChore:    "chore",
-}
+// Derived from KindConfig to maintain a single source of truth.
+var backlogKindDirs = func() map[BacklogKind]string {
+	m := make(map[BacklogKind]string, len(KindConfig))
+	for k, meta := range KindConfig {
+		m[k] = meta.Dir
+	}
+	return m
+}()
 
 // BacklogItem represents a unit of work stored on disk.
 type BacklogItem struct {
@@ -56,7 +57,6 @@ type BacklogItem struct {
 	Created         string        `json:"created"`
 	Updated         string        `json:"updated"`
 	Kind            BacklogKind   `json:"kind"`
-	ResearchTarget  string        `json:"research_target,omitempty"`
 	DependsOn       []string      `json:"depends_on,omitempty"`
 	Initiative      string        `json:"initiative,omitempty"`
 	Effort          string        `json:"effort,omitempty"`
@@ -82,7 +82,6 @@ type ResearchMode string
 
 const (
 	ResearchModeWorkshop   ResearchMode = "workshop"
-	ResearchModeResearch   ResearchMode = "research"
 	ResearchModeInitialize ResearchMode = "initialize"
 )
 
@@ -111,20 +110,6 @@ func validateBacklogStatus(status string) bool {
 		return true
 	default:
 		return false
-	}
-}
-
-// normalizeResearchTarget validates and normalizes a research_target value.
-func normalizeResearchTarget(raw string) (string, error) {
-	value := strings.ToLower(strings.TrimSpace(raw))
-	if value == "" {
-		return "", nil
-	}
-	switch value {
-	case "idea", "fix", "execute", "chore", "unspecified":
-		return value, nil
-	default:
-		return "", fmt.Errorf("research_target must be idea, fix, execute, chore, or unspecified")
 	}
 }
 
@@ -185,9 +170,6 @@ func backlogToProto(item BacklogItem) *domainpb.BacklogItem {
 		Created:     item.Created,
 		Updated:     item.Updated,
 		Kind:        string(item.Kind),
-	}
-	if strings.TrimSpace(item.ResearchTarget) != "" {
-		result.ResearchTarget = &item.ResearchTarget
 	}
 	if len(item.DependsOn) > 0 {
 		result.DependsOn = item.DependsOn

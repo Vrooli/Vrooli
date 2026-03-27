@@ -1,0 +1,83 @@
+{
+  "round": 3,
+  "generated_at": "2026-03-26T19:30:00Z",
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 2,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Conclusion rewritten from old 13-section plan format into canonical research conclusion format (Research Question, Summary, Methodology, Findings, Limitations, Actions). All substantive content preserved; system contracts and exhaustive action inventory retained as dedicated sections."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "4 concrete actions defined for P1 and P2 gaps (per round 2 d2=A): (1) Add git_commit_hash to LPBS download_artifacts [P1, fix, S], (2) Add post-publish version sync callback [P1, execute, M], (3) Add rollback API [P2, execute, M], (4) Add LPBS publish webhook [P2, execute, M]."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "This research appears ready for conclusion. All 5 audit questions are answered with evidence, system contracts are formalized, gaps are cataloged with prioritized recommendations, and the conclusion stands alone as a reference document. Consider reviewing and processing."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Should P3/P4 gaps also become backlog items?",
+      "context": "Round 2 d2=A created items for P1 and P2 gaps. Three lower-priority gaps remain: P3 approval→deploy automation (S effort), P3 LPBS_SERVICE_SECRET validation (S effort), P4 entitlement↔approval documentation fix (XS effort). These are documented in the conclusion but not yet actionable backlog items.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Yes, create items for P3 and P4 gaps too",
+          "rationale": "Captures all identified work so nothing is lost. Low effort to create the items; they can sit in backlog until prioritized."
+        },
+        {
+          "key": "B",
+          "label": "No, leave as recommendations in the conclusion",
+          "rationale": "P3/P4 items are low priority and may never be worth doing. Cluttering the backlog with low-priority items creates noise.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Should the P1/P2 backlog items be created now via CLI?",
+      "context": "The conclusion defines 4 actions (P1 and P2 gaps) as 'Create backlog item' actions. These can either be created immediately via swarm-manager CLI as part of processing this research item, or left for manual creation later.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Yes, create them now when this item is processed",
+          "rationale": "Ensures the items exist in the backlog immediately and are not forgotten. The action descriptions have enough detail for creation.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "No, defer to initiative planning",
+          "rationale": "The initiative owner should decide timing and exact scope. Creating them now might not match the initiative's current focus."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    }
+  ],
+  "plan_updates": "Rewrote conclusion.md from old 13-section plan format into canonical research conclusion format. All findings, system contracts, action inventory, and gap recommendations preserved. Added 4 concrete actions for P1/P2 gaps. Added Limitations section with 5 documented limitations."
+}

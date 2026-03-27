@@ -101,10 +101,7 @@ References:
 - [CODE: cli/cmd_scenarios.go]
 
 ### OT-P05-005 - Backlog convert
-Status: Implemented.
-References:
-- [CODE: api/internal/backlog/handler.go]
-- [CODE: cli/cmd_backlog.go]
+Status: Removed. Research items now execute directly via conclusion.md actions; convert flow was removed in the research backlog rework (2026-03-26).
 
 ### OT-P05-006 - Backlog prompt trace
 Status: Implemented.

@@ -110,14 +110,6 @@ func normalizeCreateBacklogItemRequest(req *apipb.CreateBacklogItemRequest) {
 		req.Name = strings.TrimSpace(req.Title)
 	}
 	req.Kind = strings.ToLower(strings.TrimSpace(req.Kind))
-	if req.ResearchTarget != nil {
-		normalized := strings.ToLower(strings.TrimSpace(*req.ResearchTarget))
-		if normalized == "" {
-			req.ResearchTarget = nil
-		} else {
-			req.ResearchTarget = &normalized
-		}
-	}
 	if req.Effort != nil {
 		normalized := strings.ToUpper(strings.TrimSpace(*req.Effort))
 		if normalized == "" {
@@ -163,7 +155,6 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/research", h.Research).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/save", h.WorkshopSave).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/round", h.WorkshopDeleteRound).Methods("DELETE")
-	r.HandleFunc("/api/v1/backlog/{kind}/{name}/convert", h.Convert).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/targets", h.GetArchiveTargets).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/targets", h.CreateTargetHandler).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/targets/{targetId}", h.UpdateTargetHandler).Methods("PUT")
@@ -288,19 +279,6 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		tags = []string{}
 	}
 
-	researchTarget := ""
-	if req.ResearchTarget != nil {
-		normalized, err := normalizeResearchTarget(*req.ResearchTarget)
-		if err != nil {
-			httputil.BadRequest(w, "[backlog] create", err.Error())
-			return
-		}
-		researchTarget = normalized
-	}
-	if kind != KindResearch {
-		researchTarget = ""
-	}
-
 	dependsOn := req.DependsOn
 	if dependsOn == nil {
 		dependsOn = []string{}
@@ -343,7 +321,6 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		Created:         now,
 		Updated:         now,
 		Kind:            kind,
-		ResearchTarget:  researchTarget,
 		DependsOn:       dependsOn,
 		Initiative:      initiative,
 		Effort:          effort,
@@ -522,14 +499,6 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	oldStatus := existing.Status
 	oldPriority := existing.Priority
 
-	if fields.Has(updateFieldResearchTarget) {
-		normalized, err := normalizeResearchTarget(update.GetResearchTarget())
-		if err != nil {
-			httputil.BadRequest(w, "[backlog] update", err.Error())
-			return
-		}
-		update.ResearchTarget = &normalized
-	}
 	if fields.Has(updateFieldEffort) {
 		normalized, err := validateEffort(update.GetEffort())
 		if err != nil {

@@ -40,7 +40,6 @@ function makeCtx(overrides?: Partial<ActionContext>): ActionContext {
     agentRunning: false,
     hasPendingDecisions: false,
     hasExecutionHistory: false,
-    hasResearchOutput: false,
     ...overrides,
   };
 }
@@ -72,9 +71,9 @@ describe("isBacklogQueueable", () => {
     }
   });
 
-  it("returns false for research items regardless of status", () => {
-    for (const status of [...queueableStatuses, ...nonQueueableStatuses]) {
-      expect(isBacklogQueueable({ kind: "research", status })).toBe(false);
+  it("returns true for research items in queueable statuses", () => {
+    for (const status of queueableStatuses) {
+      expect(isBacklogQueueable({ kind: "research", status })).toBe(true);
     }
   });
 
@@ -152,10 +151,8 @@ describe("getBacklogNotQueueableReason", () => {
     expect(getBacklogNotQueueableReason({ kind: "idea", status: "archived" })).toBeNull();
   });
 
-  it("returns research-specific reason", () => {
-    expect(getBacklogNotQueueableReason({ kind: "research", status: "backlog" })).toBe(
-      "Research items must be converted before queueing.",
-    );
+  it("returns null for research items in queueable statuses", () => {
+    expect(getBacklogNotQueueableReason({ kind: "research", status: "backlog" })).toBeNull();
   });
 
   it("returns status-specific reasons for non-queueable statuses", () => {
@@ -205,7 +202,6 @@ describe("getItemActions", () => {
       expect(result.canWorkshop).toBe(false);
       expect(result.canFollowUp).toBe(false);
       expect(result.canArchive).toBe(false);
-      expect(result.canConvert).toBe(false);
       expect(result.showDecisionStepper).toBe(false);
     });
 
@@ -487,39 +483,22 @@ describe("getItemActions", () => {
   // -------------------------------------------------------------------------
 
   describe("research items", () => {
-    it("canConvert when hasResearchOutput and valid target", () => {
+    it("research items follow normal run/workshop CTA funnel", () => {
       const result = getItemActions(makeCtx({
-        item: makeItem({ kind: "research", status: "backlog", researchTarget: "idea" }),
-        hasResearchOutput: true,
-      }));
-      expect(result.canConvert).toBe(true);
-      expect(result.canRun).toBe(false);
-      expect(result.primaryCta).toBe("convert");
-    });
-
-    it("canConvert=false when no research output", () => {
-      const result = getItemActions(makeCtx({
-        item: makeItem({ kind: "research", status: "backlog", researchTarget: "idea" }),
-        hasResearchOutput: false,
-      }));
-      expect(result.canConvert).toBe(false);
-    });
-
-    it("canConvert=false when researchTarget is unspecified", () => {
-      const result = getItemActions(makeCtx({
-        item: makeItem({ kind: "research", status: "backlog", researchTarget: "unspecified" }),
-        hasResearchOutput: true,
-      }));
-      expect(result.canConvert).toBe(false);
-    });
-
-    it("canRun is always false for research items", () => {
-      const result = getItemActions(makeCtx({
-        item: makeItem({ kind: "research", status: "ready" }),
+        item: makeItem({ kind: "research", status: "backlog" }),
         readinessReady: true,
       }));
-      expect(result.canRun).toBe(false);
-      expect(result.canWorkshop).toBe(false);
+      expect(result.canRun).toBe(true);
+      expect(result.primaryCta).toBe("run");
+    });
+
+    it("research items show workshop when not ready", () => {
+      const result = getItemActions(makeCtx({
+        item: makeItem({ kind: "research", status: "backlog" }),
+        readinessReady: false,
+      }));
+      expect(result.canWorkshop).toBe(true);
+      expect(result.primaryCta).toBe("workshop");
     });
   });
 
@@ -541,13 +520,6 @@ describe("getItemActions", () => {
       const item = makeItem({ dependsOn: ["idea/something"] });
       const result = getItemActions(makeCtx({ item, allItems: [] }));
       expect(result.blocked).toBe(false);
-    });
-
-    it("notQueueableReason is populated for non-queueable items", () => {
-      const result = getItemActions(makeCtx({
-        item: makeItem({ kind: "research", status: "backlog" }),
-      }));
-      expect(result.notQueueableReason).toBe("Research items must be converted before queueing.");
     });
 
     it("notQueueableReason is null for queueable items", () => {

@@ -133,7 +133,7 @@ describe("BacklogDetailsPage", () => {
     });
   });
 
-  it("hides queue button for research items", async () => {
+  it("shows queue button for research items (research items are queueable)", async () => {
     vi.mocked(backlogService.get).mockResolvedValue({
       ...mockItem,
       kind: "research",
@@ -147,7 +147,8 @@ describe("BacklogDetailsPage", () => {
       expect(screen.getByTestId("backlog-details-header")).toBeInTheDocument();
     });
 
-    expect(screen.queryByTestId("backlog-details-queue")).not.toBeInTheDocument();
+    // Research items follow the normal CTA funnel and can be queued.
+    expect(screen.getAllByTestId("backlog-details-queue").length).toBeGreaterThan(0);
   });
 
   it("renders file tree on files tab", async () => {

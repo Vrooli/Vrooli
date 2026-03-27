@@ -415,7 +415,6 @@ func (a *App) cmdPromptsSimulate(args []string) error {
 	itemPriority := fs.String("item-priority", "", "Backlog item priority")
 	itemTags := fs.String("item-tags", "", "Backlog item tags")
 	itemFolder := fs.String("item-folder", "", "Backlog item folder path")
-	researchTarget := fs.String("research-target", "", "Research target (idea|fix|execute|unspecified)")
 	varsCSV := fs.String("vars", "", "Comma-separated variables (KEY=VALUE)")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
@@ -459,9 +458,6 @@ func (a *App) cmdPromptsSimulate(args []string) error {
 	}
 	if value := strings.TrimSpace(*itemFolder); value != "" {
 		payload["item_folder"] = value
-	}
-	if value := strings.TrimSpace(*researchTarget); value != "" {
-		payload["research_target"] = value
 	}
 	if len(vars) > 0 {
 		payload["variables"] = vars

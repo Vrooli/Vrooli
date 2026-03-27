@@ -25,7 +25,6 @@ type BatchCreateItem struct {
 	Kind            string   `json:"kind"`
 	Priority        *int32   `json:"priority,omitempty"`
 	Tags            []string `json:"tags,omitempty"`
-	ResearchTarget  *string  `json:"research_target,omitempty"`
 	DependsOn       []string `json:"depends_on,omitempty"`
 	Initiative      string   `json:"initiative,omitempty"`
 	Effort          *string  `json:"effort,omitempty"`

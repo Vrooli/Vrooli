@@ -66,6 +66,11 @@ Every processing operation must leave evidence of what was done:
 - Write `summary.md` with what was accomplished
 - Include any outputs or artifacts
 
+**For Research items:**
+- Read `conclusion.md` produced by the research workshop
+- Execute each action in the Actions section (create backlog items, update documents, etc.)
+- Write `notes.md` with completion summary listing actions taken and any deviations
+
 ### 4. Completion Summary Requirements
 
 Every processing operation must produce a summary in the item folder. This summary should include:

@@ -9,11 +9,8 @@ import { FileTree } from "../ui/file-tree";
 import { selectors } from "../../consts/selectors";
 import {
   BACKLOG_KIND_LABELS,
-  BACKLOG_RESEARCH_TARGET_LABELS,
-  BACKLOG_RESEARCH_TARGETS,
   type BacklogKind,
   type BacklogFile,
-  type BacklogResearchTarget,
   type ArchiveRequirementGroup,
   type ArchiveTargetsResponse,
 } from "../../types";
@@ -24,7 +21,6 @@ interface BacklogAgentDialogProps {
   backlogKind: BacklogKind;
   backlogTitle: string;
   itemStatus?: string;
-  researchTarget?: BacklogResearchTarget;
   errorMessage?: string | null;
   files?: BacklogFile[];
   archiveTargets?: ArchiveTargetsResponse;
@@ -34,7 +30,6 @@ interface BacklogAgentDialogProps {
   onSubmit: (payload: {
     mode?: string;
     prompt: string;
-    targetKind?: BacklogResearchTarget;
     contextPaths?: string[];
     contextTargetIds?: string[];
     contextRequirementIds?: string[];
@@ -52,22 +47,11 @@ const MODE_OPTIONS: Array<{
     description: "Run a workshop round to refine the implementation plan",
   },
   {
-    value: "research",
-    title: "Research",
-    description: "Deep research on feasibility, dependencies, and risks",
-  },
-  {
     value: "initialize",
     title: "Initialize",
     description: "Bootstrap the item with a plan scaffold and first round",
   },
 ];
-
-const RESEARCH_TARGET_OPTIONS: Array<{ value: BacklogResearchTarget; label: string }> =
-  BACKLOG_RESEARCH_TARGETS.map((value) => ({
-    value,
-    label: BACKLOG_RESEARCH_TARGET_LABELS[value],
-  }));
 
 function RequirementCheckboxGroup({
   groups,
@@ -150,7 +134,6 @@ export function BacklogAgentDialog({
   backlogKind,
   backlogTitle,
   itemStatus,
-  researchTarget,
   errorMessage = null,
   files,
   archiveTargets,
@@ -161,7 +144,6 @@ export function BacklogAgentDialog({
 }: BacklogAgentDialogProps) {
   const [prompt, setPrompt] = useState("");
   const [mode, setMode] = useState<string>("workshop");
-  const [targetKind, setTargetKind] = useState<BacklogResearchTarget>(researchTarget ?? "idea");
   const [selectedFilePaths, setSelectedFilePaths] = useState<Set<string>>(new Set());
   const [selectedTargetIds, setSelectedTargetIds] = useState<Set<string>>(new Set());
   const [selectedRequirementIds, setSelectedRequirementIds] = useState<Set<string>>(new Set());
@@ -169,7 +151,6 @@ export function BacklogAgentDialog({
   const [attachTab, setAttachTab] = useState<"files" | "targets">("files");
 
   const isIdea = backlogKind === "idea";
-  const isResearch = backlogKind === "research";
 
   const totalAttached = selectedFilePaths.size + selectedTargetIds.size + selectedRequirementIds.size;
 
@@ -182,7 +163,6 @@ export function BacklogAgentDialog({
     if (isOpen) {
       setPrompt("");
       setMode(itemStatus === "backlog" ? "initialize" : "workshop");
-      setTargetKind(researchTarget ?? "idea");
       setSelectedFilePaths(new Set());
       const initTargets = initialSelectedTargetIds?.size ? new Set(initialSelectedTargetIds) : new Set<string>();
       const initReqs = initialSelectedRequirementIds?.size ? new Set(initialSelectedRequirementIds) : new Set<string>();
@@ -192,7 +172,7 @@ export function BacklogAgentDialog({
       setShowAttachContext(hasInitialSelections);
       setAttachTab(hasInitialSelections ? "targets" : "files");
     }
-  }, [isOpen, researchTarget, itemStatus, initialSelectedTargetIds, initialSelectedRequirementIds]);
+  }, [isOpen, itemStatus, initialSelectedTargetIds, initialSelectedRequirementIds]);
 
   const filteredModes = useMemo(() => {
     if (itemStatus === "backlog") return MODE_OPTIONS;
@@ -260,30 +240,6 @@ export function BacklogAgentDialog({
             })}
           </div>
         </fieldset>
-      )}
-
-      {isResearch && (
-        <div className="mt-4">
-          <label htmlFor="backlog-agent-target" className="text-sm font-medium text-slate-300">
-            Research target
-          </label>
-          <div className="mt-2">
-            <Select
-              id="backlog-agent-target"
-              value={targetKind}
-              onChange={(e) => setTargetKind(e.target.value as BacklogResearchTarget)}
-            >
-              {RESEARCH_TARGET_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <p className="mt-1 text-xs text-slate-500">
-            Select what kind of backlog item this research should convert into later.
-          </p>
-        </div>
       )}
 
       <div className="mt-4 space-y-3">
@@ -449,7 +405,6 @@ export function BacklogAgentDialog({
             onSubmit({
               mode: filteredModes.length > 0 ? mode : undefined,
               prompt,
-              targetKind: isResearch ? targetKind : undefined,
               contextPaths: selectedFilePaths.size > 0 ? [...selectedFilePaths] : undefined,
               contextTargetIds: selectedTargetIds.size > 0 ? [...selectedTargetIds] : undefined,
               contextRequirementIds: selectedRequirementIds.size > 0 ? [...selectedRequirementIds] : undefined,

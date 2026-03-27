@@ -71,9 +71,6 @@ func (a *App) cmdBacklogList(args []string) error {
 		if len(item.Tags) > 0 {
 			fmt.Printf("    Tags: %s\n", strings.Join(item.Tags, ", "))
 		}
-		if item.Kind == "research" && item.ResearchTarget != "" {
-			fmt.Printf("    Target: %s\n", item.ResearchTarget)
-		}
 		if len(item.DependsOn) > 0 {
 			fmt.Printf("    Depends on: %s\n", strings.Join(item.DependsOn, ", "))
 		}
@@ -142,9 +139,6 @@ func (a *App) cmdBacklogGet(args []string) error {
 	fmt.Printf("  Priority: %d\n", item.Priority)
 	if len(item.Tags) > 0 {
 		fmt.Printf("  Tags: %s\n", strings.Join(item.Tags, ", "))
-	}
-	if item.ResearchTarget != "" {
-		fmt.Printf("  Research Target: %s\n", item.ResearchTarget)
 	}
 	if len(item.DependsOn) > 0 {
 		fmt.Printf("  Depends On: %s\n", strings.Join(item.DependsOn, ", "))
@@ -629,57 +623,6 @@ func (a *App) cmdBacklogPromptTrace(args []string) error {
 	printCommandListSection("Next Steps", []string{
 		cliCommand("backlog", "research", "--kind", kind, "--name", name),
 		cliCommand("backlog", "get", "--kind", kind, "--name", name),
-	})
-	return nil
-}
-
-func (a *App) cmdBacklogConvert(args []string) error {
-	fs := flag.NewFlagSet("backlog convert", flag.ContinueOnError)
-	kindFlag := fs.String("kind", "", "Source backlog item kind")
-	nameFlag := fs.String("name", "", "Source backlog item name")
-	targetKindFlag := fs.String("target-kind", "", "Target kind to convert to")
-	targetNameFlag := fs.String("target-name", "", "Optional target name")
-	jsonOut := cliutil.JSONFlag(fs)
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-	if err := requireFlags("kind", *kindFlag, "name", *nameFlag, "target-kind", *targetKindFlag); err != nil {
-		return fmt.Errorf("usage: backlog convert --kind KIND --name NAME --target-kind TARGET_KIND [--target-name TARGET_NAME] [--json]\n\n%s", err)
-	}
-	kind := strings.TrimSpace(*kindFlag)
-	name := strings.TrimSpace(*nameFlag)
-	targetKind := strings.TrimSpace(*targetKindFlag)
-	targetName := strings.TrimSpace(*targetNameFlag)
-
-	payload := map[string]string{
-		"targetKind": targetKind,
-	}
-	if strings.TrimSpace(targetName) != "" {
-		payload["targetName"] = targetName
-	}
-	bodyBytes, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("failed to encode request: %w", err)
-	}
-
-	body, err := a.requestV1("POST", "/backlog/"+kind+"/"+name+"/convert", nil, json.RawMessage(bodyBytes))
-	if err != nil {
-		return err
-	}
-	if printJSONIfRequested(*jsonOut, body) {
-		return nil
-	}
-
-	response, err := decodeResponse[BacklogItemResponse](body)
-	if err != nil {
-		return err
-	}
-
-	printSection("Result")
-	fmt.Printf("  Converted backlog item: %s/%s -> %s/%s\n", kind, name, response.Item.Kind, response.Item.Name)
-	printCommandListSection("Next Steps", []string{
-		cliCommand("backlog", "get", "--kind", response.Item.Kind, "--name", response.Item.Name),
-		cliCommand("backlog", "list", "--kind", response.Item.Kind),
 	})
 	return nil
 }

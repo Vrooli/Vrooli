@@ -21,18 +21,19 @@ import (
 )
 
 // parseResearchMode normalizes a raw mode string into a ResearchMode constant.
-// Unrecognized values default to ResearchModeResearch.
-func parseResearchMode(raw string) ResearchMode {
+// Returns an error for unrecognized values.
+func parseResearchMode(raw string) (ResearchMode, error) {
 	candidate := strings.ToLower(strings.TrimSpace(raw))
 	switch candidate {
-	case "workshop":
-		return ResearchModeWorkshop
-	case "research", "", "explore", "investigate":
-		return ResearchModeResearch
+	case "workshop", "":
+		return ResearchModeWorkshop, nil
 	case "initialize":
-		return ResearchModeInitialize
+		return ResearchModeInitialize, nil
+	// Capture-related modes (clarify, suggest, enhance) are treated as workshop.
+	case "clarify", "suggest", "enhance":
+		return ResearchModeWorkshop, nil
 	default:
-		return ResearchModeResearch
+		return "", fmt.Errorf("unsupported research mode %q: must be workshop or initialize", candidate)
 	}
 }
 
@@ -54,14 +55,6 @@ func normalizeResearchRequest(req *apipb.BacklogResearchRequest) {
 			req.Mode = nil
 		} else {
 			req.Mode = &trimmed
-		}
-	}
-	if req.TargetKind != nil {
-		trimmed := strings.ToLower(strings.TrimSpace(*req.TargetKind))
-		if trimmed == "" {
-			req.TargetKind = nil
-		} else {
-			req.TargetKind = &trimmed
 		}
 	}
 }
@@ -90,7 +83,7 @@ func buildResearchTitle(item BacklogItem, mode ResearchMode) string {
 	case ResearchModeInitialize:
 		return "Initialize: " + label
 	default:
-		return "Research: " + label
+		return "Workshop: " + label
 	}
 }
 
@@ -118,6 +111,7 @@ func (h *Handler) fetchResearchPrompt(ctx context.Context, item BacklogItem, mod
 
 // buildVariableMap creates the template variable map for prompt-manager skill rendering.
 func buildVariableMap(item BacklogItem, itemFolder string) map[string]string {
+	deliverable := DeliverableForKind(item.Kind)
 	vars := map[string]string{
 		"ITEM_NAME":        item.Name,
 		"ITEM_TITLE":       item.Title,
@@ -127,12 +121,12 @@ func buildVariableMap(item BacklogItem, itemFolder string) map[string]string {
 		"ITEM_PRIORITY":    fmt.Sprintf("%d", item.Priority),
 		"ITEM_TAGS":        strings.Join(item.Tags, ", "),
 		"ITEM_FOLDER":      itemFolder,
-		"RESEARCH_TARGET":  item.ResearchTarget,
+		"DELIVERABLE":      deliverable,
 	}
 
 	// Add workshop-specific variables.
 	rounds, _ := LoadWorkshopRounds(itemFolder)
-	vars["PLAN_DRAFT"] = LoadPlanContent(itemFolder)
+	vars["PLAN_DRAFT"] = LoadPlanContentByName(itemFolder, deliverable)
 	vars["WORKSHOP_HISTORY"] = BuildWorkshopHistory(rounds)
 	vars["ROUND_NUMBER"] = fmt.Sprintf("%03d", len(rounds)+1)
 
@@ -168,7 +162,11 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	mode := parseResearchMode(readOptionalString(req.Mode))
+	mode, modeErr := parseResearchMode(readOptionalString(req.Mode))
+	if modeErr != nil {
+		httputil.BadRequest(w, "[backlog] research", modeErr.Error())
+		return
+	}
 	if err := validateResearchModeForKind(kind, mode); err != nil {
 		httputil.BadRequest(w, "[backlog] research", err.Error())
 		return
@@ -177,19 +175,6 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 	if mode == ResearchModeInitialize && item.Status != StatusBacklog {
 		httputil.Conflict(w, "[backlog] research", "initialize is only available for items in 'backlog' status")
 		return
-	}
-
-	if kind == KindResearch && req.TargetKind != nil {
-		normalized, err := normalizeResearchTarget(*req.TargetKind)
-		if err != nil {
-			httputil.BadRequest(w, "[backlog] research", err.Error())
-			return
-		}
-		item.ResearchTarget = normalized
-		item.Updated = time.Now().UTC().Format(time.RFC3339)
-		if err := h.store.SaveItem(item); err != nil {
-			log.Printf("[backlog] research: failed to update research target for %q: %v", name, err)
-		}
 	}
 
 	scopePath := "." // Always use project root for sandbox overlay.

@@ -437,7 +437,6 @@ type simulateRequest struct {
 	ItemPriority    string            `json:"item_priority,omitempty"`
 	ItemTags        string            `json:"item_tags,omitempty"`
 	ItemFolder      string            `json:"item_folder,omitempty"`
-	ResearchTarget  string            `json:"research_target,omitempty"`
 	Variables       map[string]string `json:"variables,omitempty"`
 }
 
@@ -471,7 +470,6 @@ func defaultVariables(req simulateRequest) map[string]string {
 		"ITEM_PRIORITY":    strings.TrimSpace(req.ItemPriority),
 		"ITEM_TAGS":        strings.TrimSpace(req.ItemTags),
 		"ITEM_FOLDER":      strings.TrimSpace(req.ItemFolder),
-		"RESEARCH_TARGET":  strings.TrimSpace(req.ResearchTarget),
 	}
 	for key, value := range req.Variables {
 		vars[key] = value

@@ -7,7 +7,7 @@
  * DOC: docs/concepts/ARCHITECTURE.md#workshop-refinement
  */
 
-import type { MaturityItemSummary, ReadinessDimension } from "../types/domain";
+import type { BacklogKind, MaturityItemSummary, ReadinessDimension } from "../types/domain";
 
 export const READINESS_DIMENSIONS: ReadinessDimension[] = [
   "problem_clarity",
@@ -24,6 +24,27 @@ export const DIMENSION_LABELS: Record<ReadinessDimension, string> = {
   testable: "Testability",
   risk_awareness: "Risk Awareness",
 };
+
+/** Research-specific dimension labels — reinterprets the same dimensions for research items. */
+const RESEARCH_DIMENSION_LABELS: Record<ReadinessDimension, string> = {
+  problem_clarity: "Question Clarity",
+  scope_defined: "Scope",
+  approach_solid: "Methodology",
+  testable: "Verifiable",
+  risk_awareness: "Risk Awareness",
+};
+
+/**
+ * Returns the appropriate dimension label for a given kind.
+ * Research items get research-specific labels; all others use the defaults.
+ * Extensible: add new kind overrides by adding a new labels record.
+ */
+export function getDimensionLabel(dim: ReadinessDimension, kind?: BacklogKind): string {
+  if (kind === "research") {
+    return RESEARCH_DIMENSION_LABELS[dim];
+  }
+  return DIMENSION_LABELS[dim];
+}
 
 export const DIMENSION_SHORT_LABELS: Record<ReadinessDimension, string> = {
   problem_clarity: "P",

@@ -32,15 +32,12 @@ interface QueueableBacklogItem {
 }
 
 export const isBacklogQueueable = (item: QueueableBacklogItem): boolean =>
-  (item.kind !== "research" && QUEUEABLE_BACKLOG_STATUSES.includes(item.status)) ||
+  QUEUEABLE_BACKLOG_STATUSES.includes(item.status) ||
   (item.kind === "idea" && item.status === "archived");
 
 export const getBacklogNotQueueableReason = (item: QueueableBacklogItem): string | null => {
   if (isBacklogQueueable(item)) {
     return null;
-  }
-  if (item.kind === "research") {
-    return "Research items must be converted before queueing.";
   }
   switch (item.status) {
     case "queued":
@@ -100,7 +97,7 @@ export function getBlockingDepKeys(item: Pick<BacklogItem, "dependsOn">, allItem
  * booleans/values so the resolver stays pure and framework-agnostic.
  */
 export interface ActionContext {
-  item: Pick<BacklogItem, "kind" | "name" | "status" | "dependsOn" | "researchTarget">;
+  item: Pick<BacklogItem, "kind" | "name" | "status" | "dependsOn">;
   allItems: BacklogItem[];
   /** Whether the item's plan is ready for execution. null = no readiness data loaded. */
   readinessReady: boolean | null;
@@ -110,12 +107,10 @@ export interface ActionContext {
   hasPendingDecisions: boolean;
   /** Whether execution history exists for this item (details page only; card passes false). */
   hasExecutionHistory: boolean;
-  /** Whether a research item has non-spec output files (details page only; card passes false). */
-  hasResearchOutput: boolean;
 }
 
 /** Which single CTA should receive primary visual emphasis. */
-export type PrimaryCta = "run" | "workshop" | "followUp" | "archive" | "convert" | null;
+export type PrimaryCta = "run" | "workshop" | "followUp" | "archive" | null;
 
 /** Computed action states for a backlog item. */
 export interface ItemActions {
@@ -141,8 +136,6 @@ export interface ItemActions {
   canFollowUp: boolean;
   /** "Archive" button: visible (terminal items). */
   canArchive: boolean;
-  /** "Convert" button: visible (research items with output). */
-  canConvert: boolean;
   /** Inline decision stepper / expanded workshop panel should render. */
   showDecisionStepper: boolean;
   /** Pass-through for label text ("Agent running..."). */
@@ -172,7 +165,6 @@ export function getItemActions(ctx: ActionContext): ItemActions {
   const blocked = hasBlockingDeps(item, allItems);
   const blockingDepKeys = blocked ? getBlockingDepKeys(item, allItems) : [];
   const queueable = isBacklogQueueable(item);
-  const isResearch = item.kind === "research";
   const notQueueableReason = getBacklogNotQueueableReason(item);
 
   // Base result with all actions off.
@@ -188,7 +180,6 @@ export function getItemActions(ctx: ActionContext): ItemActions {
     workshopDisabled: false,
     canFollowUp: false,
     canArchive: false,
-    canConvert: false,
     showDecisionStepper: false,
     agentRunning,
     notQueueableReason,
@@ -209,7 +200,7 @@ export function getItemActions(ctx: ActionContext): ItemActions {
   }
 
   // Step 0: Blocked by deps — show actions as disabled.
-  if (blocked && queueable && !isResearch) {
+  if (blocked && queueable) {
     const needsWorkshop = ctx.readinessReady === false;
     return {
       ...base,
@@ -224,7 +215,7 @@ export function getItemActions(ctx: ActionContext): ItemActions {
 
   // Step 2: Unanswered decisions — stepper is primary, workshop as secondary.
   if (ctx.hasPendingDecisions) {
-    const needsWorkshop = queueable && !isResearch && ctx.readinessReady === false;
+    const needsWorkshop = queueable && ctx.readinessReady === false;
     return {
       ...base,
       showDecisionStepper: true,
@@ -235,7 +226,7 @@ export function getItemActions(ctx: ActionContext): ItemActions {
   }
 
   // Step 3: Readiness not met — workshop is primary.
-  if (queueable && !isResearch && ctx.readinessReady === false) {
+  if (queueable && ctx.readinessReady === false) {
     return {
       ...base,
       canWorkshop: !agentRunning,
@@ -245,7 +236,7 @@ export function getItemActions(ctx: ActionContext): ItemActions {
   }
 
   // Step 4: Ready — run is primary.
-  if (queueable && !isResearch) {
+  if (queueable) {
     return {
       ...base,
       canRun: !agentRunning,
@@ -254,15 +245,6 @@ export function getItemActions(ctx: ActionContext): ItemActions {
     };
   }
 
-  // Research items: convert instead of run.
-  if (isResearch && ctx.hasResearchOutput && item.researchTarget && item.researchTarget !== "unspecified") {
-    return {
-      ...base,
-      canConvert: true,
-      primaryCta: "convert",
-    };
-  }
-
-  // Fallback: no primary CTA (e.g., research without output, or other edge cases).
+  // Fallback: no primary CTA.
   return base;
 }

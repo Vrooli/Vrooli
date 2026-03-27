@@ -48,6 +48,7 @@
 - **Root cause**: `execution/service.go` defined its own `backlogItem` struct (line 525) missing the `created` and `research_target` fields. When `updateBacklogStatus()` wrote this incomplete struct back to `spec.json` via `storage.WriteJSONAtomic()`, those fields were silently dropped. Any item that went through the execution pipeline (queue, cancel, complete, fail) permanently lost its `created` timestamp and research target.
 - **Impact**: Items with blank `created` fail the `BacklogItem.created` protovalidate constraint (`min_len = 1`) on the frontend, causing `parseProtoResponse` to reject them. The backlog list appeared empty (`{}`) even when items existed on disk.
 - **Fix**: Added `Created string json:"created"` and `ResearchTarget string json:"research_target,omitempty"` to the `backlogItem` struct in `execution/service.go` to match the canonical field set in `backlog/handler.go`. Now round-tripping through `loadBacklogItem` → `updateBacklogStatus` preserves all fields.
+- **Note (2026-03-26)**: The `research_target` field was subsequently removed from the data model as part of the research backlog item rework. The `updateBacklogStatus()` function now deletes `research_target` from on-disk data to clean up legacy values.
 
 ### 2026-02-13: Backlog queue proto migration
 - **Proto schema** (`backlog.proto`): Added `mode`, `delay_seconds`, `started_by` fields to `QueueBacklogItemRequest` — previously only `operation` was declared while the Go handler expected all four fields via a hand-written struct.

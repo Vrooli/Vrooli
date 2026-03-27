@@ -200,7 +200,6 @@ func TestCreateBacklogRequestStruct(t *testing.T) {
 		Priority:        3,
 		Tags:            []string{"new"},
 		Kind:            "idea",
-		ResearchTarget:  "execute",
 		DependsOn:       []string{"fix/auth-bug"},
 		AcceptanceAllow: []string{"scenarios/swarm-manager/**"},
 		AcceptanceDeny:  []string{"scenarios/swarm-manager/secrets/**"},
@@ -220,9 +219,6 @@ func TestCreateBacklogRequestStruct(t *testing.T) {
 	}
 	if !strings.Contains(jsonStr, `"kind":"idea"`) {
 		t.Error("JSON should contain kind field")
-	}
-	if !strings.Contains(jsonStr, `"research_target":"execute"`) {
-		t.Error("JSON should contain snake_case research_target field")
 	}
 	if !strings.Contains(jsonStr, `"depends_on":["fix/auth-bug"]`) {
 		t.Error("JSON should contain snake_case depends_on field")
@@ -567,21 +563,6 @@ func TestCmdBacklogFileUploadValidation(t *testing.T) {
 	err = app.cmdBacklogFileUpload([]string{})
 	if err == nil {
 		t.Error("cmdBacklogFileUpload with no args should return error")
-	}
-	if !strings.Contains(err.Error(), "usage") {
-		t.Errorf("Error should contain 'usage', got: %v", err)
-	}
-}
-
-func TestCmdBacklogConvertValidation(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() returned error: %v", err)
-	}
-
-	err = app.cmdBacklogConvert([]string{})
-	if err == nil {
-		t.Error("cmdBacklogConvert with no args should return error")
 	}
 	if !strings.Contains(err.Error(), "usage") {
 		t.Errorf("Error should contain 'usage', got: %v", err)

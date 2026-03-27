@@ -25,7 +25,7 @@ Run one workshop round for a backlog item of any kind. Analyze gaps in the curre
 - Processing/implementing the item (see `swarm-manager-process-*` skills)
 - Modifying `archive/` — it contains user-provided materials and must not be altered
 - Queueing the item for execution
-- Deep research (see `swarm-manager-research-*` skills for that)
+- Research items (see `swarm-manager-workshop-research` for that)
 
 ## Output Requirements
 
@@ -189,7 +189,7 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
    |-----------|---------------|-----|
    | `idea` | `scenario-generation` | Scenario scaffolding, PRD/requirements tooling, ecosystem-manager integration |
 
-   For other kinds (`fix`, `execute`, `research`, `chore`), no kind-specific skill is required — discovery is sufficient.
+   For other kinds (`fix`, `execute`, `chore`), no kind-specific skill is required — discovery is sufficient. Research items use `swarm-manager-workshop-research` and are not handled by this skill.
 
    When the item kind matches a row above, embed that skill in plan.md's Required Reading **in addition to** whatever discovery finds. This is not optional — it ensures operational knowledge is always available to the executing agent.
 
@@ -231,9 +231,10 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
    |------|-----------|------|-------|
    | idea | 4-7 | 0-2 | Scope, feasibility, architecture, user value |
    | fix | 2-4 | 1-2 | Reproduction, root cause, fix strategy, regression risk |
-   | research | 3-5 | 0-2 | Research questions, methodology, scope boundaries |
    | execute | 3-5 | 0-1 | Requirements clarity, decomposition, verification |
    | chore | 2-4 | 0-1 | Scope boundaries, approach, completion criteria |
+
+   > **Note:** Research items use `swarm-manager-workshop-research` instead of this skill.
 
    **Quality rules:**
    - Decisions should target specific plan gaps, not general curiosity
