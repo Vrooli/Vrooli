@@ -683,9 +683,25 @@ func TestCheckDependencies_FailOpen(t *testing.T) {
 		"created":  "2025-01-01T00:00:00Z",
 	})
 
-	// Create an incomplete dependency.
+	// Create a dependency still in planning (blocking status).
 	writeSpecJSON(t, rootDir, KindIdea, "dep-pending", map[string]any{
 		"title":    "Pending Dep",
+		"status":   "backlog",
+		"priority": 3,
+		"created":  "2025-01-01T00:00:00Z",
+	})
+
+	// Create a dependency that failed — past planning phase, not blocking.
+	writeSpecJSON(t, rootDir, KindIdea, "dep-failed", map[string]any{
+		"title":    "Failed Dep",
+		"status":   "failed",
+		"priority": 3,
+		"created":  "2025-01-01T00:00:00Z",
+	})
+
+	// Create a dependency that is ready — past planning phase, not blocking.
+	writeSpecJSON(t, rootDir, KindIdea, "dep-ready", map[string]any{
+		"title":    "Ready Dep",
 		"status":   "ready",
 		"priority": 3,
 		"created":  "2025-01-01T00:00:00Z",
@@ -725,7 +741,7 @@ func TestCheckDependencies_FailOpen(t *testing.T) {
 		}
 	})
 
-	t.Run("incomplete dep is unmet", func(t *testing.T) {
+	t.Run("backlog dep is unmet", func(t *testing.T) {
 		unmet, err := store.CheckDependencies([]string{"idea/dep-pending"})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -735,19 +751,42 @@ func TestCheckDependencies_FailOpen(t *testing.T) {
 		}
 	})
 
-	t.Run("mixed completed, archived, and incomplete deps", func(t *testing.T) {
-		// Only the incomplete (on-disk, non-completed) dep should be unmet.
-		// The completed dep is satisfied; the missing dep is presumed archived.
+	t.Run("failed dep is not blocking", func(t *testing.T) {
+		// A failed dependency has progressed past the planning phase and
+		// should not block downstream items.
+		unmet, err := store.CheckDependencies([]string{"idea/dep-failed"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(unmet) != 0 {
+			t.Errorf("expected failed dep to not block, got unmet: %v", unmet)
+		}
+	})
+
+	t.Run("ready dep is not blocking", func(t *testing.T) {
+		// A ready dependency has been planned and should not block.
+		unmet, err := store.CheckDependencies([]string{"idea/dep-ready"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(unmet) != 0 {
+			t.Errorf("expected ready dep to not block, got unmet: %v", unmet)
+		}
+	})
+
+	t.Run("mixed completed, archived, and unplanned deps", func(t *testing.T) {
+		// Only the unplanned (backlog/researching) dep should be unmet.
 		unmet, err := store.CheckDependencies([]string{
 			"idea/dep-done",         // completed on disk → satisfied
 			"idea/nonexistent-item", // missing on disk → presumed archived → satisfied
-			"idea/dep-pending",      // exists on disk, status=ready → unmet
+			"idea/dep-failed",       // failed on disk → past planning → satisfied
+			"idea/dep-pending",      // backlog on disk → still in planning → unmet
 		})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if len(unmet) != 1 {
-			t.Fatalf("expected 1 unmet dep (only the incomplete one), got %d: %v", len(unmet), unmet)
+			t.Fatalf("expected 1 unmet dep (only the backlog one), got %d: %v", len(unmet), unmet)
 		}
 		if unmet[0] != "idea/dep-pending" {
 			t.Errorf("expected unmet dep to be idea/dep-pending, got: %s", unmet[0])

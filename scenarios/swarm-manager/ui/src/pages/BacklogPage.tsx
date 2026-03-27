@@ -229,6 +229,23 @@ export function BacklogPage() {
     }
     return keys;
   }, [agentRuns]);
+  /** Map from backlog key → human-readable running label (e.g. "Running workshop…"). */
+  const activeRunLabels = useMemo(() => {
+    const ACTIVE = new Set(["pending", "starting", "running", "needs_review"]);
+    const labels = new Map<string, string>();
+    for (const run of agentRuns) {
+      if (run.backlogKind && run.backlogName && ACTIVE.has(run.status)) {
+        const key = `${run.backlogKind}/${run.backlogName}`;
+        switch (run.mode) {
+          case "workshop": labels.set(key, "Running workshop…"); break;
+          case "finalize": labels.set(key, "Running finalize…"); break;
+          case "research": labels.set(key, "Running research…"); break;
+          default: labels.set(key, "Agent running…"); break;
+        }
+      }
+    }
+    return labels;
+  }, [agentRuns]);
   const items = useBacklogStore((state) => state.items);
   const status = useBacklogStore((state) => state.status);
   const error = useBacklogStore((state) => state.error);
@@ -965,6 +982,7 @@ export function BacklogPage() {
                           mode: "workshop",
                           prompt: "Run the next workshop round for this backlog item.",
                         })}
+                        runningLabel={activeRunLabels.get(itemKey)}
                         archivePending={archiveMutation.isPending}
                         finalizePending={
                           workshopMutation.isPending &&

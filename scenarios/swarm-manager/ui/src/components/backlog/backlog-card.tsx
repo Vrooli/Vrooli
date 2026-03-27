@@ -52,6 +52,8 @@ export interface BacklogCardProps {
   finalizePending: boolean;
   workshopPending: boolean;
   workshopLabel?: string;
+  /** Human-readable label shown when an agent is running (e.g. "Running workshop…"). */
+  runningLabel?: string;
 }
 
 export function BacklogCard({
@@ -76,6 +78,7 @@ export function BacklogCard({
   finalizePending,
   workshopPending,
   workshopLabel = "Workshop",
+  runningLabel = "Agent running…",
 }: BacklogCardProps) {
   const hasActiveStepper = itemActions.showDecisionStepper && (pendingQuestions?.length ?? 0) > 0 && !isStepperCompleted;
   const showBatchCheckbox = batchMode && (itemActions.canRun || itemActions.runDisabled || itemActions.canWorkshop || itemActions.workshopDisabled) && !itemActions.blocked;
@@ -252,7 +255,7 @@ export function BacklogCard({
                   }}
                 >
                   <Sparkles className="mr-1 h-3 w-3" />
-                  {itemActions.agentRunning ? "Agent running..." : finalizePending ? "Starting..." : "Finalize"}
+                  {itemActions.agentRunning ? runningLabel : finalizePending ? "Starting..." : "Finalize"}
                 </Button>
               )}
               {(itemActions.canRun || itemActions.runDisabled) && (
@@ -267,7 +270,7 @@ export function BacklogCard({
                   }}
                 >
                   <Play className="mr-1 h-3 w-3" />
-                  {itemActions.agentRunning ? "Agent running..." : "Run"}
+                  {itemActions.agentRunning ? runningLabel : "Run"}
                 </Button>
               )}
               {(itemActions.canWorkshop || itemActions.workshopDisabled) && (
@@ -282,7 +285,7 @@ export function BacklogCard({
                   }}
                 >
                   <MessageSquareText className="mr-1 h-3 w-3" />
-                  {itemActions.agentRunning ? "Agent running..." : workshopPending ? "Starting..." : workshopLabel}
+                  {itemActions.agentRunning ? runningLabel : workshopPending ? "Starting..." : workshopLabel}
                 </Button>
               )}
             </div>

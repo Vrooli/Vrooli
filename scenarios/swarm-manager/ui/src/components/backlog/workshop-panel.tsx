@@ -77,6 +77,8 @@ interface WorkshopPanelProps {
   isFinalized?: boolean;
   /** Human label for the deliverable produced by finalization (e.g. "Plan", "Conclusion"). */
   deliverableLabel?: string;
+  /** Human-readable label shown on buttons while an agent is running (e.g. "Running workshop…"). */
+  runningLabel?: string;
 }
 
 export function WorkshopPanel({
@@ -95,6 +97,7 @@ export function WorkshopPanel({
   isDeletingRound,
   isFinalized,
   deliverableLabel = "Plan",
+  runningLabel = "Running…",
 }: WorkshopPanelProps) {
   // Confirmation dialog for running a new round after finalization.
   const [showPostFinalizeConfirm, setShowPostFinalizeConfirm] = useState(false);
@@ -248,7 +251,7 @@ export function WorkshopPanel({
               onClick={onPrimaryAction}
             >
               <Play className="mr-2 h-3.5 w-3.5" />
-              {isRunningWorkshop ? "Running..." : primaryActionLabel}
+              {isRunningWorkshop ? runningLabel : primaryActionLabel}
             </Button>
           )}
           {onRunWorkshop && (
@@ -259,7 +262,7 @@ export function WorkshopPanel({
               onClick={handleWorkshopClick}
             >
               <Play className="mr-2 h-3.5 w-3.5" />
-              {isRunningWorkshop ? "Running..." : workshopActionLabel}
+              {isRunningWorkshop ? runningLabel : workshopActionLabel}
             </Button>
           )}
         </div>

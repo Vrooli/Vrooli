@@ -64,11 +64,15 @@ func hasNonForceableQueueReasons(reasons []string) bool {
 }
 
 // isForceableQueueReason returns true if a blocking reason can be bypassed
-// with force=true (currently only workshop/pending decision reasons).
+// with force=true. Workshop/decision gates and unmet dependency gates are
+// forceable — the user may know the dependency is irrelevant or failed and
+// want to proceed anyway. Only hard structural blockers (e.g. missing target
+// scenario) remain non-forceable.
 func isForceableQueueReason(reason string) bool {
 	normalized := strings.ToLower(strings.TrimSpace(reason))
 	return strings.Contains(normalized, "workshop decision") ||
-		strings.Contains(normalized, "pending decision")
+		strings.Contains(normalized, "pending decision") ||
+		strings.Contains(normalized, "unmet dependencies")
 }
 
 // appendDependencyBlockingReasons checks an item's dependencies and appends

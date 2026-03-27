@@ -249,12 +249,21 @@ func (s *FileStore) ValidateDependencies(dependsOn []string) error {
 	return nil
 }
 
-// CheckDependencies returns the subset of depends_on references that are not
-// yet completed. A dependency whose spec no longer exists on disk is presumed
-// to have been completed and subsequently archived/deleted, so it is treated
-// as satisfied (not unmet). This avoids blocking execution when past work has
-// been cleaned up. Only dependencies that exist on disk with a non-completed
-// status are considered unmet.
+// blockingDepStatuses are statuses that indicate a dependency is not yet
+// planned/started — meaning the downstream item should not run yet. Once a
+// dependency has progressed past the planning phase (ready, queued, running,
+// completed, failed, archived) it no longer blocks. This matches the
+// frontend's BLOCKING_DEP_STATUSES in backlog-queue-utils.ts.
+var blockingDepStatuses = map[BacklogStatus]bool{
+	StatusBacklog:     true,
+	StatusResearching: true,
+}
+
+// CheckDependencies returns the subset of depends_on references that are still
+// in an unplanned state (backlog or researching). A dependency whose spec no
+// longer exists on disk is presumed completed/archived and treated as
+// satisfied. Dependencies that have progressed past the planning phase (ready,
+// queued, in_progress, completed, failed, archived) are not blocking.
 func (s *FileStore) CheckDependencies(dependsOn []string) ([]string, error) {
 	var unmet []string
 	for _, ref := range dependsOn {
@@ -271,7 +280,7 @@ func (s *FileStore) CheckDependencies(dependsOn []string) ([]string, error) {
 			// execution — it is valid for completed work to be cleaned up.
 			continue
 		}
-		if item.Status != StatusCompleted {
+		if blockingDepStatuses[item.Status] {
 			unmet = append(unmet, ref)
 		}
 	}

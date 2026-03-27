@@ -103,6 +103,7 @@ export function RunBacklogModal({
   const [error, setError] = useState<string | null>(null);
   const [blockedResult, setBlockedResult] = useState<QueueResponse | null>(null);
   const [showReadinessWarning, setShowReadinessWarning] = useState(false);
+  const [forceConfirmed, setForceConfirmed] = useState(false);
 
   // Queue depth
   const [pendingCount, setPendingCount] = useState(0);
@@ -125,6 +126,7 @@ export function RunBacklogModal({
     setBlockedResult(null);
     setIsSubmitting(false);
     setShowReadinessWarning(false);
+    setForceConfirmed(false);
 
     let cancelled = false;
     setIsLoadingCounts(true);
@@ -217,6 +219,7 @@ export function RunBacklogModal({
       ...(selectedMode === "scheduled" ? { delaySeconds } : {}),
       startedBy: "swarm-manager-ui",
       confirm: true,
+      ...(forceConfirmed ? { force: true } : {}),
     };
 
     try {
@@ -421,7 +424,7 @@ export function RunBacklogModal({
           </div>
         )}
 
-        {/* Blocking reasons */}
+        {/* Blocking reasons — with option to force-run */}
         {blockedResult && blockedResult.blockingReasons.length > 0 && (
           <div
             className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
@@ -437,6 +440,22 @@ export function RunBacklogModal({
               <p className="mt-2 text-xs text-amber-300">
                 {blockedResult.pendingDecisions} pending decision
                 {blockedResult.pendingDecisions === 1 ? "" : "s"}
+              </p>
+            )}
+            {!forceConfirmed && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3 border-amber-500/40 text-amber-200 hover:bg-amber-500/20"
+                onClick={() => setForceConfirmed(true)}
+              >
+                <AlertTriangle className="mr-1.5 h-3.5 w-3.5" />
+                Override and run anyway
+              </Button>
+            )}
+            {forceConfirmed && (
+              <p className="mt-3 text-xs font-medium text-amber-100">
+                Blockers will be overridden. Click the run button to confirm.
               </p>
             )}
           </div>

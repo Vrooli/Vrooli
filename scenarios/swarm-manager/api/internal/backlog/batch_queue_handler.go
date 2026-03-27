@@ -262,7 +262,7 @@ func computeUnmetDependencies(dependsOn []string, store Store, queuedInBatch map
 			// Missing/unloadable specs are presumed completed & archived.
 			continue
 		}
-		if item.Status != StatusCompleted {
+		if blockingDepStatuses[item.Status] {
 			unmet = append(unmet, ref)
 		}
 	}

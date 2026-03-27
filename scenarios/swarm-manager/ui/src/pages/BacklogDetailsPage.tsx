@@ -501,6 +501,17 @@ export function BacklogDetailsPage() {
   const isTerminal = itemActions?.terminal ?? false;
   const workshopBlockedDeps = itemActions?.blockingDepKeys ?? [];
 
+  // Human-readable label for the active agent run mode (e.g. "Running workshop…").
+  const agentRunningLabel = useMemo(() => {
+    if (!agentRunIsActive || !latestAgentRun) return "Agent running…";
+    switch (latestAgentRun.mode) {
+      case "workshop": return "Running workshop…";
+      case "finalize": return "Running finalize…";
+      case "research": return "Running research…";
+      default: return "Agent running…";
+    }
+  }, [agentRunIsActive, latestAgentRun]);
+
   const isPageLoading = isLoadingItem && !item;
   const pageError = itemError;
   const filesError = filesQueryError instanceof Error ? filesQueryError : null;
@@ -1050,7 +1061,7 @@ export function BacklogDetailsPage() {
             disabled={itemActions.finalizeDisabled || agentMutation.isPending}
           >
             <Sparkles className="mr-1.5 h-4 w-4" />
-            {itemActions.agentRunning ? "Agent running..." : agentMutation.isPending ? "Starting..." : "Finalize"}
+            {itemActions.agentRunning ? agentRunningLabel : agentMutation.isPending ? "Starting..." : "Finalize"}
           </Button>
         );
       case "run":
@@ -1065,7 +1076,7 @@ export function BacklogDetailsPage() {
             data-testid={selectors.backlogDetails.queueButton}
           >
             <Play className="mr-1.5 h-4 w-4" />
-            {itemActions.agentRunning ? "Agent running..." : "Run"}
+            {itemActions.agentRunning ? agentRunningLabel : "Run"}
           </Button>
         );
       case "workshop":
@@ -1079,7 +1090,7 @@ export function BacklogDetailsPage() {
             disabled={itemActions.workshopDisabled || agentMutation.isPending}
           >
             <MessageSquareText className="mr-1.5 h-4 w-4" />
-            {itemActions.agentRunning ? "Agent running..." : agentMutation.isPending ? "Starting..." : workshopActionLabel}
+            {itemActions.agentRunning ? agentRunningLabel : agentMutation.isPending ? "Starting..." : workshopActionLabel}
           </Button>
         );
       default:
@@ -1806,6 +1817,7 @@ export function BacklogDetailsPage() {
         isDeletingRound={workshopDeleteRoundMutation.isPending}
         isFinalized={isWorkshopFinalized}
         deliverableLabel={deliverableLabel}
+        runningLabel={agentRunningLabel}
       />
     </div>
   );
@@ -1822,6 +1834,11 @@ export function BacklogDetailsPage() {
       <span className="text-xs font-medium capitalize text-cyan-200">
         {latestAgentRun.status.replace("_", " ")}
       </span>
+      {latestAgentRun.mode && (
+        <span className="rounded bg-cyan-500/20 px-1.5 py-0.5 text-[11px] font-medium text-cyan-300">
+          {latestAgentRun.mode}
+        </span>
+      )}
       <span className="text-xs text-slate-400">
         {formatRelativeTime(latestAgentRun.createdAt)}
       </span>
@@ -2028,7 +2045,7 @@ export function BacklogDetailsPage() {
             disabled={itemActions.finalizeDisabled || agentMutation.isPending}
           >
             <Sparkles className="mr-2 h-4 w-4" />
-            {itemActions.agentRunning ? "Agent running..." : agentMutation.isPending ? "Starting..." : `Finalize ${deliverableLabel}`}
+            {itemActions.agentRunning ? agentRunningLabel : agentMutation.isPending ? "Starting..." : `Finalize ${deliverableLabel}`}
           </Button>
         )}
         {(itemActions?.canRun || itemActions?.runDisabled) && (
@@ -2040,7 +2057,7 @@ export function BacklogDetailsPage() {
             disabled={itemActions.runDisabled}
           >
             <Play className="mr-2 h-4 w-4" />
-            {itemActions.agentRunning ? "Agent running..." : "Run"}
+            {itemActions.agentRunning ? agentRunningLabel : "Run"}
           </Button>
         )}
         {(itemActions?.canWorkshop || itemActions?.workshopDisabled) && (
@@ -2052,7 +2069,7 @@ export function BacklogDetailsPage() {
             disabled={itemActions.workshopDisabled || agentMutation.isPending}
           >
             <MessageSquareText className="mr-2 h-4 w-4" />
-            {itemActions.agentRunning ? "Agent running..." : agentMutation.isPending ? "Starting..." : workshopActionLabel}
+            {itemActions.agentRunning ? agentRunningLabel : agentMutation.isPending ? "Starting..." : workshopActionLabel}
           </Button>
         )}
         {itemActions?.notQueueableReason && !itemActions.locked && !itemActions.terminal && !itemActions.canRun && !itemActions.runDisabled && !itemActions.canWorkshop && !itemActions.workshopDisabled && !itemActions.canFinalize && !itemActions.finalizeDisabled ? (

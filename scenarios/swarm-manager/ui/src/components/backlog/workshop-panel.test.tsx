@@ -106,11 +106,18 @@ describe("WorkshopPanel", () => {
     expect(onRunWorkshop).toHaveBeenCalledTimes(1);
   });
 
-  it("shows 'Running...' text when isRunningWorkshop is true", () => {
+  it("shows default running label when isRunningWorkshop is true", () => {
     render(
       <WorkshopPanel {...defaultProps} rounds={[makeRound()]} isRunningWorkshop onRunWorkshop={vi.fn()} />,
     );
-    expect(screen.getByText("Running...")).toBeInTheDocument();
+    expect(screen.getByText("Running…")).toBeInTheDocument();
+  });
+
+  it("shows custom runningLabel when provided", () => {
+    render(
+      <WorkshopPanel {...defaultProps} rounds={[makeRound()]} isRunningWorkshop onRunWorkshop={vi.fn()} runningLabel="Running workshop…" />,
+    );
+    expect(screen.getByText("Running workshop…")).toBeInTheDocument();
   });
 
   it("renders finalize as a primary action alongside next round", () => {
