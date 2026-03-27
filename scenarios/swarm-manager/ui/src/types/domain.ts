@@ -624,6 +624,8 @@ export type ExecutionRecord = Omit<ProtoMessage<ProtoExecutionRecord>, "status" 
   fixupAttempt?: number;
   reviewResult?: ReviewResult;
   reviewJobId?: string;
+  reviewSkipReason?: string;
+  reviewStartedAt?: string;
 };
 
 
@@ -632,9 +634,7 @@ export type ExecutionRecord = Omit<ProtoMessage<ProtoExecutionRecord>, "status" 
 // ============================================================================
 
 export interface PromptTrace {
-  skill_id: string;
   purpose: string;
-  variables?: Record<string, string>;
   prompt: string;
   prompt_revision?: string;
   used_fallback: boolean;
@@ -647,7 +647,7 @@ export interface PromptBinding {
   kind?: string;
   mode?: string;
   operation?: string;
-  skill_id: string;
+  skill_id?: string;
   purpose: string;
   output_paths?: string[];
 }

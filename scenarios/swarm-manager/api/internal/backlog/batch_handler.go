@@ -105,11 +105,11 @@ type resolvedInitiativePlan struct {
 
 // batchCreateResponse is the JSON response for a successful batch create.
 type batchCreateResponse struct {
-	Items       []BacklogItem                `json:"items"`
+	Items       []BacklogItem                 `json:"items"`
 	Initiatives []batchCreateInitiativeResult `json:"initiatives,omitempty"`
-	Count       int                          `json:"count"`
-	Preview     bool                         `json:"preview,omitempty"`
-	Warnings    []string                     `json:"warnings,omitempty"`
+	Count       int                           `json:"count"`
+	Preview     bool                          `json:"preview,omitempty"`
+	Warnings    []string                      `json:"warnings,omitempty"`
 }
 
 // BatchCreate creates multiple backlog items atomically.

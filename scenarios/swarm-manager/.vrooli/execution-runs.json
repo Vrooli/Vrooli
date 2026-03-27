@@ -331,7 +331,7 @@
     "status": "completed",
     "mode": "yolo",
     "started_at": "2026-03-26T22:04:32Z",
-    "finished_at": "2026-03-26T22:15:52Z",
+    "finished_at": "2026-03-27T00:55:53Z",
     "started_by": "swarm-manager-ui",
     "operation": "generator",
     "prompt_trace": {
@@ -356,7 +356,36 @@
       "used_fallback": false,
       "captured_at": "2026-03-26T22:04:32Z"
     },
+    "review_result": {
+      "job_id": "8834aa6c-b4ba-4653-ba9b-ae52185d03d2",
+      "classification": "ready_with_notes",
+      "dimensions": [
+        {
+          "name": "codeQuality",
+          "status": "red",
+          "details": "0.0 score, 77 violations"
+        },
+        {
+          "name": "tests",
+          "status": "red",
+          "details": "5/11 passed"
+        },
+        {
+          "name": "standards",
+          "status": "yellow",
+          "details": "14 warnings"
+        },
+        {
+          "name": "provenance",
+          "status": "green"
+        }
+      ],
+      "summary": "Scenario development-toolchain-validator readiness: yellow",
+      "reviewed_at": "2026-03-27T00:55:53Z"
+    },
+    "review_job_id": "8834aa6c-b4ba-4653-ba9b-ae52185d03d2",
+    "review_started_at": "2026-03-27T00:52:20Z",
     "created_at": "2026-03-26T22:04:32Z",
-    "updated_at": "2026-03-26T22:17:01Z"
+    "updated_at": "2026-03-27T00:55:53Z"
   }
 ]

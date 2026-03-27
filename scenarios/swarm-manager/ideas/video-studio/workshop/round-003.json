@@ -37,7 +37,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
       "notes": null
     },
@@ -69,7 +69,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
       "notes": null
     },
@@ -101,8 +101,8 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
+      "selected": "__other__",
+      "freeform": "Use existing proto contract with ‘discovery’ package setup that’s done for reliable cross-scenario communication in existing scenarios",
       "notes": null
     },
     {
@@ -133,7 +133,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
       "notes": null
     },
@@ -165,7 +165,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
       "notes": null
     },

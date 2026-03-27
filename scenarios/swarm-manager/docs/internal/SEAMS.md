@@ -277,12 +277,25 @@ All three auto-execution behaviors are controlled by global settings in `.vrooli
 
 `api/internal/execution/review_client.go` defines the `ReviewClient` interface for post-execution readiness reviews via git-control-tower.
 
-- **ReviewClient interface**: `TriggerReview(ctx, req)` starts a review job, `PollReview(ctx, jobID)` checks status
+- **ReviewClient interface**: `TriggerReview(ctx, req)` starts a review job, `PollReview(ctx, jobID)` checks status, `Ping(ctx)` checks GCT availability
 - **HTTPReviewClient**: HTTP implementation using service discovery (`discovery.ResolveScenarioURLDefault("git-control-tower")`)
 - **Review result mapping**: `mapJobToResult` converts git-control-tower readiness (green/yellow/red) to internal classification (ready/ready_with_notes/needs_work)
 - **Dimension parsing**: `parseDimensions` extracts per-dimension health (codeQuality, tests, standards) with traffic-light status
+- **Wired in main.go**: `registerExecutionRoutes` sets `cfg.ReviewClient = NewHTTPReviewClient(nil)`. Auto-triggering is guarded by `shouldTriggerReview()` (requires acceptance_allow with scenario globs)
 
-**Testing at the seam**: `review_client_test.go` uses `httptest.NewServer` with mock handlers and `triggerReviewDirect`/`pollReviewDirect` helpers that bypass service discovery.
+**Testing at the seam**: `review_client_test.go` uses `httptest.NewServer` with mock handlers and `triggerReviewDirect`/`pollReviewDirect`/`pingDirect` helpers that bypass service discovery. `service_test.go` uses `stubReviewClient` for service-level tests.
+
+### Trigger-Review API Boundary
+
+`POST /api/v1/execution/{execution_id}/trigger-review` allows manual review trigger for terminal executions.
+
+- **Service method**: `Service.TriggerReview(ctx, executionID)` validates terminal status (completed/needs_fixup/failed), calls `ReviewClient.TriggerReview`, transitions to `StatusValidating`
+- **Handler**: `Handler.TriggerReview` extracts execution_id from path, delegates to service, maps errors via `mapMutationError`
+- **GCT status**: `GET /api/v1/gct/status` returns `{"available": true/false}` by calling `ReviewClient.Ping`
+- **Review skip tracking**: `Record.ReviewSkipReason` captures why automatic review was skipped (GCT unavailable, not configured)
+- **Polling timeout**: 10-minute timeout in `refreshRunningLocked` transitions stuck validating records to `StatusNeedsFixup`
+
+**Testing at the seam**: `TestTriggerReview_CompletedExecution`, `TestTriggerReview_WrongStatus`, `TestTriggerReview_NoClient` in `service_test.go`.
 
 ### Execution Follow-Up Boundary
 

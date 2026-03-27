@@ -97,12 +97,6 @@ type Service struct {
 	mu             sync.Mutex
 }
 
-type promptSelection struct {
-	SkillID   string
-	Variables map[string]string
-	Prompt    string
-}
-
 // NewService creates a new execution service.
 func NewService(cfg ServiceConfig) *Service {
 	rootDir := strings.TrimSpace(cfg.RootDir)
@@ -286,19 +280,16 @@ func (s *Service) QueueSpecSyncArchive(ctx context.Context, ac ArchiveContext) (
 	}
 
 	// Fetch spec-sync prompt from prompt-manager
-	skillID := "spec-sync"
-	vars := map[string]string{
+	specSyncVars := map[string]string{
 		"TARGET": ac.ScenarioName,
 	}
-	prompt, promptErr := s.promptClient.ReadSkill(ctx, skillID, vars, false)
+	prompt, promptErr := s.promptClient.ReadSkill(ctx, "spec-sync", specSyncVars, false)
 	if promptErr != nil {
 		log.Printf("[execution] spec-sync prompt fetch failed: %v", promptErr)
 		prompt = "Read the implementation code in this scenario and update all spec artifacts (PRD.md, requirements/, README.md, docs/) to match the actual behavior."
 	}
 	record.PromptTrace = &PromptTrace{
-		SkillID:        skillID,
 		Purpose:        "spec-sync",
-		Variables:      vars,
 		Prompt:         prompt,
 		PromptRevision: promptRevision(prompt),
 		UsedFallback:   promptErr != nil,
@@ -375,19 +366,25 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 		return Record{}, fmt.Errorf("process preflight failed: %s", strings.Join(preflight.BlockingReasons, "; "))
 	}
 
-	selection, promptErr := s.fetchProcessingPrompt(ctx, item, record.Operation)
-	prompt := selection.Prompt
-	if promptErr != nil {
-		log.Printf("[execution] prompt fetch failed: %v", promptErr)
-		prompt = "Use the backlog item folder as context and complete the requested work."
+	itemDir := s.itemDir(item.Kind, item.Name)
+	planContent := workshop.LoadPlanContent(itemDir)
+	usedFallback := strings.TrimSpace(planContent) == ""
+	if usedFallback {
+		log.Printf("[execution] plan.md empty or missing in %s", itemDir)
 	}
+	prompt := buildExecutionPrompt(executionPromptParams{
+		Kind:        item.Kind,
+		Name:        item.Name,
+		Title:       item.Title,
+		ItemFolder:  itemDir,
+		RunType:     "process",
+		PlanContent: planContent,
+	})
 	record.PromptTrace = &PromptTrace{
-		SkillID:        selection.SkillID,
 		Purpose:        "process",
-		Variables:      selection.Variables,
 		Prompt:         prompt,
 		PromptRevision: promptRevision(prompt),
-		UsedFallback:   promptErr != nil,
+		UsedFallback:   usedFallback,
 		CapturedAt:     nowRFC3339(),
 	}
 
@@ -508,6 +505,63 @@ func (s *Service) shouldTriggerReview(item backlogItem, record Record) bool {
 	return len(pathutil.ScenariosFromGlobs(item.AcceptanceAllow)) > 0
 }
 
+// TriggerReview manually triggers a GCT review for a terminal execution.
+// DOC: docs/internal/SEAMS.md#trigger-review-api
+func (s *Service) TriggerReview(ctx context.Context, executionID string) (Record, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.reviewClient == nil {
+		return Record{}, fmt.Errorf("review client not configured")
+	}
+
+	records, idx, err := s.loadRecordLocked(executionID)
+	if err != nil {
+		return Record{}, err
+	}
+	record := &records[idx]
+
+	switch record.Status {
+	case StatusCompleted, StatusNeedsFixup, StatusFailed:
+		// Valid terminal statuses for triggering review
+	default:
+		return Record{}, fmt.Errorf("cannot trigger review for execution in %q status", record.Status)
+	}
+
+	// Build review request from backlog item's acceptance patterns or the backlog name.
+	item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName)
+	scenarioName := record.BacklogName
+	var expectedPaths []string
+	if loadErr == nil {
+		scenarios := pathutil.ScenariosFromGlobs(item.AcceptanceAllow)
+		if len(scenarios) > 0 {
+			scenarioName = scenarios[0]
+		}
+		expectedPaths = item.AcceptanceAllow
+	}
+
+	jobID, triggerErr := s.reviewClient.TriggerReview(ctx, ReviewRequest{
+		ScenarioName:  scenarioName,
+		ExpectedPaths: expectedPaths,
+	})
+	if triggerErr != nil {
+		return Record{}, fmt.Errorf("trigger review: %w", triggerErr)
+	}
+
+	record.Status = StatusValidating
+	record.ReviewJobID = jobID
+	record.ReviewStartedAt = nowRFC3339()
+	record.ReviewResult = nil
+	record.ReviewSkipReason = ""
+	record.FinishedAt = ""
+	record.UpdatedAt = nowRFC3339()
+
+	if err := s.store.Save(records); err != nil {
+		return Record{}, err
+	}
+	return *record, nil
+}
+
 // Retry retries a failed run immediately.
 func (s *Service) Retry(ctx context.Context, executionID string) (Record, error) {
 	s.mu.Lock()
@@ -603,6 +657,7 @@ func (s *Service) refreshRunningLocked(ctx context.Context) error {
 	changed := false
 
 	// Handle validating records (poll review jobs).
+	const reviewPollTimeout = 10 * time.Minute
 	for i := range records {
 		record := &records[i]
 		if record.Status != StatusValidating || strings.TrimSpace(record.ReviewJobID) == "" {
@@ -610,6 +665,26 @@ func (s *Service) refreshRunningLocked(ctx context.Context) error {
 		}
 		if s.reviewClient == nil {
 			continue
+		}
+		// Time out stuck review jobs.
+		if record.ReviewStartedAt != "" {
+			startedAt, parseErr := time.Parse(time.RFC3339, record.ReviewStartedAt)
+			if parseErr == nil && time.Since(startedAt) > reviewPollTimeout {
+				record.ReviewResult = &ReviewResult{
+					JobID:          record.ReviewJobID,
+					Classification: "not_assessable",
+					Summary:        "Review timed out after " + reviewPollTimeout.String(),
+					ReviewedAt:     nowRFC3339(),
+				}
+				record.Status = StatusNeedsFixup
+				record.FinishedAt = nowRFC3339()
+				record.UpdatedAt = nowRFC3339()
+				if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
+					_ = s.updateBacklogStatus(item, "failed")
+				}
+				changed = true
+				continue
+			}
 		}
 		result, done, pollErr := s.reviewClient.PollReview(ctx, record.ReviewJobID)
 		if pollErr != nil {
@@ -693,11 +768,12 @@ func (s *Service) refreshRunningLocked(ctx context.Context) error {
 						})
 						if triggerErr != nil {
 							log.Printf("[execution] review trigger failed for %s: %v", record.ExecutionID, triggerErr)
-							// Fall through to normal completion
+							record.ReviewSkipReason = fmt.Sprintf("GCT unavailable: %v", triggerErr)
 							_ = s.updateBacklogStatus(item, "completed")
 						} else {
 							record.Status = StatusValidating
 							record.ReviewJobID = jobID
+							record.ReviewStartedAt = nowRFC3339()
 							record.FinishedAt = ""
 							// Don't update backlog — not terminal yet
 						}
@@ -757,23 +833,17 @@ func (s *Service) handleSpecSyncComplete(ctx context.Context, record *Record) {
 
 func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlogItem) {
 	now := nowRFC3339()
+	itemDir := s.itemDir(item.Kind, item.Name)
 
-	// Build fixup prompt from review result
-	var reviewSummary string
-	if record.ReviewResult != nil {
-		reviewSummary = record.ReviewResult.Summary
-		for _, dim := range record.ReviewResult.Dimensions {
-			if dim.Status != "green" {
-				reviewSummary += fmt.Sprintf("\n- %s (%s): %s", dim.Name, dim.Status, dim.Details)
-			}
-		}
-	}
-
-	prompt := fmt.Sprintf(
-		"Post-execution review found issues. Fix the following problems:\n\n%s\n\n"+
-			"The original plan is in plan.md. Focus only on fixing the identified issues.",
-		reviewSummary,
-	)
+	prompt := buildExecutionPrompt(executionPromptParams{
+		Kind:           item.Kind,
+		Name:           item.Name,
+		Title:          item.Title,
+		ItemFolder:     itemDir,
+		RunType:        "fixup",
+		PlanContent:    workshop.LoadPlanContent(itemDir),
+		ReviewFeedback: buildReviewFeedback(record.ReviewResult),
+	})
 
 	fixupRecord := Record{
 		ExecutionID:       idgen.Generate(),
@@ -786,8 +856,15 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 		Operation:         "fixup",
 		ParentExecutionID: record.ExecutionID,
 		FixupAttempt:      record.FixupAttempt + 1,
-		CreatedAt:         now,
-		UpdatedAt:         now,
+		PromptTrace: &PromptTrace{
+			Purpose:        "fixup",
+			Prompt:         prompt,
+			PromptRevision: promptRevision(prompt),
+			UsedFallback:   false,
+			CapturedAt:     now,
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 
 	records, loadErr := s.store.Load()
@@ -812,7 +889,6 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 	})
 	if err != nil {
 		log.Printf("[execution] failed to spawn fixup run: %v", err)
-		// Update fixup record to failed
 		for i := range records {
 			if records[i].ExecutionID == fixupRecord.ExecutionID {
 				records[i].Status = StatusFailed
@@ -825,7 +901,6 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 		return
 	}
 
-	// Update fixup record with run info
 	for i := range records {
 		if records[i].ExecutionID == fixupRecord.ExecutionID {
 			records[i].TaskID = runResult.TaskID
@@ -868,8 +943,28 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 		return Record{}, fmt.Errorf("cannot follow up execution in %q state", parent.Status)
 	}
 
-	// Build the follow-up prompt/message.
-	message := s.buildFollowUpMessage(parent, req)
+	// Load backlog item for context.
+	item, loadErr := s.loadBacklogItemByRecord(parent)
+	if loadErr != nil {
+		return Record{}, fmt.Errorf("cannot follow up: %w", loadErr)
+	}
+
+	// Build the unified execution prompt.
+	itemDir := s.itemDir(item.Kind, item.Name)
+	runType := req.FollowUpType
+	if runType == "" {
+		runType = "followup"
+	}
+	prompt := buildExecutionPrompt(executionPromptParams{
+		Kind:           item.Kind,
+		Name:           item.Name,
+		Title:          item.Title,
+		ItemFolder:     itemDir,
+		RunType:        runType,
+		PlanContent:    workshop.LoadPlanContent(itemDir),
+		ReviewFeedback: buildReviewFeedback(parent.ReviewResult),
+		FollowUpNote:   strings.TrimSpace(req.Context),
+	})
 
 	now := nowRFC3339()
 	followUpRecord := Record{
@@ -882,8 +977,15 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 		StartedBy:         "swarm-manager:follow-up",
 		Operation:         req.FollowUpType,
 		ParentExecutionID: parent.ExecutionID,
-		CreatedAt:         now,
-		UpdatedAt:         now,
+		PromptTrace: &PromptTrace{
+			Purpose:        runType,
+			Prompt:         prompt,
+			PromptRevision: promptRevision(prompt),
+			UsedFallback:   false,
+			CapturedAt:     now,
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 	if req.FollowUpType == "fixup" {
 		followUpRecord.FixupAttempt = parent.FixupAttempt + 1
@@ -894,7 +996,7 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 		if s.continuer == nil {
 			return Record{}, fmt.Errorf("cannot follow up: run continuation not available")
 		}
-		if err := s.continuer.ContinueRun(ctx, parent.RunID, message); err != nil {
+		if err := s.continuer.ContinueRun(ctx, parent.RunID, prompt); err != nil {
 			if strings.Contains(err.Error(), "session_expired") || strings.Contains(err.Error(), "continuation_not_supported") {
 				return Record{}, fmt.Errorf("%w: %v", errSessionExpired, err)
 			}
@@ -906,17 +1008,12 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 		followUpRecord.StartedAt = now
 	} else {
 		// Spawn a fresh run.
-		item, loadErr := s.loadBacklogItemByRecord(parent)
-		if loadErr != nil {
-			return Record{}, fmt.Errorf("cannot follow up: %w", loadErr)
-		}
-
 		runResult, spawnErr := s.agentService.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
 			Kind:            item.Kind,
 			Name:            item.Name,
 			Title:           fmt.Sprintf("Follow-up: %s/%s", item.Kind, item.Name),
-			Description:     message,
-			Prompt:          message,
+			Description:     prompt,
+			Prompt:          prompt,
 			ScopePath:       ".",
 			ProjectRoot:     ".",
 			CreatedBy:       "swarm-manager:follow-up",
@@ -939,43 +1036,6 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 	}
 
 	return followUpRecord, nil
-}
-
-func (s *Service) buildFollowUpMessage(parent *Record, req FollowUpRequest) string {
-	switch req.FollowUpType {
-	case "fixup":
-		var reviewSummary string
-		if parent.ReviewResult != nil {
-			reviewSummary = parent.ReviewResult.Summary
-			for _, dim := range parent.ReviewResult.Dimensions {
-				if dim.Status != "green" {
-					reviewSummary += fmt.Sprintf("\n- %s (%s): %s", dim.Name, dim.Status, dim.Details)
-				}
-			}
-		}
-		prompt := fmt.Sprintf(
-			"Post-execution review found issues. Fix the following problems:\n\n%s\n\n"+
-				"The original plan is in plan.md. Focus only on fixing the identified issues.",
-			reviewSummary,
-		)
-		if strings.TrimSpace(req.Context) != "" {
-			prompt += "\n\nAdditional context:\n" + req.Context
-		}
-		return prompt
-
-	case "followup":
-		prompt := "Continue working on this backlog item. The original plan is in plan.md."
-		if strings.TrimSpace(req.Context) != "" {
-			prompt += "\n\nAdditional context:\n" + req.Context
-		}
-		return prompt
-
-	default: // custom
-		if strings.TrimSpace(req.Context) != "" {
-			return req.Context
-		}
-		return "Continue working on this backlog item."
-	}
 }
 
 func (s *Service) loadBacklogItemByRecord(record *Record) (backlogItem, error) {
@@ -1237,55 +1297,70 @@ func buildProcessingTitle(item backlogItem) string {
 	}
 }
 
-// processingSkillIDs maps backlog kind to prompt-manager skill IDs.
-var processingSkillIDs = map[string]string{
-	"idea":     "swarm-manager-process-idea",
-	"fix":      "swarm-manager-process-fix",
-	"execute":  "swarm-manager-process-execute",
-	"research": "swarm-manager-process-execute",
-	"chore":    "swarm-manager-process-execute",
+// executionPromptParams holds all inputs for building a unified execution prompt.
+type executionPromptParams struct {
+	Kind           string // backlog item kind (idea, fix, execute, etc.)
+	Name           string // backlog item name
+	Title          string // human-readable title
+	ItemFolder     string // absolute path to the backlog item directory
+	RunType        string // process, fixup, followup, custom
+	PlanContent    string // full plan.md text (empty if missing)
+	ReviewFeedback string // review summary for fixup runs
+	FollowUpNote   string // user-provided context for follow-up/custom runs
 }
 
-// fetchProcessingPrompt loads a processing prompt from prompt-manager.
-func (s *Service) fetchProcessingPrompt(ctx context.Context, item backlogItem, operation string) (promptSelection, error) {
-	skillID := processingSkillIDs[item.Kind]
-	if skillID == "" {
-		skillID = "swarm-manager-process-execute"
-	}
-	targetScenarioID, archivedRevival := resolveTargetScenario(item)
+// buildExecutionPrompt constructs a single unified prompt for all execution
+// run types. The prompt uses XML tags to clearly delineate context sections.
+func buildExecutionPrompt(p executionPromptParams) string {
+	var b strings.Builder
 
-	itemFolder := s.itemDir(item.Kind, item.Name)
-	vars := map[string]string{
-		"ITEM_NAME":            item.Name,
-		"ITEM_TITLE":           item.Title,
-		"ITEM_DESCRIPTION":     item.Description,
-		"ITEM_KIND":            item.Kind,
-		"ITEM_STATUS":          item.Status,
-		"ITEM_PRIORITY":        fmt.Sprintf("%d", item.Priority),
-		"ITEM_TAGS":            strings.Join(item.Tags, ", "),
-		"ITEM_FOLDER":          itemFolder,
-		"TARGET_SCENARIO_ID":   targetScenarioID,
-		"ARCHIVED_REVIVAL":     fmt.Sprintf("%t", archivedRevival),
-		"SOURCE_SCENARIO_NAME": strings.TrimSpace(item.SourceScenarioName),
-		"PLAN_DRAFT":           workshop.LoadPlanContent(itemFolder),
+	// Execution context header — always present.
+	b.WriteString("<execution-context>\n")
+	b.WriteString(fmt.Sprintf("Backlog item: %s/%s\n", p.Kind, p.Name))
+	if strings.TrimSpace(p.Title) != "" {
+		b.WriteString(fmt.Sprintf("Title: %s\n", p.Title))
+	}
+	b.WriteString(fmt.Sprintf("Item folder: %s\n", p.ItemFolder))
+	b.WriteString(fmt.Sprintf("Run type: %s\n", p.RunType))
+	b.WriteString("</execution-context>\n")
+
+	// Review feedback — only for fixup runs.
+	if strings.TrimSpace(p.ReviewFeedback) != "" {
+		b.WriteString("\n<review-feedback>\n")
+		b.WriteString(p.ReviewFeedback)
+		b.WriteString("\n</review-feedback>\n")
 	}
 
-	prompt, err := s.promptClient.ReadSkill(ctx, skillID, vars, false)
-	if err != nil {
-		return promptSelection{
-			SkillID:   skillID,
-			Variables: vars,
-		}, err
+	// Follow-up context — for follow-up and custom runs with user-provided notes.
+	if strings.TrimSpace(p.FollowUpNote) != "" {
+		b.WriteString("\n<follow-up-context>\n")
+		b.WriteString(p.FollowUpNote)
+		b.WriteString("\n</follow-up-context>\n")
 	}
 
-	if strings.TrimSpace(operation) == "improver" {
-		prompt = prompt + "\n\nOperation hint: improver (focus on improving an existing scenario).\n"
+	// Implementation plan — always present when available.
+	if strings.TrimSpace(p.PlanContent) != "" {
+		b.WriteString("\n<implementation-plan>\n")
+		b.WriteString(p.PlanContent)
+		b.WriteString("\n</implementation-plan>\n")
 	}
-	return promptSelection{
-		SkillID:   skillID,
-		Variables: vars,
-		Prompt:    prompt,
-	}, nil
+
+	return b.String()
+}
+
+// buildReviewFeedback formats a ReviewResult into a readable feedback string.
+func buildReviewFeedback(result *ReviewResult) string {
+	if result == nil {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString(result.Summary)
+	for _, dim := range result.Dimensions {
+		if dim.Status != "green" {
+			b.WriteString(fmt.Sprintf("\n- %s (%s): %s", dim.Name, dim.Status, dim.Details))
+		}
+	}
+	return b.String()
 }
 
 // ProcessPreflight evaluates whether a backlog item is ready for processing.

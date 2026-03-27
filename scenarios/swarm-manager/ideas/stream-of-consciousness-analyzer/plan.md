@@ -1,5 +1,10 @@
 # Implementation Plan: Stream of Consciousness Analyzer
 
+## Required Reading
+```bash
+prompt-manager skill read scenario-generation
+```
+
 ## Purpose
 A frictionless thought-capture app for deep thinkers whose cognition is naturally graph-structured. Eliminates the tradeoff between thinking deeply and capturing accurately by providing a spatial canvas for raw information capture paired with an explicit thought graph for structuring relationships.
 

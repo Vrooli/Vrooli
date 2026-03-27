@@ -73,19 +73,19 @@ type Record struct {
 	FixupAttempt      int             `json:"fixup_attempt,omitempty"`
 	ReviewResult      *ReviewResult   `json:"review_result,omitempty"`
 	ReviewJobID       string          `json:"review_job_id,omitempty"`
+	ReviewSkipReason  string          `json:"review_skip_reason,omitempty"`
+	ReviewStartedAt   string          `json:"review_started_at,omitempty"`
 	CreatedAt         string          `json:"created_at"`
 	UpdatedAt         string          `json:"updated_at"`
 }
 
 // PromptTrace captures prompt details used to launch the execution.
 type PromptTrace struct {
-	SkillID        string            `json:"skill_id"`
-	Purpose        string            `json:"purpose"`
-	Variables      map[string]string `json:"variables,omitempty"`
-	Prompt         string            `json:"prompt"`
-	PromptRevision string            `json:"prompt_revision,omitempty"`
-	UsedFallback   bool              `json:"used_fallback"`
-	CapturedAt     string            `json:"captured_at"`
+	Purpose        string `json:"purpose"`
+	Prompt         string `json:"prompt"`
+	PromptRevision string `json:"prompt_revision,omitempty"`
+	UsedFallback   bool   `json:"used_fallback"`
+	CapturedAt     string `json:"captured_at"`
 }
 
 // ReviewResult captures the outcome of a post-execution readiness review.

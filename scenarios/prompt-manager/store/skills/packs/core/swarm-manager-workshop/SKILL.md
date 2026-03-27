@@ -183,24 +183,32 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
 
    Apply the plan-skill-discovery methodology to find domain-relevant skills:
 
+   **Kind-specific required skills (always include in plan's Required Reading):**
+
+   | Item Kind | Required Skill | Why |
+   |-----------|---------------|-----|
+   | `idea` | `scenario-generation` | Scenario scaffolding, PRD/requirements tooling, ecosystem-manager integration |
+
+   For other kinds (`fix`, `execute`, `research`, `chore`), no kind-specific skill is required — discovery is sufficient.
+
+   When the item kind matches a row above, embed that skill in plan.md's Required Reading **in addition to** whatever discovery finds. This is not optional — it ensures operational knowledge is always available to the executing agent.
+
    **On round 1 (full discovery):**
    a. Classify the work using the item's kind, title, description, and tags
    b. Decompose into 2-5 focused concepts. For example, for a fix item titled "SQLite migration fails on large tables":
       - "SQLite migration"
       - "database schema changes"
       - "Go error handling"
-   c. Run focused searches:
+   c. Run unified discovery with all concepts:
       ```bash
-      prompt-manager topic search "<concept-1>" "<concept-2>" -limit 3
-      prompt-manager search "<concept-1>" -limit 3
-      prompt-manager search "<concept-2>" -limit 3
+      prompt-manager discover "<concept-1>" "<concept-2>" "<concept-3>" --complexity moderate
       ```
-   d. Deduplicate results across queries and read top candidates:
+   d. Read top candidates from the discover output:
       ```bash
       prompt-manager skill read <id-1> <id-2> <id-3> -output combined
       ```
    e. Assess relevance autonomously — include only skills that will materially improve the plan
-   f. Embed discovered skills as Required Reading entries in plan.md
+   f. Embed discovered skills as Required Reading entries in plan.md (alongside any kind-specific required skills from above)
 
    **On subsequent rounds (conditional re-discovery):**
    - Skip if the approach and domain have not changed materially since the last discovery

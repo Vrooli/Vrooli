@@ -14,11 +14,14 @@ import (
 )
 
 // ReviewClient calls git-control-tower's unified review API.
+// DOC: docs/internal/SEAMS.md#review-client
 type ReviewClient interface {
 	// TriggerReview starts a review run and returns the job ID.
 	TriggerReview(ctx context.Context, req ReviewRequest) (string, error)
 	// PollReview checks review job status. Returns result, done flag, and error.
 	PollReview(ctx context.Context, jobID string) (*ReviewResult, bool, error)
+	// Ping checks whether git-control-tower is reachable.
+	Ping(ctx context.Context) error
 }
 
 // ReviewRequest describes what to review.
@@ -213,6 +216,30 @@ type dimensionEntry struct {
 	ScreenshotCount    int     `json:"screenshotCount"`
 	TracedFiles        int     `json:"tracedFiles"`
 	TotalFiles         int     `json:"totalFiles"`
+}
+
+// Ping checks whether git-control-tower is reachable by issuing a HEAD request
+// to its health endpoint.
+func (c *HTTPReviewClient) Ping(ctx context.Context) error {
+	baseURL, err := resolveGitControlTowerBaseURL(ctx)
+	if err != nil {
+		return err
+	}
+	pingCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(pingCtx, http.MethodHead, baseURL+"/api/v1/health", nil)
+	if err != nil {
+		return fmt.Errorf("create ping request: %w", err)
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("GCT unreachable: %w", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode >= 500 {
+		return fmt.Errorf("GCT returned status %d", resp.StatusCode)
+	}
+	return nil
 }
 
 func parseDimensions(raw json.RawMessage) []ReviewDimension {

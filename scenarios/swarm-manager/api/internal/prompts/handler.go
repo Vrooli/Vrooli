@@ -95,31 +95,10 @@ func promptBindings() []PromptBinding {
 			OutputPaths: []string{"research/summary.md"},
 		},
 		{
-			Area:        "process",
-			Trigger:     "Execution Start: Idea",
-			Kind:        "idea",
-			Operation:   "generator,improver",
-			SkillID:     "swarm-manager-process-idea",
-			Purpose:     "Build or improve a scenario from a refined idea specification.",
-			OutputPaths: []string{"summary.md"},
-		},
-		{
-			Area:        "process",
-			Trigger:     "Execution Start: Fix",
-			Kind:        "fix",
-			Operation:   "generator,improver",
-			SkillID:     "swarm-manager-process-fix",
-			Purpose:     "Apply and verify a researched fix safely.",
-			OutputPaths: []string{"notes.md"},
-		},
-		{
-			Area:        "process",
-			Trigger:     "Execution Start: Execute/Research",
-			Kind:        "execute,research",
-			Operation:   "generator,improver",
-			SkillID:     "swarm-manager-process-execute",
-			Purpose:     "Carry out an execution task and document outcomes.",
-			OutputPaths: []string{"summary.md"},
+			Area:    "process",
+			Trigger: "Execution Start: All Kinds",
+			Kind:    "idea,fix,execute,research,chore",
+			Purpose: "Execution agent receives plan.md directly as the prompt. No skill template is used.",
 		},
 	}
 }
@@ -171,9 +150,6 @@ func requiredVariablesBySkill() map[string][]string {
 		"swarm-manager-research-idea":    common,
 		"swarm-manager-research-fix":     common,
 		"swarm-manager-research-general": append([]string{}, common...),
-		"swarm-manager-process-idea":     common,
-		"swarm-manager-process-fix":      common,
-		"swarm-manager-process-execute":  common,
 	}
 }
 
@@ -485,17 +461,6 @@ func resolveResearchSkill(mode, kind string) string {
 	}
 }
 
-func resolveProcessSkill(kind string) string {
-	switch strings.ToLower(strings.TrimSpace(kind)) {
-	case "idea":
-		return "swarm-manager-process-idea"
-	case "fix":
-		return "swarm-manager-process-fix"
-	default:
-		return "swarm-manager-process-execute"
-	}
-}
-
 func defaultVariables(req simulateRequest) map[string]string {
 	vars := map[string]string{
 		"ITEM_NAME":        strings.TrimSpace(req.ItemName),
@@ -529,12 +494,11 @@ func (h *Handler) Simulate(w http.ResponseWriter, r *http.Request) {
 	if strings.ToLower(strings.TrimSpace(req.Operation)) != "" {
 		area = "process"
 	}
-	var skillID string
 	if area == "process" {
-		skillID = resolveProcessSkill(kind)
-	} else {
-		skillID = resolveResearchSkill(req.Mode, kind)
+		httputil.BadRequest(w, "[prompts] simulate", "process executions use plan.md directly — no skill template to simulate")
+		return
 	}
+	skillID := resolveResearchSkill(req.Mode, kind)
 	vars := defaultVariables(req)
 	rendered, err := h.client.ReadSkill(r.Context(), skillID, vars, false)
 	if err != nil {

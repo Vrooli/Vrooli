@@ -1,5 +1,10 @@
 # Enhanced Plan: Vrooli Onboarding
 
+## Required Reading
+```bash
+prompt-manager skill read scenario-generation
+```
+
 ## Overview
 
 Vrooli Onboarding is a permanent configuration hub (not just a first-run wizard) that guides users — including non-technical ones — through setting up and managing Vrooli resources. It follows the standard scenario pattern: API holds all logic, with both a CLI and web UI providing identical functionality. V1 focuses on coding agents (claude-code, codex, opencode) and AI providers (openrouter, ollama), with deep-links to other scenarios (autoheal, prompt-manager) for configuration outside v1 scope.

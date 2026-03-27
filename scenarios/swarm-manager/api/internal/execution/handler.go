@@ -44,6 +44,8 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/execution/{execution_id}/cancel", h.Cancel).Methods("POST")
 	r.HandleFunc("/api/v1/execution/{execution_id}/retry", h.Retry).Methods("POST")
 	r.HandleFunc("/api/v1/execution/{execution_id}/follow-up", h.FollowUp).Methods("POST")
+	r.HandleFunc("/api/v1/execution/{execution_id}/trigger-review", h.TriggerReview).Methods("POST")
+	r.HandleFunc("/api/v1/gct/status", h.GCTStatus).Methods("GET")
 }
 
 // StartScheduler launches a polling worker for scheduled starts.
@@ -285,6 +287,41 @@ func (h *Handler) mapFollowUpError(w http.ResponseWriter, err error) {
 	}
 }
 
+// TriggerReview manually triggers a GCT review for a terminal execution.
+func (h *Handler) TriggerReview(w http.ResponseWriter, r *http.Request) {
+	executionID := strings.TrimSpace(mux.Vars(r)["execution_id"])
+	if executionID == "" {
+		httputil.BadRequest(w, "[execution] trigger-review", "execution_id is required")
+		return
+	}
+	record, err := h.service.TriggerReview(r.Context(), executionID)
+	if err != nil {
+		h.mapMutationError(w, "[execution] trigger-review", err)
+		return
+	}
+	if err := httputil.ProtoJSON(w, executionResponse(record)); err != nil {
+		httputil.InternalError(w, "[execution] trigger-review", "failed to encode response")
+	}
+}
+
+// GCTStatus returns whether git-control-tower is reachable.
+func (h *Handler) GCTStatus(w http.ResponseWriter, r *http.Request) {
+	available := false
+	if h.service.reviewClient != nil {
+		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+		defer cancel()
+		if err := h.service.reviewClient.Ping(ctx); err == nil {
+			available = true
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if available {
+		_, _ = w.Write([]byte(`{"available":true}`))
+	} else {
+		_, _ = w.Write([]byte(`{"available":false}`))
+	}
+}
+
 func (h *Handler) mapMutationError(w http.ResponseWriter, prefix string, err error) {
 	switch {
 	case errors.Is(err, errNotFound):
@@ -373,6 +410,12 @@ func recordToProto(r Record) *domainpb.ExecutionRecord {
 	}
 	if r.ReviewResult != nil {
 		pb.ReviewResult = reviewResultToProto(r.ReviewResult)
+	}
+	if r.ReviewSkipReason != "" {
+		pb.ReviewSkipReason = &r.ReviewSkipReason
+	}
+	if r.ReviewStartedAt != "" {
+		pb.ReviewStartedAt = &r.ReviewStartedAt
 	}
 	return pb
 }

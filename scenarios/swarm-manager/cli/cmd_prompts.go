@@ -56,7 +56,11 @@ func (a *App) cmdPromptsMap(args []string) error {
 	printSection("Results")
 	for _, item := range response.Items {
 		fmt.Printf("  %s\n", item.Trigger)
-		fmt.Printf("    Skill: %s\n", item.SkillID)
+		if strings.TrimSpace(item.SkillID) != "" {
+			fmt.Printf("    Skill: %s\n", item.SkillID)
+		} else {
+			fmt.Printf("    Skill: (plan.md direct)\n")
+		}
 		if strings.TrimSpace(item.Kind) != "" {
 			fmt.Printf("    Kind: %s\n", item.Kind)
 		}
@@ -70,12 +74,17 @@ func (a *App) cmdPromptsMap(args []string) error {
 		fmt.Println()
 	}
 
-	first := response.Items[0]
-	printCommandListSection("Next Steps", []string{
-		cliCommand("prompts", "skills"),
-		cliCommand("prompts", "skill-get", "--id", first.SkillID),
-		cliCommand("prompts", "preview", "--id", first.SkillID, "--vars", "ITEM_TITLE=Example,ITEM_FOLDER=scenarios/example"),
-	})
+	nextSteps := []string{cliCommand("prompts", "skills")}
+	for _, item := range response.Items {
+		if strings.TrimSpace(item.SkillID) != "" {
+			nextSteps = append(nextSteps,
+				cliCommand("prompts", "skill-get", "--id", item.SkillID),
+				cliCommand("prompts", "preview", "--id", item.SkillID, "--vars", "ITEM_TITLE=Example,ITEM_FOLDER=scenarios/example"),
+			)
+			break
+		}
+	}
+	printCommandListSection("Next Steps", nextSteps)
 	return nil
 }
 
@@ -512,7 +521,6 @@ func parseKVCSV(raw string) (map[string]string, error) {
 func printPromptTraceSummary(header, subject string, trace PromptTrace) {
 	printSection(header)
 	fmt.Printf("  %s\n", subject)
-	fmt.Printf("  Skill ID: %s\n", trace.SkillID)
 	if strings.TrimSpace(trace.Purpose) != "" {
 		fmt.Printf("  Purpose: %s\n", trace.Purpose)
 	}
@@ -523,7 +531,6 @@ func printPromptTraceSummary(header, subject string, trace PromptTrace) {
 		fmt.Printf("  Prompt Revision: %s\n", trace.PromptRevision)
 	}
 	fmt.Printf("  Used Fallback: %v\n", trace.UsedFallback)
-	fmt.Printf("  Variables: %d\n", len(trace.Variables))
 	if strings.TrimSpace(trace.Prompt) != "" {
 		printSection("Prompt")
 		fmt.Println(trace.Prompt)

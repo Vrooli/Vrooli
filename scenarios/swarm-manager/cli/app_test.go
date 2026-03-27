@@ -931,7 +931,7 @@ func TestCmdExecutionPromptTraceRequestsExpectedEndpoint(t *testing.T) {
 		if r.URL.Path != "/api/v1/execution/ex-123/prompt-trace" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
-		_, _ = w.Write([]byte(`{"trace":{"skill_id":"swarm-manager-process-idea","purpose":"p","prompt":"prompt text","used_fallback":false,"captured_at":"2026-01-01T00:00:00Z"}}`))
+		_, _ = w.Write([]byte(`{"trace":{"purpose":"p","prompt":"prompt text","used_fallback":false,"captured_at":"2026-01-01T00:00:00Z"}}`))
 	}))
 	defer server.Close()
 

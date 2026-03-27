@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowUpRight, Check, ChevronDown, ChevronUp, ExternalLink, Loader2, MessageSquare, AlertTriangle } from "lucide-react";
+import { ArrowUpRight, ChevronDown, ChevronUp, ExternalLink, Loader2, MessageSquare, RefreshCw } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn, formatRelativeTime, canFollowUpExecution } from "../../lib";
 import {
@@ -10,93 +10,8 @@ import {
   type BacklogKind,
   type ExecutionRecord,
   type PromptTrace,
-  type ReviewResult,
 } from "../../types";
-
-// ============================================================================
-// ReviewStatusBadge
-// ============================================================================
-
-const REVIEW_DIMENSION_COLORS: Record<string, string> = {
-  green: "bg-emerald-500",
-  yellow: "bg-amber-500",
-  red: "bg-red-500",
-  skipped: "bg-slate-500",
-};
-
-function ReviewStatusBadge({
-  result,
-  onOpenSandbox,
-}: {
-  result: ReviewResult;
-  onOpenSandbox?: () => void;
-}) {
-  const [showDimensions, setShowDimensions] = useState(false);
-  const hasIssues = result.classification === "needs_work";
-
-  return (
-    <div className="space-y-1.5" data-testid="review-status-badge">
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          if (result.dimensions.length > 0) setShowDimensions(!showDimensions);
-        }}
-        className={cn(
-          "flex w-full items-center gap-2 rounded-md border px-2 py-1.5 text-xs transition-colors",
-          result.classification === "ready" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
-          result.classification === "ready_with_notes" && "border-amber-500/30 bg-amber-500/10 text-amber-300",
-          result.classification === "needs_work" && "border-red-500/30 bg-red-500/10 text-red-300",
-          result.classification === "not_assessable" && "border-slate-600 bg-slate-800/50 text-slate-400",
-          result.dimensions.length > 0 && "cursor-pointer hover:border-white/20",
-        )}
-      >
-        {result.classification === "ready" && <Check className="h-3.5 w-3.5 shrink-0" />}
-        {result.classification === "ready_with_notes" && <AlertTriangle className="h-3.5 w-3.5 shrink-0" />}
-        {result.classification === "needs_work" && <AlertTriangle className="h-3.5 w-3.5 shrink-0" />}
-        <span className="flex-1 text-left">
-          {result.classification === "ready" && "Checks passed"}
-          {result.classification === "ready_with_notes" && "Passed with notes"}
-          {result.classification === "needs_work" && "Issues found"}
-          {result.classification === "not_assessable" && "Review inconclusive"}
-        </span>
-        {result.dimensions.length > 0 && (
-          showDimensions
-            ? <ChevronUp className="h-3 w-3 shrink-0 text-slate-500" />
-            : <ChevronDown className="h-3 w-3 shrink-0 text-slate-500" />
-        )}
-      </button>
-
-      {showDimensions && (
-        <div className="space-y-1 rounded-md bg-slate-800/50 px-2.5 py-2">
-          {result.dimensions.map((dim) => (
-            <div key={dim.name} className="flex items-center gap-2 text-xs" data-testid={`review-dim-${dim.name}`}>
-              <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", REVIEW_DIMENSION_COLORS[dim.status] ?? "bg-slate-500")} />
-              <span className="text-slate-300">{dim.name}</span>
-              {dim.details && <span className="text-slate-500">— {dim.details}</span>}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {hasIssues && onOpenSandbox && (
-        <Button
-          size="sm"
-          variant="outline"
-          className="w-full border-red-500/30 text-red-300 hover:bg-red-500/10 hover:text-red-200"
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenSandbox();
-          }}
-          data-testid="review-open-sandbox"
-        >
-          <ExternalLink className="mr-1.5 h-3 w-3" />
-          Review in Sandbox
-        </Button>
-      )}
-    </div>
-  );
-}
+import { ReviewStatusBadge, ReviewValidatingIndicator, ReviewSkipIndicator } from "./review-status-badge";
 
 // ============================================================================
 // ExecutionCard
@@ -115,6 +30,7 @@ interface ExecutionCardProps {
   onViewBacklog: (backlogKind: string, backlogName: string) => void;
   onFollowUp?: (executionId: string) => void;
   onOpenReviewSandbox?: (executionId: string) => void;
+  onTriggerReview?: (executionId: string) => void;
   trace?: PromptTrace;
   traceLoading?: boolean;
   agentManagerUiUrl?: string | null;
@@ -134,6 +50,7 @@ export function ExecutionCard({
   onViewBacklog,
   onFollowUp,
   onOpenReviewSandbox,
+  onTriggerReview,
   trace,
   traceLoading = false,
   agentManagerUiUrl,
@@ -178,13 +95,38 @@ export function ExecutionCard({
         </p>
       ) : null}
 
-      {/* Review status badge */}
+      {/* Review status */}
       {item.reviewResult ? (
         <ReviewStatusBadge
           result={item.reviewResult}
           onOpenSandbox={onOpenReviewSandbox ? () => onOpenReviewSandbox(item.executionId) : undefined}
+          onTriggerReview={onTriggerReview ? () => onTriggerReview(item.executionId) : undefined}
+        />
+      ) : item.status === "validating" ? (
+        <ReviewValidatingIndicator />
+      ) : item.reviewSkipReason ? (
+        <ReviewSkipIndicator
+          reason={item.reviewSkipReason}
+          onTriggerReview={onTriggerReview ? () => onTriggerReview(item.executionId) : undefined}
         />
       ) : null}
+
+      {/* Run Review button for terminal executions without a review */}
+      {!item.reviewResult && !item.reviewSkipReason && item.status !== "validating" && onTriggerReview &&
+        (item.status === "completed" || item.status === "needs_fixup") && (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={(e) => {
+            e.stopPropagation();
+            onTriggerReview!(item.executionId);
+          }}
+          data-testid="review-trigger-button"
+        >
+          <RefreshCw className="mr-1.5 h-3 w-3" />
+          Run Review
+        </Button>
+      )}
 
       {/* Timestamps — both labeled */}
       <div className="flex items-center justify-between text-xs text-slate-500">
@@ -325,7 +267,7 @@ export function ExecutionCard({
       {/* Prompt trace */}
       {trace ? (
         <div className="rounded-md border border-cyan-500/30 bg-cyan-500/10 p-2 text-xs" data-testid="execution-prompt-trace">
-          <p className="font-mono text-cyan-300">{trace.skill_id}</p>
+          <p className="font-mono text-cyan-300">{trace.purpose}</p>
           <p className="mt-1 text-slate-300">Captured {formatRelativeTime(trace.captured_at)}</p>
           <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] text-slate-200">
             {trace.prompt}

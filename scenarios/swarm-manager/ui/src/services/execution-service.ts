@@ -47,6 +47,7 @@ export interface IExecutionService {
   cancel(executionId: string): Promise<ExecutionRecord>;
   retry(executionId: string): Promise<ExecutionRecord>;
   followUp(executionId: string, request: FollowUpRequest): Promise<ExecutionRecord>;
+  triggerReview(executionId: string): Promise<ExecutionRecord>;
 }
 
 export function createExecutionService(apiClient: IApiClient = defaultApiClient): IExecutionService {
@@ -119,6 +120,10 @@ export function createExecutionService(apiClient: IApiClient = defaultApiClient)
 
     async retry(executionId: string): Promise<ExecutionRecord> {
       return mutate(API_ENDPOINTS.executionRetry(executionId));
+    },
+
+    async triggerReview(executionId: string): Promise<ExecutionRecord> {
+      return mutate(API_ENDPOINTS.executionTriggerReview(executionId));
     },
 
     async followUp(executionId: string, request: FollowUpRequest): Promise<ExecutionRecord> {

@@ -97,7 +97,7 @@ func TestTruncateDescription_OverLimit(t *testing.T) {
 }
 
 func TestTruncateDescription_LargePrompt(t *testing.T) {
-	// A 20KB prompt (like swarm-manager-process-idea) fits within the 64KB limit.
+	// A 20KB prompt fits within the 64KB limit.
 	desc := strings.Repeat("y", 20195)
 	result := truncateDescription(desc)
 	if result != desc {

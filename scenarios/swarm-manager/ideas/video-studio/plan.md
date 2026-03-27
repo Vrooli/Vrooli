@@ -9,7 +9,7 @@ Create a new Vrooli scenario ("video-studio") that unifies browser recording (vi
 ## Required Reading
 
 ```bash
-prompt-manager skill read api-steer cli-steer seam-discovery-and-enforcement interoperability-steer
+prompt-manager skill read scenario-generation api-steer cli-steer seam-discovery-and-enforcement interoperability-steer
 ```
 
 Additional context:

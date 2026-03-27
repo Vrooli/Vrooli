@@ -414,6 +414,8 @@ export function mapProtoExecutionRecord(proto: ProtoExecutionRecord): ExecutionR
     parentExecutionId: proto.parentExecutionId,
     fixupAttempt: proto.fixupAttempt ?? 0,
     reviewJobId: proto.reviewJobId,
+    reviewSkipReason: proto.reviewSkipReason,
+    reviewStartedAt: proto.reviewStartedAt,
     createdAt: proto.createdAt ?? "",
     updatedAt: proto.updatedAt ?? "",
   };

@@ -221,7 +221,7 @@ describe("BacklogDetailsPage", () => {
       expect(screen.getAllByText("Target Scenarios").length).toBeGreaterThan(0);
     });
     expect(screen.getAllByText("web-console").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Control Tower Review: Enabled").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Review will run after execution").length).toBeGreaterThan(0);
   });
 
   it("hides target scenarios panel when no acceptanceAllow", async () => {

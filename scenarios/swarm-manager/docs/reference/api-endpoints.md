@@ -116,3 +116,28 @@ Updates are partial.
 `GET /api/v1/settings`
 
 The CLI uses `settings.default_mode` when `execution create` is called without `--mode`.
+
+## Execution
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/execution` | List executions with optional filters |
+| POST | `/api/v1/execution` | Create a new execution |
+| GET | `/api/v1/execution/{id}` | Get execution by ID |
+| GET | `/api/v1/execution/{id}/prompt-trace` | Get prompt trace for execution |
+| POST | `/api/v1/execution/{id}/start` | Start a pending/scheduled execution |
+| POST | `/api/v1/execution/{id}/cancel` | Cancel an active execution |
+| POST | `/api/v1/execution/{id}/retry` | Retry a failed execution |
+| POST | `/api/v1/execution/{id}/follow-up` | Create follow-up from terminal execution |
+| POST | `/api/v1/execution/{id}/trigger-review` | Trigger or re-trigger a GCT review for a terminal execution |
+| GET | `/api/v1/gct/status` | Check git-control-tower availability (`{"available": true/false}`) |
+
+### Trigger Review
+
+Manually triggers a git-control-tower review for executions in terminal status (`completed`, `needs_fixup`, `failed`). Returns the updated execution record with `status: "validating"` and `review_job_id` set.
+
+Returns 400 if the execution is not in a terminal status. Returns 500 if ReviewClient is not configured or GCT is unreachable.
+
+### GCT Status
+
+Lightweight health check against git-control-tower. Always returns 200 with `{"available": true}` or `{"available": false}`. Uses a 3-second timeout.

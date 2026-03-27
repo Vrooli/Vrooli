@@ -24,6 +24,7 @@ import {
   type ExecutionTabId,
 } from "../lib";
 import { executionService, promptService } from "../services";
+import { gctService } from "../services/gct-service";
 import { useExecutionStore } from "../stores";
 import {
   EXECUTION_MODES,
@@ -99,6 +100,7 @@ export function ExecutionPage() {
   const [agentManagerUiUrl, setAgentManagerUiUrl] = useState<string | null>(null);
   const [followUpTarget, setFollowUpTarget] = useState<ExecutionRecord | null>(null);
   const [workspaceSandboxBaseUrl, setWorkspaceSandboxBaseUrl] = useState<string | null>(null);
+  const [gctAvailable, setGctAvailable] = useState<boolean | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -128,6 +130,14 @@ export function ExecutionPage() {
     }, AUTO_REFRESH_MS);
     return () => window.clearInterval(interval);
   }, [fetchExecutions]);
+
+  // Poll GCT availability every 30 seconds.
+  useEffect(() => {
+    const poll = () => void gctService.getStatus().then((s) => setGctAvailable(s.available));
+    poll();
+    const interval = window.setInterval(poll, 30_000);
+    return () => window.clearInterval(interval);
+  }, []);
 
 
   const activeTabConfig = EXECUTION_TAB_CONFIG.find((tab) => tab.id === activeTab) ?? EXECUTION_TAB_CONFIG[0];
@@ -159,11 +169,13 @@ export function ExecutionPage() {
 
   const stats = useMemo(() => {
     const running = tabItems.filter((item) => item.status === "starting" || item.status === "running").length;
+    const validating = tabItems.filter((item) => item.status === "validating").length;
     const review = tabItems.filter((item) => item.status === "needs_review").length;
     const failed = tabItems.filter((item) => item.status === "failed" || item.status === "canceled").length;
     return {
       total: tabItems.length,
       running,
+      validating,
       review,
       failed,
     };
@@ -230,6 +242,20 @@ export function ExecutionPage() {
   const handleFollowUp = (executionId: string) => {
     const exec = items.find((i) => i.executionId === executionId);
     if (exec) setFollowUpTarget(exec);
+  };
+
+  const handleTriggerReview = async (executionId: string) => {
+    setBusyId(executionId);
+    setActionError(null);
+    try {
+      const updated = await executionService.triggerReview(executionId);
+      upsertExecution(updated);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to trigger review.";
+      setActionError(message);
+    } finally {
+      setBusyId(null);
+    }
   };
 
   const handleOpenReviewSandbox = async (executionId: string) => {
@@ -427,8 +453,12 @@ export function ExecutionPage() {
           <div className="flex flex-wrap items-center gap-3 text-sm text-slate-400">
             <span>{stats.total} run{stats.total !== 1 ? "s" : ""}</span>
             {stats.running > 0 ? <span className="text-cyan-400">{stats.running} running</span> : null}
+            {stats.validating > 0 ? <span className="text-indigo-400">{stats.validating} validating</span> : null}
             {stats.review > 0 ? <span className="text-yellow-400">{stats.review} needs review</span> : null}
             {stats.failed > 0 ? <span className="text-amber-400">{stats.failed} failed/canceled</span> : null}
+            <span className={gctAvailable ? "text-emerald-400" : "text-slate-500"} data-testid="gct-status-indicator">
+              GCT: {gctAvailable === null ? "..." : gctAvailable ? "Connected" : "Offline"}
+            </span>
           </div>
         </div>
       </div>
@@ -520,6 +550,7 @@ export function ExecutionPage() {
                     agentManagerUiUrl={agentManagerUiUrl}
                     onFollowUp={handleFollowUp}
                     onOpenReviewSandbox={(id) => void handleOpenReviewSandbox(id)}
+                    onTriggerReview={(id) => void handleTriggerReview(id)}
                   />
                 </ResponsiveListItem>
               ))}
@@ -551,6 +582,7 @@ export function ExecutionPage() {
                     agentManagerUiUrl={agentManagerUiUrl}
                     onFollowUp={handleFollowUp}
                     onOpenReviewSandbox={(id) => void handleOpenReviewSandbox(id)}
+                    onTriggerReview={(id) => void handleTriggerReview(id)}
                   />
                 </ResponsiveListItem>
               ))}

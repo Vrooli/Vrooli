@@ -54,6 +54,8 @@ export const API_ENDPOINTS = {
   executionCancel: (executionId: string) => `/execution/${executionId}/cancel`,
   executionRetry: (executionId: string) => `/execution/${executionId}/retry`,
   executionFollowUp: (executionId: string) => `/execution/${executionId}/follow-up`,
+  executionTriggerReview: (executionId: string) => `/execution/${executionId}/trigger-review`,
+  gctStatus: "/gct/status",
   promptsMap: "/prompts/map",
   promptSkills: "/prompts/skills",
   promptSkillById: (skillId: string) => `/prompts/skills/${skillId}`,

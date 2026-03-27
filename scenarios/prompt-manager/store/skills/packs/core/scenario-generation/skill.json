@@ -1,0 +1,15 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "scenario-generation",
+  "name": "Scenario Generation",
+  "description": "Operational knowledge for creating and improving Vrooli scenarios: scaffolding, PRD/requirements generation via prd-control-tower, ecosystem-manager integration, and steering strategy selection",
+  "modes": ["tools"],
+  "tags": ["vrooli", "scenario", "generation", "idea", "scaffold"],
+  "topics": ["scenario creation", "scenario generation", "new scenario", "idea execution"],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-03-26T00:00:00Z",
+  "updatedAt": "2026-03-26T00:00:00Z"
+}

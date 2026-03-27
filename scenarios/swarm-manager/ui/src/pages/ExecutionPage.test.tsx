@@ -23,7 +23,6 @@ import type { PromptTrace } from "../types";
 
 describe("ExecutionPage", () => {
   const mockPromptTrace: PromptTrace = {
-    skill_id: "swarm-manager-process-execute",
     purpose: "Execution trace",
     prompt: "Execution prompt",
     used_fallback: false,

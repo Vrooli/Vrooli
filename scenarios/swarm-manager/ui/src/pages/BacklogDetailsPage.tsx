@@ -41,6 +41,7 @@ import {
   MessageSquareText,
   MoreHorizontal,
   Play,
+  RefreshCw,
   Search,
   Sparkles,
   Square,
@@ -72,6 +73,7 @@ import { BacklogAgentDialog } from "../components/backlog/backlog-agent-dialog";
 import { WorkshopPanel } from "../components/backlog/workshop-panel";
 import { ReadinessDetailsPanel } from "../components/backlog/readiness-details-panel";
 import { FollowUpDialog } from "../components/execution/follow-up-dialog";
+import { ReviewStatusBadge, ReviewValidatingIndicator, ReviewSkipIndicator } from "../components/execution/review-status-badge";
 import { OperationalTargetsPanel } from "../components/backlog/operational-targets-panel";
 import { BulkActionToolbar } from "../components/backlog/bulk-action-toolbar";
 import { RequirementFormDialog } from "../components/backlog/requirement-form-dialog";
@@ -1614,17 +1616,78 @@ export function BacklogDetailsPage() {
             </Link>
           ))}
         </div>
-        <div className="flex items-center gap-1.5 border-t border-slate-800 pt-2">
-          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-          <span className="text-xs text-emerald-400">Control Tower Review: Enabled</span>
-        </div>
+        {(() => {
+          const latestExec = executionHistory?.[0];
+          if (latestExec?.reviewResult) {
+            return (
+              <div className="border-t border-slate-800 pt-2">
+                <ReviewStatusBadge result={latestExec.reviewResult} />
+              </div>
+            );
+          }
+          if (latestExec?.status === "validating") {
+            return (
+              <div className="border-t border-slate-800 pt-2">
+                <ReviewValidatingIndicator />
+              </div>
+            );
+          }
+          if (latestExec?.reviewSkipReason) {
+            return (
+              <div className="border-t border-slate-800 pt-2">
+                <ReviewSkipIndicator
+                  reason={latestExec.reviewSkipReason}
+                  onTriggerReview={async () => {
+                    try {
+                      await executionService.triggerReview(latestExec.executionId);
+                    } catch {
+                      // Will be visible on next query refetch
+                    }
+                  }}
+                />
+              </div>
+            );
+          }
+          if (!latestExec) {
+            return (
+              <div className="flex items-center gap-1.5 border-t border-slate-800 pt-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-slate-500" />
+                <span className="text-xs text-slate-400">Review will run after execution</span>
+              </div>
+            );
+          }
+          // Completed/failed execution with no review data — offer to run one
+          return (
+            <div className="space-y-2 border-t border-slate-800 pt-2">
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5 text-slate-500" />
+                <span className="text-xs text-slate-400">No review results yet</span>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full"
+                onClick={async () => {
+                  try {
+                    await executionService.triggerReview(latestExec.executionId);
+                  } catch {
+                    // Error handled by query refetch showing updated state
+                  }
+                }}
+              >
+                <RefreshCw className="mr-1.5 h-3 w-3" />
+                Run Review
+              </Button>
+            </div>
+          );
+        })()}
       </div>
     </Card>
   ) : null;
 
   const notesPanel = (
     <div className="space-y-4">
-      {readinessData && (
+      {readinessData && !isTerminal && (
         <ReadinessDetailsPanel
           data={readinessData}
           onRun={itemActions?.canRun ? () => setShowRunModal(true) : undefined}
@@ -1816,20 +1879,13 @@ export function BacklogDetailsPage() {
                         {exec.failureReason}
                       </p>
                     )}
-                    {exec.reviewResult && (
-                      <div className={cn(
-                        "flex items-center gap-1.5 rounded px-2 py-1 text-xs",
-                        exec.reviewResult.classification === "ready" && "bg-emerald-500/10 text-emerald-300",
-                        exec.reviewResult.classification === "ready_with_notes" && "bg-amber-500/10 text-amber-300",
-                        exec.reviewResult.classification === "needs_work" && "bg-red-500/10 text-red-300",
-                        exec.reviewResult.classification === "not_assessable" && "bg-slate-700/50 text-slate-400",
-                      )}>
-                        {exec.reviewResult.classification === "ready" ? "✓ Checks passed" :
-                         exec.reviewResult.classification === "ready_with_notes" ? "⚠ Passed with notes" :
-                         exec.reviewResult.classification === "needs_work" ? "✕ Issues found" :
-                         "Review inconclusive"}
-                      </div>
-                    )}
+                    {exec.reviewResult ? (
+                      <ReviewStatusBadge result={exec.reviewResult} />
+                    ) : exec.status === "validating" ? (
+                      <ReviewValidatingIndicator />
+                    ) : exec.reviewSkipReason ? (
+                      <ReviewSkipIndicator reason={exec.reviewSkipReason} />
+                    ) : null}
                     <div className="space-y-1 text-xs text-slate-400">
                       {duration !== undefined && (
                         <p>Duration: {formatDuration(duration)}</p>

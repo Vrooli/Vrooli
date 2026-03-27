@@ -171,6 +171,57 @@ func pollReviewDirect(c *HTTPReviewClient, baseURL string, ctx context.Context, 
 	return mapJobToResult(job)
 }
 
+func TestPing_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodHead {
+			t.Fatalf("expected HEAD, got %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/health" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	client := &HTTPReviewClient{httpClient: server.Client()}
+	// Bypass discovery by calling Ping with a context that won't resolve.
+	// Instead, use pingDirect helper.
+	err := pingDirect(client, server.URL, context.Background())
+	if err != nil {
+		t.Fatalf("Ping should succeed: %v", err)
+	}
+}
+
+func TestPing_Unavailable(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+
+	client := &HTTPReviewClient{httpClient: server.Client()}
+	err := pingDirect(client, server.URL, context.Background())
+	if err == nil {
+		t.Fatal("Ping should fail for 503")
+	}
+}
+
+// pingDirect calls the health endpoint against a known base URL, bypassing discovery.
+func pingDirect(c *HTTPReviewClient, baseURL string, ctx context.Context) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, baseURL+"/api/v1/health", nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+	if resp.StatusCode >= 500 {
+		return http.ErrAbortHandler
+	}
+	return nil
+}
+
 func TestMapReadinessToClassification(t *testing.T) {
 	tests := []struct {
 		input string

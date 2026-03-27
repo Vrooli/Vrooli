@@ -1,0 +1,152 @@
+{
+  "round": 2,
+  "generated_at": "2026-03-26T22:15:00Z",
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 2,
+    "testable": 2,
+    "risk_awareness": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Initiative card — progress bar style and status distribution visualization",
+      "context": "The card needs to show both overall progress (completed/total) and per-status item distribution. Two visual elements compete for space: a progress bar and status dots/chips. The choice affects information density and scannability. The existing RollupStatus provides total, completed, in_progress, failed, and pending counts.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Stacked progress bar (segmented by status) + numeric breakdown below",
+          "rationale": "Single bar shows both progress AND distribution. Segments colored by status (green=completed, cyan=in_progress, red=failed, gray=pending). Numeric counts shown as compact text row below the bar (e.g., '3 ready · 2 running · 1 failed'). Most space-efficient. Recommended because it encodes two dimensions of information in one visual element while keeping the card compact.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Simple progress bar (completed only) + separate colored dot row",
+          "rationale": "Progress bar shows only completed/total (simple green fill). Separate row of colored dots shows per-status counts. Two distinct visual elements — easier to read but takes more vertical space."
+        },
+        {
+          "key": "C",
+          "label": "Donut/ring chart for status distribution",
+          "rationale": "Compact circular visualization showing all statuses as segments. Looks polished but harder to compare across cards and may be overkill for a text-heavy dashboard."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Priority badge visual treatment on initiative cards",
+      "context": "Each initiative card shows a priority (1-10). The badge needs to communicate urgency at a glance without dominating the card. Priority 1 is highest/most urgent, 10 is lowest.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Colored number badge with gradient (red=1-3, amber=4-6, green=7-10)",
+          "rationale": "Color encodes urgency: hot colors for high priority, cool for low. Small pill with just the number. Recommended because it provides instant visual scanning across the card grid — you can spot high-priority initiatives without reading text.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Monochrome number badge with varying opacity/weight",
+          "rationale": "Subtle — priority 1 gets bold/full opacity, priority 10 gets light/faded. Less visual noise but harder to scan quickly across many cards."
+        },
+        {
+          "key": "C",
+          "label": "Named priority tiers instead of numbers (Critical, High, Medium, Low)",
+          "rationale": "More semantic but takes more horizontal space and adds a mapping layer (which numbers map to which tier?)."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Needs Attention feed — refresh interval and notification behavior",
+      "context": "The Needs Attention feed aggregates data from 4 sources via react-query. The refresh interval affects how quickly new issues surface. Too frequent wastes resources; too slow means stale data. Related: the agents dropdown already refreshes every 5 seconds.",
+      "options": [
+        {
+          "key": "A",
+          "label": "30-second refetch for all dashboard data, no toast notifications",
+          "rationale": "Balanced refresh rate. Dashboard is a pull model — users check it when they want to. No interruptions. Recommended because the dashboard is a status board, not an alerting system. Users visit it intentionally.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "60-second refetch with subtle badge count on Dashboard tab when new items appear",
+          "rationale": "Slower refresh but adds a notification dot on the Dashboard tab (like unread messages) when new attention items appear since last visit. More discoverable but adds state tracking complexity."
+        },
+        {
+          "key": "C",
+          "label": "Manual refresh only (button in feed header)",
+          "rationale": "Simplest implementation. User clicks refresh when they want fresh data. May feel stale for users who leave the dashboard open."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Decomposition into follow-up execute items",
+      "context": "This research item produces specifications. The implementation work needs to be split into execute items. The question is how to decompose — one large item vs. multiple focused items. The components have some data dependencies (e.g., initiative cards need priority field to exist) but are otherwise independent UI work.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Three execute items: (1) Initiative schema + settings dialog, (2) Dashboard page, (3) Tab/navigation changes",
+          "rationale": "Schema changes in item 1 unblock card sorting in item 2. Settings dialog is small and pairs naturally with schema work. Navigation changes are a separate concern. Recommended because it creates a clear dependency chain: 1→2→3, each independently testable.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Two execute items: (1) Dashboard page + initiative schema, (2) Settings relocation + nav changes",
+          "rationale": "Fewer items, bigger scope each. Dashboard needs schema changes anyway so they bundle naturally. Settings + nav are the 'remove old, add new' pair."
+        },
+        {
+          "key": "C",
+          "label": "Single execute item: implement everything at once",
+          "rationale": "Simplest tracking. Everything ships together so no partial states. But large scope makes review harder and increases risk of conflicts."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The SettingsPage is 6 card sections (Theme, Execution Defaults, Workshop, Agent Behavior, UI Preferences, Save footer) — confirmed at ~558 lines with per-section reset buttons, dirty checking, navigation blocker, and conditional field visibility. The dialog adaptation will need to handle the internal scroll context carefully since the page was designed for full-viewport height."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "The current BacklogStatus type includes 'researching' and 'queued' statuses not mentioned in the original rollup. The stats bar should use the full status set: backlog, researching, ready, queued, in_progress, completed, failed, archived. The 'Active Items' stat should count everything except completed and archived. Consider whether 'researching' and 'queued' deserve their own stats or fold into the existing categories."
+    }
+  ],
+  "plan_updates": "Major plan update: incorporated all 5 resolved decisions from round 1 into sections 6-8. Fleshed out Section 7 (Implementation Strategy) with component hierarchy and data flow specifications. Added Section 9 (Testing Plan) with specification completeness checks and edge case coverage. Added Section 10 (Rollout Checklist) describing transition to execute items. Expanded Section 11 (Risks) with 3 additional risks. Added Needs Attention feed data contract (AttentionItem interface) to Section 8."
+}

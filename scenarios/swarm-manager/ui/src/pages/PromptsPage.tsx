@@ -238,12 +238,13 @@ export function PromptsPage() {
     }));
   }, [bindingsQuery.data]);
 
-  const openInViewer = (skillID: string) => {
+  const openInViewer = (skillID?: string) => {
+    if (!skillID) return;
     setSelectedSkillId(skillID);
     setActiveTab("viewer");
   };
 
-  const openInViewerOnKey = (event: KeyboardEvent<HTMLElement>, skillID: string) => {
+  const openInViewerOnKey = (event: KeyboardEvent<HTMLElement>, skillID?: string) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       openInViewer(skillID);
@@ -371,7 +372,7 @@ export function PromptsPage() {
                       {items.length > 0 ? (
                         items.map((binding) => (
                           <button
-                            key={`${stage}-${binding.skill_id}-${binding.trigger}`}
+                            key={`${stage}-${binding.skill_id ?? "plan"}-${binding.trigger}`}
                             type="button"
                             className="w-full rounded border border-slate-700/50 px-2 py-1.5 text-left transition hover:border-cyan-500/50 hover:bg-cyan-500/5"
                             onClick={() => openInViewer(binding.skill_id)}
@@ -381,7 +382,7 @@ export function PromptsPage() {
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-slate-400">
                               <span>{binding.kind ?? "-"}</span>
                               <span>{binding.mode ?? binding.operation ?? "-"}</span>
-                              <span className="font-mono text-cyan-300">{binding.skill_id}</span>
+                              <span className="font-mono text-cyan-300">{binding.skill_id ?? "plan.md"}</span>
                             </div>
                           </button>
                         ))
@@ -413,7 +414,7 @@ export function PromptsPage() {
                   <tbody>
                     {(bindingsQuery.data ?? []).map((binding) => (
                       <tr
-                        key={`${binding.skill_id}-${binding.trigger}`}
+                        key={`${binding.skill_id ?? "plan"}-${binding.trigger}`}
                         className="cursor-pointer border-t border-slate-700/60 text-slate-200 transition hover:bg-cyan-500/5"
                         role="button"
                         tabIndex={0}
@@ -426,7 +427,7 @@ export function PromptsPage() {
                           {binding.kind ?? "-"} / {binding.mode ?? binding.operation ?? "-"}
                         </td>
                         <td className="px-2 py-2">
-                          <span className="font-mono text-cyan-300">{binding.skill_id}</span>
+                          <span className="font-mono text-cyan-300">{binding.skill_id ?? "plan.md"}</span>
                         </td>
                         <td className="px-2 py-2 text-slate-300">{binding.purpose}</td>
                       </tr>

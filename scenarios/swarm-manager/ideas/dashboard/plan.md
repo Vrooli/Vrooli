@@ -3,7 +3,7 @@
 ## Required Reading
 
 ```bash
-prompt-manager skill read cli-steer api-steer utils-unification seam-discovery-and-enforcement react-coherence ux
+prompt-manager skill read scenario-generation cli-steer api-steer utils-unification seam-discovery-and-enforcement react-coherence ux
 ```
 
 ## 1. Purpose

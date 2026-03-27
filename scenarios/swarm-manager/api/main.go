@@ -346,6 +346,7 @@ func (s *Server) registerExecutionRoutes(scenarioRoot string) {
 		PolicyProvider: &settingsPolicyAdapter{store: s.settingsStore},
 		AgentService:   s.agentSvc,
 		Archiver:       archiver,
+		ReviewClient:   execution.NewHTTPReviewClient(nil),
 	}
 	s.executionSvc = execution.NewService(cfg)
 	s.executionHandler = execution.NewHandlerFromService(s.executionSvc)

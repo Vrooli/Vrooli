@@ -248,13 +248,11 @@ type PromptTraceResponse struct {
 }
 
 type PromptTrace struct {
-	SkillID        string            `json:"skill_id"`
-	Purpose        string            `json:"purpose"`
-	Variables      map[string]string `json:"variables,omitempty"`
-	Prompt         string            `json:"prompt"`
-	PromptRevision string            `json:"prompt_revision,omitempty"`
-	UsedFallback   bool              `json:"used_fallback"`
-	CapturedAt     string            `json:"captured_at"`
+	Purpose        string `json:"purpose"`
+	Prompt         string `json:"prompt"`
+	PromptRevision string `json:"prompt_revision,omitempty"`
+	UsedFallback   bool   `json:"used_fallback"`
+	CapturedAt     string `json:"captured_at"`
 }
 
 type PromptBinding struct {

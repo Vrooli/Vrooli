@@ -800,9 +800,9 @@ func TestCheckDependencies_FailOpen(t *testing.T) {
 		// Only the incomplete (on-disk, non-completed) dep should be unmet.
 		// The completed dep is satisfied; the missing dep is presumed archived.
 		unmet, err := store.CheckDependencies([]string{
-			"idea/dep-done",          // completed on disk → satisfied
-			"idea/nonexistent-item",  // missing on disk → presumed archived → satisfied
-			"idea/dep-pending",       // exists on disk, status=ready → unmet
+			"idea/dep-done",         // completed on disk → satisfied
+			"idea/nonexistent-item", // missing on disk → presumed archived → satisfied
+			"idea/dep-pending",      // exists on disk, status=ready → unmet
 		})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)

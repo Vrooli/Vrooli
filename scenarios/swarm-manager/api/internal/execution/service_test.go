@@ -87,8 +87,17 @@ func TestQueueAndStartManualExecution(t *testing.T) {
 	if started.PromptTrace == nil {
 		t.Fatal("expected prompt trace to be captured")
 	}
-	if started.PromptTrace.SkillID != "swarm-manager-process-idea" {
-		t.Fatalf("expected process idea prompt skill ID, got %q", started.PromptTrace.SkillID)
+	if started.PromptTrace.Purpose != "process" {
+		t.Fatalf("expected purpose 'process', got %q", started.PromptTrace.Purpose)
+	}
+	if !strings.Contains(started.PromptTrace.Prompt, "<execution-context>") {
+		t.Fatal("expected prompt to contain <execution-context> tag")
+	}
+	if !strings.Contains(started.PromptTrace.Prompt, "<implementation-plan>") {
+		t.Fatal("expected prompt to contain <implementation-plan> tag")
+	}
+	if !strings.Contains(started.PromptTrace.Prompt, "Manually created plan for testing") {
+		t.Fatal("expected prompt to contain plan.md content")
 	}
 	if agent.spawnCalls != 1 {
 		t.Fatalf("expected 1 spawn call, got %d", agent.spawnCalls)
@@ -866,5 +875,362 @@ func TestRecordToProto_MapsReviewResult(t *testing.T) {
 	dim1 := pb.ReviewResult.Dimensions[1]
 	if dim1.Name != "lint" || dim1.Status != "green" {
 		t.Fatalf("expected lint/green, got %s/%s", dim1.Name, dim1.Status)
+	}
+}
+
+// --- stubReviewClient for testing ---
+
+type stubReviewClient struct {
+	triggerJobID string
+	triggerErr   error
+	pollResult   *ReviewResult
+	pollDone     bool
+	pollErr      error
+	pingErr      error
+}
+
+func (s *stubReviewClient) TriggerReview(_ context.Context, _ ReviewRequest) (string, error) {
+	return s.triggerJobID, s.triggerErr
+}
+
+func (s *stubReviewClient) PollReview(_ context.Context, _ string) (*ReviewResult, bool, error) {
+	return s.pollResult, s.pollDone, s.pollErr
+}
+
+func (s *stubReviewClient) Ping(_ context.Context) error {
+	return s.pingErr
+}
+
+func TestTriggerReview_CompletedExecution(t *testing.T) {
+	dir := t.TempDir()
+	store := NewStore(filepath.Join(dir, "exec.json"))
+	records := []Record{{
+		ExecutionID: "exec-tr-1",
+		BacklogKind: "execute",
+		BacklogName: "my-feature",
+		Status:      StatusCompleted,
+		Mode:        ModeYOLO,
+		CreatedAt:   nowRFC3339(),
+		UpdatedAt:   nowRFC3339(),
+	}}
+	if err := store.Save(records); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a backlog spec with acceptance_allow so scenario extraction works.
+	specDir := filepath.Join(dir, "execute", "my-feature")
+	if err := os.MkdirAll(specDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	spec := `{"name":"my-feature","acceptance_allow":["scenarios/web-console/**"]}`
+	if err := os.WriteFile(filepath.Join(specDir, "spec.json"), []byte(spec), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	svc := &Service{
+		rootDir:        dir,
+		store:          store,
+		reviewClient:   &stubReviewClient{triggerJobID: "job-new"},
+		policyProvider: &defaultPolicyProvider{},
+	}
+
+	result, err := svc.TriggerReview(context.Background(), "exec-tr-1")
+	if err != nil {
+		t.Fatalf("TriggerReview failed: %v", err)
+	}
+	if result.Status != StatusValidating {
+		t.Fatalf("expected status validating, got %s", result.Status)
+	}
+	if result.ReviewJobID != "job-new" {
+		t.Fatalf("expected ReviewJobID job-new, got %s", result.ReviewJobID)
+	}
+	if result.ReviewStartedAt == "" {
+		t.Fatal("expected ReviewStartedAt to be set")
+	}
+	if result.ReviewSkipReason != "" {
+		t.Fatalf("expected empty ReviewSkipReason, got %s", result.ReviewSkipReason)
+	}
+}
+
+func TestTriggerReview_WrongStatus(t *testing.T) {
+	for _, status := range []Status{StatusRunning, StatusPending, StatusStarting, StatusValidating} {
+		t.Run(string(status), func(t *testing.T) {
+			dir := t.TempDir()
+			store := NewStore(filepath.Join(dir, "exec.json"))
+			records := []Record{{
+				ExecutionID: "exec-tr-2",
+				BacklogKind: "execute",
+				BacklogName: "test",
+				Status:      status,
+				RunID:       "run-placeholder", // Prevent migrateRecords from changing running→failed
+				Mode:        ModeYOLO,
+				CreatedAt:   nowRFC3339(),
+				UpdatedAt:   nowRFC3339(),
+			}}
+			if err := store.Save(records); err != nil {
+				t.Fatal(err)
+			}
+
+			svc := &Service{
+				rootDir:        dir,
+				store:          store,
+				reviewClient:   &stubReviewClient{triggerJobID: "job-x"},
+				policyProvider: &defaultPolicyProvider{},
+			}
+
+			_, err := svc.TriggerReview(context.Background(), "exec-tr-2")
+			if err == nil {
+				t.Fatal("expected error for non-terminal execution")
+			}
+			if !strings.Contains(err.Error(), "cannot trigger review") {
+				t.Fatalf("expected status validation error, got: %v", err)
+			}
+		})
+	}
+}
+
+func TestTriggerReview_NoClient(t *testing.T) {
+	svc := &Service{
+		policyProvider: &defaultPolicyProvider{},
+	}
+	_, err := svc.TriggerReview(context.Background(), "exec-x")
+	if err == nil {
+		t.Fatal("expected error when reviewClient is nil")
+	}
+	if !strings.Contains(err.Error(), "not configured") {
+		t.Fatalf("expected 'not configured' error, got: %v", err)
+	}
+}
+
+func TestRecordToProto_MapsNewReviewFields(t *testing.T) {
+	record := Record{
+		ExecutionID:      "exec-new-fields",
+		BacklogKind:      "execute",
+		BacklogName:      "test",
+		Status:           StatusCompleted,
+		Mode:             ModeYOLO,
+		ReviewSkipReason: "GCT unavailable: connection refused",
+		ReviewStartedAt:  "2026-03-24T10:00:00Z",
+		CreatedAt:        "2026-03-24T00:00:00Z",
+		UpdatedAt:        "2026-03-24T01:00:00Z",
+	}
+	pb := recordToProto(record)
+
+	if pb.ReviewSkipReason == nil || *pb.ReviewSkipReason != "GCT unavailable: connection refused" {
+		t.Fatalf("expected ReviewSkipReason to be mapped, got %v", pb.ReviewSkipReason)
+	}
+	if pb.ReviewStartedAt == nil || *pb.ReviewStartedAt != "2026-03-24T10:00:00Z" {
+		t.Fatalf("expected ReviewStartedAt to be mapped, got %v", pb.ReviewStartedAt)
+	}
+}
+
+func TestRecordToProto_OmitsEmptyNewFields(t *testing.T) {
+	record := Record{
+		ExecutionID: "exec-empty-fields",
+		BacklogKind: "execute",
+		BacklogName: "test",
+		Status:      StatusCompleted,
+		Mode:        ModeYOLO,
+		CreatedAt:   "2026-03-24T00:00:00Z",
+		UpdatedAt:   "2026-03-24T01:00:00Z",
+	}
+	pb := recordToProto(record)
+
+	if pb.ReviewSkipReason != nil {
+		t.Fatalf("expected nil ReviewSkipReason for empty string, got %v", pb.ReviewSkipReason)
+	}
+	if pb.ReviewStartedAt != nil {
+		t.Fatalf("expected nil ReviewStartedAt for empty string, got %v", pb.ReviewStartedAt)
+	}
+}
+
+// --- buildExecutionPrompt tests ---
+
+func TestBuildExecutionPrompt_ProcessRun(t *testing.T) {
+	prompt := buildExecutionPrompt(executionPromptParams{
+		Kind:        "idea",
+		Name:        "video-studio",
+		Title:       "Video Studio",
+		ItemFolder:  "/path/to/ideas/video-studio",
+		RunType:     "process",
+		PlanContent: "# Plan\nBuild a video editor.",
+	})
+
+	// Execution context tag present with metadata.
+	if !strings.Contains(prompt, "<execution-context>") || !strings.Contains(prompt, "</execution-context>") {
+		t.Error("missing execution-context tags")
+	}
+	if !strings.Contains(prompt, "Backlog item: idea/video-studio") {
+		t.Error("missing backlog item line")
+	}
+	if !strings.Contains(prompt, "Title: Video Studio") {
+		t.Error("missing title line")
+	}
+	if !strings.Contains(prompt, "Item folder: /path/to/ideas/video-studio") {
+		t.Error("missing item folder line")
+	}
+	if !strings.Contains(prompt, "Run type: process") {
+		t.Error("missing run type line")
+	}
+
+	// Plan tag present with content.
+	if !strings.Contains(prompt, "<implementation-plan>") || !strings.Contains(prompt, "</implementation-plan>") {
+		t.Error("missing implementation-plan tags")
+	}
+	if !strings.Contains(prompt, "Build a video editor.") {
+		t.Error("missing plan content")
+	}
+
+	// No review or follow-up tags for a process run.
+	if strings.Contains(prompt, "<review-feedback>") {
+		t.Error("process run should not have review-feedback tag")
+	}
+	if strings.Contains(prompt, "<follow-up-context>") {
+		t.Error("process run should not have follow-up-context tag")
+	}
+}
+
+func TestBuildExecutionPrompt_FixupRun(t *testing.T) {
+	prompt := buildExecutionPrompt(executionPromptParams{
+		Kind:           "fix",
+		Name:           "login-crash",
+		Title:          "Fix Login Crash",
+		ItemFolder:     "/path/to/fix/login-crash",
+		RunType:        "fixup",
+		PlanContent:    "# Plan\nFix the nil pointer.",
+		ReviewFeedback: "Tests still failing.\n- test_coverage (red): Missing edge case test",
+	})
+
+	if !strings.Contains(prompt, "Run type: fixup") {
+		t.Error("missing fixup run type")
+	}
+
+	// Review feedback tag present.
+	if !strings.Contains(prompt, "<review-feedback>") || !strings.Contains(prompt, "</review-feedback>") {
+		t.Error("missing review-feedback tags")
+	}
+	if !strings.Contains(prompt, "Tests still failing.") {
+		t.Error("missing review summary in prompt")
+	}
+	if !strings.Contains(prompt, "Missing edge case test") {
+		t.Error("missing review dimension detail")
+	}
+
+	// Plan still included.
+	if !strings.Contains(prompt, "<implementation-plan>") {
+		t.Error("fixup run should still include implementation plan")
+	}
+	if !strings.Contains(prompt, "Fix the nil pointer.") {
+		t.Error("missing plan content in fixup prompt")
+	}
+}
+
+func TestBuildExecutionPrompt_FollowUpRun(t *testing.T) {
+	prompt := buildExecutionPrompt(executionPromptParams{
+		Kind:         "execute",
+		Name:         "dependency-update",
+		Title:        "Update Dependencies",
+		ItemFolder:   "/path/to/execute/dependency-update",
+		RunType:      "followup",
+		PlanContent:  "# Plan\nUpdate all Go deps.",
+		FollowUpNote: "Focus on the swarm-manager scenario only.",
+	})
+
+	if !strings.Contains(prompt, "Run type: followup") {
+		t.Error("missing followup run type")
+	}
+
+	// Follow-up context tag present.
+	if !strings.Contains(prompt, "<follow-up-context>") || !strings.Contains(prompt, "</follow-up-context>") {
+		t.Error("missing follow-up-context tags")
+	}
+	if !strings.Contains(prompt, "Focus on the swarm-manager scenario only.") {
+		t.Error("missing follow-up note content")
+	}
+
+	// Plan still included.
+	if !strings.Contains(prompt, "Update all Go deps.") {
+		t.Error("missing plan content")
+	}
+}
+
+func TestBuildExecutionPrompt_NoPlan(t *testing.T) {
+	prompt := buildExecutionPrompt(executionPromptParams{
+		Kind:       "chore",
+		Name:       "cleanup",
+		Title:      "Clean Up",
+		ItemFolder: "/path/to/chore/cleanup",
+		RunType:    "process",
+	})
+
+	if !strings.Contains(prompt, "<execution-context>") {
+		t.Error("should still have execution context")
+	}
+	if strings.Contains(prompt, "<implementation-plan>") {
+		t.Error("should not have implementation-plan tag when plan is empty")
+	}
+}
+
+func TestBuildExecutionPrompt_EmptyOptionalSections(t *testing.T) {
+	prompt := buildExecutionPrompt(executionPromptParams{
+		Kind:           "idea",
+		Name:           "test",
+		ItemFolder:     "/tmp/test",
+		RunType:        "process",
+		PlanContent:    "plan content",
+		ReviewFeedback: "",
+		FollowUpNote:   "   ",
+	})
+
+	if strings.Contains(prompt, "<review-feedback>") {
+		t.Error("empty review feedback should not produce tag")
+	}
+	if strings.Contains(prompt, "<follow-up-context>") {
+		t.Error("whitespace-only follow-up note should not produce tag")
+	}
+}
+
+func TestBuildExecutionPrompt_NoTitle(t *testing.T) {
+	prompt := buildExecutionPrompt(executionPromptParams{
+		Kind:        "fix",
+		Name:        "bug",
+		ItemFolder:  "/tmp/fix/bug",
+		RunType:     "process",
+		PlanContent: "fix it",
+	})
+
+	if strings.Contains(prompt, "Title:") {
+		t.Error("should not include Title line when title is empty")
+	}
+}
+
+func TestBuildReviewFeedback_NilResult(t *testing.T) {
+	if got := buildReviewFeedback(nil); got != "" {
+		t.Errorf("expected empty string for nil result, got %q", got)
+	}
+}
+
+func TestBuildReviewFeedback_WithDimensions(t *testing.T) {
+	result := &ReviewResult{
+		Summary: "Needs work.",
+		Dimensions: []ReviewDimension{
+			{Name: "tests", Status: "red", Details: "3 tests failing"},
+			{Name: "docs", Status: "green", Details: "OK"},
+			{Name: "lint", Status: "yellow", Details: "2 warnings"},
+		},
+	}
+	got := buildReviewFeedback(result)
+
+	if !strings.Contains(got, "Needs work.") {
+		t.Error("missing summary")
+	}
+	if !strings.Contains(got, "tests (red): 3 tests failing") {
+		t.Error("missing red dimension")
+	}
+	if strings.Contains(got, "docs (green)") {
+		t.Error("green dimensions should be excluded")
+	}
+	if !strings.Contains(got, "lint (yellow): 2 warnings") {
+		t.Error("missing yellow dimension")
 	}
 }

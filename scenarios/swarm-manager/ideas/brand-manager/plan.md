@@ -5,7 +5,7 @@ A single scenario that manages the full branding lifecycle for all Vrooli scenar
 
 ## Required Reading
 ```bash
-prompt-manager skill read cli-steer api-steer storage-steer unit-testing-architecture-steer seam-discovery-and-enforcement
+prompt-manager skill read scenario-generation cli-steer api-steer storage-steer unit-testing-architecture-steer seam-discovery-and-enforcement
 ```
 
 ## Problem Statement
