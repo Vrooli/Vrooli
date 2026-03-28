@@ -13,10 +13,16 @@ type BacklogLoader interface {
 	LoadItem(kind backlog.BacklogKind, name string) (backlog.BacklogItem, error)
 }
 
+// EventDispatcher emits graph invalidation events for graph projections.
+type EventDispatcher interface {
+	DispatchInvalidate(lenses ...string)
+}
+
 // Service provides business logic for initiative operations.
 type Service struct {
-	store         *Store
-	backlogLoader BacklogLoader
+	store           *Store
+	backlogLoader   BacklogLoader
+	eventDispatcher EventDispatcher
 }
 
 // NewService creates a Service with the given store and backlog loader.
@@ -25,6 +31,18 @@ func NewService(store *Store, backlogLoader BacklogLoader) *Service {
 		store:         store,
 		backlogLoader: backlogLoader,
 	}
+}
+
+// SetEventDispatcher injects an optional graph invalidation dispatcher.
+func (s *Service) SetEventDispatcher(d EventDispatcher) {
+	s.eventDispatcher = d
+}
+
+func (s *Service) invalidateTopologyGraph() {
+	if s.eventDispatcher == nil {
+		return
+	}
+	s.eventDispatcher.DispatchInvalidate("topology")
 }
 
 // Create creates a new initiative.
@@ -65,6 +83,7 @@ func (s *Service) Create(req CreateRequest) (*Initiative, error) {
 	if err := s.store.Save(init); err != nil {
 		return nil, fmt.Errorf("save initiative: %w", err)
 	}
+	s.invalidateTopologyGraph()
 	return init, nil
 }
 
@@ -140,6 +159,7 @@ func (s *Service) Update(name string, req UpdateRequest) (*Initiative, error) {
 	if err := s.store.Save(init); err != nil {
 		return nil, fmt.Errorf("save initiative: %w", err)
 	}
+	s.invalidateTopologyGraph()
 	return init, nil
 }
 
@@ -148,7 +168,11 @@ func (s *Service) Delete(name string) error {
 	if !s.store.Exists(name) {
 		return nil // idempotent
 	}
-	return s.store.Delete(name)
+	if err := s.store.Delete(name); err != nil {
+		return err
+	}
+	s.invalidateTopologyGraph()
+	return nil
 }
 
 // Replace writes a full initiative snapshot, used for internal rollback flows.
@@ -167,7 +191,11 @@ func (s *Service) Replace(init Initiative) error {
 	init.Description = strings.TrimSpace(init.Description)
 	init.Status = strings.TrimSpace(init.Status)
 	init.Updated = time.Now().UTC().Format(time.RFC3339)
-	return s.store.Save(&init)
+	if err := s.store.Save(&init); err != nil {
+		return err
+	}
+	s.invalidateTopologyGraph()
+	return nil
 }
 
 // ComputeRollup loads each referenced backlog item and aggregates status
@@ -230,7 +258,11 @@ func (s *Service) AddItems(name string, items []string) error {
 		}
 	}
 	init.Updated = time.Now().UTC().Format(time.RFC3339)
-	return s.store.Save(init)
+	if err := s.store.Save(init); err != nil {
+		return err
+	}
+	s.invalidateTopologyGraph()
+	return nil
 }
 
 // RemoveItems removes items from an initiative.
@@ -251,5 +283,9 @@ func (s *Service) RemoveItems(name string, items []string) error {
 	}
 	init.Items = filtered
 	init.Updated = time.Now().UTC().Format(time.RFC3339)
-	return s.store.Save(init)
+	if err := s.store.Save(init); err != nil {
+		return err
+	}
+	s.invalidateTopologyGraph()
+	return nil
 }

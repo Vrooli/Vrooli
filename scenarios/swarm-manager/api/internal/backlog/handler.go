@@ -45,6 +45,12 @@ type Handler struct {
 	initiativeAssigner InitiativeAssigner
 	executionQueuer    ExecutionQueuer
 	policyProvider     execution.PolicyProvider
+	eventDispatcher    EventDispatcher
+}
+
+// EventDispatcher emits graph invalidation events for graph projections.
+type EventDispatcher interface {
+	DispatchInvalidate(lenses ...string)
 }
 
 // NewHandler creates a new backlog handler.
@@ -87,6 +93,18 @@ func (h *Handler) Store() Store {
 // SetPolicyProvider injects a policy provider for execution service creation.
 func (h *Handler) SetPolicyProvider(pp execution.PolicyProvider) {
 	h.policyProvider = pp
+}
+
+// SetEventDispatcher injects an optional graph invalidation dispatcher.
+func (h *Handler) SetEventDispatcher(d EventDispatcher) {
+	h.eventDispatcher = d
+}
+
+func (h *Handler) invalidateAllGraphLenses() {
+	if h.eventDispatcher == nil {
+		return
+	}
+	h.eventDispatcher.DispatchInvalidate("topology", "flow", "operations")
 }
 
 func validateCreateBacklogItemRequest(req *apipb.CreateBacklogItemRequest) string {
@@ -376,6 +394,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	h.maybeAutoWorkshop(item, false)
 
 	log.Printf("[backlog] created: %q (kind=%s, priority=%d, status=%s)", name, kind, priority, StatusBacklog)
+	h.invalidateAllGraphLenses()
 	resp := &apipb.BacklogItemResponse{Item: backlogToProto(item)}
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusCreated, resp); err != nil {
 		httputil.InternalError(w, "[backlog] create", "failed to encode response")
@@ -557,6 +576,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := &apipb.BacklogItemResponse{Item: backlogToProto(existing)}
+	h.invalidateAllGraphLenses()
 	if err := httputil.ProtoJSON(w, resp); err != nil {
 		httputil.InternalError(w, "[backlog] update", "failed to encode response")
 	}
@@ -583,6 +603,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("[backlog] deleted: %q (kind=%s)", name, kind)
+	h.invalidateAllGraphLenses()
 	w.WriteHeader(http.StatusNoContent)
 }
 

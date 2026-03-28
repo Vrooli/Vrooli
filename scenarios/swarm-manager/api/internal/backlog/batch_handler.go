@@ -433,6 +433,7 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("[backlog] batch-created %d items", len(createdItems))
+	h.invalidateAllGraphLenses()
 
 	resp := batchCreateResponse{
 		Items:       createdItems,

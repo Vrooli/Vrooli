@@ -20,6 +20,14 @@ const makeEdge = (id: string, source: string, target: string, type: string): Edg
   type,
 });
 
+function expectDefined<T>(value: T | undefined, message: string): T {
+  expect(value).toBeDefined();
+  if (value === undefined) {
+    throw new Error(message);
+  }
+  return value;
+}
+
 describe("buildClusterHierarchy", () => {
   it("groups backlog items by initiative via member_of edges", () => {
     const nodes = [
@@ -36,10 +44,12 @@ describe("buildClusterHierarchy", () => {
     const { clusters, unclustered } = buildClusterHierarchy(nodes, edges);
 
     expect(clusters).toHaveLength(1);
-    expect(clusters[0]!.id).toBe("initiative/init-1");
-    expect(clusters[0]!.members).toHaveLength(2);
+    const firstCluster = expectDefined(clusters[0], "Expected initiative cluster");
+    expect(firstCluster.id).toBe("initiative/init-1");
+    expect(firstCluster.members).toHaveLength(2);
     expect(unclustered).toHaveLength(1);
-    expect(unclustered[0]!.id).toBe("scenario/my-app");
+    const firstUnclustered = expectDefined(unclustered[0], "Expected unclustered scenario");
+    expect(firstUnclustered.id).toBe("scenario/my-app");
   });
 
   it("creates unassigned group for backlog items without initiative", () => {
@@ -51,8 +61,9 @@ describe("buildClusterHierarchy", () => {
     const { clusters } = buildClusterHierarchy(nodes, []);
 
     expect(clusters).toHaveLength(1);
-    expect(clusters[0]!.id).toBe(UNASSIGNED_CLUSTER_ID);
-    expect(clusters[0]!.members).toHaveLength(2);
+    const unassignedCluster = expectDefined(clusters[0], "Expected unassigned cluster");
+    expect(unassignedCluster.id).toBe(UNASSIGNED_CLUSTER_ID);
+    expect(unassignedCluster.members).toHaveLength(2);
   });
 
   it("handles empty initiatives", () => {
@@ -65,7 +76,8 @@ describe("buildClusterHierarchy", () => {
 
     // Only unassigned cluster (empty initiative has no members -> no cluster)
     expect(clusters).toHaveLength(1);
-    expect(clusters[0]!.id).toBe(UNASSIGNED_CLUSTER_ID);
+    const firstCluster = expectDefined(clusters[0], "Expected unassigned cluster");
+    expect(firstCluster.id).toBe(UNASSIGNED_CLUSTER_ID);
   });
 
   it("extracts rollup data from initiative nodes", () => {
@@ -82,7 +94,8 @@ describe("buildClusterHierarchy", () => {
 
     const { clusters } = buildClusterHierarchy(nodes, edges);
 
-    expect(clusters[0]!.rollup).toEqual({
+    const firstCluster = expectDefined(clusters[0], "Expected initiative cluster");
+    expect(firstCluster.rollup).toEqual({
       total: 5, completed: 2, in_progress: 1, failed: 1, pending: 1,
     });
   });
@@ -112,9 +125,10 @@ describe("aggregateEdgesForCollapsed", () => {
     // Should produce one aggregated edge
     const aggregated = result.filter((e) => e.id.startsWith("agg:"));
     expect(aggregated).toHaveLength(1);
-    expect((aggregated[0]!.data as Record<string, unknown>).aggregatedCount).toBe(2);
-    expect(aggregated[0]!.source).toBe("initiative/init-1");
-    expect(aggregated[0]!.target).toBe("scenario/app");
+    const aggregatedEdge = expectDefined(aggregated[0], "Expected aggregated edge");
+    expect((aggregatedEdge.data as Record<string, unknown>).aggregatedCount).toBe(2);
+    expect(aggregatedEdge.source).toBe("initiative/init-1");
+    expect(aggregatedEdge.target).toBe("scenario/app");
   });
 
   it("removes intra-cluster edges when collapsed", () => {
@@ -145,7 +159,8 @@ describe("aggregateEdgesForCollapsed", () => {
 
     const result = aggregateEdgesForCollapsed(edges, new Set(["initiative/init-1"]), clusters);
     expect(result).toHaveLength(1);
-    expect(result[0]!.id).toBe("e1");
+    const firstEdge = expectDefined(result[0], "Expected preserved edge");
+    expect(firstEdge.id).toBe("e1");
   });
 });
 
@@ -167,8 +182,8 @@ describe("applyNodeCap", () => {
     expect(cappedCount).toBe(5);
 
     const pseudoNode = visible.find((n) => n.id === "__more-items__");
-    expect(pseudoNode).toBeDefined();
-    expect((pseudoNode!.data as Record<string, unknown>).label).toBe("More items (5)");
+    const definedPseudoNode = expectDefined(pseudoNode, "Expected pseudo node");
+    expect((definedPseudoNode.data as Record<string, unknown>).label).toBe("More items (5)");
   });
 
   it("sorts by priority descending (keeps highest priority)", () => {

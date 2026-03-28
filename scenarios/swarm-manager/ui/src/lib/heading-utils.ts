@@ -49,8 +49,8 @@ export function extractHeadings(markdown: string): HeadingEntry[] {
   const seen = new Map<string, number>();
   let inCodeFence = false;
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+  for (const [index, line] of lines.entries()) {
+    const lineNumber = index + 1;
 
     if (CODE_FENCE_RE.test(line)) {
       inCodeFence = !inCodeFence;
@@ -61,12 +61,17 @@ export function extractHeadings(markdown: string): HeadingEntry[] {
 
     const match = HEADING_RE.exec(line);
     if (match) {
-      const level = match[1].length as 1 | 2 | 3;
-      const text = match[2].trim();
+      const [, levelText, headingText] = match;
+      if (!levelText || !headingText) {
+        continue;
+      }
+
+      const level = levelText.length as 1 | 2 | 3;
+      const text = headingText.trim();
       const slug = slugify(text);
       const id = dedupeSlug(slug, seen);
 
-      headings.push({ level, text, id, line: i + 1 });
+      headings.push({ level, text, id, line: lineNumber });
     }
   }
 

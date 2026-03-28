@@ -7,6 +7,7 @@
 
 import { create } from "zustand";
 import type { Viewport } from "@xyflow/react";
+import type { GraphLens } from "./graph-data-store";
 
 export type LayoutMode = "hierarchical" | "compact" | "grouped";
 export type LayoutDirection = "TB" | "LR";
@@ -19,10 +20,12 @@ export interface NodeHighlightState {
 
 const LAYOUT_STORAGE_KEY = "swarm-manager.graph.layout";
 const LAYOUT_DIRECTION_STORAGE_KEY = "swarm-manager.graph.layout-direction";
-const VIEWPORT_STORAGE_KEY = "swarm-manager.graph.viewport";
+const VIEWPORT_STORAGE_KEY = "swarm-manager.graph.viewport.v2";
 const SIDEBAR_STORAGE_KEY = "swarm-manager.graph.sidebar-collapsed";
 
 const LAYOUT_CYCLE: LayoutMode[] = ["hierarchical", "compact", "grouped"];
+
+type ViewportByLens = Record<GraphLens, Viewport | null>;
 
 function loadLayoutPreferences(): Record<string, LayoutMode> {
   try {
@@ -67,18 +70,53 @@ function saveLayoutDirection(direction: LayoutDirection): void {
   }
 }
 
-function loadViewport(): Viewport | null {
+function createEmptyViewportByLens(): ViewportByLens {
+  return {
+    topology: null,
+    flow: null,
+    operations: null,
+  };
+}
+
+function isViewport(value: unknown): value is Viewport {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  return typeof record.x === "number"
+    && typeof record.y === "number"
+    && typeof record.zoom === "number";
+}
+
+function loadViewportByLens(): ViewportByLens {
+  const empty = createEmptyViewportByLens();
   try {
     const raw = window.localStorage.getItem(VIEWPORT_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Viewport) : null;
+    if (!raw) return empty;
+
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const next = createEmptyViewportByLens();
+
+    if (isViewport(parsed.topology)) {
+      next.topology = parsed.topology;
+    }
+    if (isViewport(parsed.flow)) {
+      next.flow = parsed.flow;
+    }
+    if (isViewport(parsed.operations)) {
+      next.operations = parsed.operations;
+    }
+
+    return next;
   } catch {
-    return null;
+    return empty;
   }
 }
 
-function saveViewport(viewport: Viewport): void {
+function saveViewportByLens(viewportByLens: ViewportByLens): void {
   try {
-    window.localStorage.setItem(VIEWPORT_STORAGE_KEY, JSON.stringify(viewport));
+    window.localStorage.setItem(VIEWPORT_STORAGE_KEY, JSON.stringify(viewportByLens));
   } catch {
     // Ignore persistence failures.
   }
@@ -107,7 +145,7 @@ export interface GraphUIState {
   layoutPreferences: Record<string, LayoutMode>;
   layoutDirection: LayoutDirection;
   fitViewNonce: number;
-  viewport: Viewport | null;
+  viewportByLens: ViewportByLens;
   sidebarCollapsed: boolean;
   inspectorOpen: boolean;
   expandedTopologyClusters: Set<string>;
@@ -120,7 +158,7 @@ export interface GraphUIState {
   getLayoutForLens: (lens: string) => LayoutMode;
   setLayoutDirection: (direction: LayoutDirection) => void;
   requestFitView: () => void;
-  setViewport: (viewport: Viewport) => void;
+  setViewportForLens: (lens: GraphLens, viewport: Viewport) => void;
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleInspector: () => void;
@@ -131,7 +169,7 @@ export interface GraphUIState {
 }
 
 const initialPrefs = typeof window !== "undefined" ? loadLayoutPreferences() : {};
-const initialViewport = typeof window !== "undefined" ? loadViewport() : null;
+const initialViewportByLens = typeof window !== "undefined" ? loadViewportByLens() : createEmptyViewportByLens();
 const initialSidebarCollapsed = typeof window !== "undefined" ? loadSidebarCollapsed() : false;
 const initialLayoutDirection = typeof window !== "undefined" ? loadLayoutDirection() : "TB";
 
@@ -142,7 +180,7 @@ export const graphUIInitialState = {
   layoutPreferences: initialPrefs,
   layoutDirection: initialLayoutDirection,
   fitViewNonce: 0,
-  viewport: initialViewport,
+  viewportByLens: initialViewportByLens,
   sidebarCollapsed: initialSidebarCollapsed,
   inspectorOpen: false,
   expandedTopologyClusters: new Set<string>(),
@@ -207,10 +245,15 @@ export const useGraphUIStore = create<GraphUIState>((set, get) => ({
       fitViewNonce: state.fitViewNonce + 1,
     })),
 
-  setViewport: (viewport) => {
-    saveViewport(viewport);
-    set({ viewport });
-  },
+  setViewportForLens: (lens, viewport) =>
+    set((state) => {
+      const viewportByLens = {
+        ...state.viewportByLens,
+        [lens]: viewport,
+      };
+      saveViewportByLens(viewportByLens);
+      return { viewportByLens };
+    }),
 
   toggleSidebar: () =>
     set((state) => {
@@ -253,6 +296,11 @@ export function cloneGraphUIInitialState(): typeof graphUIInitialState {
       mode: graphUIInitialState.highlightState.mode,
     },
     layoutPreferences: { ...graphUIInitialState.layoutPreferences },
+    viewportByLens: {
+      topology: graphUIInitialState.viewportByLens.topology ? { ...graphUIInitialState.viewportByLens.topology } : null,
+      flow: graphUIInitialState.viewportByLens.flow ? { ...graphUIInitialState.viewportByLens.flow } : null,
+      operations: graphUIInitialState.viewportByLens.operations ? { ...graphUIInitialState.viewportByLens.operations } : null,
+    },
     expandedTopologyClusters: new Set(graphUIInitialState.expandedTopologyClusters),
   };
 }

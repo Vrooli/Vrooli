@@ -17,7 +17,6 @@ import {
   ClipboardCheck,
   XCircle,
   RefreshCw,
-  ExternalLink,
   Pencil,
   Trash2,
   PlusCircle,

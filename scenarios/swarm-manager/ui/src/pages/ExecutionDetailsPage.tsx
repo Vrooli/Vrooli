@@ -76,7 +76,7 @@ export function ExecutionDetailsPage() {
     }
   };
 
-  if (loading) return <PageLoadingState message="Loading execution..." />;
+  if (loading) return <PageLoadingState label="Loading execution..." />;
   if (error || !execution) {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-slate-950 p-8">

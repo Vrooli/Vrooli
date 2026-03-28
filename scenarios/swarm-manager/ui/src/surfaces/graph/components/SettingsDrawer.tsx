@@ -194,12 +194,12 @@ function GraphControlsContent() {
         <section>
           <div className="mb-3">
             <h3 className="text-sm font-medium text-slate-100">Grouping</h3>
-            <p className="text-xs text-slate-500">Switch between initiative clusters and a flat relationship view.</p>
+            <p className="text-xs text-slate-500">Flat view shows every backlog item. Initiative view compresses backlog under initiative buckets.</p>
           </div>
           <div className="grid grid-cols-2 gap-2">
             {([
-              { id: "initiative", label: "By Initiative", icon: FolderTree },
               { id: "none", label: "Flat Graph", icon: Rows3 },
+              { id: "initiative", label: "Compact by Initiative", icon: FolderTree },
             ] as const).map((option) =>
               renderToggleButton(
                 option.label,

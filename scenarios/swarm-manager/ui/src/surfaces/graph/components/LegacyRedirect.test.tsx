@@ -11,22 +11,10 @@ import {
   SettingsRedirect,
 } from "./LegacyRedirect";
 
-function LocationDisplay() {
-  // Using window.location won't work in MemoryRouter, so use a Route to capture location.
-  return null;
-}
-
 function renderWithRouter(initialPath: string) {
-  let navigatedTo = "";
-
   function CaptureLocation() {
     // This component is rendered at the redirect target to confirm navigation.
     return <div data-testid="landed" />;
-  }
-
-  function CaptureRedirect({ path }: { path: string }) {
-    navigatedTo = path;
-    return <CaptureLocation />;
   }
 
   const result = render(

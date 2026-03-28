@@ -15,16 +15,20 @@ vi.mock("@xyflow/react", async () => {
     edges: MockGraphEdge[];
     children?: React.ReactNode;
     onInit?: (instance: { fitView: ReturnType<typeof vi.fn> }) => void;
+    fitView?: boolean;
+    defaultViewport?: { x: number; y: number; zoom: number };
   }
 
   return {
-    ReactFlow: ({ nodes, edges, children, onInit }: MockReactFlowProps) => {
+    ReactFlow: ({ nodes, edges, children, onInit, fitView, defaultViewport }: MockReactFlowProps) => {
       ReactModule.useEffect(() => {
         onInit?.({ fitView: vi.fn() });
       }, [onInit]);
 
       return (
         <div data-testid="mock-react-flow">
+          <div data-testid="fit-view-flag">{String(fitView)}</div>
+          <div data-testid="default-viewport">{JSON.stringify(defaultViewport ?? null)}</div>
           <div data-testid="rendered-node-ids">{nodes.map((node) => node.id).join(",")}</div>
           <div data-testid="rendered-edge-ids">{edges.map((edge) => edge.id).join(",")}</div>
           {children}
@@ -70,6 +74,13 @@ describe("GraphCanvas", () => {
     useGraphDataStore.setState((state) => ({
       ...state,
       lens: "topology",
+      settingsByLens: {
+        ...state.settingsByLens,
+        topology: {
+          ...state.settingsByLens.topology,
+          groupingMode: "initiative",
+        },
+      },
       nodes: [
         {
           id: "initiative/graph-adoption",
@@ -122,6 +133,56 @@ describe("GraphCanvas", () => {
     expect(renderedNodeIds).not.toContain("backlog-item/execute/task-b");
   });
 
+  it("keeps backlog items visible in the default topology view", async () => {
+    useGraphDataStore.setState((state) => ({
+      ...state,
+      lens: "topology",
+      nodes: [
+        {
+          id: "initiative/graph-adoption",
+          type: "initiative",
+          position: { x: 0, y: 0 },
+          data: {
+            label: "Graph Adoption",
+            entityType: "initiative",
+            status: "active",
+          },
+        },
+        {
+          id: "backlog-item/execute/task-a",
+          type: "backlog",
+          position: { x: 0, y: 0 },
+          data: { label: "Task A", entityType: "backlog", kind: "execute", status: "backlog" },
+        },
+        {
+          id: "scenario/swarm-manager",
+          type: "scenario",
+          position: { x: 0, y: 0 },
+          data: { label: "Swarm Manager", entityType: "scenario", status: "running" },
+        },
+      ],
+      edges: [
+        {
+          id: "member_of:a",
+          source: "backlog-item/execute/task-a",
+          target: "initiative/graph-adoption",
+          type: "member_of",
+        },
+      ],
+    }));
+
+    render(<GraphCanvas />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("rendered-node-ids")).toBeInTheDocument();
+    });
+
+    const renderedNodeIds = screen.getByTestId("rendered-node-ids").textContent ?? "";
+    expect(renderedNodeIds).toContain("backlog-item/execute/task-a");
+    expect(renderedNodeIds).toContain("initiative/graph-adoption");
+    expect(renderedNodeIds).toContain("scenario/swarm-manager");
+  });
+
   it("hides secondary edges when the current lens disables them", async () => {
     useGraphDataStore.setState((state) => ({
       ...state,
@@ -165,5 +226,40 @@ describe("GraphCanvas", () => {
     });
 
     expect(screen.getByTestId("rendered-edge-ids").textContent).toBe("");
+  });
+
+  it("does not reuse another lens viewport when the active lens has no saved camera", async () => {
+    useGraphUIStore.setState((state) => ({
+      ...state,
+      viewportByLens: {
+        ...state.viewportByLens,
+        topology: { x: 120, y: 80, zoom: 0.9 },
+      },
+    }));
+
+    useGraphDataStore.setState((state) => ({
+      ...state,
+      lens: "operations",
+      nodes: [
+        {
+          id: "execution-record/exec-1",
+          type: "execution",
+          position: { x: 0, y: 0 },
+          data: { label: "Execution 1", entityType: "execution", status: "running" },
+        },
+      ],
+      edges: [],
+    }));
+
+    render(<GraphCanvas />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("rendered-node-ids").textContent).toContain("execution-record/exec-1");
+    });
+
+    expect(screen.getByTestId("fit-view-flag").textContent).toBe("true");
+    expect(screen.getByTestId("default-viewport").textContent).toBe(
+      JSON.stringify({ x: 0, y: 0, zoom: 1 }),
+    );
   });
 });

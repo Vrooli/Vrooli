@@ -14,6 +14,17 @@ interface BFSOptions {
   allowedTypes?: Set<string>;
 }
 
+function getOrCreateNeighbors(adjacency: Map<string, Set<string>>, nodeId: string): Set<string> {
+  const existing = adjacency.get(nodeId);
+  if (existing) {
+    return existing;
+  }
+
+  const created = new Set<string>();
+  adjacency.set(nodeId, created);
+  return created;
+}
+
 /**
  * Perform BFS from a start node, returning IDs of all reachable nodes
  * within the depth limit and type constraints.
@@ -38,17 +49,22 @@ export function bfsNeighborhood(
   // Build adjacency list (undirected).
   const adjacency = new Map<string, Set<string>>();
   for (const edge of edges) {
-    if (!adjacency.has(edge.source)) adjacency.set(edge.source, new Set());
-    if (!adjacency.has(edge.target)) adjacency.set(edge.target, new Set());
-    adjacency.get(edge.source)!.add(edge.target);
-    adjacency.get(edge.target)!.add(edge.source);
+    const sourceNeighbors = getOrCreateNeighbors(adjacency, edge.source);
+    const targetNeighbors = getOrCreateNeighbors(adjacency, edge.target);
+    sourceNeighbors.add(edge.target);
+    targetNeighbors.add(edge.source);
   }
 
   const visited = new Set<string>([startId]);
   const queue: Array<{ id: string; depth: number }> = [{ id: startId, depth: 0 }];
 
   while (queue.length > 0) {
-    const { id, depth } = queue.shift()!;
+    const current = queue.shift();
+    if (!current) {
+      continue;
+    }
+
+    const { id, depth } = current;
     if (depth >= maxDepth) continue;
 
     const neighbors = adjacency.get(id);

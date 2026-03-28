@@ -10,16 +10,14 @@ import (
 
 // StreamHandler serves the WebSocket graph stream endpoint.
 type StreamHandler struct {
-	projection *ProjectionService
-	broker     *Broker
-	upgrader   websocket.Upgrader
+	broker   *Broker
+	upgrader websocket.Upgrader
 }
 
 // NewStreamHandler creates a WebSocket stream handler.
-func NewStreamHandler(projection *ProjectionService, broker *Broker) *StreamHandler {
+func NewStreamHandler(broker *Broker) *StreamHandler {
 	return &StreamHandler{
-		projection: projection,
-		broker:     broker,
+		broker: broker,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(_ *http.Request) bool { return true },
 		},
@@ -50,21 +48,6 @@ func (h *StreamHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request) 
 		h.broker.RemoveClient(conn)
 		conn.Close()
 	}()
-
-	// Send initial full-sync with current operations graph.
-	resp, err := h.projection.Project(r.Context(), LensOperations)
-	if err != nil {
-		log.Printf("[graph-ws] full-sync build error: %v", err)
-		return
-	}
-	msg := NewWSMessage(WSFullSync, map[string]any{
-		"nodes": resp.Nodes,
-		"edges": resp.Edges,
-	})
-	if err := conn.WriteJSON(msg); err != nil {
-		log.Printf("[graph-ws] full-sync write error: %v", err)
-		return
-	}
 
 	// Read loop — keeps connection alive and detects client disconnect.
 	for {

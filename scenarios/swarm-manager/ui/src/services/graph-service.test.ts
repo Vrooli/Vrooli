@@ -30,7 +30,7 @@ describe("graphService", () => {
     const service = createGraphService(mockApiClient);
     await service.getGraph("topology");
 
-    expect(mockApiClient.get).toHaveBeenCalledWith("/graph?lens=topology");
+    expect(mockApiClient.get).toHaveBeenCalledWith("/graph?lens=topology", { signal: undefined });
   });
 
   it("normalizes backend node types into graph entity types", async () => {

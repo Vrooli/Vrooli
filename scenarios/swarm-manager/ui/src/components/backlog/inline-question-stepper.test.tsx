@@ -228,11 +228,13 @@ describe("InlineQuestionStepper", () => {
 
     await waitFor(() => {
       expect(onAllAnswered).toHaveBeenCalledWith({
-        autoAdvance: expect.objectContaining({
+        autoAdvance: {
+          triggered: true,
           reason: "finalizing",
           nextMode: "finalize",
           runId: "run-1",
-        }),
+          taskId: "task-1",
+        },
       });
     });
   });

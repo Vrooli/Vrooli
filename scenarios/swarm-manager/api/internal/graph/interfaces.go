@@ -6,8 +6,6 @@ import (
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/execution"
-	"swarm-manager/internal/initiatives"
-	"swarm-manager/internal/scenarios"
 )
 
 // BacklogLister loads backlog items from the store.
@@ -15,9 +13,17 @@ type BacklogLister interface {
 	LoadAll(kinds []backlog.BacklogKind) ([]backlog.BacklogItem, error)
 }
 
-// InitiativeLister lists initiatives with computed rollup status.
+// InitiativeEntry is the graph-specific initiative view needed by projections.
+type InitiativeEntry struct {
+	Name   string
+	Title  string
+	Status string
+	Items  []string
+}
+
+// InitiativeLister lists initiatives needed by graph projections.
 type InitiativeLister interface {
-	List() ([]initiatives.InitiativeWithRollup, error)
+	List() ([]InitiativeEntry, error)
 }
 
 // CaptureEntry represents a capture with its classification data.
@@ -39,9 +45,15 @@ type CaptureLister interface {
 	ListCaptures() ([]CaptureEntry, error)
 }
 
-// ScenarioLister loads all scenarios.
+// ScenarioEntry is the graph-specific scenario view needed by projections.
+type ScenarioEntry struct {
+	Name   string
+	Status string
+}
+
+// ScenarioLister loads the graph scenario inventory.
 type ScenarioLister interface {
-	LoadAll() ([]scenarios.Scenario, error)
+	List(ctx context.Context) ([]ScenarioEntry, error)
 }
 
 // ExecutionLister lists execution records with optional filters.
@@ -64,4 +76,15 @@ type Broadcaster interface {
 type EventDispatcher interface {
 	DispatchNodeUpdate(nodeType, nodeID string, data any)
 	DispatchEdgeChange(action string, edge Edge)
+	DispatchInvalidate(lenses ...string)
+}
+
+// Projector builds or serves graph projections for a lens.
+type Projector interface {
+	Project(ctx context.Context, lens Lens) (GraphResponse, error)
+}
+
+// CacheInvalidator clears cached graph projections for one or more lenses.
+type CacheInvalidator interface {
+	Invalidate(lenses ...Lens)
 }

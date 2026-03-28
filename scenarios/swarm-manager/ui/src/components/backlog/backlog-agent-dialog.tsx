@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Sparkles, ChevronDown, ChevronRight, Paperclip, CheckCircle2, Circle } from "lucide-react";
 import { Button } from "../ui/button";
 import { Dialog } from "../ui/dialog";
-import { Select } from "../ui/select";
 import { FileTree } from "../ui/file-tree";
 import { selectors } from "../../consts/selectors";
 import {

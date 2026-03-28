@@ -10,12 +10,12 @@ import (
 
 // Handler serves the graph projection HTTP endpoint.
 type Handler struct {
-	projection *ProjectionService
+	projector Projector
 }
 
 // NewHandler creates a graph Handler.
-func NewHandler(projection *ProjectionService) *Handler {
-	return &Handler{projection: projection}
+func NewHandler(projector Projector) *Handler {
+	return &Handler{projector: projector}
 }
 
 // RegisterRoutes registers graph endpoints on the given router.
@@ -35,7 +35,7 @@ func (h *Handler) GetGraph(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := h.projection.Project(r.Context(), lens)
+	resp, err := h.projector.Project(r.Context(), lens)
 	if err != nil {
 		httputil.InternalError(w, "[graph]", "failed to build graph projection")
 		return

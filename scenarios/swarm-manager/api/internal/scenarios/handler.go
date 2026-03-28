@@ -147,6 +147,7 @@ type ExecutionQueuer interface {
 // EventDispatcher emits graph change events for real-time WebSocket updates.
 type EventDispatcher interface {
 	DispatchNodeUpdate(nodeType, nodeID string, data any)
+	DispatchInvalidate(lenses ...string)
 }
 
 // Handler provides HTTP handlers for scenario operations.
@@ -1053,6 +1054,7 @@ func (h *Handler) handleLifecycleAction(w http.ResponseWriter, r *http.Request, 
 			"name":   scenario.Name,
 			"status": string(scenario.Status),
 		})
+		h.eventDispatcher.DispatchInvalidate("topology", "operations")
 	}
 }
 

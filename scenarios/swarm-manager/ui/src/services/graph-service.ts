@@ -51,8 +51,12 @@ export interface GraphProjection {
   meta: GraphProjectionMeta;
 }
 
+export interface GraphRequestOptions {
+  signal?: AbortSignal;
+}
+
 export interface IGraphService {
-  getGraph(lens: GraphLens): Promise<GraphProjection>;
+  getGraph(lens: GraphLens, options?: GraphRequestOptions): Promise<GraphProjection>;
 }
 
 const NODE_TYPE_MAP: Record<string, EntityType> = {
@@ -142,9 +146,10 @@ function normalizeMeta(meta: GraphAPIMeta): GraphProjectionMeta {
 
 export function createGraphService(apiClient: IApiClient = defaultApiClient): IGraphService {
   return {
-    async getGraph(lens: GraphLens): Promise<GraphProjection> {
+    async getGraph(lens: GraphLens, options?: GraphRequestOptions): Promise<GraphProjection> {
       const response = await apiClient.get<GraphAPIResponse>(
         `${API_ENDPOINTS.graph}?lens=${encodeURIComponent(lens)}`,
+        { signal: options?.signal },
       );
 
       return {

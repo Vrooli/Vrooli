@@ -27,22 +27,49 @@ type Source interface {
 	List(ctx context.Context) ([]ScenarioSource, error)
 }
 
+// CLIProviderOptions configures scenario inventory loading via the Vrooli CLI.
+type CLIProviderOptions struct {
+	Timeout      time.Duration
+	IncludePorts bool
+}
+
 // CLIProvider lists scenarios via the Vrooli CLI.
 type CLIProvider struct {
-	timeout time.Duration
+	timeout      time.Duration
+	includePorts bool
 }
 
 // NewCLIProvider creates a CLI-backed scenario source.
 func NewCLIProvider(timeout time.Duration) *CLIProvider {
+	return NewCLIProviderWithOptions(CLIProviderOptions{
+		Timeout:      timeout,
+		IncludePorts: true,
+	})
+}
+
+// NewCLIProviderWithOptions creates a CLI-backed scenario source with
+// configurable inventory detail.
+func NewCLIProviderWithOptions(options CLIProviderOptions) *CLIProvider {
+	timeout := options.Timeout
 	if timeout <= 0 {
 		timeout = defaultCLITimeout
 	}
-	return &CLIProvider{timeout: timeout}
+
+	return &CLIProvider{
+		timeout:      timeout,
+		includePorts: options.IncludePorts,
+	}
 }
 
-// List retrieves scenarios using `vrooli scenario list --json --include-ports`.
+// List retrieves scenarios using `vrooli scenario list --json`, optionally
+// including port metadata when configured.
 func (p *CLIProvider) List(ctx context.Context) ([]ScenarioSource, error) {
-	output, err := executeVrooliCommand(ctx, p.timeout, "scenario", "list", "--json", "--include-ports")
+	args := []string{"scenario", "list", "--json"}
+	if p.includePorts {
+		args = append(args, "--include-ports")
+	}
+
+	output, err := executeVrooliCommand(ctx, p.timeout, args...)
 	if err != nil {
 		return nil, err
 	}

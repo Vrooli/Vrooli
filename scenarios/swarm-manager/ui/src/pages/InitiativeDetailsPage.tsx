@@ -44,7 +44,12 @@ export function InitiativeDetailsPage() {
     refetch,
   } = useQuery({
     queryKey: ["initiative", name],
-    queryFn: () => initiativeService.get(name!),
+    queryFn: async () => {
+      if (!name) {
+        throw new Error("Initiative name is required");
+      }
+      return initiativeService.get(name);
+    },
     enabled: !!name,
     ...defaultQueryOptions,
   });

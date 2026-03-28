@@ -1,27 +1,44 @@
 /**
- * useGraphWebSocket - Real-time invalidation for the operations graph.
+ * useGraphWebSocket - Real-time invalidation for graph projections.
  *
  * The WebSocket is treated as a change signal only. All graph data continues
  * to come from the HTTP graph projection endpoint so the API remains the
  * single source of truth.
  */
 
-import { useEffect, useRef, useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { buildWsUrl } from "@vrooli/api-base";
-import { useGraphDataStore } from "../stores/graph-data-store";
+import { useGraphDataStore, type GraphLens } from "../stores/graph-data-store";
 
-interface WSMessage {
-  type:
-    | "full-sync"
-    | "node-update"
-    | "node-add"
-    | "node-remove"
-    | "edge-add"
-    | "edge-remove"
-    | "heartbeat";
+interface InvalidateMessage {
+  type: "invalidate";
+  data: {
+    lenses?: GraphLens[];
+  };
+  timestamp: number;
+}
+
+interface NodeMessage {
+  type: "node-update" | "node-add" | "node-remove";
+  data: {
+    id?: string;
+  };
+  timestamp: number;
+}
+
+interface EdgeMessage {
+  type: "edge-add" | "edge-remove";
   data: unknown;
   timestamp: number;
 }
+
+interface HeartbeatMessage {
+  type: "heartbeat";
+  data: unknown;
+  timestamp: number;
+}
+
+type WSMessage = InvalidateMessage | NodeMessage | EdgeMessage | HeartbeatMessage;
 
 const BACKOFF_BASE_MS = 1000;
 const BACKOFF_MAX_MS = 30_000;
@@ -31,6 +48,7 @@ const WS_PATH = "/ws/graph";
 
 export interface UseGraphWebSocketOptions {
   enabled: boolean;
+  lens: GraphLens;
   onNodePulse?: (nodeId: string) => void;
 }
 
@@ -39,21 +57,30 @@ function extractNodeId(message: WSMessage): string | null {
     return null;
   }
 
-  if (typeof message.data !== "object" || message.data === null) {
-    return null;
-  }
-
-  const id = (message.data as { id?: unknown }).id;
-  return typeof id === "string" ? id : null;
+  return typeof message.data.id === "string" ? message.data.id : null;
 }
 
-export function useGraphWebSocket({ enabled, onNodePulse }: UseGraphWebSocketOptions) {
+function affectsLens(message: WSMessage, lens: GraphLens): boolean {
+  if (message.type === "heartbeat") {
+    return false;
+  }
+
+  if (message.type === "invalidate") {
+    return Array.isArray(message.data.lenses) && message.data.lenses.includes(lens);
+  }
+
+  return message.type === "edge-add" || message.type === "edge-remove";
+}
+
+export function useGraphWebSocket({ enabled, lens, onNodePulse }: UseGraphWebSocketOptions) {
   const wsRef = useRef<WebSocket | null>(null);
   const retryCountRef = useRef(0);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const invalidateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const enabledRef = useRef(enabled);
+  const lensRef = useRef(lens);
   enabledRef.current = enabled;
+  lensRef.current = lens;
 
   const fetchGraph = useGraphDataStore((s) => s.fetchGraph);
 
@@ -65,7 +92,7 @@ export function useGraphWebSocket({ enabled, onNodePulse }: UseGraphWebSocketOpt
 
       invalidateTimerRef.current = setTimeout(() => {
         invalidateTimerRef.current = null;
-        void fetchGraph("operations", { silent: true });
+        void fetchGraph(lensRef.current, { silent: true, force: true });
       }, delay);
     },
     [fetchGraph],
@@ -73,13 +100,13 @@ export function useGraphWebSocket({ enabled, onNodePulse }: UseGraphWebSocketOpt
 
   const handleMessage = useCallback(
     (message: WSMessage) => {
-      if (message.type === "heartbeat") {
-        return;
-      }
-
       const nodeId = extractNodeId(message);
       if (nodeId) {
         onNodePulse?.(nodeId);
+      }
+
+      if (!affectsLens(message, lensRef.current)) {
+        return;
       }
 
       scheduleRefresh();
@@ -89,7 +116,7 @@ export function useGraphWebSocket({ enabled, onNodePulse }: UseGraphWebSocketOpt
 
   const connect = useCallback(() => {
     if (!enabledRef.current) return;
-    if (wsRef.current && wsRef.current.readyState <= WebSocket.OPEN) return;
+    if (wsRef.current && (wsRef.current.readyState === 0 || wsRef.current.readyState === 1)) return;
 
     const ws = new WebSocket(buildWsUrl(WS_PATH, { appendSuffix: true }));
     wsRef.current = ws;
@@ -117,7 +144,7 @@ export function useGraphWebSocket({ enabled, onNodePulse }: UseGraphWebSocketOpt
       retryCountRef.current += 1;
 
       retryTimerRef.current = setTimeout(() => {
-        void fetchGraph("operations", { silent: true }).finally(() => {
+        void fetchGraph(lensRef.current, { silent: true, force: true }).finally(() => {
           if (enabledRef.current) {
             connect();
           }

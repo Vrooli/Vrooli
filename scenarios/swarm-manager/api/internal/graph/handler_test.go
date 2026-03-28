@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"swarm-manager/internal/backlog"
-	"swarm-manager/internal/scenarios"
 )
 
 func newTestHandler() *Handler {
@@ -15,8 +14,8 @@ func newTestHandler() *Handler {
 		Backlog: &mockBacklogLister{items: []backlog.BacklogItem{
 			{Kind: "execute", Name: "test-task", Title: "Test", Status: "ready", Priority: 3},
 		}},
-		Scenario: &mockScenarioLister{scens: []scenarios.Scenario{
-			{Name: "my-app", Status: scenarios.StatusRunning},
+		Scenario: &mockScenarioLister{scens: []ScenarioEntry{
+			{Name: "my-app", Status: "running"},
 		}},
 	})
 	return NewHandler(svc)

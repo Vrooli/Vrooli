@@ -25,6 +25,11 @@ func ValidateLens(l Lens) bool {
 	}
 }
 
+// AllLenses returns the supported graph lenses in stable order.
+func AllLenses() []Lens {
+	return []Lens{LensTopology, LensFlow, LensOperations}
+}
+
 // Node is a React Flow-compatible graph node.
 type Node struct {
 	ID       string   `json:"id"`
@@ -91,6 +96,11 @@ type WSMessage struct {
 	Timestamp int64  `json:"timestamp"`
 }
 
+// InvalidationPayload identifies which graph lenses should refresh.
+type InvalidationPayload struct {
+	Lenses []Lens `json:"lenses"`
+}
+
 // WebSocket message types.
 const (
 	WSFullSync   = "full-sync"
@@ -99,5 +109,6 @@ const (
 	WSNodeRemove = "node-remove"
 	WSEdgeAdd    = "edge-add"
 	WSEdgeRemove = "edge-remove"
+	WSInvalidate = "invalidate"
 	WSHeartbeat  = "heartbeat"
 )

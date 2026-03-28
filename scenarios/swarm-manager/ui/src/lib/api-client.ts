@@ -110,6 +110,8 @@ export interface RequestOptions {
   responseType?: "json" | "text" | "blob";
   /** Custom headers to include in the request */
   headers?: Record<string, string>;
+  /** Optional external abort signal for caller-controlled cancellation */
+  signal?: AbortSignal;
 }
 
 /**
@@ -156,7 +158,17 @@ export class ApiClient implements IApiClient {
 
     // Set up timeout using AbortController
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
+    let timedOut = false;
+    let abortedByCaller = false;
+    const timeoutId = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, this.timeoutMs);
+    const handleAbort = () => {
+      abortedByCaller = true;
+      controller.abort();
+    };
+    options?.signal?.addEventListener("abort", handleAbort);
 
     try {
       // Determine headers and body based on content type
@@ -224,6 +236,9 @@ export class ApiClient implements IApiClient {
 
       // Handle abort (timeout)
       if (error instanceof DOMException && error.name === "AbortError") {
+        if (abortedByCaller && !timedOut) {
+          throw error;
+        }
         throw new ApiError("timeout", "Request timed out", { cause: error });
       }
 
@@ -234,6 +249,8 @@ export class ApiClient implements IApiClient {
 
       // Unknown error - wrap as network error
       throw new ApiError("network", "An unexpected error occurred", { cause: error });
+    } finally {
+      options?.signal?.removeEventListener("abort", handleAbort);
     }
   }
 

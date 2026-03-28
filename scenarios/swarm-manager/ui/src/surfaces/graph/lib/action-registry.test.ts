@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { Node } from "@xyflow/react";
-import { getActionsForNode, actionRegistry } from "./action-registry";
-import type { GraphLens, EntityType } from "../stores/graph-data-store";
+import { getActionsForNode } from "./action-registry";
+import type { EntityType } from "../stores/graph-data-store";
 
 const makeNode = (id: string, entityType: EntityType, status?: string, kind?: string): Node => ({
   id,
@@ -9,6 +9,35 @@ const makeNode = (id: string, entityType: EntityType, status?: string, kind?: st
   position: { x: 0, y: 0 },
   data: { label: id, entityType, status, kind },
 });
+
+function expectDefined<T>(value: T | undefined, message: string): T {
+  expect(value).toBeDefined();
+  if (value === undefined) {
+    throw new Error(message);
+  }
+  return value;
+}
+
+function getAction(
+  lens: Parameters<typeof getActionsForNode>[0],
+  entityType: Parameters<typeof getActionsForNode>[1],
+  actionId: string,
+) {
+  return expectDefined(
+    getActionsForNode(lens, entityType).find((action) => action.id === actionId),
+    `Expected action "${actionId}" for ${lens}/${entityType}`,
+  );
+}
+
+function runEnabledPredicate(action: ReturnType<typeof getAction>, node: Node): boolean {
+  const enabled = expectDefined(action.enabled, `Expected enabled predicate for action "${action.id}"`);
+  return enabled(node);
+}
+
+function runNavigateTo(action: ReturnType<typeof getAction>, node: Node): string | null {
+  const navigateTo = expectDefined(action.navigateTo, `Expected navigateTo for action "${action.id}"`);
+  return navigateTo(node);
+}
 
 describe("getActionsForNode", () => {
   // Topology lens: actions for capture, backlog, initiative, scenario.
@@ -92,110 +121,95 @@ describe("getActionsForNode", () => {
 
 describe("action enabled predicates", () => {
   it("cancel is disabled for terminal executions", () => {
-    const actions = getActionsForNode("flow", "execution");
-    const cancel = actions.find((a) => a.id === "cancel")!;
+    const cancel = getAction("flow", "execution", "cancel");
     const terminalNode = makeNode("execution/abc", "execution", "completed");
-    expect(cancel.enabled!(terminalNode)).toBe(false);
+    expect(runEnabledPredicate(cancel, terminalNode)).toBe(false);
   });
 
   it("cancel is enabled for active executions", () => {
-    const actions = getActionsForNode("flow", "execution");
-    const cancel = actions.find((a) => a.id === "cancel")!;
+    const cancel = getAction("flow", "execution", "cancel");
     const activeNode = makeNode("execution/abc", "execution", "in_progress");
-    expect(cancel.enabled!(activeNode)).toBe(true);
+    expect(runEnabledPredicate(cancel, activeNode)).toBe(true);
   });
 
   it("retry is enabled for terminal executions", () => {
-    const actions = getActionsForNode("flow", "execution");
-    const retry = actions.find((a) => a.id === "retry")!;
+    const retry = getAction("flow", "execution", "retry");
     const terminalNode = makeNode("execution/abc", "execution", "failed");
-    expect(retry.enabled!(terminalNode)).toBe(true);
+    expect(runEnabledPredicate(retry, terminalNode)).toBe(true);
   });
 
   it("retry is disabled for active executions", () => {
-    const actions = getActionsForNode("flow", "execution");
-    const retry = actions.find((a) => a.id === "retry")!;
+    const retry = getAction("flow", "execution", "retry");
     const activeNode = makeNode("execution/abc", "execution", "running");
-    expect(retry.enabled!(activeNode)).toBe(false);
+    expect(runEnabledPredicate(retry, activeNode)).toBe(false);
   });
 
   it("start is enabled for stopped scenarios", () => {
-    const actions = getActionsForNode("operations", "scenario");
-    const start = actions.find((a) => a.id === "start")!;
+    const start = getAction("operations", "scenario", "start");
     const stoppedNode = makeNode("scenario/my-scenario", "scenario", "stopped");
-    expect(start.enabled!(stoppedNode)).toBe(true);
+    expect(runEnabledPredicate(start, stoppedNode)).toBe(true);
   });
 
   it("start is disabled for running scenarios", () => {
-    const actions = getActionsForNode("operations", "scenario");
-    const start = actions.find((a) => a.id === "start")!;
+    const start = getAction("operations", "scenario", "start");
     const runningNode = makeNode("scenario/my-scenario", "scenario", "running");
-    expect(start.enabled!(runningNode)).toBe(false);
+    expect(runEnabledPredicate(start, runningNode)).toBe(false);
   });
 
   it("stop is enabled for running scenarios", () => {
-    const actions = getActionsForNode("operations", "scenario");
-    const stop = actions.find((a) => a.id === "stop")!;
+    const stop = getAction("operations", "scenario", "stop");
     const runningNode = makeNode("scenario/my-scenario", "scenario", "running");
-    expect(stop.enabled!(runningNode)).toBe(true);
+    expect(runEnabledPredicate(stop, runningNode)).toBe(true);
   });
 
   it("stop is disabled for stopped scenarios", () => {
-    const actions = getActionsForNode("operations", "scenario");
-    const stop = actions.find((a) => a.id === "stop")!;
+    const stop = getAction("operations", "scenario", "stop");
     const stoppedNode = makeNode("scenario/my-scenario", "scenario", "stopped");
-    expect(stop.enabled!(stoppedNode)).toBe(false);
+    expect(runEnabledPredicate(stop, stoppedNode)).toBe(false);
   });
 });
 
 describe("action navigateTo", () => {
   it("view-backlog-details builds correct path", () => {
-    const actions = getActionsForNode("flow", "backlog");
-    const viewDetails = actions.find((a) => a.id === "view-backlog-details")!;
+    const viewDetails = getAction("flow", "backlog", "view-backlog-details");
     const node = makeNode("execute/my-feature", "backlog", "ready", "execute");
-    expect(viewDetails.navigateTo!(node)).toBe("/details/backlog/execute/my-feature");
+    expect(runNavigateTo(viewDetails, node)).toBe("/details/backlog/execute/my-feature");
   });
 
   it("view-scenario-details builds correct path", () => {
-    const actions = getActionsForNode("operations", "scenario");
-    const viewDetails = actions.find((a) => a.id === "view-scenario-details")!;
+    const viewDetails = getAction("operations", "scenario", "view-scenario-details");
     const node = makeNode("scenario/swarm-manager", "scenario", "running");
-    expect(viewDetails.navigateTo!(node)).toBe("/details/scenario/swarm-manager");
+    expect(runNavigateTo(viewDetails, node)).toBe("/details/scenario/swarm-manager");
   });
 
   it("view-execution-details builds correct path", () => {
-    const actions = getActionsForNode("flow", "execution");
-    const viewDetails = actions.find((a) => a.id === "view-execution-details")!;
+    const viewDetails = getAction("flow", "execution", "view-execution-details");
     const node = makeNode("execution/abc-123", "execution", "completed");
-    expect(viewDetails.navigateTo!(node)).toBe("/details/execution/abc-123");
+    expect(runNavigateTo(viewDetails, node)).toBe("/details/execution/abc-123");
   });
 
   it("view-prompt-trace builds correct path", () => {
-    const actions = getActionsForNode("flow", "execution");
-    const viewTrace = actions.find((a) => a.id === "view-prompt-trace")!;
+    const viewTrace = getAction("flow", "execution", "view-prompt-trace");
     const node = makeNode("execution/abc-123", "execution", "completed");
-    expect(viewTrace.navigateTo!(node)).toBe("/details/execution/abc-123/prompt-trace");
+    expect(runNavigateTo(viewTrace, node)).toBe("/details/execution/abc-123/prompt-trace");
   });
 
   // Topology navigation.
   it("edit-backlog navigates to backlog detail page", () => {
-    const actions = getActionsForNode("topology", "backlog");
-    const edit = actions.find((a) => a.id === "edit-backlog")!;
+    const edit = getAction("topology", "backlog", "edit-backlog");
     const node = makeNode("backlog-item/execute/my-task", "backlog", "ready", "execute");
-    expect(edit.navigateTo!(node)).toBe("/details/backlog/execute/my-task");
+    expect(runNavigateTo(edit, node)).toBe("/details/backlog/execute/my-task");
   });
 
   it("edit-initiative navigates to initiative detail page", () => {
-    const actions = getActionsForNode("topology", "initiative");
-    const edit = actions.find((a) => a.id === "edit-initiative")!;
+    const edit = getAction("topology", "initiative", "edit-initiative");
     const node = makeNode("initiative/my-init", "initiative", "active");
-    expect(edit.navigateTo!(node)).toBe("/details/initiative/my-init");
+    expect(runNavigateTo(edit, node)).toBe("/details/initiative/my-init");
   });
 
   it("view-scenario-files navigates to scenario files tab", () => {
-    const actions = getActionsForNode("topology", "scenario");
-    const viewFiles = actions.find((a) => a.id === "view-scenario-files")!;
+    const viewFiles = getAction("topology", "scenario", "view-scenario-files");
     const node = makeNode("scenario/my-app", "scenario", "running");
-    expect(viewFiles.navigateTo!(node)).toBe("/details/scenario/my-app?tab=files");
+    expect(runNavigateTo(viewFiles, node)).toBe("/details/scenario/my-app?tab=files");
   });
 });

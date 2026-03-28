@@ -114,7 +114,10 @@ type Server struct {
 	router            *mux.Router
 	agentSvc          *agentmanager.AgentService
 	settingsStore     *settings.Store
+	backlogHandler    *backlog.Handler
+	capturesHandler   *captures.Handler
 	scenariosHandler  *scenarios.Handler
+	initiativeService *initiatives.Service
 	executionSvc      *execution.Service
 	executionHandler  *execution.Handler
 	executionStopChan chan struct{}
@@ -214,7 +217,7 @@ func (s *Server) setupRoutes() {
 	s.registerAgentManagerRoutes()
 	s.registerQueueRoutes(scenarioRoot)
 	s.registerExecutionRoutes(scenarioRoot)
-	s.registerGraphRoutes(scenarioRoot, backlogHandler, initService)
+	s.registerGraphRoutes(scenarioRoot)
 	s.registerPromptRoutes(scenarioRoot)
 }
 
@@ -236,6 +239,7 @@ func (s *Server) registerBacklogRoutes(scenarioRoot string) *backlog.Handler {
 	backlogHandler := backlog.NewHandlerWithClients(scenarioRoot, s.agentSvc, nil)
 	backlogHandler.SetPolicyProvider(&settingsPolicyAdapter{store: s.settingsStore})
 	backlogHandler.RegisterRoutes(s.router)
+	s.backlogHandler = backlogHandler
 	return backlogHandler
 }
 
@@ -245,6 +249,7 @@ func (s *Server) registerInitiativeRoutes(scenarioRoot string, backlogHandler *b
 	initService := initiatives.NewService(initStore, backlogHandler.Store())
 	initHandler := initiatives.NewHandler(initService)
 	initHandler.RegisterRoutes(s.router)
+	s.initiativeService = initService
 
 	// Wire initiative assigner into backlog handler for batch operations.
 	backlogHandler.SetInitiativeAssigner(&initiativeAssignerAdapter{service: initService})
@@ -323,6 +328,7 @@ func (s *Server) registerCapturesRoutes(scenarioRoot string, backlogHandler *bac
 	capturesHandler := captures.NewHandler(scenarioRoot, s.agentSvc, nil)
 	capturesHandler.SetBacklogCreator(&backlogItemCreatorAdapter{store: backlogHandler.Store()})
 	capturesHandler.RegisterRoutes(s.router)
+	s.capturesHandler = capturesHandler
 }
 
 func (s *Server) registerScenarioRoutes(scenariosDir string) {
@@ -381,6 +387,9 @@ func (s *Server) registerExecutionRoutes(scenarioRoot string) {
 	// Wire execution queuer back into scenarios handler for spec-sync-archive
 	if s.scenariosHandler != nil {
 		s.scenariosHandler.SetExecutionQueuer(scenarios.NewExecutionQueuer(s.executionSvc))
+	}
+	if s.backlogHandler != nil {
+		s.backlogHandler.SetExecutionQueuer(s.executionSvc)
 	}
 }
 
@@ -449,13 +458,27 @@ func (a *captureAdapter) ListCaptures() ([]graph.CaptureEntry, error) {
 	return result, nil
 }
 
-// scenarioAdapter bridges scenarios.Handler to graph.ScenarioLister.
-type scenarioAdapter struct {
-	handler *scenarios.Handler
+// graphInitiativeAdapter bridges the initiatives store to graph.InitiativeLister.
+type graphInitiativeAdapter struct {
+	store *initiatives.Store
 }
 
-func (a *scenarioAdapter) LoadAll() ([]scenarios.Scenario, error) {
-	return a.handler.LoadAll()
+func (a *graphInitiativeAdapter) List() ([]graph.InitiativeEntry, error) {
+	items, err := a.store.LoadAll()
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]graph.InitiativeEntry, 0, len(items))
+	for _, item := range items {
+		result = append(result, graph.InitiativeEntry{
+			Name:   item.Name,
+			Title:  item.Title,
+			Status: item.Status,
+			Items:  append([]string(nil), item.Items...),
+		})
+	}
+	return result, nil
 }
 
 // executionAdapter bridges execution.Service to graph.ExecutionLister.
@@ -520,30 +543,52 @@ func (a *backlogItemCreatorAdapter) SaveItem(kind, name, title, description stri
 	return nil
 }
 
-func (s *Server) registerGraphRoutes(scenarioRoot string, backlogHandler *backlog.Handler, initService *initiatives.Service) {
+func (s *Server) registerGraphRoutes(scenarioRoot string) {
+	if s.backlogHandler == nil {
+		return
+	}
+
 	projCfg := graph.ProjectionConfig{
-		Backlog:    backlogHandler.Store(),
-		Initiative: initService,
+		Backlog:    s.backlogHandler.Store(),
+		Initiative: &graphInitiativeAdapter{store: initiatives.NewStore(scenarioRoot)},
 		Capture:    &captureAdapter{rootDir: scenarioRoot},
-		Scenario:   &scenarioAdapter{handler: s.scenariosHandler},
-		Execution:  &executionAdapter{svc: s.executionSvc},
+		Scenario: graph.NewScenarioSourceAdapter(
+			scenarios.NewCLIProviderWithOptions(scenarios.CLIProviderOptions{
+				IncludePorts: false,
+			}),
+		),
+	}
+	if s.executionSvc != nil {
+		projCfg.Execution = &executionAdapter{svc: s.executionSvc}
 	}
 	if s.agentSvc != nil && s.agentSvc.IsEnabled() {
 		projCfg.RunState = &runStateAdapter{svc: s.agentSvc}
 	}
 	projSvc := graph.NewProjectionService(projCfg)
+	projectionCache := graph.NewProjectionCache(graph.ProjectionCacheConfig{
+		Projector: projSvc,
+	})
 
 	// HTTP handler.
-	graphHandler := graph.NewHandler(projSvc)
+	graphHandler := graph.NewHandler(projectionCache)
 	graphHandler.RegisterRoutes(s.router)
 
 	// WebSocket broker and stream handler.
 	s.graphBroker = graph.NewBroker()
-	streamHandler := graph.NewStreamHandler(projSvc, s.graphBroker)
+	streamHandler := graph.NewStreamHandler(s.graphBroker)
 	streamHandler.RegisterRoutes(s.router)
 
-	// Wire event dispatch into execution service and scenarios handler.
-	dispatch := graph.NewDispatch(s.graphBroker)
+	// Wire graph invalidation into mutating services and handlers.
+	dispatch := graph.NewDispatch(s.graphBroker, projectionCache)
+	if s.backlogHandler != nil {
+		s.backlogHandler.SetEventDispatcher(dispatch)
+	}
+	if s.capturesHandler != nil {
+		s.capturesHandler.SetEventDispatcher(dispatch)
+	}
+	if s.initiativeService != nil {
+		s.initiativeService.SetEventDispatcher(dispatch)
+	}
 	if s.executionSvc != nil {
 		s.executionSvc.SetEventDispatcher(dispatch)
 	}

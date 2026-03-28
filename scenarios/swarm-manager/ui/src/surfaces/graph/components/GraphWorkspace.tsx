@@ -182,7 +182,8 @@ export function GraphWorkspace() {
   );
 
   useGraphWebSocket({
-    enabled: lens === "operations",
+    enabled: true,
+    lens,
     onNodePulse: handleNodePulse,
   });
 
@@ -251,8 +252,14 @@ export function GraphWorkspace() {
                       </p>
                     ) : (
                       <div className="space-y-2">
-                        {sortedActiveRuns.map((run) => (
-                          <div key={run.runId} className="rounded-lg border border-slate-800 bg-slate-900/45 p-3">
+                        {sortedActiveRuns.map((run) => {
+                          const backlogNodeId =
+                            typeof run.backlogKind === "string" && typeof run.backlogName === "string"
+                              ? buildBacklogNodeId(run.backlogKind, run.backlogName)
+                              : null;
+
+                          return (
+                            <div key={run.runId} className="rounded-lg border border-slate-800 bg-slate-900/45 p-3">
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0">
                                 <p className="truncate text-sm font-medium text-slate-100">
@@ -279,15 +286,13 @@ export function GraphWorkspace() {
                               >
                                 View Run
                               </button>
-                              {run.backlogKind !== undefined && run.backlogName !== undefined && (
+                              {backlogNodeId && (
                                 <button
                                   type="button"
                                   className="rounded border border-slate-700/80 bg-slate-900/60 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800/70"
                                   onClick={() => {
                                     handleLensChange("topology");
-                                    handleSidebarItemClick(
-                                      buildBacklogNodeId(run.backlogKind, run.backlogName),
-                                    );
+                                    handleSidebarItemClick(backlogNodeId);
                                     setShowAgentsDropdown(false);
                                   }}
                                 >
@@ -305,7 +310,8 @@ export function GraphWorkspace() {
                               </button>
                             </div>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>

@@ -71,14 +71,30 @@ describe("graphUIStore", () => {
       expect(useGraphUIStore.getState().fitViewNonce).toBe(1);
     });
 
-    it("persists viewport changes", () => {
+    it("persists viewport changes per lens", () => {
       const viewport = { x: 100, y: 200, zoom: 1.2 };
-      useGraphUIStore.getState().setViewport(viewport);
+      useGraphUIStore.getState().setViewportForLens("operations", viewport);
 
-      expect(useGraphUIStore.getState().viewport).toEqual(viewport);
-      expect(window.localStorage.getItem("swarm-manager.graph.viewport")).toBe(
-        JSON.stringify(viewport),
+      expect(useGraphUIStore.getState().viewportByLens.operations).toEqual(viewport);
+      expect(window.localStorage.getItem("swarm-manager.graph.viewport.v2")).toBe(
+        JSON.stringify({
+          topology: null,
+          flow: null,
+          operations: viewport,
+        }),
       );
+    });
+
+    it("keeps lens viewports isolated from each other", () => {
+      const topologyViewport = { x: 100, y: 200, zoom: 1.2 };
+      const flowViewport = { x: -50, y: 80, zoom: 0.75 };
+
+      useGraphUIStore.getState().setViewportForLens("topology", topologyViewport);
+      useGraphUIStore.getState().setViewportForLens("flow", flowViewport);
+
+      expect(useGraphUIStore.getState().viewportByLens.topology).toEqual(topologyViewport);
+      expect(useGraphUIStore.getState().viewportByLens.flow).toEqual(flowViewport);
+      expect(useGraphUIStore.getState().viewportByLens.operations).toBeNull();
     });
   });
 

@@ -1,5 +1,5 @@
+import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { renderHook, act } from "@testing-library/react";
 import { useGraphWebSocket } from "./useGraphWebSocket";
 import { cloneGraphDataInitialState, useGraphDataStore } from "../stores/graph-data-store";
 
@@ -74,20 +74,20 @@ describe("useGraphWebSocket", () => {
 
   it("does not connect when disabled", () => {
     resetStore();
-    renderHook(() => useGraphWebSocket({ enabled: false }));
+    renderHook(() => useGraphWebSocket({ enabled: false, lens: "topology" }));
     expect(MockWebSocket.instances).toHaveLength(0);
   });
 
   it("connects when enabled", () => {
     resetStore();
-    renderHook(() => useGraphWebSocket({ enabled: true }));
+    renderHook(() => useGraphWebSocket({ enabled: true, lens: "topology" }));
     expect(MockWebSocket.instances).toHaveLength(1);
     expect(getFirstSocket().url).toBe("ws://localhost:8080/ws/graph");
   });
 
   it("disconnects when disabled after being enabled", () => {
     resetStore();
-    const { rerender } = renderHook(({ enabled }) => useGraphWebSocket({ enabled }), {
+    const { rerender } = renderHook(({ enabled }) => useGraphWebSocket({ enabled, lens: "topology" }), {
       initialProps: { enabled: true },
     });
     const ws = getFirstSocket();
@@ -96,29 +96,39 @@ describe("useGraphWebSocket", () => {
     expect(ws.close).toHaveBeenCalled();
   });
 
-  it("invalidates the operations graph on non-heartbeat messages", async () => {
+  it("refreshes only when the current lens is invalidated", async () => {
     const fetchGraphSpy = resetStore();
-    renderHook(() => useGraphWebSocket({ enabled: true }));
+    renderHook(() => useGraphWebSocket({ enabled: true, lens: "flow" }));
     const ws = getFirstSocket();
 
     await vi.advanceTimersByTimeAsync(0);
 
     act(() => {
       ws.simulateMessage({
-        type: "edge-add",
-        data: { id: "edge-1" },
+        type: "invalidate",
+        data: { lenses: ["topology"] },
         timestamp: Date.now(),
       });
     });
 
+    await vi.advanceTimersByTimeAsync(200);
     expect(fetchGraphSpy).not.toHaveBeenCalled();
+
+    act(() => {
+      ws.simulateMessage({
+        type: "invalidate",
+        data: { lenses: ["flow", "operations"] },
+        timestamp: Date.now(),
+      });
+    });
+
     await vi.advanceTimersByTimeAsync(150);
-    expect(fetchGraphSpy).toHaveBeenCalledWith("operations", { silent: true });
+    expect(fetchGraphSpy).toHaveBeenCalledWith("flow", { silent: true, force: true });
   });
 
   it("ignores heartbeat messages", async () => {
     const fetchGraphSpy = resetStore();
-    renderHook(() => useGraphWebSocket({ enabled: true }));
+    renderHook(() => useGraphWebSocket({ enabled: true, lens: "topology" }));
     const ws = getFirstSocket();
 
     await vi.advanceTimersByTimeAsync(0);
@@ -135,10 +145,10 @@ describe("useGraphWebSocket", () => {
     expect(fetchGraphSpy).not.toHaveBeenCalled();
   });
 
-  it("pulses updated nodes before invalidating", async () => {
+  it("pulses updated nodes without forcing a refresh on node events alone", async () => {
     const fetchGraphSpy = resetStore();
     const pulseSpy = vi.fn();
-    renderHook(() => useGraphWebSocket({ enabled: true, onNodePulse: pulseSpy }));
+    renderHook(() => useGraphWebSocket({ enabled: true, lens: "operations", onNodePulse: pulseSpy }));
     const ws = getFirstSocket();
 
     await vi.advanceTimersByTimeAsync(0);
@@ -152,13 +162,13 @@ describe("useGraphWebSocket", () => {
     });
 
     expect(pulseSpy).toHaveBeenCalledWith("run/123");
-    await vi.advanceTimersByTimeAsync(150);
-    expect(fetchGraphSpy).toHaveBeenCalledWith("operations", { silent: true });
+    await vi.advanceTimersByTimeAsync(250);
+    expect(fetchGraphSpy).not.toHaveBeenCalled();
   });
 
-  it("refreshes the graph before reconnecting after close", async () => {
+  it("refreshes the current lens before reconnecting after close", async () => {
     const fetchGraphSpy = resetStore();
-    renderHook(() => useGraphWebSocket({ enabled: true }));
+    renderHook(() => useGraphWebSocket({ enabled: true, lens: "operations" }));
     const ws = getFirstSocket();
 
     await vi.advanceTimersByTimeAsync(0);
@@ -169,13 +179,13 @@ describe("useGraphWebSocket", () => {
 
     expect(fetchGraphSpy).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1000);
-    expect(fetchGraphSpy).toHaveBeenCalledWith("operations", { silent: true });
+    expect(fetchGraphSpy).toHaveBeenCalledWith("operations", { silent: true, force: true });
     expect(MockWebSocket.instances).toHaveLength(2);
   });
 
   it("cleans up on unmount", async () => {
     resetStore();
-    const { unmount } = renderHook(() => useGraphWebSocket({ enabled: true }));
+    const { unmount } = renderHook(() => useGraphWebSocket({ enabled: true, lens: "topology" }));
     const ws = getFirstSocket();
 
     await vi.advanceTimersByTimeAsync(0);

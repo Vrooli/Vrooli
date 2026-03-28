@@ -67,10 +67,11 @@ export function ExecutionCard({
   const [showDetails, setShowDetails] = useState(false);
   const backlogKindLabel = BACKLOG_KIND_LABELS[(item.backlogKind as BacklogKind)] ?? item.backlogKind;
   const canFollowUp = canFollowUpExecution(item.status) && onFollowUp;
+  const triggerReview = onTriggerReview ? () => onTriggerReview(item.executionId) : null;
 
   const hasPrimaryActions = canStart || canCancel || canRetry || canFollowUp;
   const hasReviewTrigger = !item.reviewResult && !item.reviewSkipReason && item.status !== "validating"
-    && onTriggerReview && (item.status === "completed" || item.status === "needs_fixup");
+    && triggerReview !== null && (item.status === "completed" || item.status === "needs_fixup");
 
   return (
     <article className="group block space-y-2.5" data-testid={testId}>
@@ -156,7 +157,7 @@ export function ExecutionCard({
           variant="outline"
           onClick={(e) => {
             e.stopPropagation();
-            onTriggerReview!(item.executionId);
+            triggerReview?.();
           }}
           data-testid="review-trigger-button"
         >

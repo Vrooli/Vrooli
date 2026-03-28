@@ -146,12 +146,18 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		startedBy = "swarm-manager"
 	}
 
-	executionService := execution.NewService(execution.ServiceConfig{
-		RootDir:        h.rootDir,
-		StorePath:      filepath.Join(h.rootDir, ".vrooli", "execution-runs.json"),
-		PolicyProvider: h.policyProvider,
-		AgentService:   h.agentService,
-	})
+	var executionService ExecutionQueuer
+	if h.executionQueuer != nil {
+		executionService = h.executionQueuer
+	} else {
+		executionService = execution.NewService(execution.ServiceConfig{
+			RootDir:        h.rootDir,
+			StorePath:      filepath.Join(h.rootDir, ".vrooli", "execution-runs.json"),
+			PolicyProvider: h.policyProvider,
+			AgentService:   h.agentService,
+		})
+	}
+
 	preflight, preflightErr := executionService.ProcessPreflight(r.Context(), string(kind), name)
 	if preflightErr != nil {
 		if os.IsNotExist(preflightErr) {

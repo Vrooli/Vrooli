@@ -38,12 +38,18 @@ type BacklogItemCreator interface {
 	SaveItem(kind, name, title, description string, tags []string) error
 }
 
+// EventDispatcher emits graph invalidation events for graph projections.
+type EventDispatcher interface {
+	DispatchInvalidate(lenses ...string)
+}
+
 // Handler provides HTTP handlers for capture operations.
 type Handler struct {
-	rootDir        string
-	agentService   agentmanager.Service
-	promptClient   promptmanager.Client
-	backlogCreator BacklogItemCreator
+	rootDir         string
+	agentService    agentmanager.Service
+	promptClient    promptmanager.Client
+	backlogCreator  BacklogItemCreator
+	eventDispatcher EventDispatcher
 }
 
 // NewHandler creates a new captures handler.
@@ -62,6 +68,25 @@ func NewHandler(rootDir string, agentService agentmanager.Service, promptClient 
 // SetBacklogCreator sets the backlog item creator for the create-item endpoint.
 func (h *Handler) SetBacklogCreator(creator BacklogItemCreator) {
 	h.backlogCreator = creator
+}
+
+// SetEventDispatcher injects an optional graph invalidation dispatcher.
+func (h *Handler) SetEventDispatcher(d EventDispatcher) {
+	h.eventDispatcher = d
+}
+
+func (h *Handler) invalidateTopologyGraph() {
+	if h.eventDispatcher == nil {
+		return
+	}
+	h.eventDispatcher.DispatchInvalidate("topology")
+}
+
+func (h *Handler) invalidateAllGraphLenses() {
+	if h.eventDispatcher == nil {
+		return
+	}
+	h.eventDispatcher.DispatchInvalidate("topology", "flow", "operations")
 }
 
 // RegisterRoutes registers capture endpoints on the given router.
@@ -259,6 +284,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		resp["base_url"] = runResult.BaseURL
 	}
 
+	h.invalidateTopologyGraph()
 	_ = httputil.JSONWithStatus(w, http.StatusCreated, resp)
 }
 
@@ -308,6 +334,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		httputil.InternalError(w, "[captures] delete", "failed to delete capture")
 		return
 	}
+	h.invalidateTopologyGraph()
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -345,6 +372,7 @@ func (h *Handler) Classify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.invalidateTopologyGraph()
 	_ = httputil.JSON(w, map[string]any{
 		"task_id":  runResult.TaskID,
 		"run_id":   runResult.RunID,
@@ -427,6 +455,7 @@ func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 	_ = h.writeCapture(cap)
 
 	log.Printf("[captures] create-item: created %s/%s from capture %s", kind, name, id)
+	h.invalidateAllGraphLenses()
 	_ = httputil.JSONWithStatus(w, http.StatusCreated, map[string]any{
 		"kind": kind,
 		"name": name,

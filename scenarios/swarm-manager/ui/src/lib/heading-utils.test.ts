@@ -60,9 +60,10 @@ describe("extractHeadings", () => {
     const md = "# Real Heading\n\n```\n# Not a heading\n## Also not\n```\n\n## After Fence";
     const result = extractHeadings(md);
 
-    expect(result).toHaveLength(2);
-    expect(result[0].text).toBe("Real Heading");
-    expect(result[1].text).toBe("After Fence");
+    expect(result).toMatchObject([
+      { text: "Real Heading" },
+      { text: "After Fence" },
+    ]);
   });
 
   it("handles nested code fences correctly", () => {
@@ -84,7 +85,6 @@ describe("extractHeadings", () => {
     const md = "# H1\n#### H4\n##### H5";
     const result = extractHeadings(md);
 
-    expect(result).toHaveLength(1);
-    expect(result[0].text).toBe("H1");
+    expect(result).toMatchObject([{ text: "H1" }]);
   });
 });

@@ -93,6 +93,7 @@ type ServiceConfig struct {
 // EventDispatcher emits graph change events for real-time WebSocket updates.
 type EventDispatcher interface {
 	DispatchNodeUpdate(nodeType, nodeID string, data any)
+	DispatchInvalidate(lenses ...string)
 }
 
 // Service owns execution lifecycle logic.
@@ -168,6 +169,7 @@ func (s *Service) dispatchStatusUpdate(record Record) {
 		"mode":         string(record.Mode),
 		"run_id":       record.RunID,
 	})
+	s.eventDispatcher.DispatchInvalidate("topology", "flow", "operations")
 }
 
 // QueueBacklog creates an execution record and optionally starts it.
@@ -275,6 +277,8 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 		_ = s.updateBacklogStatus(item, restoreBacklogStatus(record))
 		return Record{}, startErr
 	}
+
+	s.dispatchStatusUpdate(record)
 	return record, nil
 }
 
@@ -365,6 +369,7 @@ func (s *Service) QueueSpecSyncArchive(ctx context.Context, ac ArchiveContext) (
 		return Record{}, err
 	}
 
+	s.dispatchStatusUpdate(record)
 	return record, nil
 }
 
@@ -515,6 +520,7 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 		if err := s.restoreBacklogStatusForRecord(record); err != nil {
 			return Record{}, err
 		}
+		s.dispatchStatusUpdate(record)
 		return record, nil
 	case StatusValidating, StatusNeedsFixup:
 		record.Status = StatusCanceled
@@ -527,6 +533,7 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 		if err := s.restoreBacklogStatusForRecord(record); err != nil {
 			return Record{}, err
 		}
+		s.dispatchStatusUpdate(record)
 		return record, nil
 	default:
 		return Record{}, fmt.Errorf("only pending/scheduled/starting/running/needs_review/validating/needs_fixup executions can be canceled")
@@ -616,6 +623,7 @@ func (s *Service) TriggerReview(ctx context.Context, executionID string) (Record
 	if err := s.store.Save(records); err != nil {
 		return Record{}, err
 	}
+	s.dispatchStatusUpdate(*record)
 	return *record, nil
 }
 
@@ -712,6 +720,7 @@ func (s *Service) refreshRunningLocked(ctx context.Context) error {
 	}
 
 	changed := false
+	changedRecords := make(map[string]Record)
 
 	// Handle validating records (poll review jobs).
 	const reviewPollTimeout = 10 * time.Minute
@@ -740,6 +749,7 @@ func (s *Service) refreshRunningLocked(ctx context.Context) error {
 					_ = s.updateBacklogStatus(item, "failed")
 				}
 				changed = true
+				changedRecords[record.ExecutionID] = *record
 				continue
 			}
 		}
@@ -775,12 +785,19 @@ func (s *Service) refreshRunningLocked(ctx context.Context) error {
 			}
 		}
 		changed = true
+		changedRecords[record.ExecutionID] = *record
 	}
 
 	// Handle running/starting/needs_review records.
 	if s.inspector == nil {
 		if changed {
-			return s.store.Save(records)
+			if err := s.store.Save(records); err != nil {
+				return err
+			}
+			for _, record := range changedRecords {
+				s.dispatchStatusUpdate(record)
+			}
+			return nil
 		}
 		return nil
 	}
@@ -851,10 +868,17 @@ func (s *Service) refreshRunningLocked(ctx context.Context) error {
 			}
 		}
 		changed = true
+		changedRecords[record.ExecutionID] = *record
 	}
 
 	if changed {
-		return s.store.Save(records)
+		if err := s.store.Save(records); err != nil {
+			return err
+		}
+		for _, record := range changedRecords {
+			s.dispatchStatusUpdate(record)
+		}
+		return nil
 	}
 	return nil
 }
@@ -968,6 +992,12 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 			}
 		}
 		_ = s.store.Save(records)
+		for _, candidate := range records {
+			if candidate.ExecutionID == fixupRecord.ExecutionID {
+				s.dispatchStatusUpdate(candidate)
+				break
+			}
+		}
 		return
 	}
 
@@ -988,6 +1018,15 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 	record.UpdatedAt = now
 
 	_ = s.store.Save(records)
+	for _, candidate := range records {
+		if candidate.ExecutionID == fixupRecord.ExecutionID {
+			s.dispatchStatusUpdate(candidate)
+			continue
+		}
+		if candidate.ExecutionID == record.ExecutionID {
+			s.dispatchStatusUpdate(candidate)
+		}
+	}
 }
 
 // FollowUp creates a follow-up execution from a completed/failed/needs_fixup execution.
@@ -1112,6 +1151,7 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 		return Record{}, fmt.Errorf("failed to save follow-up record: %w", err)
 	}
 
+	s.dispatchStatusUpdate(followUpRecord)
 	return followUpRecord, nil
 }
 

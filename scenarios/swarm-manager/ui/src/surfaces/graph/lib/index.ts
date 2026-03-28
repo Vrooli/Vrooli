@@ -18,6 +18,15 @@ export {
 } from "./clustering-utils";
 export type { ClusterGroup, RollupCounts } from "./clustering-utils";
 export {
+  buildGraphPresentation,
+  filterGraphEdges,
+  filterGraphNodes,
+} from "./graph-presentation";
+export type {
+  BuildGraphPresentationInput,
+  GraphPresentationResult,
+} from "./graph-presentation";
+export {
   getEdgeStyle,
   EDGE_STYLES,
   SECONDARY_EDGE_TYPES,

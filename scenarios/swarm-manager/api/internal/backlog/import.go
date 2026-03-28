@@ -109,6 +109,10 @@ func (h *Handler) Import(w http.ResponseWriter, r *http.Request) {
 		Summary: fmt.Sprintf("%d items updated, %d items created, %d errors", updatedCount, createdCount, len(parseErrors)),
 	}
 
+	if applyChanges && len(changes) > 0 {
+		h.invalidateAllGraphLenses()
+	}
+
 	if err := httputil.ProtoJSON(w, resp); err != nil {
 		httputil.InternalError(w, "[backlog] import", "failed to encode response")
 	}

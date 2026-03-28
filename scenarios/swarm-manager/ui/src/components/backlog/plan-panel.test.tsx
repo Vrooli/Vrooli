@@ -342,7 +342,11 @@ describe("PlanPanel", () => {
       fireEvent.click(screen.getByLabelText("Table of contents"));
       // Click the TOC entry (button inside the nav), not the rendered heading
       const tocPopover = screen.getByTestId("toc-popover");
-      const tocEntry = tocPopover.querySelector("button")!;
+      const tocEntry = tocPopover.querySelector("button");
+      expect(tocEntry).not.toBeNull();
+      if (!tocEntry) {
+        throw new Error("Expected a TOC entry button");
+      }
       fireEvent.click(tocEntry);
 
       expect(screen.queryByTestId("toc-popover")).not.toBeInTheDocument();

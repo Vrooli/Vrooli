@@ -27,16 +27,10 @@ import "@xyflow/react/dist/style.css";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
 import { applyDagreLayout } from "../lib/layout-utils";
-import {
-  aggregateEdgesForCollapsed,
-  applyNodeCap,
-  buildClusterHierarchy,
-  UNASSIGNED_CLUSTER_ID,
-} from "../lib/clustering-utils";
+import { buildGraphPresentation } from "../lib/graph-presentation";
 import {
   FILTER_SUGGESTION_THRESHOLD,
   getEdgeStyle,
-  SECONDARY_EDGE_TYPES,
   STRAIGHT_EDGE_THRESHOLD,
 } from "../lib/edge-styles";
 import { bfsNeighborhood } from "../lib/bfs-selection";
@@ -62,8 +56,6 @@ const baseEdgeOptions: DefaultEdgeOptions = {
   animated: false,
 };
 
-const NODE_CAP_LIMIT = 50;
-
 export function GraphCanvas() {
   const storeNodes = useGraphDataStore((s) => s.nodes);
   const storeEdges = useGraphDataStore((s) => s.edges);
@@ -72,122 +64,31 @@ export function GraphCanvas() {
   const loading = useGraphDataStore((s) => s.loading);
   const error = useGraphDataStore((s) => s.error);
   const settings = useGraphDataStore((s) => s.settingsByLens[s.lens]);
-  const entityFilters = settings.entityFilters;
-  const statusFilters = settings.statusFilters;
   const groupingMode = settings.groupingMode;
-  const showSecondaryEdges = settings.showSecondaryEdges;
   const autoFitOnChange = settings.autoFitOnChange;
 
   const layoutMode = useGraphUIStore((s) => s.layoutMode);
   const layoutDirection = useGraphUIStore((s) => s.layoutDirection);
   const highlightState = useGraphUIStore((s) => s.highlightState);
-  const storedViewport = useGraphUIStore((s) => s.viewport);
+  const storedViewport = useGraphUIStore((s) => s.viewportByLens[lens]);
   const fitViewNonce = useGraphUIStore((s) => s.fitViewNonce);
   const expandedTopologyClusters = useGraphUIStore((s) => s.expandedTopologyClusters);
   const selectNode = useGraphUIStore((s) => s.selectNode);
   const setHighlightState = useGraphUIStore((s) => s.setHighlightState);
-  const setViewport = useGraphUIStore((s) => s.setViewport);
+  const setViewportForLens = useGraphUIStore((s) => s.setViewportForLens);
   const toggleTopologyCluster = useGraphUIStore((s) => s.toggleTopologyCluster);
 
   const flowRef = useRef<ReactFlowInstance<Node, Edge> | null>(null);
 
-  const isTopology = lens === "topology";
-  const useInitiativeGrouping = isTopology && groupingMode === "initiative";
-
-  const filteredNodes = useMemo(() => {
-    return storeNodes.filter((node) => {
-      const data = (node.data as Record<string, unknown> | undefined) ?? {};
-      const entityType = data.entityType as keyof typeof entityFilters | undefined;
-      if (entityType && entityFilters[entityType] === false) {
-        return false;
-      }
-
-      const status = data.status;
-      if (typeof status === "string" && statusFilters[status] === false) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [entityFilters, statusFilters, storeNodes]);
-
-  const filteredEdges = useMemo(() => {
-    const visibleIds = new Set(filteredNodes.map((node) => node.id));
-    return storeEdges.filter((edge) => {
-      if (!visibleIds.has(edge.source) || !visibleIds.has(edge.target)) {
-        return false;
-      }
-      if (!showSecondaryEdges && SECONDARY_EDGE_TYPES.has(edge.type ?? "")) {
-        return false;
-      }
-      return true;
-    });
-  }, [filteredNodes, showSecondaryEdges, storeEdges]);
-
   const { processedNodes, processedEdges, visibleEdgeTypes, visibleNodeCount } = useMemo(() => {
-    if (!useInitiativeGrouping) {
-      const edgeTypes = [...new Set(filteredEdges.map((edge) => edge.type).filter(Boolean) as string[])];
-      return {
-        processedNodes: filteredNodes,
-        processedEdges: filteredEdges,
-        visibleEdgeTypes: edgeTypes,
-        visibleNodeCount: filteredNodes.length,
-      };
-    }
-
-    const { clusters, unclustered } = buildClusterHierarchy(filteredNodes, filteredEdges);
-    const collapsedClusterIds = new Set(
-      clusters.filter((cluster) => !expandedTopologyClusters.has(cluster.id)).map((cluster) => cluster.id),
-    );
-
-    const clusterNodes: Node[] = [];
-    const childNodes: Node[] = [];
-    const nodeById = new Map(filteredNodes.map((node) => [node.id, node]));
-
-    for (const cluster of clusters) {
-      const isCollapsed = collapsedClusterIds.has(cluster.id);
-      const isUnassigned = cluster.id === UNASSIGNED_CLUSTER_ID;
-
-      clusterNodes.push({
-        id: cluster.id,
-        type: "cluster",
-        position: { x: 0, y: 0 },
-        data: {
-          label: cluster.label,
-          collapsed: isCollapsed,
-          rollup: cluster.rollup,
-          isUnassigned,
-          entityType: "initiative",
-        },
-        style: isCollapsed ? undefined : { padding: 20 },
-      });
-
-      if (!isCollapsed) {
-        for (const memberId of cluster.members) {
-          const memberNode = nodeById.get(memberId);
-          if (!memberNode) continue;
-
-          childNodes.push({
-            ...memberNode,
-            parentId: cluster.id,
-            extent: "parent" as const,
-            position: { x: 0, y: 40 },
-          });
-        }
-      }
-    }
-
-    const { visible: cappedUnclustered } = applyNodeCap(unclustered, NODE_CAP_LIMIT);
-    const groupedEdges = aggregateEdgesForCollapsed(filteredEdges, collapsedClusterIds, clusters);
-    const edgeTypes = [...new Set(groupedEdges.map((edge) => edge.type).filter(Boolean) as string[])];
-
-    return {
-      processedNodes: [...clusterNodes, ...childNodes, ...cappedUnclustered],
-      processedEdges: groupedEdges,
-      visibleEdgeTypes: edgeTypes,
-      visibleNodeCount: clusterNodes.length + childNodes.length + cappedUnclustered.length,
-    };
-  }, [expandedTopologyClusters, filteredEdges, filteredNodes, useInitiativeGrouping]);
+    return buildGraphPresentation({
+      lens,
+      nodes: storeNodes,
+      edges: storeEdges,
+      settings,
+      expandedTopologyClusters,
+    });
+  }, [expandedTopologyClusters, lens, settings, storeEdges, storeNodes]);
 
   const styledEdges = useMemo<Edge[]>(() => {
     const useStraightEdges = processedEdges.length > STRAIGHT_EDGE_THRESHOLD;
@@ -281,11 +182,11 @@ export function GraphCanvas() {
       layoutMode,
       layoutDirection,
       groupingMode,
-      showSecondaryEdges,
+      showSecondaryEdges: settings.showSecondaryEdges,
       nodeIds: styledNodes.map((node) => node.id),
       edgeIds: styledEdges.map((edge) => edge.id),
     });
-  }, [groupingMode, lens, layoutDirection, layoutMode, showSecondaryEdges, styledEdges, styledNodes]);
+  }, [groupingMode, lens, layoutDirection, layoutMode, settings.showSecondaryEdges, styledEdges, styledNodes]);
 
   useEffect(() => {
     if (!autoFitOnChange || !flowRef.current || styledNodes.length === 0) {
@@ -334,9 +235,9 @@ export function GraphCanvas() {
 
   const handleMoveEnd = useCallback(
     (_event: MouseEvent | TouchEvent | null, viewport: Viewport) => {
-      setViewport(viewport);
+      setViewportForLens(lens, viewport);
     },
-    [setViewport],
+    [lens, setViewportForLens],
   );
 
   const defaultViewport: Viewport = storedViewport ?? { x: 0, y: 0, zoom: 1 };
