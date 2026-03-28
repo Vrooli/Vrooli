@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -98,6 +99,19 @@ type SyncChange struct {
 	NewValue      string `json:"newValue,omitempty"`
 }
 
+type requirementsPaths struct {
+	requirementsDir string
+	indexPath       string
+	snapshotPath    string
+	syncStatusPath  string
+}
+
+type requirementsModuleData struct {
+	name         string
+	filePath     string
+	requirements []RequirementItem
+}
+
 // handleGetScenarioRequirements returns requirements data for a scenario.
 func (s *Server) handleGetScenarioRequirements(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
@@ -114,23 +128,7 @@ func (s *Server) handleGetScenarioRequirements(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Try to load cached snapshot first
-	snapshotPath := filepath.Join(scenarioDir, "coverage", "requirements-sync", "latest.json")
-	snapshot, err := s.loadRequirementsSnapshot(snapshotPath, name)
-	if err != nil || len(snapshot.Modules) == 0 {
-		// Snapshot not available or empty - read requirements directly from files
-		snapshot = s.loadRequirementsFromFiles(scenarioDir, name)
-	} else {
-		// Snapshot loaded but only has summary data - enrich with requirement details
-		s.enrichSnapshotWithRequirements(snapshot, scenarioDir)
-	}
-
-	// Load sync status
-	syncStatusPath := filepath.Join(scenarioDir, "coverage", "sync", "latest.json")
-	syncStatus := s.loadSyncStatus(syncStatusPath, scenarioDir)
-	snapshot.SyncStatus = syncStatus
-
-	s.writeJSON(w, http.StatusOK, snapshot)
+	s.writeJSON(w, http.StatusOK, s.loadScenarioRequirementsView(scenarioDir, name))
 }
 
 // handleSyncScenarioRequirements triggers a manual requirements sync.
@@ -179,54 +177,66 @@ func (s *Server) handleSyncScenarioRequirements(w http.ResponseWriter, r *http.R
 		}
 	}
 
-	// Return current snapshot after sync
-	snapshotPath := filepath.Join(scenarioDir, "coverage", "requirements-sync", "latest.json")
-	snapshot, err := s.loadRequirementsSnapshot(snapshotPath, name)
-	if err != nil {
-		snapshot = &RequirementsSnapshot{
-			ScenarioName: name,
-			GeneratedAt:  time.Now(),
-			Summary: RequirementsSummary{
-				ByLiveStatus:     make(map[string]int),
-				ByDeclaredStatus: make(map[string]int),
-			},
-			Modules: []ModuleSnapshot{},
-		}
-	}
-
-	// Load updated sync status
-	syncStatusPath := filepath.Join(scenarioDir, "coverage", "sync", "latest.json")
-	snapshot.SyncStatus = s.loadSyncStatus(syncStatusPath, scenarioDir)
-
 	s.writeJSON(w, http.StatusOK, map[string]interface{}{
 		"status":   "completed",
-		"snapshot": snapshot,
+		"snapshot": s.loadScenarioRequirementsView(scenarioDir, name),
 	})
 }
 
 // resolveScenarioDir finds the directory for a scenario.
 func (s *Server) resolveScenarioDir(name string) string {
-	// Try common locations
-	candidates := []string{
-		filepath.Join(os.Getenv("SCENARIOS_ROOT"), name),
-		filepath.Join(os.Getenv("VROOLI_ROOT"), "scenarios", name),
+	roots := make([]string, 0, 4)
+	if s.scenarios != nil && strings.TrimSpace(s.scenarios.ScenarioRoot()) != "" {
+		roots = append(roots, s.scenarios.ScenarioRoot())
 	}
-
-	// Also try relative to working directory
+	if value := strings.TrimSpace(os.Getenv("SCENARIOS_ROOT")); value != "" {
+		roots = append(roots, value)
+	}
+	if value := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); value != "" {
+		roots = append(roots, filepath.Join(value, "scenarios"))
+	}
 	if wd, err := os.Getwd(); err == nil {
-		// If we're in a scenario's api directory, go up
-		scenarioDir := filepath.Dir(wd)
-		root := filepath.Dir(scenarioDir)
-		candidates = append(candidates, filepath.Join(root, name))
+		roots = append(roots, filepath.Dir(filepath.Dir(wd)))
 	}
 
-	for _, candidate := range candidates {
+	seen := make(map[string]struct{}, len(roots))
+	for _, root := range roots {
+		if root == "" {
+			continue
+		}
+		candidate := filepath.Join(root, name)
+		if _, exists := seen[candidate]; exists {
+			continue
+		}
+		seen[candidate] = struct{}{}
 		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
 			return candidate
 		}
 	}
 
 	return ""
+}
+
+func (s *Server) loadScenarioRequirementsView(scenarioDir, scenarioName string) *RequirementsSnapshot {
+	paths := newRequirementsPaths(scenarioDir)
+	snapshot, err := s.loadRequirementsSnapshot(paths.snapshotPath, scenarioName)
+	if err != nil || len(snapshot.Modules) == 0 {
+		snapshot = s.loadRequirementsFromFiles(scenarioDir, scenarioName)
+	} else {
+		s.enrichSnapshotWithRequirements(snapshot, scenarioDir)
+	}
+	snapshot.SyncStatus = s.loadSyncStatus(paths.syncStatusPath, scenarioDir)
+	return snapshot
+}
+
+func newRequirementsPaths(scenarioDir string) requirementsPaths {
+	requirementsDir := filepath.Join(scenarioDir, "requirements")
+	return requirementsPaths{
+		requirementsDir: requirementsDir,
+		indexPath:       filepath.Join(requirementsDir, "index.json"),
+		snapshotPath:    filepath.Join(scenarioDir, "coverage", "requirements-sync", "latest.json"),
+		syncStatusPath:  filepath.Join(scenarioDir, "coverage", "sync", "latest.json"),
+	}
 }
 
 // loadRequirementsSnapshot loads a cached requirements snapshot.
@@ -303,94 +313,29 @@ func (s *Server) loadRequirementsSnapshot(path string, scenarioName string) (*Re
 // enrichSnapshotWithRequirements adds requirement details to a cached snapshot by loading from files.
 // This allows us to use the cached summary stats while still providing full requirement data to the UI.
 func (s *Server) enrichSnapshotWithRequirements(snapshot *RequirementsSnapshot, scenarioDir string) {
-	reqDir := filepath.Join(scenarioDir, "requirements")
-	indexPath := filepath.Join(reqDir, "index.json")
-
-	// Read index.json to get imports
-	indexData, err := os.ReadFile(indexPath)
+	modules, requirementsByKey, liveStatusCounts, err := s.loadRequirementModules(scenarioDir)
 	if err != nil {
 		return
 	}
-
-	var index requirementsFile
-	if err := json.Unmarshal(indexData, &index); err != nil {
-		return
-	}
-
-	// Build a map of file path -> requirements from files
-	// Use absolute paths to match against snapshot.Modules[i].FilePath
-	moduleReqsByPath := make(map[string][]RequirementItem)
-	liveStatusCounts := make(map[string]int)
-
-	// Process index.json requirements
-	if len(index.Requirements) > 0 {
-		reqs := make([]RequirementItem, 0, len(index.Requirements))
-		for _, req := range index.Requirements {
-			item := s.convertRequirement(req)
-			reqs = append(reqs, item)
-			liveStatusCounts[item.LiveStatus]++
-		}
-		// Store by both absolute and relative paths for matching
-		moduleReqsByPath[indexPath] = reqs
-		moduleReqsByPath["requirements/index.json"] = reqs
-		// Also handle "index" and "index.json" as potential names
-		moduleReqsByPath["index"] = reqs
-		moduleReqsByPath["index.json"] = reqs
-	}
-
-	// Process each imported module
-	for _, importPath := range index.Imports {
-		modulePath := filepath.Join(reqDir, importPath)
-		moduleData, err := os.ReadFile(modulePath)
-		if err != nil {
-			continue
-		}
-
-		var moduleFile requirementsFile
-		if err := json.Unmarshal(moduleData, &moduleFile); err != nil {
-			continue
-		}
-
-		reqs := make([]RequirementItem, 0, len(moduleFile.Requirements))
-		for _, req := range moduleFile.Requirements {
-			item := s.convertRequirement(req)
-			reqs = append(reqs, item)
-			liveStatusCounts[item.LiveStatus]++
-		}
-
-		// Store by absolute path
-		moduleReqsByPath[modulePath] = reqs
-		// Store by relative path (from scenario root)
-		moduleReqsByPath["requirements/"+importPath] = reqs
-	}
-
-	// Enrich existing modules with requirements by matching FilePath
 	for i := range snapshot.Modules {
 		mod := &snapshot.Modules[i]
 
-		// Try matching by FilePath (could be absolute or relative)
-		if reqs, ok := moduleReqsByPath[mod.FilePath]; ok {
+		if reqs, ok := requirementsByKey[mod.FilePath]; ok {
 			mod.Requirements = reqs
 			continue
 		}
-
-		// Try matching by Name (for backwards compatibility)
-		if reqs, ok := moduleReqsByPath[mod.Name]; ok {
+		if reqs, ok := requirementsByKey[mod.Name]; ok {
 			mod.Requirements = reqs
 			continue
 		}
-
-		// Try matching by relative path constructed from name
-		relPath := "requirements/" + mod.Name
-		if !strings.HasSuffix(relPath, ".json") {
-			relPath += ".json"
-		}
-		if reqs, ok := moduleReqsByPath[relPath]; ok {
+		if reqs, ok := requirementsByKey["requirements/"+mod.Name]; ok {
 			mod.Requirements = reqs
 		}
 	}
 
-	// Update live status counts in summary
+	if len(snapshot.Modules) == 0 && len(modules) > 0 {
+		snapshot.Modules = buildModuleSnapshots(modules)
+	}
 	snapshot.Summary.ByLiveStatus = liveStatusCounts
 }
 
@@ -427,7 +372,116 @@ type requirementsFile struct {
 
 // loadRequirementsFromFiles reads requirements directly from the requirements/ folder.
 func (s *Server) loadRequirementsFromFiles(scenarioDir, scenarioName string) *RequirementsSnapshot {
-	snapshot := &RequirementsSnapshot{
+	modules, _, liveStatusCounts, err := s.loadRequirementModules(scenarioDir)
+	if err != nil {
+		return newEmptyRequirementsSnapshot(scenarioName)
+	}
+
+	snapshot := newEmptyRequirementsSnapshot(scenarioName)
+	snapshot.Modules = buildModuleSnapshots(modules)
+	snapshot.Summary = summarizeRequirementsSnapshot(snapshot.Modules, liveStatusCounts)
+	return snapshot
+}
+
+func (s *Server) loadRequirementModules(scenarioDir string) ([]requirementsModuleData, map[string][]RequirementItem, map[string]int, error) {
+	paths := newRequirementsPaths(scenarioDir)
+	index, err := s.loadRequirementsIndex(paths.indexPath)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	modules := make([]requirementsModuleData, 0, len(index.Imports)+1)
+	requirementsByKey := make(map[string][]RequirementItem, len(index.Imports)*3+3)
+	liveStatusCounts := make(map[string]int)
+
+	if len(index.Requirements) > 0 {
+		module := requirementsModuleData{
+			name:         "index",
+			filePath:     "requirements/index.json",
+			requirements: s.convertRequirements(index.Requirements, liveStatusCounts),
+		}
+		modules = append(modules, module)
+		s.registerRequirementsKeys(requirementsByKey, paths.indexPath, module)
+	}
+
+	for _, importPath := range index.Imports {
+		modulePath := filepath.Join(paths.requirementsDir, importPath)
+		moduleFile, err := s.loadRequirementsIndex(modulePath)
+		if err != nil {
+			continue
+		}
+
+		module := requirementsModuleData{
+			name:         moduleNameFromImport(importPath),
+			filePath:     "requirements/" + importPath,
+			requirements: s.convertRequirements(moduleFile.Requirements, liveStatusCounts),
+		}
+		modules = append(modules, module)
+		s.registerRequirementsKeys(requirementsByKey, modulePath, module)
+	}
+
+	sort.Slice(modules, func(i, j int) bool {
+		return modules[i].filePath < modules[j].filePath
+	})
+	return modules, requirementsByKey, liveStatusCounts, nil
+}
+
+func (s *Server) loadRequirementsIndex(path string) (requirementsFile, error) {
+	var file requirementsFile
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return file, err
+	}
+	return file, json.Unmarshal(data, &file)
+}
+
+func (s *Server) convertRequirements(
+	requirements []struct {
+		ID          string   `json:"id"`
+		Category    string   `json:"category"`
+		PRDRef      string   `json:"prd_ref"`
+		Title       string   `json:"title"`
+		Description string   `json:"description"`
+		Status      string   `json:"status"`
+		Criticality string   `json:"criticality"`
+		Children    []string `json:"children"`
+		Validation  []struct {
+			Type   string `json:"type"`
+			Ref    string `json:"ref"`
+			Phase  string `json:"phase"`
+			Status string `json:"status"`
+			Notes  string `json:"notes"`
+		} `json:"validation"`
+	},
+	liveStatusCounts map[string]int,
+) []RequirementItem {
+	items := make([]RequirementItem, 0, len(requirements))
+	for _, req := range requirements {
+		item := s.convertRequirement(req)
+		items = append(items, item)
+		liveStatusCounts[item.LiveStatus]++
+	}
+	return items
+}
+
+func (s *Server) registerRequirementsKeys(target map[string][]RequirementItem, absolutePath string, module requirementsModuleData) {
+	target[absolutePath] = module.requirements
+	target[module.filePath] = module.requirements
+	target[module.name] = module.requirements
+	target[filepath.Base(module.filePath)] = module.requirements
+}
+
+func moduleNameFromImport(importPath string) string {
+	moduleName := strings.TrimSuffix(importPath, ".json")
+	parts := strings.Split(moduleName, "/")
+	if len(parts) >= 2 {
+		return parts[len(parts)-2] + "/" + parts[len(parts)-1]
+	}
+	return moduleName
+}
+
+func newEmptyRequirementsSnapshot(scenarioName string) *RequirementsSnapshot {
+	return &RequirementsSnapshot{
 		ScenarioName: scenarioName,
 		GeneratedAt:  time.Now(),
 		Summary: RequirementsSummary{
@@ -436,108 +490,18 @@ func (s *Server) loadRequirementsFromFiles(scenarioDir, scenarioName string) *Re
 		},
 		Modules: []ModuleSnapshot{},
 	}
+}
 
-	reqDir := filepath.Join(scenarioDir, "requirements")
-	indexPath := filepath.Join(reqDir, "index.json")
-
-	// Read index.json to get imports
-	indexData, err := os.ReadFile(indexPath)
-	if err != nil {
-		return snapshot
-	}
-
-	var index requirementsFile
-	if err := json.Unmarshal(indexData, &index); err != nil {
-		return snapshot
-	}
-
-	// Track all modules to process
-	type moduleInfo struct {
-		name     string
-		filePath string
-		reqs     []RequirementItem
-	}
-	modules := make(map[string]*moduleInfo)
-
-	// Process index.json requirements first (as "index" module)
-	if len(index.Requirements) > 0 {
-		indexModule := &moduleInfo{
-			name:     "index",
-			filePath: "requirements/index.json",
-			reqs:     make([]RequirementItem, 0, len(index.Requirements)),
-		}
-		for _, req := range index.Requirements {
-			item := s.convertRequirement(req)
-			indexModule.reqs = append(indexModule.reqs, item)
-		}
-		modules["index"] = indexModule
-	}
-
-	// Process each imported module
-	for _, importPath := range index.Imports {
-		modulePath := filepath.Join(reqDir, importPath)
-		moduleData, err := os.ReadFile(modulePath)
-		if err != nil {
-			continue
-		}
-
-		var moduleFile requirementsFile
-		if err := json.Unmarshal(moduleData, &moduleFile); err != nil {
-			continue
-		}
-
-		// Derive module name from path (e.g., "02-builder/workflow-builder/core.json" -> "workflow-builder/core")
-		moduleName := strings.TrimSuffix(importPath, ".json")
-		// Simplify: use last two path segments
-		parts := strings.Split(moduleName, "/")
-		if len(parts) >= 2 {
-			moduleName = parts[len(parts)-2] + "/" + parts[len(parts)-1]
-		}
-
-		mod := &moduleInfo{
-			name:     moduleName,
-			filePath: "requirements/" + importPath,
-			reqs:     make([]RequirementItem, 0, len(moduleFile.Requirements)),
-		}
-
-		for _, req := range moduleFile.Requirements {
-			item := s.convertRequirement(req)
-			mod.reqs = append(mod.reqs, item)
-		}
-
-		modules[moduleName] = mod
-	}
-
-	// Convert to ModuleSnapshots and calculate stats
-	var totalReqs, totalVals int
-	statusCounts := make(map[string]int)
-	liveStatusCounts := make(map[string]int)
-
+func buildModuleSnapshots(modules []requirementsModuleData) []ModuleSnapshot {
+	snapshots := make([]ModuleSnapshot, 0, len(modules))
 	for _, mod := range modules {
-		var complete, inProgress, pending int
-		for _, req := range mod.reqs {
-			totalReqs++
-			totalVals += len(req.Validations)
-
-			switch req.Status {
-			case "complete":
-				complete++
-			case "in_progress":
-				inProgress++
-			default:
-				pending++
-			}
-			statusCounts[req.Status]++
-			liveStatusCounts[req.LiveStatus]++
-		}
-
-		total := len(mod.reqs)
-		var completionRate float64
+		complete, inProgress, pending := requirementStatusBreakdown(mod.requirements)
+		total := len(mod.requirements)
+		completionRate := 0.0
 		if total > 0 {
 			completionRate = float64(complete) / float64(total) * 100
 		}
-
-		snapshot.Modules = append(snapshot.Modules, ModuleSnapshot{
+		snapshots = append(snapshots, ModuleSnapshot{
 			Name:           mod.name,
 			FilePath:       mod.filePath,
 			Total:          total,
@@ -545,27 +509,55 @@ func (s *Server) loadRequirementsFromFiles(scenarioDir, scenarioName string) *Re
 			InProgress:     inProgress,
 			Pending:        pending,
 			CompletionRate: completionRate,
-			Requirements:   mod.reqs,
+			Requirements:   mod.requirements,
 		})
 	}
+	return snapshots
+}
 
-	// Update summary
-	snapshot.Summary.TotalRequirements = totalReqs
-	snapshot.Summary.TotalValidations = totalVals
-	snapshot.Summary.ByDeclaredStatus = statusCounts
-	snapshot.Summary.ByLiveStatus = liveStatusCounts
-
-	if totalReqs > 0 {
-		snapshot.Summary.CompletionRate = float64(statusCounts["complete"]) / float64(totalReqs) * 100
+func summarizeRequirementsSnapshot(modules []ModuleSnapshot, liveStatusCounts map[string]int) RequirementsSummary {
+	summary := RequirementsSummary{
+		ByLiveStatus:     liveStatusCounts,
+		ByDeclaredStatus: make(map[string]int),
 	}
-
-	passed := liveStatusCounts["passed"]
-	failed := liveStatusCounts["failed"]
+	for _, mod := range modules {
+		summary.TotalRequirements += mod.Total
+		summary.TotalValidations += countValidations(mod.Requirements)
+		summary.ByDeclaredStatus["complete"] += mod.Complete
+		summary.ByDeclaredStatus["in_progress"] += mod.InProgress
+		summary.ByDeclaredStatus["pending"] += mod.Pending
+	}
+	if summary.TotalRequirements > 0 {
+		summary.CompletionRate = float64(summary.ByDeclaredStatus["complete"]) / float64(summary.TotalRequirements) * 100
+	}
+	passed := summary.ByLiveStatus["passed"]
+	failed := summary.ByLiveStatus["failed"]
 	if passed+failed > 0 {
-		snapshot.Summary.PassRate = float64(passed) / float64(passed+failed) * 100
+		summary.PassRate = float64(passed) / float64(passed+failed) * 100
 	}
+	return summary
+}
 
-	return snapshot
+func requirementStatusBreakdown(requirements []RequirementItem) (complete, inProgress, pending int) {
+	for _, req := range requirements {
+		switch req.Status {
+		case "complete":
+			complete++
+		case "in_progress":
+			inProgress++
+		default:
+			pending++
+		}
+	}
+	return complete, inProgress, pending
+}
+
+func countValidations(requirements []RequirementItem) int {
+	total := 0
+	for _, req := range requirements {
+		total += len(req.Validations)
+	}
+	return total
 }
 
 // convertRequirement converts a raw requirement from JSON to RequirementItem.

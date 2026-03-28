@@ -50,7 +50,7 @@ export function SettingsPage() {
     }
   });
 
-  const descriptors = data?.items ?? [];
+  const descriptors = useMemo(() => data?.items ?? [], [data?.items]);
   const disabledCount = useMemo(
     () => Object.values(phaseState).filter((phase) => phase.disabled).length,
     [phaseState]

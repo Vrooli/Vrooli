@@ -16,6 +16,12 @@ This document tracks the intentional seams that let Test Genie evolve without fo
 - Surface: `ScenarioDirectoryRepository`
 - Why it exists: scenario catalog views should summarize queue and execution state without coupling callers to raw SQL or raw queue rows. The repository now shares the same active-queue cutoff as queue telemetry.
 
+### Execution bootstrap
+
+- Package: `api/internal/orchestrator`
+- Surface: prepared execution setup/finalization inside `SuiteOrchestrator`
+- Why it exists: streaming and non-streaming suite execution must agree on runtime URL resolution, plan construction, artifact directories, result summaries, and requirement sync behavior. The shared bootstrap/finalization path keeps those decisions in one place.
+
 ### Playbooks registry normalization
 
 - Package: `api/internal/playbooks/registry`
@@ -34,6 +40,12 @@ This document tracks the intentional seams that let Test Genie evolve without fo
 - Surface: `Parse[T]`
 - Why it exists: empty-body and malformed-response diagnostics are transport concerns shared across CLI commands. Centralizing them prevents drift between `status`, `generate`, `runlocal`, `execute`, and playbooks seed commands.
 
+### Requirements view loading
+
+- Package: `api/internal/app/httpserver`
+- Surface: `loadScenarioRequirementsView()` plus shared requirements-module parsing helpers
+- Why it exists: the requirements UI needs one coherent projection of three sources of truth: cached summary snapshots, source `requirements/*.json` files, and sync metadata. The handler owns the projection; callers do not need to know where each field originated.
+
 ### Registry-build ownership
 
 - Package: `cli/internal/registry`
@@ -47,6 +59,12 @@ This document tracks the intentional seams that let Test Genie evolve without fo
 - Package: `api/internal/app/httpserver`
 - Surface: handler interfaces such as suite queue, execution service, and scenario directory service
 - Why it exists: handlers should be testable with stubs and should not own domain rules.
+
+### Generation phase control surface
+
+- Package: `ui/src/pages/Generate`
+- Surface: `PHASES_FOR_GENERATION` plus task-specific copy overrides in `PhaseSelector`
+- Why it exists: the generation UI only exposes a small, intentional set of phase levers. Labels, descriptions, and button states should come from one control surface so the dialog, selector, and tests do not drift.
 
 ### Phase command executors
 
@@ -65,3 +83,4 @@ This document tracks the intentional seams that let Test Genie evolve without fo
 - Queue stale filtering in the CLI. That belongs in persistence/repository code.
 - Playbooks observer-mode detection in raw workflow execution. That belongs in registry data and orchestration setup.
 - A second registry schema in the CLI. The command should delegate to the shared builder.
+- An implicit Test Genie WebSocket endpoint in integration checks. Real-time agent updates come from `agent-manager`, so Test Genie's core integration phase should not assume an internal socket exists.

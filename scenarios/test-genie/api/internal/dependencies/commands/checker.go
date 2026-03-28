@@ -112,10 +112,7 @@ func (c *checker) CheckAll(commands []CommandRequirement) Result {
 		path, err := c.Check(cmd.Name)
 		if err != nil {
 			c.logWarn("command missing: %s (%s)", cmd.Name, cmd.Reason)
-			missing = append(missing, MissingCommand{
-				Name:   cmd.Name,
-				Reason: cmd.Reason,
-			})
+			missing = append(missing, MissingCommand(cmd))
 			continue
 		}
 		c.logStep("command verified: %s at %s", cmd.Name, path)

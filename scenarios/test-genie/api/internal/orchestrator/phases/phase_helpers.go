@@ -8,12 +8,10 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"unicode/utf8"
 
-	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/shared"
 )
 
@@ -25,28 +23,6 @@ var phaseCommandCapture = runCommandCapture
 // This is the standard helper for parsing JSON across phases.
 func ParseJSON(data string, v interface{}) error {
 	return json.Unmarshal([]byte(data), v)
-}
-
-func ensureDir(path string) error {
-	info, err := os.Stat(path)
-	if err != nil {
-		return fmt.Errorf("required directory missing: %s: %w", path, err)
-	}
-	if !info.IsDir() {
-		return fmt.Errorf("expected directory but found file: %s", path)
-	}
-	return nil
-}
-
-func ensureFile(path string) error {
-	info, err := os.Stat(path)
-	if err != nil {
-		return fmt.Errorf("required file missing: %s: %w", path, err)
-	}
-	if info.IsDir() {
-		return fmt.Errorf("expected file but found directory: %s", path)
-	}
-	return nil
 }
 
 func EnsureCommandAvailable(name string) error {
@@ -79,9 +55,6 @@ func ensureExecutable(path string) error {
 var (
 	logPhaseStep    = shared.LogStep
 	logPhaseSuccess = shared.LogSuccess
-	logPhaseInfo    = shared.LogInfo
-	logPhaseWarn    = shared.LogWarn
-	logPhaseError   = shared.LogError
 )
 
 func runCommand(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
@@ -207,160 +180,6 @@ func OverrideCommandCapture(fn func(context.Context, string, io.Writer, string, 
 	return func() { phaseCommandCapture = prev }
 }
 
-func discoverScenarioCLIBinary(env workspace.Environment) (string, error) {
-	cliDir := filepath.Join(env.ScenarioDir, "cli")
-	info, err := os.Stat(cliDir)
-	if err != nil {
-		return "", fmt.Errorf("cli directory missing: %w", err)
-	}
-	if !info.IsDir() {
-		return "", fmt.Errorf("cli path is not a directory: %s", cliDir)
-	}
-
-	var candidates []string
-	name := strings.TrimSpace(env.ScenarioName)
-	if name != "" {
-		candidates = append(candidates,
-			filepath.Join(cliDir, name),
-			filepath.Join(cliDir, name+".sh"),
-			filepath.Join(cliDir, name+".exe"),
-		)
-	}
-	candidates = append(candidates,
-		filepath.Join(cliDir, "test-genie"),
-		filepath.Join(cliDir, "test-genie.exe"),
-	)
-	for _, candidate := range candidates {
-		if err := ensureExecutable(candidate); err == nil {
-			return candidate, nil
-		}
-	}
-
-	entries, err := os.ReadDir(cliDir)
-	if err != nil {
-		return "", fmt.Errorf("failed to list cli directory: %w", err)
-	}
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		path := filepath.Join(cliDir, entry.Name())
-		if err := ensureExecutable(path); err == nil {
-			return path, nil
-		}
-	}
-	return "", fmt.Errorf("no executable CLI binary found under %s", cliDir)
-}
-
-// fileExists checks if a file exists and is not a directory.
-func fileExists(path string) bool {
-	info, err := os.Stat(path)
-	return err == nil && !info.IsDir()
-}
-
-// hasNodeWorkspace checks if a Node.js workspace exists in the scenario.
-func hasNodeWorkspace(env workspace.Environment) bool {
-	candidates := []string{
-		filepath.Join(env.ScenarioDir, "package.json"),
-		filepath.Join(env.ScenarioDir, "ui", "package.json"),
-	}
-	for _, path := range candidates {
-		if fileExists(path) {
-			return true
-		}
-	}
-	return false
-}
-
-// Node.js helpers for performance phase
-
-func detectNodeWorkspaceDir(scenarioDir string) string {
-	candidates := []string{
-		filepath.Join(scenarioDir, "ui"),
-		scenarioDir,
-	}
-	for _, candidate := range candidates {
-		if fileExists(filepath.Join(candidate, "package.json")) {
-			return candidate
-		}
-	}
-	return ""
-}
-
-type packageManifest struct {
-	Scripts        map[string]string `json:"scripts"`
-	PackageManager string            `json:"packageManager"`
-}
-
-func loadPackageManifest(path string) (*packageManifest, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	var doc packageManifest
-	if err := json.Unmarshal(data, &doc); err != nil {
-		return nil, err
-	}
-	if doc.Scripts == nil {
-		doc.Scripts = make(map[string]string)
-	} else {
-		testScript := strings.TrimSpace(doc.Scripts["test"])
-		if testScript == "" || testScript == `echo "Error: no test specified" && exit 1` {
-			doc.Scripts["test"] = ""
-		} else {
-			doc.Scripts["test"] = testScript
-		}
-	}
-	return &doc, nil
-}
-
-func detectPackageManager(manifest *packageManifest, dir string) string {
-	if manifest != nil {
-		if mgr := parsePackageManager(manifest.PackageManager); mgr != "" {
-			return mgr
-		}
-	}
-	switch {
-	case fileExists(filepath.Join(dir, "pnpm-lock.yaml")):
-		return "pnpm"
-	case fileExists(filepath.Join(dir, "yarn.lock")):
-		return "yarn"
-	default:
-		return "npm"
-	}
-}
-
-func parsePackageManager(raw string) string {
-	if raw == "" {
-		return ""
-	}
-	lowered := strings.ToLower(raw)
-	switch {
-	case strings.HasPrefix(lowered, "pnpm"):
-		return "pnpm"
-	case strings.HasPrefix(lowered, "yarn"):
-		return "yarn"
-	case strings.HasPrefix(lowered, "npm"):
-		return "npm"
-	default:
-		return ""
-	}
-}
-
-func installNodeDependencies(ctx context.Context, dir, manager string, logWriter io.Writer) error {
-	switch manager {
-	case "pnpm":
-		return phaseCommandExecutor(ctx, dir, logWriter, "pnpm", "install", "--frozen-lockfile", "--ignore-scripts")
-	case "yarn":
-		return phaseCommandExecutor(ctx, dir, logWriter, "yarn", "install", "--frozen-lockfile")
-	default:
-		return phaseCommandExecutor(ctx, dir, logWriter, "npm", "install")
-	}
-}
-
 // Scenario interaction utilities - used by playbooks, smoke, and other runtime phases.
 
 // ResolveScenarioPort resolves a port for a scenario using vrooli CLI.
@@ -413,36 +232,4 @@ func StartScenario(ctx context.Context, scenarioName string, logWriter io.Writer
 func RestartScenario(ctx context.Context, scenarioName string, logWriter io.Writer) error {
 	shared.LogStep(logWriter, "restarting scenario %s", scenarioName)
 	return phaseCommandExecutor(ctx, "", logWriter, "vrooli", "scenario", "restart", scenarioName, "--clean-stale")
-}
-
-func findPrimaryBatsSuite(cliDir, scenarioName string) (string, error) {
-	preferred := []string{}
-	name := strings.TrimSpace(scenarioName)
-	if name != "" {
-		preferred = append(preferred,
-			filepath.Join(cliDir, name+".bats"),
-			filepath.Join(cliDir, name+"-cli.bats"),
-		)
-	}
-	preferred = append(preferred,
-		filepath.Join(cliDir, "test-genie.bats"),
-	)
-
-	for _, candidate := range preferred {
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate, nil
-		}
-	}
-
-	entries, err := os.ReadDir(cliDir)
-	if err != nil {
-		return "", fmt.Errorf("failed to scan cli directory: %w", err)
-	}
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".bats") {
-			continue
-		}
-		return filepath.Join(cliDir, entry.Name()), nil
-	}
-	return "", fmt.Errorf("no .bats suites found under %s", cliDir)
 }

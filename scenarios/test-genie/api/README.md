@@ -6,7 +6,7 @@ Go-based REST API that orchestrates test suite execution across Vrooli scenarios
 
 ```mermaid
 flowchart TB
-    subgraph Entry["cmd/test-genie-api"]
+    subgraph Entry["api/"]
         main["main.go"]
     end
 
@@ -114,8 +114,7 @@ flowchart TB
 
 ```
 api/
-├── cmd/test-genie-api/
-│   └── main.go                 # Entry point (lifecycle-managed)
+├── main.go                     # Entry point (lifecycle-managed)
 │
 ├── internal/
 │   ├── app/
@@ -212,7 +211,7 @@ vrooli scenario start test-genie
 vrooli scenario stop test-genie
 ```
 
-Direct execution (`go run ./cmd/test-genie-api`) is blocked—the binary validates `VROOLI_LIFECYCLE_MANAGED=true`.
+Direct execution (`go run .`) is blocked—the binary validates `VROOLI_LIFECYCLE_MANAGED=true`.
 
 ### Required Environment Variables
 

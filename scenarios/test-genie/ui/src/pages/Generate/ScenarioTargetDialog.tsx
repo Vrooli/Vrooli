@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { selectors } from "../../consts/selectors";
-import { ScenarioDirectoryEntry } from "../../hooks/useScenarios";
+import type { ScenarioDirectoryEntry } from "../../hooks/useScenarios";
 import { fetchScenarioFiles, type ScenarioFileNode, fetchScenarioCoverage } from "../../lib/api";
 import { PHASES_FOR_GENERATION } from "../../lib/constants";
 import { cn } from "../../lib/utils";
@@ -87,7 +87,7 @@ function FileBrowser({ scenarioName, selectedPaths, onSelectPath, onRemovePath }
     enabled: Boolean(scenarioName),
     staleTime: 10_000
   });
-  const nodes = fileResult?.items ?? [];
+  const nodes = useMemo(() => fileResult?.items ?? [], [fileResult?.items]);
   const hiddenCount = fileResult?.hiddenCount ?? 0;
   const displayNodes: DisplayNode[] = useMemo(() => {
     if (!nodes || nodes.length === 0) return [];
@@ -157,7 +157,7 @@ function FileBrowser({ scenarioName, selectedPaths, onSelectPath, onRemovePath }
   }, [displayNodes, showLowCoverageOnly, showUntestedOnly]);
 
   const coverageEntries = useMemo(() => {
-    const entries = (displayNodes ?? [])
+    const entries = displayNodes
       .filter((node) => !node.isDir)
       .map((node) => {
         const pct = typeof node.coveragePct === "number" ? node.coveragePct : null;
@@ -941,7 +941,7 @@ export function ScenarioTargetDialog({
                           </span>
                         </div>
                         <p className="mt-2 text-xs text-slate-400">
-                          {phase.key === "unit" ? "Unit tests for individual functions and modules" : "End-to-end browser automation workflows"}
+                          {phase.description}
                         </p>
                       </button>
                     );

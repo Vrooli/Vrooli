@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Copy, Check, Sparkles } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { selectors } from "../../consts/selectors";
@@ -21,17 +21,40 @@ export function ActionButtons({
   onSpawnAll
 }: ActionButtonsProps) {
   const [copied, setCopied] = useState<"one" | "all" | null>(null);
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleCopy = async () => {
-    if (!prompt || disabled) return;
+  useEffect(() => {
+    return () => {
+      if (resetTimerRef.current !== null) {
+        clearTimeout(resetTimerRef.current);
+      }
+    };
+  }, []);
+
+  const showCopiedState = (next: "one" | "all") => {
+    if (resetTimerRef.current !== null) {
+      clearTimeout(resetTimerRef.current);
+    }
+    setCopied(next);
+    resetTimerRef.current = setTimeout(() => {
+      setCopied(null);
+      resetTimerRef.current = null;
+    }, 2000);
+  };
+
+  const copyText = async (text: string, next: "one" | "all") => {
+    if (!text || disabled) return;
 
     try {
-      await navigator.clipboard.writeText(prompt);
-      setCopied("one");
-      setTimeout(() => setCopied(null), 2000);
+      await navigator.clipboard.writeText(text);
+      showCopiedState(next);
     } catch (err) {
       console.error("Failed to copy:", err);
     }
+  };
+
+  const handleCopy = async () => {
+    await copyText(prompt, "one");
   };
 
   const handleCopyAll = async () => {
@@ -40,13 +63,7 @@ export function ActionButtons({
       .map((p, idx) => `# Prompt ${idx + 1}\n\n${p}`)
       .join("\n\n---\n\n");
 
-    try {
-      await navigator.clipboard.writeText(serialized);
-      setCopied("all");
-      setTimeout(() => setCopied(null), 2000);
-    } catch (err) {
-      console.error("Failed to copy:", err);
-    }
+    await copyText(serialized, "all");
   };
 
   return (

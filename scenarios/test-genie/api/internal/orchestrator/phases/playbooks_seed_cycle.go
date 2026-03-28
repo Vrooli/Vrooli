@@ -188,7 +188,7 @@ func detectResourceNeeds(env workspace.Environment, logWriter io.Writer) (requir
 		return true, true
 	}
 
-	if manifest.Dependencies.Resources == nil || len(manifest.Dependencies.Resources) == 0 {
+	if len(manifest.Dependencies.Resources) == 0 {
 		return true, true
 	}
 

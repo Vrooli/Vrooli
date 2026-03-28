@@ -30,11 +30,14 @@ export function MessagePopover({
     if (!isOpen) return;
 
     const handleClickOutside = (event: MouseEvent) => {
+      if (!(event.target instanceof Node)) {
+        return;
+      }
       if (
         popoverRef.current &&
-        !popoverRef.current.contains(event.target as Node) &&
+        !popoverRef.current.contains(event.target) &&
         buttonRef.current &&
-        !buttonRef.current.contains(event.target as Node)
+        !buttonRef.current.contains(event.target)
       ) {
         setIsOpen(false);
       }

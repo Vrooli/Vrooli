@@ -77,7 +77,7 @@ clean: ## Clean build artifacts
 build: ## Build compiled assets when needed
 	@echo "$(BLUE)🏗️  Building $(SCENARIO_NAME)...$(RESET)"
 	@if [ -d api ] && [ -f api/go.mod ]; then \
-		cd api && go build -o test-genie-api ./cmd/test-genie-api/; \
+		cd api && go build -o test-genie-api .; \
 	fi
 	@if [ -d cli ] && [ -f cli/go.mod ]; then \
 		cd cli && go build -o test-genie .; \

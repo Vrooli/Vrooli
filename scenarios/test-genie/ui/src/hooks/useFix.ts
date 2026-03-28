@@ -100,7 +100,12 @@ export function useFix(scenarioName: string) {
 export function useFixDetails(scenarioName: string, fixId: string | null) {
   return useQuery<FixRecord>({
     queryKey: ["fix", scenarioName, fixId],
-    queryFn: () => fetchFix(scenarioName, fixId!),
+    queryFn: () => {
+      if (!fixId) {
+        throw new Error("fixId is required");
+      }
+      return fetchFix(scenarioName, fixId);
+    },
     enabled: !!scenarioName && !!fixId,
     refetchInterval: (query) => {
       const data = query.state.data;

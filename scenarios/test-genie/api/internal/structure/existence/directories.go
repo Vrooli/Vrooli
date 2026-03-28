@@ -51,24 +51,6 @@ func logError(w io.Writer, format string, args ...interface{}) {
 	fmt.Fprintf(w, "[ERROR] ❌ %s\n", msg)
 }
 
-// logSuccess writes a success message.
-func logSuccess(w io.Writer, format string, args ...interface{}) {
-	if w == nil {
-		return
-	}
-	msg := fmt.Sprintf(format, args...)
-	fmt.Fprintf(w, "[SUCCESS] ✅ %s\n", msg)
-}
-
-// logInfo writes an info message.
-func logInfo(w io.Writer, format string, args ...interface{}) {
-	if w == nil {
-		return
-	}
-	msg := fmt.Sprintf(format, args...)
-	fmt.Fprintf(w, "🔍 %s\n", msg)
-}
-
 // logWarn writes a warning message.
 func logWarn(w io.Writer, format string, args ...interface{}) {
 	if w == nil {

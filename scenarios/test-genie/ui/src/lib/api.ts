@@ -1,9 +1,18 @@
 import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
 
 // All scenario APIs hang off /api/v1.
-const API_BASE = resolveApiBase({ appendSuffix: true });
+export const API_BASE = resolveApiBase({ appendSuffix: true });
 
-async function parseResponse<T>(res: Response): Promise<T> {
+export function buildTestGenieApiUrl(path: string): string {
+  return buildApiUrl(path, { baseUrl: API_BASE });
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function parseResponse<T>(res: Response): Promise<T>;
+async function parseResponse(res: Response): Promise<unknown> {
   let payload: unknown;
   try {
     payload = await res.json();
@@ -13,13 +22,13 @@ async function parseResponse<T>(res: Response): Promise<T> {
 
   if (!res.ok) {
     const message =
-      payload && typeof payload === "object" && payload !== null && "error" in payload
-        ? String((payload as Record<string, unknown>).error)
+      isRecord(payload) && typeof payload.error === "string"
+        ? payload.error
         : `Request failed with status ${res.status}`;
     throw new Error(message);
   }
 
-  return payload as T;
+  return payload;
 }
 
 export interface QueueSnapshot {
@@ -160,7 +169,7 @@ export interface ScenarioSummary {
 }
 
 export async function fetchHealth(): Promise<ApiHealthResponse> {
-  const url = buildApiUrl("/health", { baseUrl: API_BASE });
+  const url = buildTestGenieApiUrl("/health");
   const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
     cache: "no-store"
@@ -169,7 +178,7 @@ export async function fetchHealth(): Promise<ApiHealthResponse> {
 }
 
 export async function fetchSuiteRequests(): Promise<SuiteRequest[]> {
-  const url = buildApiUrl("/suite-requests", { baseUrl: API_BASE });
+  const url = buildTestGenieApiUrl("/suite-requests");
   const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
     cache: "no-store"
@@ -194,7 +203,7 @@ export async function fetchExecutionHistory(params?: {
     query.set("offset", String(params.offset));
   }
   const queryString = query.toString();
-  const baseUrl = buildApiUrl("/executions", { baseUrl: API_BASE });
+  const baseUrl = buildTestGenieApiUrl("/executions");
   const url = queryString ? `${baseUrl}?${queryString}` : baseUrl;
 
   const res = await fetch(url, {
@@ -206,7 +215,7 @@ export async function fetchExecutionHistory(params?: {
 }
 
 export async function queueSuiteRequest(input: QueueSuiteRequestInput): Promise<SuiteRequest> {
-  const url = buildApiUrl("/suite-requests", { baseUrl: API_BASE });
+  const url = buildTestGenieApiUrl("/suite-requests");
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -216,7 +225,7 @@ export async function queueSuiteRequest(input: QueueSuiteRequestInput): Promise<
 }
 
 export async function triggerSuiteExecution(input: ExecuteSuiteInput): Promise<SuiteExecutionResult> {
-  const url = buildApiUrl("/executions", { baseUrl: API_BASE });
+  const url = buildTestGenieApiUrl("/executions");
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -226,7 +235,7 @@ export async function triggerSuiteExecution(input: ExecuteSuiteInput): Promise<S
 }
 
 export async function fetchPhaseSettings(): Promise<PhaseSettingsResponse> {
-  const url = buildApiUrl("/phases/settings", { baseUrl: API_BASE });
+  const url = buildTestGenieApiUrl("/phases/settings");
   const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
     cache: "no-store"
@@ -235,7 +244,7 @@ export async function fetchPhaseSettings(): Promise<PhaseSettingsResponse> {
 }
 
 export async function updatePhaseSettings(phases: Record<string, PhaseToggle>): Promise<PhaseSettingsResponse> {
-  const url = buildApiUrl("/phases/settings", { baseUrl: API_BASE });
+  const url = buildTestGenieApiUrl("/phases/settings");
   const res = await fetch(url, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -704,6 +713,73 @@ export interface AgentStructuredOutput {
   nextSteps: string[];
 }
 
+function isStructuredOutputRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isStructuredStatus(value: unknown): value is AgentStructuredOutput["status"] {
+  return value === "success" || value === "partial" || value === "failed";
+}
+
+function isFilesChanged(value: unknown): value is AgentStructuredOutput["filesChanged"] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (item) =>
+        isStructuredOutputRecord(item) &&
+        typeof item.path === "string" &&
+        (item.action === "created" || item.action === "modified" || item.action === "deleted") &&
+        typeof item.rationale === "string"
+    )
+  );
+}
+
+function isTestsAdded(value: unknown): value is AgentStructuredOutput["testsAdded"] {
+  if (!isStructuredOutputRecord(value) || typeof value.count !== "number" || !isStructuredOutputRecord(value.byPhase)) {
+    return false;
+  }
+
+  return Object.values(value.byPhase).every((count) => typeof count === "number");
+}
+
+function isCommandsRun(value: unknown): value is AgentStructuredOutput["commandsRun"] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (item) =>
+        isStructuredOutputRecord(item) &&
+        typeof item.command === "string" &&
+        (item.result === "passed" || item.result === "failed") &&
+        (item.output === undefined || typeof item.output === "string")
+    )
+  );
+}
+
+function isCoverageImpact(value: unknown): value is NonNullable<AgentStructuredOutput["coverageImpact"]> {
+  return (
+    isStructuredOutputRecord(value) &&
+    typeof value.before === "number" &&
+    typeof value.after === "number" &&
+    typeof value.delta === "number"
+  );
+}
+
+function isBlockers(value: unknown): value is AgentStructuredOutput["blockers"] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (item) =>
+        isStructuredOutputRecord(item) &&
+        (item.type === "missing_dependency" ||
+          item.type === "unclear_requirement" ||
+          item.type === "test_failure" ||
+          item.type === "other") &&
+        typeof item.description === "string" &&
+        (item.suggestedResolution === undefined || typeof item.suggestedResolution === "string")
+    )
+  );
+}
+
 /**
  * Attempt to parse structured JSON output from agent response.
  * Looks for a ```json code block and extracts the JSON.
@@ -721,28 +797,49 @@ export function parseAgentStructuredOutput(output: string): AgentStructuredOutpu
   }
 
   try {
-    const parsed = JSON.parse(match[1].trim());
-
-    // Validate required fields exist
-    if (
-      typeof parsed.status !== "string" ||
-      typeof parsed.summary !== "string" ||
-      !Array.isArray(parsed.filesChanged)
-    ) {
+    const parsed: unknown = JSON.parse(match[1].trim());
+    if (!isStructuredOutputRecord(parsed)) {
       return null;
     }
 
-    // Return with defaults for optional fields
+    const status = parsed.status;
+    const summary = parsed.summary;
+    const filesChanged = parsed.filesChanged;
+
+    if (!isStructuredStatus(status) || typeof summary !== "string" || !isFilesChanged(filesChanged)) {
+      return null;
+    }
+
+    const testsAddedValue = parsed.testsAdded;
+    const testsAdded = isTestsAdded(testsAddedValue) ? testsAddedValue : { count: 0, byPhase: {} };
+
+    const commandsRunValue = parsed.commandsRun;
+    const commandsRun = isCommandsRun(commandsRunValue) ? commandsRunValue : [];
+
+    const coverageImpactValue = parsed.coverageImpact;
+    const coverageImpact = isCoverageImpact(coverageImpactValue) ? coverageImpactValue : undefined;
+
+    const blockersValue = parsed.blockers;
+    const blockers = isBlockers(blockersValue) ? blockersValue : [];
+
+    const assumptions = Array.isArray(parsed.assumptions)
+      ? parsed.assumptions.filter((item): item is string => typeof item === "string")
+      : [];
+
+    const nextSteps = Array.isArray(parsed.nextSteps)
+      ? parsed.nextSteps.filter((item): item is string => typeof item === "string")
+      : [];
+
     return {
-      status: parsed.status,
-      summary: parsed.summary,
-      filesChanged: parsed.filesChanged || [],
-      testsAdded: parsed.testsAdded || { count: 0, byPhase: {} },
-      commandsRun: parsed.commandsRun || [],
-      coverageImpact: parsed.coverageImpact,
-      blockers: parsed.blockers || [],
-      assumptions: parsed.assumptions || [],
-      nextSteps: parsed.nextSteps || [],
+      status,
+      summary,
+      filesChanged,
+      testsAdded,
+      commandsRun,
+      coverageImpact,
+      blockers,
+      assumptions,
+      nextSteps,
     };
   } catch {
     // JSON parsing failed

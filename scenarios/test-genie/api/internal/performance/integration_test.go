@@ -113,8 +113,8 @@ func TestIntegration_InvalidGoCode(t *testing.T) {
 	if result.FailureClass != FailureClassSystem {
 		t.Errorf("expected system failure class, got %s", result.FailureClass)
 	}
-	if !result.Summary.GoBuildPassed {
-		// Expected - build failed
+	if result.Summary.GoBuildPassed {
+		t.Error("expected GoBuildPassed to remain false when build fails")
 	}
 }
 

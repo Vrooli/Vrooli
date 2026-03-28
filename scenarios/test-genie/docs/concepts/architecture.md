@@ -40,6 +40,7 @@ flowchart TB
 | `internal/playbooks` | BAS registry loading, execution, seeding, isolation | Owns BAS-specific contracts and artifacting |
 | `internal/scenarios` | Scenario summaries and local test-run adapters | Bridges scenario metadata into API/CLI surfaces |
 | `internal/requirements` | Requirement parsing, reporting, sync, evidence | Independent of any single phase |
+| `internal/app/httpserver` requirements handlers | Requirement view projection | Loads cached requirement snapshots, enriches them from source modules, and attaches sync metadata |
 | `cli/*` | User-facing commands by domain capability | Shared internals stay under `cli/internal/*` |
 
 ## Current High-Value Boundaries
@@ -52,6 +53,10 @@ The queue package decides what counts as active work. Transport surfaces only re
 
 `internal/execution` owns persistence and queue transitions. `internal/orchestrator` owns running phases. Keeping those responsibilities separate makes it possible to stream, persist, or replay orchestration outcomes without coupling them to HTTP handlers.
 
+### Execution bootstrap vs phase execution
+
+`SuiteOrchestrator.Execute*` now shares one bootstrap/finalization path before branching into streaming vs non-streaming execution. Runtime URL detection, testing-config loading, plan creation, artifact directories, and completion bookkeeping happen once so the two execution surfaces cannot drift on setup or result-shaping policy.
+
 ### Playbooks registry vs playbooks phase
 
 The registry builder and loader normalize BAS metadata into a stable manifest. The playbooks phase consumes that manifest and should not guess from raw workflow JSON at execution time. Recent observer-mode fixes rely on that boundary.
@@ -63,6 +68,10 @@ CLI command packages own command UX. Shared response-decoding behavior lives in 
 ### Scenario summaries vs raw queue rows
 
 Scenario catalog summaries intentionally project queue and execution history into operator-facing telemetry. They should reuse the same queue staleness policy as queue health so one scenario does not look "pending" in one view and idle in another.
+
+### Requirements snapshots vs requirement sources
+
+The requirements HTTP surface treats cached `coverage/requirements-sync/latest.json` files as summary data, not as the only source of truth. Module requirements are reloaded from `requirements/` so the UI receives current per-requirement detail while keeping cached summary counts and sync metadata.
 
 ## CLI Shape
 

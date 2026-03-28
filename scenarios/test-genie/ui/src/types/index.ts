@@ -1,4 +1,5 @@
 // Shared TypeScript types for Test Genie UI
+import type { SuiteExecutionResult, SuiteRequest } from "../lib/api";
 
 export type DashboardTabKey = "dashboard" | "runs" | "generate" | "docs";
 export type RunsSubtabKey = "scenarios" | "history";
@@ -39,6 +40,7 @@ export interface PresetDetail {
 export interface PhaseForGeneration {
   key: string;
   label: string;
+  description: string;
   docsPath: string;
 }
 
@@ -62,10 +64,10 @@ export interface SignalNavItem {
 export interface FocusQueueStats {
   actionableCount: number;
   totalCount: number;
-  mostRecentRequest: import("../lib/api").SuiteRequest | null;
-  recentExecution: import("../lib/api").SuiteExecutionResult | null;
-  failedExecution: import("../lib/api").SuiteExecutionResult | null;
-  nextRequest: import("../lib/api").SuiteRequest | null;
+  mostRecentRequest: SuiteRequest | null;
+  recentExecution: SuiteExecutionResult | null;
+  failedExecution: SuiteExecutionResult | null;
+  nextRequest: SuiteRequest | null;
 }
 
 export interface CatalogStats {

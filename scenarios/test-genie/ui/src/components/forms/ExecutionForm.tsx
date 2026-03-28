@@ -1,11 +1,11 @@
-import { FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRight } from "lucide-react";
 import { Button } from "../ui/button";
 import { InfoTip } from "../cards/InfoTip";
 import { selectors } from "../../consts/selectors";
 import { useUIStore } from "../../stores/uiStore";
-import { EXECUTION_PRESETS, PRESET_DETAILS, PHASE_LABELS } from "../../lib/constants";
+import { PRESET_DETAILS, PHASE_LABELS } from "../../lib/constants";
 import { useExecutionStream } from "../../hooks/useExecutionStream";
 import { cn } from "../../lib/utils";
 
@@ -16,7 +16,7 @@ interface ExecutionFormProps {
   onSuccess?: () => void;
 }
 
-export function ExecutionForm({ scenarioOptions, datalistId, scenarioName, onSuccess }: ExecutionFormProps) {
+export function ExecutionForm({ scenarioOptions: _scenarioOptions, datalistId, scenarioName, onSuccess }: ExecutionFormProps) {
   const queryClient = useQueryClient();
   const {
     executionForm,
@@ -70,9 +70,7 @@ export function ExecutionForm({ scenarioOptions, datalistId, scenarioName, onSuc
     });
   };
 
-  const presetEntries = Object.entries(PRESET_DETAILS) as Array<
-    [string, (typeof PRESET_DETAILS)[keyof typeof PRESET_DETAILS]]
-  >;
+  const presetEntries = Object.entries(PRESET_DETAILS);
 
   const logTitle = useMemo(() => {
     if (streamStatus === "streaming") return "Live output";

@@ -462,17 +462,6 @@ func boolToString(v bool) string {
 	return "0"
 }
 
-func parsePortFromRedisURL(raw string) string {
-	u, err := url.Parse(raw)
-	if err != nil {
-		return "6379"
-	}
-	if port := u.Port(); port != "" {
-		return port
-	}
-	return "6379"
-}
-
 func parseRedisHostPort(raw string) (string, string) {
 	u, err := url.Parse(raw)
 	if err != nil {

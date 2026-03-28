@@ -47,6 +47,7 @@ export interface PresetDetail {
 export interface PhaseForGeneration {
   key: string;
   label: string;
+  description: string;
   docsPath: string;
 }
 

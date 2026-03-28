@@ -54,12 +54,6 @@ type ProgressEvent struct {
 	Message string  `json:"message,omitempty"`
 }
 
-// streamingExecutor wraps the execution service to emit SSE events
-type streamingExecutor struct {
-	svc         suiteExecutor
-	eventWriter func(SSEEvent) error
-}
-
 func (s *Server) handleExecuteSuiteStream(w http.ResponseWriter, r *http.Request) {
 	// Set SSE headers
 	w.Header().Set("Content-Type", "text/event-stream")

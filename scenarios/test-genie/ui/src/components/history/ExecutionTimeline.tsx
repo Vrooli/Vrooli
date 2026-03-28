@@ -74,14 +74,14 @@ export function ExecutionTimeline({
   }
 
   // Group executions by date
-  const groupedExecutions = executions.reduce((acc, execution) => {
+  const groupedExecutions = executions.reduce<Record<string, SuiteExecutionResult[]>>((acc, execution) => {
     const date = new Date(execution.completedAt).toLocaleDateString();
     if (!acc[date]) {
       acc[date] = [];
     }
     acc[date].push(execution);
     return acc;
-  }, {} as Record<string, SuiteExecutionResult[]>);
+  }, {});
 
   const toggleExpanded = (executionId: string | undefined) => {
     if (!executionId) return;

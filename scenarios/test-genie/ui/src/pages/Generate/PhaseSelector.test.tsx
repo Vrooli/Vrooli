@@ -1,23 +1,23 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { PhaseSelector } from "./PhaseSelector";
+import { PHASES_FOR_GENERATION } from "../../lib/constants";
 
 describe("PhaseSelector", () => {
   it("renders all phase options", () => {
     const onTogglePhase = vi.fn();
     render(<PhaseSelector selectedPhases={[]} onTogglePhase={onTogglePhase} />);
 
-    expect(screen.getByText("Unit Tests")).toBeInTheDocument();
-    expect(screen.getByText("Integration Tests")).toBeInTheDocument();
-    expect(screen.getByText("E2E Playbooks")).toBeInTheDocument();
-    expect(screen.getByText("Business Validation")).toBeInTheDocument();
+    for (const phase of PHASES_FOR_GENERATION) {
+      expect(screen.getByText(phase.label)).toBeInTheDocument();
+    }
   });
 
   it("shows selected styling for selected phases", () => {
     const onTogglePhase = vi.fn();
     render(
       <PhaseSelector
-        selectedPhases={["unit", "integration"]}
+        selectedPhases={["unit", "playbooks"]}
         onTogglePhase={onTogglePhase}
       />
     );
@@ -26,8 +26,8 @@ describe("PhaseSelector", () => {
     expect(unitButton).toHaveClass("border-cyan-400");
     expect(unitButton).toHaveClass("bg-cyan-400/10");
 
-    const integrationButton = screen.getByText("Integration Tests").closest("button");
-    expect(integrationButton).toHaveClass("border-cyan-400");
+    const playbooksButton = screen.getByText("E2E Playbooks").closest("button");
+    expect(playbooksButton).toHaveClass("border-cyan-400");
   });
 
   it("shows unselected styling for non-selected phases", () => {
@@ -93,8 +93,9 @@ describe("PhaseSelector", () => {
     const onTogglePhase = vi.fn();
     render(<PhaseSelector selectedPhases={[]} onTogglePhase={onTogglePhase} />);
 
-    expect(screen.getByText(/Generate unit tests for individual functions/)).toBeInTheDocument();
-    expect(screen.getByText(/Generate integration tests for component interactions/)).toBeInTheDocument();
+    for (const phase of PHASES_FOR_GENERATION) {
+      expect(screen.getByText(phase.description)).toBeInTheDocument();
+    }
   });
 
   it("renders header content", () => {
@@ -102,7 +103,7 @@ describe("PhaseSelector", () => {
     render(<PhaseSelector selectedPhases={[]} onTogglePhase={onTogglePhase} />);
 
     expect(screen.getByText("Test phases")).toBeInTheDocument();
-    expect(screen.getByText("Select phases to generate")).toBeInTheDocument();
+    expect(screen.getByText("Select phases")).toBeInTheDocument();
   });
 
   it("locks phases to unit when lockToUnit is true", () => {
@@ -115,12 +116,26 @@ describe("PhaseSelector", () => {
       />
     );
 
-    const integrationButton = screen.getByText("Integration Tests").closest("button");
-    expect(integrationButton).toBeDisabled();
-    fireEvent.click(integrationButton!);
+    const playbooksButton = screen.getByText("E2E Playbooks").closest("button");
+    expect(playbooksButton).toBeDisabled();
+    fireEvent.click(playbooksButton!);
     expect(onTogglePhase).not.toHaveBeenCalled();
 
     const unitButton = screen.getByText("Unit Tests").closest("button");
     expect(unitButton).not.toBeDisabled();
+  });
+
+  it("uses task-specific copy when a generation task is selected", () => {
+    const onTogglePhase = vi.fn();
+    render(
+      <PhaseSelector
+        selectedPhases={[]}
+        onTogglePhase={onTogglePhase}
+        task="coverage"
+      />
+    );
+
+    expect(screen.getByText("Add unit test coverage")).toBeInTheDocument();
+    expect(screen.getByText("Add E2E playbook coverage")).toBeInTheDocument();
   });
 });

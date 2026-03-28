@@ -32,10 +32,6 @@ var (
 		// Reject unknown fields to catch contract drift with BAS responses.
 		DiscardUnknown: false,
 	}
-	protoJSONMarshal = protojson.MarshalOptions{
-		UseProtoNames:   true, // Use snake_case field names to match BAS expectations
-		EmitUnpopulated: true, // Emit empty arrays (e.g., edges:[]) required by BAS schema
-	}
 )
 
 // ProgressCallback is called periodically during workflow execution with status updates.

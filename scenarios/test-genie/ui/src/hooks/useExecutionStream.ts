@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { type ExecuteSuiteInput, type SuiteExecutionResult } from "../lib/api";
-import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
+import { buildTestGenieApiUrl, type ExecuteSuiteInput, type SuiteExecutionResult } from "../lib/api";
 
 type StreamStatus = "idle" | "streaming" | "completed" | "error";
 
@@ -17,7 +16,24 @@ interface UseExecutionStreamOptions {
   onComplete?: (result: SuiteExecutionResult) => void;
 }
 
-const API_BASE = resolveApiBase({ appendSuffix: true });
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isPhaseExecutionResultArray(value: unknown): value is SuiteExecutionResult["phases"] {
+  return Array.isArray(value);
+}
+
+function isPhaseSummary(value: unknown): value is SuiteExecutionResult["phaseSummary"] {
+  return (
+    isRecord(value) &&
+    typeof value.total === "number" &&
+    typeof value.passed === "number" &&
+    typeof value.failed === "number" &&
+    typeof value.durationSeconds === "number" &&
+    typeof value.observationCount === "number"
+  );
+}
 
 function parseSSEEvent(raw: string): { event: string; data: unknown } | null {
   const lines = raw.split("\n");
@@ -87,7 +103,7 @@ export function useExecutionStream(options?: UseExecutionStreamOptions) {
       setResult(null);
       setError(null);
 
-      const url = buildApiUrl("/executions/stream", { baseUrl: API_BASE });
+      const url = buildTestGenieApiUrl("/executions/stream");
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -112,9 +128,9 @@ export function useExecutionStream(options?: UseExecutionStreamOptions) {
           scenarioName: input.scenarioName,
           success: Boolean(data.success),
           preset: typeof data.presetUsed === "string" ? data.presetUsed : input.preset,
-          phases: (data.phases as SuiteExecutionResult["phases"]) ?? [],
+          phases: isPhaseExecutionResultArray(data.phases) ? data.phases : [],
           phaseSummary:
-            (data.phaseSummary as SuiteExecutionResult["phaseSummary"]) ?? {
+            isPhaseSummary(data.phaseSummary) ? data.phaseSummary : {
               total: 0,
               passed: 0,
               failed: 0,
@@ -202,8 +218,8 @@ export function useExecutionStream(options?: UseExecutionStreamOptions) {
             const rawEvent = buffer.slice(0, delimiterIndex);
             buffer = buffer.slice(delimiterIndex + 2);
             const parsed = parseSSEEvent(rawEvent);
-            if (parsed && typeof parsed.data === "object" && parsed.data !== null) {
-              processEvent(parsed.event, parsed.data as Record<string, unknown>);
+            if (parsed && isRecord(parsed.data)) {
+              processEvent(parsed.event, parsed.data);
             }
           }
         }
@@ -214,7 +230,7 @@ export function useExecutionStream(options?: UseExecutionStreamOptions) {
           appendLog({ level: "error", message });
         }
       } catch (err) {
-        if ((err as Error).name === "AbortError") {
+        if (err instanceof Error && err.name === "AbortError") {
           return;
         }
         const message = err instanceof Error ? err.message : "Stream terminated unexpectedly";

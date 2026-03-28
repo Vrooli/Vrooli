@@ -51,8 +51,10 @@ interface DynamicSelectorDefinition<P extends ParamSchema | undefined = undefine
   readonly selectorPattern?: string;
 }
 
+type AnyDynamicSelectorDefinition = DynamicSelectorDefinition<ParamSchema | undefined>;
+
 type DynamicSelectorBranch = {
-  readonly [key: string]: DynamicSelectorBranch | DynamicSelectorDefinition<any>;
+  readonly [key: string]: DynamicSelectorBranch | AnyDynamicSelectorDefinition;
 };
 
 type DynamicSelectorTree = DynamicSelectorBranch;
@@ -84,24 +86,34 @@ type SelectorTreeResult<
 const TEMPLATE_TOKEN = /\$\{([^}]+)\}/g;
 
 const formatTemplate = (template: string, values: Record<string, string | number>, keyPath: string) =>
-  template.replace(TEMPLATE_TOKEN, (_match, token) => {
-    if (!(token in values)) {
+  template.replace(TEMPLATE_TOKEN, (_match: string, token: string) => {
+    const resolved = values[token];
+    if (resolved === undefined) {
       throw new Error(`Missing parameter '${token}' for selector '${keyPath}'`);
     }
-    return String(values[token]);
+    return String(resolved);
   });
 
 const toDataTestIdSelector = (testId: string) => `[data-testid="${testId}"]`;
 
-const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<any> =>
-  Boolean(value && typeof value === "object" && (value as DynamicSelectorDefinition).kind === "dynamic-selector");
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const isLiteralSelectorTree = (value: unknown): value is LiteralSelectorTree =>
+  isRecord(value) && Object.values(value).every((entry) => typeof entry === "string" || isLiteralSelectorTree(entry));
+
+const isDynamicDefinition = (value: unknown): value is AnyDynamicSelectorDefinition =>
+  isRecord(value) && value.kind === "dynamic-selector";
+
+const isDynamicSelectorTree = (value: unknown): value is DynamicSelectorTree =>
+  isRecord(value) && Object.values(value).every((entry) => isDynamicDefinition(entry) || isDynamicSelectorTree(entry));
 
 const normalizeParams = (
-  definition: DynamicSelectorDefinition<any>,
+  definition: AnyDynamicSelectorDefinition,
   raw: Record<string, string | number>,
   path: string,
 ) => {
-  const schema = definition.params ?? ({} as ParamSchema);
+  const schema: ParamSchema = definition.params ?? {};
   const normalized: Record<string, string | number> = {};
 
   for (const key of Object.keys(schema)) {
@@ -109,7 +121,13 @@ const normalizeParams = (
       throw new Error(`Selector '${path}' is missing parameter '${key}'`);
     }
     const definitionEntry = schema[key];
+    if (!definitionEntry) {
+      continue;
+    }
     const value = raw[key];
+    if (value === undefined) {
+      throw new Error(`Selector '${path}' parameter '${key}' resolved to undefined`);
+    }
     if (definitionEntry.type === "number") {
       if (typeof value !== "number") {
         throw new Error(`Selector '${path}' parameter '${key}' must be numeric`);
@@ -171,7 +189,7 @@ const flattenDynamicSelectors = (
     const nextPath = [...prefix, key];
     if (isDynamicDefinition(value)) {
       const manifestKey = nextPath.join(".");
-      const paramEntries = Object.entries(value.params ?? {}) as Array<[string, ParamDefinition]>;
+      const paramEntries = Object.entries(value.params ?? {});
       target[manifestKey] = {
         description: value.description,
         selectorPattern:
@@ -190,11 +208,24 @@ const flattenDynamicSelectors = (
   return target;
 };
 
-const mergeLiteralAndDynamicNodes = (
+function mergeLiteralAndDynamicNodes<
+  L extends LiteralSelectorTree,
+  D extends DynamicSelectorTree,
+>(
+  literalNode: L,
+  dynamicNode: D,
+  path?: string[],
+): SelectorTreeResult<L, D>;
+function mergeLiteralAndDynamicNodes(
+  literalNode: LiteralSelectorTree | undefined,
+  dynamicNode: DynamicSelectorTree | undefined,
+  path?: string[],
+): Record<string, unknown>;
+function mergeLiteralAndDynamicNodes(
   literalNode: LiteralSelectorTree | undefined,
   dynamicNode: DynamicSelectorTree | undefined,
   path: string[] = [],
-): Record<string, unknown> => {
+): Record<string, unknown> {
   const merged: Record<string, unknown> = {};
   const keys = new Set([
     ...Object.keys(literalNode ?? {}),
@@ -211,10 +242,11 @@ const mergeLiteralAndDynamicNodes = (
       return;
     }
 
-    if (literalValue && typeof literalValue === "object") {
+    if (isLiteralSelectorTree(literalValue)) {
+      const dynamicBranch = isDynamicSelectorTree(dynamicValue) ? dynamicValue : undefined;
       merged[key] = mergeLiteralAndDynamicNodes(
-        literalValue as LiteralSelectorTree,
-        isDynamicDefinition(dynamicValue) ? undefined : (dynamicValue as DynamicSelectorTree | undefined),
+        literalValue,
+        isDynamicDefinition(dynamicValue) ? undefined : dynamicBranch,
         nextPath,
       );
       return;
@@ -225,15 +257,17 @@ const mergeLiteralAndDynamicNodes = (
         merged[key] = createDynamicSelectorFn(dynamicValue, nextPath.join("."));
         return;
       }
-      merged[key] = mergeLiteralAndDynamicNodes(undefined, dynamicValue as DynamicSelectorTree, nextPath);
+      if (isDynamicSelectorTree(dynamicValue)) {
+        merged[key] = mergeLiteralAndDynamicNodes(undefined, dynamicValue, nextPath);
+      }
     }
   });
 
   return merged;
-};
+}
 
 const createDynamicSelectorFn = (
-  definition: DynamicSelectorDefinition<any>,
+  definition: AnyDynamicSelectorDefinition,
   path: string,
 ) => {
   return (params?: Record<string, string | number>) => {
@@ -250,7 +284,7 @@ const createSelectorRegistry = <
   L extends LiteralSelectorTree,
   D extends DynamicSelectorTree,
 >(literalTree: L, dynamicTree: D) => {
-  const selectors = mergeLiteralAndDynamicNodes(literalTree, dynamicTree) as SelectorTreeResult<L, D>;
+  const selectors = mergeLiteralAndDynamicNodes(literalTree, dynamicTree);
   const manifest = {
     selectors: flattenLiteralSelectors(literalTree),
     dynamicSelectors: flattenDynamicSelectors(dynamicTree),
@@ -258,7 +292,7 @@ const createSelectorRegistry = <
   return { selectors, manifest };
 };
 
-const literalSelectors: LiteralSelectorTree = {
+const literalSelectors = {
   // Top-level tab navigation
   tabs: {
     nav: "test-genie-tab-nav",
@@ -361,9 +395,9 @@ const literalSelectors: LiteralSelectorTree = {
     viewScenario: "test-genie-action-view-scenario",
     copyPrompt: "test-genie-action-copy-prompt"
   }
-};
+} satisfies LiteralSelectorTree;
 
-const dynamicSelectorDefinitions: DynamicSelectorTree = {
+const dynamicSelectorDefinitions = {
   /*
   Example dynamic selectors:
   scenarios: {
@@ -374,102 +408,10 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
     }),
   },
   */
-};
+} satisfies DynamicSelectorTree;
 
 const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);
 
-// Export with explicit type to fix inference issues with empty dynamic selectors
-export const selectors = registry.selectors as unknown as {
-  tabs: {
-    nav: string;
-    dashboard: string;
-    runs: string;
-    generate: string;
-    docs: string;
-    settings: string;
-  };
-  dashboard: {
-    continueSection: string;
-    header: string;
-    guidedFlows: string;
-    stats: string;
-    queueHealth: string;
-    lastExecution: string;
-  };
-  runs: {
-    subtabScenarios: string;
-    subtabHistory: string;
-    scenarioTable: string;
-    historyTable: string;
-    scenarioDetail: string;
-    scenarioDetailBack: string;
-    scenarioTabOverview: string;
-    scenarioTabRequirements: string;
-    scenarioTabHistory: string;
-    fixWithAiButton: string;
-    startFixButton: string;
-    fixMessagePopover: string;
-    phaseCard: string;
-    fixAgentStatus: string;
-  };
-  requirements: {
-    panel: string;
-    syncBanner: string;
-    syncButton: string;
-    coverageStats: string;
-    tree: string;
-    filterAll: string;
-    filterPassed: string;
-    filterFailed: string;
-    filterNotRun: string;
-    searchInput: string;
-    helpSection: string;
-    helpToggle: string;
-    improveButton: string;
-    startImproveButton: string;
-    cancelImproveButton: string;
-    selectAllButton: string;
-    improveMessagePopover: string;
-    actionTypeSelector: string;
-    improveStatus: string;
-  };
-  generate: {
-    phaseSelector: string;
-    promptEditor: string;
-    promptNavigator: string;
-    promptNavItem: string;
-    copyAllButton: string;
-    copyButton: string;
-    spawnButton: string;
-    presetSelector: string;
-    scopeButton: string;
-    targetSelector: string;
-    targetItem: string;
-  };
-  docs: {
-    sidebar: string;
-    viewer: string;
-    copyPath: string;
-    searchInput: string;
-  };
-  settings: {
-    panel: string;
-    warning: string;
-    saveButton: string;
-    resetButton: string;
-  };
-  forms: {
-    queueForm: string;
-    executionForm: string;
-    submitQueue: string;
-    submitExecution: string;
-  };
-  actions: {
-    queueTests: string;
-    runTests: string;
-    viewScenario: string;
-    copyPrompt: string;
-  };
-};
+export const selectors = registry.selectors;
 export type Selectors = typeof selectors;
 export const selectorsManifest = registry.manifest;

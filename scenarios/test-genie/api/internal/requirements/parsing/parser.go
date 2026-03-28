@@ -186,9 +186,8 @@ func ParseFlexible(data []byte) (*types.RequirementModule, error) {
 
 	// Parse metadata if present
 	if len(raw.Metadata) > 0 {
-		if err := json.Unmarshal(raw.Metadata, &module.Metadata); err != nil {
-			// Ignore metadata parse errors
-		}
+		// Metadata is optional enrichment. Ignore malformed payloads and keep parsing requirements.
+		_ = json.Unmarshal(raw.Metadata, &module.Metadata)
 	}
 
 	// Parse requirements

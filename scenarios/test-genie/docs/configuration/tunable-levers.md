@@ -99,3 +99,7 @@ Test Genie also participates in broader Vrooli infrastructure concerns:
 - `CONTAINMENT_*`
 
 Those are advanced deployment controls rather than primary Test Genie workflow levers. Use them when you are changing agent-execution or containment policy, not when debugging normal suite execution.
+
+### Realtime note
+
+Agent run streaming comes from `agent-manager`, not from a native Test Genie WebSocket endpoint. Test Genie exposes `/api/v1/agents/ws-url` so the UI can discover that external socket when agent workflows are enabled. Because that channel is optional infrastructure, the scenario's core integration phase should not treat it as a required runtime surface.

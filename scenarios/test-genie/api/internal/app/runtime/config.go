@@ -42,7 +42,7 @@ func LoadConfig() (*Config, error) {
 func requireEnv(key string) (string, error) {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
-		return "", fmt.Errorf("environment variable %s is required. Run the scenario via 'vrooli scenario run <name>' so lifecycle exports it.", key)
+		return "", fmt.Errorf("environment variable %s is required; run the scenario via 'vrooli scenario run <name>' so lifecycle exports it", key)
 	}
 	return value, nil
 }

@@ -16,10 +16,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "ui/src/tests/vaultCoverage.test.tsx",
+          "ref": "ui/src/pages/Generate/PhaseSelector.test.tsx",
           "phase": "business",
           "status": "not_implemented",
-          "notes": "Vitest + BAS suites assert coverage charts and vault builders render"
+          "notes": "Current UI tests only cover generation controls; coverage analytics and vault builders still need dedicated tests"
         }
       ]
     }

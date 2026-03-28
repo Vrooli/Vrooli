@@ -107,8 +107,8 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o test-genie-api ./cmd/test-genie-api",
-          "description": "Compile Go API server binary (test-genie-api)"
+          "run": "cd api && go mod download && go build -o test-genie-api .",
+          "description": "Build the Go API binary at api/test-genie-api so lifecycle setup checks and start-api reuse the same executable"
         },
         {
           "name": "install-ui-deps",

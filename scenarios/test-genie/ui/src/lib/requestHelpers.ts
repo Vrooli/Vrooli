@@ -25,12 +25,16 @@ export function isActionableRequest(status: string): boolean {
 
 export function selectActionableRequest(requests: SuiteRequest[]): SuiteRequest | null {
   const actionable = requests.filter((req) => isActionableRequest(req.status));
-  if (actionable.length === 0) {
+  const first = actionable[0];
+  if (!first) {
     return null;
   }
-  let best = actionable[0];
+  let best = first;
   for (let idx = 1; idx < actionable.length; idx += 1) {
     const candidate = actionable[idx];
+    if (!candidate) {
+      continue;
+    }
     const priorityDiff = priorityWeight(candidate.priority) - priorityWeight(best.priority);
     if (priorityDiff > 0) {
       best = candidate;

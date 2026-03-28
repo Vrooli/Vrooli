@@ -15,7 +15,6 @@ import (
 
 // mockDialer implements Dialer for testing.
 type mockDialer struct {
-	conn     *mockConn
 	resp     *http.Response
 	err      error
 	delay    time.Duration
@@ -35,78 +34,6 @@ func (m *mockDialer) DialContext(ctx context.Context, url string, header http.He
 	// Return a mock connection wrapped in a real websocket.Conn is tricky
 	// For testing, we'll need to use the mockConn approach
 	return nil, m.resp, nil
-}
-
-// mockConn tracks mock WebSocket operations.
-type mockConn struct {
-	writeErr     error
-	readErr      error
-	readMessage  []byte
-	readDelay    time.Duration
-	closeErr     error
-	writtenMsgs  [][]byte
-	deadlinesSet int
-}
-
-func (m *mockConn) WriteMessage(messageType int, data []byte) error {
-	if m.writeErr != nil {
-		return m.writeErr
-	}
-	m.writtenMsgs = append(m.writtenMsgs, data)
-	return nil
-}
-
-func (m *mockConn) ReadMessage() (int, []byte, error) {
-	if m.readDelay > 0 {
-		time.Sleep(m.readDelay)
-	}
-	if m.readErr != nil {
-		return 0, nil, m.readErr
-	}
-	return websocket.TextMessage, m.readMessage, nil
-}
-
-func (m *mockConn) SetWriteDeadline(t time.Time) error {
-	m.deadlinesSet++
-	return nil
-}
-
-func (m *mockConn) SetReadDeadline(t time.Time) error {
-	m.deadlinesSet++
-	return nil
-}
-
-func (m *mockConn) Close() error {
-	return m.closeErr
-}
-
-// testableValidator exposes internal state for testing.
-type testableValidator struct {
-	*validator
-	mockConn *mockConn
-}
-
-func newTestableValidator(config Config, mockConn *mockConn, connectErr error, connectDelay time.Duration) *testableValidator {
-	v := &validator{
-		config:    config,
-		logWriter: io.Discard,
-	}
-
-	// Apply defaults
-	if v.config.MaxConnectionMs == 0 {
-		v.config.MaxConnectionMs = 2000
-	}
-	if v.config.ReadTimeout == 0 {
-		v.config.ReadTimeout = 5 * time.Second
-	}
-	if v.config.WriteTimeout == 0 {
-		v.config.WriteTimeout = 5 * time.Second
-	}
-
-	return &testableValidator{
-		validator: v,
-		mockConn:  mockConn,
-	}
 }
 
 func TestValidateSuccessfulConnection(t *testing.T) {

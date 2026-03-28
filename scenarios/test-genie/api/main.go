@@ -9,11 +9,10 @@ import (
 )
 
 func main() {
-	// Preflight checks - must be first, before any initialization
 	if preflight.Run(preflight.Config{
 		ScenarioName: "test-genie",
 	}) {
-		return // Process was re-exec'd after rebuild
+		return
 	}
 
 	server, err := app.NewServer()

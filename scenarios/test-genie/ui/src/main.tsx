@@ -8,11 +8,18 @@ import "./styles.css";
 
 const queryClient = new QueryClient();
 
+// INTEROP-CRITICAL: iframe bridge must be initialized before React mount so
+// embedded web-console/app-monitor shells can negotiate parent-child messaging.
 if (window.top !== window.self) {
-  initIframeBridgeChild();
+  initIframeBridgeChild({ appId: "test-genie" });
 }
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+const rootElement = document.getElementById("root");
+if (!rootElement) {
+  throw new Error("root element not found");
+}
+
+ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <WebSocketProvider>
