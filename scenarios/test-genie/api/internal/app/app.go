@@ -8,14 +8,20 @@ import (
 // Server exposes the HTTP transport to callers without leaking the transport package details.
 type Server = httpserver.Server
 
+var (
+	loadConfig        = runtime.LoadConfig
+	buildDependencies = runtime.BuildDependencies
+	newHTTPServer     = httpserver.New
+)
+
 // NewServer wires runtime configuration, dependencies, and HTTP transport seams.
 func NewServer() (*httpserver.Server, error) {
-	cfg, err := runtime.LoadConfig()
+	cfg, err := loadConfig()
 	if err != nil {
 		return nil, err
 	}
 
-	deps, err := runtime.BuildDependencies(cfg)
+	deps, err := buildDependencies(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -39,5 +45,5 @@ func NewServer() (*httpserver.Server, error) {
 		ToolHandler:                deps.ToolHandler,
 	}
 
-	return httpserver.New(httpCfg, httpDeps)
+	return newHTTPServer(httpCfg, httpDeps)
 }

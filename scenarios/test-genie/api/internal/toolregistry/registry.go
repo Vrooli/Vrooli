@@ -40,6 +40,7 @@ type ToolProvider interface {
 type Registry struct {
 	mu        sync.RWMutex
 	providers map[string]ToolProvider
+	order     []string
 
 	// Scenario metadata
 	scenarioName    string
@@ -58,6 +59,7 @@ type RegistryConfig struct {
 func NewRegistry(cfg RegistryConfig) *Registry {
 	return &Registry{
 		providers:       make(map[string]ToolProvider),
+		order:           make([]string, 0),
 		scenarioName:    cfg.ScenarioName,
 		scenarioVersion: cfg.ScenarioVersion,
 		scenarioDesc:    cfg.ScenarioDescription,
@@ -69,6 +71,9 @@ func NewRegistry(cfg RegistryConfig) *Registry {
 func (r *Registry) RegisterProvider(provider ToolProvider) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if _, exists := r.providers[provider.Name()]; !exists {
+		r.order = append(r.order, provider.Name())
+	}
 	r.providers[provider.Name()] = provider
 }
 
@@ -77,6 +82,12 @@ func (r *Registry) UnregisterProvider(name string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	delete(r.providers, name)
+	for i, providerName := range r.order {
+		if providerName == name {
+			r.order = append(r.order[:i], r.order[i+1:]...)
+			break
+		}
+	}
 }
 
 // GetManifest generates the complete tool manifest.
@@ -88,21 +99,31 @@ func (r *Registry) GetManifest(ctx context.Context) *toolspb.ToolManifest {
 	// Collect tools and categories from all providers
 	var allTools []*toolspb.ToolDefinition
 	categoryMap := make(map[string]*toolspb.ToolCategory)
+	categoryOrder := make([]string, 0)
 
-	for _, provider := range r.providers {
+	for _, providerName := range r.order {
+		provider := r.providers[providerName]
+		if provider == nil {
+			continue
+		}
 		tools := provider.Tools(ctx)
 		allTools = append(allTools, tools...)
 
 		for _, cat := range provider.Categories(ctx) {
+			if _, exists := categoryMap[cat.Id]; !exists {
+				categoryOrder = append(categoryOrder, cat.Id)
+			}
 			// Later providers can override categories
 			categoryMap[cat.Id] = cat
 		}
 	}
 
 	// Convert category map to slice
-	categories := make([]*toolspb.ToolCategory, 0, len(categoryMap))
-	for _, cat := range categoryMap {
-		categories = append(categories, cat)
+	categories := make([]*toolspb.ToolCategory, 0, len(categoryOrder))
+	for _, categoryID := range categoryOrder {
+		if cat := categoryMap[categoryID]; cat != nil {
+			categories = append(categories, cat)
+		}
 	}
 
 	return &toolspb.ToolManifest{
@@ -120,13 +141,17 @@ func (r *Registry) GetManifest(ctx context.Context) *toolspb.ToolManifest {
 
 // GetTool returns a specific tool by name.
 // Returns nil if the tool is not found.
-func (r *Registry) GetTool(ctx context.Context, name string) *toolspb.ToolDefinition {
+func (r *Registry) GetTool(ctx context.Context, toolName string) *toolspb.ToolDefinition {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	for _, provider := range r.providers {
+	for _, providerName := range r.order {
+		provider := r.providers[providerName]
+		if provider == nil {
+			continue
+		}
 		for _, tool := range provider.Tools(ctx) {
-			if tool.Name == name {
+			if tool.Name == toolName {
 				return tool
 			}
 		}
@@ -140,7 +165,11 @@ func (r *Registry) ListToolNames(ctx context.Context) []string {
 	defer r.mu.RUnlock()
 
 	var names []string
-	for _, provider := range r.providers {
+	for _, name := range r.order {
+		provider := r.providers[name]
+		if provider == nil {
+			continue
+		}
 		for _, tool := range provider.Tools(ctx) {
 			names = append(names, tool.Name)
 		}
