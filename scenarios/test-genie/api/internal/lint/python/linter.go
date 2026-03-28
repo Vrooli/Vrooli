@@ -134,7 +134,7 @@ func (l *Linter) Lint(ctx context.Context) *Result {
 
 func (l *Linter) hasPythonFiles() bool {
 	found := false
-	filepath.WalkDir(l.config.Dir, func(path string, d os.DirEntry, err error) error {
+	if err := filepath.WalkDir(l.config.Dir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -151,7 +151,9 @@ func (l *Linter) hasPythonFiles() bool {
 			return filepath.SkipAll
 		}
 		return nil
-	})
+	}); err != nil {
+		return found
+	}
 	return found
 }
 
@@ -208,7 +210,6 @@ func (l *Linter) runRuff(ctx context.Context) *Result {
 	cmd.Dir = l.config.Dir
 
 	output, err := cmd.Output()
-
 	// ruff exits with 1 if there are issues
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
@@ -281,7 +282,6 @@ func (l *Linter) runFlake8(ctx context.Context) *Result {
 	cmd.Dir = l.config.Dir
 
 	output, err := cmd.CombinedOutput()
-
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
 			// Issues found
@@ -354,7 +354,6 @@ func (l *Linter) runMypy(ctx context.Context) *Result {
 	cmd.Dir = l.config.Dir
 
 	output, err := cmd.CombinedOutput()
-
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
 			// Type errors found

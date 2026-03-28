@@ -71,13 +71,19 @@ func (w *memWriter) MkdirAll(path string, perm fs.FileMode) error {
 	return nil
 }
 
+func mustAddModule(t *testing.T, index *parsing.ModuleIndex, module *types.RequirementModule) {
+	t.Helper()
+	if err := index.AddModule(module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
+}
+
 func TestSyncer_Sync_NilInputs(t *testing.T) {
 	reader := newMemReader()
 	writer := newMemWriter()
 	syncer := New(reader, writer)
 
 	result, err := syncer.Sync(context.Background(), nil, nil, DefaultOptions())
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -98,7 +104,6 @@ func TestSyncer_Sync_EmptyIndex(t *testing.T) {
 	evidence := types.NewEvidenceBundle()
 
 	result, err := syncer.Sync(context.Background(), index, evidence, DefaultOptions())
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -136,7 +141,7 @@ func TestSyncer_Sync_WithStatusUpdates(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	evidence := types.NewEvidenceBundle()
 
@@ -144,7 +149,6 @@ func TestSyncer_Sync_WithStatusUpdates(t *testing.T) {
 	opts.UpdateStatuses = true
 
 	result, err := syncer.Sync(context.Background(), index, evidence, opts)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -168,12 +172,11 @@ func TestSyncer_Preview_DryRun(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	evidence := types.NewEvidenceBundle()
 
 	result, err := syncer.Preview(context.Background(), index, evidence, DefaultOptions())
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -219,7 +222,6 @@ func TestSyncer_Sync_WriteMetadata(t *testing.T) {
 	opts.TestCommands = []string{"suite test"}
 
 	result, err := syncer.Sync(context.Background(), index, evidence, opts)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -266,7 +268,7 @@ func TestSyncer_Sync_UpdatesPRDOperationalTargets(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	scenarioRoot := "/test/scenario"
 	prdPath := filepath.Join(scenarioRoot, "PRD.md")
@@ -343,7 +345,6 @@ func TestStatusUpdater_UpdateStatuses_NilInputs(t *testing.T) {
 	updater := NewStatusUpdater()
 
 	changes, err := updater.UpdateStatuses(context.Background(), nil, nil)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -373,12 +374,11 @@ func TestStatusUpdater_UpdateStatuses_WithLiveStatus(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	evidence := types.NewEvidenceBundle()
 
 	changes, err := updater.UpdateStatuses(context.Background(), index, evidence)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -401,7 +401,7 @@ func TestStatusUpdater_ContextCancellation(t *testing.T) {
 			{ID: "REQ-001"},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	evidence := types.NewEvidenceBundle()
 
@@ -432,7 +432,6 @@ func TestFileWriter_WriteModule(t *testing.T) {
 	}
 
 	err := fw.WriteModule(context.Background(), module)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -471,7 +470,6 @@ func TestFileWriter_WriteModule_NilModule(t *testing.T) {
 	fw := NewFileWriter(writer)
 
 	err := fw.WriteModule(context.Background(), nil)
-
 	if err != nil {
 		t.Errorf("nil module should not error: %v", err)
 	}
@@ -492,7 +490,6 @@ func TestFileWriter_WriteModule_EmptyFilePath(t *testing.T) {
 	}
 
 	err := fw.WriteModule(context.Background(), module)
-
 	if err != nil {
 		t.Errorf("empty filepath should not error: %v", err)
 	}
@@ -507,7 +504,6 @@ func TestFileWriter_WriteJSON(t *testing.T) {
 
 	data := map[string]string{"key": "value"}
 	err := fw.WriteJSON("/test/output.json", data)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -540,7 +536,7 @@ func TestDesiredOperationalTargetCheckboxes_AllComplete(t *testing.T) {
 			{ID: "REQ-002", Status: types.StatusComplete, PRDRef: "OT-P0-001"},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	desired := desiredOperationalTargetCheckboxes(index)
 
@@ -561,7 +557,7 @@ func TestDesiredOperationalTargetCheckboxes_PartialComplete(t *testing.T) {
 			{ID: "REQ-002", Status: types.StatusInProgress, PRDRef: "OT-P0-001"},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	desired := desiredOperationalTargetCheckboxes(index)
 
@@ -583,7 +579,7 @@ func TestDesiredOperationalTargetCheckboxes_MultipleTargets(t *testing.T) {
 			{ID: "REQ-003", Status: types.StatusPending, PRDRef: "OT-P2-001"},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	desired := desiredOperationalTargetCheckboxes(index)
 
@@ -610,7 +606,7 @@ func TestDesiredOperationalTargetCheckboxes_CaseInsensitive(t *testing.T) {
 			{ID: "REQ-002", Status: types.StatusComplete, PRDRef: "OT-P0-001"}, // uppercase
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	desired := desiredOperationalTargetCheckboxes(index)
 
@@ -631,7 +627,7 @@ func TestDesiredOperationalTargetCheckboxes_ExtractsFromLongerPRDRef(t *testing.
 			{ID: "REQ-002", Status: types.StatusComplete, PRDRef: "## P1 section: OT-P1-042 description"},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	desired := desiredOperationalTargetCheckboxes(index)
 
@@ -655,7 +651,7 @@ func TestDesiredOperationalTargetCheckboxes_NoOTInPRDRef(t *testing.T) {
 			{ID: "REQ-002", Status: types.StatusComplete, PRDRef: ""},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	desired := desiredOperationalTargetCheckboxes(index)
 
@@ -684,7 +680,7 @@ func TestDesiredOperationalTargetCheckboxes_EmptyModules(t *testing.T) {
 
 func TestDesiredOperationalTargetCheckboxes_NilModule(t *testing.T) {
 	index := parsing.NewModuleIndex()
-	index.AddModule(nil)
+	mustAddModule(t, index, nil)
 
 	desired := desiredOperationalTargetCheckboxes(index)
 
@@ -938,7 +934,7 @@ func TestSyncer_Sync_UpdatesPRDOperationalTargets_Uncheck(t *testing.T) {
 			{ID: "REQ-001", Status: types.StatusInProgress, PRDRef: "OT-P0-001"},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	scenarioRoot := "/test/scenario"
 	prdPath := filepath.Join(scenarioRoot, "PRD.md")
@@ -981,7 +977,7 @@ func TestSyncer_Sync_PRDNotFound_NoError(t *testing.T) {
 			{ID: "REQ-001", Status: types.StatusComplete, PRDRef: "OT-P0-001"},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	scenarioRoot := "/test/scenario"
 	// Note: PRD.md not added to reader
@@ -1011,7 +1007,7 @@ func TestSyncer_Sync_NoOTsInRequirements_NoChange(t *testing.T) {
 			{ID: "REQ-001", Status: types.StatusComplete, PRDRef: "Some other ref"},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	scenarioRoot := "/test/scenario"
 	prdPath := filepath.Join(scenarioRoot, "PRD.md")
@@ -1045,7 +1041,7 @@ func TestSyncer_Sync_DryRun_NoWritePRD(t *testing.T) {
 			{ID: "REQ-001", Status: types.StatusComplete, PRDRef: "OT-P0-001"},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	scenarioRoot := "/test/scenario"
 	prdPath := filepath.Join(scenarioRoot, "PRD.md")
@@ -1075,7 +1071,7 @@ func TestSyncer_Integration(t *testing.T) {
 	scenarioDir := filepath.Join(tmpDir, "scenario")
 	requirementsDir := filepath.Join(scenarioDir, "requirements")
 
-	if err := os.MkdirAll(requirementsDir, 0755); err != nil {
+	if err := os.MkdirAll(requirementsDir, 0o755); err != nil {
 		t.Fatalf("create dir: %v", err)
 	}
 
@@ -1102,7 +1098,7 @@ func TestSyncer_Integration(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	evidence := types.NewEvidenceBundle()
 
@@ -1111,7 +1107,6 @@ func TestSyncer_Integration(t *testing.T) {
 	opts.TestCommands = []string{"go test ./..."}
 
 	result, err := syncer.Sync(context.Background(), index, evidence, opts)
-
 	if err != nil {
 		t.Errorf("sync failed: %v", err)
 	}

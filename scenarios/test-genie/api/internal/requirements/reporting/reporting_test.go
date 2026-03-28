@@ -12,6 +12,13 @@ import (
 	"test-genie/internal/requirements/types"
 )
 
+func mustAddModule(t *testing.T, index *parsing.ModuleIndex, module *types.RequirementModule) {
+	t.Helper()
+	if err := index.AddModule(module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
+}
+
 // =============================================================================
 // Reporter Tests
 // =============================================================================
@@ -47,7 +54,7 @@ func TestReporter_Generate_JSON(t *testing.T) {
 			{ID: "REQ-001", Title: "Test Requirement", Status: types.StatusComplete},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	summary := enrichment.Summary{
 		Total:            1,
@@ -58,7 +65,6 @@ func TestReporter_Generate_JSON(t *testing.T) {
 	var buf bytes.Buffer
 
 	err := r.Generate(context.Background(), index, summary, opts, &buf)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -84,7 +90,7 @@ func TestReporter_Generate_Markdown(t *testing.T) {
 			{ID: "REQ-001", Title: "Test Requirement", Status: types.StatusComplete},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	summary := enrichment.Summary{Total: 1}
 
@@ -92,7 +98,6 @@ func TestReporter_Generate_Markdown(t *testing.T) {
 	var buf bytes.Buffer
 
 	err := r.Generate(context.Background(), index, summary, opts, &buf)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -124,7 +129,7 @@ func TestReporter_Generate_Trace(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	summary := enrichment.Summary{Total: 1}
 
@@ -132,7 +137,6 @@ func TestReporter_Generate_Trace(t *testing.T) {
 	var buf bytes.Buffer
 
 	err := r.Generate(context.Background(), index, summary, opts, &buf)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -159,7 +163,6 @@ func TestReporter_Generate_Summary(t *testing.T) {
 	var buf bytes.Buffer
 
 	err := r.Generate(context.Background(), parsing.NewModuleIndex(), summary, opts, &buf)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -180,7 +183,6 @@ func TestReporter_Generate_DefaultFormat(t *testing.T) {
 	var buf bytes.Buffer
 
 	err := r.Generate(context.Background(), parsing.NewModuleIndex(), enrichment.Summary{}, opts, &buf)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -230,7 +232,6 @@ func TestJSONRenderer_Render_EmptyIndex(t *testing.T) {
 
 	var buf bytes.Buffer
 	err := r.Render(context.Background(), parsing.NewModuleIndex(), enrichment.Summary{}, DefaultOptions(), &buf)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -266,7 +267,7 @@ func TestJSONRenderer_Render_WithModules(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	summary := enrichment.Summary{
 		Total: 2,
@@ -294,7 +295,6 @@ func TestJSONRenderer_Render_WithModules(t *testing.T) {
 
 	var buf bytes.Buffer
 	err := r.Render(context.Background(), index, summary, opts, &buf)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -330,7 +330,6 @@ func TestJSONRenderer_RenderSummary(t *testing.T) {
 
 	var buf bytes.Buffer
 	err := r.RenderSummary(context.Background(), summary, &buf)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -371,13 +370,12 @@ func TestJSONRenderer_RenderRequirements(t *testing.T) {
 			{ID: "REQ-001", Title: "Test", Status: types.StatusComplete},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	opts := Options{IncludeValidations: false}
 	var buf bytes.Buffer
 
 	err := r.RenderRequirements(context.Background(), index, opts, &buf)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -420,11 +418,10 @@ func TestJSONRenderer_RenderValidations(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	var buf bytes.Buffer
 	err := r.RenderValidations(context.Background(), index, "", &buf)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -458,11 +455,10 @@ func TestJSONRenderer_RenderValidations_FilterByPhase(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	var buf bytes.Buffer
 	err := r.RenderValidations(context.Background(), index, "unit", &buf)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -513,7 +509,6 @@ func TestMarkdownRenderer_Render_Header(t *testing.T) {
 
 	var buf bytes.Buffer
 	err := r.Render(context.Background(), parsing.NewModuleIndex(), enrichment.Summary{}, DefaultOptions(), &buf)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -536,7 +531,6 @@ func TestMarkdownRenderer_Render_Summary(t *testing.T) {
 
 	var buf bytes.Buffer
 	err := r.Render(context.Background(), parsing.NewModuleIndex(), summary, DefaultOptions(), &buf)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -567,11 +561,10 @@ func TestMarkdownRenderer_Render_Modules(t *testing.T) {
 			{ID: "REQ-001", Title: "Test Requirement", Status: types.StatusComplete, LiveStatus: types.LivePassed, Criticality: types.CriticalityP0},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	var buf bytes.Buffer
 	err := r.Render(context.Background(), index, enrichment.Summary{}, Options{IncludePending: true}, &buf)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -599,11 +592,10 @@ func TestMarkdownRenderer_Render_ExcludePending(t *testing.T) {
 			{ID: "REQ-002", Status: types.StatusPending},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	var buf bytes.Buffer
 	err := r.Render(context.Background(), index, enrichment.Summary{}, Options{IncludePending: false}, &buf)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -626,11 +618,10 @@ func TestMarkdownRenderer_Render_EmptyModule(t *testing.T) {
 		ModuleName:   "empty-module",
 		Requirements: []types.Requirement{},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	var buf bytes.Buffer
 	err := r.Render(context.Background(), index, enrichment.Summary{}, DefaultOptions(), &buf)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -656,7 +647,7 @@ func TestMarkdownRenderer_Render_WithValidations(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	opts := Options{
 		IncludePending:     true,
@@ -666,7 +657,6 @@ func TestMarkdownRenderer_Render_WithValidations(t *testing.T) {
 
 	var buf bytes.Buffer
 	err := r.Render(context.Background(), index, enrichment.Summary{}, opts, &buf)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -812,7 +802,6 @@ func TestTraceRenderer_Render_EmptyIndex(t *testing.T) {
 
 	var buf bytes.Buffer
 	err := r.Render(context.Background(), parsing.NewModuleIndex(), enrichment.Summary{}, DefaultOptions(), &buf)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -854,11 +843,10 @@ func TestTraceRenderer_Render_WithRequirements(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	var buf bytes.Buffer
 	err := r.Render(context.Background(), index, enrichment.Summary{}, DefaultOptions(), &buf)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -910,11 +898,10 @@ func TestTraceRenderer_Render_TraceCoverage(t *testing.T) {
 			{ID: "REQ-004"}, // No validations
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	var buf bytes.Buffer
 	err := r.Render(context.Background(), index, enrichment.Summary{}, DefaultOptions(), &buf)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -947,11 +934,10 @@ func TestTraceRenderer_Render_PhaseCoverage(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	var buf bytes.Buffer
 	err := r.Render(context.Background(), index, enrichment.Summary{}, DefaultOptions(), &buf)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -985,11 +971,10 @@ func TestTraceRenderer_Render_CriticalityCoverage(t *testing.T) {
 			{ID: "REQ-003", Status: types.StatusComplete, Criticality: types.CriticalityP1},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	var buf bytes.Buffer
 	err := r.Render(context.Background(), index, enrichment.Summary{}, DefaultOptions(), &buf)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -1027,12 +1012,11 @@ func TestTraceRenderer_Render_FilterByPhase(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	opts := Options{Phase: "unit"}
 	var buf bytes.Buffer
 	err := r.Render(context.Background(), index, enrichment.Summary{}, opts, &buf)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -1130,7 +1114,7 @@ func TestBuildReportData_WithModules(t *testing.T) {
 			{ID: "REQ-001", Title: "Test", Status: types.StatusComplete, LiveStatus: types.LivePassed},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	data := BuildReportData(index, enrichment.Summary{}, Options{IncludePending: true, IncludeValidations: true})
 

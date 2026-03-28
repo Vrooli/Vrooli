@@ -58,8 +58,7 @@ func (s *Server) handleGetDocsManifest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(manifest)
+	s.writeJSON(w, http.StatusOK, manifest)
 }
 
 // handleGetDocContent serves the content of a specific doc file
@@ -107,8 +106,7 @@ func (s *Server) handleGetDocContent(w http.ResponseWriter, r *http.Request) {
 		Content: string(data),
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	s.writeJSON(w, http.StatusOK, response)
 }
 
 // getDocsDir returns the path to the docs directory

@@ -529,7 +529,7 @@ func (r *Runner) executeWorkflow(ctx context.Context, entry Entry) Result {
 		}
 		// Attach proto timeline for rich error diagnostics
 		if artifactResult.Proto != nil {
-			playErr.WithTimeline(artifactResult.Proto)
+			playErr = playErr.WithTimeline(artifactResult.Proto)
 		}
 		// Provide raw timeline path when parse failed (for diagnostics)
 		if parseErr != nil && playErr.Artifacts.Timeline != "" {

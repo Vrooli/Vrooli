@@ -511,16 +511,22 @@ func setupBenchScenario(b *testing.B, scenarioDir string) {
 		filepath.Join(scenarioDir, "requirements", "01-core"),
 	}
 	for _, dir := range dirs {
-		os.MkdirAll(dir, 0o755)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			b.Fatalf("mkdir %s: %v", dir, err)
+		}
 	}
 
 	indexContent := `{"imports": ["01-core/module.json"]}`
-	os.WriteFile(filepath.Join(scenarioDir, "requirements", "index.json"), []byte(indexContent), 0o644)
+	if err := os.WriteFile(filepath.Join(scenarioDir, "requirements", "index.json"), []byte(indexContent), 0o644); err != nil {
+		b.Fatalf("write requirements index: %v", err)
+	}
 
 	moduleContent := `{
 		"requirements": [
 			{"id": "REQ-1", "title": "Test", "criticality": "p1", "status": "draft", "validation": [{"type": "manual", "ref": "docs"}]}
 		]
 	}`
-	os.WriteFile(filepath.Join(scenarioDir, "requirements", "01-core", "module.json"), []byte(moduleContent), 0o644)
+	if err := os.WriteFile(filepath.Join(scenarioDir, "requirements", "01-core", "module.json"), []byte(moduleContent), 0o644); err != nil {
+		b.Fatalf("write requirements module: %v", err)
+	}
 }

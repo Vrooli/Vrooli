@@ -177,7 +177,9 @@ func (d *discoverer) resolveImport(ctx context.Context, baseDir, importPath stri
 	nestedBaseDir := filepath.Dir(absPath)
 	for _, nestedImport := range nested.Imports {
 		// Imports are relative to the current file's directory
-		d.resolveImport(ctx, nestedBaseDir, nestedImport, visited, files)
+		if err := d.resolveImport(ctx, nestedBaseDir, nestedImport, visited, files); err != nil {
+			continue
+		}
 	}
 
 	return nil

@@ -114,11 +114,6 @@ func (r *MarkdownRenderer) renderModule(module *types.RequirementModule, opts Op
 			continue
 		}
 
-		liveStatus := string(req.LiveStatus)
-		if liveStatus == "" {
-			liveStatus = "-"
-		}
-
 		criticality := string(req.Criticality)
 		if criticality == "" {
 			criticality = "-"

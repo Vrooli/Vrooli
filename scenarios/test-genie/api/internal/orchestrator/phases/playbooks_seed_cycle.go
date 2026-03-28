@@ -73,7 +73,6 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 	if err := applyPlaybooksMigrations(ctx, env, requirePG, logWriter); err != nil {
 		if envApplied {
 			restoreEnv()
-			envApplied = false
 		}
 		_ = isoResult.Cleanup(context.Background())
 		return nil, fmt.Errorf("failed to apply playbooks migrations: %w", err)
@@ -82,7 +81,6 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 	if err := RestartScenario(ctx, env.ScenarioName, logWriter); err != nil {
 		if envApplied {
 			restoreEnv()
-			envApplied = false
 		}
 		_ = isoResult.Cleanup(context.Background())
 		return nil, fmt.Errorf("failed to restart scenario with playbooks isolation: %w", err)
@@ -90,7 +88,6 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 
 	if envApplied {
 		restoreEnv()
-		envApplied = false
 	}
 
 	seedCtx, cancel := context.WithTimeout(ctx, playbooksCfg.Seeds.SeedTimeout())

@@ -445,17 +445,23 @@ func setupBenchScenario(b *testing.B, scenarioDir string) {
 	b.Helper()
 
 	apiDir := filepath.Join(scenarioDir, "api")
-	os.MkdirAll(apiDir, 0o755)
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		b.Fatalf("mkdir api dir: %v", err)
+	}
 
 	goMod := `module bench-scenario
 
 go 1.21
 `
-	os.WriteFile(filepath.Join(apiDir, "go.mod"), []byte(goMod), 0o644)
+	if err := os.WriteFile(filepath.Join(apiDir, "go.mod"), []byte(goMod), 0o644); err != nil {
+		b.Fatalf("write go.mod: %v", err)
+	}
 
 	mainGo := `package main
 
 func main() {}
 `
-	os.WriteFile(filepath.Join(apiDir, "main.go"), []byte(mainGo), 0o644)
+	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte(mainGo), 0o644); err != nil {
+		b.Fatalf("write main.go: %v", err)
+	}
 }

@@ -128,12 +128,12 @@ func (r *Runner) Run(ctx context.Context) types.Result {
 
 		// Run tests
 		shared.LogStep(r.logWriter, "running Node unit tests with %s in %s", packageManager, nodeDir)
-			output, err := r.executor.Capture(ctx, nodeDir, r.logWriter, packageManager, "test")
-			if err != nil {
-				result := types.FailTestFailure(
-					fmt.Errorf("node unit tests failed in %s: %w", rel, err),
-					"Inspect the UI/unit test output above, fix failures, and rerun the suite.",
-				)
+		output, err := r.executor.Capture(ctx, nodeDir, r.logWriter, packageManager, "test")
+		if err != nil {
+			result := types.FailTestFailure(
+				fmt.Errorf("node unit tests failed in %s: %w", rel, err),
+				"Inspect the UI/unit test output above, fix failures, and rerun the suite.",
+			)
 			result.Observations = append(builder.Build().Observations, result.Observations...)
 			return result
 		}
@@ -189,7 +189,7 @@ func (r *Runner) discoverWorkspaces() []string {
 		"test-results":      {},
 	}
 
-	filepath.WalkDir(r.scenarioDir, func(path string, d os.DirEntry, err error) error {
+	if err := filepath.WalkDir(r.scenarioDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -209,7 +209,9 @@ func (r *Runner) discoverWorkspaces() []string {
 		seen[dir] = struct{}{}
 		workspaces = append(workspaces, dir)
 		return nil
-	})
+	}); err != nil {
+		return workspaces
+	}
 
 	return workspaces
 }

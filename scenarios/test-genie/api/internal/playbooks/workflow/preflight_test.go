@@ -29,7 +29,7 @@ func TestPreflightValidatorBasicStructure(t *testing.T) {
 	}
 
 	data, _ := json.Marshal(workflow)
-	if err := os.WriteFile(workflowPath, data, 0644); err != nil {
+	if err := os.WriteFile(workflowPath, data, 0o644); err != nil {
 		t.Fatalf("failed to write workflow: %v", err)
 	}
 
@@ -74,7 +74,7 @@ func TestPreflightValidatorLegacyV1Format(t *testing.T) {
 	}
 
 	data, _ := json.Marshal(workflow)
-	if err := os.WriteFile(workflowPath, data, 0644); err != nil {
+	if err := os.WriteFile(workflowPath, data, 0o644); err != nil {
 		t.Fatalf("failed to write workflow: %v", err)
 	}
 
@@ -108,10 +108,10 @@ func TestPreflightValidatorLegacyStepsFormat(t *testing.T) {
 	workflow := map[string]any{
 		"steps": []any{
 			map[string]any{
-				"action":   "navigate",
-				"url":      "https://example.com",
-				"waitFor":  "networkidle",
-				"timeout":  30000,
+				"action":  "navigate",
+				"url":     "https://example.com",
+				"waitFor": "networkidle",
+				"timeout": 30000,
 			},
 			map[string]any{
 				"action":   "click",
@@ -121,7 +121,7 @@ func TestPreflightValidatorLegacyStepsFormat(t *testing.T) {
 	}
 
 	data, _ := json.Marshal(workflow)
-	if err := os.WriteFile(workflowPath, data, 0644); err != nil {
+	if err := os.WriteFile(workflowPath, data, 0o644); err != nil {
 		t.Fatalf("failed to write workflow: %v", err)
 	}
 
@@ -156,7 +156,9 @@ func TestPreflightValidatorMissingNodes(t *testing.T) {
 	}
 
 	data, _ := json.Marshal(workflow)
-	os.WriteFile(workflowPath, data, 0644)
+	if err := os.WriteFile(workflowPath, data, 0o644); err != nil {
+		t.Fatalf("write workflow: %v", err)
+	}
 
 	v := NewPreflightValidator(tmpDir)
 	result, err := v.Validate(workflowPath)
@@ -208,7 +210,7 @@ func TestPreflightValidatorSubflowWithWorkflowPath(t *testing.T) {
 	}
 
 	data, _ := json.Marshal(workflow)
-	if err := os.WriteFile(workflowPath, data, 0644); err != nil {
+	if err := os.WriteFile(workflowPath, data, 0o644); err != nil {
 		t.Fatalf("failed to write workflow: %v", err)
 	}
 
@@ -251,7 +253,9 @@ func TestPreflightValidatorAbsoluteWorkflowPathWarning(t *testing.T) {
 	}
 
 	data, _ := json.Marshal(workflow)
-	os.WriteFile(workflowPath, data, 0644)
+	if err := os.WriteFile(workflowPath, data, 0o644); err != nil {
+		t.Fatalf("write workflow: %v", err)
+	}
 
 	v := NewPreflightValidator(tmpDir)
 	result, err := v.Validate(workflowPath)
@@ -317,7 +321,7 @@ func TestPreflightValidatorSelectorCounting(t *testing.T) {
 	}
 
 	data, _ := json.Marshal(workflow)
-	if err := os.WriteFile(workflowPath, data, 0644); err != nil {
+	if err := os.WriteFile(workflowPath, data, 0o644); err != nil {
 		t.Fatalf("failed to write workflow: %v", err)
 	}
 
@@ -358,7 +362,7 @@ func TestPreflightValidatorScenarioNavigation(t *testing.T) {
 	}
 
 	data, _ := json.Marshal(workflow)
-	if err := os.WriteFile(workflowPath, data, 0644); err != nil {
+	if err := os.WriteFile(workflowPath, data, 0o644); err != nil {
 		t.Fatalf("failed to write workflow: %v", err)
 	}
 
@@ -402,7 +406,7 @@ func TestPreflightValidatorMissingScenarioName(t *testing.T) {
 	}
 
 	data, _ := json.Marshal(workflow)
-	if err := os.WriteFile(workflowPath, data, 0644); err != nil {
+	if err := os.WriteFile(workflowPath, data, 0o644); err != nil {
 		t.Fatalf("failed to write workflow: %v", err)
 	}
 
@@ -482,8 +486,12 @@ func TestPreflightValidatorValidateAll(t *testing.T) {
 
 	data1, _ := json.Marshal(wf1)
 	data2, _ := json.Marshal(wf2)
-	os.WriteFile(wf1Path, data1, 0644)
-	os.WriteFile(wf2Path, data2, 0644)
+	if err := os.WriteFile(wf1Path, data1, 0o644); err != nil {
+		t.Fatalf("write first workflow: %v", err)
+	}
+	if err := os.WriteFile(wf2Path, data2, 0o644); err != nil {
+		t.Fatalf("write second workflow: %v", err)
+	}
 
 	v := NewPreflightValidator(tmpDir)
 	result, err := v.ValidateAll([]string{wf1Path, wf2Path})
@@ -553,7 +561,7 @@ func TestPreflightValidatorNestedWorkflowDefinition(t *testing.T) {
 	}
 
 	data, _ := json.Marshal(workflow)
-	if err := os.WriteFile(workflowPath, data, 0644); err != nil {
+	if err := os.WriteFile(workflowPath, data, 0o644); err != nil {
 		t.Fatalf("failed to write workflow: %v", err)
 	}
 

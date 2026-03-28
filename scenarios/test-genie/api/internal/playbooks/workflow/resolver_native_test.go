@@ -62,7 +62,9 @@ func TestNativeResolverWorkflowWithSubflowPath(t *testing.T) {
 		filepath.Join(tempDir, "bas", "actions"),
 	}
 	for _, dir := range dirs {
-		os.MkdirAll(dir, 0o755)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
 	}
 
 	// Create workflow with subflow using workflowPath (new format)
@@ -85,7 +87,9 @@ func TestNativeResolverWorkflowWithSubflowPath(t *testing.T) {
 		"edges": []
 	}`
 	workflowPath := filepath.Join(tempDir, "bas", "cases", "test.json")
-	os.WriteFile(workflowPath, []byte(workflowContent), 0o644)
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0o644); err != nil {
+		t.Fatalf("write workflow: %v", err)
+	}
 
 	// Resolve
 	resolver := NewNativeResolver(tempDir)
@@ -120,7 +124,9 @@ func TestNativeResolverSelectorTokensPassedThrough(t *testing.T) {
 		filepath.Join(tempDir, "bas", "cases"),
 	}
 	for _, dir := range dirs {
-		os.MkdirAll(dir, 0o755)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
 	}
 
 	// Create workflow with @selector/ tokens
@@ -133,7 +139,9 @@ func TestNativeResolverSelectorTokensPassedThrough(t *testing.T) {
 		"edges": []
 	}`
 	workflowPath := filepath.Join(tempDir, "bas", "cases", "test.json")
-	os.WriteFile(workflowPath, []byte(workflowContent), 0o644)
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0o644); err != nil {
+		t.Fatalf("write workflow: %v", err)
+	}
 
 	// Resolve
 	resolver := NewNativeResolver(tempDir)
@@ -161,7 +169,9 @@ func TestNativeResolverLoadSeedState(t *testing.T) {
 
 	// Create seed state directory and file at the correct path (coverage/runtime/seed-state.json)
 	seedDir := filepath.Join(tempDir, "coverage", "runtime")
-	os.MkdirAll(seedDir, 0o755)
+	if err := os.MkdirAll(seedDir, 0o755); err != nil {
+		t.Fatalf("mkdir seed dir: %v", err)
+	}
 
 	seedContent := `{
 		"projectId": "proj-123",
@@ -169,7 +179,9 @@ func TestNativeResolverLoadSeedState(t *testing.T) {
 		"workflowId": "wf-456"
 	}`
 	seedPath := filepath.Join(seedDir, "seed-state.json")
-	os.WriteFile(seedPath, []byte(seedContent), 0o644)
+	if err := os.WriteFile(seedPath, []byte(seedContent), 0o644); err != nil {
+		t.Fatalf("write seed state: %v", err)
+	}
 
 	// Load seed state
 	resolver := NewNativeResolver(tempDir)
@@ -212,7 +224,9 @@ func TestNativeResolverRelativePath(t *testing.T) {
 		filepath.Join(tempDir, "bas", "cases", "01-foundation"),
 	}
 	for _, dir := range dirs {
-		os.MkdirAll(dir, 0o755)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
 	}
 
 	// Create workflow
@@ -222,7 +236,9 @@ func TestNativeResolverRelativePath(t *testing.T) {
 		"edges": []
 	}`
 	workflowPath := filepath.Join(tempDir, "bas", "cases", "01-foundation", "test.json")
-	os.WriteFile(workflowPath, []byte(workflowContent), 0o644)
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0o644); err != nil {
+		t.Fatalf("write workflow: %v", err)
+	}
 
 	// Resolve with relative path
 	resolver := NewNativeResolver(tempDir)
@@ -244,12 +260,16 @@ func TestNativeResolverInvalidJSON(t *testing.T) {
 		filepath.Join(tempDir, "bas", "cases"),
 	}
 	for _, dir := range dirs {
-		os.MkdirAll(dir, 0o755)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
 	}
 
 	// Create invalid JSON file
 	workflowPath := filepath.Join(tempDir, "bas", "cases", "invalid.json")
-	os.WriteFile(workflowPath, []byte("{ not valid json"), 0o644)
+	if err := os.WriteFile(workflowPath, []byte("{ not valid json"), 0o644); err != nil {
+		t.Fatalf("write invalid workflow: %v", err)
+	}
 
 	resolver := NewNativeResolver(tempDir)
 	_, err := resolver.ResolveWorkflow(workflowPath)
@@ -275,7 +295,9 @@ func TestNativeResolverPreservesExistingReset(t *testing.T) {
 		filepath.Join(tempDir, "bas", "cases"),
 	}
 	for _, dir := range dirs {
-		os.MkdirAll(dir, 0o755)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
 	}
 
 	// Create workflow with explicit reset value
@@ -285,7 +307,9 @@ func TestNativeResolverPreservesExistingReset(t *testing.T) {
 		"edges": []
 	}`
 	workflowPath := filepath.Join(tempDir, "bas", "cases", "test.json")
-	os.WriteFile(workflowPath, []byte(workflowContent), 0o644)
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0o644); err != nil {
+		t.Fatalf("write workflow: %v", err)
+	}
 
 	resolver := NewNativeResolver(tempDir)
 	result, err := resolver.ResolveWorkflow(workflowPath)

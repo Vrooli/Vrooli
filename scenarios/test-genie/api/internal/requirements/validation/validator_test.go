@@ -38,6 +38,13 @@ func (r *memReader) ReadDir(path string) ([]fs.DirEntry, error) {
 	return nil, os.ErrNotExist
 }
 
+func mustAddModule(t *testing.T, index *parsing.ModuleIndex, module *types.RequirementModule) {
+	t.Helper()
+	if err := index.AddModule(module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
+}
+
 func (r *memReader) Exists(path string) bool {
 	_, hasFile := r.files[path]
 	_, hasDir := r.dirs[path]
@@ -111,7 +118,9 @@ func TestValidator_Validate_ContextCancellation(t *testing.T) {
 			{ID: "REQ-001", Title: "Test"},
 		},
 	}
-	index.AddModule(module)
+	if err := index.AddModule(module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
 
 	result := v.Validate(ctx, index, "/test")
 
@@ -133,7 +142,9 @@ func TestValidator_Validate_ValidRequirements(t *testing.T) {
 			{ID: "REQ-002", Title: "Second Requirement", Status: types.StatusInProgress},
 		},
 	}
-	index.AddModule(module)
+	if err := index.AddModule(module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
 
 	result := v.Validate(context.Background(), index, "/test")
 
@@ -198,7 +209,9 @@ func TestDuplicateIDRule_Check_NoDuplicates(t *testing.T) {
 			{ID: "REQ-003"},
 		},
 	}
-	index.AddModule(module)
+	if err := index.AddModule(module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
 
 	rctx := RuleContext{Index: index}
 	issues := rule.Check(context.Background(), rctx)
@@ -224,8 +237,12 @@ func TestDuplicateIDRule_Check_WithDuplicates(t *testing.T) {
 			{ID: "REQ-001"}, // Duplicate
 		},
 	}
-	index.AddModule(module1)
-	index.AddModule(module2)
+	if err := index.AddModule(module1); err != nil {
+		t.Fatalf("add first module: %v", err)
+	}
+	if err := index.AddModule(module2); err != nil {
+		t.Fatalf("add second module: %v", err)
+	}
 
 	rctx := RuleContext{Index: index}
 	issues := rule.Check(context.Background(), rctx)
@@ -249,7 +266,9 @@ func TestDuplicateIDRule_Check_CaseInsensitive(t *testing.T) {
 			{ID: "req-001"}, // Same ID different case
 		},
 	}
-	index.AddModule(module)
+	if err := index.AddModule(module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
 
 	rctx := RuleContext{Index: index}
 	issues := rule.Check(context.Background(), rctx)
@@ -281,7 +300,7 @@ func TestMissingIDRule_Check_AllHaveIDs(t *testing.T) {
 			{ID: "REQ-002"},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	rctx := RuleContext{Index: index}
 	issues := rule.Check(context.Background(), rctx)
@@ -303,7 +322,7 @@ func TestMissingIDRule_Check_MissingID(t *testing.T) {
 			{ID: "   "}, // Whitespace only
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	rctx := RuleContext{Index: index}
 	issues := rule.Check(context.Background(), rctx)
@@ -340,7 +359,7 @@ func TestMissingTitleRule_Check_AllHaveTitles(t *testing.T) {
 			{ID: "REQ-002", Title: "Second Requirement"},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	rctx := RuleContext{Index: index}
 	issues := rule.Check(context.Background(), rctx)
@@ -362,7 +381,7 @@ func TestMissingTitleRule_Check_MissingTitle(t *testing.T) {
 			{ID: "REQ-003", Title: "   "}, // Whitespace only
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	rctx := RuleContext{Index: index}
 	issues := rule.Check(context.Background(), rctx)
@@ -574,7 +593,7 @@ func TestInvalidReferenceRule_Check_NoScenarioRoot(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	rctx := RuleContext{Index: index, ScenarioRoot: "", Reader: nil}
 	issues := rule.Check(context.Background(), rctx)
@@ -602,7 +621,7 @@ func TestInvalidReferenceRule_Check_ValidReference(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	rctx := RuleContext{Index: index, ScenarioRoot: "/test/scenario", Reader: reader}
 	issues := rule.Check(context.Background(), rctx)
@@ -629,7 +648,7 @@ func TestInvalidReferenceRule_Check_InvalidReference(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	rctx := RuleContext{Index: index, ScenarioRoot: "/test/scenario", Reader: reader}
 	issues := rule.Check(context.Background(), rctx)
@@ -659,7 +678,7 @@ func TestInvalidReferenceRule_Check_ManualValidationSkipped(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	rctx := RuleContext{Index: index, ScenarioRoot: "/test/scenario", Reader: reader}
 	issues := rule.Check(context.Background(), rctx)
@@ -686,7 +705,7 @@ func TestInvalidReferenceRule_Check_EmptyRef(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	rctx := RuleContext{Index: index, ScenarioRoot: "/test/scenario", Reader: reader}
 	issues := rule.Check(context.Background(), rctx)
@@ -715,7 +734,7 @@ func TestInvalidReferenceRule_Check_AlternativePaths(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	rctx := RuleContext{Index: index, ScenarioRoot: "/test/scenario", Reader: reader}
 	issues := rule.Check(context.Background(), rctx)
@@ -745,7 +764,7 @@ func TestInvalidReferenceRule_Check_RefWithSymbol(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	rctx := RuleContext{Index: index, ScenarioRoot: "/test/scenario", Reader: reader}
 	issues := rule.Check(context.Background(), rctx)
@@ -777,7 +796,7 @@ func TestInvalidReferenceRule_Check_BatsRefWithTestName(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	rctx := RuleContext{Index: index, ScenarioRoot: "/test/scenario", Reader: reader}
 	issues := rule.Check(context.Background(), rctx)
@@ -809,7 +828,7 @@ func TestInvalidReferenceRule_Check_RefWithSymbol_FileMissing(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	rctx := RuleContext{Index: index, ScenarioRoot: "/test/scenario", Reader: reader}
 	issues := rule.Check(context.Background(), rctx)
@@ -847,7 +866,7 @@ func TestInvalidReferenceRule_Check_MalformedRef_NoFilePath(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	rctx := RuleContext{Index: index, ScenarioRoot: "/test/scenario", Reader: reader}
 	issues := rule.Check(context.Background(), rctx)
@@ -878,15 +897,15 @@ func TestInvalidReferenceRule_Check_MultipleRefsWithSymbols(t *testing.T) {
 			{
 				ID: "REQ-001",
 				Validations: []types.Validation{
-					{Type: types.ValTypeTest, Ref: "api/handlers_test.go::TestCreate"},      // exists
-					{Type: types.ValTypeTest, Ref: "api/service_test.go"},                   // exists, no symbol
-					{Type: types.ValTypeTest, Ref: "api/missing.go::TestMissing"},           // missing
-					{Type: types.ValTypeManual, Ref: "api/also_missing.go::ManualTest"},     // manual - skipped
+					{Type: types.ValTypeTest, Ref: "api/handlers_test.go::TestCreate"},  // exists
+					{Type: types.ValTypeTest, Ref: "api/service_test.go"},               // exists, no symbol
+					{Type: types.ValTypeTest, Ref: "api/missing.go::TestMissing"},       // missing
+					{Type: types.ValTypeManual, Ref: "api/also_missing.go::ManualTest"}, // manual - skipped
 				},
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	rctx := RuleContext{Index: index, ScenarioRoot: "/test/scenario", Reader: reader}
 	issues := rule.Check(context.Background(), rctx)
@@ -920,7 +939,7 @@ func TestInvalidReferenceRule_Check_AlternativePathsWithSymbol(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	rctx := RuleContext{Index: index, ScenarioRoot: "/test/scenario", Reader: reader}
 	issues := rule.Check(context.Background(), rctx)
@@ -954,7 +973,7 @@ func TestCycleDetectionRule_Check_NoCycles(t *testing.T) {
 			{ID: "REQ-003"},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 	index.BuildHierarchy()
 
 	rctx := RuleContext{Index: index}
@@ -977,7 +996,7 @@ func TestCycleDetectionRule_Check_WithCycle(t *testing.T) {
 			{ID: "REQ-C", Children: []string{"REQ-A"}}, // Creates cycle
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 	index.BuildHierarchy()
 
 	rctx := RuleContext{Index: index}
@@ -1013,7 +1032,7 @@ func TestOrphanedChildRule_Check_NoOrphans(t *testing.T) {
 			{ID: "REQ-002"},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	rctx := RuleContext{Index: index}
 	issues := rule.Check(context.Background(), rctx)
@@ -1033,7 +1052,7 @@ func TestOrphanedChildRule_Check_OrphanedChild(t *testing.T) {
 			{ID: "REQ-001", Children: []string{"REQ-NONEXISTENT"}},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	rctx := RuleContext{Index: index}
 	issues := rule.Check(context.Background(), rctx)
@@ -1056,7 +1075,7 @@ func TestOrphanedChildRule_Check_OrphanedDependency(t *testing.T) {
 			{ID: "REQ-001", DependsOn: []string{"REQ-NONEXISTENT"}},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	rctx := RuleContext{Index: index}
 	issues := rule.Check(context.Background(), rctx)
@@ -1095,7 +1114,7 @@ func TestInvalidStatusRule_Check_ValidStatuses(t *testing.T) {
 			{ID: "REQ-006", Status: ""}, // Empty is valid (defaults)
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	rctx := RuleContext{Index: index}
 	issues := rule.Check(context.Background(), rctx)
@@ -1117,7 +1136,7 @@ func TestInvalidStatusRule_Check_InvalidStatus(t *testing.T) {
 			{ID: "REQ-003", Status: "todo"}, // Not valid
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	rctx := RuleContext{Index: index}
 	issues := rule.Check(context.Background(), rctx)
@@ -1171,7 +1190,7 @@ func TestValidator_IntegrationTest(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 	index.BuildHierarchy()
 
 	result := v.Validate(context.Background(), index, "/test/scenario")
@@ -1211,8 +1230,8 @@ func TestValidator_AllRulesRun(t *testing.T) {
 			{ID: "REQ-004", Children: []string{"REQ-NONEXISTENT"}}, // Orphaned child
 		},
 	}
-	index.AddModule(module1)
-	index.AddModule(module2)
+	mustAddModule(t, index, module1)
+	mustAddModule(t, index, module2)
 	index.BuildHierarchy()
 
 	result := v.Validate(context.Background(), index, "")

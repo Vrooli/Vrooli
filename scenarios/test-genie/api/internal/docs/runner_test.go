@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -2299,6 +2300,47 @@ func TestExtractCodeRefs_NoMatch(t *testing.T) {
 	refs := extractCodeRefs("test.md", "# Title\n\nNo code references here\n")
 	if len(refs) != 0 {
 		t.Errorf("expected 0 refs, got %d", len(refs))
+	}
+}
+
+func TestExtractCodeRefs_IgnoresInlineAndFencedExamples(t *testing.T) {
+	content := strings.Join([]string{
+		"Inline syntax example: `[CODE: path/to/file.ext]`",
+		"```markdown",
+		"- [CODE: src/example.ts#DoThing]",
+		"```",
+		"Real reference: [CODE: src/main.go#Run]",
+	}, "\n")
+
+	refs := extractCodeRefs("test.md", content)
+	if len(refs) != 1 {
+		t.Fatalf("expected exactly one real ref, got %d", len(refs))
+	}
+	if refs[0].Ref != "src/main.go#Run" {
+		t.Fatalf("expected real ref to survive extraction, got %+v", refs[0])
+	}
+}
+
+func TestExtractDocRefsFromFile_IgnoresSyntaxMentionsAndStringLiterals(t *testing.T) {
+	dir := t.TempDir()
+	codePath := filepath.Join(dir, "main.go")
+	writeFile(t, codePath, strings.Join([]string{
+		"package main",
+		"// ValidateDocRefs checks // DOC: comments in code point to valid docs.",
+		`var _ = "// DOC: docs/ignored.md"`,
+		"// DOC: README.md",
+		"/* DOC: docs/guide.md */",
+	}, "\n"))
+
+	refs, err := extractDocRefsFromFile(codePath)
+	if err != nil {
+		t.Fatalf("extractDocRefsFromFile returned error: %v", err)
+	}
+	if len(refs) != 2 {
+		t.Fatalf("expected 2 standalone doc refs, got %d (%+v)", len(refs), refs)
+	}
+	if refs[0].DocPath != "README.md" || refs[1].DocPath != "docs/guide.md" {
+		t.Fatalf("unexpected extracted refs: %+v", refs)
 	}
 }
 

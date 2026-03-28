@@ -150,7 +150,9 @@ func TestLoadExpectations_UnreadableFile(t *testing.T) {
 		t.Skipf("cannot change file permissions on this system: %v", err)
 	}
 	t.Cleanup(func() {
-		os.Chmod(configPath, 0o644) // Restore for cleanup
+		if err := os.Chmod(configPath, 0o644); err != nil {
+			t.Logf("restore config permissions: %v", err)
+		}
 	})
 
 	_, err := LoadExpectations(tempDir)
@@ -215,21 +217,29 @@ func BenchmarkLoadExpectations_FileNotExists(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		LoadExpectations(tempDir)
+		if _, err := LoadExpectations(tempDir); err != nil {
+			b.Fatalf("load expectations without file: %v", err)
+		}
 	}
 }
 
 func BenchmarkLoadExpectations_WithFile(b *testing.B) {
 	tempDir := b.TempDir()
 	vrooliDir := filepath.Join(tempDir, ".vrooli")
-	os.MkdirAll(vrooliDir, 0o755)
+	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
+		b.Fatalf("mkdir .vrooli: %v", err)
+	}
 
 	configContent := `{"business": {"require_modules": true, "min_coverage_percent": 80}}`
-	os.WriteFile(filepath.Join(vrooliDir, "testing.json"), []byte(configContent), 0o644)
+	if err := os.WriteFile(filepath.Join(vrooliDir, "testing.json"), []byte(configContent), 0o644); err != nil {
+		b.Fatalf("write testing.json: %v", err)
+	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		LoadExpectations(tempDir)
+		if _, err := LoadExpectations(tempDir); err != nil {
+			b.Fatalf("load expectations with file: %v", err)
+		}
 	}
 }
 

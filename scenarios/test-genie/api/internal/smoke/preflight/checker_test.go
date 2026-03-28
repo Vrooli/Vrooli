@@ -18,7 +18,9 @@ func TestChecker_CheckBrowserless_Success(t *testing.T) {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"pressure":{"running":0}}`))
+		if _, err := w.Write([]byte(`{"pressure":{"running":0}}`)); err != nil {
+			t.Fatalf("write response: %v", err)
+		}
 	}))
 	defer server.Close()
 

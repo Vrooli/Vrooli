@@ -355,7 +355,9 @@ func (s *Server) handleGetToolManifest(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to marshal manifest", http.StatusInternalServerError)
 		return
 	}
-	w.Write(data)
+	if _, err := w.Write(data); err != nil {
+		s.log("failed to write tool manifest response", map[string]interface{}{"error": err.Error()})
+	}
 }
 
 // handleGetTool returns a specific tool by name.
@@ -382,5 +384,7 @@ func (s *Server) handleGetTool(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to marshal tool", http.StatusInternalServerError)
 		return
 	}
-	w.Write(data)
+	if _, err := w.Write(data); err != nil {
+		s.log("failed to write tool response", map[string]interface{}{"error": err.Error()})
+	}
 }

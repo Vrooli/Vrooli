@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -150,7 +151,10 @@ func (s *Server) handleSyncScenarioRequirements(w http.ResponseWriter, r *http.R
 
 	if r.Body != nil {
 		defer r.Body.Close()
-		json.NewDecoder(r.Body).Decode(&payload)
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil && err != io.EOF {
+			s.writeError(w, http.StatusBadRequest, "invalid sync payload")
+			return
+		}
 	}
 
 	scenarioDir := s.resolveScenarioDir(name)

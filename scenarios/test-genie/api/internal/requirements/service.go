@@ -93,6 +93,7 @@ type syncWriterAdapter struct {
 func (a *syncWriterAdapter) WriteFile(path string, data []byte, perm fs.FileMode) error {
 	return a.writer.WriteFile(path, data, perm)
 }
+
 func (a *syncWriterAdapter) MkdirAll(path string, perm fs.FileMode) error {
 	return a.writer.MkdirAll(path, perm)
 }
@@ -174,8 +175,12 @@ func (s *Service) Sync(ctx context.Context, input SyncInput) error {
 	snap, err := s.snapshotBuilder.Build(ctx, index, summary)
 	if err == nil && snap != nil {
 		snapshotPath := filepath.Join(input.ScenarioDir, "coverage", "requirements-sync", "latest.json")
-		s.writer.MkdirAll(filepath.Dir(snapshotPath), 0755)
-		snapshot.WriteSnapshot(s.writer, snapshotPath, snap)
+		if err := s.writer.MkdirAll(filepath.Dir(snapshotPath), 0o755); err != nil {
+			return fmt.Errorf("create snapshot dir: %w", err)
+		}
+		if err := snapshot.WriteSnapshot(s.writer, snapshotPath, snap); err != nil {
+			return fmt.Errorf("write snapshot: %w", err)
+		}
 	}
 
 	return nil

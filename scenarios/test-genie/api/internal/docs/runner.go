@@ -268,6 +268,7 @@ type linkTarget struct {
 var (
 	markdownLinkPattern   = regexp.MustCompile(`!?\[[^\]]*\]\(([^)]+)\)`)
 	codeFencePattern      = regexp.MustCompile("^(```|~~~)([a-zA-Z0-9_-]+)?")
+	inlineCodePattern     = regexp.MustCompile("`[^`]*`")
 	absUnixPathPattern    = regexp.MustCompile(`/(Users|home|var|etc|opt|srv|private|Volumes)/`)
 	absWindowsPathPattern = regexp.MustCompile(`^[A-Za-z]:\\`)
 	mermaidHeaderPattern  = regexp.MustCompile(`^(graph|flowchart|flowchart\s+(TB|TD|LR|RL)|sequenceDiagram|classDiagram|stateDiagram|stateDiagram-v2|gantt|journey|erDiagram|pie)\b`)
@@ -275,8 +276,8 @@ var (
 	// Bidirectional reference patterns
 	// Matches [CODE: path/to/file.go] or [CODE: path/to/file.go#FunctionName] or [CODE: path/to/file.go:42]
 	codeRefPattern = regexp.MustCompile(`\[CODE:\s*([^\]]+)\]`)
-	// Matches // DOC: path/to/doc.md or /* DOC: path/to/doc.md */ or # DOC: path/to/doc.md
-	docRefPattern = regexp.MustCompile(`(?://|/\*|#)\s*DOC:\s*([^\s\*\n]+)`)
+	// Matches standalone // DOC: path/to/doc.md or /* DOC: path/to/doc.md */ or # DOC: path/to/doc.md
+	docRefPattern = regexp.MustCompile(`^\s*(?://|/\*|#)\s*DOC:\s*([^\s\*\n]+)`)
 )
 
 // codeRefTarget represents a [CODE: ...] reference found in documentation.
@@ -790,8 +791,27 @@ func doublestarMatch(glob, value string) bool {
 func extractCodeRefs(file, content string) []codeRefTarget {
 	var refs []codeRefTarget
 	lines := strings.Split(content, "\n")
+	inFence := false
+	fenceMarker := ""
 	for i, line := range lines {
-		for _, match := range codeRefPattern.FindAllStringSubmatch(line, -1) {
+		trimmed := strings.TrimSpace(line)
+		if fenceMatch := codeFencePattern.FindStringSubmatch(trimmed); fenceMatch != nil {
+			marker := fenceMatch[1]
+			if inFence && marker == fenceMarker {
+				inFence = false
+				fenceMarker = ""
+			} else if !inFence {
+				inFence = true
+				fenceMarker = marker
+			}
+			continue
+		}
+		if inFence {
+			continue
+		}
+
+		searchLine := inlineCodePattern.ReplaceAllString(line, "")
+		for _, match := range codeRefPattern.FindAllStringSubmatch(searchLine, -1) {
 			if len(match) < 2 {
 				continue
 			}

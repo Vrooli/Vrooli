@@ -612,9 +612,13 @@ func BenchmarkRunPlaybooksPhaseEmptyRegistryNoUI(b *testing.B) {
 	tempDir := b.TempDir()
 	scenarioDir := filepath.Join(tempDir, "scenarios", "bench-scenario")
 	basDir := filepath.Join(scenarioDir, "bas")
-	os.MkdirAll(basDir, 0o755)
+	if err := os.MkdirAll(basDir, 0o755); err != nil {
+		b.Fatalf("mkdir bas dir: %v", err)
+	}
 	// No ui/ directory, but provide empty registry
-	os.WriteFile(filepath.Join(basDir, "registry.json"), []byte(`{"playbooks":[]}`), 0o644)
+	if err := os.WriteFile(filepath.Join(basDir, "registry.json"), []byte(`{"playbooks":[]}`), 0o644); err != nil {
+		b.Fatalf("write registry: %v", err)
+	}
 
 	env := workspace.Environment{
 		ScenarioName: "bench-scenario",
@@ -632,10 +636,16 @@ func BenchmarkRunPlaybooksPhaseEmptyRegistryNoUI(b *testing.B) {
 func BenchmarkRunPlaybooksPhaseEmptyRegistry(b *testing.B) {
 	tempDir := b.TempDir()
 	scenarioDir := filepath.Join(tempDir, "scenarios", "bench-scenario")
-	os.MkdirAll(filepath.Join(scenarioDir, "ui"), 0o755)
+	if err := os.MkdirAll(filepath.Join(scenarioDir, "ui"), 0o755); err != nil {
+		b.Fatalf("mkdir ui dir: %v", err)
+	}
 	basDir := filepath.Join(scenarioDir, "bas")
-	os.MkdirAll(basDir, 0o755)
-	os.WriteFile(filepath.Join(basDir, "registry.json"), []byte(`{"playbooks":[]}`), 0o644)
+	if err := os.MkdirAll(basDir, 0o755); err != nil {
+		b.Fatalf("mkdir bas dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(basDir, "registry.json"), []byte(`{"playbooks":[]}`), 0o644); err != nil {
+		b.Fatalf("write registry: %v", err)
+	}
 
 	env := workspace.Environment{
 		ScenarioName: "bench-scenario",

@@ -21,6 +21,13 @@ func newMemReader() *memReader {
 	}
 }
 
+func mustAddModule(t *testing.T, idx *ModuleIndex, module *types.RequirementModule) {
+	t.Helper()
+	if err := idx.AddModule(module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
+}
+
 func (r *memReader) ReadFile(path string) ([]byte, error) {
 	if data, ok := r.files[path]; ok {
 		return data, nil
@@ -46,7 +53,6 @@ func TestParser_Parse_ValidModule(t *testing.T) {
 
 	parser := New(reader)
 	module, err := parser.Parse(context.Background(), "/test/module.json")
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -104,7 +110,6 @@ func TestParser_Parse_WithValidations(t *testing.T) {
 
 	parser := New(reader)
 	module, err := parser.Parse(context.Background(), "/test/module.json")
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -127,7 +132,6 @@ func TestParser_Parse_NormalizesStatus(t *testing.T) {
 
 	parser := New(reader)
 	module, err := parser.Parse(context.Background(), "/test/module.json")
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -174,7 +178,6 @@ func TestParser_ParseAll_MultipleFiles(t *testing.T) {
 	}
 
 	index, err := parser.ParseAll(context.Background(), files)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -197,7 +200,6 @@ func TestParser_ParseAll_EmptyFiles(t *testing.T) {
 	parser := New(reader)
 
 	index, err := parser.ParseAll(context.Background(), nil)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -233,7 +235,6 @@ func TestModuleIndex_AddModule(t *testing.T) {
 	}
 
 	err := index.AddModule(module)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -259,7 +260,6 @@ func TestModuleIndex_AddModule_NilModule(t *testing.T) {
 	index := NewModuleIndex()
 
 	err := index.AddModule(nil)
-
 	if err != nil {
 		t.Errorf("nil module should not error: %v", err)
 	}
@@ -302,7 +302,7 @@ func TestParser_Integration(t *testing.T) {
 	tmpDir := t.TempDir()
 	moduleDir := filepath.Join(tmpDir, "requirements")
 
-	if err := os.MkdirAll(moduleDir, 0755); err != nil {
+	if err := os.MkdirAll(moduleDir, 0o755); err != nil {
 		t.Fatalf("create dir: %v", err)
 	}
 
@@ -324,13 +324,12 @@ func TestParser_Integration(t *testing.T) {
 		]
 	}`)
 	modulePath := filepath.Join(moduleDir, "module.json")
-	if err := os.WriteFile(modulePath, moduleData, 0644); err != nil {
+	if err := os.WriteFile(modulePath, moduleData, 0o644); err != nil {
 		t.Fatalf("write module: %v", err)
 	}
 
 	parser := NewDefault()
 	module, err := parser.Parse(context.Background(), modulePath)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -615,7 +614,9 @@ func TestModuleIndex_GetParent(t *testing.T) {
 			{ID: "CHILD"},
 		},
 	}
-	idx.AddModule(module)
+	if err := idx.AddModule(module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
 	idx.BuildHierarchy()
 
 	parent, ok := idx.GetParent("CHILD")
@@ -642,7 +643,9 @@ func TestModuleIndex_GetChildren(t *testing.T) {
 			{ID: "CHILD2"},
 		},
 	}
-	idx.AddModule(module)
+	if err := idx.AddModule(module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
 	idx.BuildHierarchy()
 
 	children := idx.GetChildren("PARENT")
@@ -661,7 +664,9 @@ func TestModuleIndex_GetDependencies(t *testing.T) {
 			{ID: "DEP-002"},
 		},
 	}
-	idx.AddModule(module)
+	if err := idx.AddModule(module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
 	idx.BuildHierarchy()
 
 	deps := idx.GetDependencies("REQ-001")
@@ -680,7 +685,9 @@ func TestModuleIndex_GetBlockedBy(t *testing.T) {
 			{ID: "BLOCKED-2"},
 		},
 	}
-	idx.AddModule(module)
+	if err := idx.AddModule(module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
 	idx.BuildHierarchy()
 
 	blocked := idx.GetBlockedBy("BLOCKER")
@@ -698,7 +705,9 @@ func TestModuleIndex_AllRequirements(t *testing.T) {
 			{ID: "REQ-002"},
 		},
 	}
-	idx.AddModule(module)
+	if err := idx.AddModule(module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
 
 	all := idx.AllRequirements()
 	if len(all) != 2 {
@@ -715,7 +724,9 @@ func TestModuleIndex_AllRequirementIDs(t *testing.T) {
 			{ID: "REQ-002"},
 		},
 	}
-	idx.AddModule(module)
+	if err := idx.AddModule(module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
 
 	ids := idx.AllRequirementIDs()
 	if len(ids) != 2 {
@@ -732,7 +743,9 @@ func TestModuleIndex_Counts(t *testing.T) {
 			{ID: "REQ-001"},
 		},
 	}
-	idx.AddModule(module)
+	if err := idx.AddModule(module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
 
 	if idx.RequirementCount() != 1 {
 		t.Errorf("expected 1 requirement, got: %d", idx.RequirementCount())
@@ -755,7 +768,9 @@ func TestModuleIndex_HasErrors(t *testing.T) {
 			{ID: ""},
 		},
 	}
-	idx.AddModule(module)
+	if err := idx.AddModule(module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
 
 	if !idx.HasErrors() {
 		t.Error("index should have errors after adding invalid requirement")
@@ -772,7 +787,9 @@ func TestModuleIndex_IsAncestor(t *testing.T) {
 			{ID: "GRANDCHILD"},
 		},
 	}
-	idx.AddModule(module)
+	if err := idx.AddModule(module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
 	idx.BuildHierarchy()
 
 	if !idx.IsAncestor("ROOT", "GRANDCHILD") {
@@ -796,7 +813,9 @@ func TestModuleIndex_GetRootRequirements(t *testing.T) {
 			{ID: "CHILD"},
 		},
 	}
-	idx.AddModule(module)
+	if err := idx.AddModule(module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
 	idx.BuildHierarchy()
 
 	roots := idx.GetRootRequirements()
@@ -815,7 +834,9 @@ func TestModuleIndex_GetLeafRequirements(t *testing.T) {
 			{ID: "LEAF"},
 		},
 	}
-	idx.AddModule(module)
+	if err := idx.AddModule(module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
 	idx.BuildHierarchy()
 
 	leaves := idx.GetLeafRequirements()
@@ -834,7 +855,9 @@ func TestModuleIndex_DetectCycles(t *testing.T) {
 			{ID: "C", Children: []string{"A"}}, // cycle: A -> B -> C -> A
 		},
 	}
-	idx.AddModule(module)
+	if err := idx.AddModule(module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
 	idx.BuildHierarchy()
 
 	cycles := idx.DetectCycles()
@@ -853,7 +876,7 @@ func TestModuleIndex_DetectCycles_NoCycle(t *testing.T) {
 			{ID: "C"},
 		},
 	}
-	idx.AddModule(module)
+	mustAddModule(t, idx, module)
 	idx.BuildHierarchy()
 
 	cycles := idx.DetectCycles()
@@ -872,7 +895,7 @@ func TestModuleIndex_FilterByStatus(t *testing.T) {
 			{ID: "REQ-003", Status: types.StatusPending},
 		},
 	}
-	idx.AddModule(module)
+	mustAddModule(t, idx, module)
 
 	pending := idx.FilterByStatus(types.StatusPending)
 	if len(pending) != 2 {
@@ -890,7 +913,7 @@ func TestModuleIndex_FilterByCriticality(t *testing.T) {
 			{ID: "REQ-003", Criticality: types.CriticalityP0},
 		},
 	}
-	idx.AddModule(module)
+	mustAddModule(t, idx, module)
 
 	p0 := idx.FilterByCriticality(types.CriticalityP0)
 	if len(p0) != 2 {
@@ -908,7 +931,7 @@ func TestModuleIndex_FilterCritical(t *testing.T) {
 			{ID: "REQ-003", Criticality: types.CriticalityP2},
 		},
 	}
-	idx.AddModule(module)
+	mustAddModule(t, idx, module)
 
 	critical := idx.FilterCritical()
 	if len(critical) != 2 {
@@ -929,7 +952,7 @@ func TestModuleIndex_FindValidationsByRef(t *testing.T) {
 			},
 		},
 	}
-	idx.AddModule(module)
+	mustAddModule(t, idx, module)
 
 	refs := idx.FindValidationsByRef("test/app.test.ts")
 	if len(refs) != 1 {
@@ -952,8 +975,8 @@ func TestModuleIndex_DuplicateID_Error(t *testing.T) {
 		},
 	}
 
-	idx.AddModule(module1)
-	idx.AddModule(module2)
+	mustAddModule(t, idx, module1)
+	mustAddModule(t, idx, module2)
 
 	if !idx.HasErrors() {
 		t.Error("expected error for duplicate ID")
@@ -1050,7 +1073,6 @@ func TestParser_ParseAll_PartialErrors(t *testing.T) {
 	}
 
 	index, err := parser.ParseAll(context.Background(), files)
-
 	// Should not return error - errors are collected in index
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

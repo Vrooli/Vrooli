@@ -274,7 +274,7 @@ func (r *Runner) discoverWorkspaces() []string {
 		"venv":              {},
 	}
 
-	filepath.WalkDir(r.scenarioDir, func(path string, d os.DirEntry, err error) error {
+	if err := filepath.WalkDir(r.scenarioDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -293,7 +293,9 @@ func (r *Runner) discoverWorkspaces() []string {
 		}
 
 		return nil
-	})
+	}); err != nil {
+		return workspaces
+	}
 
 	return workspaces
 }

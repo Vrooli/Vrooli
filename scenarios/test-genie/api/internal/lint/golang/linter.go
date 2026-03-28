@@ -146,7 +146,6 @@ func (l *Linter) runGolangciLint(ctx context.Context, result *Result) *Result {
 	cmd.Dir = l.config.Dir
 
 	output, err := cmd.Output()
-
 	// golangci-lint exits with 1 if there are issues, which is not an error for us
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
@@ -198,7 +197,6 @@ func (l *Linter) runGoVet(ctx context.Context, result *Result) *Result {
 	}
 
 	output, err := cmd.CombinedOutput()
-
 	if err != nil {
 		// go vet exits with 1 if there are issues
 		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
@@ -339,7 +337,9 @@ func (l *Linter) parseGoVetOutput(output string) []Issue {
 
 		// Check if column is present
 		if len(parts) == 4 {
-			fmt.Sscanf(parts[2], "%d", &issue.Column)
+			if _, err := fmt.Sscanf(parts[2], "%d", &issue.Column); err != nil {
+				issue.Column = 0
+			}
 			issue.Message = strings.TrimSpace(parts[3])
 		} else {
 			issue.Message = strings.TrimSpace(parts[2])
