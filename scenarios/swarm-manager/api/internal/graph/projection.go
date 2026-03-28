@@ -125,12 +125,12 @@ func (p *ProjectionService) buildTopology(ctx context.Context) (GraphResponse, e
 		nodes = append(nodes, Node{
 			ID:   nodeID,
 			Type: "BacklogItem",
-			Data: map[string]any{
-				"kind":     string(item.Kind),
-				"name":     item.Name,
-				"title":    item.Title,
-				"status":   string(item.Status),
-				"priority": item.Priority,
+			Data: GraphBacklogNodeData{
+				Kind:     string(item.Kind),
+				Name:     item.Name,
+				Title:    item.Title,
+				Status:   string(item.Status),
+				Priority: int32(item.Priority),
 			},
 		})
 
@@ -161,16 +161,16 @@ func (p *ProjectionService) buildTopology(ctx context.Context) (GraphResponse, e
 				nodes = append(nodes, Node{
 					ID:   initNodeID,
 					Type: "Initiative",
-					Data: map[string]any{
-						"name":   init.Name,
-						"title":  init.Title,
-						"status": init.Status,
-						"rollup": map[string]any{
-							"total":       rollup.Total,
-							"completed":   rollup.Completed,
-							"in_progress": rollup.InProgress,
-							"failed":      rollup.Failed,
-							"pending":     rollup.Pending,
+					Data: GraphInitiativeNodeData{
+						Name:   init.Name,
+						Title:  init.Title,
+						Status: init.Status,
+						Rollup: GraphInitiativeRollup{
+							Total:      int32(rollup.Total),
+							Completed:  int32(rollup.Completed),
+							InProgress: int32(rollup.InProgress),
+							Failed:     int32(rollup.Failed),
+							Pending:    int32(rollup.Pending),
 						},
 					},
 				})
@@ -209,10 +209,10 @@ func (p *ProjectionService) buildTopology(ctx context.Context) (GraphResponse, e
 				nodes = append(nodes, Node{
 					ID:   capNodeID,
 					Type: "Capture",
-					Data: map[string]any{
-						"id":     cap.ID,
-						"text":   cap.Text,
-						"status": cap.Status,
+					Data: GraphCaptureNodeData{
+						ID:     cap.ID,
+						Text:   cap.Text,
+						Status: cap.Status,
 					},
 				})
 				for _, ci := range cap.Items {
@@ -241,9 +241,9 @@ func (p *ProjectionService) buildTopology(ctx context.Context) (GraphResponse, e
 				nodes = append(nodes, Node{
 					ID:   scenNodeID,
 					Type: "Scenario",
-					Data: map[string]any{
-						"name":   s.Name,
-						"status": s.Status,
+					Data: GraphScenarioNodeData{
+						Name:   s.Name,
+						Status: s.Status,
 					},
 				})
 			}
@@ -304,12 +304,12 @@ func buildBacklogNode(item backlog.BacklogItem) Node {
 	return Node{
 		ID:   backlogItemNodeID(string(item.Kind), item.Name),
 		Type: "BacklogItem",
-		Data: map[string]any{
-			"kind":     string(item.Kind),
-			"name":     item.Name,
-			"title":    item.Title,
-			"status":   string(item.Status),
-			"priority": item.Priority,
+		Data: GraphBacklogNodeData{
+			Kind:     string(item.Kind),
+			Name:     item.Name,
+			Title:    item.Title,
+			Status:   string(item.Status),
+			Priority: int32(item.Priority),
 		},
 	}
 }
@@ -318,13 +318,13 @@ func buildExecutionNode(rec execution.Record) Node {
 	return Node{
 		ID:   "execution-record/" + rec.ExecutionID,
 		Type: "ExecutionRecord",
-		Data: map[string]any{
-			"execution_id": rec.ExecutionID,
-			"backlog_kind": rec.BacklogKind,
-			"backlog_name": rec.BacklogName,
-			"status":       string(rec.Status),
-			"mode":         string(rec.Mode),
-			"run_id":       rec.RunID,
+		Data: GraphExecutionNodeData{
+			ExecutionID: rec.ExecutionID,
+			BacklogKind: rec.BacklogKind,
+			BacklogName: rec.BacklogName,
+			Status:      string(rec.Status),
+			Mode:        string(rec.Mode),
+			RunID:       rec.RunID,
 		},
 	}
 }
@@ -638,9 +638,9 @@ func (p *ProjectionService) buildOperations(ctx context.Context) (GraphResponse,
 		nodes = append(nodes, Node{
 			ID:   "scenario/" + scenario.Name,
 			Type: "Scenario",
-			Data: map[string]any{
-				"name":   scenario.Name,
-				"status": scenario.Status,
+			Data: GraphScenarioNodeData{
+				Name:   scenario.Name,
+				Status: scenario.Status,
 			},
 		})
 	}
@@ -683,10 +683,10 @@ func (p *ProjectionService) buildOperations(ctx context.Context) (GraphResponse,
 					node := Node{
 						ID:   runNodeID,
 						Type: "Run",
-						Data: map[string]any{
-							"run_id":  state.RunID,
-							"task_id": state.TaskID,
-							"status":  state.Status,
+						Data: GraphRunNodeData{
+							RunID:  state.RunID,
+							TaskID: state.TaskID,
+							Status: state.Status,
 						},
 					}
 					edge := Edge{

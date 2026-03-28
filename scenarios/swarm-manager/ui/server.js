@@ -7,4 +7,6 @@ startScenarioServer({
   serviceName: 'swarm-manager',
   corsOrigins: '*',
   embeddedProxy: true,
+  wsPathPrefix: '/ws',
+  wsPathTransform: (incomingPath) => incomingPath || '/ws',
 })

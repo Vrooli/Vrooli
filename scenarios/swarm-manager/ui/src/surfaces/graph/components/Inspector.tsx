@@ -8,7 +8,6 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import type { Node } from "@xyflow/react";
 import { ExternalLink, Loader2, X } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useIsMobile } from "../../../hooks/useMediaQuery";
@@ -18,18 +17,19 @@ import { useGraphDataStore } from "../stores/graph-data-store";
 import type { EntityType } from "../stores/graph-data-store";
 import { getActionsForNode, type InspectorAction } from "../lib/action-registry";
 import { parseNodeId } from "../lib/node-id-parser";
+import { getGraphNodeData, getGraphNodeLabel, type GraphNode } from "../types";
 
 interface InspectorProps {
   isOpen: boolean;
   onClose: () => void;
-  selectedNode: Node | null;
+  selectedNode: GraphNode | null;
 }
 
 /**
  * Build a details-page path for nodes that support drill-down.
  * Returns null for entity types with no detail page.
  */
-function getDetailsPath(node: Node): string | null {
+function getDetailsPath(node: GraphNode): string | null {
   const parsed = parseNodeId(node.id);
   if (!parsed) {
     return null;
@@ -53,7 +53,7 @@ function ActionButton({
   onNavigate,
 }: {
   action: InspectorAction;
-  node: Node;
+  node: GraphNode;
   onNavigate: (path: string) => void;
 }) {
   const [loading, setLoading] = useState(false);
@@ -118,8 +118,8 @@ function ActionButton({
   );
 }
 
-function InspectorContent({ node }: { node: Node }) {
-  const data = node.data as Record<string, unknown>;
+function InspectorContent({ node }: { node: GraphNode }) {
+  const data = getGraphNodeData(node);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const lens = useGraphDataStore((s) => s.lens);
@@ -139,17 +139,17 @@ function InspectorContent({ node }: { node: Node }) {
     <div className="space-y-3" data-testid="inspector-content">
       <div>
         <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
-          {(data.entityType as string) ?? "Unknown"}
+          {data.entityType ?? "Unknown"}
         </span>
         <h3 className="mt-0.5 text-base font-semibold text-slate-100">
-          {(data.label as string) ?? node.id}
+          {data.label ?? node.id}
         </h3>
       </div>
       <div className="flex items-center gap-2">
         <span className="rounded-full bg-slate-700/60 px-2.5 py-0.5 text-xs text-slate-300">
-          {(data.status as string) ?? "unknown"}
+          {data.status ?? "unknown"}
         </span>
-        {typeof data.kind === "string" && (
+        {"kind" in data && typeof data.kind === "string" && (
           <span className="rounded-full bg-cyan-500/15 px-2.5 py-0.5 text-xs text-cyan-300">
             {data.kind}
           </span>
@@ -195,7 +195,7 @@ export function Inspector({ isOpen, onClose, selectedNode }: InspectorProps) {
 
   if (!isOpen || !selectedNode) return null;
 
-  const title = (selectedNode.data as Record<string, unknown>).label as string ?? selectedNode.id;
+  const title = getGraphNodeLabel(selectedNode);
 
   // Mobile: use existing BottomSheet.
   if (isMobile) {

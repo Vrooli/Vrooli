@@ -30,6 +30,62 @@ func AllLenses() []Lens {
 	return []Lens{LensTopology, LensFlow, LensOperations}
 }
 
+// GraphBacklogNodeData describes a backlog item node payload.
+type GraphBacklogNodeData struct {
+	Kind     string `json:"kind"`
+	Name     string `json:"name"`
+	Title    string `json:"title"`
+	Status   string `json:"status"`
+	Priority int32  `json:"priority"`
+}
+
+// GraphInitiativeRollup describes initiative member status counts.
+type GraphInitiativeRollup struct {
+	Total      int32 `json:"total"`
+	Completed  int32 `json:"completed"`
+	InProgress int32 `json:"in_progress"`
+	Failed     int32 `json:"failed"`
+	Pending    int32 `json:"pending"`
+}
+
+// GraphInitiativeNodeData describes an initiative node payload.
+type GraphInitiativeNodeData struct {
+	Name   string                `json:"name"`
+	Title  string                `json:"title"`
+	Status string                `json:"status"`
+	Rollup GraphInitiativeRollup `json:"rollup"`
+}
+
+// GraphCaptureNodeData describes a capture node payload.
+type GraphCaptureNodeData struct {
+	ID     string `json:"id"`
+	Text   string `json:"text"`
+	Status string `json:"status"`
+}
+
+// GraphScenarioNodeData describes a scenario node payload.
+type GraphScenarioNodeData struct {
+	Name   string `json:"name"`
+	Status string `json:"status"`
+}
+
+// GraphExecutionNodeData describes an execution node payload.
+type GraphExecutionNodeData struct {
+	ExecutionID string `json:"execution_id"`
+	BacklogKind string `json:"backlog_kind"`
+	BacklogName string `json:"backlog_name"`
+	Status      string `json:"status"`
+	Mode        string `json:"mode"`
+	RunID       string `json:"run_id,omitempty"`
+}
+
+// GraphRunNodeData describes an agent-manager run node payload.
+type GraphRunNodeData struct {
+	RunID  string `json:"run_id"`
+	TaskID string `json:"task_id,omitempty"`
+	Status string `json:"status"`
+}
+
 // Node is a React Flow-compatible graph node.
 type Node struct {
 	ID       string   `json:"id"`
@@ -86,6 +142,26 @@ func NewGraphResponse(lens Lens, nodes []Node, edges []Edge) GraphResponse {
 			EdgeCount:   len(edges),
 			GeneratedAt: time.Now().UTC().Format(time.RFC3339),
 		},
+	}
+}
+
+// NodeDataToProtoKind identifies the proto oneof variant for node data.
+func NodeDataToProtoKind(data any) string {
+	switch data.(type) {
+	case GraphBacklogNodeData, *GraphBacklogNodeData:
+		return "backlog"
+	case GraphInitiativeNodeData, *GraphInitiativeNodeData:
+		return "initiative"
+	case GraphCaptureNodeData, *GraphCaptureNodeData:
+		return "capture"
+	case GraphScenarioNodeData, *GraphScenarioNodeData:
+		return "scenario"
+	case GraphExecutionNodeData, *GraphExecutionNodeData:
+		return "execution"
+	case GraphRunNodeData, *GraphRunNodeData:
+		return "run"
+	default:
+		return ""
 	}
 }
 

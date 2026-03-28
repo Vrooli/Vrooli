@@ -1,9 +1,9 @@
 # swarm-manager Interoperability Audit
 
-> Current State (2026-02-14): Active runtime interop is backlog/scenarios/settings/execution with agent-manager and optional ecosystem-manager. Any recommendation-endpoint references are historical context.
+> Current State (2026-03-28): Active runtime interop is graph-first backlog/scenarios/settings/execution/prompts with agent-manager and optional ecosystem-manager. Any recommendation-endpoint references are historical context.
 
 ## Last Updated
-2026-02-13
+2026-03-28
 
 ## Dependency Inventory
 | Dependency | Declared | Used in Code | Required/Optional | Status |
@@ -18,20 +18,21 @@
 | prompt-manager | Yes (`service.json`, disabled) | Not used | Optional (P1) | N/A |
 
 ## Proto Adoption Status
-- [x] All API request/response types use generated protos
+- [x] All structured API request/response types use generated protos
 - [x] All UI↔API communication uses fromJson/toJsonString
 - [x] Protovalidate enforced at API ingress
-- [x] No unsafe type assertions
+- [x] Graph projection now uses generated proto schemas end to end
 - [x] UI domain types derived from proto types (BacklogItem, Scenario, Settings, ExecutionRecord, ExecutionPolicy)
 
 ## Contract Findings
-1. No unsafe casts (`as any`, `as SomeType`) in non-test code (API or UI).
+1. Non-test casts are localized to the React Flow renderer/library seam (`Record<string, unknown>` -> typed graph node data); structured UI↔API contracts do not rely on ad hoc DTO casts.
 2. All UI services use `parseProtoResponse` + mapper functions through `proto-contracts.ts`.
 3. All UI domain types derive from proto types via `Omit<ProtoMessage<...>, ...>` pattern.
-4. Proto-contracts type guards centralize status/enum validation for all domains.
+4. Graph transport no longer uses hand-written DTOs or `Record<string, unknown>` payload maps across the UI↔API boundary.
+5. Proto-contracts type guards centralize status/enum validation for all domains.
 
 ## UI↔API Findings
-1. All hand-written interfaces in UI are component props, store state, or service interfaces — none duplicate proto message shapes.
+1. All hand-written interfaces in UI are component props, store state, or service interfaces — none duplicate backend graph/backlog/execution proto message shapes.
 2. `fromJson` with `ignoreUnknownFields: true` in `proto-contracts.ts` accepts both proto and JSON field names.
 3. All service `create`/`update` calls use `buildMessage` + `toProtoJson` for request serialization.
 
@@ -43,6 +44,12 @@
 5. Dependency parity: all declared `required` dependencies in `service.json` have corresponding adapter code.
 
 ## Completed Fixes
+
+### 2026-03-28: Graph projection proto migration and UI typing hardening
+- **Proto schema** (`swarm-manager/v1/domain/graph.proto`, `swarm-manager/v1/api/graph.proto`): Added explicit graph node/edge/meta response messages and typed node payload oneofs for backlog, initiative, capture, scenario, execution, and run nodes.
+- **API handler** (`internal/graph/handler.go`, `internal/graph/proto_response.go`, `internal/graph/projection.go`): Replaced raw JSON graph responses and map-based node payloads with typed projection structs encoded into proto `GraphResponse`.
+- **UI graph service/store** (`ui/src/services/graph-service.ts`, `ui/src/surfaces/graph/*`): Removed hand-written graph DTOs, adopted proto schema parsing, centralized graph node typing/helpers, and added shared typed graph test builders to keep store/presentation/canvas tests aligned with the real contract.
+- **Impact**: The graph-first workspace no longer drifts from the API contract and now benefits from compile-time checks across API encoding, UI mapping, clustering, presentation, and renderer tests.
 
 ### 2026-02-13: Execution service backlogItem data loss fix
 - **Root cause**: `execution/service.go` defined its own `backlogItem` struct (line 525) missing the `created` and `research_target` fields. When `updateBacklogStatus()` wrote this incomplete struct back to `spec.json` via `storage.WriteJSONAtomic()`, those fields were silently dropped. Any item that went through the execution pipeline (queue, cancel, complete, fail) permanently lost its `created` timestamp and research target.

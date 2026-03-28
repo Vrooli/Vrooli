@@ -25,6 +25,7 @@ import {
   BacklogResearchResponseSchema,
 } from "@vrooli/proto-types/swarm-manager/v1/api/backlog_pb";
 import { AgentManagerStatusResponseSchema } from "@vrooli/proto-types/swarm-manager/v1/api/agent_manager_pb";
+import { GraphResponseSchema } from "@vrooli/proto-types/swarm-manager/v1/api/graph_pb";
 import { SettingsResponseSchema } from "@vrooli/proto-types/swarm-manager/v1/api/settings_pb";
 import {
   ListScenariosResponseSchema,
@@ -265,6 +266,10 @@ export const scenarioFilesResponseSchema = createProtoSchema(
 export const settingsResponseSchema = createProtoSchema(
   SettingsResponseSchema,
   "settings"
+);
+export const graphResponseSchema = createProtoSchema(
+  GraphResponseSchema,
+  "graph"
 );
 
 export { DeleteScenarioRequestSchema, PreserveFilesRequestSchema, SpecSyncArchiveRequestSchema };

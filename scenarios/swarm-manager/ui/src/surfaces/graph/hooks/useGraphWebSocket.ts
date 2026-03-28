@@ -44,7 +44,9 @@ const BACKOFF_BASE_MS = 1000;
 const BACKOFF_MAX_MS = 30_000;
 const BACKOFF_MULTIPLIER = 2;
 const INVALIDATION_DEBOUNCE_MS = 150;
-const WS_PATH = "/ws/graph";
+// `buildWsUrl(..., { appendSuffix: true })` contributes the `/ws` prefix.
+// This hook should only provide the graph stream path segment.
+const WS_PATH = "/graph";
 
 export interface UseGraphWebSocketOptions {
   enabled: boolean;
@@ -74,6 +76,7 @@ function affectsLens(message: WSMessage, lens: GraphLens): boolean {
 
 export function useGraphWebSocket({ enabled, lens, onNodePulse }: UseGraphWebSocketOptions) {
   const wsRef = useRef<WebSocket | null>(null);
+  const hasOpenedRef = useRef(false);
   const retryCountRef = useRef(0);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const invalidateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -122,6 +125,7 @@ export function useGraphWebSocket({ enabled, lens, onNodePulse }: UseGraphWebSoc
     wsRef.current = ws;
 
     ws.onopen = () => {
+      hasOpenedRef.current = true;
       retryCountRef.current = 0;
     };
 
@@ -137,6 +141,7 @@ export function useGraphWebSocket({ enabled, lens, onNodePulse }: UseGraphWebSoc
       wsRef.current = null;
       if (!enabledRef.current) return;
 
+      const shouldRefreshOnReconnect = hasOpenedRef.current;
       const delay = Math.min(
         BACKOFF_BASE_MS * Math.pow(BACKOFF_MULTIPLIER, retryCountRef.current),
         BACKOFF_MAX_MS,
@@ -144,11 +149,20 @@ export function useGraphWebSocket({ enabled, lens, onNodePulse }: UseGraphWebSoc
       retryCountRef.current += 1;
 
       retryTimerRef.current = setTimeout(() => {
-        void fetchGraph(lensRef.current, { silent: true, force: true }).finally(() => {
+        retryTimerRef.current = null;
+
+        const reconnect = () => {
           if (enabledRef.current) {
             connect();
           }
-        });
+        };
+
+        if (!shouldRefreshOnReconnect) {
+          reconnect();
+          return;
+        }
+
+        void fetchGraph(lensRef.current, { silent: true, force: true }).finally(reconnect);
       }, delay);
     };
   }, [fetchGraph, handleMessage]);
@@ -171,6 +185,7 @@ export function useGraphWebSocket({ enabled, lens, onNodePulse }: UseGraphWebSoc
     }
 
     retryCountRef.current = 0;
+    hasOpenedRef.current = false;
   }, []);
 
   useEffect(() => {

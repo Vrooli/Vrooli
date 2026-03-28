@@ -41,5 +41,11 @@ func (h *Handler) GetGraph(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = httputil.JSON(w, resp)
+	protoResp, err := encodeGraphResponse(resp)
+	if err != nil {
+		httputil.InternalError(w, "[graph]", "failed to encode graph projection")
+		return
+	}
+
+	_ = httputil.ProtoJSON(w, protoResp)
 }

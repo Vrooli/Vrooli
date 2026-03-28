@@ -48,12 +48,12 @@ export function getDagreConfig(mode: LayoutMode, direction: LayoutDirection): Da
 /**
  * Apply Dagre layout to nodes and edges, returning new positioned nodes.
  */
-export function applyDagreLayout(
-  nodes: Node[],
-  edges: Edge[],
+export function applyDagreLayout<NodeType extends Node, EdgeType extends Edge>(
+  nodes: NodeType[],
+  edges: EdgeType[],
   mode: LayoutMode,
   direction: LayoutDirection,
-): Node[] {
+): NodeType[] {
   if (nodes.length === 0) return [];
 
   const config = getDagreConfig(mode, direction);

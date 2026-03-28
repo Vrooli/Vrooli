@@ -7,7 +7,11 @@
  * - Apply node cap for visual complexity management
  */
 
-import type { Node, Edge } from "@xyflow/react";
+import {
+  getGraphNodeData,
+  type GraphEdge,
+  type GraphNode,
+} from "../types";
 
 export interface ClusterGroup {
   /** The initiative node ID (e.g., "initiative/my-init") or "__unassigned__" */
@@ -35,9 +39,9 @@ export const UNASSIGNED_CLUSTER_ID = "__unassigned__";
  * Non-backlog nodes (scenarios, captures) remain unclustered.
  */
 export function buildClusterHierarchy(
-  nodes: Node[],
-  edges: Edge[],
-): { clusters: ClusterGroup[]; unclustered: Node[] } {
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+): { clusters: ClusterGroup[]; unclustered: GraphNode[] } {
   // Find member_of edges: source (backlog item) -> target (initiative)
   const memberOf = new Map<string, string>(); // nodeId -> initiativeNodeId
   for (const edge of edges) {
@@ -47,9 +51,9 @@ export function buildClusterHierarchy(
   }
 
   // Build initiative info from initiative nodes
-  const initiativeNodes = new Map<string, Node>();
+  const initiativeNodes = new Map<string, GraphNode>();
   for (const node of nodes) {
-    const entityType = (node.data as Record<string, unknown>)?.entityType as string | undefined;
+    const entityType = getGraphNodeData(node).entityType;
     if (entityType === "initiative") {
       initiativeNodes.set(node.id, node);
     }
@@ -57,10 +61,10 @@ export function buildClusterHierarchy(
 
   // Group backlog items by initiative
   const clusterMembers = new Map<string, string[]>();
-  const unclustered: Node[] = [];
+  const unclustered: GraphNode[] = [];
 
   for (const node of nodes) {
-    const entityType = (node.data as Record<string, unknown>)?.entityType as string | undefined;
+    const entityType = getGraphNodeData(node).entityType;
     if (entityType === "initiative") continue; // Initiative nodes become clusters, not members
 
     const initId = memberOf.get(node.id);
@@ -85,12 +89,15 @@ export function buildClusterHierarchy(
     if (initId === UNASSIGNED_CLUSTER_ID) continue;
 
     const initNode = initiativeNodes.get(initId);
-    const data = initNode?.data as Record<string, unknown> | undefined;
-    const rollupData = data?.rollup as Record<string, number> | undefined;
+    const data = initNode ? getGraphNodeData(initNode) : undefined;
+    const rollupData = data?.rawType === "Initiative" ? data.rollup : undefined;
+    const label =
+      data?.label ??
+      (data && "title" in data && typeof data.title === "string" ? data.title : initId);
 
     clusters.push({
       id: initId,
-      label: (data?.label as string) ?? (data?.title as string) ?? initId,
+      label,
       members,
       rollup: rollupData
         ? {
@@ -124,10 +131,10 @@ export function buildClusterHierarchy(
  * a single aggregated edge per (cluster, external-node, edge-type) triple.
  */
 export function aggregateEdgesForCollapsed(
-  edges: Edge[],
+  edges: GraphEdge[],
   collapsedClusterIds: Set<string>,
   clusters: ClusterGroup[],
-): Edge[] {
+): GraphEdge[] {
   if (collapsedClusterIds.size === 0) return edges;
 
   // Build member -> cluster mapping
@@ -139,8 +146,8 @@ export function aggregateEdgesForCollapsed(
     }
   }
 
-  const aggregated = new Map<string, { edge: Edge; count: number }>();
-  const passThrough: Edge[] = [];
+  const aggregated = new Map<string, { edge: GraphEdge; count: number }>();
+  const passThrough: GraphEdge[] = [];
 
   for (const edge of edges) {
     const sourceCluster = memberToCluster.get(edge.source);
@@ -184,7 +191,7 @@ export function aggregateEdgesForCollapsed(
   for (const { edge, count } of aggregated.values()) {
     result.push({
       ...edge,
-      data: { ...((edge.data as Record<string, unknown>) ?? {}), aggregatedCount: count },
+      data: { ...(edge.data ?? {}), aggregatedCount: count },
     });
   }
 
@@ -197,17 +204,17 @@ export function aggregateEdgesForCollapsed(
  * Returns a "More items" pseudo-node if items were capped.
  */
 export function applyNodeCap(
-  nodes: Node[],
+  nodes: GraphNode[],
   limit: number,
-): { visible: Node[]; cappedCount: number } {
+): { visible: GraphNode[]; cappedCount: number } {
   if (nodes.length <= limit) {
     return { visible: nodes, cappedCount: 0 };
   }
 
   // Sort by priority descending (higher priority first)
   const sorted = [...nodes].sort((a, b) => {
-    const pA = ((a.data as Record<string, unknown>)?.priority as number) ?? 0;
-    const pB = ((b.data as Record<string, unknown>)?.priority as number) ?? 0;
+    const pA = getGraphNodeData(a).priority ?? 0;
+    const pB = getGraphNodeData(b).priority ?? 0;
     return pB - pA;
   });
 
@@ -222,6 +229,7 @@ export function applyNodeCap(
     data: {
       label: `More items (${cappedCount})`,
       entityType: "backlog",
+      rawType: "Synthetic",
       status: "capped",
       isCapNode: true,
     },

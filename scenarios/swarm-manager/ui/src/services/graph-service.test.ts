@@ -40,30 +40,59 @@ describe("graphService", () => {
           id: "backlog-item/execute/my-feature",
           type: "BacklogItem",
           position: { x: 0, y: 0 },
-          data: { kind: "execute", name: "my-feature", title: "My Feature", status: "queued" },
+          data: {
+            backlog: {
+              kind: "execute",
+              name: "my-feature",
+              title: "My Feature",
+              status: "queued",
+              priority: 4,
+            },
+          },
         },
         {
           id: "initiative/graph-adoption",
           type: "Initiative",
           position: { x: 0, y: 0 },
-          data: { name: "graph-adoption", title: "Graph Adoption", status: "active" },
+          data: {
+            initiative: {
+              name: "graph-adoption",
+              title: "Graph Adoption",
+              status: "active",
+              rollup: {
+                total: 3,
+                completed: 1,
+                in_progress: 1,
+                failed: 0,
+                pending: 1,
+              },
+            },
+          },
         },
         {
           id: "execution-record/ex-1",
           type: "ExecutionRecord",
           position: { x: 0, y: 0 },
           data: {
-            execution_id: "ex-1",
-            backlog_kind: "execute",
-            backlog_name: "my-feature",
-            status: "running",
+            execution: {
+              execution_id: "ex-1",
+              backlog_kind: "execute",
+              backlog_name: "my-feature",
+              status: "running",
+              mode: "manual",
+            },
           },
         },
         {
           id: "run/run-1",
           type: "Run",
           position: { x: 0, y: 0 },
-          data: { run_id: "run-1", status: "running" },
+          data: {
+            run: {
+              run_id: "run-1",
+              status: "running",
+            },
+          },
         },
       ],
       edges: [
@@ -134,9 +163,11 @@ describe("graphService", () => {
           type: "Capture",
           position: { x: 0, y: 0 },
           data: {
-            id: "cap-1",
-            text: "This is a deliberately long capture body that should be shortened in the graph label",
-            status: "classified",
+            capture: {
+              id: "cap-1",
+              text: "This is a deliberately long capture body that should be shortened in the graph label",
+              status: "classified",
+            },
           },
         },
       ],
@@ -154,6 +185,6 @@ describe("graphService", () => {
     const captureNode = graph.nodes[0];
 
     expect(captureNode).toBeDefined();
-    expect((captureNode?.data as Record<string, unknown>).label).toContain("...");
+    expect(captureNode?.data.label).toContain("...");
   });
 });

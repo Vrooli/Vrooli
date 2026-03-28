@@ -22,6 +22,7 @@ import { FloatingPanel } from "../../../components/ui/floating-panel";
 import { cn } from "../../../lib/utils";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
+import { getGraphNodeStatus } from "../types";
 import type { EntityType, GraphGroupingMode } from "../stores/graph-data-store";
 import type { LayoutMode } from "../stores/graph-ui-store";
 
@@ -73,7 +74,7 @@ function GraphControlsContent() {
   const availableStatuses = useMemo(() => {
     const statuses = new Set<string>();
     for (const node of nodes) {
-      const status = (node.data as Record<string, unknown> | undefined)?.status;
+      const status = getGraphNodeStatus(node);
       if (typeof status === "string" && status.trim()) {
         statuses.add(status);
       }

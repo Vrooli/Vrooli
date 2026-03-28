@@ -5,7 +5,6 @@
  * Each action maps to an existing API endpoint or navigation route.
  */
 
-import type { Node } from "@xyflow/react";
 import type { LucideIcon } from "lucide-react";
 import {
   Play,
@@ -28,6 +27,7 @@ import {
   Users,
 } from "lucide-react";
 import type { GraphLens, EntityType } from "../stores/graph-data-store";
+import { getGraphNodeStatus, type GraphNode } from "../types";
 import { parseNodeId } from "./node-id-parser";
 import { API_ENDPOINTS } from "../../../lib/api-endpoints";
 import { defaultApiClient } from "../../../lib/api-client";
@@ -38,36 +38,36 @@ export interface InspectorAction {
   icon: LucideIcon;
   variant: "default" | "destructive";
   /** Execute the action. Returns void on success, throws on failure. */
-  handler: (node: Node) => Promise<void>;
+  handler: (node: GraphNode) => Promise<void>;
   /** If provided, determines whether this action is available for the given node. */
-  enabled?: (node: Node) => boolean;
+  enabled?: (node: GraphNode) => boolean;
   /** If set, this action navigates to a route instead of calling an API. */
-  navigateTo?: (node: Node) => string | null;
+  navigateTo?: (node: GraphNode) => string | null;
 }
 
 type ActionRegistry = Record<GraphLens, Partial<Record<EntityType, InspectorAction[]>>>;
 
 /** Check if a node has a terminal execution status eligible for retry/review. */
-function isTerminalExecution(node: Node): boolean {
-  const status = (node.data as Record<string, unknown>).status as string | undefined;
+function isTerminalExecution(node: GraphNode): boolean {
+  const status = getGraphNodeStatus(node);
   return status === "completed" || status === "failed" || status === "canceled";
 }
 
 /** Check if execution is active (can be cancelled). */
-function isActiveExecution(node: Node): boolean {
-  const status = (node.data as Record<string, unknown>).status as string | undefined;
+function isActiveExecution(node: GraphNode): boolean {
+  const status = getGraphNodeStatus(node);
   return status === "pending" || status === "scheduled" || status === "starting" || status === "in_progress" || status === "running" || status === "needs_review" || status === "validating" || status === "needs_fixup";
 }
 
 /** Check if a scenario is running. */
-function isScenarioRunning(node: Node): boolean {
-  const status = (node.data as Record<string, unknown>).status as string | undefined;
+function isScenarioRunning(node: GraphNode): boolean {
+  const status = getGraphNodeStatus(node);
   return status === "running";
 }
 
 /** Check if a scenario is stopped. */
-function isScenarioStopped(node: Node): boolean {
-  const status = (node.data as Record<string, unknown>).status as string | undefined;
+function isScenarioStopped(node: GraphNode): boolean {
+  const status = getGraphNodeStatus(node);
   return status === "stopped" || status === "error" || status === "unknown";
 }
 
@@ -81,7 +81,7 @@ function makeQueueAction(): InspectorAction {
     label: "Queue",
     icon: ListPlus,
     variant: "default",
-    async handler(node: Node) {
+    async handler(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.kind || !parsed?.name) throw new Error("Cannot determine backlog item identity");
       await defaultApiClient.post(API_ENDPOINTS.backlogQueue(parsed.kind, parsed.name), {});
@@ -96,7 +96,7 @@ function makeViewBacklogDetailsAction(): InspectorAction {
     icon: Eye,
     variant: "default",
     async handler() { /* navigation handled by navigateTo */ },
-    navigateTo(node: Node) {
+    navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.kind || !parsed?.name) return null;
       return `/details/backlog/${parsed.kind}/${parsed.name}`;
@@ -111,7 +111,7 @@ function makeViewScenarioDetailsAction(): InspectorAction {
     icon: Eye,
     variant: "default",
     async handler() { /* navigation handled by navigateTo */ },
-    navigateTo(node: Node) {
+    navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.name) return null;
       return `/details/scenario/${parsed.name}`;
@@ -126,7 +126,7 @@ function makeViewExecutionDetailsAction(): InspectorAction {
     icon: Eye,
     variant: "default",
     async handler() { /* navigation handled by navigateTo */ },
-    navigateTo(node: Node) {
+    navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed) return null;
       return `/details/execution/${parsed.identifier}`;
@@ -141,7 +141,7 @@ function makeViewPromptTraceAction(): InspectorAction {
     icon: FileSearch,
     variant: "default",
     async handler() { /* navigation handled by navigateTo */ },
-    navigateTo(node: Node) {
+    navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed) return null;
       return `/details/execution/${parsed.identifier}/prompt-trace`;
@@ -156,7 +156,7 @@ function makeFollowUpAction(): InspectorAction {
     icon: RefreshCw,
     variant: "default",
     enabled: isTerminalExecution,
-    async handler(node: Node) {
+    async handler(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed) throw new Error("Cannot determine execution identity");
       await defaultApiClient.post(API_ENDPOINTS.executionFollowUp(parsed.identifier), {
@@ -174,7 +174,7 @@ function makeRetryAction(): InspectorAction {
     icon: RotateCcw,
     variant: "default",
     enabled: isTerminalExecution,
-    async handler(node: Node) {
+    async handler(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed) throw new Error("Cannot determine execution identity");
       await defaultApiClient.post(API_ENDPOINTS.executionRetry(parsed.identifier), {});
@@ -189,7 +189,7 @@ function makeTriggerReviewAction(): InspectorAction {
     icon: ClipboardCheck,
     variant: "default",
     enabled: isTerminalExecution,
-    async handler(node: Node) {
+    async handler(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed) throw new Error("Cannot determine execution identity");
       await defaultApiClient.post(API_ENDPOINTS.executionTriggerReview(parsed.identifier), {});
@@ -204,7 +204,7 @@ function makeCancelExecutionAction(): InspectorAction {
     icon: XCircle,
     variant: "destructive",
     enabled: isActiveExecution,
-    async handler(node: Node) {
+    async handler(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed) throw new Error("Cannot determine execution identity");
       await defaultApiClient.post(API_ENDPOINTS.executionCancel(parsed.identifier), {});
@@ -219,7 +219,7 @@ function makeScenarioStartAction(): InspectorAction {
     icon: Play,
     variant: "default",
     enabled: isScenarioStopped,
-    async handler(node: Node) {
+    async handler(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.name) throw new Error("Cannot determine scenario name");
       await defaultApiClient.post(API_ENDPOINTS.scenarioStart(parsed.name), {});
@@ -234,7 +234,7 @@ function makeScenarioStopAction(): InspectorAction {
     icon: Square,
     variant: "destructive",
     enabled: isScenarioRunning,
-    async handler(node: Node) {
+    async handler(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.name) throw new Error("Cannot determine scenario name");
       await defaultApiClient.post(API_ENDPOINTS.scenarioStop(parsed.name), {});
@@ -249,7 +249,7 @@ function makeScenarioRestartAction(): InspectorAction {
     icon: RotateCcw,
     variant: "default",
     enabled: isScenarioRunning,
-    async handler(node: Node) {
+    async handler(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.name) throw new Error("Cannot determine scenario name");
       await defaultApiClient.post(API_ENDPOINTS.scenarioRestart(parsed.name), {});
@@ -263,7 +263,7 @@ function makeStopAgentRunAction(): InspectorAction {
     label: "Stop",
     icon: Square,
     variant: "destructive",
-    async handler(node: Node) {
+    async handler(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed) throw new Error("Cannot determine run identity");
       await defaultApiClient.post(API_ENDPOINTS.agentManagerStopRun(parsed.identifier), {});
@@ -281,7 +281,7 @@ function makeCaptureClassifyAction(): InspectorAction {
     label: "Classify",
     icon: ClipboardCheck,
     variant: "default",
-    async handler(node: Node) {
+    async handler(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed) throw new Error("Cannot determine capture identity");
       await defaultApiClient.post(API_ENDPOINTS.captureClassify(parsed.identifier), {});
@@ -295,11 +295,11 @@ function makeCaptureCreateItemAction(): InspectorAction {
     label: "Create Item",
     icon: PlusCircle,
     variant: "default",
-    enabled(node: Node) {
-      const status = (node.data as Record<string, unknown>).status as string | undefined;
+    enabled(node: GraphNode) {
+      const status = getGraphNodeStatus(node);
       return status === "classified";
     },
-    async handler(node: Node) {
+    async handler(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed) throw new Error("Cannot determine capture identity");
       await defaultApiClient.post(API_ENDPOINTS.captureCreateItem(parsed.identifier), {});
@@ -313,7 +313,7 @@ function makeCaptureDeleteAction(): InspectorAction {
     label: "Delete",
     icon: Trash2,
     variant: "destructive",
-    async handler(node: Node) {
+    async handler(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed) throw new Error("Cannot determine capture identity");
       await defaultApiClient.delete(API_ENDPOINTS.captureById(parsed.identifier));
@@ -328,7 +328,7 @@ function makeBacklogEditAction(): InspectorAction {
     icon: Pencil,
     variant: "default",
     async handler() { /* navigation handled by navigateTo */ },
-    navigateTo(node: Node) {
+    navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.kind || !parsed?.name) return null;
       return `/details/backlog/${parsed.kind}/${parsed.name}`;
@@ -343,7 +343,7 @@ function makeBacklogWorkshopAction(): InspectorAction {
     icon: Beaker,
     variant: "default",
     async handler() { /* navigation handled by navigateTo */ },
-    navigateTo(node: Node) {
+    navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.kind || !parsed?.name) return null;
       return `/details/backlog/${parsed.kind}/${parsed.name}?tab=workshop`;
@@ -358,7 +358,7 @@ function makeBacklogAddDependencyAction(): InspectorAction {
     icon: Link,
     variant: "default",
     async handler() { /* navigation handled by navigateTo — opens detail page dependency section */ },
-    navigateTo(node: Node) {
+    navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.kind || !parsed?.name) return null;
       return `/details/backlog/${parsed.kind}/${parsed.name}?tab=dependencies`;
@@ -373,7 +373,7 @@ function makeBacklogAssignInitiativeAction(): InspectorAction {
     icon: Target,
     variant: "default",
     async handler() { /* navigation handled by navigateTo */ },
-    navigateTo(node: Node) {
+    navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.kind || !parsed?.name) return null;
       return `/details/backlog/${parsed.kind}/${parsed.name}?tab=initiative`;
@@ -388,7 +388,7 @@ function makeBacklogViewFilesAction(): InspectorAction {
     icon: FolderOpen,
     variant: "default",
     async handler() { /* navigation handled by navigateTo */ },
-    navigateTo(node: Node) {
+    navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.kind || !parsed?.name) return null;
       return `/details/backlog/${parsed.kind}/${parsed.name}?tab=files`;
@@ -403,7 +403,7 @@ function makeInitiativeEditAction(): InspectorAction {
     icon: Pencil,
     variant: "default",
     async handler() { /* navigation handled by navigateTo */ },
-    navigateTo(node: Node) {
+    navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.name) return null;
       return `/details/initiative/${parsed.name}`;
@@ -418,7 +418,7 @@ function makeInitiativeManageMembersAction(): InspectorAction {
     icon: Users,
     variant: "default",
     async handler() { /* navigation handled by navigateTo */ },
-    navigateTo(node: Node) {
+    navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.name) return null;
       return `/details/initiative/${parsed.name}?tab=items`;
@@ -432,15 +432,15 @@ function makeInitiativeArchiveAction(): InspectorAction {
     label: "Archive",
     icon: Archive,
     variant: "destructive",
-    async handler(node: Node) {
+    async handler(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.name) throw new Error("Cannot determine initiative name");
       await defaultApiClient.put(API_ENDPOINTS.initiativeByName(parsed.name), {
         status: "archived",
       });
     },
-    enabled(node: Node) {
-      const status = (node.data as Record<string, unknown>).status as string | undefined;
+    enabled(node: GraphNode) {
+      const status = getGraphNodeStatus(node);
       return status !== "archived";
     },
   };
@@ -453,7 +453,7 @@ function makeScenarioViewFilesAction(): InspectorAction {
     icon: FolderOpen,
     variant: "default",
     async handler() { /* navigation handled by navigateTo */ },
-    navigateTo(node: Node) {
+    navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.name) return null;
       return `/details/scenario/${parsed.name}?tab=files`;
@@ -468,7 +468,7 @@ function makeScenarioEditMetadataAction(): InspectorAction {
     icon: Pencil,
     variant: "default",
     async handler() { /* navigation handled by navigateTo */ },
-    navigateTo(node: Node) {
+    navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.name) return null;
       return `/details/scenario/${parsed.name}`;

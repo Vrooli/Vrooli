@@ -1,15 +1,17 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
+import type { ComponentProps } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 import { ClusterNode } from "./ClusterNode";
-import type { NodeProps } from "@xyflow/react";
+import { makeClusterNodeData } from "../test-helpers";
 
-function renderClusterNode(data: Record<string, unknown>) {
-  const props = {
+function renderClusterNode(data: Parameters<typeof makeClusterNodeData>[0]) {
+  const props: ComponentProps<typeof ClusterNode> = {
     id: "test-cluster",
-    data,
+    data: makeClusterNodeData(data),
     type: "cluster",
     selected: false,
+    draggable: false,
     isConnectable: true,
     zIndex: 0,
     positionAbsoluteX: 0,
@@ -23,7 +25,7 @@ function renderClusterNode(data: Record<string, unknown>) {
     selectable: true,
     width: 180,
     height: 72,
-  } as unknown as NodeProps;
+  };
 
   return render(
     <ReactFlowProvider>

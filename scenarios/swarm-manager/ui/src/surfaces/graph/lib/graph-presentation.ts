@@ -6,8 +6,13 @@
  * topology-compression behavior can be tested directly.
  */
 
-import type { Edge, Node } from "@xyflow/react";
-import type { GraphLens, GraphLensSettings } from "../stores/graph-data-store";
+import type { GraphLensSettings } from "../stores/graph-data-store";
+import {
+  getGraphNodeData,
+  type GraphEdge,
+  type GraphNode,
+  type GraphLens,
+} from "../types";
 import {
   aggregateEdgesForCollapsed,
   applyNodeCap,
@@ -17,16 +22,16 @@ import {
 import { SECONDARY_EDGE_TYPES } from "./edge-styles";
 
 export interface GraphPresentationResult {
-  processedNodes: Node[];
-  processedEdges: Edge[];
+  processedNodes: GraphNode[];
+  processedEdges: GraphEdge[];
   visibleEdgeTypes: string[];
   visibleNodeCount: number;
 }
 
 export interface BuildGraphPresentationInput {
   lens: GraphLens;
-  nodes: Node[];
-  edges: Edge[];
+  nodes: GraphNode[];
+  edges: GraphEdge[];
   settings: GraphLensSettings;
   expandedTopologyClusters: Set<string>;
   nodeCapLimit?: number;
@@ -34,10 +39,10 @@ export interface BuildGraphPresentationInput {
 
 const DEFAULT_NODE_CAP_LIMIT = 50;
 
-export function filterGraphNodes(nodes: Node[], settings: GraphLensSettings): Node[] {
+export function filterGraphNodes(nodes: GraphNode[], settings: GraphLensSettings): GraphNode[] {
   return nodes.filter((node) => {
-    const data = (node.data as Record<string, unknown> | undefined) ?? {};
-    const entityType = data.entityType as keyof typeof settings.entityFilters | undefined;
+    const data = getGraphNodeData(node);
+    const entityType = data.entityType;
     if (entityType && settings.entityFilters[entityType] === false) {
       return false;
     }
@@ -52,10 +57,10 @@ export function filterGraphNodes(nodes: Node[], settings: GraphLensSettings): No
 }
 
 export function filterGraphEdges(
-  edges: Edge[],
-  visibleNodes: Node[],
+  edges: GraphEdge[],
+  visibleNodes: GraphNode[],
   settings: GraphLensSettings,
-): Edge[] {
+): GraphEdge[] {
   const visibleIds = new Set(visibleNodes.map((node) => node.id));
   return edges.filter((edge) => {
     if (!visibleIds.has(edge.source) || !visibleIds.has(edge.target)) {
@@ -68,13 +73,13 @@ export function filterGraphEdges(
   });
 }
 
-function buildVisibleEdgeTypes(edges: Edge[]): string[] {
+function buildVisibleEdgeTypes(edges: GraphEdge[]): string[] {
   return [...new Set(edges.map((edge) => edge.type).filter(Boolean) as string[])];
 }
 
 function buildFlatPresentation(
-  filteredNodes: Node[],
-  filteredEdges: Edge[],
+  filteredNodes: GraphNode[],
+  filteredEdges: GraphEdge[],
 ): GraphPresentationResult {
   return {
     processedNodes: filteredNodes,
@@ -85,8 +90,8 @@ function buildFlatPresentation(
 }
 
 function buildInitiativeTopologyPresentation(
-  filteredNodes: Node[],
-  filteredEdges: Edge[],
+  filteredNodes: GraphNode[],
+  filteredEdges: GraphEdge[],
   expandedTopologyClusters: Set<string>,
   nodeCapLimit: number,
 ): GraphPresentationResult {
@@ -97,8 +102,8 @@ function buildInitiativeTopologyPresentation(
       .map((cluster) => cluster.id),
   );
 
-  const clusterNodes: Node[] = [];
-  const childNodes: Node[] = [];
+  const clusterNodes: GraphNode[] = [];
+  const childNodes: GraphNode[] = [];
   const nodeById = new Map(filteredNodes.map((node) => [node.id, node]));
 
   for (const cluster of clusters) {
@@ -115,6 +120,7 @@ function buildInitiativeTopologyPresentation(
         rollup: cluster.rollup,
         isUnassigned,
         entityType: "initiative",
+        rawType: "Cluster",
       },
       style: isCollapsed ? undefined : { padding: 20 },
     });

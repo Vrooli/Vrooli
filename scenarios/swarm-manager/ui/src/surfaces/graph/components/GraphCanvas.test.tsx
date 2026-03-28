@@ -54,6 +54,14 @@ vi.mock("@xyflow/react", async () => {
 import { GraphCanvas } from "./GraphCanvas";
 import { cloneGraphDataInitialState, useGraphDataStore } from "../stores/graph-data-store";
 import { cloneGraphUIInitialState, useGraphUIStore } from "../stores/graph-ui-store";
+import {
+  makeExecutionNode,
+  makeGraphEdge,
+  makeInitiativeNode,
+  makeBacklogNode,
+  makeCaptureNode,
+  makeScenarioNode,
+} from "../test-helpers";
 
 function resetStores() {
   useGraphDataStore.setState(cloneGraphDataInitialState());
@@ -82,43 +90,33 @@ describe("GraphCanvas", () => {
         },
       },
       nodes: [
-        {
-          id: "initiative/graph-adoption",
-          type: "initiative",
-          position: { x: 0, y: 0 },
-          data: {
-            label: "Graph Adoption",
-            entityType: "initiative",
-            status: "active",
-            rollup: { total: 2, completed: 0, in_progress: 1, failed: 0, pending: 1 },
-          },
-        },
-        {
-          id: "backlog-item/execute/task-a",
-          type: "backlog",
-          position: { x: 0, y: 0 },
-          data: { label: "Task A", entityType: "backlog", kind: "execute", status: "queued" },
-        },
-        {
-          id: "backlog-item/execute/task-b",
-          type: "backlog",
-          position: { x: 0, y: 0 },
-          data: { label: "Task B", entityType: "backlog", kind: "execute", status: "queued" },
-        },
+        makeInitiativeNode("initiative/graph-adoption", {
+          label: "Graph Adoption",
+          status: "active",
+          rollup: { total: 2, completed: 0, in_progress: 1, failed: 0, pending: 1 },
+        }),
+        makeBacklogNode("backlog-item/execute/task-a", {
+          label: "Task A",
+          status: "queued",
+        }),
+        makeBacklogNode("backlog-item/execute/task-b", {
+          label: "Task B",
+          status: "queued",
+        }),
       ],
       edges: [
-        {
-          id: "member_of:a",
-          source: "backlog-item/execute/task-a",
-          target: "initiative/graph-adoption",
-          type: "member_of",
-        },
-        {
-          id: "member_of:b",
-          source: "backlog-item/execute/task-b",
-          target: "initiative/graph-adoption",
-          type: "member_of",
-        },
+        makeGraphEdge(
+          "member_of:a",
+          "backlog-item/execute/task-a",
+          "initiative/graph-adoption",
+          "member_of",
+        ),
+        makeGraphEdge(
+          "member_of:b",
+          "backlog-item/execute/task-b",
+          "initiative/graph-adoption",
+          "member_of",
+        ),
       ],
     }));
 
@@ -138,36 +136,26 @@ describe("GraphCanvas", () => {
       ...state,
       lens: "topology",
       nodes: [
-        {
-          id: "initiative/graph-adoption",
-          type: "initiative",
-          position: { x: 0, y: 0 },
-          data: {
-            label: "Graph Adoption",
-            entityType: "initiative",
-            status: "active",
-          },
-        },
-        {
-          id: "backlog-item/execute/task-a",
-          type: "backlog",
-          position: { x: 0, y: 0 },
-          data: { label: "Task A", entityType: "backlog", kind: "execute", status: "backlog" },
-        },
-        {
-          id: "scenario/swarm-manager",
-          type: "scenario",
-          position: { x: 0, y: 0 },
-          data: { label: "Swarm Manager", entityType: "scenario", status: "running" },
-        },
+        makeInitiativeNode("initiative/graph-adoption", {
+          label: "Graph Adoption",
+          status: "active",
+        }),
+        makeBacklogNode("backlog-item/execute/task-a", {
+          label: "Task A",
+          status: "backlog",
+        }),
+        makeScenarioNode("scenario/swarm-manager", {
+          label: "Swarm Manager",
+          status: "running",
+        }),
       ],
       edges: [
-        {
-          id: "member_of:a",
-          source: "backlog-item/execute/task-a",
-          target: "initiative/graph-adoption",
-          type: "member_of",
-        },
+        makeGraphEdge(
+          "member_of:a",
+          "backlog-item/execute/task-a",
+          "initiative/graph-adoption",
+          "member_of",
+        ),
       ],
     }));
 
@@ -196,26 +184,23 @@ describe("GraphCanvas", () => {
         },
       },
       nodes: [
-        {
-          id: "capture/c-1",
-          type: "capture",
-          position: { x: 0, y: 0 },
-          data: { label: "Capture", entityType: "capture", status: "classified" },
-        },
-        {
-          id: "backlog-item/execute/task-a",
-          type: "backlog",
-          position: { x: 0, y: 0 },
-          data: { label: "Task A", entityType: "backlog", kind: "execute", status: "queued" },
-        },
+        makeCaptureNode("capture/c-1", {
+          label: "Capture",
+          text: "Capture",
+          status: "classified",
+        }),
+        makeBacklogNode("backlog-item/execute/task-a", {
+          label: "Task A",
+          status: "queued",
+        }),
       ],
       edges: [
-        {
-          id: "classified_as:capture->task",
-          source: "capture/c-1",
-          target: "backlog-item/execute/task-a",
-          type: "classified_as",
-        },
+        makeGraphEdge(
+          "classified_as:capture->task",
+          "capture/c-1",
+          "backlog-item/execute/task-a",
+          "classified_as",
+        ),
       ],
     }));
 
@@ -241,12 +226,10 @@ describe("GraphCanvas", () => {
       ...state,
       lens: "operations",
       nodes: [
-        {
-          id: "execution-record/exec-1",
-          type: "execution",
-          position: { x: 0, y: 0 },
-          data: { label: "Execution 1", entityType: "execution", status: "running" },
-        },
+        makeExecutionNode("execution-record/exec-1", {
+          label: "Execution 1",
+          status: "running",
+        }),
       ],
       edges: [],
     }));

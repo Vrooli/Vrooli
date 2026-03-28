@@ -1,6 +1,6 @@
 # Architecture Seams & Internal Design
 
-> Current State (2026-02-14): Swarm Manager runtime is backlog + scenarios + execution + settings. Recommendation generation is owned by Prompt Manager teams and should not be implemented in Swarm Manager.
+> Current State (2026-03-28): Swarm Manager runtime is graph-first backlog/scenarios/execution/settings/prompts with proto-backed UI↔API seams. Recommendation generation is owned by Prompt Manager teams and should not be implemented in Swarm Manager.
 >
 > Historical note: Some lower sections preserve pre-greenfield recommendation-era references for audit history only.
 
@@ -17,7 +17,7 @@ This document captures the architecture seams (integration points, boundaries) a
 | API endpoints | /backlog, /scenarios, /execution, /settings | /backlog, /scenarios, /execution, /settings, /queue, /agent-manager/status, /health | Resolved |
 | Persistence | Filesystem (ideas/, research/, fix/, execute/, .vrooli/settings.json, .vrooli/queue.json, .vrooli/execution-*.json) | Backlog/scenarios/settings/queue/execution implemented | Resolved |
 | Selector registry | All UI selectors defined | ✅ Fully populated | Resolved |
-| UI pages | 4 pages with full functionality | Backlog/Scenarios/Execution/Settings fully wired | Resolved |
+| UI workspace | Graph-first primary surface with sidebar + detail routes | `/graph` is primary operator route; detail pages remain for drill-down/edit flows | Resolved |
 | Integration clients | agent-manager, ecosystem-manager | Discovery-based agent-manager + ecosystem-manager clients | ✅ Resolved |
 | Domain types | Shared across UI | ✅ Centralized in types/ module | Resolved |
 
@@ -40,7 +40,7 @@ This document captures the architecture seams (integration points, boundaries) a
 
 ## Seam Definitions
 
-### UI-to-API Seam (Improved in Phase 3)
+### UI-to-API Seam
 
 The UI-to-API seam has been refactored into multiple layers for better testability:
 
@@ -50,13 +50,14 @@ ui/src/
 │   ├── api-client.ts    # HTTP infrastructure (IApiClient interface)
 │   ├── api-endpoints.ts # Endpoint path constants
 │   ├── error-utils.ts   # Error categorization and recovery paths
+│   ├── proto-contracts.ts # Generated proto schema parsing + validation helpers
 │   ├── query-utils.ts   # React Query default options
 │   └── index.ts         # Barrel export
 └── services/
     ├── backlog-service.ts      # Backlog CRUD and actions
     ├── agent-manager-service.ts # Agent-manager availability
+    ├── graph-service.ts        # Graph projection mapping
     ├── scenarios-service.ts    # Scenarios operations
-    ├── recommendations-service.ts # Recommendations operations
     ├── settings-service.ts     # Settings persistence
     └── index.ts                # Barrel export
 ```
@@ -93,7 +94,18 @@ const mockClient: IApiClient = { get: vi.fn(), ... };
 const service = createBacklogService(mockClient);
 ```
 
-**Status**: ✅ Service layer implemented. Tests refactored to use service seam.
+**Status**: ✅ Service layer implemented. Structured UI↔API payloads are proto-backed, including the graph projection.
+
+### Graph Projection Boundary
+
+`api/internal/graph/` and `ui/src/services/graph-service.ts` form the graph projection seam.
+
+- **Ingress/egress contract**: `GET /graph` returns proto `swarm-manager.v1.api.GraphResponse`
+- **Projection payloads**: Graph nodes use typed oneof payloads (`backlog`, `initiative`, `capture`, `scenario`, `execution`, `run`) instead of ad hoc JSON maps
+- **UI mapper**: `graph-service.ts` parses proto JSON through `proto-contracts.ts` and maps it into the typed graph node union used by the store/canvas/presentation helpers
+- **Library seam**: React Flow still exposes node data as `Record<string, unknown>` in renderer callbacks; the only intentional UI casts are localized in the graph renderers/helpers at that library boundary
+
+**Testing at the seam**: Go handler/projection tests validate proto JSON shape; UI service/store/presentation tests validate typed graph mapping, clustering, and canvas rendering against the shared graph contract.
 
 ### API-to-Integration Seam
 
@@ -146,9 +158,8 @@ execute/
     └── spec.json
 
 .vrooli/
-└── settings.json     # User/system settings (persisted)
+├── settings.json     # User/system settings (persisted)
 └── queue.json        # Pending local queue items (persisted)
-└── recommendations.json # Recommendation store (persisted)
 ```
 
 **Status**: Backlog, scenario metadata, settings, and queue storage implemented.

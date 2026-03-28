@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import type { Node } from "@xyflow/react";
 import { Inspector } from "./Inspector";
 import { cloneGraphDataInitialState, useGraphDataStore } from "../stores/graph-data-store";
 import type { GraphLens } from "../stores/graph-data-store";
+import type { GraphNode } from "../types";
+import { makeGraphNode } from "../test-helpers";
 
 // jsdom doesn't provide matchMedia.
 beforeAll(() => {
@@ -30,14 +31,14 @@ function resetStore(lens: GraphLens = "topology") {
   });
 }
 
-const makeNode = (id: string, entityType: string, status?: string, kind?: string): Node => ({
-  id,
-  type: entityType,
-  position: { x: 0, y: 0 },
-  data: { label: `Test ${id}`, entityType, status, kind },
-});
+const makeNode = (id: string, entityType: Parameters<typeof makeGraphNode>[1], status?: string, kind?: string): GraphNode =>
+  makeGraphNode(id, entityType, {
+    label: `Test ${id}`,
+    status,
+    kind,
+  });
 
-function renderInspector(node: Node, lens: GraphLens = "topology") {
+function renderInspector(node: GraphNode, lens: GraphLens = "topology") {
   resetStore(lens);
   return render(
     <MemoryRouter initialEntries={["/graph?lens=" + lens]}>

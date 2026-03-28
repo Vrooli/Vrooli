@@ -1,21 +1,17 @@
 import { describe, expect, it } from "vitest";
-import type { Edge, Node } from "@xyflow/react";
 import { buildGraphPresentation } from "./graph-presentation";
 import { createDefaultLensSettings } from "../stores/graph-data-store";
+import type { GraphEdge, GraphNode } from "../types";
+import { makeGraphEdge, makeGraphNode } from "../test-helpers";
 
-const makeNode = (id: string, entityType: string, extra: Record<string, unknown> = {}): Node => ({
-  id,
-  type: entityType,
-  position: { x: 0, y: 0 },
-  data: { label: id, entityType, ...extra },
-});
+const makeNode = (
+  id: string,
+  entityType: Parameters<typeof makeGraphNode>[1],
+  extra: Record<string, unknown> = {},
+): GraphNode => makeGraphNode(id, entityType, { label: id, ...extra });
 
-const makeEdge = (id: string, source: string, target: string, type: string): Edge => ({
-  id,
-  source,
-  target,
-  type,
-});
+const makeEdge = (id: string, source: string, target: string, type: string): GraphEdge =>
+  makeGraphEdge(id, source, target, type);
 
 describe("buildGraphPresentation", () => {
   it("keeps backlog items visible in the default topology presentation", () => {

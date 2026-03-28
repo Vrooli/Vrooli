@@ -1,41 +1,22 @@
-import type { Edge, Node } from "@xyflow/react";
+import type {
+  GraphEdge as ProtoGraphEdge,
+  GraphNode as ProtoGraphNode,
+} from "@vrooli/proto-types/swarm-manager/v1/domain/graph_pb";
 import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
-import type { GraphLens, EntityType } from "../surfaces/graph/stores/graph-data-store";
-
-interface GraphAPIPosition {
-  x: number;
-  y: number;
-}
-
-interface GraphAPINode {
-  id: string;
-  type: string;
-  data?: Record<string, unknown>;
-  position?: GraphAPIPosition;
-}
-
-interface GraphAPIEdge {
-  id: string;
-  source: string;
-  target: string;
-  type: string;
-}
-
-interface GraphAPIMeta {
-  lens: GraphLens;
-  node_count: number;
-  edge_count: number;
-  generated_at: string;
-  agent_manager_available?: boolean;
-}
-
-interface GraphAPIResponse {
-  nodes: GraphAPINode[];
-  edges: GraphAPIEdge[];
-  meta: GraphAPIMeta;
-}
+import {
+  graphResponseSchema,
+  parseProtoResponse,
+  requireProtoField,
+} from "./proto-contracts";
+import type {
+  GraphEdge,
+  GraphEntityType,
+  GraphLens,
+  GraphNode,
+  InitiativeRollupData,
+} from "../surfaces/graph/types";
 
 export interface GraphProjectionMeta {
   lens: GraphLens;
@@ -46,8 +27,8 @@ export interface GraphProjectionMeta {
 }
 
 export interface GraphProjection {
-  nodes: Node[];
-  edges: Edge[];
+  nodes: GraphNode[];
+  edges: GraphEdge[];
   meta: GraphProjectionMeta;
 }
 
@@ -59,7 +40,7 @@ export interface IGraphService {
   getGraph(lens: GraphLens, options?: GraphRequestOptions): Promise<GraphProjection>;
 }
 
-const NODE_TYPE_MAP: Record<string, EntityType> = {
+const NODE_TYPE_MAP: Record<string, GraphEntityType> = {
   BacklogItem: "backlog",
   Scenario: "scenario",
   ExecutionRecord: "execution",
@@ -76,52 +57,160 @@ function shortId(value: string, maxLength = 8): string {
   return value.length <= maxLength ? value : value.slice(0, maxLength);
 }
 
-function normalizeNodeLabel(rawType: string, id: string, data: Record<string, unknown>): string {
-  switch (rawType) {
-    case "BacklogItem":
-      return String(data.title ?? data.name ?? id);
-    case "Scenario":
-      return String(data.name ?? id.replace(/^scenario\//, ""));
-    case "Initiative":
-      return String(data.title ?? data.name ?? id.replace(/^initiative\//, ""));
-    case "Capture":
-      return truncate(String(data.text ?? id), 72);
-    case "ExecutionRecord": {
-      const backlogKind = typeof data.backlog_kind === "string" ? data.backlog_kind : null;
-      const backlogName = typeof data.backlog_name === "string" ? data.backlog_name : null;
-      if (backlogKind && backlogName) {
-        return `${backlogKind}/${backlogName}`;
-      }
-      const executionId = typeof data.execution_id === "string" ? data.execution_id : id;
-      return `Execution ${shortId(executionId)}`;
-    }
-    case "Run": {
-      const runId = typeof data.run_id === "string" ? data.run_id : id;
-      return `Run ${shortId(runId)}`;
-    }
-    default:
-      return String(data.label ?? id);
-  }
-}
-
-function normalizeNode(raw: GraphAPINode): Node {
-  const entityType = NODE_TYPE_MAP[raw.type] ?? "backlog";
-  const data = raw.data ?? {};
-
+function mapRollup(proto?: {
+  total: number;
+  completed: number;
+  inProgress: number;
+  failed: number;
+  pending: number;
+}): InitiativeRollupData {
   return {
-    id: raw.id,
-    type: entityType,
-    position: raw.position ?? { x: 0, y: 0 },
-    data: {
-      ...data,
-      label: normalizeNodeLabel(raw.type, raw.id, data),
-      entityType,
-      rawType: raw.type,
-    },
+    total: proto?.total ?? 0,
+    completed: proto?.completed ?? 0,
+    in_progress: proto?.inProgress ?? 0,
+    failed: proto?.failed ?? 0,
+    pending: proto?.pending ?? 0,
   };
 }
 
-function normalizeEdge(raw: GraphAPIEdge): Edge {
+function normalizePosition(raw: ProtoGraphNode["position"]): { x: number; y: number } {
+  return {
+    x: raw?.x ?? 0,
+    y: raw?.y ?? 0,
+  };
+}
+
+function mapProtoNode(raw: ProtoGraphNode): GraphNode {
+  const data = requireProtoField(raw.data, "graph node data");
+  const entityType = NODE_TYPE_MAP[raw.type] ?? "backlog";
+  const position = normalizePosition(raw.position);
+
+  switch (data.value.case) {
+    case "backlog": {
+      const backlog = data.value.value;
+      return {
+        id: raw.id,
+        type: entityType,
+        position,
+        data: {
+          entityType: "backlog",
+          rawType: "BacklogItem",
+          label: backlog.title || backlog.name || raw.id,
+          kind: backlog.kind as "idea" | "research" | "fix" | "execute" | "chore",
+          name: backlog.name,
+          title: backlog.title,
+          status: backlog.status as
+            | "backlog"
+            | "researching"
+            | "ready"
+            | "queued"
+            | "in_progress"
+            | "completed"
+            | "failed"
+            | "archived",
+          priority: backlog.priority,
+        },
+      };
+    }
+    case "initiative": {
+      const initiative = data.value.value;
+      return {
+        id: raw.id,
+        type: entityType,
+        position,
+        data: {
+          entityType: "initiative",
+          rawType: "Initiative",
+          label: initiative.title || initiative.name || raw.id,
+          name: initiative.name,
+          title: initiative.title,
+          status: initiative.status,
+          rollup: mapRollup(initiative.rollup),
+        },
+      };
+    }
+    case "capture": {
+      const capture = data.value.value;
+      return {
+        id: raw.id,
+        type: entityType,
+        position,
+        data: {
+          entityType: "capture",
+          rawType: "Capture",
+          label: truncate(capture.text || raw.id, 72),
+          id: capture.id,
+          text: capture.text,
+          status: capture.status as "classifying" | "classified" | "failed",
+        },
+      };
+    }
+    case "scenario": {
+      const scenario = data.value.value;
+      return {
+        id: raw.id,
+        type: entityType,
+        position,
+        data: {
+          entityType: "scenario",
+          rawType: "Scenario",
+          label: scenario.name || raw.id.replace(/^scenario\//, ""),
+          name: scenario.name,
+          status: scenario.status as "running" | "stopped" | "error" | "unknown",
+        },
+      };
+    }
+    case "execution": {
+      const execution = data.value.value;
+      return {
+        id: raw.id,
+        type: entityType,
+        position,
+        data: {
+          entityType: "execution",
+          rawType: "ExecutionRecord",
+          label: `${execution.backlogKind}/${execution.backlogName}`,
+          executionId: execution.executionId,
+          backlogKind: execution.backlogKind as "idea" | "research" | "fix" | "execute" | "chore",
+          backlogName: execution.backlogName,
+          status: execution.status as
+            | "pending"
+            | "scheduled"
+            | "starting"
+            | "running"
+            | "needs_review"
+            | "validating"
+            | "needs_fixup"
+            | "completed"
+            | "failed"
+            | "canceled",
+          mode: execution.mode as "manual" | "scheduled" | "yolo",
+          runId: execution.runId,
+        },
+      };
+    }
+    case "run": {
+      const run = data.value.value;
+      return {
+        id: raw.id,
+        type: entityType,
+        position,
+        data: {
+          entityType: "agent-run",
+          rawType: "Run",
+          label: `Run ${shortId(run.runId)}`,
+          runId: run.runId,
+          taskId: run.taskId,
+          status: run.status,
+        },
+      };
+    }
+    default:
+      throw new Error("Invalid graph node response");
+  }
+}
+
+function mapProtoEdge(raw: ProtoGraphEdge): GraphEdge {
   return {
     id: raw.id,
     source: raw.source,
@@ -133,29 +222,36 @@ function normalizeEdge(raw: GraphAPIEdge): Edge {
   };
 }
 
-function normalizeMeta(meta: GraphAPIMeta): GraphProjectionMeta {
+function normalizeMeta(meta: {
+  lens: string;
+  nodeCount: number;
+  edgeCount: number;
+  generatedAt: string;
+  agentManagerAvailable?: boolean;
+}): GraphProjectionMeta {
   return {
-    lens: meta.lens,
-    nodeCount: meta.node_count,
-    edgeCount: meta.edge_count,
-    generatedAt: meta.generated_at,
+    lens: meta.lens as GraphLens,
+    nodeCount: meta.nodeCount,
+    edgeCount: meta.edgeCount,
+    generatedAt: meta.generatedAt,
     agentManagerAvailable:
-      typeof meta.agent_manager_available === "boolean" ? meta.agent_manager_available : null,
+      typeof meta.agentManagerAvailable === "boolean" ? meta.agentManagerAvailable : null,
   };
 }
 
 export function createGraphService(apiClient: IApiClient = defaultApiClient): IGraphService {
   return {
     async getGraph(lens: GraphLens, options?: GraphRequestOptions): Promise<GraphProjection> {
-      const response = await apiClient.get<GraphAPIResponse>(
+      const data = await apiClient.get<unknown>(
         `${API_ENDPOINTS.graph}?lens=${encodeURIComponent(lens)}`,
         { signal: options?.signal },
       );
+      const parsed = parseProtoResponse(graphResponseSchema, data, "graph");
 
       return {
-        nodes: (response.nodes ?? []).map(normalizeNode),
-        edges: (response.edges ?? []).map(normalizeEdge),
-        meta: normalizeMeta(response.meta),
+        nodes: parsed.nodes.map(mapProtoNode),
+        edges: parsed.edges.map(mapProtoEdge),
+        meta: normalizeMeta(requireProtoField(parsed.meta, "graph meta")),
       };
     },
   };

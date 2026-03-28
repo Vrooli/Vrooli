@@ -1,24 +1,21 @@
 import { describe, it, expect } from "vitest";
-import type { Node, Edge } from "@xyflow/react";
+import type { GraphEdge, GraphNode } from "../types";
 import {
   buildClusterHierarchy,
   aggregateEdgesForCollapsed,
   applyNodeCap,
   UNASSIGNED_CLUSTER_ID,
 } from "./clustering-utils";
+import { makeGraphEdge, makeGraphNode } from "../test-helpers";
 
-const makeNode = (id: string, entityType: string, extra: Record<string, unknown> = {}): Node => ({
-  id,
-  position: { x: 0, y: 0 },
-  data: { entityType, label: id, ...extra },
-});
+const makeNode = (
+  id: string,
+  entityType: Parameters<typeof makeGraphNode>[1],
+  extra: Record<string, unknown> = {},
+): GraphNode => makeGraphNode(id, entityType, { label: id, ...extra });
 
-const makeEdge = (id: string, source: string, target: string, type: string): Edge => ({
-  id,
-  source,
-  target,
-  type,
-});
+const makeEdge = (id: string, source: string, target: string, type: string): GraphEdge =>
+  makeGraphEdge(id, source, target, type);
 
 function expectDefined<T>(value: T | undefined, message: string): T {
   expect(value).toBeDefined();
@@ -126,7 +123,7 @@ describe("aggregateEdgesForCollapsed", () => {
     const aggregated = result.filter((e) => e.id.startsWith("agg:"));
     expect(aggregated).toHaveLength(1);
     const aggregatedEdge = expectDefined(aggregated[0], "Expected aggregated edge");
-    expect((aggregatedEdge.data as Record<string, unknown>).aggregatedCount).toBe(2);
+    expect(aggregatedEdge.data?.aggregatedCount).toBe(2);
     expect(aggregatedEdge.source).toBe("initiative/init-1");
     expect(aggregatedEdge.target).toBe("scenario/app");
   });
@@ -183,7 +180,7 @@ describe("applyNodeCap", () => {
 
     const pseudoNode = visible.find((n) => n.id === "__more-items__");
     const definedPseudoNode = expectDefined(pseudoNode, "Expected pseudo node");
-    expect((definedPseudoNode.data as Record<string, unknown>).label).toBe("More items (5)");
+    expect(definedPseudoNode.data.label).toBe("More items (5)");
   });
 
   it("sorts by priority descending (keeps highest priority)", () => {

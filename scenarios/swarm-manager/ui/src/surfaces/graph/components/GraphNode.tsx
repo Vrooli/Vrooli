@@ -9,18 +9,9 @@ import { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Lightbulb, Package, Zap, MessageSquare, Activity, Target } from "lucide-react";
 import { cn } from "../../../lib/utils";
+import type { GraphEntityType, GraphNodeData } from "../types";
 
-type EntityType = "backlog" | "scenario" | "execution" | "capture" | "agent-run" | "initiative";
-
-interface GraphNodeData {
-  label: string;
-  status?: string;
-  kind?: string;
-  entityType?: EntityType;
-  [key: string]: unknown;
-}
-
-const ENTITY_COLORS: Record<EntityType, { bg: string; border: string; badge: string; icon: React.ElementType }> = {
+const ENTITY_COLORS: Record<GraphEntityType, { bg: string; border: string; badge: string; icon: React.ElementType }> = {
   backlog: {
     bg: "bg-slate-800/90",
     border: "border-cyan-500/40",
@@ -91,11 +82,11 @@ const STATUS_DOT_COLORS: Record<string, string> = {
   cancelled: "bg-slate-500",
 };
 
-const DEFAULT_ENTITY: EntityType = "backlog";
+const DEFAULT_ENTITY: GraphEntityType = "backlog";
 
 function GraphNodeComponent({ data, selected }: NodeProps) {
   const nodeData = data as GraphNodeData;
-  const entityType = (nodeData.entityType ?? DEFAULT_ENTITY) as EntityType;
+  const entityType = nodeData.entityType ?? DEFAULT_ENTITY;
   const colors = ENTITY_COLORS[entityType] ?? ENTITY_COLORS[DEFAULT_ENTITY];
   const Icon = colors.icon;
   const statusDot = STATUS_DOT_COLORS[nodeData.status ?? ""] ?? "bg-slate-500";

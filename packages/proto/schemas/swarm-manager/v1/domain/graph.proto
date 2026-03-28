@@ -1,0 +1,159 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
+
+// =============================================================================
+// GRAPH DOMAIN
+// =============================================================================
+//
+// @layer 1
+// @domain graph
+// @imports none (external only: buf.validate)
+// @stability beta
+//
+// Graph domain types back the Swarm Manager graph workspace and keep the
+// graph-first UI/API seam strongly typed.
+//
+// USAGE CONTEXTS:
+//   - API graph projection responses
+//   - UI graph workspace parsing and normalization
+//
+// =============================================================================
+
+// GraphPosition is a 2D coordinate used by the graph workspace.
+message GraphPosition {
+  double x = 1;
+  double y = 2;
+}
+
+// GraphInitiativeRollup summarizes the member backlog state for an initiative.
+message GraphInitiativeRollup {
+  int32 total = 1 [(buf.validate.field).int32.gte = 0];
+  int32 completed = 2 [(buf.validate.field).int32.gte = 0];
+  int32 in_progress = 3 [(buf.validate.field).int32.gte = 0];
+  int32 failed = 4 [(buf.validate.field).int32.gte = 0];
+  int32 pending = 5 [(buf.validate.field).int32.gte = 0];
+}
+
+// GraphBacklogNodeData describes a backlog item node.
+message GraphBacklogNodeData {
+  string kind = 1 [(buf.validate.field).string = { in: ["idea", "research", "fix", "execute", "chore"] }];
+  string name = 2 [(buf.validate.field).string.min_len = 1];
+  string title = 3 [(buf.validate.field).string.min_len = 1];
+  string status = 4 [(buf.validate.field).string = { in: [
+    "backlog",
+    "researching",
+    "ready",
+    "queued",
+    "in_progress",
+    "completed",
+    "failed",
+    "archived"
+  ] }];
+  int32 priority = 5 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+}
+
+// GraphInitiativeNodeData describes an initiative node.
+message GraphInitiativeNodeData {
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+  string title = 2 [(buf.validate.field).string.min_len = 1];
+  string status = 3 [(buf.validate.field).string.min_len = 1];
+  GraphInitiativeRollup rollup = 4;
+}
+
+// GraphCaptureNodeData describes a capture node.
+message GraphCaptureNodeData {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+  string text = 2 [(buf.validate.field).string.min_len = 1];
+  string status = 3 [(buf.validate.field).string = { in: ["classifying", "classified", "failed"] }];
+}
+
+// GraphScenarioNodeData describes a scenario node.
+message GraphScenarioNodeData {
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+  string status = 2 [(buf.validate.field).string = { in: ["running", "stopped", "error", "unknown"] }];
+}
+
+// GraphExecutionNodeData describes an execution node.
+message GraphExecutionNodeData {
+  string execution_id = 1 [(buf.validate.field).string.min_len = 1];
+  string backlog_kind = 2 [(buf.validate.field).string = { in: ["idea", "research", "fix", "execute", "chore"] }];
+  string backlog_name = 3 [(buf.validate.field).string.min_len = 1];
+  string status = 4 [(buf.validate.field).string = { in: [
+    "pending",
+    "scheduled",
+    "starting",
+    "running",
+    "needs_review",
+    "validating",
+    "needs_fixup",
+    "completed",
+    "failed",
+    "canceled"
+  ] }];
+  string mode = 5 [(buf.validate.field).string = { in: ["manual", "scheduled", "yolo"] }];
+  optional string run_id = 6;
+}
+
+// GraphRunNodeData describes an agent-manager run node.
+message GraphRunNodeData {
+  string run_id = 1 [(buf.validate.field).string.min_len = 1];
+  optional string task_id = 2;
+  string status = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+// GraphNodeData is the typed payload for a graph node.
+message GraphNodeData {
+  oneof value {
+    GraphBacklogNodeData backlog = 1;
+    GraphInitiativeNodeData initiative = 2;
+    GraphCaptureNodeData capture = 3;
+    GraphScenarioNodeData scenario = 4;
+    GraphExecutionNodeData execution = 5;
+    GraphRunNodeData run = 6;
+  }
+}
+
+// GraphNode is a node in the graph workspace.
+message GraphNode {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+  string type = 2 [(buf.validate.field).string = { in: [
+    "BacklogItem",
+    "Initiative",
+    "Capture",
+    "Scenario",
+    "ExecutionRecord",
+    "Run"
+  ] }];
+  GraphNodeData data = 3;
+  GraphPosition position = 4;
+}
+
+// GraphEdge is an edge in the graph workspace.
+message GraphEdge {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+  string source = 2 [(buf.validate.field).string.min_len = 1];
+  string target = 3 [(buf.validate.field).string.min_len = 1];
+  string type = 4 [(buf.validate.field).string = { in: [
+    "depends_on",
+    "member_of",
+    "classified_as",
+    "targets",
+    "executes",
+    "follow_up",
+    "spawned_run"
+  ] }];
+}
+
+// GraphMeta describes the graph projection metadata.
+message GraphMeta {
+  string lens = 1 [(buf.validate.field).string = { in: ["topology", "flow", "operations"] }];
+  int32 node_count = 2 [(buf.validate.field).int32.gte = 0];
+  int32 edge_count = 3 [(buf.validate.field).int32.gte = 0];
+  string generated_at = 4 [(buf.validate.field).string.min_len = 1];
+  optional bool agent_manager_available = 5;
+}

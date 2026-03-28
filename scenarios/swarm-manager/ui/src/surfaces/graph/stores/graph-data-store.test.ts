@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Edge, Node } from "@xyflow/react";
 import type { GraphProjection, GraphRequestOptions } from "../../../services/graph-service";
+import type { GraphEdge, GraphNode } from "../types";
+import { makeGraphEdge, makeGraphNode, makeRunNode } from "../test-helpers";
 
 const { getGraphMock } = vi.hoisted(() => ({
   getGraphMock: vi.fn<(lens: string, options?: GraphRequestOptions) => Promise<GraphProjection>>(),
@@ -36,18 +37,11 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
-const makeNode = (id: string, type?: string): Node => ({
-  id,
-  type,
-  position: { x: 0, y: 0 },
-  data: { label: id, entityType: type },
-});
+const makeNode = (id: string, type: Parameters<typeof makeGraphNode>[1] = "scenario"): GraphNode =>
+  makeGraphNode(id, type, { label: id });
 
-const makeEdge = (source: string, target: string): Edge => ({
-  id: `${source}->${target}`,
-  source,
-  target,
-});
+const makeEdge = (source: string, target: string): GraphEdge =>
+  makeGraphEdge(`${source}->${target}`, source, target);
 
 describe("graphDataStore", () => {
   beforeEach(resetStore);
@@ -210,8 +204,8 @@ describe("graphDataStore", () => {
 
   it("dedupes concurrent fetches for the same lens", async () => {
     const pending = deferred<{
-      nodes: Node[];
-      edges: Edge[];
+      nodes: GraphNode[];
+      edges: GraphEdge[];
       meta: {
         lens: "topology";
         nodeCount: number;
@@ -244,8 +238,8 @@ describe("graphDataStore", () => {
 
   it("ignores aborted requests and keeps the active graph stable", async () => {
     const pending = deferred<{
-      nodes: Node[];
-      edges: Edge[];
+      nodes: GraphNode[];
+      edges: GraphEdge[];
       meta: {
         lens: "topology";
         nodeCount: number;
@@ -285,16 +279,14 @@ describe("graphDataStore", () => {
       ...cloneGraphDataInitialState(),
       nodes: [
         {
-          ...makeNode("run/abc", "agent-run"),
-          data: { label: "Run abc", entityType: "agent-run", pulsing: true },
+          ...makeRunNode("run/abc", { label: "Run abc", pulsing: true }),
         },
       ],
       graphsByLens: {
         topology: {
           nodes: [
             {
-              ...makeNode("run/abc", "agent-run"),
-              data: { label: "Run abc", entityType: "agent-run", pulsing: true },
+              ...makeRunNode("run/abc", { label: "Run abc", pulsing: true }),
             },
           ],
           edges: [],
@@ -329,6 +321,6 @@ describe("graphDataStore", () => {
     if (!node) {
       throw new Error("Expected runtime node");
     }
-    expect((node.data as Record<string, unknown>).pulsing).toBe(true);
+    expect(node.data.pulsing).toBe(true);
   });
 });

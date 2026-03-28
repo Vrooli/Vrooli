@@ -1,14 +1,11 @@
 import { describe, it, expect } from "vitest";
-import type { Node } from "@xyflow/react";
 import { getActionsForNode } from "./action-registry";
 import type { EntityType } from "../stores/graph-data-store";
+import type { GraphNode } from "../types";
+import { makeGraphNode } from "../test-helpers";
 
-const makeNode = (id: string, entityType: EntityType, status?: string, kind?: string): Node => ({
-  id,
-  type: entityType,
-  position: { x: 0, y: 0 },
-  data: { label: id, entityType, status, kind },
-});
+const makeNode = (id: string, entityType: EntityType, status?: string, kind?: string): GraphNode =>
+  makeGraphNode(id, entityType, { label: id, status, kind });
 
 function expectDefined<T>(value: T | undefined, message: string): T {
   expect(value).toBeDefined();
@@ -29,12 +26,12 @@ function getAction(
   );
 }
 
-function runEnabledPredicate(action: ReturnType<typeof getAction>, node: Node): boolean {
+function runEnabledPredicate(action: ReturnType<typeof getAction>, node: GraphNode): boolean {
   const enabled = expectDefined(action.enabled, `Expected enabled predicate for action "${action.id}"`);
   return enabled(node);
 }
 
-function runNavigateTo(action: ReturnType<typeof getAction>, node: Node): string | null {
+function runNavigateTo(action: ReturnType<typeof getAction>, node: GraphNode): string | null {
   const navigateTo = expectDefined(action.navigateTo, `Expected navigateTo for action "${action.id}"`);
   return navigateTo(node);
 }

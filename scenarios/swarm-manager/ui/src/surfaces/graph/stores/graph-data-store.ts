@@ -7,20 +7,18 @@
  */
 
 import { create } from "zustand";
-import type { Edge, Node } from "@xyflow/react";
 import { graphService, type GraphProjectionMeta } from "../../../services";
+import {
+  getGraphNodeData,
+  type GraphEdge,
+  type GraphEntityType,
+  type GraphGroupingMode,
+  type GraphLens,
+  type GraphNode,
+} from "../types";
 
-export type GraphLens = "topology" | "flow" | "operations";
-
-export type EntityType =
-  | "backlog"
-  | "scenario"
-  | "execution"
-  | "capture"
-  | "agent-run"
-  | "initiative";
-
-export type GraphGroupingMode = "initiative" | "none";
+export type { GraphEdge, GraphGroupingMode, GraphLens, GraphNode };
+export type EntityType = GraphEntityType;
 
 export interface GraphLensSettings {
   entityFilters: Record<EntityType, boolean>;
@@ -31,8 +29,8 @@ export interface GraphLensSettings {
 }
 
 interface GraphLensSnapshot {
-  nodes: Node[];
-  edges: Edge[];
+  nodes: GraphNode[];
+  edges: GraphEdge[];
   meta: GraphProjectionMeta | null;
   loading: boolean;
   error: string | null;
@@ -45,17 +43,17 @@ export interface FetchGraphOptions {
 }
 
 export interface GraphDataState {
-  nodes: Node[];
-  edges: Edge[];
+  nodes: GraphNode[];
+  edges: GraphEdge[];
   meta: GraphProjectionMeta | null;
   loading: boolean;
   error: string | null;
   lens: GraphLens;
   graphsByLens: Record<GraphLens, GraphLensSnapshot>;
   settingsByLens: Record<GraphLens, GraphLensSettings>;
-  setNodes: (nodes: Node[]) => void;
-  setEdges: (edges: Edge[]) => void;
-  setGraphData: (nodes: Node[], edges: Edge[], meta?: GraphProjectionMeta | null) => void;
+  setNodes: (nodes: GraphNode[]) => void;
+  setEdges: (edges: GraphEdge[]) => void;
+  setGraphData: (nodes: GraphNode[], edges: GraphEdge[], meta?: GraphProjectionMeta | null) => void;
   setLens: (lens: GraphLens) => void;
   fetchGraph: (lens?: GraphLens, options?: FetchGraphOptions) => Promise<void>;
   toggleEntityFilter: (type: EntityType) => void;
@@ -272,10 +270,10 @@ function cloneGraphsByLens(
   };
 }
 
-function mergeRuntimeNodeState(currentNodes: Node[], nextNodes: Node[]): Node[] {
+function mergeRuntimeNodeState(currentNodes: GraphNode[], nextNodes: GraphNode[]): GraphNode[] {
   const pulsingById = new Map<string, boolean>();
   for (const node of currentNodes) {
-    const pulsing = (node.data as Record<string, unknown> | undefined)?.pulsing;
+    const pulsing = getGraphNodeData(node).pulsing;
     if (typeof pulsing === "boolean") {
       pulsingById.set(node.id, pulsing);
     }
@@ -289,7 +287,7 @@ function mergeRuntimeNodeState(currentNodes: Node[], nextNodes: Node[]): Node[] 
     return {
       ...node,
       data: {
-        ...(node.data as Record<string, unknown>),
+        ...getGraphNodeData(node),
         pulsing,
       },
     };
@@ -357,8 +355,8 @@ function updateLensSnapshot(
 
 export function createGraphDataInitialState() {
   return {
-    nodes: [] as Node[],
-    edges: [] as Edge[],
+    nodes: [] as GraphNode[],
+    edges: [] as GraphEdge[],
     meta: null as GraphProjectionMeta | null,
     loading: false,
     error: null as string | null,
@@ -592,7 +590,7 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
             ? {
                 ...node,
                 data: {
-                  ...(node.data as Record<string, unknown>),
+                  ...getGraphNodeData(node),
                   pulsing,
                 },
               }

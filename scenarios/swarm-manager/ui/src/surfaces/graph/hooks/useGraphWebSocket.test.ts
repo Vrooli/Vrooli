@@ -40,7 +40,11 @@ vi.mock("@vrooli/api-base", async () => {
   const actual = await vi.importActual<typeof import("@vrooli/api-base")>("@vrooli/api-base");
   return {
     ...actual,
-    buildWsUrl: (path: string) => `ws://localhost:8080${path}`,
+    buildWsUrl: (path: string, options?: { appendSuffix?: boolean }) => {
+      const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+      const suffix = options?.appendSuffix ? "/ws" : "";
+      return `ws://localhost:8080${suffix}${normalizedPath}`;
+    },
   };
 });
 
@@ -83,6 +87,12 @@ describe("useGraphWebSocket", () => {
     renderHook(() => useGraphWebSocket({ enabled: true, lens: "topology" }));
     expect(MockWebSocket.instances).toHaveLength(1);
     expect(getFirstSocket().url).toBe("ws://localhost:8080/ws/graph");
+  });
+
+  it("does not duplicate the websocket suffix when building the graph stream URL", () => {
+    resetStore();
+    renderHook(() => useGraphWebSocket({ enabled: true, lens: "topology" }));
+    expect(getFirstSocket().url).not.toContain("/ws/ws/");
   });
 
   it("disconnects when disabled after being enabled", () => {
@@ -180,6 +190,20 @@ describe("useGraphWebSocket", () => {
     expect(fetchGraphSpy).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1000);
     expect(fetchGraphSpy).toHaveBeenCalledWith("operations", { silent: true, force: true });
+    expect(MockWebSocket.instances).toHaveLength(2);
+  });
+
+  it("reconnects without forcing a graph refresh when the socket closes before the first open", async () => {
+    const fetchGraphSpy = resetStore();
+    renderHook(() => useGraphWebSocket({ enabled: true, lens: "topology" }));
+    const ws = getFirstSocket();
+
+    act(() => {
+      ws.simulateClose();
+    });
+
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(fetchGraphSpy).not.toHaveBeenCalled();
     expect(MockWebSocket.instances).toHaveLength(2);
   });
 

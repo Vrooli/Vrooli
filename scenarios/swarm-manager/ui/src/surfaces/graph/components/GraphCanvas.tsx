@@ -14,9 +14,7 @@ import {
   useEdgesState,
   useNodesState,
   type DefaultEdgeOptions,
-  type Edge,
   type NodeMouseHandler,
-  type Node,
   type NodeTypes,
   type OnEdgesChange,
   type OnNodesChange,
@@ -34,17 +32,22 @@ import {
   STRAIGHT_EDGE_THRESHOLD,
 } from "../lib/edge-styles";
 import { bfsNeighborhood } from "../lib/bfs-selection";
+import {
+  getGraphNodeData,
+  type GraphEdge,
+  type GraphNode,
+} from "../types";
 import { ClusterNode } from "./ClusterNode";
 import { EdgeLegend } from "./EdgeLegend";
-import { GraphNode } from "./GraphNode";
+import { GraphNode as GraphNodeComponent } from "./GraphNode";
 
 const nodeTypes: NodeTypes = {
-  backlog: GraphNode,
-  scenario: GraphNode,
-  execution: GraphNode,
-  capture: GraphNode,
-  "agent-run": GraphNode,
-  initiative: GraphNode,
+  backlog: GraphNodeComponent,
+  scenario: GraphNodeComponent,
+  execution: GraphNodeComponent,
+  capture: GraphNodeComponent,
+  "agent-run": GraphNodeComponent,
+  initiative: GraphNodeComponent,
   cluster: ClusterNode,
 };
 
@@ -78,7 +81,7 @@ export function GraphCanvas() {
   const setViewportForLens = useGraphUIStore((s) => s.setViewportForLens);
   const toggleTopologyCluster = useGraphUIStore((s) => s.toggleTopologyCluster);
 
-  const flowRef = useRef<ReactFlowInstance<Node, Edge> | null>(null);
+  const flowRef = useRef<ReactFlowInstance<GraphNode, GraphEdge> | null>(null);
 
   const { processedNodes, processedEdges, visibleEdgeTypes, visibleNodeCount } = useMemo(() => {
     return buildGraphPresentation({
@@ -90,12 +93,12 @@ export function GraphCanvas() {
     });
   }, [expandedTopologyClusters, lens, settings, storeEdges, storeNodes]);
 
-  const styledEdges = useMemo<Edge[]>(() => {
+  const styledEdges = useMemo<GraphEdge[]>(() => {
     const useStraightEdges = processedEdges.length > STRAIGHT_EDGE_THRESHOLD;
     return processedEdges.map((edge) => ({
       ...edge,
       data: {
-        ...((edge.data as Record<string, unknown>) ?? {}),
+        ...(edge.data ?? {}),
         relationshipType: edge.type,
       },
       type: useStraightEdges ? "straight" : undefined,
@@ -214,6 +217,7 @@ export function GraphCanvas() {
 
   const handleNodeClick: NodeMouseHandler = useCallback(
     (_event, node) => {
+      const graphNode = node as GraphNode;
       if (node.type === "cluster") {
         toggleTopologyCluster(node.id);
         return;
@@ -221,7 +225,7 @@ export function GraphCanvas() {
 
       selectNode(node.id);
       setHighlightState({
-        highlighted: bfsNeighborhood(node.id, processedNodes, styledEdges),
+        highlighted: bfsNeighborhood(graphNode.id, processedNodes, styledEdges),
         mode: "dim",
       });
     },
@@ -257,7 +261,7 @@ export function GraphCanvas() {
         onPaneClick={handlePaneClick}
         onMoveEnd={handleMoveEnd}
         onInit={(instance) => {
-          flowRef.current = instance;
+          flowRef.current = instance as unknown as ReactFlowInstance<GraphNode, GraphEdge>;
         }}
         defaultViewport={defaultViewport}
         fitView={!storedViewport}
@@ -271,7 +275,7 @@ export function GraphCanvas() {
           <MiniMap
             nodeStrokeWidth={3}
             nodeColor={(node) => {
-              const entityType = (node.data as Record<string, unknown> | undefined)?.entityType;
+              const entityType = getGraphNodeData(node).entityType;
               switch (entityType) {
                 case "backlog":
                   return "rgb(34 211 238 / 0.6)";

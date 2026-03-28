@@ -519,28 +519,24 @@ func TestTopologyInitiativeRollup(t *testing.T) {
 			continue
 		}
 		found = true
-		data, ok := n.Data.(map[string]any)
+		data, ok := n.Data.(GraphInitiativeNodeData)
 		if !ok {
-			t.Fatal("expected Data to be map[string]any")
+			t.Fatalf("expected GraphInitiativeNodeData, got %T", n.Data)
 		}
-		rollup, ok := data["rollup"].(map[string]any)
-		if !ok {
-			t.Fatal("expected rollup to be map[string]any")
+		if data.Rollup.Total != 5 {
+			t.Errorf("expected total=5, got %v", data.Rollup.Total)
 		}
-		if rollup["total"] != 5 {
-			t.Errorf("expected total=5, got %v", rollup["total"])
+		if data.Rollup.Completed != 1 {
+			t.Errorf("expected completed=1, got %v", data.Rollup.Completed)
 		}
-		if rollup["completed"] != 1 {
-			t.Errorf("expected completed=1, got %v", rollup["completed"])
+		if data.Rollup.InProgress != 1 {
+			t.Errorf("expected in_progress=1, got %v", data.Rollup.InProgress)
 		}
-		if rollup["in_progress"] != 1 {
-			t.Errorf("expected in_progress=1, got %v", rollup["in_progress"])
+		if data.Rollup.Failed != 1 {
+			t.Errorf("expected failed=1, got %v", data.Rollup.Failed)
 		}
-		if rollup["failed"] != 1 {
-			t.Errorf("expected failed=1, got %v", rollup["failed"])
-		}
-		if rollup["pending"] != 2 {
-			t.Errorf("expected pending=2, got %v", rollup["pending"])
+		if data.Rollup.Pending != 2 {
+			t.Errorf("expected pending=2, got %v", data.Rollup.Pending)
 		}
 	}
 	if !found {

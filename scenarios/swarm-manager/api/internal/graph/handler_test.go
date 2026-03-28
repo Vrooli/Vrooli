@@ -1,10 +1,12 @@
 package graph
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"swarm-manager/internal/backlog"
 )
@@ -32,15 +34,18 @@ func TestGraphHandler(t *testing.T) {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
 
-	var resp GraphResponse
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+	var resp apipb.GraphResponse
+	if err := protojson.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	if resp.Meta.Lens != LensTopology {
-		t.Errorf("expected lens topology, got %s", resp.Meta.Lens)
+	if resp.GetMeta().GetLens() != string(LensTopology) {
+		t.Errorf("expected lens topology, got %s", resp.GetMeta().GetLens())
 	}
-	if resp.Meta.NodeCount == 0 {
+	if resp.GetMeta().GetNodeCount() == 0 {
 		t.Error("expected non-zero node count")
+	}
+	if len(resp.GetNodes()) == 0 || resp.GetNodes()[0].GetData().GetBacklog() == nil {
+		t.Fatal("expected backlog node data in proto response")
 	}
 }
 
@@ -55,12 +60,12 @@ func TestGraphHandlerDefaultLens(t *testing.T) {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
 
-	var resp GraphResponse
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+	var resp apipb.GraphResponse
+	if err := protojson.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	if resp.Meta.Lens != LensTopology {
-		t.Errorf("expected default lens topology, got %s", resp.Meta.Lens)
+	if resp.GetMeta().GetLens() != string(LensTopology) {
+		t.Errorf("expected default lens topology, got %s", resp.GetMeta().GetLens())
 	}
 }
 

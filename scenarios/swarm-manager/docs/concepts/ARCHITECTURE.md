@@ -4,6 +4,8 @@
 
 Swarm Manager is the **staging and review layer** for agent-generated plans. Its primary role is to receive work proposals from prompt-manager agent teams, let operators review and refine them, and then control when and how they execute.
 
+The primary operator surface is now the **graph workspace**. Operators navigate backlog items, initiatives, scenarios, executions, runs, and captures primarily through a graph-first view, with sidebar lists and detail routes serving as search, drill-down, and non-graph navigation paths.
+
 ```
 prompt-manager                         swarm-manager
 ┌────────────────────────┐             ┌──────────────────────────────────┐
@@ -83,7 +85,13 @@ Backlog items can declare dependencies on other items via the `depends_on` field
    Queue backlog item (manual/scheduled/yolo) -> execution run record -> agent-manager run -> status tracked in Execution page
    ```
 
-4. **Scenario lifecycle control**
+5. **Graph workspace projection**
+   ```
+   GET /graph?lens={topology|flow|operations} -> proto GraphResponse -> typed graph store -> React Flow canvas + sidebar + inspector
+   WS /ws/graph invalidate/node-update -> silent refresh + runtime node pulse
+   ```
+
+6. **Scenario lifecycle control**
    ```
    List scenarios -> inspect details -> start/stop/restart/delete/archive
    ```
@@ -93,7 +101,7 @@ Backlog items can declare dependencies on other items via the `depends_on` field
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ PRESENTATION LAYER (UI)                                     │
-│ Backlog, Scenarios, Execution, Prompts, Settings pages       │
+│ Graph workspace + sidebar/search + detail routes + prompts   │
 ├─────────────────────────────────────────────────────────────┤
 │ API GATEWAY LAYER (Go API)                                  │
 │ HTTP/proto endpoints, validation, response contracts         │
@@ -114,8 +122,8 @@ Backlog items can declare dependencies on other items via the `depends_on` field
 
 | Layer | Status | Notes |
 |-------|--------|-------|
-| Presentation | Functional | 5 primary tabs wired (`backlog`, `scenarios`, `execution`, `prompts`, `settings`) |
-| API Gateway | Implemented | Health, backlog (incl. batch), scenarios, settings, queue, execution, prompts, initiatives, overview, captures, agent-manager status |
+| Presentation | Functional | Graph-first workspace is primary (`/graph`), with sidebar/search flows and detail pages for backlog, initiatives, scenarios, and execution |
+| API Gateway | Implemented | Health, graph, backlog (incl. batch), scenarios, settings, queue, execution, prompts, initiatives, overview, captures, agent-manager status |
 | Domain Logic | Implemented | CRUD, archive, queue, research, batch ops, dependency graph, initiatives, overview aggregation, execution scheduling and run control |
 | Integration | Implemented | Discovery-based clients (agent-manager, prompt-manager) and CLI-backed scenario operations |
 | Persistence | Filesystem-first | Backlog items and execution/settings/queue JSON persisted on disk |
@@ -143,7 +151,10 @@ See [DOC: docs/guides/workshop-workflow.md] for the full workshop pipeline and s
 Key implementation files:
 - Domain types: [CODE: ui/src/types/domain.ts]
 - API routes/composition: [CODE: api/main.go]
+- Graph workspace: [CODE: ui/src/surfaces/graph/]
+- Graph projection API: [CODE: api/internal/graph/]
 - Backlog service: [CODE: ui/src/services/backlog-service.ts]
+- Graph service: [CODE: ui/src/services/graph-service.ts]
 - Scenarios service: [CODE: ui/src/services/scenarios-service.ts]
 - Execution service: [CODE: ui/src/services/execution-service.ts]
 - CLI commands: [CODE: cli/app.go]
@@ -173,6 +184,7 @@ api/internal/
 ├── promptcatalog/     # Canonical runtime prompt inventory and resolvers
 ├── workshop/          # Readiness scoring, round I/O
 ├── execution/         # Execution run lifecycle
+├── graph/             # Graph projection + websocket invalidation
 ├── scenarios/         # Scenario CRUD and lifecycle
 ├── queue/             # Queue state operations
 ├── settings/          # Settings persistence
@@ -188,6 +200,8 @@ api/internal/
 - `/api/v1/backlog/batch/queue` - batch queue (topologically sorted, dependency-aware)
 - `/api/v1/initiatives/*` - initiative CRUD with rollup status from member items
 - `/api/v1/overview` - aggregated view (backlog, initiatives, dependency graph, summary stats)
+- `/graph` - graph-first workspace projection (`topology`, `flow`, `operations`) using proto `GraphResponse`
+- `/ws/graph` - graph invalidation and node pulse websocket
 - `/api/v1/captures/*` - capture CRUD and AI classification
 - `/api/v1/scenarios/*` - scenario list/detail/lifecycle/delete/archive
 - `/api/v1/settings/*` - settings persistence

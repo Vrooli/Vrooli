@@ -10,14 +10,7 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Target, ChevronRight, ChevronDown } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import type { RollupCounts } from "../lib/clustering-utils";
-
-interface ClusterNodeData {
-  label: string;
-  collapsed: boolean;
-  rollup: RollupCounts | null;
-  isUnassigned?: boolean;
-  [key: string]: unknown;
-}
+import type { ClusterGraphNodeData } from "../types";
 
 function RollupBadge({ rollup }: { rollup: RollupCounts }) {
   return (
@@ -40,7 +33,7 @@ function RollupBadge({ rollup }: { rollup: RollupCounts }) {
 }
 
 function ClusterNodeComponent({ data, selected }: NodeProps) {
-  const nodeData = data as ClusterNodeData;
+  const nodeData = data as ClusterGraphNodeData;
   const isCollapsed = nodeData.collapsed;
   const isUnassigned = nodeData.isUnassigned ?? false;
 
