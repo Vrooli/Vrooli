@@ -1,0 +1,29 @@
+{
+  "acceptance_allow": [
+    "scenarios/app-issue-tracker/**",
+    "scenarios/swarm-manager/**",
+    "scenarios/app-monitor/**",
+    "docs/**"
+  ],
+  "created": "2026-03-28T19:32:20Z",
+  "depends_on": [
+    "execute/swarm-manager-identity-adoption",
+    "execute/swarm-manager-concurrency-guardrails",
+    "execute/swarm-manager-sidebar-search"
+  ],
+  "description": "Archive the app-issue-tracker scenario after swarm-manager has achieved feature parity for all capabilities that were actually used and valuable.\n\n## Context\n\nApp-issue-tracker was created to track and spawn coding agents to fix issues discovered in other scenarios. It served that purpose well, but swarm-manager has evolved into a strictly more capable system that handles not just fixes but also ideas, research, chores, and execution tasks with a richer workshop model, initiative grouping, and graph visualization.\n\n## Pre-Deprecation Checklist\n\nBefore archiving, verify that swarm-manager covers these app-issue-tracker capabilities:\n\n1. **Provenance tracking** (via agent identity standard): Swarm-manager can track who/what created each backlog item with verified identity, replacing app-issue-tracker's reporter field.\n\n2. **Concurrency/rate limiting** (via concurrency guardrails): Swarm-manager has configurable limits on concurrent executions, queue depth, and circuit breaker protection, replacing app-issue-tracker's automation processor with concurrent slots and rate limiting.\n\n3. **Search and discovery** (via sidebar search): Swarm-manager has search, filtering, and tabbed navigation, replacing app-issue-tracker's text search and filtering.\n\n4. **One-shot investigation flow**: Swarm-manager's queue → execute flow with workshop-optional fast paths covers app-issue-tracker's investigate endpoint. (Note: full fast-tracking via initiative-level agent is deferred but not blocking for deprecation.)\n\n## Deliverables\n\n1. **Extract reusable patterns**: Before removing, document any patterns worth preserving:\n   - The automation processor concept (background loop that auto-picks open items) - capture as a design note for future swarm-manager auto-processing\n   - The Tool Discovery Protocol v1.0 - capture the API contract for potential future use\n   - Export format templates (CSV/markdown) - capture for swarm-manager multi-format export\n\n2. **Archive the scenario**: Use the established archive pattern (similar to archive-and-remove-legacy-vrooli-bridge). Move to a backlog idea if there's material worth preserving, otherwise clean removal.\n\n3. **Update references**: Remove any cross-references to app-issue-tracker in other scenarios, docs, CLAUDE.md, or memory files.\n\n4. **Update app-monitor integration**: If app-monitor currently sends issues to app-issue-tracker, redirect to swarm-manager's capture endpoint instead.",
+  "effort": "S",
+  "initiative": "swarm-manager-feature-parity",
+  "kind": "chore",
+  "name": "app-issue-tracker-deprecation",
+  "priority": 5,
+  "status": "backlog",
+  "tags": [
+    "app-issue-tracker",
+    "deprecation",
+    "cleanup",
+    "archive"
+  ],
+  "title": "Deprecate and Archive the App-Issue-Tracker Scenario",
+  "updated": "2026-03-28T19:32:20Z"
+}

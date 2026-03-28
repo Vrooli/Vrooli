@@ -1,0 +1,17 @@
+{
+  "name": "swarm-manager-feature-parity",
+  "title": "Swarm Manager Feature Parity \u0026 App-Issue-Tracker Deprecation",
+  "description": "Close feature gaps between swarm-manager and app-issue-tracker (agent identity, concurrency guardrails, search/filtering), then deprecate app-issue-tracker. Includes cross-scenario work in agent-manager for the verifiable identity standard, and a deferred research item for initiative-level strategic agents.",
+  "status": "active",
+  "items": [
+    "research/agent-identity-standard",
+    "execute/agent-manager-identity-tokens",
+    "execute/swarm-manager-identity-adoption",
+    "execute/swarm-manager-concurrency-guardrails",
+    "execute/swarm-manager-sidebar-search",
+    "research/initiative-level-agent-design",
+    "chore/app-issue-tracker-deprecation"
+  ],
+  "created": "2026-03-28T19:32:20Z",
+  "updated": "2026-03-28T19:32:20Z"
+}

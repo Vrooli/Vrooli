@@ -1,0 +1,26 @@
+{
+  "acceptance_allow": [
+    "scenarios/swarm-manager/api/**",
+    "scenarios/swarm-manager/cli/**",
+    "scenarios/swarm-manager/ui/**"
+  ],
+  "created": "2026-03-28T19:32:20Z",
+  "depends_on": [
+    "execute/agent-manager-identity-tokens"
+  ],
+  "description": "Integrate the agent identity standard (from agent-manager) into swarm-manager so that backlog items, executions, and other resources carry verified provenance information.\n\n## Context\n\nSwarm-manager currently has 'started_by' on execution records but no provenance tracking on backlog items themselves. When agents create or modify backlog items via the CLI, there's no way to distinguish agent-created items from human-created ones, or to trace which specific agent run produced a change.\n\nApp-issue-tracker had a reporter field (name, email, user_id, timestamp) on every issue. Rather than copying that pattern directly, we're building on the cross-scenario identity standard so provenance is verifiable rather than self-reported.\n\n## Expected Deliverables\n\n1. **CLI identity detection**: Swarm-manager CLI reads the VROOLI_AGENT_IDENTITY_TOKEN env var using the shared consumer package from packages/cli-core. When present, the CLI includes the token in API requests (e.g., as a header or request field).\n\n2. **API token verification**: When the swarm-manager API receives a request with an identity token, it verifies the token against agent-manager's verification endpoint. On success, it extracts provenance claims (run_id, task_id, profile_key, etc.).\n\n3. **Backlog item provenance**: Add a 'created_by' field to spec.json that records either 'operator' (for human-created items) or verified agent identity claims (run_id, profile_key, timestamp). This field is set at creation time and immutable.\n\n4. **Execution record provenance**: Enhance the existing execution record to link verified agent identity (beyond the current 'started_by' string).\n\n5. **UI provenance display**: Surface provenance information in the UI - show who/what created a backlog item, with visual distinction between operator-created and agent-created items. Show the originating run link for agent-created items.\n\n6. **Graceful fallback**: When no identity token is present (human operator, or agent-manager hasn't been updated yet), default to 'operator' attribution. Never fail a request due to missing identity.\n\n7. **Tests**: Unit tests for token detection and verification in the CLI and API. Integration tests for the full provenance flow.",
+  "effort": "M",
+  "initiative": "swarm-manager-feature-parity",
+  "kind": "execute",
+  "name": "swarm-manager-identity-adoption",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [
+    "swarm-manager",
+    "identity",
+    "provenance",
+    "adoption"
+  ],
+  "title": "Adopt Agent Identity Standard in Swarm-Manager for Provenance Tracking",
+  "updated": "2026-03-28T19:32:20Z"
+}

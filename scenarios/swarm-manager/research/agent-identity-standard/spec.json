@@ -1,0 +1,25 @@
+{
+  "acceptance_allow": [
+    "scenarios/agent-manager/api/**",
+    "packages/proto/schemas/agent-manager/**",
+    "packages/cli-core/**",
+    "docs/**"
+  ],
+  "created": "2026-03-28T19:32:20Z",
+  "description": "Design a cross-scenario standard for verifiable agent identity, built into agent-manager and consumable by any scenario.\n\n## Context\n\nAgent-manager currently injects VROOLI_SANDBOX_ID, VROOLI_SANDBOX_MERGED, and VROOLI_SANDBOX_SCOPE env vars for sandbox-aware scenarios, and carries unverified CreatedBy strings on tasks/runs plus CLAUDE_CODE_AGENT_TAG for process discovery. However, there is no mechanism for a spawned agent to cryptographically prove its identity to the scenarios it interacts with. Any process could claim to be a particular agent.\n\nThis matters now because swarm-manager needs reliable provenance tracking on backlog items and executions (who created this item? which agent run produced this change?), and the same standard will be needed by any future scenario that accepts work from agents.\n\n## What This Research Should Cover\n\n1. **Token format**: Evaluate JWT (standard tooling, well-understood) vs a simpler custom HMAC-signed payload. Consider token size in env vars, parsing complexity in Go CLIs, and whether standard JWT libraries add unwanted dependencies.\n\n2. **Claims/payload**: What identity claims should the token carry? At minimum: run_id, task_id, profile_key, scope_path, issued_at, expires_at. Consider whether to include the spawning scenario name, the initiative context, or agent capabilities.\n\n3. **Signing and verification**: Agent-manager holds the signing key (HMAC-SHA256 with a server-side secret is the simplest option). Define the verification API contract - a lightweight endpoint that accepts a token and returns verified claims, plus an introspection endpoint agents can call to learn their own identity without parsing the token.\n\n4. **Token lifecycle**: Tokens should be scoped to a single run. Address: What happens for long-running agents that exceed the token TTL? Is refresh needed, or should TTL be generous (matching agent timeout)? What about token revocation when a run is cancelled?\n\n5. **Env var naming convention**: Propose the env var name (e.g., VROOLI_AGENT_IDENTITY_TOKEN) and document how it coexists with existing VROOLI_SANDBOX_* vars. The identity token is orthogonal to sandboxing - in-place runs should also get identity tokens.\n\n6. **Consumer interface**: Define the standard Go interface and shared package (likely in packages/cli-core or packages/proto) that consuming scenarios import. This should mirror the pattern established by packages/cli-core/cliutil/sandbox.go (DetectSandbox, ScenarioInScope, ResolveMergedPath) but for identity (DetectIdentity, VerifyIdentity, GetIdentityClaims).\n\n7. **Backward compatibility**: Runs created before this standard exists should continue working. Identity verification should be opt-in for consumers - if the env var is absent, the scenario falls back to anonymous/operator attribution.\n\n8. **Existing patterns to build on**: Study how test-genie and swarm-manager already consume agent-manager env vars via packages/cli-core/cliutil/sandbox.go. The identity standard should follow the same ergonomic pattern.\n\n## Key Design Questions for Workshop\n\n- Should the verification endpoint be gRPC (matching agent-manager's existing service.proto) or REST (simpler for CLI consumers that don't want a gRPC client)?\n- Should the token be opaque (require server-side verification every time) or self-verifiable (JWT with a shared public key)?\n- How should scenarios handle verification failures gracefully (network issues reaching agent-manager)?",
+  "effort": "M",
+  "initiative": "swarm-manager-feature-parity",
+  "kind": "research",
+  "name": "agent-identity-standard",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "agent-manager",
+    "identity",
+    "authentication",
+    "cross-scenario",
+    "standard"
+  ],
+  "title": "Design a Verifiable Agent Identity Standard for Agent-Manager",
+  "updated": "2026-03-28T19:32:20Z"
+}

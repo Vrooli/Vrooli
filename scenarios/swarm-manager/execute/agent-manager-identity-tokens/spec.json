@@ -1,0 +1,28 @@
+{
+  "acceptance_allow": [
+    "scenarios/agent-manager/api/**",
+    "packages/proto/schemas/agent-manager/**",
+    "packages/proto/gen/**",
+    "packages/cli-core/**"
+  ],
+  "created": "2026-03-28T19:32:20Z",
+  "depends_on": [
+    "research/agent-identity-standard"
+  ],
+  "description": "Implement the agent identity standard (designed in research/agent-identity-standard) within the agent-manager scenario.\n\n## Context\n\nAgent-manager already has the infrastructure for env var injection (SandboxEnvVars() in run_executor.go, sanitizedBaseEnv() and appendEnvMap() in env_utils.go) and the profile/task/run domain model with CreatedBy metadata. This item extends that with cryptographic identity tokens.\n\n## Expected Deliverables\n\n1. **Token generation**: When a run is created, generate a signed identity token containing the claims defined by the research item. Store the token on the Run domain object and inject it as an env var (e.g., VROOLI_AGENT_IDENTITY_TOKEN) via the existing env var injection path in run_executor.go.\n\n2. **Signing infrastructure**: Server-side secret management for HMAC signing. The secret should be generated on first startup if not present, stored in a secure location (agent-manager's data directory), and rotated gracefully.\n\n3. **Verification endpoint**: API endpoint (gRPC or REST per research findings) that accepts a token and returns verified identity claims. This is what consuming scenarios call to verify an agent's identity.\n\n4. **Introspection endpoint**: Lightweight endpoint an agent can call to learn its own identity - useful for agents that need to self-identify when creating resources in other scenarios.\n\n5. **Proto schema updates**: Add identity-related fields to the Run proto (identity_token field, or a separate IdentityToken message type). Update generated code for Go/TypeScript/Python.\n\n6. **Shared consumer package**: Create the standard Go interface in packages/cli-core (or packages/proto) that other scenarios import. Functions like DetectIdentity() (reads env var), VerifyIdentity(token, agentManagerURL) (calls verification endpoint), GetIdentityClaims(token) (parses without verification for non-critical use cases).\n\n7. **Backward compatibility**: Runs created without identity tokens should work. The env var injection is additive. The verification endpoint should return a clear 'no token' response rather than an error when called without a token.\n\n8. **Tests**: Unit tests for token generation/signing/verification. Integration tests for the full flow (create run → check env var → verify token → get claims).",
+  "effort": "L",
+  "initiative": "swarm-manager-feature-parity",
+  "kind": "execute",
+  "name": "agent-manager-identity-tokens",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "agent-manager",
+    "identity",
+    "authentication",
+    "tokens",
+    "implementation"
+  ],
+  "title": "Implement Identity Token Injection and Verification in Agent-Manager",
+  "updated": "2026-03-28T19:32:20Z"
+}
