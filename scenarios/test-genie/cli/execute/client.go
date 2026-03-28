@@ -13,6 +13,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 
+	"test-genie/cli/internal/apijson"
 	execTypes "test-genie/cli/internal/execute"
 	"test-genie/cli/internal/phases"
 )
@@ -27,6 +28,7 @@ type Client struct {
 	api             *cliutil.APIClient
 	httpClient      *cliutil.HTTPClient
 	executionClient *http.Client
+	timeout         time.Duration
 }
 
 // NewClient creates a new execution client.
@@ -42,6 +44,7 @@ func NewClient(api *cliutil.APIClient, httpClient *cliutil.HTTPClient) *Client {
 		api:             api,
 		httpClient:      httpClient,
 		executionClient: &http.Client{Timeout: timeout},
+		timeout:         timeout,
 	}
 }
 
@@ -60,7 +63,7 @@ func (c *Client) Run(req Request) (Response, []byte, error) {
 	}
 
 	// Create request with context
-	ctx, cancel := context.WithTimeout(context.Background(), defaultExecutionTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/executions", bytes.NewReader(payload))
@@ -85,9 +88,9 @@ func (c *Client) Run(req Request) (Response, []byte, error) {
 		return Response{}, body, fmt.Errorf("api error (%d): %s", resp.StatusCode, extractErrorMessage(body))
 	}
 
-	var result Response
-	if err := json.Unmarshal(body, &result); err != nil {
-		return Response{}, body, fmt.Errorf("parse response: %w", err)
+	result, err := parseRunResponse(body)
+	if err != nil {
+		return Response{}, body, err
 	}
 	return result, body, nil
 }
@@ -99,13 +102,13 @@ type PhaseSettings struct {
 
 // ListPhases retrieves the phase catalog and toggle metadata from the server.
 func (c *Client) ListPhases() (PhaseSettings, error) {
-	var payload PhaseSettings
 	body, err := c.api.Get("/api/v1/phases", nil)
 	if err != nil {
-		return payload, err
+		return PhaseSettings{}, err
 	}
-	if err := json.Unmarshal(body, &payload); err != nil {
-		return PhaseSettings{}, fmt.Errorf("parse phase descriptors: %w", err)
+	payload, err := apijson.Parse[PhaseSettings](body, "parse phase descriptors")
+	if err != nil {
+		return PhaseSettings{}, err
 	}
 	if payload.Toggles == nil {
 		payload.Toggles = map[string]execTypes.PhaseToggle{}
@@ -139,4 +142,8 @@ func extractErrorMessage(data []byte) string {
 		return string(data[:200]) + "..."
 	}
 	return string(data)
+}
+
+func parseRunResponse(body []byte) (Response, error) {
+	return apijson.Parse[Response](body, "parse response")
 }

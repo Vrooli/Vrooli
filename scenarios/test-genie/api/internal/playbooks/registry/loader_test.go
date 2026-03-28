@@ -28,6 +28,9 @@ func TestLoaderLoadSuccess(t *testing.T) {
 	if registry.Playbooks[1].File != "bas/cases/second.json" {
 		t.Errorf("expected second.json second, got %s", registry.Playbooks[1].File)
 	}
+	if registry.Metadata.ExecutionMode != "observer" {
+		t.Errorf("expected execution mode observer, got %q", registry.Metadata.ExecutionMode)
+	}
 }
 
 func TestLoaderLoadNotFound(t *testing.T) {
@@ -196,6 +199,9 @@ func setupValidRegistry(t *testing.T, testDir string) {
 	content := `{
 		"scenario": "demo",
 		"generated_at": "2024-01-01T00:00:00Z",
+		"metadata": {
+			"execution_mode": "observer"
+		},
 		"playbooks": [
 			{"file": "bas/cases/second.json", "description": "Second test", "order": "2"},
 			{"file": "bas/cases/first.json", "description": "First test", "order": "1"}

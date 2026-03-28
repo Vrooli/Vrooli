@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -31,6 +32,14 @@ const (
 )
 
 const MaxSuiteListPage = 50
+
+const (
+	// ActiveQueueWindowEnvVar controls how long queued/delegated requests remain
+	// part of active queue telemetry before they are counted as stale.
+	ActiveQueueWindowEnvVar = "TEST_GENIE_QUEUE_STALE_AFTER"
+
+	defaultActiveQueueWindow = 24 * time.Hour
+)
 
 var (
 	allowedSuiteTypes = map[string]struct{}{
@@ -79,6 +88,7 @@ type SuiteRequestSnapshot struct {
 	Running        int        `json:"running"`
 	Completed      int        `json:"completed"`
 	Failed         int        `json:"failed"`
+	Stale          int        `json:"stale"`
 	OldestQueuedAt *time.Time `json:"oldestQueuedAt,omitempty"`
 }
 
@@ -175,6 +185,22 @@ func (s *SuiteRequestService) UpdateStatus(ctx context.Context, id uuid.UUID, st
 // StatusSnapshot reports queue state for telemetry/health surfaces.
 func (s *SuiteRequestService) StatusSnapshot(ctx context.Context) (SuiteRequestSnapshot, error) {
 	return s.repo.StatusSnapshot(ctx)
+}
+
+// ActiveQueueWindow returns the maximum age for queued/delegated requests to be
+// considered part of the active queue. Invalid values fall back to the default.
+func ActiveQueueWindow() time.Duration {
+	raw := strings.TrimSpace(os.Getenv(ActiveQueueWindowEnvVar))
+	if raw == "" {
+		return defaultActiveQueueWindow
+	}
+
+	window, err := time.ParseDuration(raw)
+	if err != nil || window <= 0 {
+		return defaultActiveQueueWindow
+	}
+
+	return window
 }
 
 func buildSuiteRequest(payload QueueSuiteRequestInput) (*SuiteRequest, error) {

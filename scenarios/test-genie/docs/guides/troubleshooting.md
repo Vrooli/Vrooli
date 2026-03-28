@@ -1032,7 +1032,7 @@ zip -r debug-info.zip debug-info/
 - [QUICKSTART](../QUICKSTART.md) - Start with basics
 - [Safety Guidelines](../safety/GUIDELINES.md) - Prevent common mistakes
 - [Phased Testing](phased-testing.md) - Complete workflow
-- [Performance Testing](performance-testing.md) - Performance phase details
+- [Performance Testing](../phases/performance/performance-testing.md) - Performance phase details
 - [Dashboard Guide](dashboard-guide.md) - UI troubleshooting
 - [Custom Presets](custom-presets.md) - Preset configuration
 

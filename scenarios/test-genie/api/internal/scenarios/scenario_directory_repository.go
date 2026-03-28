@@ -12,6 +12,7 @@ import (
 	pq "github.com/lib/pq"
 
 	"test-genie/internal/orchestrator"
+	"test-genie/internal/queue"
 )
 
 // ScenarioSummary aggregates queue + execution telemetry for a single scenario.
@@ -45,15 +46,21 @@ type rowScanner interface {
 
 // ScenarioDirectoryRepository loads scenario summaries from Postgres.
 type ScenarioDirectoryRepository struct {
-	db *sql.DB
+	db                *sql.DB
+	clock             func() time.Time
+	queueActiveWindow time.Duration
 }
 
 func NewScenarioDirectoryRepository(db *sql.DB) *ScenarioDirectoryRepository {
-	return &ScenarioDirectoryRepository{db: db}
+	return &ScenarioDirectoryRepository{
+		db:                db,
+		clock:             time.Now,
+		queueActiveWindow: queue.ActiveQueueWindow(),
+	}
 }
 
 func (r *ScenarioDirectoryRepository) List(ctx context.Context) ([]ScenarioSummary, error) {
-	rows, err := r.db.QueryContext(ctx, scenarioSummaryQuery(false))
+	rows, err := r.db.QueryContext(ctx, scenarioSummaryQuery(false), r.activeQueueCutoff())
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +85,7 @@ func (r *ScenarioDirectoryRepository) Get(ctx context.Context, scenario string) 
 	if scenario == "" {
 		return nil, fmt.Errorf("scenario is required")
 	}
-	row := r.db.QueryRowContext(ctx, scenarioSummaryQuery(true), scenario)
+	row := r.db.QueryRowContext(ctx, scenarioSummaryQuery(true), r.activeQueueCutoff(), scenario)
 	summary, err := scanScenarioSummary(row)
 	if err != nil {
 		return nil, err
@@ -98,7 +105,7 @@ queue_stats AS (
 	SELECT
 		scenario_name,
 		COUNT(*) AS total_requests,
-		COUNT(*) FILTER (WHERE status IN ('queued', 'delegated')) AS pending_requests,
+		COUNT(*) FILTER (WHERE status IN ('queued', 'delegated') AND updated_at >= $1) AS pending_requests,
 		MAX(updated_at) AS last_request_at
 	FROM suite_requests
 	GROUP BY scenario_name
@@ -167,11 +174,15 @@ LEFT JOIN execution_last ON execution_last.scenario_name = names.scenario_name
 LEFT JOIN failure_last ON failure_last.scenario_name = names.scenario_name
 `)
 	if filter {
-		builder.WriteString("WHERE names.scenario_name = $1\n")
+		builder.WriteString("WHERE names.scenario_name = $2\n")
 	}
 	builder.WriteString(`ORDER BY COALESCE(execution_stats.last_execution_at, queue_stats.last_request_at) DESC NULLS LAST, names.scenario_name ASC
 `)
 	return builder.String()
+}
+
+func (r *ScenarioDirectoryRepository) activeQueueCutoff() time.Time {
+	return r.clock().UTC().Add(-r.queueActiveWindow)
 }
 
 func scanScenarioSummary(scanner rowScanner) (ScenarioSummary, error) {

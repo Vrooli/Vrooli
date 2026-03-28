@@ -66,7 +66,7 @@ func (c *Client) RunWithSSE(req Request, printer *report.Printer, phaseNames []s
 	}
 
 	// Create request with extended timeout context
-	ctx, cancel := context.WithTimeout(context.Background(), defaultExecutionTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/executions/stream", bytes.NewReader(payload))
@@ -224,6 +224,10 @@ func (c *Client) processSSEStream(r io.Reader, printer *report.Printer, phaseNam
 
 	if err := scanner.Err(); err != nil {
 		return Response{}, fmt.Errorf("stream read error: %w", err)
+	}
+
+	if result.Phases == nil && len(completedPhases) == 0 {
+		return Response{}, fmt.Errorf("stream ended before completion event: test-genie API may have restarted or closed the connection early")
 	}
 
 	// If we didn't get a complete event, build response from collected phases

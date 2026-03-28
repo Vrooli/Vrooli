@@ -11,6 +11,8 @@ Core contract:
 - test-genie executes **only** workflows listed in `bas/registry.json` (which is generated from `bas/cases/**`)
 - workflows are executed **as-authored** (no placeholder substitution or scenario URL rewriting in test-genie)
 - test-genie provides BAS `project_root` (absolute path to `bas/`) and `initial_params` (seed-state.json) and handles isolation + cleanup
+- `bas/registry.json metadata.execution_mode = "observer"` tells the phase to skip playbooks-managed isolation and scenario restarts
+- registry generation prefers requirement refs from `requirements/*.json` and falls back to `metadata.labels.requirements_json` for legacy BAS packs
 
 ## Seed Lifecycle (Isolation + Seed State)
 
@@ -172,6 +174,8 @@ Regenerate after adding or moving playbooks:
 ```bash
 test-genie registry build
 ```
+
+If every playbook declares the same `metadata.execution_mode`, the registry builder lifts that mode to `bas/registry.json` so the playbooks phase can make one scenario-wide isolation decision before execution starts.
 
 ## Vrooli Ascension Integration
 

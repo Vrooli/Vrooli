@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -314,6 +315,24 @@ func TestDetectRuntimeURLsUsesProcessMetadata(t *testing.T) {
 	}
 	if api != "http://localhost:4001" {
 		t.Fatalf("expected api url http://localhost:4001, got %q", api)
+	}
+}
+
+func TestNewRunIDIsUniqueAndSortable(t *testing.T) {
+	first := newRunID()
+	time.Sleep(10 * time.Millisecond)
+	second := newRunID()
+
+	if first == second {
+		t.Fatal("expected unique run IDs")
+	}
+
+	pattern := regexp.MustCompile(`^\d{8}-\d{6}-[0-9a-f]{8}$`)
+	if !pattern.MatchString(first) {
+		t.Fatalf("expected first run ID to match timestamp-uuid suffix, got %q", first)
+	}
+	if !pattern.MatchString(second) {
+		t.Fatalf("expected second run ID to match timestamp-uuid suffix, got %q", second)
 	}
 }
 

@@ -434,6 +434,7 @@ func TestServer_handleHealthReportsOperations(t *testing.T) {
 			Total:          5,
 			Queued:         3,
 			Delegated:      1,
+			Stale:          1,
 			Running:        1,
 			Completed:      0,
 			Failed:         0,
@@ -489,6 +490,9 @@ func TestServer_handleHealthReportsOperations(t *testing.T) {
 	}
 	if queuePayload["pending"].(float64) != 4 {
 		t.Fatalf("expected pending count 4, got %v", queuePayload["pending"])
+	}
+	if queuePayload["stale"].(float64) != 1 {
+		t.Fatalf("expected stale count 1, got %v", queuePayload["stale"])
 	}
 	executionPayload, ok := operations["lastExecution"].(map[string]interface{})
 	if !ok {

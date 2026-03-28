@@ -12,6 +12,7 @@ type Response struct {
 			Pending             int64 `json:"pending"`
 			Queued              int64 `json:"queued"`
 			Delegated           int64 `json:"delegated"`
+			Stale               int64 `json:"stale"`
 			Running             int64 `json:"running"`
 			Failed              int64 `json:"failed"`
 			OldestQueuedAgeSecs int64 `json:"oldestQueuedAgeSeconds"`

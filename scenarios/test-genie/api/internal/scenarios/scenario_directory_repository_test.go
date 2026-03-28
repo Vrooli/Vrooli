@@ -20,6 +20,8 @@ func TestScenarioDirectoryRepositoryList(t *testing.T) {
 
 	repo := NewScenarioDirectoryRepository(db)
 	now := time.Now().UTC()
+	repo.clock = func() time.Time { return now }
+	repo.queueActiveWindow = 24 * time.Hour
 	execID := uuid.New()
 
 	rows := sqlmock.NewRows([]string{
@@ -59,6 +61,7 @@ func TestScenarioDirectoryRepositoryList(t *testing.T) {
 	)
 
 	mock.ExpectQuery("WITH\\s+scenario_names").
+		WithArgs(now.Add(-24 * time.Hour)).
 		WillReturnRows(rows)
 
 	summaries, err := repo.List(context.Background())
@@ -89,6 +92,9 @@ func TestScenarioDirectoryRepositoryGet(t *testing.T) {
 	defer db.Close()
 
 	repo := NewScenarioDirectoryRepository(db)
+	now := time.Now().UTC()
+	repo.clock = func() time.Time { return now }
+	repo.queueActiveWindow = 24 * time.Hour
 	rows := sqlmock.NewRows([]string{
 		"scenario_name",
 		"pending_requests",
@@ -126,7 +132,7 @@ func TestScenarioDirectoryRepositoryGet(t *testing.T) {
 	)
 
 	mock.ExpectQuery("WITH\\s+scenario_names").
-		WithArgs("ecosystem-manager").
+		WithArgs(now.Add(-24*time.Hour), "ecosystem-manager").
 		WillReturnRows(rows)
 
 	summary, err := repo.Get(context.Background(), "ecosystem-manager")

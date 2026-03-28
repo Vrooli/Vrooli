@@ -1,262 +1,99 @@
 # Test Genie Architecture
 
-## Overview
+Test Genie is a Go-native test orchestration scenario. The codebase follows screaming architecture at the package boundary: queueing, execution, playbooks, scenarios, requirements, and transport all live in packages named after the domain capability they own.
 
-Test Genie is a Go-native testing orchestration platform. The architecture follows **screaming architecture** principles where package names reveal domain intent.
-
-## System Architecture
+## Runtime Shape
 
 ```mermaid
-graph TB
-    subgraph "Client Layer"
-        UI[React Dashboard]
-        CLI[test-genie CLI]
-        API_CLIENT[External API Clients]
-    end
+flowchart TB
+    cli["CLI / UI / API Clients"] --> http["internal/app/httpserver"]
+    http --> queue["internal/queue"]
+    http --> execution["internal/execution"]
+    http --> scenarios["internal/scenarios"]
 
-    subgraph "API Layer"
-        HTTP[HTTP Server]
-        WS[WebSocket Server]
-    end
+    execution --> orchestrator["internal/orchestrator"]
+    orchestrator --> phases["internal/orchestrator/phases"]
+    orchestrator --> workspace["internal/orchestrator/workspace"]
+    phases --> playbooks["internal/playbooks"]
+    phases --> requirements["internal/requirements"]
+    phases --> smoke["internal/smoke"]
+    phases --> structure["internal/structure"]
 
-    subgraph "Service Layer"
-        SUITE[Suite Service]
-        EXEC[Execution Service]
-        SCENARIO[Scenario Catalog]
-    end
-
-    subgraph "Orchestrator Layer"
-        ORCH[Suite Orchestrator]
-        PHASES[Phase Registry]
-        WORKSPACE[Workspace Resolver]
-        REQUIREMENTS[Requirements Syncer]
-    end
-
-    subgraph "Infrastructure"
-        DB[(PostgreSQL)]
-        FS[File System]
-    end
-
-    UI --> HTTP
-    CLI --> HTTP
-    API_CLIENT --> HTTP
-
-    HTTP --> SUITE
-    HTTP --> EXEC
-    HTTP --> SCENARIO
-    WS --> EXEC
-
-    SUITE --> ORCH
-    EXEC --> ORCH
-
-    ORCH --> PHASES
-    ORCH --> WORKSPACE
-    ORCH --> REQUIREMENTS
-
-    SUITE --> DB
-    EXEC --> DB
-    SCENARIO --> DB
-
-    PHASES --> FS
-    WORKSPACE --> FS
-    REQUIREMENTS --> FS
+    queue --> postgres[(PostgreSQL)]
+    execution --> postgres
+    scenarios --> postgres
+    playbooks --> fs["Scenario filesystem"]
+    workspace --> fs
+    requirements --> fs
 ```
 
-## Package Structure
+## Package Responsibilities
 
-```
-scenarios/test-genie/api/
-├── cmd/
-│   └── api/                    # Entry point
-│       └── main.go
-├── internal/
-│   ├── app/                    # Application bootstrap
-│   │   ├── config.go           # Configuration loading
-│   │   ├── database.go         # Database connection
-│   │   ├── dependencies.go     # Dependency injection
-│   │   ├── httpserver/         # HTTP transport
-│   │   │   ├── routes.go
-│   │   │   └── handlers.go
-│   │   └── runtime/            # Runtime management
-│   │       └── runtime.go
-│   ├── suite/                  # Suite domain
-│   │   ├── request.go          # Suite request types
-│   │   ├── execution.go        # Execution tracking
-│   │   └── service.go          # Suite service
-│   ├── orchestrator/           # Test orchestration
-│   │   ├── orchestrator.go     # Main orchestrator
-│   │   ├── phases/             # Phase definitions
-│   │   │   ├── registry.go
-│   │   │   ├── structure.go
-│   │   │   ├── dependencies.go
-│   │   │   ├── unit.go
-│   │   │   ├── integration.go
-│   │   │   ├── business.go
-│   │   │   └── performance.go
-│   │   ├── workspace/          # Workspace resolution
-│   │   │   └── workspace.go
-│   │   └── requirements/       # Requirements sync
-│   │       └── syncer.go
-│   └── scenarios/              # Scenario catalog
-│       └── catalog.go
-└── migrations/                 # Database migrations
-    └── *.sql
-```
+| Package | Responsibility | Notes |
+|--------|----------------|-------|
+| `internal/app/runtime` | Lifecycle-provided config and bootstrap | Reads ports, DB URLs, scenario roots |
+| `internal/app/httpserver` | HTTP transport and payload shaping | No domain policy beyond request/response mapping |
+| `internal/queue` | Suite request lifecycle and queue telemetry | Owns stale-queue policy |
+| `internal/execution` | Execution records plus queue/execution coordination | Keeps queue state and persisted execution history consistent |
+| `internal/orchestrator` | Phase planning, execution, artifacts, presets | Central coordinator for phased runs |
+| `internal/orchestrator/phases` | Phase-specific orchestration adapters | Structure, lint, playbooks, business, performance, etc. |
+| `internal/playbooks` | BAS registry loading, execution, seeding, isolation | Owns BAS-specific contracts and artifacting |
+| `internal/scenarios` | Scenario summaries and local test-run adapters | Bridges scenario metadata into API/CLI surfaces |
+| `internal/requirements` | Requirement parsing, reporting, sync, evidence | Independent of any single phase |
+| `cli/*` | User-facing commands by domain capability | Shared internals stay under `cli/internal/*` |
 
-## Key Components
+## Current High-Value Boundaries
 
-### HTTP Server (`internal/app/httpserver`)
+### Queue vs transport
 
-Handles REST API requests and WebSocket connections.
+The queue package decides what counts as active work. Transport surfaces only render the snapshot. This matters because stale queued rows are a persistence concern, not a CLI formatting concern.
 
-- **Routes**: Defines API endpoints
-- **Handlers**: Request/response handling
-- **Middleware**: Logging, error handling
+### Execution vs orchestration
 
-### Suite Service (`internal/suite`)
+`internal/execution` owns persistence and queue transitions. `internal/orchestrator` owns running phases. Keeping those responsibilities separate makes it possible to stream, persist, or replay orchestration outcomes without coupling them to HTTP handlers.
 
-Manages suite requests and executions.
+### Playbooks registry vs playbooks phase
 
-- **Request handling**: Queue suite generation requests
-- **Execution tracking**: Track test execution history
-- **Status management**: Update request/execution status
+The registry builder and loader normalize BAS metadata into a stable manifest. The playbooks phase consumes that manifest and should not guess from raw workflow JSON at execution time. Recent observer-mode fixes rely on that boundary.
 
-### Orchestrator (`internal/orchestrator`)
+### CLI clients vs response parsing
 
-Core test execution engine.
+CLI command packages own command UX. Shared response-decoding behavior lives in `cli/internal/apijson`, so transport failures like empty bodies are diagnosed consistently across commands.
 
-- **Phase registry**: Defines available test phases
-- **Execution**: Runs phases in sequence
-- **Workspace**: Resolves scenario paths and artifacts
-- **Requirements sync**: Updates requirement files after tests
+### Scenario summaries vs raw queue rows
 
-### Phase System (`internal/orchestrator/phases`)
+Scenario catalog summaries intentionally project queue and execution history into operator-facing telemetry. They should reuse the same queue staleness policy as queue health so one scenario does not look "pending" in one view and idle in another.
 
-Each phase is a Go-native implementation:
+## CLI Shape
 
-| Phase | File | Description |
-|-------|------|-------------|
-| Structure | `structure.go` | File/config validation |
-| Dependencies | `dependencies.go` | Dependency checks |
-| Unit | `unit.go` | Unit test execution |
-| Integration | `integration.go` | API/UI testing |
-| Business | `business.go` | Workflow validation |
-| Performance | `performance.go` | Benchmarks |
+The CLI mirrors the domain packages:
 
-## Data Flow
-
-### Suite Request Flow
-
-```mermaid
-sequenceDiagram
-    participant Client
-    participant API
-    participant SuiteService
-    participant DB
-    participant IssueTracker
-
-    Client->>API: POST /suite-requests
-    API->>SuiteService: CreateRequest()
-    SuiteService->>DB: Insert request
-    SuiteService->>IssueTracker: Create issue (async)
-    SuiteService-->>API: Request ID
-    API-->>Client: 201 Created
-
-    Note over IssueTracker: Agent generates tests
-
-    IssueTracker->>API: Callback with tests
-    API->>SuiteService: UpdateRequest()
-    SuiteService->>DB: Update status
+```text
+cli/
+├── execute/
+├── generate/
+├── playbooksseed/
+├── runlocal/
+├── status/
+└── internal/
+    ├── apijson/   # shared API response parsing
+    ├── execute/
+    ├── phases/
+    ├── registry/
+    └── repo/
 ```
 
-### Execution Flow
+`cli/internal/registry` is intentionally a thin wrapper over the shared API registry builder so the CLI and API do not drift on manifest shape.
 
-```mermaid
-sequenceDiagram
-    participant Client
-    participant API
-    participant ExecService
-    participant Orchestrator
-    participant Phases
-    participant Requirements
+## Configuration Surfaces
 
-    Client->>API: POST /execute-sync
-    API->>ExecService: Execute()
-    ExecService->>Orchestrator: RunSuite()
+The most important operator-facing levers are:
 
-    loop Each Phase
-        Orchestrator->>Phases: Run(phase)
-        Phases-->>Orchestrator: Result
-    end
+| Lever | Scope | Purpose |
+|------|-------|---------|
+| `TEST_GENIE_EXECUTION_TIMEOUT` | CLI | Extend blocking execution timeout for long suites |
+| `TEST_GENIE_PLAYBOOKS_RETAIN` | Playbooks phase | Keep temporary Postgres/Redis isolation alive for debugging |
+| `TEST_GENIE_QUEUE_STALE_AFTER` | Queue/scenario summaries | Define when queued or delegated requests become stale telemetry |
+| `TEST_GENIE_SKIP_PLAYBOOKS` | Playbooks phase | Hard-disable the phase for debugging or constrained environments |
 
-    Orchestrator->>Requirements: Sync()
-    Requirements-->>Orchestrator: Done
-
-    Orchestrator-->>ExecService: Results
-    ExecService->>DB: Save execution
-    ExecService-->>API: Results
-    API-->>Client: 200 OK + Results
-```
-
-## Configuration
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | API server port | `8200` |
-| `POSTGRES_HOST` | Database host | `localhost` |
-| `POSTGRES_PORT` | Database port | `5432` |
-| `POSTGRES_DB` | Database name | `test_genie` |
-
-### Testing Configuration (`.vrooli/testing.json`)
-
-```json
-{
-  "phases": {
-    "unit": { "timeout": 60, "enabled": true },
-    "performance": { "enabled": false }
-  },
-  "requirements": {
-    "sync": true
-  },
-  "presets": {
-    "default": "comprehensive"
-  }
-}
-```
-
-## Design Principles
-
-### 1. Screaming Architecture
-
-Package names reveal intent:
-- `suite/` - Suite management domain
-- `orchestrator/` - Test orchestration
-- `phases/` - Phase implementations
-
-### 2. Dependency Injection
-
-All major components receive dependencies through constructors:
-
-```go
-func NewSuiteService(db *sql.DB, orchestrator Orchestrator) *SuiteService {
-    return &SuiteService{db: db, orchestrator: orchestrator}
-}
-```
-
-### 3. Interface Seams
-
-Components communicate through interfaces for testability:
-
-```go
-type Orchestrator interface {
-    RunSuite(ctx context.Context, scenario string, opts Options) (*Result, error)
-}
-```
-
-## See Also
-
-- [Phases Overview](../phases/README.md) - Phase definitions
-- [API Endpoints](../reference/api-endpoints.md) - REST API reference
-- [SEAMS](../SEAMS.md) - Architectural boundaries and extension points
+See [Tunable Levers](../configuration/tunable-levers.md) for the full reference.

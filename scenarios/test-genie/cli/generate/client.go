@@ -1,11 +1,11 @@
 package generate
 
 import (
-	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/vrooli/cli-core/cliutil"
+
+	"test-genie/cli/internal/apijson"
 )
 
 // Client provides API access to suite generation endpoints.
@@ -24,9 +24,9 @@ func (c *Client) Create(req Request) (Response, []byte, error) {
 	if err != nil {
 		return Response{}, nil, err
 	}
-	var resp Response
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return Response{}, body, fmt.Errorf("parse response: %w", err)
+	resp, err := apijson.Parse[Response](body, "parse response")
+	if err != nil {
+		return Response{}, body, err
 	}
 	return resp, body, nil
 }

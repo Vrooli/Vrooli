@@ -89,24 +89,27 @@ func TestSuiteRequestRepositoryStatusSnapshot(t *testing.T) {
 
 		repo := NewPostgresSuiteRequestRepository(db)
 		now := time.Now().UTC()
+		repo.clock = func() time.Time { return now }
+		repo.activeWindow = 24 * time.Hour
 
-		countRows := sqlmock.NewRows([]string{"status", "count"}).
-			AddRow(StatusQueued, 2).
-			AddRow(StatusRunning, 1).
-			AddRow(StatusFailed, 1)
-
-		mock.ExpectQuery("SELECT status, COUNT").
-			WillReturnRows(countRows)
-
-		mock.ExpectQuery("SELECT created_at FROM suite_requests").
-			WithArgs(StatusQueued, StatusDelegated).
-			WillReturnRows(sqlmock.NewRows([]string{"created_at"}).AddRow(now.Add(-2 * time.Minute)))
+		mock.ExpectQuery("SELECT\\s+COUNT\\(\\*\\) AS total").
+			WithArgs(now.Add(-24*time.Hour), StatusQueued, StatusDelegated, StatusRunning, StatusCompleted, StatusFailed).
+			WillReturnRows(sqlmock.NewRows([]string{
+				"total",
+				"queued",
+				"delegated",
+				"running",
+				"completed",
+				"failed",
+				"stale",
+				"oldest_queued_at",
+			}).AddRow(6, 2, 1, 1, 1, 0, 1, now.Add(-2*time.Minute)))
 
 		snapshot, err := repo.StatusSnapshot(context.Background())
 		if err != nil {
 			t.Fatalf("expected snapshot to succeed: %v", err)
 		}
-		if snapshot.Queued != 2 || snapshot.Running != 1 || snapshot.Failed != 1 {
+		if snapshot.Total != 6 || snapshot.Queued != 2 || snapshot.Delegated != 1 || snapshot.Running != 1 || snapshot.Completed != 1 || snapshot.Stale != 1 {
 			t.Fatalf("unexpected snapshot counts: %#v", snapshot)
 		}
 		if snapshot.OldestQueuedAt == nil {

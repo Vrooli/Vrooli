@@ -1,183 +1,101 @@
-# Tunable Levers: Containment & Agent-Manager Configuration
+# Test Genie Configuration Levers
 
-This document describes the tunable configuration levers for test-genie's containment system and agent-manager integration. These levers allow operators to adjust behavior without code changes, via environment variables.
+This is the operator-facing configuration reference for Test Genie. These levers are the intended control surface for tuning behavior without editing code.
 
-## Design Principles
+## Core runtime
 
-1. **Safe defaults**: All defaults are production-ready. You don't need to configure anything to get started.
-2. **Bounded ranges**: All numeric values are clamped to safe ranges to prevent misconfiguration.
-3. **Clear tradeoffs**: Each lever documents what happens when you increase or decrease it.
-4. **No silent failures**: Invalid values are clamped, not rejected, to prevent startup failures.
-5. **Validation reporting**: Configs provide warnings when non-default security settings are detected.
+These are normally provided by the Vrooli lifecycle system:
 
-## Agent-Manager Integration
+| Variable | Scope | Default | Purpose |
+|----------|-------|---------|---------|
+| `API_PORT` | API runtime | lifecycle | Port the Test Genie API listens on |
+| `DATABASE_URL` | API runtime | lifecycle | Primary Postgres connection string |
+| `POSTGRES_HOST` / `POSTGRES_PORT` / `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | API runtime | lifecycle fallback | Used when `DATABASE_URL` is not exported |
+| `SCENARIOS_ROOT` | API runtime | inferred from cwd | Root directory for scenario discovery |
+| `VROOLI_ROOT` | API + CLI | environment | Repo root for docs, scenario lookup, and path resolution |
 
-Agent lifecycle, coordination, and execution are now managed by the **agent-manager** service. Test-genie integrates with agent-manager via HTTP and delegates all agent spawning to it.
+## High-value Test Genie levers
 
-### Environment Variables
+| Variable | Scope | Default | Purpose |
+|----------|-------|---------|---------|
+| `TEST_GENIE_EXECUTION_TIMEOUT` | CLI `execute` | `900` seconds | Blocking timeout for synchronous suite execution |
+| `TEST_GENIE_PLAYBOOKS_RETAIN` | Playbooks phase | `0` | Keep temporary Postgres/Redis isolation alive after the phase for debugging |
+| `TEST_GENIE_QUEUE_STALE_AFTER` | Queue telemetry | `24h` | How long queued/delegated requests remain part of active queue counts before they are reported as stale |
+| `TEST_GENIE_SKIP_PLAYBOOKS` | Playbooks phase | unset | Hard-disable playbooks execution for debugging or constrained environments |
+| `TEST_GENIE_STANDARDS_FAIL_ON` | Standards phase | phase default | Minimum severity that fails the phase |
+| `TEST_GENIE_STANDARDS_MIN_SEVERITY` | Standards phase | phase default | Minimum severity shown in standards output |
+| `TEST_GENIE_STANDARDS_LIMIT` | Standards phase | phase default | Maximum number of standards findings displayed |
+| `TEST_GENIE_DOCS_DIR` | Docs handlers | scenario default | Override docs directory served by the API |
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `AGENT_MANAGER_ENABLED` | `true` | Enable agent-manager integration (set to `false` to disable) |
-| `AGENT_MANAGER_PROFILE_KEY` | `test-genie` | Profile key used for test-genie agents in agent-manager |
+## Queue telemetry
 
-### Agent Profile Configuration
+`TEST_GENIE_QUEUE_STALE_AFTER` is the main queue hygiene lever.
 
-Agent profiles are managed in agent-manager. The default test-genie profile includes:
+- Format: Go duration string, for example `30m`, `6h`, or `24h`
+- A queued or delegated request older than this threshold is excluded from active `pending`, `queued`, and `delegated` counts
+- Stale rows are still counted separately as `stale` in health/status output so operators can see cleanup drift instead of silently losing visibility
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| Runner Type | `CLAUDE_CODE` | The runner type for agent execution |
-| Model Preset | `SMART` | Model selection preset |
-| Max Turns | 50 | Maximum conversation turns before timeout |
-| Timeout | 15 minutes | Maximum execution time per agent |
-| Allowed Tools | Read, Write, Edit, Glob, Grep, Bash | Tools available to agents |
-| Skip Permissions | false | Require confirmation for tool operations |
-| Requires Sandbox | false | In-place execution (agent-manager handles containment) |
-| Requires Approval | false | Auto-apply test file changes |
+Example:
 
-To customize agent behavior, configure the profile in agent-manager directly.
-
-## Containment Configuration
-
-These levers control OS-level isolation for agent execution.
-
-### Environment Variables
-
-| Variable | Range | Default | Description |
-|----------|-------|---------|-------------|
-| `CONTAINMENT_DOCKER_IMAGE` | any | ubuntu:22.04 | Docker image for containerized execution |
-| `CONTAINMENT_MAX_MEMORY_MB` | 256-16384 | 2048 | Memory limit per agent container |
-| `CONTAINMENT_MAX_CPU_PERCENT` | 50-800 | 200 | CPU limit (100 = 1 core, 200 = 2 cores) |
-| `CONTAINMENT_AVAILABILITY_TIMEOUT_SECONDS` | 1-30 | 5 | Timeout for Docker availability check |
-| `CONTAINMENT_PREFER_DOCKER` | true/false | true | Prefer Docker over other providers |
-| `CONTAINMENT_ALLOW_FALLBACK` | true/false | true | Allow uncontained execution if no sandbox available |
-| `CONTAINMENT_DROP_ALL_CAPABILITIES` | true/false | true | Drop all Linux capabilities in containers |
-| `CONTAINMENT_NO_NEW_PRIVILEGES` | true/false | true | Prevent privilege escalation |
-| `CONTAINMENT_READ_ONLY_ROOT_FS` | true/false | false | Make container root filesystem read-only |
-
-### Tradeoff Guide
-
-#### Docker Image (`CONTAINMENT_DOCKER_IMAGE`)
-- Use a specific tag (not `latest`) for reproducibility.
-- Larger images (e.g., with dev tools) enable more agent capabilities.
-- Smaller images start faster but may lack tools agents need.
-
-#### Memory Limit (`CONTAINMENT_MAX_MEMORY_MB`)
-- **Higher (e.g., 4096)**: Agents can handle larger codebases/operations.
-- **Lower (e.g., 1024)**: Better isolation, prevents runaway memory usage.
-
-#### CPU Limit (`CONTAINMENT_MAX_CPU_PERCENT`)
-- **Higher (e.g., 400)**: Faster execution, especially for parallel tests.
-- **Lower (e.g., 100)**: Gentler on host system, better for shared environments.
-
-#### Allow Fallback (`CONTAINMENT_ALLOW_FALLBACK`)
-- **true**: Test-genie works even without Docker, but with reduced security.
-- **false**: Fail hard if no containment available. Use in production.
-
-## Security Configuration
-
-Security for agent execution is now managed by **agent-manager** via agent profiles. The security preamble is generated by test-genie's `agentmanager` package and included as a context attachment when spawning agents.
-
-### Built-in Bash Command Allowlist
-
-The following bash commands are allowed by the test-genie safety preamble:
-- **Test runners**: `pnpm test`, `npm test`, `go test`, `vitest`, `jest`, `bats`, `make test`, `pytest`
-- **Build commands**: `pnpm build`, `npm run build`, `go build`, `make`
-- **Linters/formatters**: `eslint`, `prettier`, `gofmt`, `gofumpt`, `golangci-lint`
-- **Type checking**: `tsc`, `pnpm typecheck`
-- **Safe inspection**: `ls`, `pwd`, `which`, `wc`, `diff`
-- **Git read-only**: `git status`, `git diff`, `git log`, `git show`, `git branch`, `git remote`
-
-### Safety Preamble Constraints
-
-Each agent spawn includes a safety preamble that specifies:
-- Working directory (scenario path)
-- Allowed scope paths
-- Maximum files that can be modified (default: 50)
-- Maximum bytes that can be written (default: 1MB)
-- Network access status
-
-## Programmatic Configuration
-
-Configuration can be set programmatically for testing:
-
-```go
-// Agent-manager service config
-agentService := agentmanager.NewAgentService(agentmanager.Config{
-    ProfileName: "Test Genie Agent",
-    ProfileKey:  "test-genie",
-    Timeout:     30 * time.Second,
-    Enabled:     true,
-})
-
-// Containment config
-ccfg := containment.DefaultConfig()
-ccfg.DockerImage = "custom:image"
-ccfg.MaxMemoryMB = 4096
-
-provider := containment.NewDockerProvider(containment.WithContainmentConfig(ccfg))
-```
-
-## Validation Reporting
-
-Containment config provides validation reports that warn about non-default or potentially insecure settings:
-
-```go
-// Containment config validation
-containmentResult := ccfg.ValidateWithReport()
-for _, warning := range containmentResult.Warnings {
-    log.Printf("Containment config warning: %s", warning)
-}
-```
-
-## Monitoring
-
-### Agent Metrics
-- Active agents: `GET /api/v1/agents`
-- Active locks: included in agent list response
-- Configuration: `GET /api/v1/agents/blocked-commands` includes safe defaults
-
-### Containment Status
-- Current provider: `GET /api/v1/agents/containment-status`
-- Security level: 0 (none) to 7 (Docker)
-- Available providers: lists what's detected on the system
-
-## Examples
-
-### Development Environment
 ```bash
-# Enable agent-manager integration (default)
-export AGENT_MANAGER_ENABLED=true
-
-# Allow fallback containment for development
-export CONTAINMENT_ALLOW_FALLBACK=true
+TEST_GENIE_QUEUE_STALE_AFTER=6h test-genie status
 ```
 
-### Production Environment
+## Playbooks
+
+### Debug retained isolation
+
 ```bash
-# Enable agent-manager integration
-export AGENT_MANAGER_ENABLED=true
-
-# Strict containment - no fallback
-export CONTAINMENT_ALLOW_FALLBACK=false
-export CONTAINMENT_MAX_MEMORY_MB=4096
+TEST_GENIE_PLAYBOOKS_RETAIN=1 test-genie execute my-scenario --phases playbooks
 ```
 
-### CI/CD Environment
+When retention is enabled, the playbooks phase leaves its temporary Postgres and Redis instances running and prints inspection commands in the observations.
+
+### Skip playbooks entirely
+
 ```bash
-# Fast containment availability check
-export CONTAINMENT_AVAILABILITY_TIMEOUT_SECONDS=2
-
-# Allow fallback in CI where Docker may not be available
-export CONTAINMENT_ALLOW_FALLBACK=true
+TEST_GENIE_SKIP_PLAYBOOKS=1 test-genie execute my-scenario --phases playbooks
 ```
 
-### High-Security Environment
+This is intended for debugging and constrained environments. It is not a substitute for fixing a broken playbooks setup.
+
+## Standards tuning
+
+These levers tune the standards phase without modifying scenario config:
+
 ```bash
-# Maximum containment isolation
-export CONTAINMENT_ALLOW_FALLBACK=false
-export CONTAINMENT_DROP_ALL_CAPABILITIES=true
-export CONTAINMENT_NO_NEW_PRIVILEGES=true
-export CONTAINMENT_READ_ONLY_ROOT_FS=true
+TEST_GENIE_STANDARDS_FAIL_ON=critical \
+TEST_GENIE_STANDARDS_MIN_SEVERITY=high \
+TEST_GENIE_STANDARDS_LIMIT=20 \
+test-genie execute my-scenario --phases standards
 ```
+
+## CLI timeout tuning
+
+Long suites can exceed the default synchronous timeout. Extend it when running comprehensive or slow playbook-heavy suites:
+
+```bash
+TEST_GENIE_EXECUTION_TIMEOUT=1800 test-genie execute my-scenario --preset comprehensive
+```
+
+## Playbooks registry metadata
+
+Some behavior is expressed in `bas/registry.json` rather than environment variables:
+
+| Field | Purpose |
+|-------|---------|
+| `metadata.execution_mode` | Marks a registry as observer-only when every playbook is read-only |
+| `playbooks[].reset` | Declares whether the next workflow needs fresh seed state |
+| `playbooks[].requirements` | Requirement IDs attached to the workflow |
+
+The registry should be generated via `test-genie registry build`, not hand-maintained.
+
+## Advanced infrastructure levers
+
+Test Genie also participates in broader Vrooli infrastructure concerns:
+
+- `AGENT_MANAGER_ENABLED`
+- `AGENT_MANAGER_PROFILE_KEY`
+- `CONTAINMENT_*`
+
+Those are advanced deployment controls rather than primary Test Genie workflow levers. Use them when you are changing agent-execution or containment policy, not when debugging normal suite execution.

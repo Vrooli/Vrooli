@@ -210,6 +210,118 @@ func TestBuilderBuildDefaultResetValue(t *testing.T) {
 	}
 }
 
+func TestBuilderBuildSupportsLegacyRequirementsLabelAndResetAlias(t *testing.T) {
+	tempDir := t.TempDir()
+	scenarioDir := filepath.Join(tempDir, "test-scenario")
+
+	if err := os.MkdirAll(filepath.Join(scenarioDir, "bas", "cases"), 0o755); err != nil {
+		t.Fatalf("failed to create bas/cases dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(scenarioDir, "requirements"), 0o755); err != nil {
+		t.Fatalf("failed to create requirements dir: %v", err)
+	}
+
+	playbookContent := `{
+		"metadata": {
+			"name": "legacy-workflow",
+			"labels": {
+				"reset": "database",
+				"requirements_json": "[\"REQ-002\", \"REQ-001\", \"REQ-001\"]"
+			}
+		},
+		"nodes": []
+	}`
+	if err := os.WriteFile(filepath.Join(scenarioDir, "bas", "cases", "legacy.json"), []byte(playbookContent), 0o644); err != nil {
+		t.Fatalf("failed to write playbook: %v", err)
+	}
+
+	builder := NewBuilder(scenarioDir)
+	result, err := builder.Build()
+	if err != nil {
+		t.Fatalf("Build failed: %v", err)
+	}
+
+	entry := result.Registry.Playbooks[0]
+	if entry.Description != "legacy-workflow" {
+		t.Fatalf("expected description to fall back to metadata.name, got %q", entry.Description)
+	}
+	if entry.Reset != "full" {
+		t.Fatalf("expected legacy database reset to normalize to full, got %q", entry.Reset)
+	}
+	expectedRequirements := []string{"REQ-001", "REQ-002"}
+	if len(entry.Requirements) != len(expectedRequirements) {
+		t.Fatalf("expected %v requirements, got %v", expectedRequirements, entry.Requirements)
+	}
+	for i, expected := range expectedRequirements {
+		if entry.Requirements[i] != expected {
+			t.Fatalf("expected requirements %v, got %v", expectedRequirements, entry.Requirements)
+		}
+	}
+}
+
+func TestBuilderBuildDerivesRegistryExecutionMode(t *testing.T) {
+	tempDir := t.TempDir()
+	scenarioDir := filepath.Join(tempDir, "test-scenario")
+
+	if err := os.MkdirAll(filepath.Join(scenarioDir, "bas", "cases"), 0o755); err != nil {
+		t.Fatalf("failed to create bas/cases dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(scenarioDir, "requirements"), 0o755); err != nil {
+		t.Fatalf("failed to create requirements dir: %v", err)
+	}
+
+	playbookContent := `{"metadata": {"description": "Observer workflow", "execution_mode": "observer"}, "nodes": []}`
+	if err := os.WriteFile(filepath.Join(scenarioDir, "bas", "cases", "observer.json"), []byte(playbookContent), 0o644); err != nil {
+		t.Fatalf("failed to write playbook: %v", err)
+	}
+
+	builder := NewBuilder(scenarioDir)
+	result, err := builder.Build()
+	if err != nil {
+		t.Fatalf("Build failed: %v", err)
+	}
+
+	if result.Registry.Metadata.ExecutionMode != "observer" {
+		t.Fatalf("expected registry execution mode observer, got %q", result.Registry.Metadata.ExecutionMode)
+	}
+}
+
+func TestBuilderBuildOmitsRegistryExecutionModeWhenModesDiffer(t *testing.T) {
+	tempDir := t.TempDir()
+	scenarioDir := filepath.Join(tempDir, "test-scenario")
+
+	dirs := []string{
+		filepath.Join(scenarioDir, "bas", "cases", "01-observer"),
+		filepath.Join(scenarioDir, "bas", "cases", "02-mutating"),
+		filepath.Join(scenarioDir, "requirements"),
+	}
+	for _, dir := range dirs {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("failed to create directory %s: %v", dir, err)
+		}
+	}
+
+	playbooks := map[string]string{
+		filepath.Join(scenarioDir, "bas", "cases", "01-observer", "observer.json"): `{"metadata": {"description": "Observer workflow", "execution_mode": "observer"}, "nodes": []}`,
+		filepath.Join(scenarioDir, "bas", "cases", "02-mutating", "mutating.json"): `{"metadata": {"description": "Mutating workflow", "execution_mode": "mutating"}, "nodes": []}`,
+	}
+	for path, content := range playbooks {
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatalf("failed to write playbook %s: %v", path, err)
+		}
+	}
+
+	builder := NewBuilder(scenarioDir)
+	result, err := builder.Build()
+	if err != nil {
+		t.Fatalf("Build failed: %v", err)
+	}
+
+	if result.Registry.Metadata.ExecutionMode != "" {
+		t.Fatalf("expected mixed execution modes to omit registry metadata, got %q", result.Registry.Metadata.ExecutionMode)
+	}
+}
+
 func TestBuilderBuildMultiplePlaybooks(t *testing.T) {
 	tempDir := t.TempDir()
 	scenarioDir := filepath.Join(tempDir, "test-scenario")
@@ -228,10 +340,10 @@ func TestBuilderBuildMultiplePlaybooks(t *testing.T) {
 
 	// Create playbooks
 	playbooks := map[string]string{
-		filepath.Join(scenarioDir, "bas", "cases", "01-first", "a-test.json"):     `{"metadata": {"description": "A"}, "nodes": []}`,
-		filepath.Join(scenarioDir, "bas", "cases", "01-first", "b-test.json"):     `{"metadata": {"description": "B"}, "nodes": []}`,
-		filepath.Join(scenarioDir, "bas", "cases", "02-second", "ui", "c.json"):   `{"metadata": {"description": "C"}, "nodes": []}`,
-		filepath.Join(scenarioDir, "bas", "cases", "02-second", "ui", "d.json"):   `{"metadata": {"description": "D"}, "nodes": []}`,
+		filepath.Join(scenarioDir, "bas", "cases", "01-first", "a-test.json"):   `{"metadata": {"description": "A"}, "nodes": []}`,
+		filepath.Join(scenarioDir, "bas", "cases", "01-first", "b-test.json"):   `{"metadata": {"description": "B"}, "nodes": []}`,
+		filepath.Join(scenarioDir, "bas", "cases", "02-second", "ui", "c.json"): `{"metadata": {"description": "C"}, "nodes": []}`,
+		filepath.Join(scenarioDir, "bas", "cases", "02-second", "ui", "d.json"): `{"metadata": {"description": "D"}, "nodes": []}`,
 	}
 	for path, content := range playbooks {
 		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
@@ -283,7 +395,7 @@ func TestBuilderExtractFixtures(t *testing.T) {
 			expected: []string{"load-state"},
 		},
 		{
-			name: "fixture with arguments",
+			name:     "fixture with arguments",
 			workflow: map[string]any{"nodes": []any{map[string]any{"data": map[string]any{"workflowId": "@fixture/setup(param=value)"}}}},
 			expected: []string{"setup"},
 		},

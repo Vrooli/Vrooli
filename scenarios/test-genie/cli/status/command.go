@@ -37,7 +37,7 @@ func Run(client *Client) error {
 	}
 
 	q := resp.Operations.Queue
-	fmt.Printf("Queue: pending=%d queued=%d delegated=%d running=%d failed=%d\n", q.Pending, q.Queued, q.Delegated, q.Running, q.Failed)
+	fmt.Printf("Queue: pending=%d queued=%d delegated=%d stale=%d running=%d failed=%d\n", q.Pending, q.Queued, q.Delegated, q.Stale, q.Running, q.Failed)
 	if q.OldestQueuedAgeSecs > 0 {
 		fmt.Printf("       oldest queued: %ds\n", q.OldestQueuedAgeSecs)
 	}

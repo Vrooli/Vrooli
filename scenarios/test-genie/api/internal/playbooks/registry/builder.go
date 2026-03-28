@@ -66,13 +66,19 @@ func (b *Builder) Build() (*BuildResult, error) {
 		Generated: time.Now().UTC().Format(time.RFC3339),
 		Playbooks: make([]types.Entry, 0, len(playbookFiles)),
 	}
+	executionModes := make([]string, 0, len(playbookFiles))
 
 	for _, pf := range playbookFiles {
-		entry, err := b.buildEntry(pf, validationsByFile)
+		entry, executionMode, err := b.buildEntry(pf, validationsByFile)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build entry for %s: %w", pf.path, err)
 		}
 		registry.Playbooks = append(registry.Playbooks, entry)
+		executionModes = append(executionModes, executionMode)
+	}
+
+	if mode, ok := deriveRegistryExecutionMode(executionModes); ok {
+		registry.Metadata.ExecutionMode = mode
 	}
 
 	// Write registry file
@@ -235,48 +241,43 @@ func (b *Builder) collectRequirementValidations(requirementsDir string) (map[str
 }
 
 // buildEntry builds a registry entry from a playbook file.
-func (b *Builder) buildEntry(pf playbookFile, validationsByFile map[string][]string) (types.Entry, error) {
+func (b *Builder) buildEntry(pf playbookFile, validationsByFile map[string][]string) (types.Entry, string, error) {
 	data, err := os.ReadFile(pf.path)
 	if err != nil {
-		return types.Entry{}, fmt.Errorf("failed to read playbook: %w", err)
+		return types.Entry{}, "", fmt.Errorf("failed to read playbook: %w", err)
 	}
 
 	var doc map[string]any
 	if err := json.Unmarshal(data, &doc); err != nil {
-		return types.Entry{}, fmt.Errorf("failed to parse playbook: %w", err)
+		return types.Entry{}, "", fmt.Errorf("failed to parse playbook: %w", err)
 	}
 
 	// Normalize path to use forward slashes
 	relPath, err := filepath.Rel(b.scenarioDir, pf.path)
 	if err != nil {
-		return types.Entry{}, fmt.Errorf("failed to compute relative path: %w", err)
+		return types.Entry{}, "", fmt.Errorf("failed to compute relative path: %w", err)
 	}
 	relPath = filepath.ToSlash(relPath)
 	if !strings.HasPrefix(relPath, "bas/cases/") {
-		return types.Entry{}, fmt.Errorf("registry entries must live under bas/cases (got %s)", relPath)
+		return types.Entry{}, "", fmt.Errorf("registry entries must live under bas/cases (got %s)", relPath)
 	}
 
 	// Extract fixtures from nodes
 	fixtures := extractFixturesFromWorkflow(doc)
 
-	// Get requirements from validation map
-	requirements := validationsByFile[relPath]
-	if requirements == nil {
-		requirements = []string{}
+	requirements, err := requirementsForPlaybook(doc, relPath, validationsByFile)
+	if err != nil {
+		return types.Entry{}, "", err
 	}
 
 	description := getString(doc, "metadata", "description")
+	if description == "" {
+		description = getString(doc, "metadata", "name")
+	}
 
-	// Validate reset value
-	reset := getString(doc, "metadata", "labels", "reset")
-	if reset == "" {
-		reset = getString(doc, "metadata", "reset")
-	}
-	if reset == "" {
-		reset = "none"
-	}
-	if reset != "none" && reset != "full" {
-		return types.Entry{}, fmt.Errorf("invalid metadata.reset %q (allowed: none, full)", reset)
+	reset, err := normalizeResetValue(getString(doc, "metadata", "labels", "reset"), getString(doc, "metadata", "reset"))
+	if err != nil {
+		return types.Entry{}, "", err
 	}
 
 	return types.Entry{
@@ -286,7 +287,96 @@ func (b *Builder) buildEntry(pf playbookFile, validationsByFile map[string][]str
 		Requirements: requirements,
 		Fixtures:     fixtures,
 		Reset:        reset,
-	}, nil
+	}, normalizedExecutionMode(doc), nil
+}
+
+func normalizedExecutionMode(doc map[string]any) string {
+	return strings.ToLower(strings.TrimSpace(getString(doc, "metadata", "execution_mode")))
+}
+
+func requirementsForPlaybook(doc map[string]any, relPath string, validationsByFile map[string][]string) ([]string, error) {
+	if requirements := normalizeRequirementIDs(validationsByFile[relPath]); len(requirements) > 0 {
+		return requirements, nil
+	}
+
+	raw := strings.TrimSpace(getString(doc, "metadata", "labels", "requirements_json"))
+	if raw == "" {
+		return []string{}, nil
+	}
+
+	var fromLabels []string
+	if err := json.Unmarshal([]byte(raw), &fromLabels); err != nil {
+		return nil, fmt.Errorf("parse metadata.labels.requirements_json for %s: %w", relPath, err)
+	}
+
+	return normalizeRequirementIDs(fromLabels), nil
+}
+
+func normalizeRequirementIDs(values []string) []string {
+	if len(values) == 0 {
+		return []string{}
+	}
+
+	seen := make(map[string]struct{}, len(values))
+	normalized := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		normalized = append(normalized, value)
+	}
+
+	sort.Strings(normalized)
+	return normalized
+}
+
+func normalizeResetValue(values ...string) (string, error) {
+	for _, value := range values {
+		switch strings.ToLower(strings.TrimSpace(value)) {
+		case "":
+			continue
+		case "none":
+			return "none", nil
+		case "full":
+			return "full", nil
+		case "database":
+			// Legacy BAS metadata used "database" to indicate a mutating workflow
+			// that needs a fresh seed state before the next case.
+			return "full", nil
+		default:
+			return "", fmt.Errorf("invalid metadata.reset %q (allowed: none, full)", value)
+		}
+	}
+
+	return "none", nil
+}
+
+func deriveRegistryExecutionMode(modes []string) (string, bool) {
+	if len(modes) == 0 {
+		return "", false
+	}
+
+	mode := ""
+	for _, current := range modes {
+		current = strings.TrimSpace(current)
+		if current == "" {
+			return "", false
+		}
+		if mode == "" {
+			mode = current
+			continue
+		}
+		if current != mode {
+			return "", false
+		}
+	}
+
+	return mode, mode != ""
 }
 
 func extractFixturesFromWorkflow(workflow map[string]any) []string {

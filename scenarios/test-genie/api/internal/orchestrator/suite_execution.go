@@ -303,7 +303,7 @@ func (o *SuiteOrchestrator) Execute(ctx context.Context, req SuiteExecutionReque
 		return nil, err
 	}
 
-	runID := time.Now().UTC().Format("20060102-150405")
+	runID := newRunID()
 
 	if err := sharedartifacts.EnsureCoverageStructure(env.ScenarioDir); err != nil {
 		return nil, err
@@ -372,7 +372,7 @@ func (o *SuiteOrchestrator) ExecuteWithEvents(ctx context.Context, req SuiteExec
 		return nil, err
 	}
 
-	runID := time.Now().UTC().Format("20060102-150405")
+	runID := newRunID()
 
 	if err := sharedartifacts.EnsureCoverageStructure(env.ScenarioDir); err != nil {
 		return nil, err
@@ -438,6 +438,10 @@ func (o *SuiteOrchestrator) runSelectedPhases(
 		}
 	}
 	return results, anyFailure
+}
+
+func newRunID() string {
+	return fmt.Sprintf("%s-%s", time.Now().UTC().Format("20060102-150405"), uuid.NewString()[:8])
 }
 
 func (o *SuiteOrchestrator) runSelectedPhasesWithEvents(

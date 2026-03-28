@@ -1,12 +1,13 @@
 package playbooksseed
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 
 	"github.com/vrooli/cli-core/cliutil"
+
+	"test-genie/cli/internal/apijson"
 )
 
 // Client provides API access to playbooks seed lifecycle endpoints.
@@ -26,9 +27,9 @@ func (c *Client) Apply(scenario string, req ApplyRequest) (ApplyResponse, []byte
 	if err != nil {
 		return ApplyResponse{}, nil, err
 	}
-	var resp ApplyResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return ApplyResponse{}, body, fmt.Errorf("parse response: %w", err)
+	resp, err := apijson.Parse[ApplyResponse](body, "parse response")
+	if err != nil {
+		return ApplyResponse{}, body, err
 	}
 	return resp, body, nil
 }
@@ -40,9 +41,9 @@ func (c *Client) Cleanup(scenario string, req CleanupRequest) (CleanupResponse, 
 	if err != nil {
 		return CleanupResponse{}, nil, err
 	}
-	var resp CleanupResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return CleanupResponse{}, body, fmt.Errorf("parse response: %w", err)
+	resp, err := apijson.Parse[CleanupResponse](body, "parse response")
+	if err != nil {
+		return CleanupResponse{}, body, err
 	}
 	return resp, body, nil
 }

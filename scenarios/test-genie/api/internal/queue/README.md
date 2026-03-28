@@ -113,14 +113,17 @@ Aggregated queue health for telemetry:
 ```go
 type SuiteRequestSnapshot struct {
     Total          int        // All requests
-    Queued         int        // Waiting
-    Delegated      int        // Assigned to agents
+    Queued         int        // Active waiting requests
+    Delegated      int        // Active delegated requests
     Running        int        // In progress
     Completed      int        // Done successfully
     Failed         int        // Done with error
+    Stale          int        // Queued/delegated rows older than the active window
     OldestQueuedAt *time.Time // Queue age indicator
 }
 ```
+
+`Queued` and `Delegated` count only active work. Rows older than `TEST_GENIE_QUEUE_STALE_AFTER` are excluded from active queue pressure and reported separately as `Stale`.
 
 ## Validation Rules
 

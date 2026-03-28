@@ -3,6 +3,7 @@ package queue
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/google/uuid"
 	pq "github.com/lib/pq"
@@ -10,11 +11,17 @@ import (
 
 // PostgresSuiteRequestRepository persists suite requests to PostgreSQL.
 type PostgresSuiteRequestRepository struct {
-	db *sql.DB
+	db           *sql.DB
+	clock        func() time.Time
+	activeWindow time.Duration
 }
 
 func NewPostgresSuiteRequestRepository(db *sql.DB) *PostgresSuiteRequestRepository {
-	return &PostgresSuiteRequestRepository{db: db}
+	return &PostgresSuiteRequestRepository{
+		db:           db,
+		clock:        time.Now,
+		activeWindow: ActiveQueueWindow(),
+	}
 }
 
 func (r *PostgresSuiteRequestRepository) Create(ctx context.Context, req *SuiteRequest) error {
@@ -132,52 +139,32 @@ WHERE id = $2
 func (r *PostgresSuiteRequestRepository) StatusSnapshot(ctx context.Context) (SuiteRequestSnapshot, error) {
 	snapshot := SuiteRequestSnapshot{}
 
-	countRows, err := r.db.QueryContext(ctx, `
-SELECT status, COUNT(*)
-FROM suite_requests
-GROUP BY status
-`)
-	if err != nil {
-		return snapshot, err
-	}
-	defer countRows.Close()
-
-	for countRows.Next() {
-		var status string
-		var count int
-		if err := countRows.Scan(&status, &count); err != nil {
-			return snapshot, err
-		}
-		snapshot.Total += count
-		switch status {
-		case StatusQueued:
-			snapshot.Queued = count
-		case StatusDelegated:
-			snapshot.Delegated = count
-		case StatusRunning:
-			snapshot.Running = count
-		case StatusCompleted:
-			snapshot.Completed = count
-		case StatusFailed:
-			snapshot.Failed = count
-		}
-	}
-	if err := countRows.Err(); err != nil {
-		return snapshot, err
-	}
-
 	var oldest sql.NullTime
+	cutoff := r.clock().UTC().Add(-r.activeWindow)
 	if err := r.db.QueryRowContext(ctx, `
-SELECT created_at
+SELECT
+	COUNT(*) AS total,
+	COUNT(*) FILTER (WHERE status = $2 AND updated_at >= $1) AS queued,
+	COUNT(*) FILTER (WHERE status = $3 AND updated_at >= $1) AS delegated,
+	COUNT(*) FILTER (WHERE status = $4) AS running,
+	COUNT(*) FILTER (WHERE status = $5) AS completed,
+	COUNT(*) FILTER (WHERE status = $6) AS failed,
+	COUNT(*) FILTER (WHERE status IN ($2, $3) AND updated_at < $1) AS stale,
+	MIN(created_at) FILTER (WHERE status IN ($2, $3) AND updated_at >= $1) AS oldest_queued_at
 FROM suite_requests
-WHERE status IN ($1, $2)
-ORDER BY created_at ASC
-LIMIT 1
-`, StatusQueued, StatusDelegated).Scan(&oldest); err != nil {
-		if err != sql.ErrNoRows {
-			return snapshot, err
-		}
+`, cutoff, StatusQueued, StatusDelegated, StatusRunning, StatusCompleted, StatusFailed).Scan(
+		&snapshot.Total,
+		&snapshot.Queued,
+		&snapshot.Delegated,
+		&snapshot.Running,
+		&snapshot.Completed,
+		&snapshot.Failed,
+		&snapshot.Stale,
+		&oldest,
+	); err != nil {
+		return snapshot, err
 	}
+
 	if oldest.Valid {
 		// Normalize to UTC for stable telemetry output.
 		t := oldest.Time.UTC()

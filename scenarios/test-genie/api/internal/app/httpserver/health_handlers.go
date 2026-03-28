@@ -56,6 +56,7 @@ func queueSnapshotPayload(snapshot queue.SuiteRequestSnapshot) map[string]interf
 		"total":     snapshot.Total,
 		"queued":    snapshot.Queued,
 		"delegated": snapshot.Delegated,
+		"stale":     snapshot.Stale,
 		"running":   snapshot.Running,
 		"completed": snapshot.Completed,
 		"failed":    snapshot.Failed,

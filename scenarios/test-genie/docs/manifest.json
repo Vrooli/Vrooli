@@ -21,7 +21,17 @@
       "documents": [
         { "path": "safety/README.md", "title": "Safety Overview", "description": "Quick safety checklist" },
         { "path": "safety/GUIDELINES.md", "title": "Safety Guidelines", "description": "Complete safety rules and patterns" },
+        { "path": "safety/agent-spawning-security.md", "title": "Agent Spawning Security", "description": "Security constraints for delegated agents" },
         { "path": "safety/bats-teardown-bug.md", "title": "BATS Teardown Bug", "description": "Real incident case study" }
+      ]
+    },
+    {
+      "id": "configuration",
+      "title": "Configuration",
+      "icon": "sliders",
+      "description": "Operator-facing environment variables and tuning levers",
+      "documents": [
+        { "path": "configuration/tunable-levers.md", "title": "Tunable Levers", "description": "Runtime, queue, CLI, and playbooks controls" }
       ]
     },
     {
@@ -44,6 +54,7 @@
         { "path": "phases/integration/README.md", "title": "Integration Phase", "description": "API and CLI connectivity testing" },
         { "path": "phases/integration/cli-testing.md", "title": "CLI Testing", "description": "BATS testing for command-line tools" },
         { "path": "phases/playbooks/README.md", "title": "Playbooks Phase", "description": "BAS browser automation workflows" },
+        { "path": "phases/playbooks/directory-structure.md", "title": "Playbooks Directory Structure", "description": "Canonical bas/ layout and registry semantics" },
         { "path": "phases/playbooks/ui-automation-with-bas.md", "title": "UI Automation with BAS", "description": "Vrooli Ascension workflow testing" },
         { "path": "phases/business/README.md", "title": "Business Phase", "description": "Requirement coverage validation" },
         { "path": "phases/business/requirements-sync.md", "title": "Requirements Sync", "description": "Automatic requirement tracking from tests" },
@@ -125,7 +136,7 @@
     }
   ],
   "navigation": {
-    "primary": ["getting-started", "safety", "phases", "guides", "reference"],
+    "primary": ["getting-started", "configuration", "safety", "phases", "guides", "reference"],
     "secondary": ["concepts", "plans", "standard"]
   }
 }

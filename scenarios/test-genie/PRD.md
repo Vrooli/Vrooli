@@ -822,7 +822,7 @@ tests:
 - ⚠️  Internal test coverage: 4.8% (needs improvement to meet 95% target)
 
 ### Known Issues
-See [PROBLEMS.md](PROBLEMS.md) for detailed tracking of:
+See [PROBLEMS.md](docs/PROBLEMS.md) for detailed tracking of:
 - 5 P1 requirements awaiting implementation
 - Low internal test coverage (4.8% vs 95% target)
 - Legacy test format migration recommended

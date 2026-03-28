@@ -118,7 +118,7 @@ describe('projectStore [REQ:PROJECT-CRUD]', () => { ... })
 
 After running comprehensive tests, requirements are synced to `requirements/*.json`.
 
-See [docs/guides/requirements-sync.md](docs/guides/requirements-sync.md) for details.
+See [docs/phases/business/requirements-sync.md](docs/phases/business/requirements-sync.md) for details.
 
 ## Configuration
 
@@ -162,7 +162,7 @@ Comprehensive docs are in `docs/`:
 
 - [QUICKSTART.md](docs/QUICKSTART.md) - Get started in 5 minutes
 - [Phased Testing Guide](docs/guides/phased-testing.md) - 11-phase architecture
-- [Requirements Sync](docs/guides/requirements-sync.md) - Auto-tracking from tests
+- [Requirements Sync](docs/phases/business/requirements-sync.md) - Auto-tracking from tests
 - [API Reference](docs/reference/api-endpoints.md) - REST API documentation
 - [CLI Reference](docs/reference/cli-commands.md) - CLI command reference
 - [Safety Guidelines](docs/safety/GUIDELINES.md) - Critical safety rules for test scripts

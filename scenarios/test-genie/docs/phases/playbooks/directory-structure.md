@@ -28,7 +28,7 @@ bas/
 ├── actions/                # Reusable subflows/components (NOT executed by test-genie)
 │   ├── open-demo-project.json
 │   └── load-seed-state.json
-└── seeds/                  # Seed entrypoint
+└── seeds/                  # Optional seed entrypoint
     └── seed.go             # or seed.sh
 ```
 
@@ -39,7 +39,7 @@ bas/
 | `cases/` | Tests organized by PRD operational targets | `NN-name` (e.g., `01-foundation`) |
 | `flows/` | Optional multi-surface journeys for manual/ops automation | `NN-name` (e.g., `01-new-user`) |
 | `actions/` | Reusable workflow fragments/subflows used by cases and flows | Kebab-case filenames |
-| `seeds/` | Database/state setup entrypoint | `seed.go` preferred |
+| `seeds/` | Optional database/state setup entrypoint | `seed.go` preferred |
 
 ### cases/
 
@@ -91,6 +91,8 @@ Single entrypoint for deterministic test data setup. Runs once before playbook e
 seeds/
 └── seed.go      # Preferred (go run), or seed.sh as a lightweight alternative
 ```
+
+If a scenario does not need custom seed setup, omit `bas/seeds/` entirely. An empty placeholder directory only creates structure-phase noise.
 
 ## Naming Conventions
 

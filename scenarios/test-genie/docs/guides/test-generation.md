@@ -567,9 +567,9 @@ test-genie coverage my-scenario
 ## See Also
 
 ### Related Guides
-- [Requirements Sync](requirements-sync.md) - How requirement tracking works
+- [Requirements Sync](../phases/business/requirements-sync.md) - How requirement tracking works
 - [Phased Testing](phased-testing.md) - Complete testing workflow
-- [Scenario Unit Testing](scenario-unit-testing.md) - Manual test authoring guide
+- [Scenario Unit Testing](../phases/unit/scenario-unit-testing.md) - Manual test authoring guide
 - [UI Testability](ui-testability.md) - BAS workflow testing
 - [Troubleshooting](troubleshooting.md) - Debug common issues
 
