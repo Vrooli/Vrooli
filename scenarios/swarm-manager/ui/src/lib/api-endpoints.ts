@@ -69,6 +69,7 @@ export const API_ENDPOINTS = {
   initiatives: "/initiatives",
   initiativeByName: (name: string) => `/initiatives/${name}`,
   initiativeItems: (name: string) => `/initiatives/${name}/items`,
+  graph: "/graph",
   health: "/health",
 } as const;
 

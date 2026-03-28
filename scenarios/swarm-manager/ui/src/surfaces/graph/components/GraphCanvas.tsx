@@ -1,52 +1,49 @@
 /**
- * GraphCanvas - React Flow v12 canvas with Dagre layout.
+ * GraphCanvas - React Flow canvas for the API-backed swarm graph.
  *
- * Renders nodes and edges from the graph data store,
- * applies layout from the UI store's current layout mode,
- * and persists viewport to localStorage.
- *
- * Topology lens features:
- * - Initiative-based clustering with ClusterNode parent nodes
- * - Edge type visual differentiation (color + dash pattern)
- * - Dynamic MiniMap (show >20, hide >120)
- * - Node capping at ~50 unclustered nodes
- * - Edge complexity management (straight >300, filter suggestion >500)
+ * Applies persisted graph settings, deterministic topology grouping, and
+ * Dagre layout before rendering.
  */
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
-  ReactFlow,
   Background,
   BackgroundVariant,
   MiniMap,
-  useNodesState,
+  ReactFlow,
   useEdgesState,
-  type OnNodesChange,
-  type OnEdgesChange,
-  type NodeMouseHandler,
-  type Viewport,
-  type NodeTypes,
+  useNodesState,
   type DefaultEdgeOptions,
+  type Edge,
+  type NodeMouseHandler,
+  type Node,
+  type NodeTypes,
+  type OnEdgesChange,
+  type OnNodesChange,
+  type ReactFlowInstance,
+  type Viewport,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
 import { applyDagreLayout } from "../lib/layout-utils";
-import { bfsNeighborhood } from "../lib/bfs-selection";
 import {
-  buildClusterHierarchy,
   aggregateEdgesForCollapsed,
   applyNodeCap,
+  buildClusterHierarchy,
   UNASSIGNED_CLUSTER_ID,
 } from "../lib/clustering-utils";
-import { getEdgeStyle, STRAIGHT_EDGE_THRESHOLD, FILTER_SUGGESTION_THRESHOLD } from "../lib/edge-styles";
-import { GraphNode } from "./GraphNode";
+import {
+  FILTER_SUGGESTION_THRESHOLD,
+  getEdgeStyle,
+  SECONDARY_EDGE_TYPES,
+  STRAIGHT_EDGE_THRESHOLD,
+} from "../lib/edge-styles";
+import { bfsNeighborhood } from "../lib/bfs-selection";
 import { ClusterNode } from "./ClusterNode";
 import { EdgeLegend } from "./EdgeLegend";
+import { GraphNode } from "./GraphNode";
 
-/**
- * Register custom node components.
- */
 const nodeTypes: NodeTypes = {
   backlog: GraphNode,
   scenario: GraphNode,
@@ -70,54 +67,87 @@ const NODE_CAP_LIMIT = 50;
 export function GraphCanvas() {
   const storeNodes = useGraphDataStore((s) => s.nodes);
   const storeEdges = useGraphDataStore((s) => s.edges);
-  const entityFilters = useGraphDataStore((s) => s.entityFilters);
   const lens = useGraphDataStore((s) => s.lens);
+  const meta = useGraphDataStore((s) => s.meta);
+  const loading = useGraphDataStore((s) => s.loading);
+  const error = useGraphDataStore((s) => s.error);
+  const settings = useGraphDataStore((s) => s.settingsByLens[s.lens]);
+  const entityFilters = settings.entityFilters;
+  const statusFilters = settings.statusFilters;
+  const groupingMode = settings.groupingMode;
+  const showSecondaryEdges = settings.showSecondaryEdges;
+  const autoFitOnChange = settings.autoFitOnChange;
+
   const layoutMode = useGraphUIStore((s) => s.layoutMode);
+  const layoutDirection = useGraphUIStore((s) => s.layoutDirection);
   const highlightState = useGraphUIStore((s) => s.highlightState);
   const storedViewport = useGraphUIStore((s) => s.viewport);
+  const fitViewNonce = useGraphUIStore((s) => s.fitViewNonce);
+  const expandedTopologyClusters = useGraphUIStore((s) => s.expandedTopologyClusters);
   const selectNode = useGraphUIStore((s) => s.selectNode);
   const setHighlightState = useGraphUIStore((s) => s.setHighlightState);
   const setViewport = useGraphUIStore((s) => s.setViewport);
-  const collapsedClusters = useGraphUIStore((s) => s.collapsedClusters);
-  const toggleClusterCollapse = useGraphUIStore((s) => s.toggleClusterCollapse);
-  const setAllClustersCollapsed = useGraphUIStore((s) => s.setAllClustersCollapsed);
+  const toggleTopologyCluster = useGraphUIStore((s) => s.toggleTopologyCluster);
+
+  const flowRef = useRef<ReactFlowInstance<Node, Edge> | null>(null);
 
   const isTopology = lens === "topology";
-  const initializedClusters = useRef(false);
+  const useInitiativeGrouping = isTopology && groupingMode === "initiative";
 
-  // Filter nodes by entity type visibility.
   const filteredNodes = useMemo(() => {
     return storeNodes.filter((node) => {
-      const entityType = node.data?.entityType as string | undefined;
-      if (!entityType) return true;
-      return entityFilters[entityType as keyof typeof entityFilters] ?? true;
+      const data = (node.data as Record<string, unknown> | undefined) ?? {};
+      const entityType = data.entityType as keyof typeof entityFilters | undefined;
+      if (entityType && entityFilters[entityType] === false) {
+        return false;
+      }
+
+      const status = data.status;
+      if (typeof status === "string" && statusFilters[status] === false) {
+        return false;
+      }
+
+      return true;
     });
-  }, [storeNodes, entityFilters]);
+  }, [entityFilters, statusFilters, storeNodes]);
 
-  // Filter edges to only include those connecting visible nodes.
   const filteredEdges = useMemo(() => {
-    const visibleIds = new Set(filteredNodes.map((n) => n.id));
-    return storeEdges.filter((e) => visibleIds.has(e.source) && visibleIds.has(e.target));
-  }, [storeEdges, filteredNodes]);
+    const visibleIds = new Set(filteredNodes.map((node) => node.id));
+    return storeEdges.filter((edge) => {
+      if (!visibleIds.has(edge.source) || !visibleIds.has(edge.target)) {
+        return false;
+      }
+      if (!showSecondaryEdges && SECONDARY_EDGE_TYPES.has(edge.type ?? "")) {
+        return false;
+      }
+      return true;
+    });
+  }, [filteredNodes, showSecondaryEdges, storeEdges]);
 
-  // Topology: Build cluster hierarchy and transform nodes/edges.
-  const { processedNodes, processedEdges, clusters } = useMemo(() => {
-    if (!isTopology) {
-      return { processedNodes: filteredNodes, processedEdges: filteredEdges, clusters: [] };
+  const { processedNodes, processedEdges, visibleEdgeTypes, visibleNodeCount } = useMemo(() => {
+    if (!useInitiativeGrouping) {
+      const edgeTypes = [...new Set(filteredEdges.map((edge) => edge.type).filter(Boolean) as string[])];
+      return {
+        processedNodes: filteredNodes,
+        processedEdges: filteredEdges,
+        visibleEdgeTypes: edgeTypes,
+        visibleNodeCount: filteredNodes.length,
+      };
     }
 
-    const { clusters: builtClusters, unclustered } = buildClusterHierarchy(filteredNodes, filteredEdges);
+    const { clusters, unclustered } = buildClusterHierarchy(filteredNodes, filteredEdges);
+    const collapsedClusterIds = new Set(
+      clusters.filter((cluster) => !expandedTopologyClusters.has(cluster.id)).map((cluster) => cluster.id),
+    );
 
-    // Build cluster parent nodes and child nodes with parentId
-    const clusterNodes: typeof filteredNodes = [];
-    const childNodes: typeof filteredNodes = [];
-    const nodeMap = new Map(filteredNodes.map((n) => [n.id, n]));
+    const clusterNodes: Node[] = [];
+    const childNodes: Node[] = [];
+    const nodeById = new Map(filteredNodes.map((node) => [node.id, node]));
 
-    for (const cluster of builtClusters) {
-      const isCollapsed = collapsedClusters.has(cluster.id);
+    for (const cluster of clusters) {
+      const isCollapsed = collapsedClusterIds.has(cluster.id);
       const isUnassigned = cluster.id === UNASSIGNED_CLUSTER_ID;
 
-      // Cluster parent node
       clusterNodes.push({
         id: cluster.id,
         type: "cluster",
@@ -132,100 +162,95 @@ export function GraphCanvas() {
         style: isCollapsed ? undefined : { padding: 20 },
       });
 
-      // Member nodes as children (only when expanded)
       if (!isCollapsed) {
         for (const memberId of cluster.members) {
-          const memberNode = nodeMap.get(memberId);
-          if (memberNode) {
-            childNodes.push({
-              ...memberNode,
-              parentId: cluster.id,
-              extent: "parent" as const,
-              position: { x: 0, y: 40 }, // Relative to parent; Dagre will reposition
-            });
-          }
+          const memberNode = nodeById.get(memberId);
+          if (!memberNode) continue;
+
+          childNodes.push({
+            ...memberNode,
+            parentId: cluster.id,
+            extent: "parent" as const,
+            position: { x: 0, y: 40 },
+          });
         }
       }
     }
 
-    // Apply node cap to unclustered nodes
     const { visible: cappedUnclustered } = applyNodeCap(unclustered, NODE_CAP_LIMIT);
+    const groupedEdges = aggregateEdgesForCollapsed(filteredEdges, collapsedClusterIds, clusters);
+    const edgeTypes = [...new Set(groupedEdges.map((edge) => edge.type).filter(Boolean) as string[])];
 
-    const allNodes = [...clusterNodes, ...childNodes, ...cappedUnclustered];
+    return {
+      processedNodes: [...clusterNodes, ...childNodes, ...cappedUnclustered],
+      processedEdges: groupedEdges,
+      visibleEdgeTypes: edgeTypes,
+      visibleNodeCount: clusterNodes.length + childNodes.length + cappedUnclustered.length,
+    };
+  }, [expandedTopologyClusters, filteredEdges, filteredNodes, useInitiativeGrouping]);
 
-    // Aggregate edges for collapsed clusters
-    const aggregatedEdges = aggregateEdgesForCollapsed(filteredEdges, collapsedClusters, builtClusters);
-
-    return { processedNodes: allNodes, processedEdges: aggregatedEdges, clusters: builtClusters };
-  }, [filteredNodes, filteredEdges, isTopology, collapsedClusters]);
-
-  // Initialize all clusters as collapsed on first topology data load.
-  useEffect(() => {
-    if (!isTopology || initializedClusters.current || clusters.length === 0) return;
-    initializedClusters.current = true;
-    setAllClustersCollapsed(clusters.map((c) => c.id));
-  }, [isTopology, clusters, setAllClustersCollapsed]);
-
-  // Reset cluster initialization when switching away from topology.
-  useEffect(() => {
-    if (!isTopology) {
-      initializedClusters.current = false;
-    }
-  }, [isTopology]);
-
-  // Apply edge styles for topology lens.
-  const styledEdges = useMemo(() => {
-    if (!isTopology) return processedEdges;
-
-    const useStraight = processedEdges.length > STRAIGHT_EDGE_THRESHOLD;
-
+  const styledEdges = useMemo<Edge[]>(() => {
+    const useStraightEdges = processedEdges.length > STRAIGHT_EDGE_THRESHOLD;
     return processedEdges.map((edge) => ({
       ...edge,
-      type: useStraight ? "straight" : undefined,
+      data: {
+        ...((edge.data as Record<string, unknown>) ?? {}),
+        relationshipType: edge.type,
+      },
+      type: useStraightEdges ? "straight" : undefined,
       style: getEdgeStyle(edge.type ?? undefined),
     }));
-  }, [processedEdges, isTopology]);
+  }, [processedEdges]);
 
-  // Apply Dagre layout.
   const layoutedNodes = useMemo(() => {
-    // For topology with clusters, only layout non-child nodes at the top level.
-    // Child nodes are positioned relative to their parent.
-    const topLevelNodes = processedNodes.filter((n) => !n.parentId);
-    const childNodes = processedNodes.filter((n) => n.parentId);
+    const topLevelNodes = processedNodes.filter((node) => !node.parentId);
+    const childNodes = processedNodes.filter((node) => node.parentId);
 
-    if (topLevelNodes.length === 0) return [];
+    if (topLevelNodes.length === 0) {
+      return [];
+    }
 
-    // Top-level edges (only between top-level nodes)
-    const topLevelIds = new Set(topLevelNodes.map((n) => n.id));
+    const topLevelIds = new Set(topLevelNodes.map((node) => node.id));
     const topLevelEdges = styledEdges.filter(
-      (e) => topLevelIds.has(e.source) && topLevelIds.has(e.target),
+      (edge) => topLevelIds.has(edge.source) && topLevelIds.has(edge.target),
     );
 
-    const positionedTopLevel = applyDagreLayout(topLevelNodes, topLevelEdges, layoutMode);
+    const positionedTopLevel = applyDagreLayout(
+      topLevelNodes,
+      topLevelEdges,
+      layoutMode,
+      layoutDirection,
+    );
 
-    // Position children within their parent cluster
-    const parentGroups = new Map<string, typeof childNodes>();
+    const childrenByParent = new Map<string, typeof childNodes>();
     for (const child of childNodes) {
-      const group = parentGroups.get(child.parentId!) ?? [];
-      group.push(child);
-      parentGroups.set(child.parentId!, group);
+      const parentId = child.parentId;
+      if (!parentId) {
+        continue;
+      }
+      const existing = childrenByParent.get(parentId) ?? [];
+      existing.push(child);
+      childrenByParent.set(parentId, existing);
     }
 
     const positionedChildren: typeof childNodes = [];
-    for (const [, children] of parentGroups) {
+    for (const children of childrenByParent.values()) {
+      const childIds = new Set(children.map((child) => child.id));
       const intraEdges = styledEdges.filter(
-        (e) => children.some((c) => c.id === e.source) && children.some((c) => c.id === e.target),
+        (edge) => childIds.has(edge.source) && childIds.has(edge.target),
       );
-      const positioned = applyDagreLayout(children, intraEdges, layoutMode);
-      positionedChildren.push(...positioned);
+      positionedChildren.push(
+        ...applyDagreLayout(children, intraEdges, layoutMode, layoutDirection),
+      );
     }
 
     return [...positionedTopLevel, ...positionedChildren];
-  }, [processedNodes, styledEdges, layoutMode]);
+  }, [layoutDirection, layoutMode, processedNodes, styledEdges]);
 
-  // Apply highlight/dim styling.
   const styledNodes = useMemo(() => {
-    if (highlightState.mode === "normal") return layoutedNodes;
+    if (highlightState.mode === "normal") {
+      return layoutedNodes;
+    }
 
     return layoutedNodes.map((node) => {
       const isHighlighted = highlightState.highlighted.has(node.id);
@@ -237,62 +262,69 @@ export function GraphCanvas() {
       }
       return node;
     });
-  }, [layoutedNodes, highlightState]);
+  }, [highlightState, layoutedNodes]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(styledNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(styledEdges);
 
-  // Sync store changes to local state.
   useEffect(() => {
     setNodes(styledNodes);
-  }, [styledNodes, setNodes]);
+  }, [setNodes, styledNodes]);
 
   useEffect(() => {
     setEdges(styledEdges);
-  }, [styledEdges, setEdges]);
+  }, [setEdges, styledEdges]);
+
+  const autoFitFingerprint = useMemo(() => {
+    return JSON.stringify({
+      lens,
+      layoutMode,
+      layoutDirection,
+      groupingMode,
+      showSecondaryEdges,
+      nodeIds: styledNodes.map((node) => node.id),
+      edgeIds: styledEdges.map((edge) => edge.id),
+    });
+  }, [groupingMode, lens, layoutDirection, layoutMode, showSecondaryEdges, styledEdges, styledNodes]);
+
+  useEffect(() => {
+    if (!autoFitOnChange || !flowRef.current || styledNodes.length === 0) {
+      return;
+    }
+
+    const raf = window.requestAnimationFrame(() => {
+      flowRef.current?.fitView({ padding: 0.2, maxZoom: 1.2 });
+    });
+
+    return () => window.cancelAnimationFrame(raf);
+  }, [autoFitFingerprint, autoFitOnChange, styledNodes.length]);
+
+  useEffect(() => {
+    if (!flowRef.current || fitViewNonce === 0 || styledNodes.length === 0) {
+      return;
+    }
+
+    const raf = window.requestAnimationFrame(() => {
+      flowRef.current?.fitView({ padding: 0.2, maxZoom: 1.2 });
+    });
+
+    return () => window.cancelAnimationFrame(raf);
+  }, [fitViewNonce, styledNodes.length]);
 
   const handleNodeClick: NodeMouseHandler = useCallback(
     (_event, node) => {
-      // If clicking a collapsed cluster node, expand it
-      if (node.type === "cluster" && collapsedClusters.has(node.id)) {
-        toggleClusterCollapse(node.id);
+      if (node.type === "cluster") {
+        toggleTopologyCluster(node.id);
         return;
       }
 
       selectNode(node.id);
-
-      // BFS neighborhood highlight.
-      const neighborhood = bfsNeighborhood(node.id, processedNodes, styledEdges);
       setHighlightState({
-        highlighted: neighborhood,
+        highlighted: bfsNeighborhood(node.id, processedNodes, styledEdges),
         mode: "dim",
       });
     },
-    [selectNode, setHighlightState, processedNodes, styledEdges, collapsedClusters, toggleClusterCollapse],
-  );
-
-  const handleNodeDoubleClick: NodeMouseHandler = useCallback(
-    (_event, node) => {
-      // Double-click on cluster: select cluster as unit, BFS highlights all edges to/from any member
-      if (node.type === "cluster") {
-        selectNode(node.id);
-        const cluster = clusters.find((c) => c.id === node.id);
-        if (cluster) {
-          const highlighted = new Set<string>([node.id, ...cluster.members]);
-          // Add all nodes connected to any member
-          for (const edge of styledEdges) {
-            if (cluster.members.includes(edge.source) || edge.source === node.id) {
-              highlighted.add(edge.target);
-            }
-            if (cluster.members.includes(edge.target) || edge.target === node.id) {
-              highlighted.add(edge.source);
-            }
-          }
-          setHighlightState({ highlighted, mode: "dim" });
-        }
-      }
-    },
-    [selectNode, setHighlightState, clusters, styledEdges],
+    [processedNodes, selectNode, setHighlightState, styledEdges, toggleTopologyCluster],
   );
 
   const handlePaneClick = useCallback(() => {
@@ -308,13 +340,8 @@ export function GraphCanvas() {
   );
 
   const defaultViewport: Viewport = storedViewport ?? { x: 0, y: 0, zoom: 1 };
-
-  // MiniMap: show when >20 nodes, hide when >120.
-  const visibleNodeCount = processedNodes.filter((n) => !n.parentId || !collapsedClusters.has(n.parentId)).length;
   const showMiniMap = visibleNodeCount > 20 && visibleNodeCount <= 120;
-
-  // Edge complexity: filter suggestion banner.
-  const showFilterSuggestion = isTopology && styledEdges.length > FILTER_SUGGESTION_THRESHOLD;
+  const showFilterSuggestion = processedEdges.length > FILTER_SUGGESTION_THRESHOLD;
 
   return (
     <div className="h-full w-full" data-testid="graph-canvas">
@@ -326,9 +353,11 @@ export function GraphCanvas() {
         onNodesChange={onNodesChange as OnNodesChange}
         onEdgesChange={onEdgesChange as OnEdgesChange}
         onNodeClick={handleNodeClick}
-        onNodeDoubleClick={handleNodeDoubleClick}
         onPaneClick={handlePaneClick}
         onMoveEnd={handleMoveEnd}
+        onInit={(instance) => {
+          flowRef.current = instance;
+        }}
         defaultViewport={defaultViewport}
         fitView={!storedViewport}
         fitViewOptions={{ padding: 0.2, maxZoom: 1.2 }}
@@ -341,15 +370,22 @@ export function GraphCanvas() {
           <MiniMap
             nodeStrokeWidth={3}
             nodeColor={(node) => {
-              const et = (node.data as Record<string, unknown>)?.entityType as string | undefined;
-              switch (et) {
-                case "backlog": return "rgb(34 211 238 / 0.6)";
-                case "scenario": return "rgb(167 139 250 / 0.6)";
-                case "execution": return "rgb(251 191 36 / 0.6)";
-                case "capture": return "rgb(52 211 153 / 0.6)";
-                case "agent-run": return "rgb(251 113 133 / 0.6)";
-                case "initiative": return "rgb(56 189 248 / 0.6)";
-                default: return "rgb(148 163 184 / 0.4)";
+              const entityType = (node.data as Record<string, unknown> | undefined)?.entityType;
+              switch (entityType) {
+                case "backlog":
+                  return "rgb(34 211 238 / 0.6)";
+                case "scenario":
+                  return "rgb(167 139 250 / 0.6)";
+                case "execution":
+                  return "rgb(251 191 36 / 0.6)";
+                case "capture":
+                  return "rgb(52 211 153 / 0.6)";
+                case "agent-run":
+                  return "rgb(251 113 133 / 0.6)";
+                case "initiative":
+                  return "rgb(56 189 248 / 0.6)";
+                default:
+                  return "rgb(148 163 184 / 0.4)";
               }
             }}
             maskColor="rgb(2 6 23 / 0.7)"
@@ -363,15 +399,51 @@ export function GraphCanvas() {
         )}
       </ReactFlow>
 
-      {/* Topology-specific overlays */}
-      {isTopology && <EdgeLegend />}
+      {visibleEdgeTypes.length > 0 && <EdgeLegend edgeTypes={visibleEdgeTypes} />}
+
+      {loading && (
+        <div
+          className="pointer-events-none absolute inset-x-0 top-3 z-20 mx-auto w-fit rounded-lg border border-slate-700/80 bg-slate-950/90 px-4 py-2 text-xs text-slate-300 shadow-lg"
+          data-testid="graph-loading"
+        >
+          Refreshing graph…
+        </div>
+      )}
+
+      {error && (
+        <div
+          className="absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-lg border border-red-500/30 bg-red-950/90 px-4 py-2 text-xs text-red-200 shadow-lg"
+          data-testid="graph-error"
+        >
+          {error}
+        </div>
+      )}
+
+      {!loading && !error && styledNodes.length === 0 && (
+        <div
+          className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-700/70 bg-slate-950/90 px-5 py-4 text-center shadow-lg"
+          data-testid="graph-empty"
+        >
+          <p className="text-sm font-medium text-slate-100">No nodes match the current graph controls.</p>
+          <p className="mt-1 text-xs text-slate-500">Try restoring entity or status visibility.</p>
+        </div>
+      )}
+
+      {lens === "operations" && meta?.agentManagerAvailable === false && (
+        <div
+          className="absolute bottom-3 left-3 z-20 rounded-lg border border-amber-500/30 bg-amber-950/90 px-4 py-2 text-xs text-amber-200 shadow-lg"
+          data-testid="operations-agent-manager-warning"
+        >
+          Agent manager is unavailable, so run nodes may be missing from this view.
+        </div>
+      )}
 
       {showFilterSuggestion && (
         <div
-          className="absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-lg border border-amber-500/40 bg-amber-950/90 px-4 py-2 text-xs text-amber-200 shadow-lg"
+          className="absolute left-1/2 top-14 z-20 -translate-x-1/2 rounded-lg border border-amber-500/40 bg-amber-950/90 px-4 py-2 text-xs text-amber-200 shadow-lg"
           data-testid="filter-suggestion"
         >
-          High edge count ({styledEdges.length}). Consider filtering entity types to reduce visual complexity.
+          High edge count ({processedEdges.length}). Use graph controls to filter entity types, statuses, or secondary edges.
         </div>
       )}
     </div>

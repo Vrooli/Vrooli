@@ -1,9 +1,25 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { useGraphDataStore, graphDataInitialState } from "./graph-data-store";
-import type { Node, Edge } from "@xyflow/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Edge, Node } from "@xyflow/react";
+
+const { getGraphMock } = vi.hoisted(() => ({
+  getGraphMock: vi.fn(),
+}));
+
+vi.mock("../../../services", () => ({
+  graphService: {
+    getGraph: getGraphMock,
+  },
+}));
+
+import {
+  cloneGraphDataInitialState,
+  useGraphDataStore,
+} from "./graph-data-store";
 
 function resetStore() {
-  useGraphDataStore.setState({ ...graphDataInitialState, entityFilters: { ...graphDataInitialState.entityFilters } });
+  useGraphDataStore.setState(cloneGraphDataInitialState());
+  window.localStorage.clear();
+  getGraphMock.mockReset();
 }
 
 const makeNode = (id: string, type?: string): Node => ({
@@ -22,72 +38,113 @@ const makeEdge = (source: string, target: string): Edge => ({
 describe("graphDataStore", () => {
   beforeEach(resetStore);
 
-  it("starts with empty nodes and edges", () => {
+  it("starts with empty graph data", () => {
     const state = useGraphDataStore.getState();
     expect(state.nodes).toEqual([]);
     expect(state.edges).toEqual([]);
+    expect(state.meta).toBeNull();
   });
 
-  it("sets nodes", () => {
-    const nodes = [makeNode("a"), makeNode("b")];
-    useGraphDataStore.getState().setNodes(nodes);
-    expect(useGraphDataStore.getState().nodes).toEqual(nodes);
+  it("defaults to the topology lens with initiative grouping", () => {
+    const state = useGraphDataStore.getState();
+    expect(state.lens).toBe("topology");
+    expect(state.settingsByLens.topology.groupingMode).toBe("initiative");
+    expect(state.settingsByLens.flow.groupingMode).toBe("none");
   });
 
-  it("sets edges", () => {
+  it("sets graph data atomically", () => {
+    const nodes = [makeNode("scenario/test")];
     const edges = [makeEdge("a", "b")];
-    useGraphDataStore.getState().setEdges(edges);
-    expect(useGraphDataStore.getState().edges).toEqual(edges);
-  });
 
-  it("sets graph data (nodes + edges atomically)", () => {
-    const nodes = [makeNode("a")];
-    const edges = [makeEdge("a", "b")];
-    useGraphDataStore.getState().setGraphData(nodes, edges);
+    useGraphDataStore.getState().setGraphData(nodes, edges, {
+      lens: "topology",
+      nodeCount: 1,
+      edgeCount: 1,
+      generatedAt: "2026-03-28T00:00:00Z",
+      agentManagerAvailable: null,
+    });
+
     const state = useGraphDataStore.getState();
     expect(state.nodes).toEqual(nodes);
     expect(state.edges).toEqual(edges);
+    expect(state.meta?.nodeCount).toBe(1);
   });
 
-  it("defaults to topology lens", () => {
-    expect(useGraphDataStore.getState().lens).toBe("topology");
+  it("applies entity filters per lens and persists them", () => {
+    useGraphDataStore.getState().setEntityFilter("capture", false);
+
+    const { settingsByLens } = useGraphDataStore.getState();
+    expect(settingsByLens.topology.entityFilters.capture).toBe(false);
+    expect(settingsByLens.flow.entityFilters.capture).toBe(true);
+
+    const persisted = window.localStorage.getItem("swarm-manager.graph.settings.v2");
+    expect(persisted).toContain("\"capture\":false");
   });
 
-  it("switches lens", () => {
-    useGraphDataStore.getState().setLens("flow");
-    expect(useGraphDataStore.getState().lens).toBe("flow");
-    useGraphDataStore.getState().setLens("operations");
-    expect(useGraphDataStore.getState().lens).toBe("operations");
+  it("tracks status visibility for the active lens", () => {
+    useGraphDataStore.getState().setStatusVisibility("running", false);
+
+    expect(useGraphDataStore.getState().settingsByLens.topology.statusFilters.running).toBe(false);
+
+    useGraphDataStore.getState().clearStatusFilter("running");
+    expect(useGraphDataStore.getState().settingsByLens.topology.statusFilters.running).toBeUndefined();
   });
 
-  it("has all entity filters enabled by default", () => {
-    const filters = useGraphDataStore.getState().entityFilters;
-    expect(filters.backlog).toBe(true);
-    expect(filters.scenario).toBe(true);
-    expect(filters.execution).toBe(true);
-    expect(filters.capture).toBe(true);
-    expect(filters["agent-run"]).toBe(true);
-    expect(filters.initiative).toBe(true);
+  it("resets only the current lens settings", () => {
+    const store = useGraphDataStore.getState();
+    store.setEntityFilter("capture", false);
+    store.setGroupingMode("none");
+    store.setStatusVisibility("running", false);
+    store.setLens("flow");
+    store.setEntityFilter("execution", false);
+
+    useGraphDataStore.getState().setLens("topology");
+    useGraphDataStore.getState().resetLensSettings();
+
+    const state = useGraphDataStore.getState();
+    expect(state.settingsByLens.topology.entityFilters.capture).toBe(true);
+    expect(state.settingsByLens.topology.groupingMode).toBe("initiative");
+    expect(state.settingsByLens.topology.statusFilters.running).toBeUndefined();
+    expect(state.settingsByLens.flow.entityFilters.execution).toBe(false);
   });
 
-  it("toggles entity filter", () => {
-    useGraphDataStore.getState().toggleEntityFilter("capture");
-    expect(useGraphDataStore.getState().entityFilters.capture).toBe(false);
-    useGraphDataStore.getState().toggleEntityFilter("capture");
-    expect(useGraphDataStore.getState().entityFilters.capture).toBe(true);
+  it("fetches graph data through the graph service", async () => {
+    getGraphMock.mockResolvedValue({
+      nodes: [makeNode("scenario/swarm-manager", "scenario")],
+      edges: [],
+      meta: {
+        lens: "topology",
+        nodeCount: 1,
+        edgeCount: 0,
+        generatedAt: "2026-03-28T00:00:00Z",
+        agentManagerAvailable: null,
+      },
+    });
+
+    await useGraphDataStore.getState().fetchGraph("topology");
+
+    const state = useGraphDataStore.getState();
+    expect(getGraphMock).toHaveBeenCalledWith("topology");
+    expect(state.nodes).toHaveLength(1);
+    expect(state.meta?.generatedAt).toBe("2026-03-28T00:00:00Z");
+    expect(state.loading).toBe(false);
+    expect(state.error).toBeNull();
   });
 
-  it("sets entity filter explicitly", () => {
-    useGraphDataStore.getState().setEntityFilter("backlog", false);
-    expect(useGraphDataStore.getState().entityFilters.backlog).toBe(false);
-  });
+  it("preserves pulsing node state across graph replacements", () => {
+    useGraphDataStore.setState({
+      ...cloneGraphDataInitialState(),
+      nodes: [
+        {
+          ...makeNode("run/abc", "agent-run"),
+          data: { label: "Run abc", entityType: "agent-run", pulsing: true },
+        },
+      ],
+    });
 
-  it("resets filters to defaults", () => {
-    useGraphDataStore.getState().toggleEntityFilter("backlog");
-    useGraphDataStore.getState().toggleEntityFilter("scenario");
-    useGraphDataStore.getState().resetFilters();
-    const filters = useGraphDataStore.getState().entityFilters;
-    expect(filters.backlog).toBe(true);
-    expect(filters.scenario).toBe(true);
+    useGraphDataStore.getState().setGraphData([makeNode("run/abc", "agent-run")], []);
+
+    const [node] = useGraphDataStore.getState().nodes;
+    expect((node.data as Record<string, unknown>).pulsing).toBe(true);
   });
 });

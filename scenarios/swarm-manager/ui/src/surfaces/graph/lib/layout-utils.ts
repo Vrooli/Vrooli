@@ -7,37 +7,37 @@
 
 import dagre from "dagre";
 import type { Node, Edge } from "@xyflow/react";
-import type { LayoutMode } from "../stores/graph-ui-store";
+import type { LayoutDirection, LayoutMode } from "../stores/graph-ui-store";
 
 const DEFAULT_NODE_WIDTH = 180;
 const DEFAULT_NODE_HEIGHT = 72;
 
 interface DagreConfig {
-  rankdir: string;
+  rankdir: LayoutDirection;
   ranksep: number;
   nodesep: number;
   ranker: string;
 }
 
-export function getDagreConfig(mode: LayoutMode): DagreConfig {
+export function getDagreConfig(mode: LayoutMode, direction: LayoutDirection): DagreConfig {
   switch (mode) {
     case "hierarchical":
       return {
-        rankdir: "TB",
+        rankdir: direction,
         ranksep: 80,
         nodesep: 40,
         ranker: "network-simplex",
       };
     case "compact":
       return {
-        rankdir: "LR",
+        rankdir: direction,
         ranksep: 60,
         nodesep: 30,
         ranker: "tight-tree",
       };
     case "grouped":
       return {
-        rankdir: "TB",
+        rankdir: direction,
         ranksep: 100,
         nodesep: 60,
         ranker: "network-simplex",
@@ -52,14 +52,15 @@ export function applyDagreLayout(
   nodes: Node[],
   edges: Edge[],
   mode: LayoutMode,
+  direction: LayoutDirection,
 ): Node[] {
   if (nodes.length === 0) return [];
 
-  const config = getDagreConfig(mode);
+  const config = getDagreConfig(mode, direction);
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
   g.setGraph({
-    rankdir: config.rankdir,
+    rankdir: direction,
     ranksep: config.ranksep,
     nodesep: config.nodesep,
     ranker: config.ranker,

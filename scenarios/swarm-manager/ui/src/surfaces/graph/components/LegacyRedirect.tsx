@@ -2,7 +2,7 @@
  * LegacyRedirect - Client-side redirects from old tabbed routes to /graph.
  */
 
-import { Navigate, useParams, useLocation } from "react-router-dom";
+import { Navigate, useParams } from "react-router-dom";
 
 /**
  * Redirect /backlog → /graph?lens=topology
@@ -12,11 +12,11 @@ export function BacklogRedirect() {
 }
 
 /**
- * Redirect /backlog/:kind/:name → /graph?lens=topology&select=kind/name
+ * Redirect /backlog/:kind/:name → /graph?lens=topology&select=backlog-item/kind/name
  */
 export function BacklogDetailsRedirect() {
   const { kind, name } = useParams<{ kind: string; name: string }>();
-  return <Navigate to={`/graph?lens=topology&select=${kind}/${name}`} replace />;
+  return <Navigate to={`/graph?lens=topology&select=backlog-item/${kind}/${name}`} replace />;
 }
 
 /**

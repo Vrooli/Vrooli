@@ -110,7 +110,7 @@ function GraphNodeComponent({ data, selected }: NodeProps) {
           colors.bg,
           colors.border,
           selected && "ring-2 ring-cyan-400/60 border-cyan-400/70 shadow-cyan-500/20",
-          nodeData.pulsing && "graph-node-pulse",
+          Boolean(nodeData.pulsing) && "graph-node-pulse",
         )}
         onAnimationEnd={(e) => {
           if (e.animationName === "graph-node-pulse") {

@@ -17,6 +17,7 @@ import { cn } from "../../../lib/utils";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import type { EntityType } from "../stores/graph-data-store";
 import { getActionsForNode, type InspectorAction } from "../lib/action-registry";
+import { parseNodeId } from "../lib/node-id-parser";
 
 interface InspectorProps {
   isOpen: boolean;
@@ -29,20 +30,19 @@ interface InspectorProps {
  * Returns null for entity types with no detail page.
  */
 function getDetailsPath(node: Node): string | null {
-  const data = node.data as Record<string, unknown>;
-  const entityType = data.entityType as string | undefined;
-  if (entityType === "backlog" && typeof data.kind === "string") {
-    // node.id is "kind/name"
-    const name = node.id.split("/").slice(1).join("/");
-    return `/details/backlog/${data.kind}/${name}`;
+  const parsed = parseNodeId(node.id);
+  if (!parsed) {
+    return null;
   }
-  if (entityType === "scenario") {
-    const name = node.id.replace(/^scenario\//, "");
-    return `/details/scenario/${name}`;
+
+  if (parsed.entityType === "backlog" && parsed.kind && parsed.name) {
+    return `/details/backlog/${parsed.kind}/${parsed.name}`;
   }
-  if (entityType === "execution") {
-    const id = node.id.replace(/^(execution-record|execution)\//, "");
-    return `/details/execution/${id}`;
+  if (parsed.entityType === "scenario" && parsed.name) {
+    return `/details/scenario/${parsed.name}`;
+  }
+  if (parsed.entityType === "execution") {
+    return `/details/execution/${parsed.identifier}`;
   }
   return null;
 }

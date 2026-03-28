@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { Node } from "@xyflow/react";
 import { Inspector } from "./Inspector";
-import { useGraphDataStore, graphDataInitialState } from "../stores/graph-data-store";
+import { cloneGraphDataInitialState, useGraphDataStore } from "../stores/graph-data-store";
 import type { GraphLens } from "../stores/graph-data-store";
 
 // jsdom doesn't provide matchMedia.
@@ -25,9 +25,8 @@ beforeAll(() => {
 
 function resetStore(lens: GraphLens = "topology") {
   useGraphDataStore.setState({
-    ...graphDataInitialState,
+    ...cloneGraphDataInitialState(),
     lens,
-    entityFilters: { ...graphDataInitialState.entityFilters },
   });
 }
 
@@ -116,7 +115,7 @@ describe("Inspector", () => {
 
   // Flow lens: shows actions for backlog and execution.
   it("shows queue and view-details for backlog on flow lens", () => {
-    const node = makeNode("execute/my-feature", "backlog", "ready", "execute");
+    const node = makeNode("backlog-item/execute/my-feature", "backlog", "ready", "execute");
     renderInspector(node, "flow");
     expect(screen.getByTestId("inspector-actions")).toBeInTheDocument();
     expect(screen.getByTestId("inspector-action-queue")).toBeInTheDocument();
@@ -124,7 +123,7 @@ describe("Inspector", () => {
   });
 
   it("shows execution actions on flow lens", () => {
-    const node = makeNode("execution/abc-123", "execution", "completed");
+    const node = makeNode("execution-record/abc-123", "execution", "completed");
     renderInspector(node, "flow");
     expect(screen.getByTestId("inspector-action-view-execution-details")).toBeInTheDocument();
     expect(screen.getByTestId("inspector-action-view-prompt-trace")).toBeInTheDocument();
@@ -145,7 +144,7 @@ describe("Inspector", () => {
   });
 
   it("shows stop for agent-run on operations lens", () => {
-    const node = makeNode("agent-run/run-456", "agent-run", "running");
+    const node = makeNode("run/run-456", "agent-run", "running");
     renderInspector(node, "operations");
     expect(screen.getByTestId("inspector-action-stop-run")).toBeInTheDocument();
   });

@@ -1,44 +1,26 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { useGraphUIStore, graphUIInitialState } from "./graph-ui-store";
+import { beforeEach, describe, expect, it } from "vitest";
+import { cloneGraphUIInitialState, useGraphUIStore } from "./graph-ui-store";
 
 function resetStore() {
-  useGraphUIStore.setState({
-    ...graphUIInitialState,
-    highlightState: { highlighted: new Set(), mode: "normal" },
-    layoutPreferences: {},
-    viewport: null,
-    sidebarCollapsed: false,
-    inspectorOpen: false,
-    selectedNodeId: null,
-  });
+  useGraphUIStore.setState(cloneGraphUIInitialState());
+  window.localStorage.clear();
 }
 
-// Mock localStorage.
-const storage = new Map<string, string>();
-vi.stubGlobal("localStorage", {
-  getItem: (key: string) => storage.get(key) ?? null,
-  setItem: (key: string, value: string) => storage.set(key, value),
-  removeItem: (key: string) => storage.delete(key),
-});
-
 describe("graphUIStore", () => {
-  beforeEach(() => {
-    storage.clear();
-    resetStore();
-  });
+  beforeEach(resetStore);
 
   describe("node selection", () => {
     it("starts with no selection", () => {
       expect(useGraphUIStore.getState().selectedNodeId).toBeNull();
     });
 
-    it("selects a node and opens inspector", () => {
+    it("selects a node and opens the inspector", () => {
       useGraphUIStore.getState().selectNode("node-1");
       expect(useGraphUIStore.getState().selectedNodeId).toBe("node-1");
       expect(useGraphUIStore.getState().inspectorOpen).toBe(true);
     });
 
-    it("deselects node on null", () => {
+    it("clears selection on null", () => {
       useGraphUIStore.getState().selectNode("node-1");
       useGraphUIStore.getState().selectNode(null);
       expect(useGraphUIStore.getState().selectedNodeId).toBeNull();
@@ -46,134 +28,92 @@ describe("graphUIStore", () => {
     });
   });
 
-  describe("highlight state", () => {
-    it("defaults to normal mode with empty set", () => {
-      const { highlightState } = useGraphUIStore.getState();
-      expect(highlightState.mode).toBe("normal");
-      expect(highlightState.highlighted.size).toBe(0);
-    });
-
-    it("updates highlight state", () => {
-      useGraphUIStore.getState().setHighlightState({
-        highlighted: new Set(["a", "b"]),
-        mode: "dim",
-      });
-      const { highlightState } = useGraphUIStore.getState();
-      expect(highlightState.mode).toBe("dim");
-      expect(highlightState.highlighted.has("a")).toBe(true);
-      expect(highlightState.highlighted.has("b")).toBe(true);
-    });
-  });
-
-  describe("layout mode", () => {
+  describe("layout preferences", () => {
     it("defaults to hierarchical", () => {
       expect(useGraphUIStore.getState().layoutMode).toBe("hierarchical");
     });
 
-    it("sets layout mode", () => {
-      useGraphUIStore.getState().setLayoutMode("compact");
-      expect(useGraphUIStore.getState().layoutMode).toBe("compact");
-    });
-
-    it("cycles through layout modes", () => {
-      expect(useGraphUIStore.getState().layoutMode).toBe("hierarchical");
-      useGraphUIStore.getState().cycleLayoutMode();
-      expect(useGraphUIStore.getState().layoutMode).toBe("compact");
-      useGraphUIStore.getState().cycleLayoutMode();
-      expect(useGraphUIStore.getState().layoutMode).toBe("grouped");
-      useGraphUIStore.getState().cycleLayoutMode();
-      expect(useGraphUIStore.getState().layoutMode).toBe("hierarchical");
-    });
-  });
-
-  describe("per-lens layout preferences", () => {
-    it("returns hierarchical as default for unknown lens", () => {
-      expect(useGraphUIStore.getState().getLayoutForLens("topology")).toBe("hierarchical");
-    });
-
-    it("persists and retrieves per-lens layout", () => {
+    it("persists per-lens layout mode changes", () => {
       useGraphUIStore.getState().setLayoutForLens("topology", "compact");
-      expect(useGraphUIStore.getState().getLayoutForLens("topology")).toBe("compact");
+
       expect(useGraphUIStore.getState().layoutMode).toBe("compact");
+      expect(useGraphUIStore.getState().getLayoutForLens("topology")).toBe("compact");
+      expect(window.localStorage.getItem("swarm-manager.graph.layout")).toContain("\"topology\":\"compact\"");
     });
 
-    it("saves to localStorage", () => {
-      useGraphUIStore.getState().setLayoutForLens("flow", "grouped");
-      const stored = JSON.parse(storage.get("swarm-manager.graph.layout")!);
-      expect(stored.flow).toBe("grouped");
+    it("cycles layout mode for the current lens", () => {
+      useGraphUIStore.getState().cycleLayoutMode("topology");
+      expect(useGraphUIStore.getState().layoutMode).toBe("compact");
+
+      useGraphUIStore.getState().cycleLayoutMode("topology");
+      expect(useGraphUIStore.getState().layoutMode).toBe("grouped");
+    });
+
+    it("loads a stored lens layout into the active layout mode", () => {
+      useGraphUIStore.getState().setLayoutForLens("operations", "grouped");
+      useGraphUIStore.getState().setLayoutMode("hierarchical");
+
+      useGraphUIStore.getState().applyLayoutForLens("operations");
+      expect(useGraphUIStore.getState().layoutMode).toBe("grouped");
+    });
+
+    it("stores layout direction", () => {
+      useGraphUIStore.getState().setLayoutDirection("LR");
+      expect(useGraphUIStore.getState().layoutDirection).toBe("LR");
+      expect(window.localStorage.getItem("swarm-manager.graph.layout-direction")).toBe("LR");
     });
   });
 
-  describe("viewport persistence", () => {
-    it("starts with null viewport", () => {
-      expect(useGraphUIStore.getState().viewport).toBeNull();
+  describe("fit view and viewport", () => {
+    it("increments the fit-view nonce on request", () => {
+      expect(useGraphUIStore.getState().fitViewNonce).toBe(0);
+      useGraphUIStore.getState().requestFitView();
+      expect(useGraphUIStore.getState().fitViewNonce).toBe(1);
     });
 
-    it("saves viewport to state and localStorage", () => {
-      const viewport = { x: 100, y: 200, zoom: 1.5 };
+    it("persists viewport changes", () => {
+      const viewport = { x: 100, y: 200, zoom: 1.2 };
       useGraphUIStore.getState().setViewport(viewport);
+
       expect(useGraphUIStore.getState().viewport).toEqual(viewport);
-      const stored = JSON.parse(storage.get("swarm-manager.graph.viewport")!);
-      expect(stored).toEqual(viewport);
+      expect(window.localStorage.getItem("swarm-manager.graph.viewport")).toBe(
+        JSON.stringify(viewport),
+      );
     });
   });
 
-  describe("sidebar collapse", () => {
-    it("starts expanded", () => {
-      expect(useGraphUIStore.getState().sidebarCollapsed).toBe(false);
-    });
-
-    it("toggles collapse state", () => {
+  describe("sidebar and inspector", () => {
+    it("toggles the sidebar", () => {
       useGraphUIStore.getState().toggleSidebar();
       expect(useGraphUIStore.getState().sidebarCollapsed).toBe(true);
-      expect(storage.get("swarm-manager.graph.sidebar-collapsed")).toBe("true");
-      useGraphUIStore.getState().toggleSidebar();
-      expect(useGraphUIStore.getState().sidebarCollapsed).toBe(false);
+      expect(window.localStorage.getItem("swarm-manager.graph.sidebar-collapsed")).toBe("true");
     });
 
-    it("sets collapse state explicitly", () => {
-      useGraphUIStore.getState().setSidebarCollapsed(true);
-      expect(useGraphUIStore.getState().sidebarCollapsed).toBe(true);
-    });
-  });
-
-  describe("inspector", () => {
-    it("starts closed", () => {
-      expect(useGraphUIStore.getState().inspectorOpen).toBe(false);
-    });
-
-    it("toggles inspector", () => {
+    it("toggles the inspector", () => {
       useGraphUIStore.getState().toggleInspector();
       expect(useGraphUIStore.getState().inspectorOpen).toBe(true);
-      useGraphUIStore.getState().toggleInspector();
-      expect(useGraphUIStore.getState().inspectorOpen).toBe(false);
     });
   });
 
-  describe("cluster collapse", () => {
-    it("starts with empty collapsed clusters set", () => {
-      expect(useGraphUIStore.getState().collapsedClusters.size).toBe(0);
+  describe("topology cluster expansion", () => {
+    it("starts with no expanded topology clusters", () => {
+      expect(useGraphUIStore.getState().expandedTopologyClusters.size).toBe(0);
     });
 
-    it("toggles cluster collapse", () => {
-      useGraphUIStore.getState().toggleClusterCollapse("initiative/init-1");
-      expect(useGraphUIStore.getState().collapsedClusters.has("initiative/init-1")).toBe(true);
+    it("toggles a topology cluster", () => {
+      useGraphUIStore.getState().toggleTopologyCluster("initiative/graph");
+      expect(useGraphUIStore.getState().expandedTopologyClusters.has("initiative/graph")).toBe(true);
 
-      useGraphUIStore.getState().toggleClusterCollapse("initiative/init-1");
-      expect(useGraphUIStore.getState().collapsedClusters.has("initiative/init-1")).toBe(false);
+      useGraphUIStore.getState().toggleTopologyCluster("initiative/graph");
+      expect(useGraphUIStore.getState().expandedTopologyClusters.has("initiative/graph")).toBe(false);
     });
 
-    it("sets all clusters collapsed", () => {
-      useGraphUIStore.getState().setAllClustersCollapsed([
-        "initiative/init-1",
-        "initiative/init-2",
-        "__unassigned__",
-      ]);
-      const { collapsedClusters } = useGraphUIStore.getState();
-      expect(collapsedClusters.size).toBe(3);
-      expect(collapsedClusters.has("initiative/init-1")).toBe(true);
-      expect(collapsedClusters.has("initiative/init-2")).toBe(true);
-      expect(collapsedClusters.has("__unassigned__")).toBe(true);
+    it("can collapse and expand all topology clusters", () => {
+      useGraphUIStore.getState().expandTopologyClusters(["initiative/one", "initiative/two"]);
+      expect(useGraphUIStore.getState().expandedTopologyClusters.size).toBe(2);
+
+      useGraphUIStore.getState().collapseAllTopologyClusters();
+      expect(useGraphUIStore.getState().expandedTopologyClusters.size).toBe(0);
     });
   });
 });

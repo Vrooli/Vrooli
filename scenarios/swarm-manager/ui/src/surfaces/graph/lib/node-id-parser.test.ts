@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseNodeId } from "./node-id-parser";
+import { parseNodeId, toCanonicalNodeId } from "./node-id-parser";
 
 describe("parseNodeId", () => {
   // Server-side projection format (prefixed).
@@ -41,8 +41,8 @@ describe("parseNodeId", () => {
     });
   });
 
-  it("parses agent-run/{runId} (prefixed)", () => {
-    const result = parseNodeId("agent-run/run-456");
+  it("parses run/{runId}", () => {
+    const result = parseNodeId("run/run-456");
     expect(result).toEqual({
       entityType: "agent-run",
       identifier: "run-456",
@@ -94,6 +94,12 @@ describe("parseNodeId", () => {
       identifier: "my-scenario",
       name: "my-scenario",
     });
+  });
+
+  it("converts legacy IDs to canonical node IDs", () => {
+    expect(toCanonicalNodeId("execute/my-feature")).toBe("backlog-item/execute/my-feature");
+    expect(toCanonicalNodeId("execution/xyz-789")).toBe("execution-record/xyz-789");
+    expect(toCanonicalNodeId("agent-run/run-456")).toBe("run/run-456");
   });
 
   // Edge cases.

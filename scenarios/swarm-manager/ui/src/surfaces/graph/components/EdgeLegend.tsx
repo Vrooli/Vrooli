@@ -11,8 +11,19 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { EDGE_STYLES } from "../lib/edge-styles";
 import { cn } from "../../../lib/utils";
 
-export function EdgeLegend() {
+interface EdgeLegendProps {
+  edgeTypes: string[];
+}
+
+export function EdgeLegend({ edgeTypes }: EdgeLegendProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const legendEntries = edgeTypes
+    .map((type) => [type, EDGE_STYLES[type]] as const)
+    .filter((entry): entry is [string, (typeof EDGE_STYLES)[string]] => Boolean(entry[1]));
+
+  if (legendEntries.length === 0) {
+    return null;
+  }
 
   return (
     <div
@@ -33,7 +44,7 @@ export function EdgeLegend() {
       </button>
       {!collapsed && (
         <div className="space-y-1 px-3 pb-2" data-testid="edge-legend-items">
-          {Object.entries(EDGE_STYLES).map(([type, config]) => (
+          {legendEntries.map(([type, config]) => (
             <div key={type} className="flex items-center gap-2">
               <svg width="24" height="8" className="shrink-0">
                 <line

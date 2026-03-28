@@ -23,6 +23,7 @@ const PREFIX_MAP: Record<string, EntityType> = {
   "scenario": "scenario",
   "execution-record": "execution",
   "agent-run": "agent-run",
+  "run": "agent-run",
   "capture": "capture",
   "initiative": "initiative",
 };
@@ -35,7 +36,7 @@ const PREFIX_MAP: Record<string, EntityType> = {
  * - backlog-item/{kind}/{name}  → entityType: "backlog", kind, name
  * - scenario/{name}             → entityType: "scenario", name
  * - execution-record/{id}       → entityType: "execution", identifier
- * - agent-run/{runId}           → entityType: "agent-run", identifier
+ * - run/{runId}                 → entityType: "agent-run", identifier
  * - capture/{id}                → entityType: "capture", identifier
  * - initiative/{name}           → entityType: "initiative", name
  *
@@ -126,4 +127,38 @@ export function parseNodeId(nodeId: string): ParsedNodeId | null {
   }
 
   return null;
+}
+
+export function buildBacklogNodeId(kind: string, name: string): string {
+  return `backlog-item/${kind}/${name}`;
+}
+
+export function buildExecutionNodeId(executionId: string): string {
+  return `execution-record/${executionId}`;
+}
+
+export function buildRunNodeId(runId: string): string {
+  return `run/${runId}`;
+}
+
+export function toCanonicalNodeId(nodeId: string): string {
+  const parsed = parseNodeId(nodeId);
+  if (!parsed) return nodeId;
+
+  switch (parsed.entityType) {
+    case "backlog":
+      return parsed.kind && parsed.name ? buildBacklogNodeId(parsed.kind, parsed.name) : nodeId;
+    case "execution":
+      return buildExecutionNodeId(parsed.identifier);
+    case "agent-run":
+      return buildRunNodeId(parsed.identifier);
+    case "scenario":
+      return `scenario/${parsed.name ?? parsed.identifier}`;
+    case "capture":
+      return `capture/${parsed.identifier}`;
+    case "initiative":
+      return `initiative/${parsed.name ?? parsed.identifier}`;
+    default:
+      return nodeId;
+  }
 }

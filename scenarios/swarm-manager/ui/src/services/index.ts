@@ -46,3 +46,7 @@ export type {
   PromptSimulateRequest,
   PromptSimulateResponse,
 } from "./prompt-service";
+
+// Graph
+export { graphService, createGraphService } from "./graph-service";
+export type { IGraphService, GraphProjection, GraphProjectionMeta } from "./graph-service";

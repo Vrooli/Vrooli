@@ -13,6 +13,7 @@ import {
   emitShortcutIntent,
   HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER,
 } from "@vrooli/iframe-bridge";
+import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
 import type { GraphLens } from "../stores/graph-data-store";
 
@@ -41,6 +42,7 @@ export function useGraphKeyboardShortcuts(handlers: GraphShortcutHandlers): void
   const cycleLayoutMode = useGraphUIStore((s) => s.cycleLayoutMode);
   const toggleInspector = useGraphUIStore((s) => s.toggleInspector);
   const selectedNodeId = useGraphUIStore((s) => s.selectedNodeId);
+  const lens = useGraphDataStore((s) => s.lens);
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
@@ -63,13 +65,16 @@ export function useGraphKeyboardShortcuts(handlers: GraphShortcutHandlers): void
 
       // Number keys 1-3 — Lens switching
       if (!mod && event.key in LENS_MAP) {
-        handlers.onLensChange(LENS_MAP[event.key]!);
+        const nextLens = LENS_MAP[event.key];
+        if (nextLens) {
+          handlers.onLensChange(nextLens);
+        }
         return;
       }
 
       // L — Cycle layout mode
       if (!mod && event.key.toLowerCase() === "l") {
-        cycleLayoutMode();
+        cycleLayoutMode(lens);
         return;
       }
 
@@ -87,7 +92,7 @@ export function useGraphKeyboardShortcuts(handlers: GraphShortcutHandlers): void
         return;
       }
     },
-    [handlers, cycleLayoutMode, toggleInspector, selectedNodeId],
+    [handlers, cycleLayoutMode, lens, toggleInspector, selectedNodeId],
   );
 
   useEffect(() => {

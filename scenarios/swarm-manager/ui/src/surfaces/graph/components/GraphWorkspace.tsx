@@ -1,27 +1,22 @@
 /**
- * GraphWorkspace - Main layout component replacing MainLayout.
+ * GraphWorkspace - Graph-first shell for swarm-manager.
  *
- * Renders: header (title, lens switcher, gear, agents dropdown) + sidebar + canvas + inspector.
+ * Renders: header (title, lens switcher, graph controls, active runs),
+ * activity feed, graph canvas, and inspector.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Activity, Settings, Square, X } from "lucide-react";
-import { cn, defaultQueryOptions, formatRelativeTime } from "../../../lib";
+import { defaultQueryOptions, formatRelativeTime } from "../../../lib";
 import { applyTheme, watchSystemTheme } from "../../../lib/theme-utils";
 import { buildFeed } from "../../../lib/feed";
 import { settingsService } from "../../../services";
-import {
-  useAgentRunsStore,
-  useBacklogStore,
-  useCaptureStore,
-  useExecutionStore,
-  useScenariosStore,
-} from "../../../stores";
+import { useAgentRunsStore, useBacklogStore, useCaptureStore } from "../../../stores";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
-import { assembleGraphData } from "../lib/graph-assembler";
+import { buildBacklogNodeId, buildRunNodeId } from "../lib/node-id-parser";
 import { useGraphKeyboardShortcuts } from "../hooks/useGraphKeyboardShortcuts";
 import { useGraphWebSocket } from "../hooks/useGraphWebSocket";
 import { GraphCanvas } from "./GraphCanvas";
@@ -32,46 +27,44 @@ import { SettingsDrawer } from "./SettingsDrawer";
 import type { GraphLens } from "../stores/graph-data-store";
 import type { FeedbackItem, MaturityItem } from "../../../lib/feed";
 
+function isGraphLens(value: string | null): value is GraphLens {
+  return value === "topology" || value === "flow" || value === "operations";
+}
+
 export function GraphWorkspace() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showAgentsDropdown, setShowAgentsDropdown] = useState(false);
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
 
-  // URL-driven state.
-  const urlLens = (searchParams.get("lens") as GraphLens) ?? "topology";
+  const searchLens = searchParams.get("lens");
+  const urlLens: GraphLens = isGraphLens(searchLens) ? searchLens : "topology";
   const urlSelect = searchParams.get("select");
 
-  // Existing stores.
   const fetchBacklog = useBacklogStore((s) => s.fetchBacklog);
   const backlogItems = useBacklogStore((s) => s.items);
-  const fetchScenarios = useScenariosStore((s) => s.fetchScenarios);
-  const scenarios = useScenariosStore((s) => s.scenarios);
-  const fetchExecutions = useExecutionStore((s) => s.fetchExecutions);
-  const executions = useExecutionStore((s) => s.items);
   const fetchCaptures = useCaptureStore((s) => s.fetchCaptures);
   const captures = useCaptureStore((s) => s.captures);
   const agentRuns = useAgentRunsStore((s) => s.runs);
   const stopRun = useAgentRunsStore((s) => s.stopRun);
   const refreshActiveRuns = useAgentRunsStore((s) => s.refreshActiveRuns);
 
-  // Graph stores.
   const lens = useGraphDataStore((s) => s.lens);
-  const setLens = useGraphDataStore((s) => s.setLens);
-  const setGraphData = useGraphDataStore((s) => s.setGraphData);
+  const fetchGraph = useGraphDataStore((s) => s.fetchGraph);
   const nodes = useGraphDataStore((s) => s.nodes);
+  const setLens = useGraphDataStore((s) => s.setLens);
+  const setNodePulsing = useGraphDataStore((s) => s.setNodePulsing);
   const selectedNodeId = useGraphUIStore((s) => s.selectedNodeId);
   const selectNode = useGraphUIStore((s) => s.selectNode);
   const inspectorOpen = useGraphUIStore((s) => s.inspectorOpen);
   const setInspectorOpen = useGraphUIStore((s) => s.setInspectorOpen);
+  const applyLayoutForLens = useGraphUIStore((s) => s.applyLayoutForLens);
 
-  // Settings (for theme).
   const { data: settings } = useQuery({
     queryKey: ["settings"],
     queryFn: () => settingsService.get(),
     ...defaultQueryOptions,
   });
 
-  // Theme application.
   useEffect(() => {
     const theme = settings?.theme ?? "dark";
     applyTheme(theme);
@@ -81,68 +74,53 @@ export function GraphWorkspace() {
     return undefined;
   }, [settings?.theme]);
 
-  // Data fetching.
   useEffect(() => {
     void fetchBacklog();
-    void fetchScenarios();
-    void fetchExecutions();
     void fetchCaptures();
-  }, [fetchBacklog, fetchScenarios, fetchExecutions, fetchCaptures]);
+  }, [fetchBacklog, fetchCaptures]);
 
-  // Agent run polling.
   useEffect(() => {
     void refreshActiveRuns();
     const timer = window.setInterval(() => void refreshActiveRuns(), 5000);
     return () => window.clearInterval(timer);
   }, [refreshActiveRuns]);
 
-  // Sync URL lens to store.
   useEffect(() => {
-    if (urlLens !== lens) {
-      setLens(urlLens);
+    setLens(urlLens);
+    applyLayoutForLens(urlLens);
+    void fetchGraph(urlLens);
+  }, [applyLayoutForLens, fetchGraph, setLens, urlLens]);
+
+  useEffect(() => {
+    if (urlSelect) {
+      if (urlSelect !== selectedNodeId) {
+        selectNode(urlSelect);
+      }
+      return;
     }
-  }, [urlLens, lens, setLens]);
 
-  // Sync URL select to store.
-  useEffect(() => {
-    if (urlSelect && urlSelect !== selectedNodeId) {
-      selectNode(urlSelect);
+    if (selectedNodeId) {
+      selectNode(null);
     }
-  }, [urlSelect, selectedNodeId, selectNode]);
+  }, [selectedNodeId, selectNode, urlSelect]);
 
-  // Assemble graph data from existing stores.
-  useEffect(() => {
-    const { nodes: assembledNodes, edges } = assembleGraphData(
-      backlogItems,
-      scenarios,
-      executions,
-      captures,
-      agentRuns,
-    );
-    setGraphData(assembledNodes, edges);
-  }, [backlogItems, scenarios, executions, captures, agentRuns, setGraphData]);
-
-  // Lens change handler.
   const handleLensChange = useCallback(
     (newLens: GraphLens) => {
-      setLens(newLens);
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
         next.set("lens", newLens);
         return next;
       });
     },
-    [setLens, setSearchParams],
+    [setSearchParams],
   );
 
-  // Feed data (for sidebar).
   const feed = useMemo(() => {
     const feedbackItems: FeedbackItem[] = [];
     const maturityItems: MaturityItem[] = [];
     return buildFeed(captures, backlogItems, feedbackItems, maturityItems);
   }, [captures, backlogItems]);
 
-  // Handle sidebar item click.
   const handleSidebarItemClick = useCallback(
     (nodeId: string) => {
       selectNode(nodeId);
@@ -155,13 +133,11 @@ export function GraphWorkspace() {
     [selectNode, setSearchParams],
   );
 
-  // Find selected node object.
   const selectedNode = useMemo(() => {
     if (!selectedNodeId) return null;
-    return nodes.find((n) => n.id === selectedNodeId) ?? null;
-  }, [selectedNodeId, nodes]);
+    return nodes.find((node) => node.id === selectedNodeId) ?? null;
+  }, [nodes, selectedNodeId]);
 
-  // Handle inspector close.
   const handleInspectorClose = useCallback(() => {
     setInspectorOpen(false);
     selectNode(null);
@@ -170,9 +146,8 @@ export function GraphWorkspace() {
       next.delete("select");
       return next;
     });
-  }, [setInspectorOpen, selectNode, setSearchParams]);
+  }, [selectNode, setInspectorOpen, setSearchParams]);
 
-  // Active agent runs for dropdown.
   const sortedActiveRuns = useMemo(() => {
     return [...agentRuns]
       .filter((run) => ["pending", "starting", "running", "needs_review"].includes(run.status))
@@ -190,30 +165,21 @@ export function GraphWorkspace() {
     return `${hours}h ${remainingMinutes}m`;
   };
 
-  // Keyboard shortcuts.
   useGraphKeyboardShortcuts({
     onLensChange: handleLensChange,
     onInspectorClose: handleInspectorClose,
-    onSettingsToggle: () => setShowSettingsDrawer((v) => !v),
+    onSettingsToggle: () => setShowSettingsDrawer((prev) => !prev),
   });
 
-  // WebSocket: connect only when Operations lens is active.
-  const handleNodePulse = useCallback((nodeId: string) => {
-    // Set pulsing flag on node data — GraphNode reads this to apply the CSS animation class.
-    useGraphDataStore.setState((state) => ({
-      nodes: state.nodes.map((n) =>
-        n.id === nodeId ? { ...n, data: { ...n.data, pulsing: true } } : n,
-      ),
-    }));
-    // Clear pulsing flag after the animation duration (2s).
-    window.setTimeout(() => {
-      useGraphDataStore.setState((state) => ({
-        nodes: state.nodes.map((n) =>
-          n.id === nodeId ? { ...n, data: { ...n.data, pulsing: false } } : n,
-        ),
-      }));
-    }, 2000);
-  }, []);
+  const handleNodePulse = useCallback(
+    (nodeId: string) => {
+      setNodePulsing(nodeId, true);
+      window.setTimeout(() => {
+        setNodePulsing(nodeId, false);
+      }, 2000);
+    },
+    [setNodePulsing],
+  );
 
   useGraphWebSocket({
     enabled: lens === "operations",
@@ -222,24 +188,24 @@ export function GraphWorkspace() {
 
   return (
     <div className="flex h-screen flex-col bg-slate-950 text-slate-50" data-testid="graph-workspace">
-      {/* Header */}
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200/20 px-3 md:px-4 gap-2" data-testid="graph-header">
-        <div className="flex items-center gap-2 md:gap-4 min-w-0">
-          <h1 className="hidden md:block text-lg font-semibold whitespace-nowrap">Swarm Manager</h1>
+      <header
+        className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-slate-200/20 px-3 md:px-4"
+        data-testid="graph-header"
+      >
+        <div className="flex min-w-0 items-center gap-2 md:gap-4">
+          <h1 className="hidden whitespace-nowrap text-lg font-semibold md:block">Swarm Manager</h1>
           <LensSwitcher activeLens={lens} onLensChange={handleLensChange} />
         </div>
-        <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
-          {/* Settings gear */}
+        <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
           <button
             type="button"
-            onClick={() => setShowSettingsDrawer((v) => !v)}
-            className="rounded-lg p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-colors"
-            aria-label="Open settings"
+            onClick={() => setShowSettingsDrawer((prev) => !prev)}
+            className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800/50 hover:text-slate-200"
+            aria-label="Open graph controls"
             data-testid="settings-gear"
           >
             <Settings className="h-5 w-5" />
           </button>
-          {/* Agent-run dropdown */}
           <div className="relative">
             <button
               type="button"
@@ -302,16 +268,30 @@ export function GraphWorkspace() {
                               Spawned {formatRelativeTime(run.createdAt)} • Duration {formatDuration(run.durationSeconds)}
                             </p>
                             <div className="mt-2 flex items-center gap-2">
-                              {run.backlogKind && run.backlogName && (
+                              <button
+                                type="button"
+                                className="rounded border border-slate-700/80 bg-slate-900/60 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800/70"
+                                onClick={() => {
+                                  handleLensChange("operations");
+                                  handleSidebarItemClick(buildRunNodeId(run.runId));
+                                  setShowAgentsDropdown(false);
+                                }}
+                              >
+                                View Run
+                              </button>
+                              {run.backlogKind !== undefined && run.backlogName !== undefined && (
                                 <button
                                   type="button"
                                   className="rounded border border-slate-700/80 bg-slate-900/60 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800/70"
                                   onClick={() => {
-                                    handleSidebarItemClick(`${run.backlogKind}/${run.backlogName}`);
+                                    handleLensChange("topology");
+                                    handleSidebarItemClick(
+                                      buildBacklogNodeId(run.backlogKind, run.backlogName),
+                                    );
                                     setShowAgentsDropdown(false);
                                   }}
                                 >
-                                  Select
+                                  View Backlog
                                 </button>
                               )}
                               <button
@@ -336,24 +316,15 @@ export function GraphWorkspace() {
         </div>
       </header>
 
-      {/* Body: sidebar + canvas */}
       <div className="flex flex-1 overflow-hidden">
         <Sidebar feed={feed} onItemClick={handleSidebarItemClick} />
         <div className="relative flex-1">
           <GraphCanvas />
-          <Inspector
-            isOpen={inspectorOpen}
-            onClose={handleInspectorClose}
-            selectedNode={selectedNode}
-          />
+          <Inspector isOpen={inspectorOpen} onClose={handleInspectorClose} selectedNode={selectedNode} />
         </div>
       </div>
 
-      {/* Settings drawer */}
-      <SettingsDrawer
-        isOpen={showSettingsDrawer}
-        onClose={() => setShowSettingsDrawer(false)}
-      />
+      <SettingsDrawer isOpen={showSettingsDrawer} onClose={() => setShowSettingsDrawer(false)} />
     </div>
   );
 }

@@ -1,132 +1,97 @@
 /**
- * useGraphWebSocket - Real-time graph updates via WebSocket.
+ * useGraphWebSocket - Real-time invalidation for the operations graph.
  *
- * Connects to /ws/graph when enabled (Operations lens active).
- * Applies incoming messages to the graph-data-store.
- * Reconnects with exponential backoff on disconnect.
- * Falls back to full HTTP fetch + full-replace on reconnect.
+ * The WebSocket is treated as a change signal only. All graph data continues
+ * to come from the HTTP graph projection endpoint so the API remains the
+ * single source of truth.
  */
 
 import { useEffect, useRef, useCallback } from "react";
 import { buildWsUrl } from "@vrooli/api-base";
-import { buildApiUrl } from "@vrooli/api-base";
 import { useGraphDataStore } from "../stores/graph-data-store";
-import type { Node, Edge } from "@xyflow/react";
 
-/** WebSocket message from the server. */
 interface WSMessage {
-  type: "full-sync" | "node-update" | "node-add" | "node-remove" | "edge-add" | "edge-remove" | "heartbeat";
+  type:
+    | "full-sync"
+    | "node-update"
+    | "node-add"
+    | "node-remove"
+    | "edge-add"
+    | "edge-remove"
+    | "heartbeat";
   data: unknown;
   timestamp: number;
 }
 
-/** Set of node IDs that recently received updates (for pulse animation). */
-export type PulsedNodes = Set<string>;
-
 const BACKOFF_BASE_MS = 1000;
 const BACKOFF_MAX_MS = 30_000;
 const BACKOFF_MULTIPLIER = 2;
+const INVALIDATION_DEBOUNCE_MS = 150;
 const WS_PATH = "/ws/graph";
-const GRAPH_API_PATH = "/graph";
 
 export interface UseGraphWebSocketOptions {
   enabled: boolean;
   onNodePulse?: (nodeId: string) => void;
 }
 
+function extractNodeId(message: WSMessage): string | null {
+  if (message.type !== "node-update" && message.type !== "node-add" && message.type !== "node-remove") {
+    return null;
+  }
+
+  if (typeof message.data !== "object" || message.data === null) {
+    return null;
+  }
+
+  const id = (message.data as { id?: unknown }).id;
+  return typeof id === "string" ? id : null;
+}
+
 export function useGraphWebSocket({ enabled, onNodePulse }: UseGraphWebSocketOptions) {
   const wsRef = useRef<WebSocket | null>(null);
   const retryCountRef = useRef(0);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const invalidateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const enabledRef = useRef(enabled);
   enabledRef.current = enabled;
 
-  const setGraphData = useGraphDataStore((s) => s.setGraphData);
-  const setNodes = useGraphDataStore((s) => s.setNodes);
-  const setEdges = useGraphDataStore((s) => s.setEdges);
+  const fetchGraph = useGraphDataStore((s) => s.fetchGraph);
 
-  /** Full-fetch from HTTP API and replace store. */
-  const fullFetch = useCallback(async () => {
-    try {
-      const url = buildApiUrl(`${GRAPH_API_PATH}?lens=operations`, { appendSuffix: true });
-      const res = await fetch(url, { cache: "no-store" });
-      if (!res.ok) return;
-      const data = await res.json() as { nodes?: Node[]; edges?: Edge[] };
-      if (data.nodes && data.edges) {
-        setGraphData(data.nodes, data.edges);
+  const scheduleRefresh = useCallback(
+    (delay = INVALIDATION_DEBOUNCE_MS) => {
+      if (invalidateTimerRef.current) {
+        clearTimeout(invalidateTimerRef.current);
       }
-    } catch {
-      // Silently fail — the WS will keep trying to reconnect.
-    }
-  }, [setGraphData]);
 
-  /** Process an incoming WebSocket message. */
-  const handleMessage = useCallback((msg: WSMessage) => {
-    switch (msg.type) {
-      case "full-sync": {
-        const syncData = msg.data as { nodes?: Node[]; edges?: Edge[] } | undefined;
-        if (syncData?.nodes && syncData?.edges) {
-          setGraphData(syncData.nodes, syncData.edges);
-        }
-        break;
-      }
-      case "node-update": {
-        const updatedNode = msg.data as Node | undefined;
-        if (!updatedNode?.id) break;
-        onNodePulse?.(updatedNode.id);
-        useGraphDataStore.setState((state) => ({
-          nodes: state.nodes.map((n) =>
-            n.id === updatedNode.id ? { ...n, data: { ...n.data, ...(updatedNode.data as Record<string, unknown>) } } : n,
-          ),
-        }));
-        break;
-      }
-      case "node-add": {
-        const newNode = msg.data as Node | undefined;
-        if (!newNode?.id) break;
-        onNodePulse?.(newNode.id);
-        useGraphDataStore.setState((state) => ({
-          nodes: [...state.nodes.filter((n) => n.id !== newNode.id), newNode],
-        }));
-        break;
-      }
-      case "node-remove": {
-        const removedNode = msg.data as { id?: string } | undefined;
-        if (!removedNode?.id) break;
-        useGraphDataStore.setState((state) => ({
-          nodes: state.nodes.filter((n) => n.id !== removedNode.id),
-        }));
-        break;
-      }
-      case "edge-add": {
-        const newEdge = msg.data as Edge | undefined;
-        if (!newEdge?.id) break;
-        useGraphDataStore.setState((state) => ({
-          edges: [...state.edges.filter((e) => e.id !== newEdge.id), newEdge],
-        }));
-        break;
-      }
-      case "edge-remove": {
-        const removedEdge = msg.data as { id?: string } | undefined;
-        if (!removedEdge?.id) break;
-        useGraphDataStore.setState((state) => ({
-          edges: state.edges.filter((e) => e.id !== removedEdge.id),
-        }));
-        break;
-      }
-      case "heartbeat":
-        // No-op — connection keepalive.
-        break;
-    }
-  }, [setGraphData, onNodePulse]);
+      invalidateTimerRef.current = setTimeout(() => {
+        invalidateTimerRef.current = null;
+        void fetchGraph("operations", { silent: true });
+      }, delay);
+    },
+    [fetchGraph],
+  );
 
-  /** Connect to the WebSocket. */
+  const handleMessage = useCallback(
+    (message: WSMessage) => {
+      if (message.type === "heartbeat") {
+        return;
+      }
+
+      const nodeId = extractNodeId(message);
+      if (nodeId) {
+        onNodePulse?.(nodeId);
+      }
+
+      scheduleRefresh();
+    },
+    [onNodePulse, scheduleRefresh],
+  );
+
   const connect = useCallback(() => {
     if (!enabledRef.current) return;
     if (wsRef.current && wsRef.current.readyState <= WebSocket.OPEN) return;
 
-    const url = buildWsUrl(WS_PATH, { appendSuffix: true });
-    const ws = new WebSocket(url);
+    const ws = new WebSocket(buildWsUrl(WS_PATH, { appendSuffix: true }));
     wsRef.current = ws;
 
     ws.onopen = () => {
@@ -135,8 +100,7 @@ export function useGraphWebSocket({ enabled, onNodePulse }: UseGraphWebSocketOpt
 
     ws.onmessage = (event) => {
       try {
-        const msg = JSON.parse(event.data as string) as WSMessage;
-        handleMessage(msg);
+        handleMessage(JSON.parse(event.data as string) as WSMessage);
       } catch {
         // Ignore malformed messages.
       }
@@ -146,37 +110,39 @@ export function useGraphWebSocket({ enabled, onNodePulse }: UseGraphWebSocketOpt
       wsRef.current = null;
       if (!enabledRef.current) return;
 
-      // Exponential backoff reconnect.
       const delay = Math.min(
         BACKOFF_BASE_MS * Math.pow(BACKOFF_MULTIPLIER, retryCountRef.current),
         BACKOFF_MAX_MS,
       );
-      retryCountRef.current++;
+      retryCountRef.current += 1;
 
       retryTimerRef.current = setTimeout(() => {
-        // Full-fetch before reconnecting to ensure state is fresh.
-        void fullFetch().then(() => {
-          if (enabledRef.current) connect();
+        void fetchGraph("operations", { silent: true }).finally(() => {
+          if (enabledRef.current) {
+            connect();
+          }
         });
       }, delay);
     };
+  }, [fetchGraph, handleMessage]);
 
-    ws.onerror = () => {
-      // onclose will fire after onerror — reconnection handled there.
-    };
-  }, [handleMessage, fullFetch]);
-
-  /** Disconnect and cleanup. */
   const disconnect = useCallback(() => {
     if (retryTimerRef.current) {
       clearTimeout(retryTimerRef.current);
       retryTimerRef.current = null;
     }
+
+    if (invalidateTimerRef.current) {
+      clearTimeout(invalidateTimerRef.current);
+      invalidateTimerRef.current = null;
+    }
+
     if (wsRef.current) {
-      wsRef.current.onclose = null; // Prevent reconnect on intentional close.
+      wsRef.current.onclose = null;
       wsRef.current.close();
       wsRef.current = null;
     }
+
     retryCountRef.current = 0;
   }, []);
 
@@ -186,6 +152,7 @@ export function useGraphWebSocket({ enabled, onNodePulse }: UseGraphWebSocketOpt
     } else {
       disconnect();
     }
+
     return disconnect;
   }, [enabled, connect, disconnect]);
 }

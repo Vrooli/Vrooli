@@ -16,40 +16,42 @@ const makeEdge = (source: string, target: string): Edge => ({
 
 describe("getDagreConfig", () => {
   it("returns TB direction for hierarchical", () => {
-    const config = getDagreConfig("hierarchical");
+    const config = getDagreConfig("hierarchical", "TB");
     expect(config.rankdir).toBe("TB");
     expect(config.ranker).toBe("network-simplex");
   });
 
-  it("returns LR direction for compact", () => {
-    const config = getDagreConfig("compact");
+  it("uses the provided direction for compact layouts", () => {
+    const config = getDagreConfig("compact", "LR");
     expect(config.rankdir).toBe("LR");
     expect(config.ranker).toBe("tight-tree");
   });
 
   it("returns TB direction with larger spacing for grouped", () => {
-    const config = getDagreConfig("grouped");
+    const config = getDagreConfig("grouped", "TB");
     expect(config.rankdir).toBe("TB");
-    expect(config.nodesep).toBeGreaterThan(getDagreConfig("hierarchical").nodesep);
+    expect(config.nodesep).toBeGreaterThan(getDagreConfig("hierarchical", "TB").nodesep);
   });
 });
 
 describe("applyDagreLayout", () => {
   it("returns empty array for empty input", () => {
-    expect(applyDagreLayout([], [], "hierarchical")).toEqual([]);
+    expect(applyDagreLayout([], [], "hierarchical", "TB")).toEqual([]);
   });
 
   it("positions a single node", () => {
-    const result = applyDagreLayout([makeNode("a")], [], "hierarchical");
+    const result = applyDagreLayout([makeNode("a")], [], "hierarchical", "TB");
     expect(result).toHaveLength(1);
-    expect(typeof result[0]!.position.x).toBe("number");
-    expect(typeof result[0]!.position.y).toBe("number");
+    const firstNode = result[0];
+    expect(firstNode).toBeDefined();
+    expect(typeof firstNode?.position.x).toBe("number");
+    expect(typeof firstNode?.position.y).toBe("number");
   });
 
   it("positions multiple connected nodes at distinct locations", () => {
     const nodes = [makeNode("a"), makeNode("b"), makeNode("c")];
     const edges = [makeEdge("a", "b"), makeEdge("b", "c")];
-    const result = applyDagreLayout(nodes, edges, "hierarchical");
+    const result = applyDagreLayout(nodes, edges, "hierarchical", "TB");
 
     expect(result).toHaveLength(3);
 
@@ -63,8 +65,8 @@ describe("applyDagreLayout", () => {
     const nodes = [makeNode("a"), makeNode("b")];
     const edges = [makeEdge("a", "b")];
 
-    const hierarchical = applyDagreLayout(nodes, edges, "hierarchical");
-    const compact = applyDagreLayout(nodes, edges, "compact");
+    const hierarchical = applyDagreLayout(nodes, edges, "hierarchical", "TB");
+    const compact = applyDagreLayout(nodes, edges, "compact", "LR");
 
     // Hierarchical is TB, compact is LR — positions should differ.
     const hierPos = hierarchical.map((n) => [n.position.x, n.position.y]);
@@ -75,7 +77,7 @@ describe("applyDagreLayout", () => {
   it("handles disconnected components", () => {
     const nodes = [makeNode("a"), makeNode("b"), makeNode("c")];
     const edges = [makeEdge("a", "b")]; // c is disconnected
-    const result = applyDagreLayout(nodes, edges, "hierarchical");
+    const result = applyDagreLayout(nodes, edges, "hierarchical", "TB");
     expect(result).toHaveLength(3);
     // All should have valid positions.
     for (const node of result) {
@@ -86,8 +88,10 @@ describe("applyDagreLayout", () => {
 
   it("preserves node data and id", () => {
     const node = { ...makeNode("test"), data: { label: "Test Node" } };
-    const result = applyDagreLayout([node], [], "hierarchical");
-    expect(result[0]!.id).toBe("test");
-    expect(result[0]!.data.label).toBe("Test Node");
+    const result = applyDagreLayout([node], [], "hierarchical", "TB");
+    const firstNode = result[0];
+    expect(firstNode).toBeDefined();
+    expect(firstNode?.id).toBe("test");
+    expect(firstNode?.data.label).toBe("Test Node");
   });
 });
