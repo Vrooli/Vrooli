@@ -81,6 +81,8 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -98,6 +100,7 @@ import (
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/captures"
 	"swarm-manager/internal/execution"
+	"swarm-manager/internal/graph"
 	"swarm-manager/internal/initiatives"
 	"swarm-manager/internal/overview"
 	"swarm-manager/internal/pathutil"
@@ -115,6 +118,7 @@ type Server struct {
 	executionSvc      *execution.Service
 	executionHandler  *execution.Handler
 	executionStopChan chan struct{}
+	graphBroker       *graph.Broker
 	scenarioRoot      string
 }
 
@@ -205,11 +209,12 @@ func (s *Server) setupRoutes() {
 	backlogHandler := s.registerBacklogRoutes(scenarioRoot)
 	initService := s.registerInitiativeRoutes(scenarioRoot, backlogHandler)
 	s.registerOverviewRoutes(backlogHandler, initService)
-	s.registerCapturesRoutes(scenarioRoot)
+	s.registerCapturesRoutes(scenarioRoot, backlogHandler)
 	s.registerScenarioRoutes(scenariosDir)
 	s.registerAgentManagerRoutes()
 	s.registerQueueRoutes(scenarioRoot)
 	s.registerExecutionRoutes(scenarioRoot)
+	s.registerGraphRoutes(scenarioRoot, backlogHandler, initService)
 	s.registerPromptRoutes(scenarioRoot)
 }
 
@@ -313,9 +318,10 @@ func (s *Server) registerOverviewRoutes(backlogHandler *backlog.Handler, initSer
 	overviewHandler.RegisterRoutes(s.router)
 }
 
-func (s *Server) registerCapturesRoutes(scenarioRoot string) {
+func (s *Server) registerCapturesRoutes(scenarioRoot string, backlogHandler *backlog.Handler) {
 	// Captures endpoints for quick-capture unified feed
 	capturesHandler := captures.NewHandler(scenarioRoot, s.agentSvc, nil)
+	capturesHandler.SetBacklogCreator(&backlogItemCreatorAdapter{store: backlogHandler.Store()})
 	capturesHandler.RegisterRoutes(s.router)
 }
 
@@ -375,6 +381,174 @@ func (s *Server) registerExecutionRoutes(scenarioRoot string) {
 	// Wire execution queuer back into scenarios handler for spec-sync-archive
 	if s.scenariosHandler != nil {
 		s.scenariosHandler.SetExecutionQueuer(scenarios.NewExecutionQueuer(s.executionSvc))
+	}
+}
+
+// captureAdapter bridges captures.Handler filesystem logic to graph.CaptureLister.
+type captureAdapter struct {
+	rootDir string
+}
+
+func (a *captureAdapter) ListCaptures() ([]graph.CaptureEntry, error) {
+	capturesRoot := filepath.Join(a.rootDir, "captures")
+	entries, err := os.ReadDir(capturesRoot)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var result []graph.CaptureEntry
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		capPath := filepath.Join(capturesRoot, entry.Name(), "capture.json")
+		data, err := os.ReadFile(capPath)
+		if err != nil {
+			continue
+		}
+		var raw struct {
+			ID     string `json:"id"`
+			Text   string `json:"text"`
+			Status string `json:"status"`
+		}
+		if err := json.Unmarshal(data, &raw); err != nil {
+			continue
+		}
+
+		ce := graph.CaptureEntry{
+			ID:     raw.ID,
+			Text:   raw.Text,
+			Status: raw.Status,
+		}
+
+		// Load classification if it exists.
+		classPath := filepath.Join(capturesRoot, entry.Name(), "classification.json")
+		classData, err := os.ReadFile(classPath)
+		if err == nil {
+			var cls struct {
+				Items []struct {
+					Kind  string `json:"kind"`
+					Title string `json:"title"`
+				} `json:"items"`
+			}
+			if json.Unmarshal(classData, &cls) == nil {
+				for _, item := range cls.Items {
+					ce.Items = append(ce.Items, graph.CaptureClassificationItem{
+						Kind:  item.Kind,
+						Title: item.Title,
+					})
+				}
+			}
+		}
+
+		result = append(result, ce)
+	}
+	return result, nil
+}
+
+// scenarioAdapter bridges scenarios.Handler to graph.ScenarioLister.
+type scenarioAdapter struct {
+	handler *scenarios.Handler
+}
+
+func (a *scenarioAdapter) LoadAll() ([]scenarios.Scenario, error) {
+	return a.handler.LoadAll()
+}
+
+// executionAdapter bridges execution.Service to graph.ExecutionLister.
+type executionAdapter struct {
+	svc *execution.Service
+}
+
+func (a *executionAdapter) List(ctx context.Context, filters execution.ListFilters) ([]execution.Record, error) {
+	return a.svc.List(ctx, filters)
+}
+
+// runStateAdapter bridges agentmanager.AgentService to graph.RunStateGetter.
+type runStateAdapter struct {
+	svc *agentmanager.AgentService
+}
+
+func (a *runStateAdapter) IsAvailable(ctx context.Context) bool {
+	return a.svc.IsAvailable(ctx)
+}
+
+func (a *runStateAdapter) GetRunState(ctx context.Context, runID string) (agentmanager.RunState, error) {
+	return a.svc.GetRunState(ctx, runID)
+}
+
+// backlogItemCreatorAdapter bridges backlog.Store to captures.BacklogItemCreator.
+type backlogItemCreatorAdapter struct {
+	store backlog.Store
+}
+
+func (a *backlogItemCreatorAdapter) ItemDir(kind, name string) string {
+	return a.store.ItemDir(backlog.BacklogKind(kind), name)
+}
+
+func (a *backlogItemCreatorAdapter) SaveItem(kind, name, title, description string, tags []string) error {
+	bk := backlog.BacklogKind(kind)
+	itemDir := a.store.ItemDir(bk, name)
+	if err := os.MkdirAll(filepath.Dir(itemDir), 0o755); err != nil {
+		return fmt.Errorf("create parent dir: %w", err)
+	}
+	if err := os.Mkdir(itemDir, 0o755); err != nil {
+		if os.IsExist(err) {
+			return fmt.Errorf("already exists")
+		}
+		return fmt.Errorf("create item dir: %w", err)
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	item := backlog.BacklogItem{
+		Name:        name,
+		Title:       title,
+		Description: description,
+		Status:      backlog.StatusBacklog,
+		Priority:    5,
+		Tags:        tags,
+		Created:     now,
+		Updated:     now,
+		Kind:        bk,
+	}
+	if err := a.store.SaveItem(item); err != nil {
+		_ = os.RemoveAll(itemDir)
+		return fmt.Errorf("save item: %w", err)
+	}
+	return nil
+}
+
+func (s *Server) registerGraphRoutes(scenarioRoot string, backlogHandler *backlog.Handler, initService *initiatives.Service) {
+	projCfg := graph.ProjectionConfig{
+		Backlog:    backlogHandler.Store(),
+		Initiative: initService,
+		Capture:    &captureAdapter{rootDir: scenarioRoot},
+		Scenario:   &scenarioAdapter{handler: s.scenariosHandler},
+		Execution:  &executionAdapter{svc: s.executionSvc},
+	}
+	if s.agentSvc != nil && s.agentSvc.IsEnabled() {
+		projCfg.RunState = &runStateAdapter{svc: s.agentSvc}
+	}
+	projSvc := graph.NewProjectionService(projCfg)
+
+	// HTTP handler.
+	graphHandler := graph.NewHandler(projSvc)
+	graphHandler.RegisterRoutes(s.router)
+
+	// WebSocket broker and stream handler.
+	s.graphBroker = graph.NewBroker()
+	streamHandler := graph.NewStreamHandler(projSvc, s.graphBroker)
+	streamHandler.RegisterRoutes(s.router)
+
+	// Wire event dispatch into execution service and scenarios handler.
+	dispatch := graph.NewDispatch(s.graphBroker)
+	if s.executionSvc != nil {
+		s.executionSvc.SetEventDispatcher(dispatch)
+	}
+	if s.scenariosHandler != nil {
+		s.scenariosHandler.SetEventDispatcher(dispatch)
 	}
 }
 

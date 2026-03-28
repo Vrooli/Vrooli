@@ -45,6 +45,7 @@ import {
   Sparkles,
   Square,
   Tags,
+  Target,
   Trash2,
   Upload,
   X,
@@ -88,6 +89,8 @@ import {
   scenariosFromGlobs,
 } from "../lib";
 import type { ItemActions } from "../lib/backlog-queue-utils";
+import { computeDependencyRelations } from "../lib/backlog-queue-utils";
+import { DependencyChipList } from "../components/backlog/dependency-chip-list";
 import { parseWorkshopRound, WORKSHOP_FILE_PATHS, findBacklogFileByPath } from "../lib/workshop-files";
 import { buildReadinessData } from "../lib/maturity";
 import type { ReadinessIndicatorData } from "../lib/maturity";
@@ -223,7 +226,9 @@ export function BacklogDetailsPage() {
   const backSearchRef = useRef(
     (routeLocation.state as { backlogSearch?: string } | null)?.backlogSearch ?? "",
   );
-  const backLink = `/backlog${backSearchRef.current}`;
+  // When opened from graph inspector, returnTo carries the graph URL to go back to
+  const returnToParam = new URLSearchParams(routeLocation.search).get("returnTo");
+  const backLink = returnToParam ?? `/backlog${backSearchRef.current}`;
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const upsertItem = useBacklogStore((state) => state.upsertItem);
@@ -330,6 +335,8 @@ export function BacklogDetailsPage() {
   const [previewResetKey, setPreviewResetKey] = useState(0);
   const [descExpanded, setDescExpanded] = useState(false);
   const [descOverflows, setDescOverflows] = useState(false);
+  const [allowExpanded, setAllowExpanded] = useState(false);
+  const [denyExpanded, setDenyExpanded] = useState(false);
 
   const [execSectionOpen, setExecSectionOpen] = useState(false);
   const [expandedExecIds, setExpandedExecIds] = useState<Set<string>>(new Set());
@@ -362,6 +369,11 @@ export function BacklogDetailsPage() {
     placeholderData: cachedItem,
     ...defaultQueryOptions,
   });
+
+  const depRelations = useMemo(
+    () => item ? computeDependencyRelations(item, allBacklogItems) : { parents: [], children: [] },
+    [item, allBacklogItems],
+  );
 
   useEffect(() => {
     const desc = item?.description ?? "";
@@ -1587,22 +1599,50 @@ export function BacklogDetailsPage() {
             <TagList tags={item.tags} maxTags={10} />
           </div>
         )}
+        {item.initiative && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
+              <Target className="h-3.5 w-3.5" />
+              Initiative
+            </div>
+            <Link
+              to={`/details/initiative/${encodeURIComponent(item.initiative)}?returnTo=${encodeURIComponent(routeLocation.pathname + routeLocation.search)}`}
+              className="inline-flex items-center rounded-full bg-sky-500/15 px-2.5 py-1 text-xs font-medium text-sky-400 transition-colors hover:bg-sky-500/25 hover:text-sky-300"
+              data-testid={selectors.backlogDetails.initiativeChip}
+            >
+              {item.initiative}
+            </Link>
+          </div>
+        )}
+        <DependencyChipList label="Depends on" items={depRelations.parents} icon={ArrowUpRight} />
+        <DependencyChipList label="Depended on by" items={depRelations.children} icon={ArrowRightLeft} />
         <div className="space-y-2 border-t border-slate-800 pt-3">
           <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
             <FolderOpen className="h-3.5 w-3.5" />
             Acceptance Allow
           </div>
           {item.acceptanceAllow && item.acceptanceAllow.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
-              {item.acceptanceAllow.map((glob) => (
-                <code
-                  key={glob}
-                  className="inline-block rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300 font-mono"
+            <>
+              <div className="flex flex-wrap gap-1.5">
+                {(allowExpanded ? item.acceptanceAllow : item.acceptanceAllow.slice(0, 3)).map((glob) => (
+                  <code
+                    key={glob}
+                    className="inline-block rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300 font-mono"
+                  >
+                    {glob}
+                  </code>
+                ))}
+              </div>
+              {item.acceptanceAllow.length > 3 && (
+                <button
+                  type="button"
+                  onClick={() => setAllowExpanded(!allowExpanded)}
+                  className="mt-1 text-xs font-medium text-blue-400 hover:text-blue-300"
                 >
-                  {glob}
-                </code>
-              ))}
-            </div>
+                  {allowExpanded ? "Show less" : `Show more\u2026 (${item.acceptanceAllow.length - 3} more)`}
+                </button>
+              )}
+            </>
           ) : (
             <p className="text-xs italic text-slate-500">Not set</p>
           )}
@@ -1613,16 +1653,27 @@ export function BacklogDetailsPage() {
             Acceptance Deny
           </div>
           {item.acceptanceDeny && item.acceptanceDeny.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
-              {item.acceptanceDeny.map((glob) => (
-                <code
-                  key={glob}
-                  className="inline-block rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300 font-mono"
+            <>
+              <div className="flex flex-wrap gap-1.5">
+                {(denyExpanded ? item.acceptanceDeny : item.acceptanceDeny.slice(0, 3)).map((glob) => (
+                  <code
+                    key={glob}
+                    className="inline-block rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300 font-mono"
+                  >
+                    {glob}
+                  </code>
+                ))}
+              </div>
+              {item.acceptanceDeny.length > 3 && (
+                <button
+                  type="button"
+                  onClick={() => setDenyExpanded(!denyExpanded)}
+                  className="mt-1 text-xs font-medium text-blue-400 hover:text-blue-300"
                 >
-                  {glob}
-                </code>
-              ))}
-            </div>
+                  {denyExpanded ? "Show less" : `Show more\u2026 (${item.acceptanceDeny.length - 3} more)`}
+                </button>
+              )}
+            </>
           ) : (
             <p className="text-xs italic text-slate-500">Not set</p>
           )}

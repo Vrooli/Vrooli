@@ -172,6 +172,9 @@ function persistArchivePreferences(preferences: ArchivePreferences): void {
 export function ScenarioDetailsPage() {
   const { name } = useParams<{ name: string }>();
   const navigate = useNavigate();
+  // When opened from graph inspector, returnTo carries the graph URL to go back to
+  const returnToParam = new URLSearchParams(window.location.search).get("returnTo");
+  const backLink = returnToParam ?? "/scenarios";
   const queryClient = useQueryClient();
   const upsertScenario = useScenariosStore((state) => state.upsertScenario);
   const removeScenario = useScenariosStore((state) => state.removeScenario);
@@ -549,7 +552,7 @@ export function ScenarioDetailsPage() {
       {/* Breadcrumb navigation - shows context and allows quick navigation (Phase 29) */}
       <nav className="hidden items-center gap-2 text-sm lg:flex" data-testid={selectors.scenarioDetails.breadcrumb}>
         <Link
-          to="/scenarios"
+          to={backLink}
           className="flex items-center gap-1.5 text-slate-400 hover:text-slate-200 transition-colors"
           data-testid={selectors.scenarioDetails.backButton}
         >
@@ -591,7 +594,7 @@ export function ScenarioDetailsPage() {
                 size="sm"
                 className="h-9 w-9 rounded-md border-transparent bg-transparent p-0 hover:bg-slate-800/70"
               >
-                <Link to="/scenarios" aria-label="Back to scenarios">
+                <Link to={backLink} aria-label="Back to scenarios">
                   <ChevronLeft className="h-4 w-4" />
                 </Link>
               </Button>

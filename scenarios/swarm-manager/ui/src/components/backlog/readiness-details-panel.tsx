@@ -65,7 +65,7 @@ export function ReadinessDetailsPanel({ data, kind, onRun }: ReadinessDetailsPan
         </div>
       )}
 
-      {data.ready && (
+      {data.ready && data.pendingItems === 0 && (
         <div className="space-y-2">
           <div className="rounded-md border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-sm text-emerald-400">
             {isResearch ? "Research complete" : "Ready for execution"}

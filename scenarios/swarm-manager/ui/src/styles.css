@@ -77,3 +77,17 @@ body {
     --tw-ring-color: rgb(var(--slate-400) / 0.5);
   }
 }
+
+/* Activity pulse for graph nodes receiving real-time updates */
+@keyframes graph-node-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgba(34, 211, 238, 0);
+  }
+}
+
+.graph-node-pulse {
+  animation: graph-node-pulse 2s ease-out;
+}

@@ -6,26 +6,30 @@
  * - Raw Monaco editor for editing
  * - Save-to-API for persisting edits
  * - Copy-to-clipboard
+ * - Table of contents popover for heading navigation
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import Editor from "@monaco-editor/react";
+import Editor, { type OnMount } from "@monaco-editor/react";
 import {
   Check,
   Code,
   Copy,
   Eye,
   FileText,
+  List,
   Loader2,
   Save,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { defaultQueryOptions, useResolvedTheme } from "../../lib";
 import { renderMarkdown } from "../../lib/render-markdown";
+import { extractHeadings, type HeadingEntry } from "../../lib/heading-utils";
 import { backlogService } from "../../services";
 import type { BacklogKind } from "../../types";
 import { getDeliverablePath } from "../../lib/workshop-files";
+import { useModalBehavior } from "../../hooks/useModalBehavior";
 import { Button } from "../ui/button";
 import { ErrorState } from "../ui/error-state";
 import { selectors } from "../../consts/selectors";
@@ -59,6 +63,12 @@ const EDITOR_OPTIONS = {
   automaticLayout: true,
 } as const;
 
+const TOC_ITEM_STYLES: Record<number, string> = {
+  1: "pl-3 font-medium text-slate-200",
+  2: "pl-5 text-slate-400",
+  3: "pl-8 text-slate-500 text-xs",
+};
+
 export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProps) {
   const queryClient = useQueryClient();
   const resolvedTheme = useResolvedTheme();
@@ -70,6 +80,17 @@ export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProp
   const [viewMode, setViewMode] = useState<"rendered" | "raw">("rendered");
   const [draftContent, setDraftContent] = useState("");
   const [copySuccess, setCopySuccess] = useState(false);
+  const [tocOpen, setTocOpen] = useState(false);
+
+  const tocRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
+
+  useModalBehavior({
+    isOpen: tocOpen,
+    onClose: () => setTocOpen(false),
+    ref: tocRef,
+    delayClickOutside: true,
+  });
 
   const queryKey = ["backlog-plan-content", backlogKind, backlogName];
 
@@ -119,6 +140,27 @@ export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProp
     }
   }, [planContent]);
 
+  const handleEditorMount: OnMount = useCallback((editor) => {
+    editorRef.current = editor;
+  }, []);
+
+  const handleTocToggle = useCallback(() => {
+    setTocOpen((prev) => !prev);
+  }, []);
+
+  const handleTocJump = useCallback((heading: HeadingEntry) => {
+    setTocOpen(false);
+    if (viewMode === "rendered") {
+      document.getElementById(heading.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else if (editorRef.current) {
+      editorRef.current.revealLineInCenter(heading.line);
+      editorRef.current.setPosition({ lineNumber: heading.line, column: 1 });
+      editorRef.current.focus();
+    }
+  }, [viewMode]);
+
+  const headings = extractHeadings(draftContent);
+
   const is404 = error && (error as Error).message?.includes("not found");
 
   if (isLoading) {
@@ -161,30 +203,69 @@ export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProp
       <div className="flex items-center gap-1.5 border-b border-slate-800 px-4 py-2">
         <Button
           variant="outline"
-          size="sm"
-          className={cn(
-            "h-8 px-2.5 text-xs",
-            viewMode === "rendered" && "bg-slate-700 text-slate-100",
-          )}
+          size="icon"
+          className={cn(viewMode === "rendered" && "bg-slate-700 text-slate-100")}
           onClick={() => setViewMode("rendered")}
           aria-label="Rendered view"
+          title="Rendered view"
         >
-          <Eye className="mr-1.5 h-3.5 w-3.5" />
-          Rendered
+          <Eye className="h-3.5 w-3.5" />
         </Button>
         <Button
           variant="outline"
-          size="sm"
-          className={cn(
-            "h-8 px-2.5 text-xs",
-            viewMode === "raw" && "bg-slate-700 text-slate-100",
-          )}
+          size="icon"
+          className={cn(viewMode === "raw" && "bg-slate-700 text-slate-100")}
           onClick={() => setViewMode("raw")}
           aria-label="Raw editor"
+          title="Edit"
         >
-          <Code className="mr-1.5 h-3.5 w-3.5" />
-          Edit
+          <Code className="h-3.5 w-3.5" />
         </Button>
+
+        {headings.length > 0 && (
+          <div ref={tocRef} className="relative">
+            <Button
+              variant="outline"
+              size="icon"
+              className={cn(tocOpen && "bg-slate-700 text-slate-100")}
+              onClick={handleTocToggle}
+              aria-label="Table of contents"
+              title="Table of contents"
+            >
+              <List className="h-3.5 w-3.5" />
+            </Button>
+            {tocOpen && (
+              <nav
+                className="absolute left-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-lg border border-white/10 bg-slate-900/95 shadow-xl backdrop-blur-sm animate-in fade-in-0 zoom-in-95 duration-100"
+                aria-label="Table of contents"
+                data-testid="toc-popover"
+              >
+                <div className="max-h-72 overflow-y-auto py-1.5">
+                  {headings.map((h, i) => {
+                    const showDivider = h.level === 1 && i > 0;
+                    return (
+                      <div key={`${h.id}-${h.line}`}>
+                        {showDivider && (
+                          <div className="mx-3 my-1 border-t border-white/5" />
+                        )}
+                        <button
+                          className={cn(
+                            "block w-full truncate py-1 pr-3 text-left text-[13px] transition-colors",
+                            "hover:bg-white/5 hover:text-slate-100",
+                            TOC_ITEM_STYLES[h.level],
+                          )}
+                          onClick={() => handleTocJump(h)}
+                        >
+                          {h.text}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </nav>
+            )}
+          </div>
+        )}
 
         <div className="flex-1" />
 
@@ -218,17 +299,17 @@ export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProp
 
         <Button
           variant="outline"
-          size="sm"
-          className="h-8 px-2.5 text-xs"
+          size="icon"
+          className={cn(copySuccess && "text-green-400")}
           onClick={handleCopy}
           aria-label={`Copy ${deliverableLabel}`}
+          title={copySuccess ? "Copied!" : `Copy ${deliverableLabel}`}
         >
           {copySuccess ? (
-            <Check className="mr-1.5 h-3.5 w-3.5 text-green-400" />
+            <Check className="h-3.5 w-3.5" />
           ) : (
-            <Copy className="mr-1.5 h-3.5 w-3.5" />
+            <Copy className="h-3.5 w-3.5" />
           )}
-          {copySuccess ? "Copied" : "Copy"}
         </Button>
       </div>
 
@@ -258,6 +339,7 @@ export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProp
             theme={resolvedTheme === "dark" ? "vs-dark" : "light"}
             value={draftContent}
             onChange={(value) => setDraftContent(value ?? "")}
+            onMount={handleEditorMount}
             options={EDITOR_OPTIONS}
             loading={
               <div className="flex items-center justify-center py-20">

@@ -6,39 +6,54 @@
  * - BrowserRouter: Client-side routing
  * - 404 handler: Catches unknown routes
  *
- * ╔════════════════════════════════════════════════════════════════╗
- * ║  ERROR HANDLING LAYERS                                         ║
- * ║                                                                ║
- * ║  1. ErrorBoundary (App) - catches catastrophic errors         ║
- * ║  2. PageErrorBoundary - isolates page-level crashes           ║
- * ║  3. API Client (ApiError) - catches HTTP/network errors       ║
- * ║  4. ErrorState component - displays user-friendly messages    ║
- * ║  5. NotFoundPage - handles invalid routes                     ║
- * ╚════════════════════════════════════════════════════════════════╝
+ * The primary route is /graph (GraphWorkspace), which replaces the
+ * old 5-tab MainLayout. Legacy routes redirect to /graph with
+ * appropriate query params.
  */
 
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { getProxyInfo } from "@vrooli/api-base";
 import { ErrorBoundary } from "./components/ui/error-boundary";
-import { PageErrorBoundary } from "./components/ui/page-error-boundary";
-import { MainLayout } from "./components/layout/MainLayout";
-import { BacklogPage } from "./pages/BacklogPage";
-import { BacklogDetailsPage } from "./pages/BacklogDetailsPage";
-import { ScenariosPage } from "./pages/ScenariosPage";
-import { ScenarioDetailsPage } from "./pages/ScenarioDetailsPage";
-import { ExecutionPage } from "./pages/ExecutionPage";
-import { PromptsPage } from "./pages/PromptsPage";
-import { SettingsPage } from "./pages/SettingsPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import {
+  BacklogRedirect,
+  BacklogDetailsRedirect,
+  ScenariosRedirect,
+  ScenarioDetailsRedirect,
+  ExecutionRedirect,
+  PromptsRedirect,
+  SettingsRedirect,
+} from "./surfaces/graph/components/LegacyRedirect";
+
+const GraphWorkspace = lazy(() =>
+  import("./surfaces/graph/components/GraphWorkspace").then((m) => ({
+    default: m.GraphWorkspace,
+  })),
+);
+const BacklogDetailsPage = lazy(() =>
+  import("./pages/BacklogDetailsPage").then((m) => ({
+    default: m.BacklogDetailsPage,
+  })),
+);
+const ScenarioDetailsPage = lazy(() =>
+  import("./pages/ScenarioDetailsPage").then((m) => ({
+    default: m.ScenarioDetailsPage,
+  })),
+);
+const ExecutionDetailsPage = lazy(() =>
+  import("./pages/ExecutionDetailsPage").then((m) => ({
+    default: m.ExecutionDetailsPage,
+  })),
+);
+const InitiativeDetailsPage = lazy(() =>
+  import("./pages/InitiativeDetailsPage").then((m) => ({
+    default: m.InitiativeDetailsPage,
+  })),
+);
 
 /**
  * Compute the BrowserRouter basename from proxy context.
- *
- * When the UI is served through a proxy (e.g., app-monitor at
- * /apps/swarm-manager/proxy/), React Router needs the proxy path
- * as its basename so that all navigation targets
- * (navigate("/backlog"), <Link to="/settings">, etc.) resolve
- * relative to the proxy prefix instead of the domain root.
  */
 function getRouterBasename(): string {
   const proxyInfo = getProxyInfo();
@@ -49,15 +64,8 @@ function getRouterBasename(): string {
   return "";
 }
 
-/**
- * Optional error logging callback.
- * In production, this could send errors to a logging service.
- */
 function handleError(error: Error, _errorInfo: React.ErrorInfo) {
-  // In development, errors are already logged by ErrorBoundary
-  // In production, this could send to a service like Sentry
   if (import.meta.env.PROD) {
-    // Future: send to error tracking service
     console.error("[App] Production error:", error.message);
   }
 }
@@ -68,69 +76,40 @@ export default function App() {
   return (
     <ErrorBoundary onError={handleError}>
       <BrowserRouter basename={basename}>
-        <Routes>
-          <Route path="/" element={<MainLayout />}>
-            <Route index element={<Navigate to="/backlog" replace />} />
-            <Route
-              path="backlog"
-              element={
-                <PageErrorBoundary pageName="Backlog">
-                  <BacklogPage />
-                </PageErrorBoundary>
-              }
-            />
-            <Route
-              path="backlog/:kind/:name"
-              element={
-                <PageErrorBoundary pageName="Backlog Details">
-                  <BacklogDetailsPage />
-                </PageErrorBoundary>
-              }
-            />
-            <Route
-              path="scenarios"
-              element={
-                <PageErrorBoundary pageName="Scenarios">
-                  <ScenariosPage />
-                </PageErrorBoundary>
-              }
-            />
-            <Route
-              path="scenarios/:name"
-              element={
-                <PageErrorBoundary pageName="Scenario Details">
-                  <ScenarioDetailsPage />
-                </PageErrorBoundary>
-              }
-            />
-            <Route
-              path="execution"
-              element={
-                <PageErrorBoundary pageName="Execution">
-                  <ExecutionPage />
-                </PageErrorBoundary>
-              }
-            />
-            <Route
-              path="prompts"
-              element={
-                <PageErrorBoundary pageName="Prompts">
-                  <PromptsPage />
-                </PageErrorBoundary>
-              }
-            />
-            <Route
-              path="settings"
-              element={
-                <PageErrorBoundary pageName="Settings">
-                  <SettingsPage />
-                </PageErrorBoundary>
-              }
-            />
-            {/* 404 handler - catches all unknown routes */}
+        <Suspense
+          fallback={
+            <div className="flex h-screen items-center justify-center bg-slate-950 text-slate-400">
+              Loading...
+            </div>
+          }
+        >
+          <Routes>
+            {/* Primary route: graph workspace */}
+            <Route path="/graph" element={<GraphWorkspace />} />
+
+            {/* Root redirects to /graph */}
+            <Route index element={<Navigate to="/graph" replace />} />
+
+            {/* Detail pages (accessible from graph inspector) */}
+            <Route path="/details/backlog/:kind/:name" element={<BacklogDetailsPage />} />
+            <Route path="/details/scenario/:name" element={<ScenarioDetailsPage />} />
+            <Route path="/details/execution/:executionId" element={<ExecutionDetailsPage />} />
+            <Route path="/details/execution/:executionId/prompt-trace" element={<ExecutionDetailsPage />} />
+            <Route path="/details/initiative/:name" element={<InitiativeDetailsPage />} />
+
+            {/* Legacy route redirects */}
+            <Route path="backlog" element={<BacklogRedirect />} />
+            <Route path="backlog/:kind/:name" element={<BacklogDetailsRedirect />} />
+            <Route path="scenarios" element={<ScenariosRedirect />} />
+            <Route path="scenarios/:name" element={<ScenarioDetailsRedirect />} />
+            <Route path="execution" element={<ExecutionRedirect />} />
+            <Route path="prompts" element={<PromptsRedirect />} />
+            <Route path="settings" element={<SettingsRedirect />} />
+
+            {/* 404 handler */}
             <Route path="*" element={<NotFoundPage />} />
-          </Route>
-        </Routes>
+          </Routes>
+        </Suspense>
       </BrowserRouter>
     </ErrorBoundary>
   );

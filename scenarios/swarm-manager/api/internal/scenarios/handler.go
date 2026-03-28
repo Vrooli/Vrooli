@@ -144,6 +144,11 @@ type ExecutionQueuer interface {
 	QueueSpecSyncArchive(ctx context.Context, ac SpecSyncArchiveContext) (SpecSyncArchiveRecord, error)
 }
 
+// EventDispatcher emits graph change events for real-time WebSocket updates.
+type EventDispatcher interface {
+	DispatchNodeUpdate(nodeType, nodeID string, data any)
+}
+
 // Handler provides HTTP handlers for scenario operations.
 type Handler struct {
 	scenariosDir    string
@@ -151,6 +156,7 @@ type Handler struct {
 	lifecycle       Lifecycle
 	completeness    CompletenessSource
 	executionQueuer ExecutionQueuer
+	eventDispatcher EventDispatcher
 }
 
 // NewHandler creates a new scenarios handler.
@@ -202,6 +208,11 @@ func NewHandlerWithDeps(scenariosDir string, source Source, lifecycle Lifecycle,
 // SetExecutionQueuer sets the execution queuer for spec-sync-archive support.
 func (h *Handler) SetExecutionQueuer(eq ExecutionQueuer) {
 	h.executionQueuer = eq
+}
+
+// SetEventDispatcher sets an optional event dispatcher for real-time graph updates.
+func (h *Handler) SetEventDispatcher(d EventDispatcher) {
+	h.eventDispatcher = d
 }
 
 // LoadAll exposes scenario listing for non-HTTP consumers.
@@ -1034,6 +1045,14 @@ func (h *Handler) handleLifecycleAction(w http.ResponseWriter, r *http.Request, 
 	resp := &apipb.ScenarioResponse{Scenario: scenarioToProto(scenario)}
 	if err := httputil.ProtoJSON(w, resp); err != nil {
 		httputil.InternalError(w, "[scenarios] "+action, "failed to encode response")
+	}
+
+	// Dispatch graph event for scenario status change.
+	if h.eventDispatcher != nil {
+		h.eventDispatcher.DispatchNodeUpdate("Scenario", "scenario/"+name, map[string]any{
+			"name":   scenario.Name,
+			"status": string(scenario.Status),
+		})
 	}
 }
 

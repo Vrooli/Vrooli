@@ -1,3 +1,34 @@
 {
-  "tasks": []
+  "tasks": [
+    {
+      "id": "task-1774650329645315700",
+      "title": "AWAITING HUMAN: Resolve portfolio focus decision (dec-1774650285472126523) - Option B recommended",
+      "status": "todo",
+      "assignee": "director",
+      "priority": "P1",
+      "createdBy": "director",
+      "createdAt": "2026-03-27T22:25:29Z",
+      "updatedAt": "2026-03-27T22:25:29Z"
+    },
+    {
+      "id": "task-1774650330547492367",
+      "title": "AWAITING HUMAN: Resolve moratorium enforcement decision (dec-1774650295075146719) - Option B recommended",
+      "status": "todo",
+      "assignee": "director",
+      "priority": "P1",
+      "createdBy": "director",
+      "createdAt": "2026-03-27T22:25:30Z",
+      "updatedAt": "2026-03-27T22:25:30Z"
+    },
+    {
+      "id": "task-1774650331323178726",
+      "title": "Clean up dtv-meta-optimization-readiness: remove missing item refs, reconcile archived items",
+      "status": "todo",
+      "assignee": "director",
+      "priority": "P2",
+      "createdBy": "director",
+      "createdAt": "2026-03-27T22:25:31Z",
+      "updatedAt": "2026-03-27T22:25:31Z"
+    }
+  ]
 }

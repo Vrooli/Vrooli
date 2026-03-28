@@ -90,6 +90,11 @@ type ServiceConfig struct {
 	ReviewClient             ReviewClient
 }
 
+// EventDispatcher emits graph change events for real-time WebSocket updates.
+type EventDispatcher interface {
+	DispatchNodeUpdate(nodeType, nodeID string, data any)
+}
+
 // Service owns execution lifecycle logic.
 type Service struct {
 	rootDir                  string
@@ -103,6 +108,7 @@ type Service struct {
 	inspector                runInspector
 	stopper                  runStopper
 	continuer                runContinuer
+	eventDispatcher          EventDispatcher
 	mu                       sync.Mutex
 }
 
@@ -142,6 +148,26 @@ func NewService(cfg ServiceConfig) *Service {
 		service.stopper = stopper
 	}
 	return service
+}
+
+// SetEventDispatcher sets an optional event dispatcher for real-time graph updates.
+func (s *Service) SetEventDispatcher(d EventDispatcher) {
+	s.eventDispatcher = d
+}
+
+// dispatchStatusUpdate emits a node-update event for an execution record status change.
+func (s *Service) dispatchStatusUpdate(record Record) {
+	if s.eventDispatcher == nil {
+		return
+	}
+	s.eventDispatcher.DispatchNodeUpdate("ExecutionRecord", "execution-record/"+record.ExecutionID, map[string]any{
+		"execution_id": record.ExecutionID,
+		"backlog_kind": record.BacklogKind,
+		"backlog_name": record.BacklogName,
+		"status":       string(record.Status),
+		"mode":         string(record.Mode),
+		"run_id":       record.RunID,
+	})
 }
 
 // QueueBacklog creates an execution record and optionally starts it.
@@ -440,6 +466,7 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 	if err := s.store.Save(records); err != nil {
 		return Record{}, err
 	}
+	s.dispatchStatusUpdate(record)
 	return record, nil
 }
 
@@ -463,6 +490,7 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 		if err := s.store.Save(records); err != nil {
 			return Record{}, err
 		}
+		s.dispatchStatusUpdate(record)
 		if err := s.restoreBacklogStatusForRecord(record); err != nil {
 			return Record{}, err
 		}

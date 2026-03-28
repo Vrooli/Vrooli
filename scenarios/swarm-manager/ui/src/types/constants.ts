@@ -55,6 +55,21 @@ export const BACKLOG_STATUS_COLORS: Record<BacklogStatus, string> = {
 };
 
 /**
+ * Maps backlog status to semi-transparent chip color classes (bg + text).
+ * Used for clickable dependency chips where the full-opacity badge would be too heavy.
+ */
+export const BACKLOG_STATUS_CHIP_COLORS: Record<BacklogStatus, string> = {
+  backlog: "bg-slate-600/20 text-slate-300",
+  researching: "bg-blue-600/20 text-blue-400",
+  ready: "bg-green-600/20 text-green-400",
+  queued: "bg-yellow-600/20 text-yellow-300",
+  in_progress: "bg-purple-600/20 text-purple-400",
+  completed: "bg-emerald-600/20 text-emerald-400",
+  failed: "bg-red-600/20 text-red-400",
+  archived: "bg-gray-600/20 text-gray-400",
+};
+
+/**
  * Formats a backlog status for display (converts underscores/hyphens to spaces, capitalizes).
  * Delegates to the shared formatDisplayText utility to prevent duplication.
  */
@@ -86,6 +101,19 @@ export const SCENARIO_STATUS_COLORS: Record<ScenarioStatus, string> = {
   stopped: "text-slate-400",
   error: "text-red-400",
   unknown: "text-slate-500",
+};
+
+// ============================================================================
+// Initiative Status Display
+// ============================================================================
+
+/**
+ * Maps initiative status to semi-transparent chip color classes (bg + text).
+ */
+export const INITIATIVE_STATUS_CHIP_COLORS: Record<string, string> = {
+  active: "bg-sky-500/15 text-sky-400",
+  completed: "bg-green-500/15 text-green-400",
+  archived: "bg-slate-500/15 text-slate-500",
 };
 
 // ============================================================================

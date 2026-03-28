@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  computeDependencyRelations,
   getBacklogNotQueueableReason,
   getBlockingDepKeys,
   getItemActions,
@@ -381,18 +382,18 @@ describe("getItemActions", () => {
       expect(result.canRun).toBe(false);
     });
 
-    it("workshop visible as secondary when not ready", () => {
+    it("workshop blocked when pending decisions exist, even if not ready", () => {
       const result = getItemActions(makeCtx({
         item: makeItem({ status: "backlog" }),
         hasPendingDecisions: true,
         readinessReady: false,
       }));
       expect(result.showDecisionStepper).toBe(true);
-      expect(result.canWorkshop).toBe(true);
-      expect(result.primaryCta).toBe("workshop");
+      expect(result.canWorkshop).toBe(false);
+      expect(result.primaryCta).toBeNull();
     });
 
-    it("no workshop when readiness is met", () => {
+    it("workshop blocked when readiness is met with pending decisions", () => {
       const result = getItemActions(makeCtx({
         item: makeItem({ status: "ready" }),
         hasPendingDecisions: true,
@@ -403,7 +404,7 @@ describe("getItemActions", () => {
       expect(result.primaryCta).toBeNull();
     });
 
-    it("workshop disabled when agent running with pending decisions", () => {
+    it("workshop blocked when agent running with pending decisions", () => {
       const result = getItemActions(makeCtx({
         item: makeItem({ status: "backlog" }),
         hasPendingDecisions: true,
@@ -412,7 +413,7 @@ describe("getItemActions", () => {
       }));
       expect(result.showDecisionStepper).toBe(true);
       expect(result.canWorkshop).toBe(false);
-      expect(result.workshopDisabled).toBe(true);
+      expect(result.workshopDisabled).toBe(false);
     });
   });
 
@@ -555,5 +556,69 @@ describe("getItemActions", () => {
       expect(result.canWorkshop).toBe(true);
       expect(result.primaryCta).toBe("workshop");
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeDependencyRelations
+// ---------------------------------------------------------------------------
+
+describe("computeDependencyRelations", () => {
+  it("returns empty arrays when item has no deps and nothing depends on it", () => {
+    const item = makeItem({ name: "solo", kind: "idea" });
+    const result = computeDependencyRelations(item, [item]);
+    expect(result.parents).toEqual([]);
+    expect(result.children).toEqual([]);
+  });
+
+  it("resolves parents from dependsOn", () => {
+    const parent1 = makeItem({ name: "p1", kind: "fix", title: "Parent One", status: "ready" });
+    const parent2 = makeItem({ name: "p2", kind: "chore", title: "Parent Two", status: "completed" });
+    const item = makeItem({ name: "child", kind: "idea", dependsOn: ["fix/p1", "chore/p2"] });
+    const result = computeDependencyRelations(item, [parent1, parent2, item]);
+    expect(result.parents).toEqual([
+      { kind: "fix", name: "p1", title: "Parent One", status: "ready" },
+      { kind: "chore", name: "p2", title: "Parent Two", status: "completed" },
+    ]);
+  });
+
+  it("returns dangling refs with archived status", () => {
+    const item = makeItem({ name: "orphan", kind: "idea", dependsOn: ["fix/gone"] });
+    const result = computeDependencyRelations(item, [item]);
+    expect(result.parents).toEqual([
+      { kind: "fix", name: "gone", title: "fix/gone", status: "archived" },
+    ]);
+  });
+
+  it("computes children (reverse lookup)", () => {
+    const parent = makeItem({ name: "parent", kind: "fix", title: "The Parent", status: "ready" });
+    const child1 = makeItem({ name: "c1", kind: "idea", title: "Child 1", status: "backlog", dependsOn: ["fix/parent"] });
+    const child2 = makeItem({ name: "c2", kind: "chore", title: "Child 2", status: "researching", dependsOn: ["fix/parent"] });
+    const unrelated = makeItem({ name: "other", kind: "idea" });
+    const result = computeDependencyRelations(parent, [parent, child1, child2, unrelated]);
+    expect(result.children).toEqual([
+      { kind: "idea", name: "c1", title: "Child 1", status: "backlog" },
+      { kind: "chore", name: "c2", title: "Child 2", status: "researching" },
+    ]);
+  });
+
+  it("filters out self-references", () => {
+    const item = makeItem({ name: "self", kind: "idea", dependsOn: ["idea/self"] });
+    const result = computeDependencyRelations(item, [item]);
+    expect(result.parents).toEqual([]);
+    expect(result.children).toEqual([]);
+  });
+
+  it("skips malformed dependsOn entries (no slash)", () => {
+    const item = makeItem({ name: "bad", kind: "idea", dependsOn: ["noslash"] });
+    const result = computeDependencyRelations(item, [item]);
+    expect(result.parents).toEqual([]);
+  });
+
+  it("uses name as title fallback when title is empty", () => {
+    const parent = makeItem({ name: "notitle", kind: "fix", title: "", status: "backlog" });
+    const item = makeItem({ name: "child", kind: "idea", dependsOn: ["fix/notitle"] });
+    const result = computeDependencyRelations(item, [parent, item]);
+    expect(result.parents[0]?.title).toBe("notitle");
   });
 });

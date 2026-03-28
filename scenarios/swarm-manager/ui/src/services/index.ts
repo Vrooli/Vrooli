@@ -34,6 +34,10 @@ export type { IAgentManagerService } from "./agent-manager-service";
 export { executionService, createExecutionService } from "./execution-service";
 export type { IExecutionService, CreateExecutionRequest, ListExecutionFilters } from "./execution-service";
 
+// Initiatives
+export { initiativeService, createInitiativeService } from "./initiative-service";
+export type { IInitiativeService } from "./initiative-service";
+
 // Prompt Center
 export { promptService, createPromptService } from "./prompt-service";
 export type {

@@ -65,6 +65,10 @@ export const API_ENDPOINTS = {
   captures: "/captures",
   captureById: (id: string) => `/captures/${id}`,
   captureClassify: (id: string) => `/captures/${id}/classify`,
+  captureCreateItem: (id: string) => `/captures/${id}/create-item`,
+  initiatives: "/initiatives",
+  initiativeByName: (name: string) => `/initiatives/${name}`,
+  initiativeItems: (name: string) => `/initiatives/${name}/items`,
   health: "/health",
 } as const;
 

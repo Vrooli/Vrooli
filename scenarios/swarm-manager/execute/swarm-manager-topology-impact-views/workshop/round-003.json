@@ -1,0 +1,131 @@
+{
+  "round": 3,
+  "generated_at": "2026-03-28T16:30:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Default cluster collapse state on initial topology load",
+      "context": "When the topology lens first loads, initiative clusters can be either collapsed (showing rollup counts only) or expanded (showing all member nodes). This significantly affects the initial visual density and the user's first impression of the graph. With ~5-10 initiatives each containing 5-30 members, an all-expanded view could show 50-200+ nodes immediately, while all-collapsed shows only ~10-15 cluster nodes plus unassigned items.",
+      "options": [
+        {
+          "key": "A",
+          "label": "All clusters collapsed by default",
+          "rationale": "Users see an overview of initiatives with rollup counts first, then drill into clusters of interest. This aligns with the progressive-disclosure principle — start zoomed out, let users navigate in. Works well with the node cap since collapsed clusters reduce visible node count drastically. Recommended because the topology lens is meant for 'where do things stand' scanning, and rollup counts on collapsed clusters answer that immediately.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Auto-collapse based on member count (collapse if \u003e5 members)",
+          "rationale": "Small initiatives (1-5 items) show expanded so their structure is visible; large initiatives collapse to avoid overwhelming the canvas. More nuanced but creates a mixed initial state that may feel inconsistent. Users have to learn that collapse state depends on size."
+        },
+        {
+          "key": "C",
+          "label": "All clusters expanded by default",
+          "rationale": "Full detail immediately visible. Users see the complete graph and can collapse clusters to simplify. Matches how the graph works today (flat, all visible). May overwhelm with large backlogs, but the node cap handles the worst case."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Aggregated edge visual treatment for collapsed clusters",
+      "context": "When a cluster is collapsed, edges to/from hidden member nodes must be aggregated and routed to the cluster boundary. For example, if 3 backlog items inside initiative A each depend on a single item in initiative B, those 3 depends_on edges collapse into aggregated edge(s) pointing at cluster A. The visual treatment of these aggregated edges affects readability — users need to know there are multiple underlying edges without visual clutter.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Single aggregated edge per type with count badge",
+          "rationale": "For each (source-cluster, target-node, edge-type) triple, render one edge with a small badge showing the count of underlying edges (e.g., '3' on a depends_on edge). Keeps the canvas clean while conveying multiplicity. Recommended because it minimizes visual noise — cluster collapse is meant to simplify, and rendering N separate edges to the cluster boundary defeats that purpose.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Single aggregated edge per type, thicker stroke proportional to count",
+          "rationale": "One edge per type, but stroke width increases with the number of underlying edges (e.g., 1px for 1 edge, 3px for 5+). No text badges. Conveys multiplicity through visual weight. Cleaner than badges but less precise — users can't tell the exact count without expanding."
+        },
+        {
+          "key": "C",
+          "label": "Fan-out: render all individual edges to cluster boundary",
+          "rationale": "Don't aggregate — each underlying edge renders to the cluster boundary point. With 3 depends_on edges, you see 3 lines converging on the cluster. Most faithful to the data but can create visual clutter at the cluster boundary, especially with many edges."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Convenience API endpoint scope for inspector actions",
+      "context": "Round 2 decided to add thin API convenience endpoints (R2 d3=B). After auditing existing endpoints, most inspector actions are already covered: captureClassify, captureById (DELETE), backlogItem (PATCH for edit/assign initiative), backlogQueue, scenarioStart/Stop/Restart, scenarioFiles. Two actions clearly need new endpoints: 'create backlog item from capture suggestion' and 'initiative member management' (add/remove items from an initiative). The question is the exact scope of new endpoints.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Two new endpoints: capture-to-item + initiative members",
+          "rationale": "Add `POST /captures/:id/create-item` (creates a backlog item pre-filled from capture text/tags, marks capture as classified) and `POST/DELETE /initiatives/:name/members` (add/remove backlog items from initiative, updating the item's initiative field). These are the only two actions that require multi-step orchestration. All other actions map to existing single endpoints. Recommended because it's minimal — only adds endpoints for operations that genuinely need server-side coordination.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Three new endpoints: above + backlog add-dependency",
+          "rationale": "Same as A plus `POST /backlog/:kind/:name/dependencies` for adding a dependency edge. Currently, adding a dependency requires a PATCH to the full item spec (updating the depends_on array). A dedicated endpoint is cleaner for the UI action handler. Slightly more API surface but better ergonomics."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Clustering utility module structure",
+      "context": "The two-pass layout approach (R2 d2=A) needs a dedicated module for clustering transformations. This is the most complex new code — it transforms flat API nodes into a parent-child hierarchy, manages collapse/expand state, handles edge aggregation, and implements node capping. The question is where this logic lives and how it's organized for testability.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Single clustering-utils.ts with pure functions + store slice for collapse state",
+          "rationale": "Create `lib/clustering-utils.ts` exporting pure functions: `buildClusterHierarchy(nodes, edges) → {parentNodes, childNodes, orphans}`, `aggregateEdgesForCollapsed(edges, collapsedIds) → Edge[]`, `applyNodeCap(nodes, limit) → {visible, capped}`, `computeClusterLayout(clusters, layoutMode) → positions`. Collapse/expand state stored as `collapsedClusters: Set\u003cstring\u003e` in graph-ui-store. Recommended because pure functions are trivially testable, the store stays thin, and the separation matches the shell's store-first testing pattern.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Dedicated clustering store (separate Zustand store)",
+          "rationale": "New `clustering-store.ts` with its own state: collapsedClusters, cappedNodes, clusterMembership. Clustering transformations as store actions. More encapsulated but adds a third store (alongside graph-data-store and graph-ui-store), increasing subscription complexity and potential for state sync bugs."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Existing API endpoint audit for topology inspector actions: captureClassify ✅, captureById DELETE ✅, backlogItem PATCH (edit + assign initiative) ✅, backlogQueue ✅, backlogFiles ✅, scenarioFiles ✅, scenarioByName PATCH (edit metadata) ✅. Missing: capture-to-backlog-item creation (multi-step: create item + classify capture), initiative member add/remove (currently requires item-level PATCH to initiative field, no bulk operation). The backlog update endpoint CAN set depends_on via PATCH but requires sending the full array, not an append operation."
+    }
+  ],
+  "plan_updates": "Incorporated R2 decisions: updated Implementation Strategy Phase 3 with two-pass layout details, updated Non-goals to allow thin convenience endpoints (reconciling R2 d3=B), added concrete Testing Plan section with store-first approach and specific test modules. Readiness improved: testable 1→2 (testing plan now concrete, pending module structure decision)."
+}

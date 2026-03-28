@@ -32,11 +32,18 @@ import (
 	"swarm-manager/internal/promptmanager"
 )
 
+// BacklogItemCreator abstracts backlog item creation for the create-item endpoint.
+type BacklogItemCreator interface {
+	ItemDir(kind string, name string) string
+	SaveItem(kind, name, title, description string, tags []string) error
+}
+
 // Handler provides HTTP handlers for capture operations.
 type Handler struct {
-	rootDir      string
-	agentService agentmanager.Service
-	promptClient promptmanager.Client
+	rootDir        string
+	agentService   agentmanager.Service
+	promptClient   promptmanager.Client
+	backlogCreator BacklogItemCreator
 }
 
 // NewHandler creates a new captures handler.
@@ -52,6 +59,11 @@ func NewHandler(rootDir string, agentService agentmanager.Service, promptClient 
 	return h
 }
 
+// SetBacklogCreator sets the backlog item creator for the create-item endpoint.
+func (h *Handler) SetBacklogCreator(creator BacklogItemCreator) {
+	h.backlogCreator = creator
+}
+
 // RegisterRoutes registers capture endpoints on the given router.
 func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/captures", h.List).Methods("GET")
@@ -59,6 +71,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/captures/{id}", h.Get).Methods("GET")
 	r.HandleFunc("/api/v1/captures/{id}", h.Delete).Methods("DELETE")
 	r.HandleFunc("/api/v1/captures/{id}/classify", h.Classify).Methods("POST")
+	r.HandleFunc("/api/v1/captures/{id}/create-item", h.CreateItem).Methods("POST")
 }
 
 // capture represents the on-disk capture state.
@@ -338,6 +351,104 @@ func (h *Handler) Classify(w http.ResponseWriter, r *http.Request) {
 		"base_url": runResult.BaseURL,
 		"created":  time.Now().UTC().Format(time.RFC3339),
 	})
+}
+
+// createItemRequest is the JSON body for CreateItem.
+type createItemRequest struct {
+	Kind string `json:"kind"`
+}
+
+// CreateItem creates a backlog item from a classified capture.
+// It pre-fills the item with text from the capture and tags from the classification.
+func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
+	if h.backlogCreator == nil {
+		httputil.InternalError(w, "[captures] create-item", "backlog creator not configured")
+		return
+	}
+
+	id := mux.Vars(r)["id"]
+	cap, err := h.loadCapture(id)
+	if err != nil {
+		if os.IsNotExist(err) {
+			httputil.NotFound(w, "[captures] create-item", "capture not found")
+			return
+		}
+		httputil.InternalError(w, "[captures] create-item", "failed to load capture")
+		return
+	}
+
+	// Parse optional kind override from request body.
+	kind := "execute"
+	var req createItemRequest
+	if r.Body != nil {
+		if decErr := json.NewDecoder(r.Body).Decode(&req); decErr == nil && req.Kind != "" {
+			kind = strings.ToLower(strings.TrimSpace(req.Kind))
+		}
+	}
+
+	// Build item title from capture text (truncated).
+	title := truncate(cap.Text, 80)
+
+	// Collect tags from classification items.
+	var tags []string
+	if cap.Classification != nil {
+		for _, ci := range cap.Classification.Items {
+			tags = append(tags, ci.Tags...)
+		}
+	}
+	// Deduplicate tags.
+	seen := make(map[string]bool, len(tags))
+	dedupTags := make([]string, 0, len(tags))
+	for _, t := range tags {
+		if !seen[t] {
+			seen[t] = true
+			dedupTags = append(dedupTags, t)
+		}
+	}
+
+	// Generate a name from the title.
+	name := sanitizeCaptureItemName(title)
+	if name == "" {
+		name = "capture-item-" + id
+	}
+
+	if err := h.backlogCreator.SaveItem(kind, name, title, cap.Text, dedupTags); err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			httputil.Conflict(w, "[captures] create-item", "backlog item already exists")
+			return
+		}
+		log.Printf("[captures] create-item: %v", err)
+		httputil.InternalError(w, "[captures] create-item", "failed to create backlog item")
+		return
+	}
+
+	// Mark capture as classified.
+	cap.Status = "classified"
+	_ = h.writeCapture(cap)
+
+	log.Printf("[captures] create-item: created %s/%s from capture %s", kind, name, id)
+	_ = httputil.JSONWithStatus(w, http.StatusCreated, map[string]any{
+		"kind": kind,
+		"name": name,
+	})
+}
+
+// sanitizeCaptureItemName converts a title to a folder-safe name.
+func sanitizeCaptureItemName(title string) string {
+	name := strings.ToLower(title)
+	name = strings.ReplaceAll(name, " ", "-")
+	var result strings.Builder
+	for _, r := range name {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
+			result.WriteRune(r)
+		}
+	}
+	s := result.String()
+	// Truncate to a reasonable length for folder names.
+	if len(s) > 60 {
+		s = s[:60]
+	}
+	return strings.TrimRight(s, "-")
 }
 
 // loadCapture reads a capture from disk, merging classification.json if present.

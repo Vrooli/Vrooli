@@ -6,13 +6,13 @@
   "depends_on": [
     "research/swarm-manager-graph-workspace-contract"
   ],
-  "description": "Replace the 5-tab MainLayout with a sidebar + graph canvas + inspector shell at the new `/graph` route.\n\nThis work should:\n- sidebar: activity-first unified feed with entity-type filter toggles\n- graph canvas: React Flow v12 + Dagre, Zustand graph store with highlight/dim/hide query modes, viewport persistence via localStorage\n- inspector: desktop popover anchored to node (clamped to viewport bounds), mobile bottom sheet variant\n- header: title, lens switcher (segmented control), settings gear icon, agent-run status dropdown\n- implement 301 redirects from legacy paths (`/backlog/:kind/:name` → `/graph?lens=topology&select=:kind/:name`, `/scenarios/:name` → `/graph?lens=topology&select=scenario/:name`, `/execution` → `/graph?lens=flow`)\n- new URL scheme: `/graph?lens=topology|flow|operations&select=kind/name`\n- remove the 5-tab navigation (Backlog, Scenarios, Execution, Prompts, Settings tabs)\n- settings and prompts demoted to modal/drawer accessible via gear icon\n- BFS neighborhood selection on node click (type-constrained traversal)\n- three layout modes: hierarchical (Dagre network-simplex), compact (Dagre tight-tree), grouped (custom lane-per-type)\n\nThis item is about the application frame and interaction model, not about finalizing all graph lenses.",
+  "description": "Replace the 5-tab MainLayout with a sidebar + graph canvas + inspector shell at the new `/graph` route.\n\nThis work should:\n- sidebar: activity-first unified feed with entity-type filter toggles\n- graph canvas: React Flow v12 + Dagre, Zustand graph store with highlight/dim/hide query modes, viewport persistence via localStorage\n- inspector: desktop popover anchored to node (clamped to viewport bounds), mobile bottom sheet variant\n- header: title, lens switcher (segmented control), settings gear icon, agent-run status dropdown\n- implement 301 redirects from legacy paths (`/backlog/:kind/:name` → `/graph?lens=topology\u0026select=:kind/:name`, `/scenarios/:name` → `/graph?lens=topology\u0026select=scenario/:name`, `/execution` → `/graph?lens=flow`)\n- new URL scheme: `/graph?lens=topology|flow|operations\u0026select=kind/name`\n- remove the 5-tab navigation (Backlog, Scenarios, Execution, Prompts, Settings tabs)\n- settings and prompts demoted to modal/drawer accessible via gear icon\n- BFS neighborhood selection on node click (type-constrained traversal)\n- three layout modes: hierarchical (Dagre network-simplex), compact (Dagre tight-tree), grouped (custom lane-per-type)\n\nThis item is about the application frame and interaction model, not about finalizing all graph lenses.",
   "effort": "L",
   "initiative": "swarm-manager-graph-workspace",
   "kind": "execute",
   "name": "swarm-manager-graph-workspace-shell",
   "priority": 1,
-  "status": "backlog",
+  "status": "completed",
   "tags": [
     "swarm-manager",
     "ux",
@@ -21,5 +21,5 @@
     "greenfield"
   ],
   "title": "Replace the Tabbed Shell with the Graph Workspace Shell",
-  "updated": "2026-03-27T22:00:00Z"
+  "updated": "2026-03-28T02:27:38Z"
 }

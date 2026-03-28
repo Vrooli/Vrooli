@@ -372,6 +372,134 @@ func TestLoadCapture_MergesClassification(t *testing.T) {
 	}
 }
 
+// mockBacklogCreator implements BacklogItemCreator for tests.
+type mockBacklogCreator struct {
+	items []struct{ kind, name, title, description string; tags []string }
+}
+
+func (m *mockBacklogCreator) ItemDir(kind, name string) string {
+	return "/tmp/test/" + kind + "/" + name
+}
+
+func (m *mockBacklogCreator) SaveItem(kind, name, title, description string, tags []string) error {
+	m.items = append(m.items, struct{ kind, name, title, description string; tags []string }{kind, name, title, description, tags})
+	return nil
+}
+
+func TestCreateItem_Success(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	creator := &mockBacklogCreator{}
+	h.SetBacklogCreator(creator)
+
+	// Create a classified capture.
+	id := "cap-create-item"
+	dir := filepath.Join(rootDir, "captures", id)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cap := capture{
+		ID:          id,
+		Text:        "we should add a backup cron job",
+		Attachments: []string{},
+		Created:     time.Now().UTC().Format(time.RFC3339),
+		Status:      "classified",
+		Classification: &classification{
+			Items: []classificationItem{
+				{Kind: "execute", Title: "backup cron", Tags: []string{"ops", "infra"}, Priority: 3, Confidence: 0.9},
+			},
+			ClassifiedAt: time.Now().UTC().Format(time.RFC3339),
+		},
+	}
+	data, _ := json.Marshal(cap)
+	if err := os.WriteFile(filepath.Join(dir, "capture.json"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Also write classification.json so loadCapture merges it.
+	clsData, _ := json.Marshal(cap.Classification)
+	if err := os.WriteFile(filepath.Join(dir, "classification.json"), clsData, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	body := bytes.NewBufferString(`{"kind": "execute"}`)
+	req := httptest.NewRequest("POST", "/api/v1/captures/"+id+"/create-item", body)
+	req = mux.SetURLVars(req, map[string]string{"id": id})
+	w := httptest.NewRecorder()
+
+	h.CreateItem(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	if len(creator.items) != 1 {
+		t.Fatalf("expected 1 item created, got %d", len(creator.items))
+	}
+	item := creator.items[0]
+	if item.kind != "execute" {
+		t.Errorf("expected kind execute, got %q", item.kind)
+	}
+	if item.title == "" {
+		t.Error("expected non-empty title")
+	}
+	if len(item.tags) != 2 || item.tags[0] != "ops" || item.tags[1] != "infra" {
+		t.Errorf("unexpected tags: %v", item.tags)
+	}
+
+	// Verify capture status was updated.
+	loaded, err := h.loadCapture(id)
+	if err != nil {
+		t.Fatalf("loadCapture: %v", err)
+	}
+	if loaded.Status != "classified" {
+		t.Errorf("expected status classified, got %q", loaded.Status)
+	}
+}
+
+func TestCreateItem_NotFound(t *testing.T) {
+	h, _ := setupTestHandler(t)
+	creator := &mockBacklogCreator{}
+	h.SetBacklogCreator(creator)
+
+	req := httptest.NewRequest("POST", "/api/v1/captures/nonexistent/create-item", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
+	w := httptest.NewRecorder()
+
+	h.CreateItem(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", w.Code)
+	}
+}
+
+func TestCreateItem_NoCreator(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	// Don't set backlog creator.
+
+	id := "cap-no-creator"
+	dir := filepath.Join(rootDir, "captures", id)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cap := capture{
+		ID:      id,
+		Text:    "test",
+		Created: time.Now().UTC().Format(time.RFC3339),
+		Status:  "classified",
+	}
+	data, _ := json.Marshal(cap)
+	_ = os.WriteFile(filepath.Join(dir, "capture.json"), data, 0o644)
+
+	req := httptest.NewRequest("POST", "/api/v1/captures/"+id+"/create-item", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": id})
+	w := httptest.NewRecorder()
+
+	h.CreateItem(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", w.Code)
+	}
+}
+
 func TestClassify_NotFound(t *testing.T) {
 	h, _ := setupTestHandler(t)
 	req := httptest.NewRequest("POST", "/api/v1/captures/nonexistent/classify", nil)

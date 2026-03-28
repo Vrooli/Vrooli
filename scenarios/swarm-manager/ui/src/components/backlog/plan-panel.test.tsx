@@ -19,13 +19,28 @@ vi.mock("../../lib", async () => {
 });
 
 vi.mock("@monaco-editor/react", () => ({
-  default: ({ value, onChange }: { value: string; onChange?: (v: string) => void }) => (
-    <textarea
-      data-testid="mock-editor"
-      value={value}
-      onChange={(e) => onChange?.(e.target.value)}
-    />
-  ),
+  default: ({ value, onChange, onMount }: { value: string; onChange?: (v: string) => void; onMount?: (editor: unknown) => void }) => {
+    // Call onMount with a mock editor on first render
+    if (onMount) {
+      const mockEditor = {
+        revealLineInCenter: vi.fn(),
+        setPosition: vi.fn(),
+        focus: vi.fn(),
+      };
+      setTimeout(() => onMount(mockEditor), 0);
+    }
+    return (
+      <textarea
+        data-testid="mock-editor"
+        value={value}
+        onChange={(e) => onChange?.(e.target.value)}
+      />
+    );
+  },
+}));
+
+vi.mock("../../hooks/useModalBehavior", () => ({
+  useModalBehavior: vi.fn(),
 }));
 
 import { backlogService } from "../../services";
@@ -46,7 +61,7 @@ const renderWithProviders = (ui: React.ReactElement) => {
   );
 };
 
-const mockPlanContent = "# Implementation Plan\n\nThis is the plan content.";
+const mockPlanContent = "# Implementation Plan\n\nThis is the plan content.\n\n## Details\n\nSome details here.";
 
 describe("PlanPanel", () => {
   beforeEach(() => {
@@ -79,6 +94,23 @@ describe("PlanPanel", () => {
     });
 
     expect(screen.getByLabelText("Raw editor")).toBeInTheDocument();
+  });
+
+  it("renders icon-only buttons without text labels", async () => {
+    vi.mocked(backlogService.getFileContent).mockResolvedValue(mockPlanContent);
+
+    renderWithProviders(
+      <PlanPanel backlogKind="idea" backlogName="test-item" />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Rendered view")).toBeInTheDocument();
+    });
+
+    // Buttons should be icon-only — no "Rendered", "Edit", or "Copy" text
+    expect(screen.queryByText("Rendered")).not.toBeInTheDocument();
+    expect(screen.queryByText("Edit")).not.toBeInTheDocument();
+    expect(screen.queryByText("Copy")).not.toBeInTheDocument();
   });
 
   it("fetches plan.md via backlogService.getFileContent", async () => {
@@ -187,7 +219,7 @@ describe("PlanPanel", () => {
       expect(screen.getByLabelText("Rendered view")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Copy"));
+    fireEvent.click(screen.getByLabelText("Copy plan"));
 
     await waitFor(() => {
       expect(writeText).toHaveBeenCalledWith(mockPlanContent);
@@ -240,6 +272,80 @@ describe("PlanPanel", () => {
 
     await waitFor(() => {
       expect((screen.getByTestId("mock-editor") as HTMLTextAreaElement).value).toBe(mockPlanContent);
+    });
+  });
+
+  describe("TOC Popover", () => {
+    it("shows TOC button when content has headings", async () => {
+      vi.mocked(backlogService.getFileContent).mockResolvedValue(mockPlanContent);
+
+      renderWithProviders(
+        <PlanPanel backlogKind="idea" backlogName="test-item" />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByLabelText("Table of contents")).toBeInTheDocument();
+      });
+    });
+
+    it("does not show TOC button when content has no headings", async () => {
+      vi.mocked(backlogService.getFileContent).mockResolvedValue("No headings here, just text.");
+
+      renderWithProviders(
+        <PlanPanel backlogKind="idea" backlogName="test-item" />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByLabelText("Rendered view")).toBeInTheDocument();
+      });
+
+      expect(screen.queryByLabelText("Table of contents")).not.toBeInTheDocument();
+    });
+
+    it("opens TOC popover on click and shows heading entries", async () => {
+      vi.mocked(backlogService.getFileContent).mockResolvedValue(mockPlanContent);
+
+      renderWithProviders(
+        <PlanPanel backlogKind="idea" backlogName="test-item" />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByLabelText("Table of contents")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByLabelText("Table of contents"));
+
+      expect(screen.getByTestId("toc-popover")).toBeInTheDocument();
+      // Heading text appears in both the rendered content and the TOC popover
+      const planEntries = screen.getAllByText("Implementation Plan");
+      expect(planEntries.length).toBeGreaterThanOrEqual(2);
+      const detailsEntries = screen.getAllByText("Details");
+      expect(detailsEntries.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it("closes TOC popover after clicking a heading entry", async () => {
+      vi.mocked(backlogService.getFileContent).mockResolvedValue(mockPlanContent);
+
+      // Mock scrollIntoView
+      const scrollIntoView = vi.fn();
+      const mockElement = { scrollIntoView };
+      vi.spyOn(document, "getElementById").mockReturnValue(mockElement as unknown as HTMLElement);
+
+      renderWithProviders(
+        <PlanPanel backlogKind="idea" backlogName="test-item" />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByLabelText("Table of contents")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByLabelText("Table of contents"));
+      // Click the TOC entry (button inside the nav), not the rendered heading
+      const tocPopover = screen.getByTestId("toc-popover");
+      const tocEntry = tocPopover.querySelector("button")!;
+      fireEvent.click(tocEntry);
+
+      expect(screen.queryByTestId("toc-popover")).not.toBeInTheDocument();
     });
   });
 });

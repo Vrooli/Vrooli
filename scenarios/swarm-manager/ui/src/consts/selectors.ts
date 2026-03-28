@@ -182,6 +182,7 @@ export const literalSelectors = {
     tabPrompt: "backlog-details-tab-prompt",
     tabFiles: "backlog-details-tab-files",
     promptPanel: "backlog-details-prompt-panel",
+    initiativeChip: "backlog-details-initiative-chip",
   },
   // Backlog form dialog selectors
   backlogForm: {
@@ -303,6 +304,16 @@ export const literalSelectors = {
     submitButton: "follow-up-submit-button",
     error: "follow-up-error",
     reviewSummary: "follow-up-review-summary",
+  },
+  // Initiative details page selectors
+  initiativeDetails: {
+    page: "initiative-details-page",
+    title: "initiative-details-title",
+    status: "initiative-details-status",
+    description: "initiative-details-description",
+    rollup: "initiative-details-rollup",
+    itemsList: "initiative-details-items-list",
+    backLink: "initiative-details-back-link",
   },
   prompts: {
     page: "prompts-page",

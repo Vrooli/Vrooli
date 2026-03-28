@@ -89,6 +89,65 @@ export function getBlockingDepKeys(item: Pick<BacklogItem, "dependsOn">, allItem
 }
 
 // ---------------------------------------------------------------------------
+// Dependency relations (parent/children resolution)
+// ---------------------------------------------------------------------------
+
+/** A dependency reference resolved to its display fields. */
+export interface ResolvedDependency {
+  kind: string;
+  name: string;
+  title: string;
+  status: BacklogStatus;
+}
+
+/** Parent (upstream) and children (downstream) dependencies for an item. */
+export interface DependencyRelations {
+  parents: ResolvedDependency[];
+  children: ResolvedDependency[];
+}
+
+/**
+ * Compute the resolved parent and children dependencies for a backlog item.
+ *
+ * - Parents: items this item depends on (listed in `dependsOn`).
+ * - Children: items that depend on this item (reverse lookup across `allItems`).
+ *
+ * Dangling refs (items listed in `dependsOn` but not found in `allItems`) are
+ * returned with `"archived"` status so the chip still renders visually.
+ */
+export function computeDependencyRelations(
+  item: Pick<BacklogItem, "kind" | "name" | "dependsOn">,
+  allItems: BacklogItem[],
+): DependencyRelations {
+  const itemsByKey = new Map(allItems.map((i) => [`${i.kind}/${i.name}`, i]));
+  const selfKey = `${item.kind}/${item.name}`;
+
+  const parents: ResolvedDependency[] = [];
+  for (const dep of item.dependsOn ?? []) {
+    if (dep === selfKey) continue;
+    if (!dep.includes("/")) continue;
+    const found = itemsByKey.get(dep);
+    if (found) {
+      parents.push({ kind: found.kind, name: found.name, title: found.title || found.name, status: found.status });
+    } else {
+      const [kind = "", ...rest] = dep.split("/");
+      parents.push({ kind, name: rest.join("/"), title: dep, status: "archived" as BacklogStatus });
+    }
+  }
+
+  const children: ResolvedDependency[] = [];
+  for (const other of allItems) {
+    const otherKey = `${other.kind}/${other.name}`;
+    if (otherKey === selfKey) continue;
+    if (other.dependsOn?.includes(selfKey)) {
+      children.push({ kind: other.kind, name: other.name, title: other.title || other.name, status: other.status });
+    }
+  }
+
+  return { parents, children };
+}
+
+// ---------------------------------------------------------------------------
 // Action resolver
 // ---------------------------------------------------------------------------
 
@@ -225,15 +284,16 @@ export function getItemActions(ctx: ActionContext): ItemActions {
     };
   }
 
-  // Step 2: Unanswered decisions — stepper is primary, workshop as secondary.
+  // Step 2: Unanswered decisions — stepper is primary, workshop blocked until
+  // all decisions are resolved (running another round before answering existing
+  // questions would just pile up more unanswered items).
   if (ctx.hasPendingDecisions) {
-    const needsWorkshop = queueable && ctx.readinessReady === false;
     return {
       ...base,
       showDecisionStepper: true,
-      canWorkshop: needsWorkshop && !agentRunning,
-      workshopDisabled: needsWorkshop && agentRunning,
-      primaryCta: needsWorkshop ? "workshop" : null,
+      canWorkshop: false,
+      workshopDisabled: false,
+      primaryCta: null,
     };
   }
 
