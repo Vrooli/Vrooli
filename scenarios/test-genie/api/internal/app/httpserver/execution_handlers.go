@@ -32,21 +32,23 @@ type suiteExecutionPayload struct {
 	ScenarioPath string `json:"scenarioPath"`
 }
 
-func (s *Server) handleExecuteSuite(w http.ResponseWriter, r *http.Request) {
+func decodeSuiteExecutionInput(r *http.Request) (execution.SuiteExecutionInput, error) {
 	defer r.Body.Close()
+
 	var payload suiteExecutionPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		s.writeError(w, http.StatusBadRequest, "invalid JSON payload")
-		return
+		return execution.SuiteExecutionInput{}, shared.NewValidationError("invalid JSON payload")
 	}
+	return buildSuiteExecutionInput(payload)
+}
 
+func buildSuiteExecutionInput(payload suiteExecutionPayload) (execution.SuiteExecutionInput, error) {
 	scenario := strings.TrimSpace(payload.ScenarioName)
 	if scenario == "" {
-		s.writeError(w, http.StatusBadRequest, "scenarioName is required")
-		return
+		return execution.SuiteExecutionInput{}, shared.NewValidationError("scenarioName is required")
 	}
 
-	execRequest := orchestrator.SuiteExecutionRequest{
+	request := orchestrator.SuiteExecutionRequest{
 		ScenarioName:   scenario,
 		Preset:         strings.TrimSpace(payload.Preset),
 		Phases:         payload.Phases,
@@ -62,10 +64,27 @@ func (s *Server) handleExecuteSuite(w http.ResponseWriter, r *http.Request) {
 	if id := strings.TrimSpace(payload.SuiteRequestID); id != "" {
 		parsed, err := uuid.Parse(id)
 		if err != nil {
-			s.writeError(w, http.StatusBadRequest, "suiteRequestId must be a valid UUID")
-			return
+			return execution.SuiteExecutionInput{}, shared.NewValidationError("suiteRequestId must be a valid UUID")
 		}
 		suiteRequestID = &parsed
+	}
+
+	return execution.SuiteExecutionInput{
+		Request:        request,
+		SuiteRequestID: suiteRequestID,
+	}, nil
+}
+
+func (s *Server) handleExecuteSuite(w http.ResponseWriter, r *http.Request) {
+	input, err := decodeSuiteExecutionInput(r)
+	if err != nil {
+		var vErr shared.ValidationError
+		if errors.As(err, &vErr) {
+			s.writeError(w, http.StatusBadRequest, vErr.Error())
+			return
+		}
+		s.writeError(w, http.StatusBadRequest, "invalid JSON payload")
+		return
 	}
 
 	if s.executionSvc == nil {
@@ -73,10 +92,7 @@ func (s *Server) handleExecuteSuite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := s.executionSvc.Execute(r.Context(), execution.SuiteExecutionInput{
-		Request:        execRequest,
-		SuiteRequestID: suiteRequestID,
-	})
+	result, err := s.executionSvc.Execute(r.Context(), input)
 	if err != nil {
 		if errors.Is(err, execution.ErrSuiteRequestNotFound) {
 			s.writeError(w, http.StatusNotFound, "suite request not found")

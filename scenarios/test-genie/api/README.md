@@ -268,6 +268,7 @@ Suite requests queue generation intents. When executed with a `suiteRequestId`, 
 | `GET` | `/api/v1/suite-requests` | List queued requests |
 | `GET` | `/api/v1/suite-requests/{id}` | Get request by ID |
 | `GET` | `/api/v1/phases` | List registered phases |
+| `POST` | `/api/v1/executions/plan` | Preview the selected phase plan, estimate, and timeout budget |
 | `POST` | `/api/v1/executions` | Execute a test suite |
 | `GET` | `/api/v1/executions` | List execution history |
 | `GET` | `/api/v1/executions/{id}` | Get execution by ID |
@@ -303,3 +304,12 @@ go test -cover ./...             # With coverage
 - [Phases README](internal/orchestrator/phases/README.md) — Phase contracts & implementations
 - [HTTP Server README](internal/app/httpserver/README.md) — Handler patterns
 - [Execution README](internal/execution/README.md) — State management
+
+## Execution Planning
+
+Execution planning is a first-class API surface:
+
+- `POST /api/v1/executions/plan` resolves the actual phase list for a request before execution.
+- Runtime estimates are based on recent per-phase history, not timeout budgets.
+- Timeout budgets still come from phase configuration and are returned alongside the estimate.
+- Execution history persists requested preset/phases/skip, actual planned phases, and fail-fast so future estimates can distinguish full plans from partial runs.

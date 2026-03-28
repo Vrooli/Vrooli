@@ -30,6 +30,7 @@ type Bootstrapped struct {
 	ExecutionRepo              *execution.SuiteExecutionRepository
 	ExecutionHistory           execution.ExecutionHistory
 	ExecutionService           *execution.SuiteExecutionService
+	ExecutionPlanner           execution.ExecutionPlanner
 	ScenarioService            *scenarios.ScenarioDirectoryService
 	PhaseCatalog               phaseCatalogProvider
 	AgentService               *agentmanager.AgentService
@@ -84,6 +85,7 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	suiteRequestService := queue.NewSuiteRequestService(suiteRequestRepo)
 	executionRepo := execution.NewSuiteExecutionRepository(db)
 	executionHistory := execution.NewExecutionHistoryService(executionRepo)
+	executionPlanner := execution.NewExecutionPlanService(runner, executionRepo)
 	scenarioRepo := scenarios.NewScenarioDirectoryRepository(db)
 	scenarioLister := scenarios.NewVrooliScenarioLister()
 	scenarioService := scenarios.NewScenarioDirectoryService(scenarioRepo, scenarioLister, cfg.ScenariosRoot)
@@ -158,6 +160,7 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		ExecutionRepo:              executionRepo,
 		ExecutionHistory:           executionHistory,
 		ExecutionService:           executionSvc,
+		ExecutionPlanner:           executionPlanner,
 		ScenarioService:            scenarioService,
 		PhaseCatalog:               runner,
 		AgentService:               agentService,

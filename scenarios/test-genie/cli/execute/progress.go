@@ -48,6 +48,9 @@ type ProgressConfig struct {
 	// Targets maps phase names to their expected durations for time estimation.
 	Targets map[string]time.Duration
 
+	// Timeouts maps phase names to their execution timeout budgets.
+	Timeouts map[string]time.Duration
+
 	// ForceTTY overrides TTY detection when set to a non-nil value.
 	// Use this for testing or when you need to force a specific mode.
 	// true = force TTY mode (animated spinner)
@@ -103,11 +106,12 @@ type ProgressConfig struct {
 //
 // The phase-change mode solves this by providing meaningful progress updates
 // only when something actually changes.
-func StartProgress(w io.Writer, phaseList []string, targets map[string]time.Duration) func() {
+func StartProgress(w io.Writer, phaseList []string, targets map[string]time.Duration, timeouts map[string]time.Duration) func() {
 	return StartProgressWithConfig(ProgressConfig{
 		Writer:    w,
 		PhaseList: phaseList,
 		Targets:   targets,
+		Timeouts:  timeouts,
 	})
 }
 
@@ -143,7 +147,7 @@ func StartProgressWithConfig(cfg ProgressConfig) func() {
 	}
 
 	// Non-TTY mode: simple phase-change logging
-	return startNonTTYProgress(cfg.Writer, cfg.PhaseList, cfg.Targets, totalEstimate, start, done)
+	return startNonTTYProgress(cfg.Writer, cfg.PhaseList, cfg.Targets, cfg.Timeouts, totalEstimate, start, done)
 }
 
 // startTTYProgress runs the animated spinner for interactive terminals.
@@ -210,7 +214,7 @@ func startTTYProgress(w io.Writer, phaseList []string, targets map[string]time.D
 // startNonTTYProgress runs simple phase-change logging for non-interactive output.
 // Only prints a new line when the estimated current phase changes, avoiding
 // the output spam that occurs when carriage returns don't work.
-func startNonTTYProgress(w io.Writer, phaseList []string, targets map[string]time.Duration, totalEstimate time.Duration, start time.Time, done chan struct{}) func() {
+func startNonTTYProgress(w io.Writer, phaseList []string, targets, timeouts map[string]time.Duration, totalEstimate time.Duration, start time.Time, done chan struct{}) func() {
 	// Check less frequently since we only care about phase changes
 	ticker := time.NewTicker(1 * time.Second)
 
@@ -220,9 +224,8 @@ func startNonTTYProgress(w io.Writer, phaseList []string, targets map[string]tim
 		// Print initial phase immediately
 		if len(phaseList) > 0 {
 			firstPhase := phaseList[0]
-			phaseTarget := targets[phases.NormalizeName(firstPhase)]
-			fmt.Fprintf(w, "[1/%d] Running %s phase... (estimated ~%s)\n",
-				len(phaseList), firstPhase, phaseTarget.Truncate(time.Second))
+			fmt.Fprintf(w, "[1/%d] Running %s phase... (%s)\n",
+				len(phaseList), firstPhase, phaseTimingSummary(firstPhase, targets, timeouts))
 			lastPhase = firstPhase
 		}
 
@@ -238,9 +241,8 @@ func startNonTTYProgress(w io.Writer, phaseList []string, targets map[string]tim
 				// Only print when the phase changes
 				if currentPhase != lastPhase {
 					phaseIdx := findPhaseIndex(phaseList, currentPhase) + 1
-					phaseTarget := targets[phases.NormalizeName(currentPhase)]
-					fmt.Fprintf(w, "[%d/%d] Running %s phase... (estimated ~%s)\n",
-						phaseIdx, len(phaseList), currentPhase, phaseTarget.Truncate(time.Second))
+					fmt.Fprintf(w, "[%d/%d] Running %s phase... (%s)\n",
+						phaseIdx, len(phaseList), currentPhase, phaseTimingSummary(currentPhase, targets, timeouts))
 					lastPhase = currentPhase
 				}
 			}
@@ -300,4 +302,21 @@ func buildProgressBar(current, total, width int) string {
 	}
 	empty := width - filled
 	return strings.Repeat("█", filled) + strings.Repeat("░", empty)
+}
+
+func phaseTimingSummary(phase string, targets, timeouts map[string]time.Duration) string {
+	key := phases.NormalizeName(phase)
+	target := targets[key]
+	timeout := timeouts[key]
+
+	switch {
+	case target > 0 && timeout > 0:
+		return fmt.Sprintf("estimate ~%s, timeout %s", target.Truncate(time.Second), timeout.Truncate(time.Second))
+	case target > 0:
+		return fmt.Sprintf("estimate ~%s", target.Truncate(time.Second))
+	case timeout > 0:
+		return fmt.Sprintf("timeout %s", timeout.Truncate(time.Second))
+	default:
+		return "timing unavailable"
+	}
 }

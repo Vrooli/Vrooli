@@ -84,6 +84,31 @@ export interface PhaseSettingsResponse {
   toggles?: Record<string, PhaseToggle>;
 }
 
+export interface ExecutionPlanPhase {
+  name: string;
+  description?: string;
+  optional: boolean;
+  estimatedDurationSeconds: number;
+  timeoutSeconds: number;
+  estimateSource: string;
+  estimateConfidence: string;
+  estimateSampleSize: number;
+}
+
+export interface ExecutionPlanSummary {
+  phaseCount: number;
+  estimatedDurationSeconds: number;
+  timeoutSeconds: number;
+}
+
+export interface ExecutionPlanPreview {
+  scenarioName: string;
+  presetUsed?: string;
+  phases: ExecutionPlanPhase[];
+  summary: ExecutionPlanSummary;
+  warnings?: string[];
+}
+
 export interface SuiteExecutionResult {
   executionId?: string;
   suiteRequestId?: string;
@@ -232,6 +257,16 @@ export async function triggerSuiteExecution(input: ExecuteSuiteInput): Promise<S
     body: JSON.stringify(input)
   });
   return parseResponse<SuiteExecutionResult>(res);
+}
+
+export async function previewSuiteExecution(input: ExecuteSuiteInput): Promise<ExecutionPlanPreview> {
+  const url = buildTestGenieApiUrl("/executions/plan");
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input)
+  });
+  return parseResponse<ExecutionPlanPreview>(res);
 }
 
 export async function fetchPhaseSettings(): Promise<PhaseSettingsResponse> {

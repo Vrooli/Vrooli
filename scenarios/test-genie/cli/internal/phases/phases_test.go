@@ -47,13 +47,13 @@ func TestApplySkipNormalizesAliases(t *testing.T) {
 	}
 }
 
-func TestMakeDescriptorMapsUsesFallbackTimeoutsWhenUnset(t *testing.T) {
+func TestMakeDescriptorMapsDoesNotInventFallbackTimeouts(t *testing.T) {
 	descMap, targets := MakeDescriptorMaps([]Descriptor{{Name: "Lint"}})
 	if _, ok := descMap["lint"]; !ok {
 		t.Fatalf("expected lint descriptor map entry, got %v", descMap)
 	}
-	if got := targets["integration"]; got != 600*time.Second {
-		t.Fatalf("expected fallback integration timeout, got %v", got)
+	if len(targets) != 0 {
+		t.Fatalf("expected no synthetic timeouts, got %v", targets)
 	}
 }
 

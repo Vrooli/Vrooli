@@ -7,6 +7,7 @@ import { selectors } from "../../consts/selectors";
 import { useUIStore } from "../../stores/uiStore";
 import { PRESET_DETAILS, PHASE_LABELS } from "../../lib/constants";
 import { useExecutionStream } from "../../hooks/useExecutionStream";
+import { useExecutionPlan } from "../../hooks/useExecutionPlan";
 import { cn } from "../../lib/utils";
 
 interface ExecutionFormProps {
@@ -14,6 +15,27 @@ interface ExecutionFormProps {
   datalistId: string;
   scenarioName?: string;
   onSuccess?: () => void;
+}
+
+function formatDuration(seconds: number): string {
+  if (seconds <= 0) return "0s";
+  const total = Math.round(seconds);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const remainingSeconds = total % 60;
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m ${remainingSeconds}s`;
+  }
+  return `${remainingSeconds}s`;
+}
+
+function formatEstimateNote(source: string, confidence: string, sampleSize: number): string {
+  if (source === "timeout_fallback") return "Timeout fallback";
+  if (sampleSize > 0) return `${confidence} confidence from ${sampleSize} run${sampleSize === 1 ? "" : "s"}`;
+  return `${confidence} confidence`;
 }
 
 export function ExecutionForm({ scenarioOptions: _scenarioOptions, datalistId, scenarioName, onSuccess }: ExecutionFormProps) {
@@ -71,6 +93,16 @@ export function ExecutionForm({ scenarioOptions: _scenarioOptions, datalistId, s
   };
 
   const presetEntries = Object.entries(PRESET_DETAILS);
+  const planRequest = useMemo(() => ({
+    scenarioName: executionForm.scenarioName.trim(),
+    preset: executionForm.preset,
+    failFast: executionForm.failFast
+  }), [executionForm.failFast, executionForm.preset, executionForm.scenarioName]);
+  const {
+    data: executionPlan,
+    isLoading: isPlanLoading,
+    error: planError
+  } = useExecutionPlan(planRequest, planRequest.scenarioName.length > 0);
 
   const logTitle = useMemo(() => {
     if (streamStatus === "streaming") return "Live output";
@@ -205,6 +237,74 @@ export function ExecutionForm({ scenarioOptions: _scenarioOptions, datalistId, s
           </div>
         </div>
 
+        <div className="rounded-2xl border border-cyan-400/15 bg-cyan-400/[0.04] p-4">
+          <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.25em] text-cyan-200/80">Execution preview</p>
+              <p className="mt-1 text-sm text-slate-300">
+                Scenario-aware timing guidance based on the actual selected phases and recent execution history.
+              </p>
+            </div>
+            {executionPlan && (
+              <div className="rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-slate-200">
+                <p>Estimate: <span className="font-semibold text-white">{formatDuration(executionPlan.summary.estimatedDurationSeconds)}</span></p>
+                <p className="mt-1">Timeout budget: <span className="font-semibold text-white">{formatDuration(executionPlan.summary.timeoutSeconds)}</span></p>
+              </div>
+            )}
+          </div>
+
+          {!planRequest.scenarioName && (
+            <p className="mt-4 text-sm text-slate-400">Choose a scenario to preview selected phases, estimates, and timeout budgets.</p>
+          )}
+
+          {planRequest.scenarioName && isPlanLoading && (
+            <p className="mt-4 text-sm text-slate-300">Calculating scenario-specific phase timing...</p>
+          )}
+
+          {planRequest.scenarioName && !isPlanLoading && planError instanceof Error && (
+            <p className="mt-4 text-sm text-amber-300">
+              Unable to load execution timing right now: {planError.message}
+            </p>
+          )}
+
+          {executionPlan && executionPlan.phases.length > 0 && (
+            <div className="mt-4 space-y-3">
+              <div className="grid gap-2">
+                {executionPlan.phases.map((phase) => (
+                  <div
+                    key={phase.name}
+                    className="rounded-xl border border-white/8 bg-black/25 px-4 py-3"
+                  >
+                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <p className="font-semibold text-white">{PHASE_LABELS[phase.name] ?? phase.name}</p>
+                        {phase.description && (
+                          <p className="mt-1 text-xs text-slate-400">{phase.description}</p>
+                        )}
+                      </div>
+                      <div className="text-sm text-slate-200">
+                        <p>Estimate: <span className="font-semibold text-white">{formatDuration(phase.estimatedDurationSeconds)}</span></p>
+                        <p className="mt-1">Timeout: <span className="font-semibold text-white">{formatDuration(phase.timeoutSeconds)}</span></p>
+                      </div>
+                    </div>
+                    <p className="mt-2 text-xs text-slate-400">
+                      {formatEstimateNote(phase.estimateSource, phase.estimateConfidence, phase.estimateSampleSize)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {executionPlan.warnings && executionPlan.warnings.length > 0 && (
+                <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+                  {executionPlan.warnings.map((warning) => (
+                    <p key={warning}>{warning}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         <Button
           className="w-full"
           type="submit"
@@ -216,18 +316,18 @@ export function ExecutionForm({ scenarioOptions: _scenarioOptions, datalistId, s
         </Button>
         {executionFeedback && (
           <p
-          className={cn(
-            "text-sm",
-            feedbackStatus === "error"
-              ? "text-red-400"
-              : feedbackStatus === "success"
-                ? "text-emerald-300"
-                : "text-slate-300"
-          )}
-        >
-          {executionFeedback}
-        </p>
-      )}
+            className={cn(
+              "text-sm",
+              feedbackStatus === "error"
+                ? "text-red-400"
+                : feedbackStatus === "success"
+                  ? "text-emerald-300"
+                  : "text-slate-300"
+            )}
+          >
+            {executionFeedback}
+          </p>
+        )}
 
         {logTitle && (
           <div className="rounded-xl border border-white/10 bg-black/40 p-4">

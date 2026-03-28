@@ -27,9 +27,14 @@ func TestSuiteExecutionService_ExecuteWithoutLinkedRequest(t *testing.T) {
 		WithArgs(
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
+			"demo",
+			sql.NullString{String: "quick", Valid: true},
+			sql.NullString{String: "quick", Valid: true},
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
+			true,
+			true,
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
@@ -37,10 +42,16 @@ func TestSuiteExecutionService_ExecuteWithoutLinkedRequest(t *testing.T) {
 
 	engine := &stubExecutionEngine{
 		result: &orchestrator.SuiteExecutionResult{
-			ScenarioName: "demo",
-			StartedAt:    time.Now().Add(-time.Minute),
-			CompletedAt:  time.Now(),
-			Success:      true,
+			ScenarioName:        "demo",
+			StartedAt:           time.Now().Add(-time.Minute),
+			CompletedAt:         time.Now(),
+			Success:             true,
+			PresetUsed:          "quick",
+			RequestedPreset:     "quick",
+			RequestedPhases:     []string{"structure", "unit"},
+			RequestedSkipPhases: []string{"performance"},
+			PlannedPhases:       []string{"structure", "unit"},
+			FailFast:            true,
 		},
 	}
 
@@ -61,6 +72,9 @@ func TestSuiteExecutionService_ExecuteWithoutLinkedRequest(t *testing.T) {
 	}
 	if output.ExecutionID == uuid.Nil {
 		t.Fatalf("execution id was not assigned")
+	}
+	if output.RequestedPreset != "quick" || !output.FailFast {
+		t.Fatalf("expected execution metadata to be preserved: %#v", output)
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {

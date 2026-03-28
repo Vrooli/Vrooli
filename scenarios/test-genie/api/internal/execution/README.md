@@ -75,14 +75,19 @@ Persisted execution data:
 
 ```go
 type SuiteExecutionRecord struct {
-    ID             uuid.UUID
-    SuiteRequestID *uuid.UUID
-    ScenarioName   string
-    PresetUsed     string
-    Success        bool
-    Phases         []phases.ExecutionResult
-    StartedAt      time.Time
-    CompletedAt    time.Time
+    ID                  uuid.UUID
+    SuiteRequestID      *uuid.UUID
+    ScenarioName        string
+    PresetUsed          string
+    RequestedPreset     string
+    RequestedPhases     []string
+    RequestedSkipPhases []string
+    PlannedPhases       []string
+    FailFast            bool
+    Success             bool
+    Phases              []phases.ExecutionResult
+    StartedAt           time.Time
+    CompletedAt         time.Time
 }
 ```
 
@@ -157,14 +162,19 @@ stateDiagram-v2
 
 ```sql
 CREATE TABLE suite_executions (
-    id              UUID PRIMARY KEY,
+    id               UUID PRIMARY KEY,
     suite_request_id UUID REFERENCES suite_requests(id),
-    scenario_name   TEXT NOT NULL,
-    preset_used     TEXT,
-    success         BOOLEAN NOT NULL,
-    phases          JSONB NOT NULL,
-    started_at      TIMESTAMPTZ NOT NULL,
-    completed_at    TIMESTAMPTZ NOT NULL
+    scenario_name    TEXT NOT NULL,
+    preset_used      TEXT,
+    requested_preset TEXT,
+    requested_phases TEXT[] NOT NULL DEFAULT '{}',
+    requested_skip_phases TEXT[] NOT NULL DEFAULT '{}',
+    planned_phases   TEXT[] NOT NULL DEFAULT '{}',
+    fail_fast        BOOLEAN NOT NULL DEFAULT FALSE,
+    success          BOOLEAN NOT NULL,
+    phases           JSONB NOT NULL,
+    started_at       TIMESTAMPTZ NOT NULL,
+    completed_at     TIMESTAMPTZ NOT NULL
 );
 
 CREATE INDEX idx_suite_executions_scenario ON suite_executions(scenario_name);
@@ -196,6 +206,14 @@ func (r *SuiteExecutionRepository) GetByID(ctx context.Context, id uuid.UUID) (*
 ```
 
 Loads a single record by UUID.
+
+### ListPhaseSamples
+
+```go
+func (r *SuiteExecutionRepository) ListPhaseSamples(ctx context.Context, phaseNames []string, since time.Time, limit int) ([]PhaseDurationSample, error)
+```
+
+Flattens persisted `phases` JSON into per-phase runtime samples for the execution planner.
 
 ### Latest
 

@@ -184,16 +184,21 @@ type SuiteExecutionRequest struct {
 
 // SuiteExecutionResult captures the outcome of a run.
 type SuiteExecutionResult struct {
-	ExecutionID    uuid.UUID              `json:"executionId,omitempty"`
-	SuiteRequestID *uuid.UUID             `json:"suiteRequestId,omitempty"`
-	ScenarioName   string                 `json:"scenarioName"`
-	StartedAt      time.Time              `json:"startedAt"`
-	CompletedAt    time.Time              `json:"completedAt"`
-	Success        bool                   `json:"success"`
-	PresetUsed     string                 `json:"preset,omitempty"`
-	Phases         []PhaseExecutionResult `json:"phases"`
-	PhaseSummary   PhaseSummary           `json:"phaseSummary"`
-	Warnings       []string               `json:"warnings,omitempty"`
+	ExecutionID         uuid.UUID              `json:"executionId,omitempty"`
+	SuiteRequestID      *uuid.UUID             `json:"suiteRequestId,omitempty"`
+	ScenarioName        string                 `json:"scenarioName"`
+	StartedAt           time.Time              `json:"startedAt"`
+	CompletedAt         time.Time              `json:"completedAt"`
+	Success             bool                   `json:"success"`
+	PresetUsed          string                 `json:"preset,omitempty"`
+	RequestedPreset     string                 `json:"requestedPreset,omitempty"`
+	RequestedPhases     []string               `json:"requestedPhases,omitempty"`
+	RequestedSkipPhases []string               `json:"requestedSkipPhases,omitempty"`
+	PlannedPhases       []string               `json:"plannedPhases,omitempty"`
+	FailFast            bool                   `json:"failFast"`
+	Phases              []PhaseExecutionResult `json:"phases"`
+	PhaseSummary        PhaseSummary           `json:"phaseSummary"`
+	Warnings            []string               `json:"warnings,omitempty"`
 }
 
 type PhaseExecutionResult = phases.ExecutionResult
@@ -360,59 +365,38 @@ func newRunID() string {
 }
 
 func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*preparedExecution, error) {
-	scenario := strings.TrimSpace(req.ScenarioName)
-	if scenario == "" {
-		return nil, shared.NewValidationError("scenarioName is required")
-	}
-
-	ws, err := workspacepkg.New(o.scenariosRoot, scenario)
+	planCtx, err := o.loadExecutionPlanContext(req)
 	if err != nil {
 		return nil, err
 	}
-
-	autoUI, autoAPI := detectRuntimeURLs(ws.ScenarioDir)
-	uiURL := req.UIURL
-	if uiURL == "" {
-		uiURL = autoUI
-	}
-	apiURL := req.APIURL
-	if apiURL == "" {
-		apiURL = autoAPI
-	}
-	ws.SetRuntimeURLs(uiURL, apiURL, resolveBrowserlessURL(req.BrowserlessURL))
-
-	env := ws.Environment()
-	config, err := workspacepkg.LoadTestingConfig(env.ScenarioDir)
-	if err != nil {
-		return nil, err
-	}
-
-	plan, err := o.buildPhasePlan(env, config, req)
-	if err != nil {
-		return nil, err
-	}
+	scenario := planCtx.env.ScenarioName
 
 	runID := newRunID()
-	if err := sharedartifacts.EnsureCoverageStructure(env.ScenarioDir); err != nil {
+	if err := sharedartifacts.EnsureCoverageStructure(planCtx.env.ScenarioDir); err != nil {
 		return nil, err
 	}
 
-	runLogDir := sharedartifacts.RunLogsDir(env.ScenarioDir, runID)
+	runLogDir := sharedartifacts.RunLogsDir(planCtx.env.ScenarioDir, runID)
 	if err := os.MkdirAll(runLogDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create run log directory: %w", err)
 	}
 
 	return &preparedExecution{
-		env:       env,
-		config:    config,
-		plan:      plan,
+		env:       planCtx.env,
+		config:    planCtx.config,
+		plan:      planCtx.plan,
 		runID:     runID,
 		runLogDir: runLogDir,
 		result: &SuiteExecutionResult{
-			ScenarioName: scenario,
-			StartedAt:    time.Now().UTC(),
-			PresetUsed:   plan.PresetUsed,
-			Warnings:     buildPlanWarnings(plan),
+			ScenarioName:        scenario,
+			StartedAt:           time.Now().UTC(),
+			PresetUsed:          planCtx.plan.PresetUsed,
+			RequestedPreset:     normalizePhaseName(req.Preset),
+			RequestedPhases:     normalizePhaseList(req.Phases),
+			RequestedSkipPhases: normalizePhaseList(req.Skip),
+			PlannedPhases:       phaseDefinitionNames(planCtx.plan.Selected),
+			FailFast:            req.FailFast,
+			Warnings:            buildPlanWarnings(planCtx.plan),
 		},
 	}, nil
 }
@@ -1149,6 +1133,49 @@ func buildCommandHistory(req SuiteExecutionRequest, plan *phasePlan) []string {
 
 func normalizePhaseName(raw string) string {
 	return strings.ToLower(strings.TrimSpace(raw))
+}
+
+func normalizePhaseList(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+
+	normalized := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		name := normalizePhaseName(value)
+		if name == "" {
+			continue
+		}
+		if _, exists := seen[name]; exists {
+			continue
+		}
+		seen[name] = struct{}{}
+		normalized = append(normalized, name)
+	}
+	if len(normalized) == 0 {
+		return nil
+	}
+	return normalized
+}
+
+func phaseDefinitionNames(defs []phases.Definition) []string {
+	if len(defs) == 0 {
+		return nil
+	}
+
+	names := make([]string, 0, len(defs))
+	for _, def := range defs {
+		name := normalizePhaseName(def.Name.String())
+		if name == "" {
+			continue
+		}
+		names = append(names, name)
+	}
+	if len(names) == 0 {
+		return nil
+	}
+	return names
 }
 
 func resolveDesiredPhaseList(req SuiteExecutionRequest, presets map[string][]string) ([]string, string, error) {

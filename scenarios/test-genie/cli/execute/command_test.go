@@ -3,46 +3,43 @@ package execute
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	execTypes "test-genie/cli/internal/execute"
-	"test-genie/cli/internal/phases"
 )
 
-func TestPlanPhaseOrderPrefersCatalogAndSkip(t *testing.T) {
-	descriptors := []phases.Descriptor{
-		{Name: "structure"},
-		{Name: "dependencies"},
-		{Name: "lint"},
-		{Name: "unit"},
+func TestPlannedPhaseNamesPreservesServerOrder(t *testing.T) {
+	preview := execTypes.PlanPreview{
+		Phases: []execTypes.PlanPhase{
+			{Name: "structure"},
+			{Name: "unit"},
+			{Name: "integration"},
+		},
 	}
-	got := planPhaseOrder(nil, []string{"lint"}, descriptors, nil)
-	want := []string{"structure", "dependencies", "unit"}
+
+	got := plannedPhaseNames(preview)
+	want := []string{"structure", "unit", "integration"}
 	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("expected catalog-driven phases %v, got %v", want, got)
+		t.Fatalf("expected ordered planned phases %v, got %v", want, got)
 	}
 }
 
-func TestPlanPhaseOrderRespectsRequestedPhasesAndAliases(t *testing.T) {
-	requested := []string{"unit", "e2e", "performance"}
-	got := planPhaseOrder(requested, []string{"performance"}, nil, nil)
-	want := []string{"unit", "playbooks"}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("expected requested phases %v, got %v", want, got)
+func TestPhaseTimingTargetsBuildsEstimateAndTimeoutMaps(t *testing.T) {
+	preview := execTypes.PlanPreview{
+		Phases: []execTypes.PlanPhase{
+			{Name: "unit", EstimatedDurationSeconds: 12, TimeoutSeconds: 90},
+			{Name: "e2e", EstimatedDurationSeconds: 30, TimeoutSeconds: 120},
+		},
 	}
-}
 
-func TestPlanPhaseOrderSkipsDisabledByDefault(t *testing.T) {
-	descriptors := []phases.Descriptor{
-		{Name: "structure"},
-		{Name: "playbooks"},
-		{Name: "unit"},
+	estimates, timeouts := phaseTimingTargets(preview)
+	if got := estimates["unit"]; got != 12*time.Second {
+		t.Fatalf("expected unit estimate 12s, got %s", got)
 	}
-	toggles := map[string]execTypes.PhaseToggle{
-		"playbooks": {Disabled: true},
+	if got := estimates["playbooks"]; got != 30*time.Second {
+		t.Fatalf("expected e2e alias to map to playbooks, got %s", got)
 	}
-	got := planPhaseOrder(nil, nil, descriptors, toggles)
-	want := []string{"structure", "unit"}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("expected disabled phases to be removed by default, want %v got %v", want, got)
+	if got := timeouts["playbooks"]; got != 120*time.Second {
+		t.Fatalf("expected playbooks timeout 120s, got %s", got)
 	}
 }

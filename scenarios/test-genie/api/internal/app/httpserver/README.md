@@ -150,9 +150,20 @@ server.Start() // Blocks until SIGINT/SIGTERM
 
 | Method | Path | Description |
 |--------|------|-------------|
+| `POST` | `/api/v1/executions/plan` | Preview the selected phase plan and timing guidance |
 | `POST` | `/api/v1/executions` | Execute a test suite |
 | `GET` | `/api/v1/executions` | List execution history |
 | `GET` | `/api/v1/executions/{id}` | Get execution by ID |
+
+**POST /api/v1/executions/plan**
+
+Uses the same request payload as execution, but returns the resolved phase list plus:
+
+- `estimatedDurationSeconds`
+- `timeoutSeconds`
+- `estimateSource`
+- `estimateConfidence`
+- `estimateSampleSize`
 
 **POST /api/v1/executions**
 
@@ -186,6 +197,9 @@ Or with explicit phases:
   "completedAt": "2025-12-01T10:08:30Z",
   "success": true,
   "preset": "comprehensive",
+  "requestedPreset": "comprehensive",
+  "plannedPhases": ["structure", "standards", "dependencies", "lint", "docs", "smoke", "unit", "integration", "playbooks", "business", "performance"],
+  "failFast": true,
   "phases": [
     {
       "name": "structure",
@@ -196,8 +210,8 @@ Or with explicit phases:
     }
   ],
   "phaseSummary": {
-    "total": 7,
-    "passed": 7,
+    "total": 11,
+    "passed": 11,
     "failed": 0,
     "durationSeconds": 210,
     "observationCount": 12

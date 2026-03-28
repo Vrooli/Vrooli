@@ -93,6 +93,11 @@ curl -X POST "http://localhost:${API_PORT}/api/v1/executions" \
   -H "Content-Type: application/json" \
   -d '{"scenarioName": "my-scenario", "preset": "comprehensive"}'
 
+# Preview selected phases, estimate, and timeout budget
+curl -X POST "http://localhost:${API_PORT}/api/v1/executions/plan" \
+  -H "Content-Type: application/json" \
+  -d '{"scenarioName": "my-scenario", "preset": "comprehensive"}'
+
 # List executions
 curl "http://localhost:${API_PORT}/api/v1/executions?scenario=my-scenario&limit=10"
 
@@ -165,6 +170,7 @@ Comprehensive docs are in `docs/`:
 - [Requirements Sync](docs/phases/business/requirements-sync.md) - Auto-tracking from tests
 - [API Reference](docs/reference/api-endpoints.md) - REST API documentation
 - [CLI Reference](docs/reference/cli-commands.md) - CLI command reference
+- [Execution Configuration](docs/reference/configuration.md) - Timeouts, planning, and estimate behavior
 - [Safety Guidelines](docs/safety/GUIDELINES.md) - Critical safety rules for test scripts
 
 See [docs/manifest.json](docs/manifest.json) for complete documentation index.

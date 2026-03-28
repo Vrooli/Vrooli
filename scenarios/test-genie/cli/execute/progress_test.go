@@ -226,6 +226,10 @@ func TestStartProgressWithConfigForceTTY(t *testing.T) {
 				"structure": 100 * time.Millisecond,
 				"unit":      100 * time.Millisecond,
 			},
+			Timeouts: map[string]time.Duration{
+				"structure": 5 * time.Second,
+				"unit":      10 * time.Second,
+			},
 			ForceTTY: &forceTTY,
 		})
 
@@ -251,6 +255,9 @@ func TestStartProgressWithConfigForceTTY(t *testing.T) {
 		// Should contain "Running ... phase" format
 		if !strings.Contains(output, "Running") || !strings.Contains(output, "phase") {
 			t.Error("Non-TTY mode should contain 'Running ... phase' format")
+		}
+		if !strings.Contains(output, "timeout 5s") {
+			t.Error("Non-TTY mode should include timeout budget when provided")
 		}
 	})
 }
@@ -295,7 +302,7 @@ func TestIsTTYFuncTestingSeam(t *testing.T) {
 		isTTYFunc = func(w io.Writer) bool { return true }
 
 		var buf bytes.Buffer
-		stop := StartProgress(&buf, []string{"test"}, map[string]time.Duration{"test": 1 * time.Second})
+		stop := StartProgress(&buf, []string{"test"}, map[string]time.Duration{"test": 1 * time.Second}, nil)
 		time.Sleep(250 * time.Millisecond)
 		stop()
 
@@ -311,7 +318,7 @@ func TestIsTTYFuncTestingSeam(t *testing.T) {
 		isTTYFunc = func(w io.Writer) bool { return false }
 
 		var buf bytes.Buffer
-		stop := StartProgress(&buf, []string{"test"}, map[string]time.Duration{"test": 1 * time.Second})
+		stop := StartProgress(&buf, []string{"test"}, map[string]time.Duration{"test": 1 * time.Second}, nil)
 		time.Sleep(50 * time.Millisecond)
 		stop()
 

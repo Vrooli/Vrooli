@@ -48,6 +48,7 @@ type Dependencies struct {
 	SuiteQueue                 suiteRequestQueue
 	Executions                 execution.ExecutionHistory
 	ExecutionSvc               suiteExecutor
+	ExecutionPlanner           executionPlanner
 	Scenarios                  scenarioDirectory
 	PhaseCatalog               phaseCatalog
 	AgentService               *agentmanager.AgentService
@@ -70,6 +71,10 @@ type suiteRequestQueue interface {
 type suiteExecutor interface {
 	Execute(ctx context.Context, input execution.SuiteExecutionInput) (*orchestrator.SuiteExecutionResult, error)
 	ExecuteWithEvents(ctx context.Context, input execution.SuiteExecutionInput, emit orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error)
+}
+
+type executionPlanner interface {
+	Preview(ctx context.Context, req orchestrator.SuiteExecutionRequest) (*execution.ExecutionPlanPreview, error)
 }
 
 type scenarioDirectory interface {
@@ -119,6 +124,7 @@ type Server struct {
 	suiteRequests              suiteRequestQueue
 	executionHistory           execution.ExecutionHistory
 	executionSvc               suiteExecutor
+	executionPlanner           executionPlanner
 	scenarios                  scenarioDirectory
 	phaseCatalog               phaseCatalog
 	logger                     Logger
@@ -151,6 +157,9 @@ func New(config Config, deps Dependencies) (*Server, error) {
 	if deps.ExecutionSvc == nil {
 		return nil, fmt.Errorf("execution service is required")
 	}
+	if deps.ExecutionPlanner == nil {
+		return nil, fmt.Errorf("execution planner is required")
+	}
 	if deps.Scenarios == nil {
 		return nil, fmt.Errorf("scenario directory service is required")
 	}
@@ -173,6 +182,7 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		suiteRequests:              deps.SuiteQueue,
 		executionHistory:           deps.Executions,
 		executionSvc:               deps.ExecutionSvc,
+		executionPlanner:           deps.ExecutionPlanner,
 		scenarios:                  deps.Scenarios,
 		phaseCatalog:               deps.PhaseCatalog,
 		logger:                     logger,
@@ -205,6 +215,7 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/phases/settings", s.handleGetPhaseSettings).Methods("GET")
 	apiRouter.HandleFunc("/phases/settings", s.handleUpdatePhaseSettings).Methods("PUT")
 	apiRouter.HandleFunc("/executions", s.handleExecuteSuite).Methods("POST")
+	apiRouter.HandleFunc("/executions/plan", s.handlePreviewExecutionPlan).Methods("POST")
 	apiRouter.HandleFunc("/executions/stream", s.handleExecuteSuiteStream).Methods("POST")
 	apiRouter.HandleFunc("/executions", s.handleListExecutions).Methods("GET")
 	apiRouter.HandleFunc("/executions/{id}", s.handleGetExecution).Methods("GET")

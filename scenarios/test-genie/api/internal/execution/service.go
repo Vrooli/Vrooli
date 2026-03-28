@@ -77,14 +77,19 @@ func (s *SuiteExecutionService) Execute(ctx context.Context, input SuiteExecutio
 	}
 
 	record := &SuiteExecutionRecord{
-		ID:             uuid.New(),
-		SuiteRequestID: suiteID,
-		ScenarioName:   result.ScenarioName,
-		PresetUsed:     result.PresetUsed,
-		Success:        result.Success,
-		Phases:         append([]phases.ExecutionResult(nil), result.Phases...),
-		StartedAt:      result.StartedAt,
-		CompletedAt:    result.CompletedAt,
+		ID:                  uuid.New(),
+		SuiteRequestID:      suiteID,
+		ScenarioName:        result.ScenarioName,
+		PresetUsed:          result.PresetUsed,
+		RequestedPreset:     result.RequestedPreset,
+		RequestedPhases:     append([]string(nil), result.RequestedPhases...),
+		RequestedSkipPhases: append([]string(nil), result.RequestedSkipPhases...),
+		PlannedPhases:       append([]string(nil), result.PlannedPhases...),
+		FailFast:            result.FailFast,
+		Success:             result.Success,
+		Phases:              append([]phases.ExecutionResult(nil), result.Phases...),
+		StartedAt:           result.StartedAt,
+		CompletedAt:         result.CompletedAt,
 	}
 
 	if err := s.executions.Create(ctx, record); err != nil {
@@ -131,14 +136,19 @@ func (s *SuiteExecutionService) ExecuteWithEvents(ctx context.Context, input Sui
 	}
 
 	record := &SuiteExecutionRecord{
-		ID:             uuid.New(),
-		SuiteRequestID: suiteID,
-		ScenarioName:   result.ScenarioName,
-		PresetUsed:     result.PresetUsed,
-		Success:        result.Success,
-		Phases:         append([]phases.ExecutionResult(nil), result.Phases...),
-		StartedAt:      result.StartedAt,
-		CompletedAt:    result.CompletedAt,
+		ID:                  uuid.New(),
+		SuiteRequestID:      suiteID,
+		ScenarioName:        result.ScenarioName,
+		PresetUsed:          result.PresetUsed,
+		RequestedPreset:     result.RequestedPreset,
+		RequestedPhases:     append([]string(nil), result.RequestedPhases...),
+		RequestedSkipPhases: append([]string(nil), result.RequestedSkipPhases...),
+		PlannedPhases:       append([]string(nil), result.PlannedPhases...),
+		FailFast:            result.FailFast,
+		Success:             result.Success,
+		Phases:              append([]phases.ExecutionResult(nil), result.Phases...),
+		StartedAt:           result.StartedAt,
+		CompletedAt:         result.CompletedAt,
 	}
 
 	if err := s.executions.Create(ctx, record); err != nil {

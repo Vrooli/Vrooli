@@ -5,12 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
-	"github.com/google/uuid"
-
-	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
 )
 
@@ -68,39 +64,10 @@ func (s *Server) handleExecuteSuiteStream(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	defer r.Body.Close()
-	var payload suiteExecutionPayload
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		s.writeSSEError(w, flusher, "invalid JSON payload")
+	input, err := decodeSuiteExecutionInput(r)
+	if err != nil {
+		s.writeSSEError(w, flusher, err.Error())
 		return
-	}
-
-	scenario := strings.TrimSpace(payload.ScenarioName)
-	if scenario == "" {
-		s.writeSSEError(w, flusher, "scenarioName is required")
-		return
-	}
-
-	execRequest := orchestrator.SuiteExecutionRequest{
-		ScenarioName:   scenario,
-		Preset:         strings.TrimSpace(payload.Preset),
-		Phases:         payload.Phases,
-		Skip:           payload.Skip,
-		FailFast:       payload.FailFast,
-		UIURL:          strings.TrimSpace(payload.UIURL),
-		APIURL:         strings.TrimSpace(payload.APIURL),
-		BrowserlessURL: strings.TrimSpace(payload.BrowserlessURL),
-		ScenarioPath:   strings.TrimSpace(payload.ScenarioPath),
-	}
-
-	var suiteRequestID *uuid.UUID
-	if id := strings.TrimSpace(payload.SuiteRequestID); id != "" {
-		parsed, err := uuid.Parse(id)
-		if err != nil {
-			s.writeSSEError(w, flusher, "suiteRequestId must be a valid UUID")
-			return
-		}
-		suiteRequestID = &parsed
 	}
 
 	if s.executionSvc == nil {
@@ -135,10 +102,7 @@ func (s *Server) handleExecuteSuiteStream(w http.ResponseWriter, r *http.Request
 
 	// Execute the suite with real-time event streaming
 	startTime := time.Now()
-	result, err := s.executionSvc.ExecuteWithEvents(ctx, execution.SuiteExecutionInput{
-		Request:        execRequest,
-		SuiteRequestID: suiteRequestID,
-	}, func(event orchestrator.ExecutionEvent) {
+	result, err := s.executionSvc.ExecuteWithEvents(ctx, input, func(event orchestrator.ExecutionEvent) {
 		// Convert orchestrator events to SSE events
 		switch event.Type {
 		case orchestrator.EventPhaseStart:

@@ -35,6 +35,7 @@ func NewServer() (*httpserver.Server, error) {
 		SuiteQueue:                 deps.SuiteRequests,
 		Executions:                 deps.ExecutionHistory,
 		ExecutionSvc:               deps.ExecutionService,
+		ExecutionPlanner:           deps.ExecutionPlanner,
 		Scenarios:                  deps.ScenarioService,
 		PhaseCatalog:               deps.PhaseCatalog,
 		AgentService:               deps.AgentService,

@@ -101,6 +101,7 @@
       "documents": [
         { "path": "reference/api-endpoints.md", "title": "API Reference", "description": "REST API endpoint documentation" },
         { "path": "reference/cli-commands.md", "title": "CLI Commands", "description": "test-genie CLI reference" },
+        { "path": "reference/configuration.md", "title": "Execution Configuration", "description": "Execution planning, timeouts, and estimate behavior" },
         { "path": "reference/presets.md", "title": "Test Presets", "description": "Quick, Smoke, Comprehensive presets" },
         { "path": "reference/requirement-schema.md", "title": "Requirement Schema", "description": "JSON schema for requirement registry" },
         { "path": "reference/gaming-prevention.md", "title": "Gaming Prevention", "description": "Test integrity detection system" },

@@ -15,7 +15,6 @@ import (
 
 	"test-genie/cli/internal/apijson"
 	execTypes "test-genie/cli/internal/execute"
-	"test-genie/cli/internal/phases"
 )
 
 // Note: os import is still needed for TEST_GENIE_EXECUTION_TIMEOUT env var check
@@ -95,32 +94,16 @@ func (c *Client) Run(req Request) (Response, []byte, error) {
 	return result, body, nil
 }
 
-type PhaseSettings struct {
-	Items   []phases.Descriptor              `json:"items"`
-	Toggles map[string]execTypes.PhaseToggle `json:"toggles"`
-}
-
-// ListPhases retrieves the phase catalog and toggle metadata from the server.
-func (c *Client) ListPhases() (PhaseSettings, error) {
-	body, err := c.api.Get("/api/v1/phases", nil)
-	if err != nil {
-		return PhaseSettings{}, err
-	}
-	payload, err := apijson.Parse[PhaseSettings](body, "parse phase descriptors")
-	if err != nil {
-		return PhaseSettings{}, err
-	}
-	if payload.Toggles == nil {
-		payload.Toggles = map[string]execTypes.PhaseToggle{}
-	}
-	return payload, nil
-}
-
 // resolveBaseURL gets the base URL from the configured HTTP client.
 // The HTTP client is initialized by cli-core with proper port detection via vrooli.
 func (c *Client) resolveBaseURL() string {
 	if c.httpClient != nil {
-		return c.httpClient.BaseURL()
+		if base := c.httpClient.BaseURL(); base != "" {
+			return base
+		}
+	}
+	if c.api != nil {
+		return c.api.BaseURL()
 	}
 	return ""
 }
@@ -146,4 +129,42 @@ func extractErrorMessage(data []byte) string {
 
 func parseRunResponse(body []byte) (Response, error) {
 	return apijson.Parse[Response](body, "parse response")
+}
+
+// PreviewPlan resolves the actual phase plan and timing guidance for an execution request.
+func (c *Client) PreviewPlan(req Request) (execTypes.PlanPreview, error) {
+	baseURL := c.resolveBaseURL()
+	if baseURL == "" {
+		return execTypes.PlanPreview{}, fmt.Errorf("api base URL not configured")
+	}
+
+	payload, err := json.Marshal(req)
+	if err != nil {
+		return execTypes.PlanPreview{}, fmt.Errorf("encode request: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/executions/plan", bytes.NewReader(payload))
+	if err != nil {
+		return execTypes.PlanPreview{}, fmt.Errorf("create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.executionClient.Do(httpReq)
+	if err != nil {
+		return execTypes.PlanPreview{}, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return execTypes.PlanPreview{}, fmt.Errorf("read response: %w", err)
+	}
+	if resp.StatusCode >= 400 {
+		return execTypes.PlanPreview{}, fmt.Errorf("api error (%d): %s", resp.StatusCode, extractErrorMessage(body))
+	}
+
+	return apijson.Parse[execTypes.PlanPreview](body, "parse execution plan preview")
 }

@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
+	pq "github.com/lib/pq"
 
 	"test-genie/internal/orchestrator"
 )
@@ -33,12 +35,17 @@ INSERT INTO suite_executions (
 	suite_request_id,
 	scenario_name,
 	preset_used,
+	requested_preset,
+	requested_phases,
+	requested_skip_phases,
+	planned_phases,
+	fail_fast,
 	success,
 	phases,
 	started_at,
 	completed_at
 ) VALUES (
-	$1, $2, $3, $4, $5, $6, $7, $8
+	$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
 )`
 
 	var suiteRequestID interface{}
@@ -53,6 +60,11 @@ INSERT INTO suite_executions (
 		suiteRequestID,
 		record.ScenarioName,
 		sql.NullString{String: record.PresetUsed, Valid: record.PresetUsed != ""},
+		sql.NullString{String: record.RequestedPreset, Valid: record.RequestedPreset != ""},
+		pq.Array(record.RequestedPhases),
+		pq.Array(record.RequestedSkipPhases),
+		pq.Array(record.PlannedPhases),
+		record.FailFast,
 		record.Success,
 		payload,
 		record.StartedAt,
@@ -74,6 +86,11 @@ SELECT
 	suite_request_id,
 	scenario_name,
 	preset_used,
+	requested_preset,
+	requested_phases,
+	requested_skip_phases,
+	planned_phases,
+	fail_fast,
 	success,
 	phases,
 	started_at,
@@ -119,6 +136,11 @@ SELECT
 	suite_request_id,
 	scenario_name,
 	preset_used,
+	requested_preset,
+	requested_phases,
+	requested_skip_phases,
+	planned_phases,
+	fail_fast,
 	success,
 	phases,
 	started_at,
@@ -145,6 +167,72 @@ func (r *SuiteExecutionRepository) Latest(ctx context.Context) (*SuiteExecutionR
 	return &records[0], nil
 }
 
+func (r *SuiteExecutionRepository) ListPhaseSamples(ctx context.Context, phaseNames []string, since time.Time, limit int) ([]PhaseDurationSample, error) {
+	if len(phaseNames) == 0 {
+		return nil, nil
+	}
+	if limit <= 0 {
+		limit = 2000
+	}
+
+	normalized := make([]string, 0, len(phaseNames))
+	seen := make(map[string]struct{}, len(phaseNames))
+	for _, phase := range phaseNames {
+		key := strings.ToLower(strings.TrimSpace(phase))
+		if key == "" {
+			continue
+		}
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		normalized = append(normalized, key)
+	}
+	if len(normalized) == 0 {
+		return nil, nil
+	}
+
+	const q = `
+SELECT
+	scenario_name,
+	LOWER(TRIM(phase->>'name')) AS phase_name,
+	LOWER(TRIM(COALESCE(phase->>'status', ''))) AS status,
+	GREATEST(COALESCE((phase->>'durationSeconds')::int, 0), 0) AS duration_seconds,
+	completed_at
+FROM suite_executions
+CROSS JOIN LATERAL jsonb_array_elements(phases) AS phase
+WHERE LOWER(TRIM(phase->>'name')) = ANY($1)
+  AND completed_at >= $2
+ORDER BY completed_at DESC
+LIMIT $3
+`
+
+	rows, err := r.db.QueryContext(ctx, q, pq.Array(normalized), since, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var samples []PhaseDurationSample
+	for rows.Next() {
+		var sample PhaseDurationSample
+		if err := rows.Scan(
+			&sample.ScenarioName,
+			&sample.PhaseName,
+			&sample.Status,
+			&sample.DurationSeconds,
+			&sample.CompletedAt,
+		); err != nil {
+			return nil, err
+		}
+		samples = append(samples, sample)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return samples, nil
+}
+
 type rowScanner interface {
 	Scan(dest ...interface{}) error
 }
@@ -153,6 +241,10 @@ func scanSuiteExecutionRecord(scanner rowScanner) (SuiteExecutionRecord, error) 
 	var record SuiteExecutionRecord
 	var rawSuite sql.NullString
 	var preset sql.NullString
+	var requestedPreset sql.NullString
+	var requestedPhases pq.StringArray
+	var requestedSkipPhases pq.StringArray
+	var plannedPhases pq.StringArray
 	var phasesJSON []byte
 
 	if err := scanner.Scan(
@@ -160,6 +252,11 @@ func scanSuiteExecutionRecord(scanner rowScanner) (SuiteExecutionRecord, error) 
 		&rawSuite,
 		&record.ScenarioName,
 		&preset,
+		&requestedPreset,
+		&requestedPhases,
+		&requestedSkipPhases,
+		&plannedPhases,
+		&record.FailFast,
 		&record.Success,
 		&phasesJSON,
 		&record.StartedAt,
@@ -175,6 +272,18 @@ func scanSuiteExecutionRecord(scanner rowScanner) (SuiteExecutionRecord, error) 
 	}
 	if preset.Valid {
 		record.PresetUsed = preset.String
+	}
+	if requestedPreset.Valid {
+		record.RequestedPreset = requestedPreset.String
+	}
+	if len(requestedPhases) > 0 {
+		record.RequestedPhases = append([]string(nil), requestedPhases...)
+	}
+	if len(requestedSkipPhases) > 0 {
+		record.RequestedSkipPhases = append([]string(nil), requestedSkipPhases...)
+	}
+	if len(plannedPhases) > 0 {
+		record.PlannedPhases = append([]string(nil), plannedPhases...)
 	}
 	if len(phasesJSON) > 0 {
 		if err := json.Unmarshal(phasesJSON, &record.Phases); err != nil {

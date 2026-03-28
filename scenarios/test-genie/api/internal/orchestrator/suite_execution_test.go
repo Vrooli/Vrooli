@@ -206,6 +206,106 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 	})
 }
 
+func TestSuiteOrchestratorPreviewExecutionUsesConfiguredTimeouts(t *testing.T) {
+	t.Run("[REQ:TESTGENIE-ORCH-PREVIEW-P0] preview reflects selected phases and timeout overrides", func(t *testing.T) {
+		root := t.TempDir()
+		scenarioDir := createScenarioLayout(t, root, "demo")
+		testingConfig := `{
+  "phases": {
+    "unit": {"timeout": "25s"},
+    "performance": {"enabled": false}
+  },
+  "presets": {
+    "focused": ["unit", "performance"]
+  }
+}`
+		if err := os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "testing.json"), []byte(testingConfig), 0o644); err != nil {
+			t.Fatalf("failed to write testing config: %v", err)
+		}
+
+		orchestrator, err := NewSuiteOrchestrator(root)
+		if err != nil {
+			t.Fatalf("failed to init orchestrator: %v", err)
+		}
+
+		preview, err := orchestrator.PreviewExecution(SuiteExecutionRequest{
+			ScenarioName: "demo",
+			Preset:       "focused",
+		})
+		if err != nil {
+			t.Fatalf("preview failed: %v", err)
+		}
+		if preview.PresetUsed != "focused" {
+			t.Fatalf("expected preset to be preserved, got %q", preview.PresetUsed)
+		}
+		if len(preview.Phases) != 1 {
+			t.Fatalf("expected disabled phase to be omitted, got %#v", preview.Phases)
+		}
+		if preview.Phases[0].Name != "unit" {
+			t.Fatalf("expected unit phase, got %#v", preview.Phases[0])
+		}
+		if preview.Phases[0].TimeoutSeconds != 25 {
+			t.Fatalf("expected configured timeout 25s, got %d", preview.Phases[0].TimeoutSeconds)
+		}
+	})
+}
+
+func TestSuiteOrchestratorExecuteCapturesSelectionMetadata(t *testing.T) {
+	t.Run("[REQ:TESTGENIE-ORCH-META-P0] execution results retain requested and planned phase metadata", func(t *testing.T) {
+		root := t.TempDir()
+		createScenarioLayout(t, root, "demo")
+		stubCommandLookup(t, func(name string) (string, error) {
+			return "/tmp/" + name, nil
+		})
+		stubPhaseCommandExecutor(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
+			if len(args) > 0 && strings.HasPrefix(args[0], "__test_genie") {
+				return fmt.Errorf("unknown command: %s", args[0])
+			}
+			return nil
+		})
+		stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
+			if strings.Contains(name, filepath.Join("cli", "demo")) && len(args) > 0 && args[0] == "version" {
+				return "demo version 1.0.0", nil
+			}
+			if strings.Contains(name, filepath.Join("cli", "test-genie")) && len(args) > 0 && args[0] == "version" {
+				return "test-genie version 1.0.0", nil
+			}
+			return "", nil
+		})
+
+		orchestrator, err := NewSuiteOrchestrator(root)
+		if err != nil {
+			t.Fatalf("failed to init orchestrator: %v", err)
+		}
+
+		result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
+			ScenarioName: "demo",
+			Phases:       []string{"structure", "unit", "integration"},
+			Skip:         []string{"integration"},
+			FailFast:     true,
+		})
+		if err != nil {
+			t.Fatalf("execution failed: %v", err)
+		}
+		if !result.FailFast {
+			t.Fatalf("expected failFast to be preserved")
+		}
+		expectedRequested := []string{"structure", "unit", "integration"}
+		if strings.Join(result.RequestedPhases, ",") != strings.Join(expectedRequested, ",") {
+			t.Fatalf("unexpected requested phases: %#v", result.RequestedPhases)
+		}
+		if strings.Join(result.RequestedSkipPhases, ",") != "integration" {
+			t.Fatalf("unexpected requested skip phases: %#v", result.RequestedSkipPhases)
+		}
+		if strings.Join(result.PlannedPhases, ",") != "structure,unit" {
+			t.Fatalf("unexpected planned phases: %#v", result.PlannedPhases)
+		}
+		if len(result.Phases) != 2 || result.Phases[0].Name != "structure" || result.Phases[1].Name != "unit" {
+			t.Fatalf("unexpected executed phases: %#v", result.Phases)
+		}
+	})
+}
+
 func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] full suites trigger requirement sync", func(t *testing.T) {
 		skipPlaybooksForTests(t)

@@ -31,6 +31,34 @@ type Request struct {
 	ScenarioPath string `json:"scenarioPath,omitempty"`
 }
 
+// PlanPhase represents a selected phase before execution begins.
+type PlanPhase struct {
+	Name                     string `json:"name"`
+	Description              string `json:"description,omitempty"`
+	Optional                 bool   `json:"optional"`
+	EstimatedDurationSeconds int    `json:"estimatedDurationSeconds"`
+	TimeoutSeconds           int    `json:"timeoutSeconds"`
+	EstimateSource           string `json:"estimateSource"`
+	EstimateConfidence       string `json:"estimateConfidence"`
+	EstimateSampleSize       int    `json:"estimateSampleSize"`
+}
+
+// PlanSummary provides aggregate timing guidance for the selected plan.
+type PlanSummary struct {
+	PhaseCount               int `json:"phaseCount"`
+	EstimatedDurationSeconds int `json:"estimatedDurationSeconds"`
+	TimeoutSeconds           int `json:"timeoutSeconds"`
+}
+
+// PlanPreview is the API preflight response for execution planning.
+type PlanPreview struct {
+	ScenarioName string      `json:"scenarioName"`
+	PresetUsed   string      `json:"presetUsed"`
+	Phases       []PlanPhase `json:"phases"`
+	Summary      PlanSummary `json:"summary"`
+	Warnings     []string    `json:"warnings"`
+}
+
 // Response represents the execution response.
 type Response struct {
 	Success       bool           `json:"success"`

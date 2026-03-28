@@ -51,6 +51,13 @@ type ScenarioWorkspace struct {
 
 // New loads and validates the file-system layout for a scenario.
 func New(scenariosRoot, scenario string) (*ScenarioWorkspace, error) {
+	return NewWithOverride(scenariosRoot, scenario, "")
+}
+
+// NewWithOverride loads and validates the file-system layout for a scenario.
+// When scenarioPath is provided, it takes precedence over scenariosRoot/name
+// resolution and must point to the requested scenario directory.
+func NewWithOverride(scenariosRoot, scenario, scenarioPath string) (*ScenarioWorkspace, error) {
 	name := strings.TrimSpace(scenario)
 	if name == "" {
 		return nil, shared.NewValidationError("scenarioName is required")
@@ -60,9 +67,21 @@ func New(scenariosRoot, scenario string) (*ScenarioWorkspace, error) {
 	}
 
 	scenarioDir := filepath.Join(scenariosRoot, name)
+	if override := strings.TrimSpace(scenarioPath); override != "" {
+		if !filepath.IsAbs(override) {
+			return nil, shared.NewValidationError("scenarioPath must be absolute when provided")
+		}
+		scenarioDir = filepath.Clean(override)
+		if filepath.Base(scenarioDir) != name {
+			return nil, shared.NewValidationError("scenarioPath must match scenarioName")
+		}
+	}
 	info, err := os.Stat(scenarioDir)
 	if err != nil {
 		if os.IsNotExist(err) {
+			if strings.TrimSpace(scenarioPath) != "" {
+				return nil, shared.NewValidationError(fmt.Sprintf("scenarioPath was not found: %s", scenarioDir))
+			}
 			return nil, shared.NewValidationError(fmt.Sprintf("scenario '%s' was not found under %s", name, scenariosRoot))
 		}
 		return nil, fmt.Errorf("failed to read scenario '%s': %w", name, err)

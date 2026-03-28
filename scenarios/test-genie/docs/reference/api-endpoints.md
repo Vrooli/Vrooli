@@ -68,9 +68,11 @@ Returns infrastructure readiness plus operational telemetry.
       "completedAt": "2025-01-15T10:28:00Z",
       "startedAt": "2025-01-15T10:25:00Z",
       "phaseSummary": {
-        "structure": "passed",
-        "dependencies": "passed",
-        "unit": "passed"
+        "total": 11,
+        "passed": 11,
+        "failed": 0,
+        "durationSeconds": 188,
+        "observationCount": 24
       },
       "preset": "comprehensive"
     }
@@ -227,6 +229,100 @@ Get a specific suite request by ID.
 
 ## Test Execution
 
+### POST /api/v1/executions/plan
+
+Resolve the actual phase plan and timing guidance for a request without running any tests.
+
+**Request Body:**
+```json
+{
+  "scenarioName": "my-scenario",
+  "preset": "comprehensive",
+  "phases": ["structure", "unit", "integration"],
+  "skip": ["performance"],
+  "failFast": false
+}
+```
+
+**Parameters:**
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `scenarioName` | string | Yes | - | Target scenario |
+| `preset` | string | No | `""` | Preset to expand before skip filters |
+| `phases` | string[] | No | all enabled phases | Explicit phase list; overrides `preset` |
+| `skip` | string[] | No | `[]` | Requested phase exclusions |
+| `failFast` | bool | No | `false` | Included for parity with the execute request surface |
+| `suiteRequestId` | UUID | No | - | Accepted but ignored by the planner |
+| `uiUrl` / `apiUrl` / `browserlessUrl` | string | No | auto-detected when possible | Runtime overrides for phases that depend on running services |
+| `scenarioPath` | string | No | resolved from scenario name | Absolute scenario path override for sandboxed agents |
+
+**Response:**
+```json
+{
+  "scenarioName": "my-scenario",
+  "presetUsed": "comprehensive",
+  "phases": [
+    {
+      "name": "structure",
+      "description": "Validates scenario layout, manifests, and JSON health before deeper checks run.",
+      "optional": false,
+      "estimatedDurationSeconds": 4,
+      "timeoutSeconds": 900,
+      "estimateSource": "scenario_history",
+      "estimateConfidence": "high",
+      "estimateSampleSize": 12
+    },
+    {
+      "name": "playbooks",
+      "description": "Executes Vrooli Ascension workflows declared under bas/.",
+      "optional": true,
+      "estimatedDurationSeconds": 900,
+      "timeoutSeconds": 900,
+      "estimateSource": "timeout_fallback",
+      "estimateConfidence": "low",
+      "estimateSampleSize": 0
+    }
+  ],
+  "summary": {
+    "phaseCount": 11,
+    "estimatedDurationSeconds": 246,
+    "timeoutSeconds": 6240
+  },
+  "warnings": [
+    "Phase 'playbooks' is globally disabled and was skipped by default."
+  ]
+}
+```
+
+**Estimate Source Values:**
+| Value | Meaning |
+|-------|---------|
+| `scenario_history` | Derived from recent runs of the same scenario and phase |
+| `blended_history` | Weighted blend of scenario history and global phase history |
+| `global_history` | Derived from recent runs of the phase across all scenarios |
+| `timeout_fallback` | No useful runtime history was available; uses the timeout budget |
+
+**Estimate Confidence Values:**
+| Value | Meaning |
+|-------|---------|
+| `high` | Strong scenario-specific evidence |
+| `medium` | Useful but still somewhat sparse history |
+| `low` | Weak or no history; treat as rough guidance |
+
+**Notes:**
+- Estimates are phase-level medians from recent history, not timeout budgets.
+- `timeoutSeconds` always reflects the configured runtime budget after scenario overrides are applied.
+- The planner uses the same scenario-aware phase selection logic as actual execution.
+
+**Errors:**
+| Code | Cause |
+|------|-------|
+| 400 | Missing scenarioName, invalid preset/phase, malformed UUID |
+| 500 | Planning service unavailable |
+
+---
+
 ### POST /api/v1/executions
 
 Execute a test suite for a scenario. This is the primary endpoint for running tests.
@@ -254,58 +350,63 @@ Execute a test suite for a scenario. This is the primary endpoint for running te
 | `skip` | string[] | No | `[]` | Phases to skip |
 | `failFast` | bool | No | `false` | Stop on first failure |
 
-**Presets:**
-
-| Preset | Phases | Timeout |
-|--------|--------|---------|
-| `quick` | structure, dependencies | ~45s |
-| `smoke` | structure, dependencies, unit | ~2min |
-| `comprehensive` | All 7 phases | ~10min |
-
 **Available Phases:**
-1. `structure` - Validates scenario layout and manifests
-2. `dependencies` - Confirms required commands/runtimes
-3. `unit` - Executes Go unit tests
-4. `integration` - Runs CLI/BATS tests
-5. `e2e` - Executes BAS browser automation workflows
-6. `business` - Audits requirements modules
-7. `performance` - Builds API and checks duration budgets (optional)
+1. `structure` - Validates scenario layout, manifests, and JSON health
+2. `standards` - Runs scenario-auditor standards enforcement
+3. `dependencies` - Confirms required commands, runtimes, and declared resources
+4. `lint` - Runs type checking and linting
+5. `docs` - Validates markdown, mermaid, and links
+6. `smoke` - Performs fast UI / runtime handshake validation
+7. `unit` - Runs Go, Node, Python, and shell unit suites as applicable
+8. `integration` - Exercises CLI/Bats suites and scenario-local integrations
+9. `playbooks` - Executes BAS browser automation workflows
+10. `business` - Audits requirement coverage and operational targets
+11. `performance` - Builds binaries and checks duration/performance budgets
+
+Use `POST /api/v1/executions/plan` to see the actual selected phases, runtime estimate, and timeout budget before executing.
 
 **Response:**
 ```json
 {
   "executionId": "660e8400-e29b-41d4-a716-446655440001",
-  "scenario": "my-scenario",
-  "success": true,
+  "scenarioName": "my-scenario",
   "startedAt": "2025-01-15T10:30:00Z",
   "completedAt": "2025-01-15T10:35:00Z",
-  "phaseSummary": {
-    "structure": "passed",
-    "dependencies": "passed",
-    "unit": "passed",
-    "integration": "passed",
-    "e2e": "skipped",
-    "business": "passed",
-    "performance": "passed"
-  },
-  "presetUsed": "comprehensive",
+  "success": true,
+  "preset": "comprehensive",
+  "requestedPreset": "comprehensive",
+  "requestedSkipPhases": ["performance"],
+  "plannedPhases": ["structure", "standards", "dependencies", "lint", "docs", "smoke", "unit", "integration", "playbooks", "business"],
+  "failFast": false,
   "phases": [
     {
       "name": "structure",
       "status": "passed",
       "durationSeconds": 5,
-      "logPath": "/tmp/test-genie/logs/structure.log",
-      "observations": ["All required files present", "JSON manifests valid"]
+      "logPath": "scenarios/my-scenario/coverage/logs/latest/structure.log",
+      "observations": [
+        { "text": "All required files present" },
+        { "prefix": "SUCCESS", "text": "JSON manifests valid" }
+      ]
     },
     {
       "name": "unit",
       "status": "passed",
       "durationSeconds": 45,
-      "logPath": "/tmp/test-genie/logs/unit.log",
-      "observations": ["32 tests passed", "Coverage: 87%"]
+      "logPath": "scenarios/my-scenario/coverage/logs/latest/unit.log",
+      "observations": [
+        { "text": "32 tests passed" },
+        { "text": "Coverage: 87%" }
+      ]
     }
   ],
-  "requirementsSyncTriggered": true
+  "phaseSummary": {
+    "total": 10,
+    "passed": 10,
+    "failed": 0,
+    "durationSeconds": 300,
+    "observationCount": 14
+  }
 }
 ```
 
@@ -314,8 +415,7 @@ Execute a test suite for a scenario. This is the primary endpoint for running te
 |--------|-------------|
 | `passed` | Phase completed successfully |
 | `failed` | Phase failed |
-| `skipped` | Phase was skipped |
-| `timeout` | Phase exceeded time limit |
+| `failed` with `classification=timeout` | Phase exceeded its timeout budget |
 
 **Errors:**
 | Code | Cause |
@@ -344,11 +444,13 @@ List execution history.
   "items": [
     {
       "executionId": "660e8400-e29b-41d4-a716-446655440001",
-      "scenario": "my-scenario",
+      "scenarioName": "my-scenario",
       "success": true,
       "startedAt": "2025-01-15T10:30:00Z",
       "completedAt": "2025-01-15T10:35:00Z",
-      "presetUsed": "comprehensive"
+      "preset": "comprehensive",
+      "plannedPhases": ["structure", "standards", "dependencies", "lint", "docs", "smoke", "unit", "integration", "playbooks", "business"],
+      "failFast": false
     }
   ],
   "count": 1
@@ -502,63 +604,37 @@ Run tests for a specific scenario directly (alternative to /api/v1/executions).
 
 Returns the Go-native phase catalog with descriptions and configuration.
 
-**Response:**
+**Response (abbreviated):**
 ```json
 {
   "items": [
     {
       "name": "structure",
       "optional": false,
-      "description": "Validates scenario layout, manifests, and JSON health before any tests run.",
+      "description": "Validates scenario layout, manifests, and JSON health before deeper checks run.",
       "source": "native",
       "defaultTimeoutSeconds": 900
     },
     {
-      "name": "dependencies",
+      "name": "standards",
       "optional": false,
-      "description": "Confirms required commands, runtimes, and declared resources are available.",
+      "description": "Runs scenario-auditor standards enforcement against the scenario workspace.",
       "source": "native",
-      "defaultTimeoutSeconds": 900
+      "defaultTimeoutSeconds": 60
     },
     {
-      "name": "unit",
-      "optional": false,
-      "description": "Executes Go unit tests and shell syntax validation for local entrypoints.",
-      "source": "native",
-      "defaultTimeoutSeconds": 900
-    },
-    {
-      "name": "integration",
-      "optional": false,
-      "description": "Exercises the CLI/Bats suite plus scenario-local orchestrator listings.",
-      "source": "native",
-      "defaultTimeoutSeconds": 900
-    },
-    {
-      "name": "e2e",
-      "optional": false,
-      "description": "Executes Vrooli Ascension workflows declared under bas/ to validate end-to-end UI flows.",
-      "source": "native",
-      "defaultTimeoutSeconds": 900
-    },
-    {
-      "name": "business",
-      "optional": false,
-      "description": "Audits requirements modules to guarantee operational targets stay mapped.",
-      "source": "native",
-      "defaultTimeoutSeconds": 900
-    },
-    {
-      "name": "performance",
+      "name": "playbooks",
       "optional": true,
-      "description": "Builds the Go API and enforces baseline duration budgets to catch regressions.",
+      "description": "Executes Vrooli Ascension workflows declared under bas/.",
       "source": "native",
       "defaultTimeoutSeconds": 900
     }
   ],
-  "count": 7
+  "count": 11
 }
 ```
+
+The full catalog currently includes `structure`, `standards`, `dependencies`, `lint`, `docs`, `smoke`, `unit`, `integration`, `playbooks`, `business`, and `performance`.
 
 ---
 
@@ -615,7 +691,16 @@ curl -X POST http://localhost:8080/api/v1/suite-requests \
 
 # Response includes ID: 550e8400-e29b-41d4-a716-446655440000
 
-# 2. Execute the suite
+# 2. Preview the actual plan and timing guidance
+curl -X POST http://localhost:8080/api/v1/executions/plan \
+  -H "Content-Type: application/json" \
+  -d '{
+    "scenarioName": "my-scenario",
+    "suiteRequestId": "550e8400-e29b-41d4-a716-446655440000",
+    "preset": "comprehensive"
+  }'
+
+# 3. Execute the suite
 curl -X POST http://localhost:8080/api/v1/executions \
   -H "Content-Type: application/json" \
   -d '{
@@ -624,7 +709,7 @@ curl -X POST http://localhost:8080/api/v1/executions \
     "preset": "comprehensive"
   }'
 
-# 3. Check execution status
+# 4. Check execution status
 curl http://localhost:8080/api/v1/executions/660e8400-e29b-41d4-a716-446655440001
 ```
 
@@ -640,10 +725,14 @@ curl -s http://localhost:8080/health | jq '.status'
 ```bash
 curl -s http://localhost:8080/api/v1/phases | jq '.items[].name'
 # "structure"
+# "standards"
 # "dependencies"
+# "lint"
+# "docs"
+# "smoke"
 # "unit"
 # "integration"
-# "e2e"
+# "playbooks"
 # "business"
 # "performance"
 ```
@@ -653,6 +742,7 @@ curl -s http://localhost:8080/api/v1/phases | jq '.items[].name'
 ## See Also
 
 - [CLI Commands](cli-commands.md) - CLI equivalents for all API operations
+- [Execution Configuration](configuration.md) - Timeouts, planning, and estimate behavior
 - [Sync Execution Guide](../guides/sync-execution.md) - Detailed sync endpoint usage
 - [Sync Execution Cheatsheet](sync-execution-cheatsheet.md) - Quick reference
 - [Presets Reference](presets.md) - Preset definitions
