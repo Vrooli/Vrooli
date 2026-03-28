@@ -183,6 +183,10 @@ func (a *App) registerSubcommandGroups() []cliapp.SubcommandGroup {
 				{Name: "delete", NeedsAPI: true, Description: "Delete initiative (--name NAME)", Run: a.cmdInitiativesDelete},
 				{Name: "add-items", NeedsAPI: true, Description: "Add items to initiative (--name NAME --items kind/name,...) [--json]", Run: a.cmdInitiativesAddItems},
 				{Name: "remove-items", NeedsAPI: true, Description: "Remove items from initiative (--name NAME --items kind/name,...) [--json]", Run: a.cmdInitiativesRemoveItems},
+				{Name: "files", NeedsAPI: true, Description: "List files in an initiative (--name NAME) [--json]", Run: a.cmdInitiativesFiles},
+				{Name: "file-get", NeedsAPI: true, Description: "Get a file from an initiative (--name NAME --path PATH) [--out FILE] [--json]", Run: a.cmdInitiativesFileGet},
+				{Name: "file-upload", NeedsAPI: true, Description: "Upload a file to an initiative (--name NAME --path PATH) (--stdin|--file|--content)", Run: a.cmdInitiativesFileUpload},
+				{Name: "file-op", NeedsAPI: true, Description: "File operation on initiative (--name NAME --op OP --source PATH) [--dest PATH] [--json]", Run: a.cmdInitiativesFileOp},
 			},
 		},
 		{

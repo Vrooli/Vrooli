@@ -117,6 +117,7 @@ type Server struct {
 	backlogHandler    *backlog.Handler
 	capturesHandler   *captures.Handler
 	scenariosHandler  *scenarios.Handler
+	initStore         *initiatives.Store
 	initiativeService *initiatives.Service
 	executionSvc      *execution.Service
 	executionHandler  *execution.Handler
@@ -246,6 +247,10 @@ func (s *Server) registerBacklogRoutes(scenarioRoot string) *backlog.Handler {
 func (s *Server) registerInitiativeRoutes(scenarioRoot string, backlogHandler *backlog.Handler) *initiatives.Service {
 	// Initiative endpoints for grouping backlog items into work streams.
 	initStore := initiatives.NewStore(scenarioRoot)
+	if err := initStore.Migrate(); err != nil {
+		log.Printf("[initiatives] migration warning: %v", err)
+	}
+	s.initStore = initStore
 	initService := initiatives.NewService(initStore, backlogHandler.Store())
 	initHandler := initiatives.NewHandler(initService)
 	initHandler.RegisterRoutes(s.router)
@@ -550,7 +555,7 @@ func (s *Server) registerGraphRoutes(scenarioRoot string) {
 
 	projCfg := graph.ProjectionConfig{
 		Backlog:    s.backlogHandler.Store(),
-		Initiative: &graphInitiativeAdapter{store: initiatives.NewStore(scenarioRoot)},
+		Initiative: &graphInitiativeAdapter{store: s.initStore},
 		Capture:    &captureAdapter{rootDir: scenarioRoot},
 		Scenario: graph.NewScenarioSourceAdapter(
 			scenarios.NewCLIProviderWithOptions(scenarios.CLIProviderOptions{

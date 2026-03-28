@@ -21,9 +21,19 @@ func NewHandler(service *Service) *Handler {
 }
 
 // RegisterRoutes registers initiative API routes on the given router.
+// File routes are registered before entity routes so gorilla/mux matches
+// /initiatives/{name}/files before /initiatives/{name}.
 func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/initiatives", h.List).Methods("GET")
 	r.HandleFunc("/api/v1/initiatives", h.Create).Methods("POST")
+
+	// File management routes (must precede the {name} catch-all).
+	r.HandleFunc("/api/v1/initiatives/{name}/files", h.ListInitiativeFiles).Methods("GET")
+	r.HandleFunc("/api/v1/initiatives/{name}/files", h.UploadInitiativeFile).Methods("POST")
+	r.HandleFunc("/api/v1/initiatives/{name}/files", h.OperateInitiativeFile).Methods("PATCH")
+	r.HandleFunc("/api/v1/initiatives/{name}/files/{filepath:.*}", h.GetInitiativeFileContent).Methods("GET")
+
+	// Entity routes.
 	r.HandleFunc("/api/v1/initiatives/{name}", h.Get).Methods("GET")
 	r.HandleFunc("/api/v1/initiatives/{name}", h.Update).Methods("PUT")
 	r.HandleFunc("/api/v1/initiatives/{name}", h.Delete).Methods("DELETE")

@@ -38,6 +38,12 @@ func (s *Service) SetEventDispatcher(d EventDispatcher) {
 	s.eventDispatcher = d
 }
 
+// InitDir returns the absolute path for an initiative's folder, delegating to
+// the store. This is used by file management handlers.
+func (s *Service) InitDir(name string) string {
+	return s.store.InitDir(name)
+}
+
 func (s *Service) invalidateTopologyGraph() {
 	if s.eventDispatcher == nil {
 		return

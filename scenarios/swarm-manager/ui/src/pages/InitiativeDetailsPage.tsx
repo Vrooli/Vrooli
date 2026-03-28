@@ -8,14 +8,16 @@
  * - Created/updated timestamps
  */
 
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, Link, useSearchParams } from "react-router-dom";
-import { ChevronLeft, Target } from "lucide-react";
+import { ChevronLeft, Target, FolderOpen } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
-import { defaultQueryOptions, formatRelativeTime } from "../lib";
+import { FileTree, type TreeFile } from "../components/ui/file-tree";
+import { defaultQueryOptions, formatRelativeTime, getFileExtension } from "../lib";
+import { renderMarkdown } from "../lib/render-markdown";
 import { initiativeService } from "../services";
 import { selectors } from "../consts/selectors";
 import { INITIATIVE_STATUS_CHIP_COLORS, BACKLOG_STATUS_CHIP_COLORS } from "../types";
@@ -84,6 +86,48 @@ export function InitiativeDetailsPage() {
       setDescOverflows(descRef.current.scrollHeight > descRef.current.clientHeight);
     }
   }, [initiative?.description]);
+
+  // Files query
+  const {
+    data: files,
+    isLoading: isLoadingFiles,
+  } = useQuery({
+    queryKey: ["initiative", name, "files"],
+    queryFn: () => {
+      if (!name) throw new Error("Initiative name is required");
+      return initiativeService.listFiles(name);
+    },
+    enabled: !!name,
+    ...defaultQueryOptions,
+  });
+
+  // File selection state
+  const [selectedFile, setSelectedFile] = useState<TreeFile | null>(null);
+  const [fileContent, setFileContent] = useState<string | null>(null);
+  const [isLoadingContent, setIsLoadingContent] = useState(false);
+
+  const handleFileSelect = useCallback(
+    async (file: TreeFile) => {
+      if (!name || file.type === "directory") return;
+      setSelectedFile(file);
+      setIsLoadingContent(true);
+      try {
+        const content = await initiativeService.getFileContent(name, file.path);
+        setFileContent(content);
+      } catch {
+        setFileContent(null);
+      } finally {
+        setIsLoadingContent(false);
+      }
+    },
+    [name],
+  );
+
+  // Filter out initiative.json from the file tree for display
+  const displayFiles = useMemo(() => {
+    if (!files) return [];
+    return files.filter((f) => f.name !== "initiative.json");
+  }, [files]);
 
   // Rollup total for progress bar
   const rollupTotal = rollup ? rollup.completed + rollup.inProgress + rollup.failed + rollup.pending : 0;
@@ -254,6 +298,67 @@ export function InitiativeDetailsPage() {
                   </Link>
                 );
               })}
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Files Card */}
+      {!isLoadingFiles && displayFiles.length > 0 && (
+        <Card className="rounded-lg border-slate-700/60 bg-slate-900/45 p-5" data-testid="initiative-files">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <FolderOpen className="h-4 w-4 text-slate-400" />
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+                Files ({displayFiles.length})
+              </h2>
+            </div>
+
+            <div className={selectedFile ? "grid grid-cols-1 gap-4 lg:grid-cols-2" : ""}>
+              <FileTree
+                files={displayFiles}
+                onFileSelect={handleFileSelect}
+                selectedPath={selectedFile?.path}
+                className="rounded-lg border border-slate-700/40 bg-slate-800/30 p-2"
+              />
+
+              {selectedFile && (
+                <div className="rounded-lg border border-slate-700/40 bg-slate-800/30 p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs font-medium text-slate-400 truncate">{selectedFile.path}</span>
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedFile(null); setFileContent(null); }}
+                      className="text-xs text-slate-500 hover:text-slate-300"
+                    >
+                      Close
+                    </button>
+                  </div>
+                  {isLoadingContent ? (
+                    <div className="py-8 text-center text-sm text-slate-500">Loading...</div>
+                  ) : fileContent !== null ? (
+                    (() => {
+                      const ext = getFileExtension(selectedFile.path);
+                      const isMarkdown = ext === "md" || ext === "markdown";
+                      if (isMarkdown) {
+                        return (
+                          <div
+                            className="prose prose-sm prose-invert max-w-none overflow-auto text-sm"
+                            dangerouslySetInnerHTML={{ __html: renderMarkdown(fileContent) }}
+                          />
+                        );
+                      }
+                      return (
+                        <pre className="max-h-96 overflow-auto rounded bg-slate-900/80 p-3 text-xs text-slate-300">
+                          <code>{fileContent}</code>
+                        </pre>
+                      );
+                    })()
+                  ) : (
+                    <div className="py-8 text-center text-sm text-slate-500">Unable to load file</div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </Card>
