@@ -8,10 +8,14 @@
 import { Circle, CheckCircle, AlertCircle, type LucideIcon } from "lucide-react";
 import { formatDisplayText } from "../lib";
 import type {
+  AgentActivityStatus,
+  AgentRunStatus,
   BacklogKind,
   BacklogStatus,
+  CaptureStatus,
   ExecutionMode,
   ExecutionStatus,
+  InitiativeStatus,
   ScenarioStatus,
 } from "./domain";
 
@@ -78,6 +82,12 @@ export function formatBacklogStatus(status: BacklogStatus): string {
 }
 
 // ============================================================================
+// Capture Status Display
+// ============================================================================
+
+export const CAPTURE_STATUSES: CaptureStatus[] = ["classifying", "classified", "failed"];
+
+// ============================================================================
 // Scenario Status Display
 // ============================================================================
 
@@ -106,6 +116,8 @@ export const SCENARIO_STATUS_COLORS: Record<ScenarioStatus, string> = {
 // ============================================================================
 // Initiative Status Display
 // ============================================================================
+
+export const INITIATIVE_STATUSES: InitiativeStatus[] = ["active", "completed", "archived"];
 
 /**
  * Maps initiative status to semi-transparent chip color classes (bg + text).
@@ -167,3 +179,15 @@ export function formatExecutionMode(mode: ExecutionMode): string {
   }
   return formatDisplayText(mode);
 }
+
+// ============================================================================
+// Agent Status Display
+// ============================================================================
+
+export const AGENT_ACTIVITY_STATUSES: AgentActivityStatus[] = [
+  "pending", "starting", "running", "needs_review", "complete", "failed", "cancelled", "unspecified",
+];
+
+export const AGENT_RUN_STATUSES: AgentRunStatus[] = [
+  "pending", "starting", "running", "needs_review", "complete", "failed", "cancelled", "unspecified",
+];

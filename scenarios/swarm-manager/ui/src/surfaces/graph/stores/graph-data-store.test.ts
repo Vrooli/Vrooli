@@ -80,6 +80,64 @@ describe("graphDataStore", () => {
     expect(initialState.settingsByLens.topology.showSecondaryEdges).toBe(false);
   });
 
+  it("migrates v3 flat status filters to v4 grouped format", () => {
+    window.localStorage.setItem(
+      "swarm-manager.graph.settings.v3",
+      JSON.stringify({
+        topology: {
+          entityFilters: {},
+          statusFilters: { completed: false, failed: false },
+          groupingMode: "none",
+          showSecondaryEdges: true,
+          autoFitOnChange: true,
+        },
+      }),
+    );
+
+    const initialState = createGraphDataInitialState();
+    const filters = initialState.settingsByLens.topology.statusFilters;
+
+    // "completed" exists in backlog, execution, and initiative
+    expect(filters.backlog?.completed).toBe(false);
+    expect(filters.execution?.completed).toBe(false);
+    expect(filters.initiative?.completed).toBe(false);
+
+    // "failed" exists in backlog, execution, capture, agent-activity, agent-run
+    expect(filters.backlog?.failed).toBe(false);
+    expect(filters.execution?.failed).toBe(false);
+    expect(filters.capture?.failed).toBe(false);
+    expect(filters["agent-activity"]?.failed).toBe(false);
+    expect(filters["agent-run"]?.failed).toBe(false);
+
+    // Scenario shouldn't have "completed" since it's not in its status list
+    expect(filters.scenario?.completed).toBeUndefined();
+  });
+
+  it("loads v4 grouped status filters directly", () => {
+    window.localStorage.setItem(
+      "swarm-manager.graph.settings.v4",
+      JSON.stringify({
+        topology: {
+          entityFilters: {},
+          statusFilters: {
+            backlog: { completed: false },
+            execution: { running: false },
+          },
+          groupingMode: "none",
+          showSecondaryEdges: true,
+          autoFitOnChange: true,
+        },
+      }),
+    );
+
+    const initialState = createGraphDataInitialState();
+    const filters = initialState.settingsByLens.topology.statusFilters;
+    expect(filters.backlog?.completed).toBe(false);
+    expect(filters.execution?.running).toBe(false);
+    // Not cross-contaminated
+    expect(filters.backlog?.running).toBeUndefined();
+  });
+
   it("sets graph data atomically", () => {
     const nodes = [makeNode("scenario/test")];
     const edges = [makeEdge("a", "b")];
@@ -106,24 +164,52 @@ describe("graphDataStore", () => {
     expect(settingsByLens.topology.entityFilters.capture).toBe(false);
     expect(settingsByLens.flow.entityFilters.capture).toBe(true);
 
-    const persisted = window.localStorage.getItem("swarm-manager.graph.settings.v3");
+    const persisted = window.localStorage.getItem("swarm-manager.graph.settings.v4");
     expect(persisted).toContain("\"capture\":false");
   });
 
-  it("tracks status visibility for the active lens", () => {
-    useGraphDataStore.getState().setStatusVisibility("running", false);
+  it("tracks status visibility per entity type for the active lens", () => {
+    useGraphDataStore.getState().setStatusVisibility("execution", "running", false);
 
-    expect(useGraphDataStore.getState().settingsByLens.topology.statusFilters.running).toBe(false);
+    expect(useGraphDataStore.getState().settingsByLens.topology.statusFilters.execution?.running).toBe(false);
 
-    useGraphDataStore.getState().clearStatusFilter("running");
-    expect(useGraphDataStore.getState().settingsByLens.topology.statusFilters.running).toBeUndefined();
+    useGraphDataStore.getState().clearStatusFilter("execution", "running");
+    expect(useGraphDataStore.getState().settingsByLens.topology.statusFilters.execution?.running).toBeUndefined();
+  });
+
+  it("keeps status filters independent across entity types", () => {
+    useGraphDataStore.getState().setStatusVisibility("backlog", "completed", false);
+    useGraphDataStore.getState().setStatusVisibility("execution", "completed", true);
+
+    const filters = useGraphDataStore.getState().settingsByLens.topology.statusFilters;
+    expect(filters.backlog?.completed).toBe(false);
+    expect(filters.execution?.completed).toBe(true);
+  });
+
+  it("sets all statuses for an entity type via group visibility", () => {
+    const statuses = ["running", "stopped", "error", "unknown"];
+    useGraphDataStore.getState().setEntityStatusGroupVisibility("scenario", statuses, false);
+
+    const group = useGraphDataStore.getState().settingsByLens.topology.statusFilters.scenario;
+    expect(group).toBeDefined();
+    for (const status of statuses) {
+      expect(group![status]).toBe(false);
+    }
+  });
+
+  it("cleans up empty entity group when last status filter is cleared", () => {
+    useGraphDataStore.getState().setStatusVisibility("capture", "failed", false);
+    expect(useGraphDataStore.getState().settingsByLens.topology.statusFilters.capture).toBeDefined();
+
+    useGraphDataStore.getState().clearStatusFilter("capture", "failed");
+    expect(useGraphDataStore.getState().settingsByLens.topology.statusFilters.capture).toBeUndefined();
   });
 
   it("resets only the current lens settings", () => {
     const store = useGraphDataStore.getState();
     store.setEntityFilter("capture", false);
     store.setGroupingMode("none");
-    store.setStatusVisibility("running", false);
+    store.setStatusVisibility("execution", "running", false);
     store.setLens("flow");
     store.setEntityFilter("execution", false);
 
@@ -133,7 +219,7 @@ describe("graphDataStore", () => {
     const state = useGraphDataStore.getState();
     expect(state.settingsByLens.topology.entityFilters.capture).toBe(true);
     expect(state.settingsByLens.topology.groupingMode).toBe("none");
-    expect(state.settingsByLens.topology.statusFilters.running).toBeUndefined();
+    expect(state.settingsByLens.topology.statusFilters).toEqual({});
     expect(state.settingsByLens.flow.entityFilters.execution).toBe(false);
   });
 

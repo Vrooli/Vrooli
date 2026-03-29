@@ -9,6 +9,7 @@
 import { create } from "zustand";
 import { graphService, type GraphProjectionMeta } from "../../../services";
 import {
+  ENTITY_STATUS_REGISTRY,
   getGraphNodeData,
   type GraphEdge,
   type GraphEntityType,
@@ -22,7 +23,8 @@ export type EntityType = GraphEntityType;
 
 export interface GraphLensSettings {
   entityFilters: Record<EntityType, boolean>;
-  statusFilters: Record<string, boolean>;
+  /** Per-entity-type status visibility. Outer key = entity type, inner key = status string. */
+  statusFilters: Record<string, Record<string, boolean>>;
   groupingMode: GraphGroupingMode;
   showSecondaryEdges: boolean;
   autoFitOnChange: boolean;
@@ -58,8 +60,9 @@ export interface GraphDataState {
   fetchGraph: (lens?: GraphLens, options?: FetchGraphOptions) => Promise<void>;
   toggleEntityFilter: (type: EntityType) => void;
   setEntityFilter: (type: EntityType, visible: boolean) => void;
-  setStatusVisibility: (status: string, visible: boolean) => void;
-  clearStatusFilter: (status: string) => void;
+  setStatusVisibility: (entityType: string, status: string, visible: boolean) => void;
+  clearStatusFilter: (entityType: string, status: string) => void;
+  setEntityStatusGroupVisibility: (entityType: string, statuses: readonly string[], visible: boolean) => void;
   setGroupingMode: (mode: GraphGroupingMode) => void;
   setShowSecondaryEdges: (visible: boolean) => void;
   setAutoFitOnChange: (enabled: boolean) => void;
@@ -67,8 +70,8 @@ export interface GraphDataState {
   setNodePulsing: (nodeId: string, pulsing: boolean) => void;
 }
 
-const GRAPH_SETTINGS_STORAGE_KEY = "swarm-manager.graph.settings.v3";
-const LEGACY_GRAPH_SETTINGS_STORAGE_KEYS = ["swarm-manager.graph.settings.v2"];
+const GRAPH_SETTINGS_STORAGE_KEY = "swarm-manager.graph.settings.v4";
+const LEGACY_GRAPH_SETTINGS_STORAGE_KEYS = ["swarm-manager.graph.settings.v3", "swarm-manager.graph.settings.v2"];
 const GRAPH_SNAPSHOT_STALE_MS = 30_000;
 
 const graphRequestSequence: Record<GraphLens, number> = {
@@ -185,12 +188,32 @@ function loadPersistedSettings(): Record<GraphLens, GraphLensSettings> {
         }
       }
 
-      const statusFilters: Record<string, boolean> = {};
+      const statusFilters: Record<string, Record<string, boolean>> = {};
       if (typeof record.statusFilters === "object" && record.statusFilters !== null) {
-        const statuses = record.statusFilters as Record<string, unknown>;
-        for (const [status, value] of Object.entries(statuses)) {
-          if (typeof value === "boolean") {
-            statusFilters[status] = value;
+        const rawStatuses = record.statusFilters as Record<string, unknown>;
+        const firstValue = Object.values(rawStatuses)[0];
+
+        if (typeof firstValue === "boolean") {
+          // v3 flat format — broadcast each status to all entity types that include it
+          for (const [status, value] of Object.entries(rawStatuses)) {
+            if (typeof value !== "boolean") continue;
+            for (const [et, knownStatuses] of Object.entries(ENTITY_STATUS_REGISTRY)) {
+              if (knownStatuses && (knownStatuses as readonly string[]).includes(status)) {
+                statusFilters[et] = statusFilters[et] || {};
+                statusFilters[et][status] = value;
+              }
+            }
+          }
+        } else {
+          // v4 grouped format — parse directly
+          for (const [entityType, group] of Object.entries(rawStatuses)) {
+            if (typeof group === "object" && group !== null) {
+              const parsed: Record<string, boolean> = {};
+              for (const [status, value] of Object.entries(group as Record<string, unknown>)) {
+                if (typeof value === "boolean") parsed[status] = value;
+              }
+              if (Object.keys(parsed).length > 0) statusFilters[entityType] = parsed;
+            }
           }
         }
       }
@@ -523,25 +546,48 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
       })),
     ),
 
-  setStatusVisibility: (status, visible) =>
+  setStatusVisibility: (entityType, status, visible) =>
     set((state) =>
       updateLensSettings(state, state.lens, (settings) => ({
         ...settings,
         statusFilters: {
           ...settings.statusFilters,
-          [status]: visible,
+          [entityType]: {
+            ...settings.statusFilters[entityType],
+            [status]: visible,
+          },
         },
       })),
     ),
 
-  clearStatusFilter: (status) =>
+  clearStatusFilter: (entityType, status) =>
     set((state) =>
       updateLensSettings(state, state.lens, (settings) => {
+        const entityGroup = { ...settings.statusFilters[entityType] };
+        delete entityGroup[status];
         const nextFilters = { ...settings.statusFilters };
-        delete nextFilters[status];
+        if (Object.keys(entityGroup).length === 0) {
+          delete nextFilters[entityType];
+        } else {
+          nextFilters[entityType] = entityGroup;
+        }
+        return { ...settings, statusFilters: nextFilters };
+      }),
+    ),
+
+  setEntityStatusGroupVisibility: (entityType, statuses, visible) =>
+    set((state) =>
+      updateLensSettings(state, state.lens, (settings) => {
+        const entityGroup = { ...settings.statusFilters[entityType] };
+        for (const status of statuses) {
+          entityGroup[status] = visible;
+        }
         return {
           ...settings,
-          statusFilters: nextFilters,
+          statusFilters: {
+            ...settings.statusFilters,
+            [entityType]: entityGroup,
+          },
         };
       }),
     ),

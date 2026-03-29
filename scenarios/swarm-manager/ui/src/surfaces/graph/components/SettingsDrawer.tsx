@@ -5,6 +5,7 @@
 import { lazy, Suspense, useMemo, useState } from "react";
 import {
   Activity,
+  ChevronRight,
   Eye,
   FolderTree,
   LayoutGrid,
@@ -22,7 +23,8 @@ import { FloatingPanel } from "../../../components/ui/floating-panel";
 import { cn } from "../../../lib/utils";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
-import { getGraphNodeStatus } from "../types";
+import { ENTITY_STATUS_REGISTRY, getGraphNodeEntityType, getGraphNodeStatus } from "../types";
+import type { GraphEntityType } from "../types";
 import type { EntityType, GraphGroupingMode } from "../stores/graph-data-store";
 import type { LayoutMode } from "../stores/graph-ui-store";
 
@@ -60,6 +62,7 @@ function GraphControlsContent() {
   const setEntityFilter = useGraphDataStore((s) => s.setEntityFilter);
   const setStatusVisibility = useGraphDataStore((s) => s.setStatusVisibility);
   const clearStatusFilter = useGraphDataStore((s) => s.clearStatusFilter);
+  const setEntityStatusGroupVisibility = useGraphDataStore((s) => s.setEntityStatusGroupVisibility);
   const setGroupingMode = useGraphDataStore((s) => s.setGroupingMode);
   const setShowSecondaryEdges = useGraphDataStore((s) => s.setShowSecondaryEdges);
   const setAutoFitOnChange = useGraphDataStore((s) => s.setAutoFitOnChange);
@@ -72,19 +75,68 @@ function GraphControlsContent() {
   const requestFitView = useGraphUIStore((s) => s.requestFitView);
   const collapseAllTopologyClusters = useGraphUIStore((s) => s.collapseAllTopologyClusters);
 
-  const availableStatuses = useMemo(() => {
-    const statuses = new Set<string>();
-    for (const node of nodes) {
-      const status = getGraphNodeStatus(node);
-      if (typeof status === "string" && status.trim()) {
-        statuses.add(status);
+  interface StatusGroup {
+    entityType: GraphEntityType;
+    label: string;
+    statuses: string[];
+  }
+
+  const statusGroups = useMemo<StatusGroup[]>(() => {
+    const groups: StatusGroup[] = [];
+    const entityLabels: Record<string, string> = {};
+    for (const meta of ENTITY_META) {
+      entityLabels[meta.type] = meta.label;
+    }
+
+    // Entity types with known registries
+    for (const meta of ENTITY_META) {
+      const knownStatuses = ENTITY_STATUS_REGISTRY[meta.type];
+      if (knownStatuses) {
+        groups.push({
+          entityType: meta.type,
+          label: meta.label,
+          statuses: [...knownStatuses],
+        });
       }
     }
-    return [...statuses].sort((left, right) => left.localeCompare(right));
+
+    // Discover statuses for entity types not in registry (e.g. initiative)
+    const discoveredByEntity = new Map<GraphEntityType, Set<string>>();
+    for (const node of nodes) {
+      const entityType = getGraphNodeEntityType(node);
+      if (ENTITY_STATUS_REGISTRY[entityType]) continue;
+      const status = getGraphNodeStatus(node);
+      if (typeof status === "string" && status.trim()) {
+        let set = discoveredByEntity.get(entityType);
+        if (!set) {
+          set = new Set();
+          discoveredByEntity.set(entityType, set);
+        }
+        set.add(status);
+      }
+    }
+    for (const [entityType, statuses] of discoveredByEntity) {
+      groups.push({
+        entityType,
+        label: entityLabels[entityType] ?? entityType,
+        statuses: [...statuses].sort(),
+      });
+    }
+
+    return groups;
   }, [nodes]);
 
-  const hasCustomStatusFilters = availableStatuses.some(
-    (status) => settings.statusFilters[status] === false,
+  const nodeCountsByEntity = useMemo(() => {
+    const counts: Partial<Record<GraphEntityType, number>> = {};
+    for (const node of nodes) {
+      const entityType = getGraphNodeEntityType(node);
+      counts[entityType] = (counts[entityType] ?? 0) + 1;
+    }
+    return counts;
+  }, [nodes]);
+
+  const hasCustomStatusFilters = Object.values(settings.statusFilters).some(
+    (group) => Object.values(group).some((v) => v === false),
   );
 
   const resetCurrentLens = () => {
@@ -159,19 +211,21 @@ function GraphControlsContent() {
         </div>
       </section>
 
-      {availableStatuses.length > 0 && (
+      {statusGroups.length > 0 && (
         <section>
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <h3 className="text-sm font-medium text-slate-100">Statuses</h3>
-              <p className="text-xs text-slate-500">Hide noisy states without changing the underlying graph.</p>
+              <p className="text-xs text-slate-500">Hide noisy states per entity type without changing the underlying graph.</p>
             </div>
             {hasCustomStatusFilters && (
               <button
                 type="button"
                 onClick={() => {
-                  for (const status of availableStatuses) {
-                    clearStatusFilter(status);
+                  for (const group of statusGroups) {
+                    for (const status of group.statuses) {
+                      clearStatusFilter(group.entityType, status);
+                    }
                   }
                 }}
                 className="text-xs font-medium text-slate-400 hover:text-slate-200"
@@ -180,14 +234,40 @@ function GraphControlsContent() {
               </button>
             )}
           </div>
-          <div className="flex flex-wrap gap-2">
-            {availableStatuses.map((status) =>
-              renderPillButton(
-                status.replace(/_/g, " "),
-                settings.statusFilters[status] !== false,
-                () => setStatusVisibility(status, settings.statusFilters[status] === false),
-              ),
-            )}
+          <div className="space-y-2">
+            {statusGroups.map((group) => {
+              const entityGroup = settings.statusFilters[group.entityType] ?? {};
+              const allVisible = group.statuses.every((s) => entityGroup[s] !== false);
+              const entityHidden = settings.entityFilters[group.entityType] === false;
+              return (
+                <StatusGroupAccordion
+                  key={group.entityType}
+                  group={group}
+                  entityGroup={entityGroup}
+                  allVisible={allVisible}
+                  defaultOpen={!entityHidden}
+                  nodeCount={nodeCountsByEntity[group.entityType] ?? 0}
+                  onToggleAll={() => {
+                    if (allVisible) {
+                      setEntityStatusGroupVisibility(group.entityType, group.statuses, false);
+                    } else {
+                      // Clear all filters for this group to restore default (show all)
+                      for (const status of group.statuses) {
+                        clearStatusFilter(group.entityType, status);
+                      }
+                    }
+                  }}
+                  onToggleStatus={(status) => {
+                    const current = entityGroup[status];
+                    if (current === false) {
+                      clearStatusFilter(group.entityType, status);
+                    } else {
+                      setStatusVisibility(group.entityType, status, false);
+                    }
+                  }}
+                />
+              );
+            })}
           </div>
         </section>
       )}
@@ -275,6 +355,76 @@ function GraphControlsContent() {
           </p>
         )}
       </section>
+    </div>
+  );
+}
+
+function StatusGroupAccordion({
+  group,
+  entityGroup,
+  allVisible,
+  defaultOpen,
+  nodeCount,
+  onToggleAll,
+  onToggleStatus,
+}: {
+  group: { entityType: string; label: string; statuses: string[] };
+  entityGroup: Record<string, boolean>;
+  allVisible: boolean;
+  defaultOpen: boolean;
+  nodeCount: number;
+  onToggleAll: () => void;
+  onToggleStatus: (status: string) => void;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <div className="rounded-lg border border-slate-700/50 bg-slate-900/40">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center justify-between px-3 py-2 text-left"
+      >
+        <span className="flex items-center gap-2">
+          <ChevronRight
+            className={cn(
+              "h-3.5 w-3.5 text-slate-400 transition-transform",
+              open && "rotate-90",
+            )}
+          />
+          <span className="text-xs font-medium text-slate-200">{group.label}</span>
+          <span className="text-[10px] text-slate-500">({nodeCount})</span>
+        </span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleAll();
+          }}
+          className="text-[10px] font-medium text-slate-500 hover:text-slate-300"
+        >
+          {allVisible ? "Hide all" : "Show all"}
+        </button>
+      </button>
+      {open && (
+        <div className="flex flex-wrap gap-1.5 px-3 pb-2.5">
+          {group.statuses.map((status) => (
+            <button
+              key={status}
+              type="button"
+              onClick={() => onToggleStatus(status)}
+              className={cn(
+                "rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors",
+                entityGroup[status] !== false
+                  ? "border-cyan-500/40 bg-cyan-500/15 text-cyan-200"
+                  : "border-slate-700/70 bg-slate-900/60 text-slate-400 hover:border-slate-600 hover:text-slate-200",
+              )}
+            >
+              {status.replace(/_/g, " ")}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

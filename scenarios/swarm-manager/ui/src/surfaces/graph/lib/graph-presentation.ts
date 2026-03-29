@@ -48,8 +48,11 @@ export function filterGraphNodes(nodes: GraphNode[], settings: GraphLensSettings
     }
 
     const status = data.status;
-    if (typeof status === "string" && settings.statusFilters[status] === false) {
-      return false;
+    if (typeof status === "string" && entityType) {
+      const entityGroup = settings.statusFilters[entityType];
+      if (entityGroup && entityGroup[status] === false) {
+        return false;
+      }
     }
 
     return true;

@@ -10,6 +10,15 @@ import type {
   ExecutionMode,
   ExecutionStatus,
 } from "../../types";
+import {
+  AGENT_ACTIVITY_STATUSES,
+  AGENT_RUN_STATUSES,
+  BACKLOG_STATUSES,
+  CAPTURE_STATUSES,
+  EXECUTION_STATUSES,
+  INITIATIVE_STATUSES,
+  SCENARIO_STATUSES,
+} from "../../types/constants";
 
 export type GraphLens = "topology" | "flow" | "operations";
 
@@ -23,6 +32,19 @@ export type GraphEntityType =
   | "initiative";
 
 export type GraphGroupingMode = "initiative" | "none";
+
+/**
+ * Maps each entity type to its known status values.
+ */
+export const ENTITY_STATUS_REGISTRY: Partial<Record<GraphEntityType, readonly string[]>> = {
+  backlog: BACKLOG_STATUSES,
+  execution: EXECUTION_STATUSES,
+  capture: CAPTURE_STATUSES,
+  "agent-activity": AGENT_ACTIVITY_STATUSES,
+  "agent-run": AGENT_RUN_STATUSES,
+  scenario: SCENARIO_STATUSES,
+  initiative: INITIATIVE_STATUSES,
+};
 
 export interface InitiativeRollupData {
   total: number;

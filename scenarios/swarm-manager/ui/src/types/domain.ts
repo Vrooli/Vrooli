@@ -53,6 +53,7 @@ export type BacklogStatus =
   | "failed"
   | "archived";
 
+
 /**
  * Main backlog categories.
  */
@@ -116,6 +117,11 @@ export type BacklogFile = Omit<ProtoMessage<ProtoBacklogFile>, "type" | "size" |
 // ============================================================================
 
 /**
+ * Valid lifecycle states for an initiative.
+ */
+export type InitiativeStatus = "active" | "completed" | "archived";
+
+/**
  * A named grouping of related backlog items.
  */
 export type Initiative = ProtoMessage<ProtoInitiative>;
@@ -141,6 +147,7 @@ export interface InitiativeWithRollup {
  * Lifecycle status of a capture.
  */
 export type CaptureStatus = "classifying" | "classified" | "failed";
+
 
 /**
  * A raw, unclassified thought from the user.
@@ -441,6 +448,7 @@ export interface ArchiveTargetsResponse {
  * Valid runtime states for a scenario
  */
 export type ScenarioStatus = "running" | "stopped" | "error" | "unknown";
+
 
 /**
  * A scenario represents a deployed application in the Vrooli ecosystem.
