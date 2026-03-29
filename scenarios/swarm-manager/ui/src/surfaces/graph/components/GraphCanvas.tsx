@@ -29,9 +29,11 @@ import { applyDagreLayout } from "../lib/layout-utils";
 import { buildGraphPresentation } from "../lib/graph-presentation";
 import {
   FILTER_SUGGESTION_THRESHOLD,
+  getEdgeMarker,
   getEdgeStyle,
   STRAIGHT_EDGE_THRESHOLD,
 } from "../lib/edge-styles";
+import { getStatusRgb } from "../lib/status-colors";
 import { bfsNeighborhood } from "../lib/bfs-selection";
 import {
   getGraphNodeData,
@@ -56,7 +58,7 @@ const nodeTypes: NodeTypes = {
 const baseEdgeOptions: DefaultEdgeOptions = {
   style: {
     stroke: "rgb(100 116 139 / 0.5)",
-    strokeWidth: 1.5,
+    strokeWidth: 2.5,
   },
   animated: false,
 };
@@ -99,6 +101,7 @@ export function GraphCanvas() {
     const useStraightEdges = processedEdges.length > STRAIGHT_EDGE_THRESHOLD;
     return processedEdges.map((edge) => {
       const baseStyle = getEdgeStyle(edge.type ?? undefined);
+      const marker = getEdgeMarker(edge.type ?? undefined);
       let style = baseStyle;
 
       if (highlightState.mode !== "normal") {
@@ -122,6 +125,7 @@ export function GraphCanvas() {
         },
         type: useStraightEdges ? "straight" : undefined,
         style,
+        markerEnd: marker,
       };
     });
   }, [highlightState, processedEdges]);
@@ -325,6 +329,16 @@ export function GraphCanvas() {
         proOptions={{ hideAttribution: true }}
         minZoom={0.1}
         maxZoom={2}
+        /* Performance: only render nodes/edges in viewport */
+        onlyRenderVisibleElements
+        /* Touch: prevent nodes from capturing pinch-to-zoom gestures.
+           nodeDragThreshold requires a 5px move before drag starts,
+           letting the browser recognize pinch/zoom first. */
+        nodesDraggable={false}
+        nodeDragThreshold={5}
+        /* Disable unnecessary features for read-only graph */
+        nodesConnectable={false}
+        elementsSelectable={false}
       >
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="rgb(51 65 85 / 0.4)" />
         {showMiniMap && (
@@ -337,25 +351,7 @@ export function GraphCanvas() {
               border: "1px solid rgb(51 65 85 / 0.5)",
             }}
             nodeStrokeWidth={2}
-            nodeColor={(node) => {
-              const entityType = getGraphNodeData(node).entityType;
-              switch (entityType) {
-                case "backlog":
-                  return "rgb(34 211 238 / 0.6)";
-                case "scenario":
-                  return "rgb(167 139 250 / 0.6)";
-                case "execution":
-                  return "rgb(251 191 36 / 0.6)";
-                case "capture":
-                  return "rgb(52 211 153 / 0.6)";
-                case "agent-run":
-                  return "rgb(251 113 133 / 0.6)";
-                case "initiative":
-                  return "rgb(56 189 248 / 0.6)";
-                default:
-                  return "rgb(148 163 184 / 0.4)";
-              }
-            }}
+            nodeColor={(node) => getStatusRgb(getGraphNodeData(node).status)}
             maskColor="rgb(2 6 23 / 0.7)"
             className="!bottom-3 !right-3"
           />
@@ -366,7 +362,7 @@ export function GraphCanvas() {
 
       {loading && (
         <div
-          className="pointer-events-none absolute inset-x-0 top-3 z-20 mx-auto w-fit rounded-lg border border-slate-700/80 bg-slate-950/90 px-4 py-2 text-xs text-slate-300 shadow-lg"
+          className="pointer-events-none absolute inset-x-0 top-14 z-20 mx-auto w-fit rounded-lg border border-slate-700/80 bg-slate-950/90 px-4 py-2 text-xs text-slate-300 shadow-lg"
           data-testid="graph-loading"
         >
           Refreshing graph…
@@ -375,7 +371,7 @@ export function GraphCanvas() {
 
       {error && (
         <div
-          className="absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-lg border border-red-500/30 bg-red-950/90 px-4 py-2 text-xs text-red-200 shadow-lg"
+          className="absolute left-1/2 top-14 z-20 -translate-x-1/2 rounded-lg border border-red-500/30 bg-red-950/90 px-4 py-2 text-xs text-red-200 shadow-lg"
           data-testid="graph-error"
         >
           {error}
@@ -403,7 +399,7 @@ export function GraphCanvas() {
 
       {showFilterSuggestion && (
         <div
-          className="absolute left-1/2 top-14 z-20 -translate-x-1/2 rounded-lg border border-amber-500/40 bg-amber-950/90 px-4 py-2 text-xs text-amber-200 shadow-lg"
+          className="absolute left-1/2 top-24 z-20 -translate-x-1/2 rounded-lg border border-amber-500/40 bg-amber-950/90 px-4 py-2 text-xs text-amber-200 shadow-lg"
           data-testid="filter-suggestion"
         >
           High edge count ({processedEdges.length}). Use graph controls to filter entity types, statuses, or secondary edges.

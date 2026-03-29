@@ -2,8 +2,11 @@
  * Edge Styles
  *
  * Visual differentiation for topology edge types via color + dash pattern.
- * No labels — a compact legend explains the mapping.
+ * Edges are thicker (2.5px) with distinct colors for each type.
+ * Arrow markers indicate directionality.
  */
+
+import { MarkerType, type EdgeMarkerType } from "@xyflow/react";
 
 export interface EdgeStyleConfig {
   stroke: string;
@@ -58,7 +61,7 @@ export const EDGE_STYLES: Record<string, EdgeStyleConfig> = {
     label: "Spawned run",
   },
   continued_run: {
-    stroke: "rgb(244 114 182)",    // pink-400
+    stroke: "rgb(129 140 248)",    // indigo-400 (differentiated from spawned_run)
     strokeDasharray: "1 3",
     label: "Continued run",
   },
@@ -70,6 +73,8 @@ const DEFAULT_EDGE_STYLE: EdgeStyleConfig = {
   label: "default",
 };
 
+const EDGE_STROKE_WIDTH = 2.5;
+
 /**
  * Get the React Flow edge style object for a given edge type.
  */
@@ -78,7 +83,20 @@ export function getEdgeStyle(edgeType: string | undefined): React.CSSProperties 
   return {
     stroke: config.stroke,
     strokeDasharray: config.strokeDasharray === "none" ? undefined : config.strokeDasharray,
-    strokeWidth: 1.5,
+    strokeWidth: EDGE_STROKE_WIDTH,
+  };
+}
+
+/**
+ * Get an arrow marker for a given edge type.
+ */
+export function getEdgeMarker(edgeType: string | undefined): EdgeMarkerType {
+  const config = (edgeType && EDGE_STYLES[edgeType]) || DEFAULT_EDGE_STYLE;
+  return {
+    type: MarkerType.ArrowClosed,
+    width: 14,
+    height: 14,
+    color: config.stroke,
   };
 }
 

@@ -78,13 +78,30 @@ body {
   }
 }
 
-/* Activity pulse for graph nodes receiving real-time updates */
+/* Graph node shapes via clip-path */
+.clip-hexagon {
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+}
+
+.clip-pentagon {
+  clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
+}
+
+.clip-octagon {
+  clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+}
+
+/* Activity pulse for graph nodes receiving real-time updates.
+   Uses filter: drop-shadow which respects clip-path, unlike box-shadow. */
 @keyframes graph-node-pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.5);
+    filter: drop-shadow(0 0 0 rgba(34, 211, 238, 0.5));
+  }
+  50% {
+    filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.4));
   }
   100% {
-    box-shadow: 0 0 0 10px rgba(34, 211, 238, 0);
+    filter: drop-shadow(0 0 0 rgba(34, 211, 238, 0));
   }
 }
 

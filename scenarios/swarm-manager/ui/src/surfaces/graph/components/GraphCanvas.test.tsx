@@ -68,6 +68,7 @@ vi.mock("@xyflow/react", async () => {
       const [edges, setEdges] = ReactModule.useState(initial);
       return [edges, setEdges, vi.fn()];
     },
+    MarkerType: { ArrowClosed: "arrowclosed" },
   };
 });
 

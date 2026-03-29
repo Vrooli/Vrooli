@@ -52,8 +52,7 @@ function ClusterNodeComponent({ id, data, selected }: NodeProps) {
       <Handle type="target" position={Position.Top} className="!bg-slate-500 !border-slate-400 !w-2 !h-2" />
       <div
         className={cn(
-          "rounded-xl border px-3 py-2 shadow-lg backdrop-blur-sm",
-          "transition-all duration-150",
+          "rounded-xl border px-3 py-2 shadow-md backdrop-blur-sm",
           isUnassigned
             ? "bg-slate-800/80 border-slate-600/40"
             : "bg-slate-800/90 border-sky-500/40",

@@ -2,8 +2,8 @@
  * EdgeLegend - Compact floating legend for edge type visual differentiation.
  *
  * Fixed in bottom-left corner (opposite MiniMap in bottom-right).
- * Shows 4 rows: colored line sample + edge type name.
- * Collapsible via toggle. Only visible in topology lens.
+ * Shows colored line sample with arrowhead + edge type name.
+ * Collapsible via toggle.
  */
 
 import { useState } from "react";
@@ -46,15 +46,29 @@ export function EdgeLegend({ edgeTypes }: EdgeLegendProps) {
         <div className="space-y-1 px-3 pb-2" data-testid="edge-legend-items">
           {legendEntries.map(([type, config]) => (
             <div key={type} className="flex items-center gap-2">
-              <svg width="24" height="8" className="shrink-0">
+              <svg width="28" height="10" className="shrink-0">
+                <defs>
+                  <marker
+                    id={`legend-arrow-${type}`}
+                    viewBox="0 0 6 6"
+                    refX="5"
+                    refY="3"
+                    markerWidth="5"
+                    markerHeight="5"
+                    orient="auto-start-reverse"
+                  >
+                    <path d="M 0 0 L 6 3 L 0 6 z" fill={config.stroke} />
+                  </marker>
+                </defs>
                 <line
                   x1="0"
-                  y1="4"
-                  x2="24"
-                  y2="4"
+                  y1="5"
+                  x2="22"
+                  y2="5"
                   stroke={config.stroke}
-                  strokeWidth="2"
+                  strokeWidth="3"
                   strokeDasharray={config.strokeDasharray === "none" ? undefined : config.strokeDasharray}
+                  markerEnd={`url(#legend-arrow-${type})`}
                 />
               </svg>
               <span className="text-[10px] text-slate-400">{config.label}</span>

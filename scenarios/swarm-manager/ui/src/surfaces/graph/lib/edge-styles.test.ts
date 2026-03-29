@@ -32,9 +32,9 @@ describe("getEdgeStyle", () => {
     expect(style.strokeDasharray).toBe("7 3");
   });
 
-  it("returns dotted pink for continued_run", () => {
+  it("returns dotted indigo for continued_run", () => {
     const style = getEdgeStyle("continued_run");
-    expect(style.stroke).toBe("rgb(244 114 182)");
+    expect(style.stroke).toBe("rgb(129 140 248)");
     expect(style.strokeDasharray).toBe("1 3");
   });
 

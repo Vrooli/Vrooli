@@ -11,9 +11,10 @@ import dagre from "dagre";
 import type { Node, Edge } from "@xyflow/react";
 import type { LayoutDirection, LayoutMode } from "../stores/graph-ui-store";
 import type { GraphEntityType } from "../types";
+import { getShapeDimensions } from "./entity-shapes";
 
-const DEFAULT_NODE_WIDTH = 180;
-const DEFAULT_NODE_HEIGHT = 72;
+const DEFAULT_NODE_WIDTH = 140;
+const DEFAULT_NODE_HEIGHT = 80;
 
 interface DagreConfig {
   rankdir: LayoutDirection;
@@ -200,8 +201,10 @@ export function applyDagreLayout<NodeType extends Node, EdgeType extends Edge>(
   });
 
   for (const node of connectedNodes) {
-    const width = (node.measured?.width ?? node.width ?? DEFAULT_NODE_WIDTH) as number;
-    const height = (node.measured?.height ?? node.height ?? DEFAULT_NODE_HEIGHT) as number;
+    const entityType = getNodeEntityType(node);
+    const shapeDims = entityType ? getShapeDimensions(entityType) : null;
+    const width = (node.measured?.width ?? node.width ?? shapeDims?.width ?? DEFAULT_NODE_WIDTH) as number;
+    const height = (node.measured?.height ?? node.height ?? shapeDims?.height ?? DEFAULT_NODE_HEIGHT) as number;
     g.setNode(node.id, { width, height });
   }
 
@@ -215,8 +218,10 @@ export function applyDagreLayout<NodeType extends Node, EdgeType extends Edge>(
 
   const positioned: NodeType[] = connectedNodes.map((node) => {
     const pos = g.node(node.id);
-    const width = (node.measured?.width ?? node.width ?? DEFAULT_NODE_WIDTH) as number;
-    const height = (node.measured?.height ?? node.height ?? DEFAULT_NODE_HEIGHT) as number;
+    const entityType = getNodeEntityType(node);
+    const shapeDims = entityType ? getShapeDimensions(entityType) : null;
+    const width = (node.measured?.width ?? node.width ?? shapeDims?.width ?? DEFAULT_NODE_WIDTH) as number;
+    const height = (node.measured?.height ?? node.height ?? shapeDims?.height ?? DEFAULT_NODE_HEIGHT) as number;
     return {
       ...node,
       position: {

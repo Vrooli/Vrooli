@@ -1,8 +1,11 @@
 /**
  * GraphNode - Custom node renderer for all entity types.
  *
- * Shows: label, entity type badge, status indicator, kind badge.
- * Color-coded by entity type for visual distinction.
+ * Shape varies by entity type (diamond, rectangle, hexagon, circle, pentagon, octagon, pill).
+ * Color encodes STATUS via both fill and border for instant scannability.
+ *
+ * @see lib/entity-shapes.ts for shape mapping
+ * @see lib/status-colors.ts for color mapping
  */
 
 import { memo } from "react";
@@ -10,141 +13,92 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Lightbulb, Package, Zap, MessageSquare, Activity, Target } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import type { GraphEntityType, GraphNodeData } from "../types";
+import { getShapeClasses, getShapeDimensions, needsContentCounterRotation, usesClipPath } from "../lib/entity-shapes";
+import { getStatusColorClasses } from "../lib/status-colors";
 
-const ENTITY_COLORS: Record<GraphEntityType, { bg: string; border: string; badge: string; icon: React.ElementType }> = {
-  backlog: {
-    bg: "bg-slate-800/90",
-    border: "border-cyan-500/40",
-    badge: "bg-cyan-500/20 text-cyan-300",
-    icon: Lightbulb,
-  },
-  scenario: {
-    bg: "bg-slate-800/90",
-    border: "border-violet-500/40",
-    badge: "bg-violet-500/20 text-violet-300",
-    icon: Package,
-  },
-  execution: {
-    bg: "bg-slate-800/90",
-    border: "border-amber-500/40",
-    badge: "bg-amber-500/20 text-amber-300",
-    icon: Zap,
-  },
-  "agent-activity": {
-    bg: "bg-slate-800/90",
-    border: "border-fuchsia-500/40",
-    badge: "bg-fuchsia-500/20 text-fuchsia-300",
-    icon: Activity,
-  },
-  capture: {
-    bg: "bg-slate-800/90",
-    border: "border-emerald-500/40",
-    badge: "bg-emerald-500/20 text-emerald-300",
-    icon: MessageSquare,
-  },
-  "agent-run": {
-    bg: "bg-slate-800/90",
-    border: "border-rose-500/40",
-    badge: "bg-rose-500/20 text-rose-300",
-    icon: Activity,
-  },
-  initiative: {
-    bg: "bg-slate-800/90",
-    border: "border-sky-500/40",
-    badge: "bg-sky-500/20 text-sky-300",
-    icon: Target,
-  },
+const ENTITY_ICONS: Record<GraphEntityType, React.ElementType> = {
+  backlog: Lightbulb,
+  scenario: Package,
+  execution: Zap,
+  "agent-activity": Activity,
+  capture: MessageSquare,
+  "agent-run": Activity,
+  initiative: Target,
 };
 
-const STATUS_DOT_COLORS: Record<string, string> = {
-  // Backlog statuses
-  backlog: "bg-slate-400",
-  researching: "bg-blue-400",
-  ready: "bg-emerald-400",
-  queued: "bg-amber-400",
-  in_progress: "bg-cyan-400",
-  completed: "bg-green-400",
-  failed: "bg-red-400",
-  archived: "bg-slate-500",
-  // Scenario statuses
-  running: "bg-green-400",
-  stopped: "bg-slate-400",
-  error: "bg-red-400",
-  unknown: "bg-slate-500",
-  // Execution statuses
-  pending: "bg-slate-400",
-  scheduled: "bg-blue-400",
-  starting: "bg-cyan-400",
-  needs_review: "bg-amber-400",
-  validating: "bg-blue-400",
-  needs_fixup: "bg-orange-400",
-  canceled: "bg-slate-500",
-  // Capture statuses
-  classifying: "bg-blue-400",
-  classified: "bg-emerald-400",
-  // Agent run statuses
-  needs_review_run: "bg-amber-400",
-  complete: "bg-green-400",
-  cancelled: "bg-slate-500",
-  unspecified: "bg-slate-500",
-};
+/** Shapes that need fixed, equal-sided sizing. */
+const FIXED_SIZE_SHAPES = new Set<GraphEntityType>(["backlog", "initiative", "execution", "capture", "agent-run", "agent-activity"]);
 
 const DEFAULT_ENTITY: GraphEntityType = "backlog";
 
 function GraphNodeComponent({ data, selected }: NodeProps) {
   const nodeData = data as GraphNodeData;
   const entityType = nodeData.entityType ?? DEFAULT_ENTITY;
-  const colors = ENTITY_COLORS[entityType] ?? ENTITY_COLORS[DEFAULT_ENTITY];
-  const Icon = colors.icon;
-  const statusDot = STATUS_DOT_COLORS[nodeData.status ?? ""] ?? "bg-slate-500";
+  const Icon = ENTITY_ICONS[entityType] ?? ENTITY_ICONS[DEFAULT_ENTITY];
+  const shapeClass = getShapeClasses(entityType);
+  const statusColors = getStatusColorClasses(nodeData.status);
+  const counterRotate = needsContentCounterRotation(entityType);
+  const isClipped = usesClipPath(entityType);
+  const dims = getShapeDimensions(entityType);
+  const isFixedSize = FIXED_SIZE_SHAPES.has(entityType);
 
   return (
     <>
       <Handle type="target" position={Position.Top} className="!bg-slate-500 !border-slate-400 !w-2 !h-2" />
+      {/* Outer wrapper: handles drop-shadow for clipped shapes */}
       <div
         className={cn(
-          "rounded-lg border px-3 py-2 shadow-lg backdrop-blur-sm min-w-[140px] max-w-[220px]",
-          "transition-all duration-150",
-          colors.bg,
-          colors.border,
-          selected && "ring-2 ring-cyan-400/60 border-cyan-400/70 shadow-cyan-500/20",
+          selected && isClipped && "drop-shadow-[0_0_6px_rgba(34,211,238,0.6)]",
           Boolean(nodeData.pulsing) && "graph-node-pulse",
         )}
         onAnimationEnd={(e) => {
           if (e.animationName === "graph-node-pulse") {
-            // Remove pulse class after animation completes — no React re-render needed,
-            // the class will be re-applied on next WS update.
             e.currentTarget.classList.remove("graph-node-pulse");
           }
         }}
       >
-        {/* Header: icon + entity type */}
-        <div className="flex items-center gap-1.5 mb-1">
-          <Icon className="h-3 w-3 shrink-0 text-slate-400" />
-          <span className={cn("rounded-full px-1.5 py-0 text-[10px] font-medium", colors.badge)}>
-            {entityType}
-          </span>
-          {nodeData.kind && (
-            <span className="rounded-full bg-slate-700/80 px-1.5 py-0 text-[10px] text-slate-400">
-              {nodeData.kind}
-            </span>
+        <div
+          className={cn(
+            "border-2 shadow-md backdrop-blur-sm",
+            "flex items-center justify-center",
+            shapeClass,
+            statusColors.background,
+            statusColors.border,
+            // Selection ring — only for non-clipped shapes (clip-path hides box-shadow/ring)
+            selected && !isClipped && "ring-2 ring-cyan-400/60 shadow-cyan-500/20",
+            // Sizing
+            isFixedSize
+              ? ""
+              : "min-w-[120px] max-w-[180px] px-3 py-2",
           )}
-        </div>
+          style={isFixedSize ? { width: dims.width, height: dims.height } : undefined}
+        >
+          <div className={cn(counterRotate && "-rotate-45", "flex flex-col items-center gap-0.5 w-full px-1")}>
+            {/* Entity type badge with icon */}
+            <div className="flex items-center gap-1">
+              <Icon className={cn("h-3 w-3 shrink-0", statusColors.text)} />
+              <span className={cn("text-[9px] font-medium uppercase tracking-wide", statusColors.text)}>
+                {entityType === "agent-activity" ? "activity" : entityType === "agent-run" ? "run" : entityType}
+              </span>
+            </div>
 
-        {/* Label */}
-        <p className="text-xs font-medium text-slate-100 leading-tight line-clamp-2 break-words">
-          {nodeData.label}
-        </p>
+            {/* Label */}
+            <p className={cn(
+              "text-[10px] font-medium leading-tight text-center break-words",
+              statusColors.text,
+              isFixedSize ? "line-clamp-2 max-w-[80px]" : "line-clamp-2",
+            )}>
+              {nodeData.label}
+            </p>
 
-        {/* Status */}
-        {nodeData.status && (
-          <div className="flex items-center gap-1.5 mt-1.5">
-            <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", statusDot)} />
-            <span className="text-[10px] text-slate-400 truncate">
-              {nodeData.status.replace(/_/g, " ")}
-            </span>
+            {/* Status text */}
+            {nodeData.status && (
+              <span className="text-[8px] text-slate-400 truncate max-w-full">
+                {nodeData.status.replace(/_/g, " ")}
+              </span>
+            )}
           </div>
-        )}
+        </div>
       </div>
       <Handle type="source" position={Position.Bottom} className="!bg-slate-500 !border-slate-400 !w-2 !h-2" />
     </>
