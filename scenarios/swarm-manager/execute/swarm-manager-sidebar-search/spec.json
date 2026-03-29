@@ -9,7 +9,7 @@
   "kind": "execute",
   "name": "swarm-manager-sidebar-search",
   "priority": 3,
-  "status": "backlog",
+  "status": "completed",
   "tags": [
     "swarm-manager",
     "ux",
@@ -19,5 +19,5 @@
     "filtering"
   ],
   "title": "Add Search, Filtering, Tabs, and Full-Viewport Mobile to the Graph Sidebar",
-  "updated": "2026-03-28T19:32:20Z"
+  "updated": "2026-03-29T19:58:55Z"
 }

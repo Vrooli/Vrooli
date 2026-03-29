@@ -131,7 +131,16 @@ export function useGraphWebSocket({ enabled, lens, onNodePulse }: UseGraphWebSoc
 
     ws.onmessage = (event) => {
       try {
-        handleMessage(JSON.parse(event.data as string) as WSMessage);
+        const parsed: unknown = JSON.parse(event.data as string);
+        if (
+          typeof parsed === "object" &&
+          parsed !== null &&
+          "type" in parsed &&
+          typeof (parsed as { type: unknown }).type === "string" &&
+          "data" in parsed
+        ) {
+          handleMessage(parsed as WSMessage);
+        }
       } catch {
         // Ignore malformed messages.
       }

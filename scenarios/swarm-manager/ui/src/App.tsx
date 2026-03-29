@@ -15,6 +15,7 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { getProxyInfo } from "@vrooli/api-base";
 import { ErrorBoundary } from "./components/ui/error-boundary";
+import { PageErrorBoundary } from "./components/ui/page-error-boundary";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import {
   BacklogRedirect,
@@ -85,17 +86,17 @@ export default function App() {
         >
           <Routes>
             {/* Primary route: graph workspace */}
-            <Route path="/graph" element={<GraphWorkspace />} />
+            <Route path="/graph" element={<PageErrorBoundary pageName="Graph"><GraphWorkspace /></PageErrorBoundary>} />
 
             {/* Root redirects to /graph */}
             <Route index element={<Navigate to="/graph" replace />} />
 
             {/* Detail pages (accessible from graph inspector) */}
-            <Route path="/details/backlog/:kind/:name" element={<BacklogDetailsPage />} />
-            <Route path="/details/scenario/:name" element={<ScenarioDetailsPage />} />
-            <Route path="/details/execution/:executionId" element={<ExecutionDetailsPage />} />
-            <Route path="/details/execution/:executionId/prompt-trace" element={<ExecutionDetailsPage />} />
-            <Route path="/details/initiative/:name" element={<InitiativeDetailsPage />} />
+            <Route path="/details/backlog/:kind/:name" element={<PageErrorBoundary pageName="Backlog Details"><BacklogDetailsPage /></PageErrorBoundary>} />
+            <Route path="/details/scenario/:name" element={<PageErrorBoundary pageName="Scenario Details"><ScenarioDetailsPage /></PageErrorBoundary>} />
+            <Route path="/details/execution/:executionId" element={<PageErrorBoundary pageName="Execution Details"><ExecutionDetailsPage /></PageErrorBoundary>} />
+            <Route path="/details/execution/:executionId/prompt-trace" element={<PageErrorBoundary pageName="Execution Details"><ExecutionDetailsPage /></PageErrorBoundary>} />
+            <Route path="/details/initiative/:name" element={<PageErrorBoundary pageName="Initiative Details"><InitiativeDetailsPage /></PageErrorBoundary>} />
 
             {/* Legacy route redirects */}
             <Route path="backlog" element={<BacklogRedirect />} />

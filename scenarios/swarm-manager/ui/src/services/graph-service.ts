@@ -259,7 +259,19 @@ function mapProtoNode(raw: ProtoGraphNode): GraphNode {
       };
     }
     default:
-      throw new Error("Invalid graph node response");
+      console.warn(`[graph-service] Unknown graph node data case for node ${raw.id}, skipping`);
+      return {
+        id: raw.id,
+        type: entityType,
+        position,
+        data: {
+          entityType: "scenario",
+          rawType: "Scenario",
+          label: raw.id,
+          name: raw.id,
+          status: "unknown" as const,
+        },
+      };
   }
 }
 

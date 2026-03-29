@@ -82,7 +82,7 @@ export class PageErrorBoundary extends Component<PageErrorBoundaryProps, PageErr
   handleGoHome = () => {
     // Navigate to home and clear error state
     this.setState({ hasError: false, errorId: null });
-    window.location.href = "/backlog";
+    window.location.href = "/graph";
   };
 
   render() {

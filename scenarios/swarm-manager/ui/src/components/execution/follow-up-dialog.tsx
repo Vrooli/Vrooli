@@ -29,8 +29,8 @@ interface FollowUpDialogProps {
 function buildDefaultContext(execution: ExecutionRecord, type: FollowUpType): string {
   if (type !== "fixup" || !execution.reviewResult) return "";
   const rr = execution.reviewResult;
-  let ctx = rr.summary;
-  for (const dim of rr.dimensions) {
+  let ctx = rr.summary ?? "";
+  for (const dim of rr.dimensions ?? []) {
     if (dim.status !== "green" && dim.status !== "skipped") {
       ctx += `\n- ${dim.name} (${dim.status})${dim.details ? `: ${dim.details}` : ""}`;
     }
@@ -39,7 +39,7 @@ function buildDefaultContext(execution: ExecutionRecord, type: FollowUpType): st
 }
 
 function ReviewSummaryPanel({ result }: { result: ReviewResult }) {
-  const nonGreen = result.dimensions.filter((d) => d.status !== "green" && d.status !== "skipped");
+  const nonGreen = (result.dimensions ?? []).filter((d) => d.status !== "green" && d.status !== "skipped");
   if (nonGreen.length === 0) return null;
 
   return (

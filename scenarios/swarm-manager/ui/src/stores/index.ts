@@ -9,4 +9,5 @@ export {
   selectLatestActivityForBacklog,
 } from "./agent-activities-store";
 export { useCaptureStore, captureStoreInitialState } from "./capture-store";
+export { useInitiativeStore, initiativeStoreInitialState } from "./initiative-store";
 export type { LoadStatus } from "./store-utils";

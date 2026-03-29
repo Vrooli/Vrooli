@@ -173,27 +173,6 @@ function GraphControlsContent() {
     );
   };
 
-  const renderPillButton = (
-    label: string,
-    active: boolean,
-    onClick: () => void,
-  ) => {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        className={cn(
-          "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-          active
-            ? "border-cyan-500/40 bg-cyan-500/15 text-cyan-200"
-            : "border-slate-700/70 bg-slate-900/60 text-slate-400 hover:border-slate-600 hover:text-slate-200",
-        )}
-      >
-        {label}
-      </button>
-    );
-  };
-
   return (
     <div className="space-y-6">
       <section>

@@ -21,6 +21,13 @@ const makeEdge = (source: string, target: string): Edge => ({
   target,
 });
 
+/** Find a node by id and return its position, failing the test if not found. */
+function posOfNode(result: Node[], id: string) {
+  const node = result.find((n) => n.id === id);
+  expect(node).toBeDefined();
+  return (node as Node).position;
+}
+
 describe("getDagreConfig", () => {
   it("returns TB direction for hierarchical", () => {
     const config = getDagreConfig("hierarchical", "TB");
@@ -101,7 +108,7 @@ describe("applyDagreLayout", () => {
     const edges = [makeEdge("a", "b"), makeEdge("b", "c")];
     const result = applyDagreLayout(nodes, edges, "hierarchical", "TB");
 
-    const posOf = (id: string) => result.find((n) => n.id === id)!.position;
+    const posOf = (id: string) => posOfNode(result, id);
     // In TB, a→b→c should have increasing y
     expect(posOf("a").y).toBeLessThan(posOf("b").y);
     expect(posOf("b").y).toBeLessThan(posOf("c").y);
@@ -112,7 +119,7 @@ describe("applyDagreLayout", () => {
     const edges = [makeEdge("a", "b"), makeEdge("b", "c")];
     const result = applyDagreLayout(nodes, edges, "hierarchical", "LR");
 
-    const posOf = (id: string) => result.find((n) => n.id === id)!.position;
+    const posOf = (id: string) => posOfNode(result, id);
     expect(posOf("a").x).toBeLessThan(posOf("b").x);
     expect(posOf("b").x).toBeLessThan(posOf("c").x);
   });
@@ -124,8 +131,8 @@ describe("applyDagreLayout", () => {
     const hier = applyDagreLayout(nodes, edges, "hierarchical", "TB");
     const comp = applyDagreLayout(nodes, edges, "compact", "TB");
 
-    const hierGap = Math.abs(hier[0]!.position.y - hier[1]!.position.y);
-    const compGap = Math.abs(comp[0]!.position.y - comp[1]!.position.y);
+    const hierGap = Math.abs(posOfNode(hier, "a").y - posOfNode(hier, "b").y);
+    const compGap = Math.abs(posOfNode(comp, "a").y - posOfNode(comp, "b").y);
     // Hierarchical has ranksep=80, compact has ranksep=60 → hierarchical gap is larger
     expect(hierGap).toBeGreaterThan(compGap);
   });
@@ -152,7 +159,7 @@ describe("applyDagreLayout", () => {
     ];
     const result = applyDagreLayout(nodes, edges, "hierarchical", "TB");
 
-    const posOf = (id: string) => result.find((n) => n.id === id)!.position;
+    const posOf = (id: string) => posOfNode(result, id);
     // b and c should be at the same rank (similar y) but different x
     expect(Math.abs(posOf("b").y - posOf("c").y)).toBeLessThan(10);
     expect(posOf("b").x).not.toEqual(posOf("c").x);
@@ -163,7 +170,7 @@ describe("applyDagreLayout", () => {
     const edges = [makeEdge("a", "b")]; // iso1, iso2, iso3 are disconnected
     const result = applyDagreLayout(nodes, edges, "hierarchical", "TB");
 
-    const posOf = (id: string) => result.find((n) => n.id === id)!.position;
+    const posOf = (id: string) => posOfNode(result, id);
     const connectedMaxY = Math.max(posOf("a").y, posOf("b").y);
 
     // All isolated nodes should be below the connected subgraph
@@ -194,8 +201,8 @@ describe("applyDagreLayout", () => {
 
     // Grouped layout ignores edges and groups by entity type,
     // so backlog and scenario should be in different lanes (different y).
-    const posA = result.find((n) => n.id === "a")!.position;
-    const posB = result.find((n) => n.id === "b")!.position;
+    const posA = posOfNode(result, "a");
+    const posB = posOfNode(result, "b");
     expect(posA.y).not.toBe(posB.y);
   });
 });
@@ -214,7 +221,7 @@ describe("applyGroupedLayout", () => {
     ];
     const result = applyGroupedLayout(nodes, "TB");
 
-    const posOf = (id: string) => result.find((n) => n.id === id)!.position;
+    const posOf = (id: string) => posOfNode(result, id);
 
     // Initiative comes before backlog in lane order, backlog before scenario.
     expect(posOf("i1").y).toBeLessThan(posOf("b1").y);
@@ -232,8 +239,8 @@ describe("applyGroupedLayout", () => {
     const resultTB = applyGroupedLayout(nodes, "TB");
     const resultLR = applyGroupedLayout(nodes, "LR");
 
-    const tbI = resultTB.find((n) => n.id === "i1")!.position;
-    const lrI = resultLR.find((n) => n.id === "i1")!.position;
+    const tbI = posOfNode(resultTB, "i1");
+    const lrI = posOfNode(resultLR, "i1");
 
     // In TB, initiative is at top (small y). In LR, it should be at left (small x).
     // LR swaps x and y, so LR.x should equal TB.y and LR.y should equal TB.x.
@@ -249,8 +256,8 @@ describe("applyGroupedLayout", () => {
     ];
     const result = applyGroupedLayout(nodes, "TB");
 
-    const posB = result.find((n) => n.id === "b1")!.position;
-    const posE = result.find((n) => n.id === "e1")!.position;
+    const posB = posOfNode(result, "b1");
+    const posE = posOfNode(result, "e1");
 
     // They should be in consecutive lanes, not separated by empty lane gaps.
     // With cellY=132 and laneGap=120, one lane gap should be ~252 max.
@@ -276,8 +283,10 @@ describe("applyGroupedLayout", () => {
       data: { entityType: "backlog", label: "Test" },
     };
     const result = applyGroupedLayout([node], "TB");
-    expect(result[0]!.id).toBe("test-1");
-    expect((result[0]!.data as { label: string }).label).toBe("Test");
+    const first = result[0];
+    expect(first).toBeDefined();
+    expect(first?.id).toBe("test-1");
+    expect((first?.data as { label: string } | undefined)?.label).toBe("Test");
   });
 
   it("places nodes without recognized entityType after typed lanes", () => {
@@ -287,8 +296,8 @@ describe("applyGroupedLayout", () => {
     ];
     const result = applyGroupedLayout(nodes, "TB");
 
-    const posB = result.find((n) => n.id === "b1")!.position;
-    const posU = result.find((n) => n.id === "unknown1")!.position;
+    const posB = posOfNode(result, "b1");
+    const posU = posOfNode(result, "unknown1");
     // Unknown node should appear after the backlog lane.
     expect(posU.y).toBeGreaterThan(posB.y);
   });

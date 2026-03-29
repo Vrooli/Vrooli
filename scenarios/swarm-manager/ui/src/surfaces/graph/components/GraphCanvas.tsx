@@ -85,7 +85,7 @@ export function GraphCanvas() {
 
   const flowRef = useRef<ReactFlowInstance<GraphNode, GraphEdge> | null>(null);
 
-  const { processedNodes, processedEdges, visibleEdgeTypes, visibleNodeCount } = useMemo(() => {
+  const { processedNodes, processedEdges, visibleEdgeTypes } = useMemo(() => {
     return buildGraphPresentation({
       lens,
       nodes: storeNodes,

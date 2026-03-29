@@ -8,10 +8,10 @@
  * - Bottom-right: MiniMap (rendered inside GraphCanvas)
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Component, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, HelpCircle, Settings, Square, X } from "lucide-react";
+import { Activity, AlertTriangle, HelpCircle, RefreshCw, Settings, Square, X } from "lucide-react";
 import { defaultQueryOptions, formatRelativeTime } from "../../../lib";
 import { applyTheme, watchSystemTheme } from "../../../lib/theme-utils";
 import { buildFeed } from "../../../lib/feed";
@@ -34,6 +34,45 @@ import type { FeedbackItem, MaturityItem } from "../../../lib/feed";
 
 function isGraphLens(value: string | null): value is GraphLens {
   return value === "topology" || value === "flow" || value === "operations";
+}
+
+/** Error boundary that wraps only the graph canvas, keeping HUD + sidebar alive. */
+class CanvasErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): { hasError: boolean } {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error("[GraphCanvas] Render crash:", error.message, info.componentStack);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex h-full w-full flex-col items-center justify-center gap-4 text-slate-400">
+          <AlertTriangle className="h-10 w-10 text-amber-400" />
+          <p className="text-sm">Graph canvas encountered an error.</p>
+          <button
+            type="button"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700"
+            onClick={() => this.setState({ hasError: false })}
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            Retry
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 export function GraphWorkspace() {
@@ -266,7 +305,9 @@ export function GraphWorkspace() {
 
       {/* Main canvas area with HUD overlays */}
       <div className="relative flex-1">
-        <GraphCanvas />
+        <CanvasErrorBoundary>
+          <GraphCanvas />
+        </CanvasErrorBoundary>
 
         {/* HUD bar — single unified row at top */}
         <div

@@ -188,7 +188,7 @@ export function buildWorkshopRoundContent(round: WorkshopRound): string {
 // ---------------------------------------------------------------------------
 
 export function getPendingDecisionCount(round: WorkshopRound): number {
-  return round.items.filter(
+  return (round.items ?? []).filter(
     (item) => item.type === "decision" && (!item.selected || !item.selected.trim()),
   ).length;
 }

@@ -383,7 +383,7 @@ export function BacklogPage() {
         mode,
         prompt,
       }),
-    onSuccess: (result, variables) => {
+    onSuccess: (result, _variables) => {
       setWorkshopError(null);
       if (result.runId) {
         void refreshActivities(true);

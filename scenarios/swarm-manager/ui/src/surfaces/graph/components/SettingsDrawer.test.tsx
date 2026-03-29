@@ -51,10 +51,11 @@ describe("SettingsDrawer — entity node counts", () => {
     // Status accordion headers live inside the "Statuses" section. Each
     // accordion button contains the entity label + "(N)" where N is now the
     // node count, NOT the number of status types.
-    const statusSection = screen.getByText("Statuses").closest("section")!;
-    const accordionButtons = statusSection.querySelectorAll<HTMLButtonElement>(
+    const statusSection = screen.getByText("Statuses").closest("section");
+    expect(statusSection).not.toBeNull();
+    const accordionButtons = statusSection?.querySelectorAll<HTMLButtonElement>(
       "button:first-child",
-    );
+    ) ?? [];
 
     // Find the accordion for each entity type by label
     const findAccordion = (label: string) =>
@@ -77,10 +78,11 @@ describe("SettingsDrawer — entity node counts", () => {
 
     await waitFor(() => expect(screen.getByText("Statuses")).toBeInTheDocument());
 
-    const statusSection = screen.getByText("Statuses").closest("section")!;
-    const accordionButtons = statusSection.querySelectorAll<HTMLButtonElement>(
+    const statusSection = screen.getByText("Statuses").closest("section");
+    expect(statusSection).not.toBeNull();
+    const accordionButtons = statusSection?.querySelectorAll<HTMLButtonElement>(
       "button:first-child",
-    );
+    ) ?? [];
     const backlogBtn = Array.from(accordionButtons).find((btn) =>
       btn.textContent?.includes("Backlog"),
     );

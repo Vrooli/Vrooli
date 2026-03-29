@@ -252,7 +252,6 @@ export function BacklogDetailsPage() {
     return () => window.clearInterval(interval);
   }, [refreshActivities]);
 
-  const agentRunId = latestAgentActivity?.runId;
   const agentRunIsActive = latestAgentActivity
     ? ["pending", "starting", "running", "needs_review"].includes(latestAgentActivity.status)
     : false;
@@ -418,7 +417,7 @@ export function BacklogDetailsPage() {
 
   const readinessData = useMemo<ReadinessIndicatorData | null>(() => {
     if (!maturitySummaryData || !backlogKind || !name) return null;
-    const match = maturitySummaryData.items.find(
+    const match = (maturitySummaryData.items ?? []).find(
       (i) => i.kind === backlogKind && i.name === name,
     );
     return match ? buildReadinessData(match) : null;
@@ -555,7 +554,7 @@ export function BacklogDetailsPage() {
         contextRequirementIds,
       });
     },
-    onSuccess: (result: ResearchResponse, variables) => {
+    onSuccess: (_result: ResearchResponse, _variables) => {
       setShowAgentDialog(false);
       if (!backlogKind || !name) return;
       void refreshActivities(true);

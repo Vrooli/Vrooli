@@ -259,8 +259,8 @@ describe("buildClusterHierarchy — advanced", () => {
 
     // t1's member_of target doesn't exist → falls to unassigned
     expect(clusters).toHaveLength(1);
-    expect(clusters[0]!.id).toBe(UNASSIGNED_CLUSTER_ID);
-    expect(clusters[0]!.members).toEqual(["backlog-item/execute/t1"]);
+    expect(clusters[0]?.id).toBe(UNASSIGNED_CLUSTER_ID);
+    expect(clusters[0]?.members).toEqual(["backlog-item/execute/t1"]);
   });
 
   it("returns empty clusters and unclustered for empty input", () => {

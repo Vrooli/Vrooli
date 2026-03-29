@@ -1,0 +1,93 @@
+[
+  {
+    "activity_id": "859e5e9e1ed6a7cc",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "swarm-manager-sidebar-search",
+    "owner_title": "Add Search, Filtering, Tabs, and Full-Viewport Mobile to the Graph Sidebar",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "aec64038-d729-43d5-ade2-1a3da41f07e7",
+    "run_id": "f56f2213-540f-4868-a4ab-b8de18fe9be0",
+    "status": "complete",
+    "requested_at": "2026-03-29T19:06:59Z",
+    "started_at": "2026-03-29T19:07:00Z",
+    "finished_at": "2026-03-29T19:10:13Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-03-29T19:11:51Z"
+  },
+  {
+    "activity_id": "a161d19bd727a94a",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "swarm-manager-sidebar-search",
+    "owner_title": "Add Search, Filtering, Tabs, and Full-Viewport Mobile to the Graph Sidebar",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "5553dd8b-2d3e-4e41-ac8b-35e9771931d5",
+    "run_id": "51d3ef77-4c5b-47c1-9dd0-613d3de4887a",
+    "status": "complete",
+    "requested_at": "2026-03-29T19:15:07Z",
+    "started_at": "2026-03-29T19:15:07Z",
+    "finished_at": "2026-03-29T19:19:33Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "auto_triggered": "true",
+      "entrypoint": "backlog.workshop_auto_advance",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-03-29T19:29:41Z"
+  },
+  {
+    "activity_id": "364b18e5e39ca721",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "swarm-manager-sidebar-search",
+    "owner_title": "Add Search, Filtering, Tabs, and Full-Viewport Mobile to the Graph Sidebar",
+    "purpose": "finalize",
+    "interaction_type": "spawn",
+    "task_id": "b1cf08c1-891e-4ce1-b3df-051bd1e8cf62",
+    "run_id": "1c426f72-618c-43f9-8507-39848543c03c",
+    "status": "complete",
+    "requested_at": "2026-03-29T19:30:37Z",
+    "started_at": "2026-03-29T19:30:38Z",
+    "finished_at": "2026-03-29T19:33:11Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "auto_triggered": "true",
+      "entrypoint": "backlog.workshop_auto_advance",
+      "mode": "finalize",
+      "skill_id": "swarm-manager-workshop-finalize"
+    },
+    "updated_at": "2026-03-29T19:40:35Z"
+  },
+  {
+    "activity_id": "a9132a248ff94397",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "swarm-manager-sidebar-search",
+    "owner_title": "Add Search, Filtering, Tabs, and Full-Viewport Mobile to the Graph Sidebar",
+    "execution_id": "67cd8dd88bb86470",
+    "purpose": "process",
+    "interaction_type": "spawn",
+    "task_id": "ec984538-d037-4a5e-911f-992ecb008bc3",
+    "run_id": "cfdf2d7c-d947-49fa-b2bb-5cb0debb1a26",
+    "status": "complete",
+    "requested_at": "2026-03-29T19:40:44Z",
+    "started_at": "2026-03-29T19:40:44Z",
+    "finished_at": "2026-03-29T19:54:18Z",
+    "requested_by": "swarm-manager-ui",
+    "metadata": {
+      "entrypoint": "execution.start",
+      "mode": "yolo",
+      "operation": "generator"
+    },
+    "updated_at": "2026-03-29T19:55:47Z"
+  }
+]

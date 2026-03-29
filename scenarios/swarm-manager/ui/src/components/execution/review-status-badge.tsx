@@ -34,7 +34,7 @@ export function ReviewStatusBadge({ result, onOpenSandbox, onTriggerReview }: Re
         type="button"
         onClick={(e) => {
           e.stopPropagation();
-          if (result.dimensions.length > 0 || result.summary) setShowDimensions(!showDimensions);
+          if ((result.dimensions ?? []).length > 0 || result.summary) setShowDimensions(!showDimensions);
         }}
         className={cn(
           "flex w-full items-center gap-2 rounded-md border px-2 py-1.5 text-xs transition-colors",
@@ -42,7 +42,7 @@ export function ReviewStatusBadge({ result, onOpenSandbox, onTriggerReview }: Re
           result.classification === "ready_with_notes" && "border-amber-500/30 bg-amber-500/10 text-amber-300",
           result.classification === "needs_work" && "border-red-500/30 bg-red-500/10 text-red-300",
           result.classification === "not_assessable" && "border-slate-600 bg-slate-800/50 text-slate-400",
-          (result.dimensions.length > 0 || result.summary) && "cursor-pointer hover:border-white/20",
+          ((result.dimensions ?? []).length > 0 || result.summary) && "cursor-pointer hover:border-white/20",
         )}
       >
         {result.classification === "ready" && <Check className="h-3.5 w-3.5 shrink-0" />}
@@ -52,7 +52,7 @@ export function ReviewStatusBadge({ result, onOpenSandbox, onTriggerReview }: Re
         <span className="flex-1 text-left">
           {CLASSIFICATION_LABELS[result.classification] ?? "Review inconclusive"}
         </span>
-        {(result.dimensions.length > 0 || result.summary) && (
+        {((result.dimensions ?? []).length > 0 || result.summary) && (
           showDimensions
             ? <ChevronUp className="h-3 w-3 shrink-0 text-slate-500" />
             : <ChevronDown className="h-3 w-3 shrink-0 text-slate-500" />
@@ -61,7 +61,7 @@ export function ReviewStatusBadge({ result, onOpenSandbox, onTriggerReview }: Re
 
       {showDimensions && (
         <div className="space-y-1 rounded-md bg-slate-800/50 px-2.5 py-2">
-          {result.dimensions.map((dim) => (
+          {(result.dimensions ?? []).map((dim) => (
             <div key={dim.name} className="flex items-center gap-2 text-xs" data-testid={`review-dim-${dim.name}`}>
               <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", REVIEW_DIMENSION_COLORS[dim.status] ?? "bg-slate-500")} />
               <span className="text-slate-300">{dim.name}</span>

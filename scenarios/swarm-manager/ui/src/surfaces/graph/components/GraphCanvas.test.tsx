@@ -310,14 +310,14 @@ describe("GraphCanvas", () => {
       expect(screen.getByTestId("rendered-node-ids").textContent).toContain("scenario/app");
     });
 
-    const nodeOpacities = JSON.parse(screen.getByTestId("node-opacities").textContent ?? "{}");
+    const nodeOpacities: Record<string, number> = JSON.parse(screen.getByTestId("node-opacities").textContent ?? "{}") as Record<string, number>;
     // Highlighted nodes should be full opacity
     expect(nodeOpacities["backlog-item/execute/task-a"]).toBe(1);
     expect(nodeOpacities["backlog-item/execute/task-b"]).toBe(1);
     // Non-highlighted node should be dimmed
     expect(nodeOpacities["scenario/app"]).toBe(0.5);
 
-    const edgeOpacities = JSON.parse(screen.getByTestId("edge-opacities").textContent ?? "{}");
+    const edgeOpacities: Record<string, number | undefined> = JSON.parse(screen.getByTestId("edge-opacities").textContent ?? "{}") as Record<string, number | undefined>;
     // Edge between two highlighted nodes should NOT be dimmed
     expect(edgeOpacities["e1"]).toBeUndefined(); // no opacity override → full
   });
@@ -357,7 +357,7 @@ describe("GraphCanvas", () => {
       expect(screen.getByTestId("rendered-edge-ids").textContent).toContain("e1");
     });
 
-    const edgeOpacities = JSON.parse(screen.getByTestId("edge-opacities").textContent ?? "{}");
+    const edgeOpacities: Record<string, number> = JSON.parse(screen.getByTestId("edge-opacities").textContent ?? "{}") as Record<string, number>;
     // Edge has one non-highlighted endpoint → should be dimmed
     expect(edgeOpacities["e1"]).toBe(0.15);
   });
@@ -395,7 +395,7 @@ describe("GraphCanvas", () => {
       expect(screen.getByTestId("rendered-node-ids").textContent).toContain("scenario/app");
     });
 
-    const nodeOpacities = JSON.parse(screen.getByTestId("node-opacities").textContent ?? "{}");
+    const nodeOpacities: Record<string, number> = JSON.parse(screen.getByTestId("node-opacities").textContent ?? "{}") as Record<string, number>;
     expect(nodeOpacities["backlog-item/execute/task-a"]).toBe(1);
     expect(nodeOpacities["scenario/app"]).toBe(1);
   });

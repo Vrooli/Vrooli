@@ -196,7 +196,7 @@ describe("graphDataStore", () => {
     const group = useGraphDataStore.getState().settingsByLens.topology.statusFilters.scenario;
     expect(group).toBeDefined();
     for (const status of statuses) {
-      expect(group![status]).toBe(false);
+      expect(group?.[status]).toBe(false);
     }
   });
 

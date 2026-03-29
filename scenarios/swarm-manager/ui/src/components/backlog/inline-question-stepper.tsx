@@ -118,7 +118,7 @@ export function InlineQuestionStepper({
         const parsed = parseWorkshopRound(content);
         if (parsed.round) {
           const round = parsed.round;
-          const item = round.items.find((i) => i.id === q.id);
+          const item = (round.items ?? []).find((i) => i.id === q.id);
           if (item) {
             item.selected = a.selected === OTHER_KEY ? OTHER_KEY : a.selected;
             item.freeform = a.selected === OTHER_KEY ? (a.freeform ?? null) : null;

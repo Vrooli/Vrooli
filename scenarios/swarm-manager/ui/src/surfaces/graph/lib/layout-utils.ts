@@ -95,8 +95,9 @@ export function applyGroupedLayout<NodeType extends Node>(
   const untyped: NodeType[] = [];
   for (const node of nodes) {
     const entityType = getNodeEntityType(node);
-    if (entityType && byLane.has(entityType)) {
-      byLane.get(entityType)!.push(node);
+    const laneList = entityType ? byLane.get(entityType) : undefined;
+    if (laneList) {
+      laneList.push(node);
     } else {
       untyped.push(node);
     }
@@ -113,7 +114,8 @@ export function applyGroupedLayout<NodeType extends Node>(
     const rows = Math.max(1, Math.ceil(laneNodes.length / columns));
 
     for (let i = 0; i < laneNodes.length; i++) {
-      const laneNode = laneNodes[i]!;
+      const laneNode = laneNodes[i];
+      if (!laneNode) continue;
       const col = i % columns;
       const row = Math.floor(i / columns);
       const x = col * cellX;
@@ -130,7 +132,8 @@ export function applyGroupedLayout<NodeType extends Node>(
   if (untyped.length > 0) {
     const columns = Math.max(1, Math.ceil(Math.sqrt(untyped.length)));
     for (let i = 0; i < untyped.length; i++) {
-      const node = untyped[i]!;
+      const node = untyped[i];
+      if (!node) continue;
       const col = i % columns;
       const row = Math.floor(i / columns);
       const x = col * cellX;
@@ -217,11 +220,14 @@ export function applyDagreLayout<NodeType extends Node, EdgeType extends Edge>(
   dagre.layout(g);
 
   const positioned: NodeType[] = connectedNodes.map((node) => {
-    const pos = g.node(node.id);
+    const pos = g.node(node.id) as { x: number; y: number } | undefined;
     const entityType = getNodeEntityType(node);
     const shapeDims = entityType ? getShapeDimensions(entityType) : null;
     const width = (node.measured?.width ?? node.width ?? shapeDims?.width ?? DEFAULT_NODE_WIDTH) as number;
     const height = (node.measured?.height ?? node.height ?? shapeDims?.height ?? DEFAULT_NODE_HEIGHT) as number;
+    if (!pos) {
+      return { ...node, position: { x: 0, y: 0 } };
+    }
     return {
       ...node,
       position: {

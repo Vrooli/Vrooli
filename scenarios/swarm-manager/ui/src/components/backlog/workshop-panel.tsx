@@ -151,7 +151,7 @@ export function WorkshopPanel({
 
   const handleSaveAll = useCallback(() => {
     for (const round of rounds) {
-      const hasChangesInRound = round.items.some((item) => {
+      const hasChangesInRound = (round.items ?? []).some((item) => {
         const key = `${round.round}:${item.id}`;
         return localUpdates.has(key) || deletedItems.has(key);
       });
@@ -302,7 +302,7 @@ export function WorkshopPanel({
                   {pendingDecisions > 0 && (
                     <span className="text-amber-400">{pendingDecisions}D</span>
                   )}
-                  <span>{round.items.length} items</span>
+                  <span>{(round.items ?? []).length} items</span>
                 </div>
               </button>
               {onDeleteRound && !disabled && (
