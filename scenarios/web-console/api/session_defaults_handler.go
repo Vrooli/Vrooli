@@ -11,7 +11,7 @@ type SessionDefaultsResponse struct {
 // handleGetSessionDefaults returns the current session defaults.
 // GET /api/v1/settings/session-defaults
 func (s *Server) handleGetSessionDefaults(w http.ResponseWriter, _ *http.Request) {
-	cfg := s.sessions.cfg
+	cfg := s.sessions.GetConfig()
 	resp := SessionDefaultsResponse{
 		DefaultBackend: cfg.DefaultBackend,
 		DefaultPolicy: &ExpirationPolicy{
@@ -42,7 +42,9 @@ func (s *Server) handleUpdateSessionDefaults(w http.ResponseWriter, r *http.Requ
 			writeCatalogError(w, "backend_unknown", "Unknown backend: "+*req.DefaultBackend)
 			return
 		}
-		s.sessions.cfg.DefaultBackend = *req.DefaultBackend
+		s.sessions.SetConfigField(func(cfg *Config) {
+			cfg.DefaultBackend = *req.DefaultBackend
+		})
 	}
 
 	if req.DefaultPolicy != nil {
@@ -50,8 +52,10 @@ func (s *Server) handleUpdateSessionDefaults(w http.ResponseWriter, r *http.Requ
 			writeCatalogError(w, "invalid_policy", err.Error())
 			return
 		}
-		s.sessions.cfg.DefaultPolicyMode = string(req.DefaultPolicy.Mode)
-		s.sessions.cfg.DefaultPolicyDuration = req.DefaultPolicy.Duration
+		s.sessions.SetConfigField(func(cfg *Config) {
+			cfg.DefaultPolicyMode = string(req.DefaultPolicy.Mode)
+			cfg.DefaultPolicyDuration = req.DefaultPolicy.Duration
+		})
 	}
 
 	// Return updated state

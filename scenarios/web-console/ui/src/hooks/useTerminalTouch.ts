@@ -20,6 +20,8 @@ export interface UseTerminalTouchOptions {
   enabled?: boolean;
   /** Fired on right-click (desktop) or long-press-release without drag (mobile). */
   onContextMenu?: (x: number, y: number) => void;
+  /** Send raw input to the terminal backend (used for mouse wheel in app mouse mode). */
+  sendInput?: (data: string) => void;
 }
 
 export interface UseTerminalTouchReturn {
@@ -148,6 +150,24 @@ function findGestureTouch(
   return undefined;
 }
 
+/**
+ * Check if the terminal application has enabled mouse tracking (e.g. tmux
+ * with `mouse on`). When active, scroll gestures should send mouse wheel
+ * escape sequences to the application instead of scrolling xterm.js's buffer.
+ */
+function isAppMouseMode(terminal: Terminal): boolean {
+  return !!terminal.modes && terminal.modes.mouseTrackingMode !== "none";
+}
+
+/**
+ * Encode a mouse wheel event as an SGR mouse escape sequence.
+ * Button 64 = scroll up, 65 = scroll down (1-based coordinates).
+ */
+function sgrWheelSequence(up: boolean, col: number, row: number): string {
+  const button = up ? 64 : 65;
+  return `\x1b[<${button};${col + 1};${row + 1}M`;
+}
+
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
@@ -157,6 +177,7 @@ export function useTerminalTouch({
   containerRef,
   enabled = true,
   onContextMenu,
+  sendInput,
 }: UseTerminalTouchOptions): UseTerminalTouchReturn {
   const [hasSelection, setHasSelection] = useState(false);
   const gestureRef = useRef<GestureState>({ type: "idle" });
@@ -164,6 +185,8 @@ export function useTerminalTouch({
   const momentumRafRef = useRef<number | null>(null);
   const onContextMenuRef = useRef(onContextMenu);
   onContextMenuRef.current = onContextMenu;
+  const sendInputRef = useRef(sendInput);
+  sendInputRef.current = sendInput;
 
   // ---- Clipboard helpers ----
 
@@ -217,6 +240,29 @@ export function useTerminalTouch({
 
     const cellH = (): number => getCellHeight(term, container);
 
+    // ---- Scroll dispatch (xterm buffer vs application mouse mode) ----
+    // When the terminal application has enabled mouse tracking (e.g. tmux
+    // with `mouse on`), scroll gestures must be sent as mouse wheel escape
+    // sequences so the application can handle them. Otherwise, scroll
+    // xterm.js's own buffer as before.
+    function scrollTerminal(lines: number) {
+      if (lines === 0) return;
+      if (isAppMouseMode(term) && sendInputRef.current) {
+        // Send one wheel event per line, at screen center. tmux treats
+        // each event as a single scroll-line regardless of position.
+        const col = Math.floor(term.cols / 2);
+        const row = Math.floor(term.rows / 2);
+        const up = lines < 0;
+        const count = Math.abs(lines);
+        const seq = sgrWheelSequence(up, col, row);
+        for (let i = 0; i < count; i++) {
+          sendInputRef.current(seq);
+        }
+      } else {
+        term.scrollLines(lines);
+      }
+    }
+
     // ---- Momentum scroll ----
     function startMomentum(velocity: number) {
       cancelMomentum();
@@ -230,7 +276,7 @@ export function useTerminalTouch({
         const ch = cellH();
         if (ch > 0) {
           const lines = Math.round(v / ch);
-          if (lines !== 0) term.scrollLines(lines);
+          if (lines !== 0) scrollTerminal(lines);
         }
         momentumRafRef.current = requestAnimationFrame(tick);
       };
@@ -384,7 +430,7 @@ export function useTerminalTouch({
         if (ch > 0) {
           const lines = Math.round(deltaY / ch);
           if (lines !== 0) {
-            term.scrollLines(lines);
+            scrollTerminal(lines);
             // Track velocity for momentum (px/ms → scale to px/frame at ~16ms)
             g.velocity = dt > 0 ? (deltaY / dt) * 16 : 0;
             g.lastY = touch.clientY;

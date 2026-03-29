@@ -378,6 +378,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     const { hasSelection, copySelection, clearSelection } = useTerminalTouch({
       terminal,
       containerRef,
+      sendInput,
       onContextMenu: useCallback((x: number, y: number) => {
         setContextMenu({ x, y });
       }, []),

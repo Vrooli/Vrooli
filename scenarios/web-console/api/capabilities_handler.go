@@ -22,7 +22,7 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request) {
 	// Include session backend information
 	if s.backendRegistry != nil {
 		resp["session_backends"] = s.backendRegistry.Available()
-		resp["default_backend"] = s.sessions.cfg.DefaultBackend
+		resp["default_backend"] = s.sessions.GetConfig().DefaultBackend
 	}
 
 	writeJSON(w, http.StatusOK, resp)

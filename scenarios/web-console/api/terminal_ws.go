@@ -157,6 +157,11 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 	// outputCh is closed (PTY exited) or WS write fails.
 	go func() {
 		defer conn.Close() // unblocks the input loop's ReadMessage on forwarder exit
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("ws[%s]: output forwarder panic (recovered): %v", sessionID, r)
+			}
+		}()
 
 		// If no history was buffered, tell the client immediately so it
 		// can skip waiting for the sentinel and enter live pass-through.

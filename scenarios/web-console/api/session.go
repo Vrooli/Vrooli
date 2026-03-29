@@ -642,6 +642,7 @@ type SessionManager struct {
 	mu         sync.RWMutex
 	sessions   map[string]*Session
 	ptyFactory PTYFactory
+	cfgMu      sync.RWMutex // protects cfg from concurrent read/write (session-defaults handler vs Create)
 	cfg        Config
 	registry   *BackendRegistry
 	store      SessionMetadataStore
@@ -677,9 +678,26 @@ func (sm *SessionManager) SetStore(store SessionMetadataStore) {
 	sm.store = store
 }
 
+// GetConfig returns a snapshot of the current configuration. Thread-safe.
+func (sm *SessionManager) GetConfig() Config {
+	sm.cfgMu.RLock()
+	defer sm.cfgMu.RUnlock()
+	return sm.cfg
+}
+
+// SetConfigField updates a mutable config field under the write lock.
+// Only use for fields that can change at runtime (default backend/policy).
+func (sm *SessionManager) SetConfigField(fn func(cfg *Config)) {
+	sm.cfgMu.Lock()
+	defer sm.cfgMu.Unlock()
+	fn(&sm.cfg)
+}
+
 // applySessionDefaults fills in zero-valued parameters with configured defaults.
 // The convention is: zero/empty from the caller means "use server default".
 func (sm *SessionManager) applySessionDefaults(shell string, cols, rows uint16) (string, uint16, uint16) {
+	sm.cfgMu.RLock()
+	defer sm.cfgMu.RUnlock()
 	if shell == "" {
 		shell = sm.cfg.DefaultShell
 	}
@@ -715,9 +733,11 @@ var ErrBackendUnknown = errors.New("unknown backend")
 func (sm *SessionManager) Create(shell string, cols, rows uint16, backend BackendID, policy *ExpirationPolicy) (*Session, error) {
 	shell, cols, rows = sm.applySessionDefaults(shell, cols, rows)
 
-	// Resolve backend
+	// Resolve backend (read default under lock to avoid data race with settings handler)
 	if backend == "" {
+		sm.cfgMu.RLock()
 		backend = BackendID(sm.cfg.DefaultBackend)
+		sm.cfgMu.RUnlock()
 	}
 
 	// Look up factory from registry if available, otherwise use injected factory
@@ -758,17 +778,23 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16, backend Backen
 		return nil, fmt.Errorf("%w: %v", ErrPTYSpawnFailed, err)
 	}
 
-	// Resolve policy
+	// Resolve policy (read defaults under lock to avoid data race with settings handler)
 	var sessionPolicy ExpirationPolicy
 	if policy != nil {
 		sessionPolicy = *policy
-	} else if sm.cfg.DefaultPolicyMode != "" {
-		sessionPolicy = ExpirationPolicy{
-			Mode:     PolicyMode(sm.cfg.DefaultPolicyMode),
-			Duration: sm.cfg.DefaultPolicyDuration,
-		}
 	} else {
-		sessionPolicy = DefaultPolicy()
+		sm.cfgMu.RLock()
+		mode := sm.cfg.DefaultPolicyMode
+		dur := sm.cfg.DefaultPolicyDuration
+		sm.cfgMu.RUnlock()
+		if mode != "" {
+			sessionPolicy = ExpirationPolicy{
+				Mode:     PolicyMode(mode),
+				Duration: dur,
+			}
+		} else {
+			sessionPolicy = DefaultPolicy()
+		}
 	}
 
 	sess := &Session{
@@ -915,8 +941,13 @@ func (sm *SessionManager) Recover(store SessionMetadataStore, registry *BackendR
 			continue
 		}
 
-		// Re-attach to surviving tmux session
+		// Re-apply tmux options (mouse mode, history limit) in case the options
+		// were set by an older version that didn't configure them.
 		sessionName := tmuxSessionPrefix + id
+		_ = exec.Command("tmux", "set-option", "-t", sessionName, "mouse", "on").Run()
+		_ = exec.Command("tmux", "set-option", "-t", sessionName, "history-limit", "50000").Run()
+
+		// Re-attach to surviving tmux session
 		p, attachErr := tmuxAttach(sessionName)
 		if attachErr != nil {
 			log.Printf("recovery: failed to reattach session %s: %v", id, attachErr)

@@ -130,8 +130,14 @@ func tmuxPTYFactory(spec SessionLaunchSpec) (PTY, error) {
 		return nil, fmt.Errorf("tmux new-session: %w", err)
 	}
 
-	// 2. Configure remain-on-exit for exit code detection
+	// 2. Configure session options
 	_ = exec.Command("tmux", "set-option", "-t", sessionName, "remain-on-exit", "on").Run()
+	// Enable mouse mode so xterm.js scroll wheel events are forwarded to tmux,
+	// which manages its own scrollback buffer (xterm.js has no scrollback when
+	// tmux controls the viewport).
+	_ = exec.Command("tmux", "set-option", "-t", sessionName, "mouse", "on").Run()
+	// Set a generous scrollback limit (default 2000 is often insufficient)
+	_ = exec.Command("tmux", "set-option", "-t", sessionName, "history-limit", "50000").Run()
 
 	// 3. Attach to tmux session via a PTY for I/O streaming
 	p, err := tmuxAttach(sessionName)
