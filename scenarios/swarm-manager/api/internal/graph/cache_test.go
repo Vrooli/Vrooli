@@ -16,7 +16,7 @@ type stubProjector struct {
 	block     chan struct{}
 }
 
-func (s *stubProjector) Project(_ context.Context, lens Lens) (GraphResponse, error) {
+func (s *stubProjector) Project(_ context.Context, params ProjectionParams) (GraphResponse, error) {
 	if s.block != nil {
 		<-s.block
 	}
@@ -27,14 +27,14 @@ func (s *stubProjector) Project(_ context.Context, lens Lens) (GraphResponse, er
 	if s.calls == nil {
 		s.calls = make(map[Lens]int)
 	}
-	s.calls[lens]++
+	s.calls[params.Lens]++
 	if s.err != nil {
 		return GraphResponse{}, s.err
 	}
-	if resp, ok := s.responses[lens]; ok {
+	if resp, ok := s.responses[params.Lens]; ok {
 		return resp, nil
 	}
-	return NewGraphResponse(lens, nil, nil), nil
+	return NewGraphResponse(params.Lens, nil, nil), nil
 }
 
 func TestProjectionCacheCachesPerLens(t *testing.T) {
@@ -48,11 +48,11 @@ func TestProjectionCacheCachesPerLens(t *testing.T) {
 		TTL:       time.Minute,
 	})
 
-	first, err := cache.Project(context.Background(), LensTopology)
+	first, err := cache.Project(context.Background(), ProjectionParams{Lens: LensTopology})
 	if err != nil {
 		t.Fatalf("first project failed: %v", err)
 	}
-	second, err := cache.Project(context.Background(), LensTopology)
+	second, err := cache.Project(context.Background(), ProjectionParams{Lens: LensTopology})
 	if err != nil {
 		t.Fatalf("second project failed: %v", err)
 	}
@@ -76,12 +76,12 @@ func TestProjectionCacheInvalidateForcesRebuild(t *testing.T) {
 		TTL:       time.Minute,
 	})
 
-	if _, err := cache.Project(context.Background(), LensTopology); err != nil {
+	if _, err := cache.Project(context.Background(), ProjectionParams{Lens: LensTopology}); err != nil {
 		t.Fatalf("first project failed: %v", err)
 	}
 
 	cache.Invalidate(LensTopology)
-	if _, err := cache.Project(context.Background(), LensTopology); err != nil {
+	if _, err := cache.Project(context.Background(), ProjectionParams{Lens: LensTopology}); err != nil {
 		t.Fatalf("second project failed: %v", err)
 	}
 
@@ -109,7 +109,7 @@ func TestProjectionCacheCoalescesConcurrentBuilds(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		go func() {
 			defer wg.Done()
-			_, err := cache.Project(context.Background(), LensTopology)
+			_, err := cache.Project(context.Background(), ProjectionParams{Lens: LensTopology})
 			errs <- err
 		}()
 	}
@@ -140,7 +140,7 @@ func TestProjectionCacheServesStaleResponseOnRebuildError(t *testing.T) {
 	})
 	cache.now = func() time.Time { return time.Unix(100, 0) }
 
-	initial, err := cache.Project(context.Background(), LensTopology)
+	initial, err := cache.Project(context.Background(), ProjectionParams{Lens: LensTopology})
 	if err != nil {
 		t.Fatalf("initial project failed: %v", err)
 	}
@@ -148,7 +148,7 @@ func TestProjectionCacheServesStaleResponseOnRebuildError(t *testing.T) {
 	projector.err = errors.New("boom")
 	cache.now = func() time.Time { return time.Unix(1000, 0) }
 
-	stale, err := cache.Project(context.Background(), LensTopology)
+	stale, err := cache.Project(context.Background(), ProjectionParams{Lens: LensTopology})
 	if err != nil {
 		t.Fatalf("expected stale response instead of error: %v", err)
 	}

@@ -88,9 +88,40 @@ Backlog items can declare dependencies on other items via the `depends_on` field
 
 5. **Graph workspace projection**
    ```
-   GET /graph?lens={topology|flow|operations} -> proto GraphResponse -> typed graph store -> React Flow canvas + sidebar + inspector
+   GET /graph?lens={topology|flow|operations}[&focus_node_id=...] -> proto GraphResponse -> typed graph store -> React Flow canvas + sidebar + inspector
    WS /ws/graph invalidate/node-update -> silent refresh + runtime node pulse
    ```
+
+## Graph Lenses
+
+The graph workspace uses three **lenses** — contextual projections of the same underlying data that emphasize different aspects of the system. Topology is the primary "atlas" view; Flow and Operations are contextual drill-downs.
+
+### Topology (Atlas)
+**Purpose:** Structural view of all planned work and relationships — the "home" view.
+
+Shows: non-completed backlog items, initiatives (with rollup counts), captures (with classifications), scenarios (only those targeted by active items). Backlog nodes are annotated with cross-lens execution status badges (e.g., "running", "needs_review") so operators can see runtime state without switching lenses.
+
+**Edges:** `depends_on`, `member_of`, `classified_as`, `targets`
+
+### Flow (Focused History)
+**Purpose:** Execution history drill-down for a specific entity.
+
+Requires a `focus_node_id` parameter. Without one, returns an empty graph with a hint.
+
+- **Focus = backlog item:** Shows the item + all its execution records + agent activities + runs (full execution tree).
+- **Focus = initiative:** Shows the initiative + member backlog items with execution status summaries.
+- **Focus = scenario:** Shows the scenario + all backlog items targeting it with execution status summaries.
+
+**Navigation:** Accessed by clicking "View History" in the Inspector for a topology node. Breadcrumb navigation returns to Topology.
+
+### Operations (Attention Dashboard)
+**Purpose:** Everything in-flight or needing operator attention.
+
+Shows: backlog items in `researching`, `ready`, `queued`, or `in_progress` status, active executions (pending through needs_fixup), active agent activities, scenarios with `running`/`error` status.
+
+Supports optional `focus_node_id` for filtered view of a single entity's operations.
+
+**Navigation:** Accessible via the Operations tab or "View Operations" in the Inspector. Keyboard shortcut: `3`.
 
 6. **Scenario lifecycle control**
    ```
@@ -202,7 +233,7 @@ api/internal/
 - `/api/v1/backlog/batch/queue` - batch queue (topologically sorted, dependency-aware)
 - `/api/v1/initiatives/*` - initiative CRUD with rollup status from member items
 - `/api/v1/overview` - aggregated view (backlog, initiatives, dependency graph, summary stats)
-- `/graph` - graph-first workspace projection (`topology`, `flow`, `operations`) using proto `GraphResponse`
+- `/api/v1/graph?lens=topology|flow|operations[&focus_node_id=...]` - graph projection with lens-specific filtering and optional focus-based drill-down
 - `/ws/graph` - graph invalidation and node pulse websocket
 - `/api/v1/captures/*` - capture CRUD and AI classification
 - `/api/v1/scenarios/*` - scenario list/detail/lifecycle/delete/archive

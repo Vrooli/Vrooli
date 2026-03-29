@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { GraphProjection, GraphRequestOptions } from "../../../services/graph-service";
+import type { GraphProjection, GraphProjectionMeta, GraphRequestOptions } from "../../../services/graph-service";
 import type { GraphEdge, GraphNode } from "../types";
 import { makeGraphEdge, makeGraphNode, makeRunNode } from "../test-helpers";
 
@@ -150,7 +150,7 @@ describe("graphDataStore", () => {
       nodeCount: 1,
       edgeCount: 1,
       generatedAt: "2026-03-28T00:00:00Z",
-      agentManagerAvailable: null,
+      agentManagerAvailable: null, focusNodeId: null, focusNodeType: null, hint: null,
     });
 
     const state = useGraphDataStore.getState();
@@ -235,7 +235,7 @@ describe("graphDataStore", () => {
         nodeCount: 1,
         edgeCount: 0,
         generatedAt: "2026-03-28T00:00:00Z",
-        agentManagerAvailable: null,
+        agentManagerAvailable: null, focusNodeId: null, focusNodeType: null, hint: null,
       },
     });
 
@@ -265,7 +265,7 @@ describe("graphDataStore", () => {
           nodeCount: 1,
           edgeCount: 0,
           generatedAt: "2026-03-28T00:00:00Z",
-          agentManagerAvailable: null,
+          agentManagerAvailable: null, focusNodeId: null, focusNodeType: null, hint: null,
         },
       })
       .mockResolvedValueOnce({
@@ -276,7 +276,7 @@ describe("graphDataStore", () => {
           nodeCount: 1,
           edgeCount: 0,
           generatedAt: "2026-03-28T00:01:00Z",
-          agentManagerAvailable: null,
+          agentManagerAvailable: null, focusNodeId: null, focusNodeType: null, hint: null,
         },
       });
 
@@ -295,13 +295,7 @@ describe("graphDataStore", () => {
     const pending = deferred<{
       nodes: GraphNode[];
       edges: GraphEdge[];
-      meta: {
-        lens: "topology";
-        nodeCount: number;
-        edgeCount: number;
-        generatedAt: string;
-        agentManagerAvailable: null;
-      };
+      meta: GraphProjectionMeta;
     }>();
     getGraphMock.mockReturnValue(pending.promise);
 
@@ -318,7 +312,7 @@ describe("graphDataStore", () => {
         nodeCount: 1,
         edgeCount: 0,
         generatedAt: "2026-03-28T00:00:00Z",
-        agentManagerAvailable: null,
+        agentManagerAvailable: null, focusNodeId: null, focusNodeType: null, hint: null,
       },
     });
 
@@ -329,13 +323,7 @@ describe("graphDataStore", () => {
     const pending = deferred<{
       nodes: GraphNode[];
       edges: GraphEdge[];
-      meta: {
-        lens: "topology";
-        nodeCount: number;
-        edgeCount: number;
-        generatedAt: string;
-        agentManagerAvailable: null;
-      };
+      meta: GraphProjectionMeta;
     }>();
     getGraphMock
       .mockReturnValueOnce(pending.promise)
@@ -347,7 +335,7 @@ describe("graphDataStore", () => {
           nodeCount: 1,
           edgeCount: 0,
           generatedAt: "2026-03-28T00:00:01Z",
-          agentManagerAvailable: null,
+          agentManagerAvailable: null, focusNodeId: null, focusNodeType: null, hint: null,
         },
       });
 
@@ -435,7 +423,7 @@ describe("graphDataStore", () => {
           nodeCount: 1,
           edgeCount: 0,
           generatedAt: "2026-03-28T00:00:00Z",
-          agentManagerAvailable: null,
+          agentManagerAvailable: null, focusNodeId: null, focusNodeType: null, hint: null,
         },
       });
 
@@ -453,12 +441,12 @@ describe("graphDataStore", () => {
       .mockResolvedValueOnce({
         nodes: [makeNode("scenario/topo", "scenario")],
         edges: [],
-        meta: { lens: "topology", nodeCount: 1, edgeCount: 0, generatedAt: "t1", agentManagerAvailable: null },
+        meta: { lens: "topology", nodeCount: 1, edgeCount: 0, generatedAt: "t1", agentManagerAvailable: null, focusNodeId: null, focusNodeType: null, hint: null },
       })
       .mockResolvedValueOnce({
         nodes: [makeNode("execution/flow", "execution"), makeNode("backlog-item/execute/b", "backlog")],
         edges: [],
-        meta: { lens: "flow", nodeCount: 2, edgeCount: 0, generatedAt: "t2", agentManagerAvailable: null },
+        meta: { lens: "flow", nodeCount: 2, edgeCount: 0, generatedAt: "t2", agentManagerAvailable: null, focusNodeId: null, focusNodeType: null, hint: null },
       });
 
     await useGraphDataStore.getState().fetchGraph("topology");
@@ -489,7 +477,7 @@ describe("graphDataStore", () => {
     getGraphMock.mockResolvedValueOnce({
       nodes: [makeNode("scenario/test", "scenario")],
       edges: [],
-      meta: { lens: "topology", nodeCount: 1, edgeCount: 0, generatedAt: "t1", agentManagerAvailable: null },
+      meta: { lens: "topology", nodeCount: 1, edgeCount: 0, generatedAt: "t1", agentManagerAvailable: null, focusNodeId: null, focusNodeType: null, hint: null },
     });
 
     // Initial fetch
@@ -499,7 +487,7 @@ describe("graphDataStore", () => {
     getGraphMock.mockResolvedValueOnce({
       nodes: [makeNode("scenario/test", "scenario"), makeNode("scenario/new", "scenario")],
       edges: [],
-      meta: { lens: "topology", nodeCount: 2, edgeCount: 0, generatedAt: "t2", agentManagerAvailable: null },
+      meta: { lens: "topology", nodeCount: 2, edgeCount: 0, generatedAt: "t2", agentManagerAvailable: null, focusNodeId: null, focusNodeType: null, hint: null },
     });
 
     const fetchPromise = useGraphDataStore.getState().fetchGraph("topology", { force: true, silent: true });

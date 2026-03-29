@@ -37,6 +37,15 @@ func encodeGraphResponse(resp GraphResponse) (*apipb.GraphResponse, error) {
 	if resp.Meta.AgentManagerAvailable != nil {
 		meta.AgentManagerAvailable = proto.Bool(*resp.Meta.AgentManagerAvailable)
 	}
+	if resp.Meta.FocusNodeID != "" {
+		meta.FocusNodeId = proto.String(resp.Meta.FocusNodeID)
+	}
+	if resp.Meta.FocusNodeType != "" {
+		meta.FocusNodeType = proto.String(resp.Meta.FocusNodeType)
+	}
+	if resp.Meta.Hint != "" {
+		meta.Hint = proto.String(resp.Meta.Hint)
+	}
 
 	return &apipb.GraphResponse{
 		Nodes: nodes,
@@ -70,15 +79,20 @@ func encodeGraphNodeData(data any) (*domainpb.GraphNodeData, error) {
 		if value == nil {
 			return nil, fmt.Errorf("missing backlog node data")
 		}
+		msg := &domainpb.GraphBacklogNodeData{
+			Kind:                 value.Kind,
+			Name:                 value.Name,
+			Title:                value.Title,
+			Status:               value.Status,
+			Priority:             value.Priority,
+			ActiveExecutionCount: value.ActiveExecutionCount,
+		}
+		if value.ActiveExecutionStatus != "" {
+			msg.ActiveExecutionStatus = proto.String(value.ActiveExecutionStatus)
+		}
 		return &domainpb.GraphNodeData{
 			Value: &domainpb.GraphNodeData_Backlog{
-				Backlog: &domainpb.GraphBacklogNodeData{
-					Kind:     value.Kind,
-					Name:     value.Name,
-					Title:    value.Title,
-					Status:   value.Status,
-					Priority: value.Priority,
-				},
+				Backlog: msg,
 			},
 		}, nil
 	case GraphInitiativeNodeData:

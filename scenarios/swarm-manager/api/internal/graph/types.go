@@ -32,11 +32,13 @@ func AllLenses() []Lens {
 
 // GraphBacklogNodeData describes a backlog item node payload.
 type GraphBacklogNodeData struct {
-	Kind     string `json:"kind"`
-	Name     string `json:"name"`
-	Title    string `json:"title"`
-	Status   string `json:"status"`
-	Priority int32  `json:"priority"`
+	Kind                  string `json:"kind"`
+	Name                  string `json:"name"`
+	Title                 string `json:"title"`
+	Status                string `json:"status"`
+	Priority              int32  `json:"priority"`
+	ActiveExecutionStatus string `json:"active_execution_status,omitempty"`
+	ActiveExecutionCount  int32  `json:"active_execution_count"`
 }
 
 // GraphInitiativeRollup describes initiative member status counts.
@@ -132,6 +134,9 @@ type Meta struct {
 	EdgeCount             int    `json:"edge_count"`
 	GeneratedAt           string `json:"generated_at"`
 	AgentManagerAvailable *bool  `json:"agent_manager_available,omitempty"`
+	FocusNodeID           string `json:"focus_node_id,omitempty"`
+	FocusNodeType         string `json:"focus_node_type,omitempty"`
+	Hint                  string `json:"hint,omitempty"`
 }
 
 // GraphResponse is the top-level response for the graph endpoint.
@@ -190,9 +195,16 @@ type WSMessage struct {
 	Timestamp int64  `json:"timestamp"`
 }
 
+// ProjectionParams holds all parameters for a projection request.
+type ProjectionParams struct {
+	Lens        Lens
+	FocusNodeID string // Required for flow lens, optional for operations lens.
+}
+
 // InvalidationPayload identifies which graph lenses should refresh.
 type InvalidationPayload struct {
-	Lenses []Lens `json:"lenses"`
+	Lenses      []Lens `json:"lenses"`
+	FocusNodeID string `json:"focus_node_id,omitempty"`
 }
 
 // WebSocket message types.

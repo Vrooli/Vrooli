@@ -182,6 +182,9 @@ describe("graphService", () => {
       edgeCount: 1,
       generatedAt: "2026-03-28T00:00:00Z",
       agentManagerAvailable: true,
+      focusNodeId: null,
+      focusNodeType: null,
+      hint: null,
     });
   });
 

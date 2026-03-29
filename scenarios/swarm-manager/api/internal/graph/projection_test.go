@@ -114,7 +114,7 @@ func TestProjectTopology(t *testing.T) {
 		}},
 	})
 
-	resp, err := svc.Project(context.Background(), LensTopology)
+	resp, err := svc.Project(context.Background(), ProjectionParams{Lens: LensTopology})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -169,7 +169,7 @@ func TestProjectTopology_TargetsEdges(t *testing.T) {
 		}},
 	})
 
-	resp, err := svc.Project(context.Background(), LensTopology)
+	resp, err := svc.Project(context.Background(), ProjectionParams{Lens: LensTopology})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -191,16 +191,16 @@ func TestProjectTopology_TargetsEdges(t *testing.T) {
 	}
 }
 
-func TestProjectFlow(t *testing.T) {
+func TestProjectFlow_FocusBacklogItem(t *testing.T) {
 	svc := NewProjectionService(ProjectionConfig{
 		Backlog: &mockBacklogLister{items: []backlog.BacklogItem{
 			{Kind: "execute", Name: "active-task", Title: "Active", Status: backlog.StatusInProgress},
-			{Kind: "execute", Name: "done-task", Title: "Done", Status: backlog.StatusCompleted},
+			{Kind: "execute", Name: "other-task", Title: "Other", Status: backlog.StatusQueued},
 		}},
 		Execution: &mockExecutionLister{records: []execution.Record{
 			{ExecutionID: "exec-1", BacklogKind: "execute", BacklogName: "active-task", Status: execution.StatusRunning, Mode: "manual", RunID: "run-1"},
 			{ExecutionID: "exec-2", BacklogKind: "execute", BacklogName: "active-task", Status: execution.StatusNeedsFixup, Mode: "manual", ParentExecutionID: "exec-1"},
-			{ExecutionID: "exec-3", BacklogKind: "execute", BacklogName: "done-task", Status: execution.StatusCompleted, Mode: "manual"},
+			{ExecutionID: "exec-other", BacklogKind: "execute", BacklogName: "other-task", Status: execution.StatusPending, Mode: "manual"},
 		}},
 		Activity: &mockActivityLister{records: []agentactivity.Record{
 			{
@@ -220,20 +220,32 @@ func TestProjectFlow(t *testing.T) {
 		}},
 	})
 
-	resp, err := svc.Project(context.Background(), LensFlow)
+	resp, err := svc.Project(context.Background(), ProjectionParams{
+		Lens:        LensFlow,
+		FocusNodeID: "backlog-item/execute/active-task",
+	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if resp.Meta.FocusNodeID != "backlog-item/execute/active-task" {
+		t.Errorf("expected focus_node_id in meta, got %q", resp.Meta.FocusNodeID)
+	}
+	if resp.Meta.FocusNodeType != "backlog" {
+		t.Errorf("expected focus_node_type=backlog, got %q", resp.Meta.FocusNodeType)
 	}
 
 	nodeTypes := map[string]int{}
 	for _, n := range resp.Nodes {
 		nodeTypes[n.Type]++
 	}
-	if nodeTypes["BacklogItem"] != 2 {
-		t.Errorf("expected 2 BacklogItem nodes, got %d", nodeTypes["BacklogItem"])
+	// Should only include the focused item, not other-task.
+	if nodeTypes["BacklogItem"] != 1 {
+		t.Errorf("expected 1 BacklogItem node (focused only), got %d", nodeTypes["BacklogItem"])
 	}
-	if nodeTypes["ExecutionRecord"] != 3 {
-		t.Errorf("expected 3 ExecutionRecord nodes, got %d", nodeTypes["ExecutionRecord"])
+	// Should include only executions for active-task (exec-1, exec-2), not exec-other.
+	if nodeTypes["ExecutionRecord"] != 2 {
+		t.Errorf("expected 2 ExecutionRecord nodes, got %d", nodeTypes["ExecutionRecord"])
 	}
 	if nodeTypes["AgentActivity"] != 1 {
 		t.Errorf("expected 1 AgentActivity node, got %d", nodeTypes["AgentActivity"])
@@ -246,17 +258,11 @@ func TestProjectFlow(t *testing.T) {
 	for _, e := range resp.Edges {
 		edgeTypes[e.Type]++
 	}
-	if edgeTypes["executes"] != 3 {
-		t.Errorf("expected 3 executes edges, got %d", edgeTypes["executes"])
+	if edgeTypes["executes"] != 2 {
+		t.Errorf("expected 2 executes edges, got %d", edgeTypes["executes"])
 	}
 	if edgeTypes["follow_up"] != 1 {
 		t.Errorf("expected 1 follow_up edge, got %d", edgeTypes["follow_up"])
-	}
-	if edgeTypes["activity_for"] != 1 {
-		t.Errorf("expected 1 activity_for edge, got %d", edgeTypes["activity_for"])
-	}
-	if edgeTypes["records_activity"] != 1 {
-		t.Errorf("expected 1 records_activity edge, got %d", edgeTypes["records_activity"])
 	}
 	if edgeTypes["spawned_run"] != 1 {
 		t.Errorf("expected 1 spawned_run edge, got %d", edgeTypes["spawned_run"])
@@ -265,27 +271,23 @@ func TestProjectFlow(t *testing.T) {
 	assertEdgeEndpointsPresent(t, resp)
 }
 
-func TestProjectFlow_IncludesBacklogItemsReferencedByActiveExecutions(t *testing.T) {
+func TestProjectFlow_NoFocus(t *testing.T) {
 	svc := NewProjectionService(ProjectionConfig{
 		Backlog: &mockBacklogLister{items: []backlog.BacklogItem{
 			{Kind: "execute", Name: "ready-task", Title: "Ready", Status: backlog.StatusReady},
 		}},
-		Execution: &mockExecutionLister{records: []execution.Record{
-			{ExecutionID: "exec-1", BacklogKind: "execute", BacklogName: "ready-task", Status: execution.StatusRunning, Mode: "manual"},
-		}},
 	})
 
-	resp, err := svc.Project(context.Background(), LensFlow)
+	resp, err := svc.Project(context.Background(), ProjectionParams{Lens: LensFlow})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	nodeTypes := map[string]int{}
-	for _, n := range resp.Nodes {
-		nodeTypes[n.Type]++
+	if len(resp.Nodes) != 0 {
+		t.Errorf("expected empty nodes for flow without focus, got %d", len(resp.Nodes))
 	}
-	if nodeTypes["BacklogItem"] != 1 {
-		t.Fatalf("expected referenced backlog item to be included, got %d backlog nodes", nodeTypes["BacklogItem"])
+	if resp.Meta.Hint == "" {
+		t.Error("expected hint in meta for flow without focus")
 	}
 
 	assertEdgeEndpointsPresent(t, resp)
@@ -323,7 +325,7 @@ func TestProjectOperations(t *testing.T) {
 		},
 	})
 
-	resp, err := svc.Project(context.Background(), LensOperations)
+	resp, err := svc.Project(context.Background(), ProjectionParams{Lens: LensOperations})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -387,7 +389,7 @@ func TestProjectOperations_AgentUnavailable(t *testing.T) {
 		Activity: &mockActivityLister{available: false},
 	})
 
-	resp, err := svc.Project(context.Background(), LensOperations)
+	resp, err := svc.Project(context.Background(), ProjectionParams{Lens: LensOperations})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -417,7 +419,7 @@ func TestProjectOperations_IgnoresDisconnectedStoppedScenarios(t *testing.T) {
 		}},
 	})
 
-	resp, err := svc.Project(context.Background(), LensOperations)
+	resp, err := svc.Project(context.Background(), ProjectionParams{Lens: LensOperations})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -449,7 +451,7 @@ func TestProjectOperations_IncludesRunningScenarioWithoutTargets(t *testing.T) {
 		}},
 	})
 
-	resp, err := svc.Project(context.Background(), LensOperations)
+	resp, err := svc.Project(context.Background(), ProjectionParams{Lens: LensOperations})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -479,7 +481,7 @@ func TestMemberOfEdges(t *testing.T) {
 		}},
 	})
 
-	resp, err := svc.Project(context.Background(), LensTopology)
+	resp, err := svc.Project(context.Background(), ProjectionParams{Lens: LensTopology})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -514,7 +516,7 @@ func TestClassifiedAsEdges(t *testing.T) {
 		}},
 	})
 
-	resp, err := svc.Project(context.Background(), LensTopology)
+	resp, err := svc.Project(context.Background(), ProjectionParams{Lens: LensTopology})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -554,7 +556,7 @@ func TestTopologyInitiativeRollup(t *testing.T) {
 		}},
 	})
 
-	resp, err := svc.Project(context.Background(), LensTopology)
+	resp, err := svc.Project(context.Background(), ProjectionParams{Lens: LensTopology})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

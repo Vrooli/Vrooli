@@ -24,6 +24,9 @@ export interface GraphProjectionMeta {
   edgeCount: number;
   generatedAt: string;
   agentManagerAvailable: boolean | null;
+  focusNodeId: string | null;
+  focusNodeType: string | null;
+  hint: string | null;
 }
 
 export interface GraphProjection {
@@ -34,6 +37,7 @@ export interface GraphProjection {
 
 export interface GraphRequestOptions {
   signal?: AbortSignal;
+  focusNodeId?: string;
 }
 
 export interface IGraphService {
@@ -89,6 +93,9 @@ function mapProtoNode(raw: ProtoGraphNode): GraphNode {
   switch (data.value.case) {
     case "backlog": {
       const backlog = data.value.value;
+      // activeExecutionStatus/Count are set by proto_response.go but not yet
+      // reflected in the generated proto TS types (proto alignment is a follow-up).
+      const backlogAny = backlog as Record<string, unknown>;
       return {
         id: raw.id,
         type: entityType,
@@ -110,6 +117,8 @@ function mapProtoNode(raw: ProtoGraphNode): GraphNode {
             | "failed"
             | "archived",
           priority: backlog.priority,
+          activeExecutionStatus: (backlogAny.activeExecutionStatus as string) ?? undefined,
+          activeExecutionCount: (backlogAny.activeExecutionCount as number) ?? undefined,
         },
       };
     }
@@ -272,6 +281,9 @@ function normalizeMeta(meta: {
   edgeCount: number;
   generatedAt: string;
   agentManagerAvailable?: boolean;
+  focusNodeId?: string;
+  focusNodeType?: string;
+  hint?: string;
 }): GraphProjectionMeta {
   return {
     lens: meta.lens as GraphLens,
@@ -280,16 +292,20 @@ function normalizeMeta(meta: {
     generatedAt: meta.generatedAt,
     agentManagerAvailable:
       typeof meta.agentManagerAvailable === "boolean" ? meta.agentManagerAvailable : null,
+    focusNodeId: meta.focusNodeId ?? null,
+    focusNodeType: meta.focusNodeType ?? null,
+    hint: meta.hint ?? null,
   };
 }
 
 export function createGraphService(apiClient: IApiClient = defaultApiClient): IGraphService {
   return {
     async getGraph(lens: GraphLens, options?: GraphRequestOptions): Promise<GraphProjection> {
-      const data = await apiClient.get<unknown>(
-        `${API_ENDPOINTS.graph}?lens=${encodeURIComponent(lens)}`,
-        { signal: options?.signal },
-      );
+      let url = `${API_ENDPOINTS.graph}?lens=${encodeURIComponent(lens)}`;
+      if (options?.focusNodeId) {
+        url += `&focus_node_id=${encodeURIComponent(options.focusNodeId)}`;
+      }
+      const data = await apiClient.get<unknown>(url, { signal: options?.signal });
       const parsed = parseProtoResponse(graphResponseSchema, data, "graph");
 
       return {

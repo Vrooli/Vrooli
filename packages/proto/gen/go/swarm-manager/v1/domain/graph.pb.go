@@ -154,14 +154,17 @@ func (x *GraphInitiativeRollup) GetPending() int32 {
 
 // GraphBacklogNodeData describes a backlog item node.
 type GraphBacklogNodeData struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
-	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
-	Priority      int32                  `protobuf:"varint,5,opt,name=priority,proto3" json:"priority,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Kind     string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Name     string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Title    string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	Status   string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	Priority int32                  `protobuf:"varint,5,opt,name=priority,proto3" json:"priority,omitempty"`
+	// Cross-lens execution status annotation (topology enrichment).
+	ActiveExecutionStatus *string `protobuf:"bytes,6,opt,name=active_execution_status,json=activeExecutionStatus,proto3,oneof" json:"active_execution_status,omitempty"`
+	ActiveExecutionCount  int32   `protobuf:"varint,7,opt,name=active_execution_count,json=activeExecutionCount,proto3" json:"active_execution_count,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *GraphBacklogNodeData) Reset() {
@@ -225,6 +228,20 @@ func (x *GraphBacklogNodeData) GetStatus() string {
 func (x *GraphBacklogNodeData) GetPriority() int32 {
 	if x != nil {
 		return x.Priority
+	}
+	return 0
+}
+
+func (x *GraphBacklogNodeData) GetActiveExecutionStatus() string {
+	if x != nil && x.ActiveExecutionStatus != nil {
+		return *x.ActiveExecutionStatus
+	}
+	return ""
+}
+
+func (x *GraphBacklogNodeData) GetActiveExecutionCount() int32 {
+	if x != nil {
+		return x.ActiveExecutionCount
 	}
 	return 0
 }
@@ -1000,8 +1017,12 @@ type GraphMeta struct {
 	EdgeCount             int32                  `protobuf:"varint,3,opt,name=edge_count,json=edgeCount,proto3" json:"edge_count,omitempty"`
 	GeneratedAt           string                 `protobuf:"bytes,4,opt,name=generated_at,json=generatedAt,proto3" json:"generated_at,omitempty"`
 	AgentManagerAvailable *bool                  `protobuf:"varint,5,opt,name=agent_manager_available,json=agentManagerAvailable,proto3,oneof" json:"agent_manager_available,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Focus-based drill-down fields (flow and operations lenses).
+	FocusNodeId   *string `protobuf:"bytes,6,opt,name=focus_node_id,json=focusNodeId,proto3,oneof" json:"focus_node_id,omitempty"`
+	FocusNodeType *string `protobuf:"bytes,7,opt,name=focus_node_type,json=focusNodeType,proto3,oneof" json:"focus_node_type,omitempty"`
+	Hint          *string `protobuf:"bytes,8,opt,name=hint,proto3,oneof" json:"hint,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GraphMeta) Reset() {
@@ -1069,6 +1090,27 @@ func (x *GraphMeta) GetAgentManagerAvailable() bool {
 	return false
 }
 
+func (x *GraphMeta) GetFocusNodeId() string {
+	if x != nil && x.FocusNodeId != nil {
+		return *x.FocusNodeId
+	}
+	return ""
+}
+
+func (x *GraphMeta) GetFocusNodeType() string {
+	if x != nil && x.FocusNodeType != nil {
+		return *x.FocusNodeType
+	}
+	return ""
+}
+
+func (x *GraphMeta) GetHint() string {
+	if x != nil && x.Hint != nil {
+		return *x.Hint
+	}
+	return ""
+}
+
 var File_swarm_manager_v1_domain_graph_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_graph_proto_rawDesc = "" +
@@ -1083,14 +1125,17 @@ const file_swarm_manager_v1_domain_graph_proto_rawDesc = "" +
 	"\vin_progress\x18\x03 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\n" +
 	"inProgress\x12\x1f\n" +
 	"\x06failed\x18\x04 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x06failed\x12!\n" +
-	"\apending\x18\x05 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\apending\"\xa7\x02\n" +
+	"\apending\x18\x05 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\apending\"\xb6\x03\n" +
 	"\x14GraphBacklogNodeData\x12>\n" +
 	"\x04kind\x18\x01 \x01(\tB*\xbaH'r%R\x04ideaR\bresearchR\x03fixR\aexecuteR\x05choreR\x04kind\x12\x1b\n" +
 	"\x04name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12l\n" +
 	"\x06status\x18\x04 \x01(\tBT\xbaHQrOR\abacklogR\vresearchingR\x05readyR\x06queuedR\vin_progressR\tcompletedR\x06failedR\barchivedR\x06status\x12%\n" +
 	"\bpriority\x18\x05 \x01(\x05B\t\xbaH\x06\x1a\x04\x18\n" +
-	"(\x01R\bpriority\"\xb7\x01\n" +
+	"(\x01R\bpriority\x12;\n" +
+	"\x17active_execution_status\x18\x06 \x01(\tH\x00R\x15activeExecutionStatus\x88\x01\x01\x124\n" +
+	"\x16active_execution_count\x18\a \x01(\x05R\x14activeExecutionCountB\x1a\n" +
+	"\x18_active_execution_status\"\xb7\x01\n" +
 	"\x17GraphInitiativeNodeData\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12\x1f\n" +
@@ -1167,7 +1212,7 @@ const file_swarm_manager_v1_domain_graph_proto_rawDesc = "" +
 	"\x06source\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06source\x12\x1f\n" +
 	"\x06target\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06target\x12\x9c\x01\n" +
 	"\x04type\x18\x04 \x01(\tB\x87\x01\xbaH\x83\x01r\x80\x01R\n" +
-	"depends_onR\tmember_ofR\rclassified_asR\atargetsR\bexecutesR\tfollow_upR\factivity_forR\x10records_activityR\vspawned_runR\rcontinued_runR\x04type\"\x97\x02\n" +
+	"depends_onR\tmember_ofR\rclassified_asR\atargetsR\bexecutesR\tfollow_upR\factivity_forR\x10records_activityR\vspawned_runR\rcontinued_runR\x04type\"\xb5\x03\n" +
 	"\tGraphMeta\x125\n" +
 	"\x04lens\x18\x01 \x01(\tB!\xbaH\x1er\x1cR\btopologyR\x04flowR\n" +
 	"operationsR\x04lens\x12&\n" +
@@ -1176,8 +1221,14 @@ const file_swarm_manager_v1_domain_graph_proto_rawDesc = "" +
 	"\n" +
 	"edge_count\x18\x03 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\tedgeCount\x12*\n" +
 	"\fgenerated_at\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vgeneratedAt\x12;\n" +
-	"\x17agent_manager_available\x18\x05 \x01(\bH\x00R\x15agentManagerAvailable\x88\x01\x01B\x1a\n" +
-	"\x18_agent_manager_availableBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
+	"\x17agent_manager_available\x18\x05 \x01(\bH\x00R\x15agentManagerAvailable\x88\x01\x01\x12'\n" +
+	"\rfocus_node_id\x18\x06 \x01(\tH\x01R\vfocusNodeId\x88\x01\x01\x12+\n" +
+	"\x0ffocus_node_type\x18\a \x01(\tH\x02R\rfocusNodeType\x88\x01\x01\x12\x17\n" +
+	"\x04hint\x18\b \x01(\tH\x03R\x04hint\x88\x01\x01B\x1a\n" +
+	"\x18_agent_manager_availableB\x10\n" +
+	"\x0e_focus_node_idB\x12\n" +
+	"\x10_focus_node_typeB\a\n" +
+	"\x05_hintBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
 
 var (
 	file_swarm_manager_v1_domain_graph_proto_rawDescOnce sync.Once
@@ -1230,6 +1281,7 @@ func file_swarm_manager_v1_domain_graph_proto_init() {
 	if File_swarm_manager_v1_domain_graph_proto != nil {
 		return
 	}
+	file_swarm_manager_v1_domain_graph_proto_msgTypes[2].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_graph_proto_msgTypes[6].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_graph_proto_msgTypes[7].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_graph_proto_msgTypes[8].OneofWrappers = []any{}

@@ -6,7 +6,6 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Background,
   BackgroundVariant,
@@ -40,7 +39,6 @@ import {
   type GraphEdge,
   type GraphNode,
 } from "../types";
-import { parseNodeId } from "../lib/node-id-parser";
 import { ClusterNode } from "./ClusterNode";
 import { EdgeLegend } from "./EdgeLegend";
 import { GraphNode as GraphNodeComponent } from "./GraphNode";
@@ -245,6 +243,11 @@ export function GraphCanvas() {
 
   const handleNodeClick: NodeMouseHandler = useCallback(
     (_event, node) => {
+      // Cluster nodes toggle on single-click instead of opening inspector.
+      if (node.type === "cluster") {
+        toggleTopologyCluster(node.id);
+        return;
+      }
       const graphNode = node as GraphNode;
       selectNode(node.id);
       setHighlightState({
@@ -252,49 +255,13 @@ export function GraphCanvas() {
         mode: "dim",
       });
     },
-    [processedNodes, selectNode, setHighlightState, styledEdges],
+    [processedNodes, selectNode, setHighlightState, styledEdges, toggleTopologyCluster],
   );
 
   const handlePaneClick = useCallback(() => {
     selectNode(null);
     setHighlightState({ highlighted: new Set(), mode: "normal" });
   }, [selectNode, setHighlightState]);
-
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-
-  const handleNodeDoubleClick: NodeMouseHandler = useCallback(
-    (_event, node) => {
-      if (node.type === "cluster") {
-        toggleTopologyCluster(node.id);
-        return;
-      }
-      const data = getGraphNodeData(node);
-      // Don't navigate for synthetic cap nodes.
-      if ("isCapNode" in data && data.isCapNode) {
-        return;
-      }
-      const parsed = parseNodeId(node.id);
-      if (!parsed) {
-        return;
-      }
-      let detailsPath: string | null = null;
-      if (parsed.entityType === "backlog" && parsed.kind && parsed.name) {
-        detailsPath = `/details/backlog/${parsed.kind}/${parsed.name}`;
-      } else if (parsed.entityType === "scenario" && parsed.name) {
-        detailsPath = `/details/scenario/${parsed.name}`;
-      } else if (parsed.entityType === "execution") {
-        detailsPath = `/details/execution/${parsed.identifier}`;
-      } else if (parsed.entityType === "initiative" && parsed.name) {
-        detailsPath = `/details/initiative/${parsed.name}`;
-      }
-      if (detailsPath) {
-        const returnTo = `/graph?${searchParams.toString()}`;
-        navigate(`${detailsPath}?returnTo=${encodeURIComponent(returnTo)}`);
-      }
-    },
-    [navigate, searchParams, toggleTopologyCluster],
-  );
 
   const handleMoveEnd = useCallback(
     (_event: MouseEvent | TouchEvent | null, viewport: Viewport) => {
@@ -317,7 +284,6 @@ export function GraphCanvas() {
         onNodesChange={onNodesChange as OnNodesChange}
         onEdgesChange={onEdgesChange as OnEdgesChange}
         onNodeClick={handleNodeClick}
-        onNodeDoubleClick={handleNodeDoubleClick}
         onPaneClick={handlePaneClick}
         onMoveEnd={handleMoveEnd}
         onInit={(instance) => {

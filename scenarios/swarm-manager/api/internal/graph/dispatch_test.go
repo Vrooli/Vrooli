@@ -11,11 +11,16 @@ func (r *recordingBroadcaster) BroadcastUpdate(event string, payload any) {
 }
 
 type recordingInvalidator struct {
-	lenses []Lens
+	lenses       []Lens
+	focusNodeIDs []string
 }
 
 func (r *recordingInvalidator) Invalidate(lenses ...Lens) {
 	r.lenses = append(r.lenses, lenses...)
+}
+
+func (r *recordingInvalidator) InvalidateFocus(focusNodeID string) {
+	r.focusNodeIDs = append(r.focusNodeIDs, focusNodeID)
 }
 
 func TestDispatchInvalidateBroadcastsAndClearsCache(t *testing.T) {

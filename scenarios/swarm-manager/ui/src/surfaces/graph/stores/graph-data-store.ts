@@ -52,12 +52,16 @@ export interface GraphDataState {
   loading: boolean;
   error: string | null;
   lens: GraphLens;
+  focusNodeId: string | null;
+  returnLens: GraphLens | null;
   graphsByLens: Record<GraphLens, GraphLensSnapshot>;
   settingsByLens: Record<GraphLens, GraphLensSettings>;
   setNodes: (nodes: GraphNode[]) => void;
   setEdges: (edges: GraphEdge[]) => void;
   setGraphData: (nodes: GraphNode[], edges: GraphEdge[], meta?: GraphProjectionMeta | null) => void;
   setLens: (lens: GraphLens) => void;
+  setFocusNode: (nodeId: string | null) => void;
+  setReturnLens: (lens: GraphLens | null) => void;
   fetchGraph: (lens?: GraphLens, options?: FetchGraphOptions) => Promise<void>;
   toggleEntityFilter: (type: EntityType) => void;
   setEntityFilter: (type: EntityType, visible: boolean) => void;
@@ -394,6 +398,8 @@ export function createGraphDataInitialState() {
     loading: false,
     error: null as string | null,
     lens: "topology" as GraphLens,
+    focusNodeId: null as string | null,
+    returnLens: null as GraphLens | null,
     graphsByLens: createEmptyGraphsByLens(),
     settingsByLens:
       typeof window !== "undefined" ? loadPersistedSettings() : createDefaultSettingsByLens(),
@@ -448,6 +454,9 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
       ...syncActiveLensSnapshot(lens, state.graphsByLens[lens]),
     })),
 
+  setFocusNode: (nodeId) => set({ focusNodeId: nodeId }),
+  setReturnLens: (lens) => set({ returnLens: lens }),
+
   fetchGraph: async (lensArg, options) => {
     const lens = lensArg ?? get().lens;
     const snapshot = get().graphsByLens[lens];
@@ -477,8 +486,12 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
       })),
     );
 
+    const focusNodeId = get().focusNodeId;
     const requestPromise = graphService
-      .getGraph(lens, { signal: controller.signal })
+      .getGraph(lens, {
+        signal: controller.signal,
+        focusNodeId: (lens === "flow" || lens === "operations") ? (focusNodeId ?? undefined) : undefined,
+      })
       .then((graph) => {
         if (graphRequestSequence[lens] !== requestId) {
           return;

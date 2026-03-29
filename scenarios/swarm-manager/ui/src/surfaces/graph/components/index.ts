@@ -1,7 +1,7 @@
 export { GraphWorkspace } from "./GraphWorkspace";
 export { GraphCanvas } from "./GraphCanvas";
 export { GraphNode } from "./GraphNode";
-export { LensSwitcher } from "./LensSwitcher";
+export { LensNav } from "./LensNav";
 export { Sidebar } from "./Sidebar";
 export { Inspector } from "./Inspector";
 export { SettingsDrawer } from "./SettingsDrawer";

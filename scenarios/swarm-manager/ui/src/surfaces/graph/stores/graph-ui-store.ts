@@ -149,6 +149,7 @@ export interface GraphUIState {
   sidebarCollapsed: boolean;
   inspectorOpen: boolean;
   expandedTopologyClusters: Set<string>;
+  focusNodeLabel: string | null;
   selectNode: (nodeId: string | null) => void;
   setHighlightState: (state: NodeHighlightState) => void;
   setLayoutMode: (mode: LayoutMode) => void;
@@ -166,6 +167,7 @@ export interface GraphUIState {
   toggleTopologyCluster: (clusterId: string) => void;
   collapseAllTopologyClusters: () => void;
   expandTopologyClusters: (clusterIds: string[]) => void;
+  setFocusNodeLabel: (label: string | null) => void;
 }
 
 const initialPrefs = typeof window !== "undefined" ? loadLayoutPreferences() : {};
@@ -184,6 +186,7 @@ export const graphUIInitialState = {
   sidebarCollapsed: initialSidebarCollapsed,
   inspectorOpen: false,
   expandedTopologyClusters: new Set<string>(),
+  focusNodeLabel: null as string | null,
 };
 
 export const useGraphUIStore = create<GraphUIState>((set, get) => ({
@@ -286,6 +289,8 @@ export const useGraphUIStore = create<GraphUIState>((set, get) => ({
   collapseAllTopologyClusters: () => set({ expandedTopologyClusters: new Set<string>() }),
 
   expandTopologyClusters: (clusterIds) => set({ expandedTopologyClusters: new Set(clusterIds) }),
+
+  setFocusNodeLabel: (label) => set({ focusNodeLabel: label }),
 }));
 
 export function cloneGraphUIInitialState(): typeof graphUIInitialState {

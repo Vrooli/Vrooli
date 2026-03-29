@@ -2,7 +2,7 @@
  * GraphWorkspace - Graph-first shell for swarm-manager.
  *
  * Uses HUD-like floating controls instead of a header toolbar:
- * - Top-center: LensSwitcher
+ * - Top-center: LensNav
  * - Top-right: Settings gear, Help button, Agents dropdown
  * - Bottom-left: Edge legend (rendered inside GraphCanvas)
  * - Bottom-right: MiniMap (rendered inside GraphCanvas)
@@ -23,11 +23,12 @@ import { buildActivityNodeId, buildBacklogNodeId } from "../lib/node-id-parser";
 import { useGraphKeyboardShortcuts } from "../hooks/useGraphKeyboardShortcuts";
 import { useGraphWebSocket } from "../hooks/useGraphWebSocket";
 import { GraphCanvas } from "./GraphCanvas";
-import { LensSwitcher } from "./LensSwitcher";
+import { LensNav } from "./LensNav";
 import { Sidebar } from "./Sidebar";
 import { Inspector } from "./Inspector";
 import { SettingsDrawer } from "./SettingsDrawer";
 import { GraphHelpPanel } from "./GraphHelpPanel";
+import { getGraphNodeLabel } from "../types";
 import type { GraphLens } from "../stores/graph-data-store";
 import type { FeedbackItem, MaturityItem } from "../../../lib/feed";
 
@@ -44,6 +45,8 @@ export function GraphWorkspace() {
   const searchLens = searchParams.get("lens");
   const urlLens: GraphLens = isGraphLens(searchLens) ? searchLens : "topology";
   const urlSelect = searchParams.get("select");
+  const urlFocus = searchParams.get("focus");
+  const urlReturnLens = searchParams.get("returnLens");
 
   const fetchBacklog = useBacklogStore((s) => s.fetchBacklog);
   const backlogItems = useBacklogStore((s) => s.items);
@@ -58,6 +61,12 @@ export function GraphWorkspace() {
   const nodes = useGraphDataStore((s) => s.nodes);
   const setLens = useGraphDataStore((s) => s.setLens);
   const setNodePulsing = useGraphDataStore((s) => s.setNodePulsing);
+  const focusNodeId = useGraphDataStore((s) => s.focusNodeId);
+  const setFocusNode = useGraphDataStore((s) => s.setFocusNode);
+  const returnLens = useGraphDataStore((s) => s.returnLens);
+  const setReturnLens = useGraphDataStore((s) => s.setReturnLens);
+  const focusNodeLabel = useGraphUIStore((s) => s.focusNodeLabel);
+  const setFocusNodeLabel = useGraphUIStore((s) => s.setFocusNodeLabel);
   const selectedNodeId = useGraphUIStore((s) => s.selectedNodeId);
   const selectNode = useGraphUIStore((s) => s.selectNode);
   const inspectorOpen = useGraphUIStore((s) => s.inspectorOpen);
@@ -96,6 +105,22 @@ export function GraphWorkspace() {
     void fetchGraph(urlLens);
   }, [applyLayoutForLens, fetchGraph, setLens, urlLens]);
 
+  useEffect(() => {
+    setFocusNode(urlFocus ?? null);
+    setReturnLens(isGraphLens(urlReturnLens) ? urlReturnLens : null);
+  }, [urlFocus, urlReturnLens, setFocusNode, setReturnLens]);
+
+  useEffect(() => {
+    if (!focusNodeId) {
+      setFocusNodeLabel(null);
+      return;
+    }
+    const node = nodes.find((n) => n.id === focusNodeId);
+    if (node) {
+      setFocusNodeLabel(getGraphNodeLabel(node));
+    }
+  }, [focusNodeId, nodes, setFocusNodeLabel]);
+
   // Sync URL → store only on URL-driven changes. Canvas clicks update the
   // store directly without touching the URL, so we must not deselect when
   // urlSelect is absent — that would race with the canvas click handler.
@@ -127,6 +152,49 @@ export function GraphWorkspace() {
     },
     [setSearchParams],
   );
+
+  const handleDrillToFlow = useCallback(
+    (nodeId: string) => {
+      const node = nodes.find((n) => n.id === nodeId);
+      if (node) setFocusNodeLabel(getGraphNodeLabel(node));
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("lens", "flow");
+        next.set("focus", nodeId);
+        next.set("returnLens", lens);
+        next.delete("select");
+        return next;
+      });
+    },
+    [lens, nodes, setFocusNodeLabel, setSearchParams],
+  );
+
+  const handleDrillToOperations = useCallback(
+    (nodeId: string) => {
+      const node = nodes.find((n) => n.id === nodeId);
+      if (node) setFocusNodeLabel(getGraphNodeLabel(node));
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("lens", "operations");
+        next.set("focus", nodeId);
+        next.set("returnLens", lens);
+        next.delete("select");
+        return next;
+      });
+    },
+    [lens, nodes, setFocusNodeLabel, setSearchParams],
+  );
+
+  const handleReturnToAtlas = useCallback(() => {
+    const target = returnLens ?? "topology";
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("lens", target);
+      next.delete("focus");
+      next.delete("returnLens");
+      return next;
+    });
+  }, [returnLens, setSearchParams]);
 
   const feed = useMemo(() => {
     const feedbackItems: FeedbackItem[] = [];
@@ -171,6 +239,8 @@ export function GraphWorkspace() {
     onLensChange: handleLensChange,
     onInspectorClose: handleInspectorClose,
     onSettingsToggle: () => setShowSettingsDrawer((prev) => !prev),
+    onReturnToAtlas: handleReturnToAtlas,
+    focusNodeId,
   });
 
   const handleNodePulse = useCallback(
@@ -203,8 +273,14 @@ export function GraphWorkspace() {
           className="pointer-events-auto absolute left-3 right-3 top-3 z-20 flex items-center justify-between gap-2"
           data-testid="graph-hud"
         >
-          {/* Left: Lens switcher */}
-          <LensSwitcher activeLens={lens} onLensChange={handleLensChange} />
+          {/* Left: Lens navigation */}
+          <LensNav
+            activeLens={lens}
+            focusNodeId={focusNodeId}
+            focusNodeLabel={focusNodeLabel}
+            onLensChange={handleLensChange}
+            onReturnToAtlas={handleReturnToAtlas}
+          />
 
           {/* Right: Settings + Help + Agents */}
           <div className="flex items-center gap-1.5">
@@ -349,7 +425,13 @@ export function GraphWorkspace() {
         {/* Floating panels */}
 
         <GraphHelpPanel isOpen={showHelpPanel} onClose={() => setShowHelpPanel(false)} />
-        <Inspector isOpen={inspectorOpen} onClose={handleInspectorClose} selectedNode={selectedNode} />
+        <Inspector
+          isOpen={inspectorOpen}
+          onClose={handleInspectorClose}
+          selectedNode={selectedNode}
+          onDrillToFlow={handleDrillToFlow}
+          onDrillToOperations={handleDrillToOperations}
+        />
       </div>
 
       <SettingsDrawer isOpen={showSettingsDrawer} onClose={() => setShowSettingsDrawer(false)} />

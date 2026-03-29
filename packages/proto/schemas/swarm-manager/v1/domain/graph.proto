@@ -55,6 +55,9 @@ message GraphBacklogNodeData {
     "archived"
   ] }];
   int32 priority = 5 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+  // Cross-lens execution status annotation (topology enrichment).
+  optional string active_execution_status = 6;
+  int32 active_execution_count = 7;
 }
 
 // GraphInitiativeNodeData describes an initiative node.
@@ -196,4 +199,8 @@ message GraphMeta {
   int32 edge_count = 3 [(buf.validate.field).int32.gte = 0];
   string generated_at = 4 [(buf.validate.field).string.min_len = 1];
   optional bool agent_manager_available = 5;
+  // Focus-based drill-down fields (flow and operations lenses).
+  optional string focus_node_id = 6;
+  optional string focus_node_type = 7;
+  optional string hint = 8;
 }

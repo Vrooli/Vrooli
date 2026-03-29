@@ -77,14 +77,16 @@ type EventDispatcher interface {
 	DispatchNodeUpdate(nodeType, nodeID string, data any)
 	DispatchEdgeChange(action string, edge Edge)
 	DispatchInvalidate(lenses ...string)
+	DispatchInvalidateWithFocus(focusNodeID string)
 }
 
 // Projector builds or serves graph projections for a lens.
 type Projector interface {
-	Project(ctx context.Context, lens Lens) (GraphResponse, error)
+	Project(ctx context.Context, params ProjectionParams) (GraphResponse, error)
 }
 
 // CacheInvalidator clears cached graph projections for one or more lenses.
 type CacheInvalidator interface {
 	Invalidate(lenses ...Lens)
+	InvalidateFocus(focusNodeID string)
 }

@@ -73,6 +73,8 @@ export interface BacklogGraphNodeData extends GraphBaseNodeData {
   title: string;
   status: BacklogStatus;
   priority: number;
+  activeExecutionStatus?: string;
+  activeExecutionCount?: number;
 }
 
 export interface InitiativeGraphNodeData extends GraphBaseNodeData {

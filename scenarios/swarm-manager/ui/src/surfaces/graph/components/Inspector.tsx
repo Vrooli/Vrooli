@@ -8,7 +8,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { ExternalLink, Loader2, X } from "lucide-react";
+import { ExternalLink, History, Activity as ActivityIcon, Loader2, X } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useIsMobile } from "../../../hooks/useMediaQuery";
 import { BottomSheet } from "../../../components/ui/bottom-sheet";
@@ -28,6 +28,8 @@ interface InspectorProps {
   isOpen: boolean;
   onClose: () => void;
   selectedNode: GraphNode | null;
+  onDrillToFlow?: (nodeId: string) => void;
+  onDrillToOperations?: (nodeId: string) => void;
 }
 
 /**
@@ -139,7 +141,11 @@ function ActionButton({
   );
 }
 
-function InspectorContent({ node }: { node: GraphNode }) {
+function InspectorContent({ node, onDrillToFlow, onDrillToOperations }: {
+  node: GraphNode;
+  onDrillToFlow?: (nodeId: string) => void;
+  onDrillToOperations?: (nodeId: string) => void;
+}) {
   const data = getGraphNodeData(node);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -220,6 +226,42 @@ function InspectorContent({ node }: { node: GraphNode }) {
         )}
       </div>
 
+      {/* Cross-lens navigation — shown for drillable entity types */}
+      {(entityType === "backlog" || entityType === "initiative" || entityType === "scenario") && (
+        <div className="space-y-2" data-testid="inspector-navigation">
+          {onDrillToFlow && (
+            <button
+              type="button"
+              onClick={() => onDrillToFlow(node.id)}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-slate-700/50 px-3 py-2.5 text-sm font-medium text-slate-100 transition-colors hover:bg-slate-700/70"
+              data-testid="inspector-drill-flow"
+            >
+              <History className="h-4 w-4 text-cyan-400" />
+              View History
+            </button>
+          )}
+          {onDrillToOperations && (
+            <button
+              type="button"
+              onClick={() => onDrillToOperations(node.id)}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-slate-700/50 px-3 py-2.5 text-sm font-medium text-slate-100 transition-colors hover:bg-slate-700/70"
+              data-testid="inspector-drill-operations"
+            >
+              <ActivityIcon className="h-4 w-4 text-amber-400" />
+              View Operations
+              {data.entityType === "backlog" && "activeExecutionStatus" in data && typeof data.activeExecutionStatus === "string" && data.activeExecutionStatus && (
+                <span className={cn(
+                  "ml-1 h-2 w-2 rounded-full",
+                  data.activeExecutionStatus === "running" || data.activeExecutionStatus === "starting" ? "bg-cyan-400 animate-pulse" :
+                  data.activeExecutionStatus === "needs_review" || data.activeExecutionStatus === "needs_fixup" ? "bg-amber-400" :
+                  data.activeExecutionStatus === "failed" ? "bg-red-400" : "bg-slate-400"
+                )} />
+              )}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Action buttons from registry */}
       {actions.length > 0 && (
         <div className="space-y-2" data-testid="inspector-actions">
@@ -254,7 +296,7 @@ function InspectorContent({ node }: { node: GraphNode }) {
   );
 }
 
-export function Inspector({ isOpen, onClose, selectedNode }: InspectorProps) {
+export function Inspector({ isOpen, onClose, selectedNode, onDrillToFlow, onDrillToOperations }: InspectorProps) {
   const isMobile = useIsMobile();
 
   if (!isOpen || !selectedNode) return null;
@@ -270,7 +312,7 @@ export function Inspector({ isOpen, onClose, selectedNode }: InspectorProps) {
         title={title}
         data-testid="inspector"
       >
-        <InspectorContent node={selectedNode} />
+        <InspectorContent node={selectedNode} onDrillToFlow={onDrillToFlow} onDrillToOperations={onDrillToOperations} />
       </BottomSheet>
     );
   }
@@ -299,7 +341,7 @@ export function Inspector({ isOpen, onClose, selectedNode }: InspectorProps) {
         </button>
       </div>
       <div className="max-h-[70vh] overflow-y-auto p-4">
-        <InspectorContent node={selectedNode} />
+        <InspectorContent node={selectedNode} onDrillToFlow={onDrillToFlow} onDrillToOperations={onDrillToOperations} />
       </div>
     </div>
   );

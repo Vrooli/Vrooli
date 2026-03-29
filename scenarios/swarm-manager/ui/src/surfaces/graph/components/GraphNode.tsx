@@ -12,7 +12,9 @@ import { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Lightbulb, Package, Zap, MessageSquare, Activity, Target } from "lucide-react";
 import { cn } from "../../../lib/utils";
+import { useGraphDataStore } from "../stores/graph-data-store";
 import type { GraphEntityType, GraphNodeData } from "../types";
+import { StatusBadge } from "./StatusBadge";
 import { getShapeClasses, getShapeDimensions, needsContentCounterRotation, usesClipPath } from "../lib/entity-shapes";
 import { getStatusColorClasses } from "../lib/status-colors";
 
@@ -33,6 +35,7 @@ const DEFAULT_ENTITY: GraphEntityType = "backlog";
 
 function GraphNodeComponent({ data, selected }: NodeProps) {
   const nodeData = data as GraphNodeData;
+  const lens = useGraphDataStore((s) => s.lens);
   const entityType = nodeData.entityType ?? DEFAULT_ENTITY;
   const Icon = ENTITY_ICONS[entityType] ?? ENTITY_ICONS[DEFAULT_ENTITY];
   const shapeClass = getShapeClasses(entityType);
@@ -48,6 +51,7 @@ function GraphNodeComponent({ data, selected }: NodeProps) {
       {/* Outer wrapper: handles drop-shadow for clipped shapes */}
       <div
         className={cn(
+          "relative",
           selected && isClipped && "drop-shadow-[0_0_6px_rgba(34,211,238,0.6)]",
           Boolean(nodeData.pulsing) && "graph-node-pulse",
         )}
@@ -57,6 +61,9 @@ function GraphNodeComponent({ data, selected }: NodeProps) {
           }
         }}
       >
+        {lens === "topology" && entityType === "backlog" && "activeExecutionStatus" in nodeData && (
+          <StatusBadge executionStatus={(nodeData as { activeExecutionStatus?: string }).activeExecutionStatus} />
+        )}
         <div
           className={cn(
             "border-2 shadow-md backdrop-blur-sm",

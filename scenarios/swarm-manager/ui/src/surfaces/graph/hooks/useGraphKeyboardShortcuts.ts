@@ -36,6 +36,8 @@ interface GraphShortcutHandlers {
   onLensChange: (lens: GraphLens) => void;
   onInspectorClose: () => void;
   onSettingsToggle: () => void;
+  onReturnToAtlas: () => void;
+  focusNodeId: string | null;
 }
 
 export function useGraphKeyboardShortcuts(handlers: GraphShortcutHandlers): void {
@@ -67,6 +69,10 @@ export function useGraphKeyboardShortcuts(handlers: GraphShortcutHandlers): void
       if (!mod && event.key in LENS_MAP) {
         const nextLens = LENS_MAP[event.key];
         if (nextLens) {
+          // Flow lens requires a focus node to be set.
+          if (nextLens === "flow" && !handlers.focusNodeId) {
+            return;
+          }
           handlers.onLensChange(nextLens);
         }
         return;
@@ -81,6 +87,12 @@ export function useGraphKeyboardShortcuts(handlers: GraphShortcutHandlers): void
       // I — Toggle inspector
       if (!mod && event.key.toLowerCase() === "i") {
         toggleInspector();
+        return;
+      }
+
+      // Backspace / Alt+Left — Return to atlas
+      if (event.key === "Backspace" || (event.altKey && event.key === "ArrowLeft")) {
+        handlers.onReturnToAtlas();
         return;
       }
 

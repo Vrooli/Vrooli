@@ -101,12 +101,15 @@ const service = createBacklogService(mockClient);
 
 `api/internal/graph/` and `ui/src/services/graph-service.ts` form the graph projection seam.
 
-- **Ingress/egress contract**: `GET /graph` returns proto `swarm-manager.v1.api.GraphResponse`
-- **Projection payloads**: Graph nodes use typed oneof payloads (`backlog`, `initiative`, `capture`, `scenario`, `execution`, `activity`, `run`) instead of ad hoc JSON maps
+- **Ingress/egress contract**: `GET /api/v1/graph?lens=X[&focus_node_id=Y]` returns proto `swarm-manager.v1.api.GraphResponse`
+- **Projection params**: The `ProjectionParams` struct holds `Lens` and optional `FocusNodeID`. The handler validates focus format (must start with `backlog-item/`, `initiative/`, or `scenario/`). Cache keys are `{Lens, FocusNodeID}` tuples.
+- **Projection payloads**: Graph nodes use typed oneof payloads (`backlog`, `initiative`, `capture`, `scenario`, `execution`, `activity`, `run`). Backlog nodes include cross-lens `active_execution_status` and `active_execution_count` from topology enrichment.
+- **Focus-based drill-down**: Flow lens requires focus — dispatches to `buildFlowForBacklogItem`, `buildFlowForInitiative`, or `buildFlowForScenario`. Operations lens accepts optional focus for filtered view.
+- **Meta contract**: Response meta includes `focus_node_id`, `focus_node_type`, and `hint` for empty states.
 - **UI mapper**: `graph-service.ts` parses proto JSON through `proto-contracts.ts` and maps it into the typed graph node union used by the store/canvas/presentation helpers
 - **Library seam**: React Flow still exposes node data as `Record<string, unknown>` in renderer callbacks; the only intentional UI casts are localized in the graph renderers/helpers at that library boundary
 
-**Testing at the seam**: Go handler/projection tests validate proto JSON shape; UI service/store/presentation tests validate typed graph mapping, clustering, and canvas rendering against the shared graph contract.
+**Testing at the seam**: Go handler/projection tests validate proto JSON shape including focus routing. UI service/store/presentation tests validate typed graph mapping, clustering, and canvas rendering against the shared graph contract.
 
 ### Agent Activity Boundary
 

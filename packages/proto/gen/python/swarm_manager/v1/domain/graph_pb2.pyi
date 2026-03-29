@@ -29,18 +29,22 @@ class GraphInitiativeRollup(_message.Message):
     def __init__(self, total: _Optional[int] = ..., completed: _Optional[int] = ..., in_progress: _Optional[int] = ..., failed: _Optional[int] = ..., pending: _Optional[int] = ...) -> None: ...
 
 class GraphBacklogNodeData(_message.Message):
-    __slots__ = ("kind", "name", "title", "status", "priority")
+    __slots__ = ("kind", "name", "title", "status", "priority", "active_execution_status", "active_execution_count")
     KIND_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     PRIORITY_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_EXECUTION_STATUS_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_EXECUTION_COUNT_FIELD_NUMBER: _ClassVar[int]
     kind: str
     name: str
     title: str
     status: str
     priority: int
-    def __init__(self, kind: _Optional[str] = ..., name: _Optional[str] = ..., title: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ...) -> None: ...
+    active_execution_status: str
+    active_execution_count: int
+    def __init__(self, kind: _Optional[str] = ..., name: _Optional[str] = ..., title: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., active_execution_status: _Optional[str] = ..., active_execution_count: _Optional[int] = ...) -> None: ...
 
 class GraphInitiativeNodeData(_message.Message):
     __slots__ = ("name", "title", "status", "rollup")
@@ -169,15 +173,21 @@ class GraphEdge(_message.Message):
     def __init__(self, id: _Optional[str] = ..., source: _Optional[str] = ..., target: _Optional[str] = ..., type: _Optional[str] = ...) -> None: ...
 
 class GraphMeta(_message.Message):
-    __slots__ = ("lens", "node_count", "edge_count", "generated_at", "agent_manager_available")
+    __slots__ = ("lens", "node_count", "edge_count", "generated_at", "agent_manager_available", "focus_node_id", "focus_node_type", "hint")
     LENS_FIELD_NUMBER: _ClassVar[int]
     NODE_COUNT_FIELD_NUMBER: _ClassVar[int]
     EDGE_COUNT_FIELD_NUMBER: _ClassVar[int]
     GENERATED_AT_FIELD_NUMBER: _ClassVar[int]
     AGENT_MANAGER_AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    FOCUS_NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    FOCUS_NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
+    HINT_FIELD_NUMBER: _ClassVar[int]
     lens: str
     node_count: int
     edge_count: int
     generated_at: str
     agent_manager_available: bool
-    def __init__(self, lens: _Optional[str] = ..., node_count: _Optional[int] = ..., edge_count: _Optional[int] = ..., generated_at: _Optional[str] = ..., agent_manager_available: _Optional[bool] = ...) -> None: ...
+    focus_node_id: str
+    focus_node_type: str
+    hint: str
+    def __init__(self, lens: _Optional[str] = ..., node_count: _Optional[int] = ..., edge_count: _Optional[int] = ..., generated_at: _Optional[str] = ..., agent_manager_available: _Optional[bool] = ..., focus_node_id: _Optional[str] = ..., focus_node_type: _Optional[str] = ..., hint: _Optional[str] = ...) -> None: ...
