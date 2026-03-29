@@ -946,6 +946,8 @@ func (sm *SessionManager) Recover(store SessionMetadataStore, registry *BackendR
 		sessionName := tmuxSessionPrefix + id
 		_ = exec.Command("tmux", "set-option", "-t", sessionName, "mouse", "on").Run()
 		_ = exec.Command("tmux", "set-option", "-t", sessionName, "history-limit", "50000").Run()
+		_ = exec.Command("tmux", "set-option", "-t", sessionName, "set-titles", "on").Run()
+		_ = exec.Command("tmux", "set-option", "-t", sessionName, "set-titles-string", "#{pane_title}").Run()
 
 		// Re-attach to surviving tmux session
 		p, attachErr := tmuxAttach(sessionName)

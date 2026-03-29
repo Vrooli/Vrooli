@@ -138,6 +138,10 @@ func tmuxPTYFactory(spec SessionLaunchSpec) (PTY, error) {
 	_ = exec.Command("tmux", "set-option", "-t", sessionName, "mouse", "on").Run()
 	// Set a generous scrollback limit (default 2000 is often insufficient)
 	_ = exec.Command("tmux", "set-option", "-t", sessionName, "history-limit", "50000").Run()
+	// Propagate pane title changes (from OSC escape sequences) to the parent
+	// terminal so xterm.js onTitleChange fires and tab names update.
+	_ = exec.Command("tmux", "set-option", "-t", sessionName, "set-titles", "on").Run()
+	_ = exec.Command("tmux", "set-option", "-t", sessionName, "set-titles-string", "#{pane_title}").Run()
 
 	// 3. Attach to tmux session via a PTY for I/O streaming
 	p, err := tmuxAttach(sessionName)
