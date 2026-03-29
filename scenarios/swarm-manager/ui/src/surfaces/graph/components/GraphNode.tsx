@@ -30,6 +30,12 @@ const ENTITY_COLORS: Record<GraphEntityType, { bg: string; border: string; badge
     badge: "bg-amber-500/20 text-amber-300",
     icon: Zap,
   },
+  "agent-activity": {
+    bg: "bg-slate-800/90",
+    border: "border-fuchsia-500/40",
+    badge: "bg-fuchsia-500/20 text-fuchsia-300",
+    icon: Activity,
+  },
   capture: {
     bg: "bg-slate-800/90",
     border: "border-emerald-500/40",
@@ -80,6 +86,7 @@ const STATUS_DOT_COLORS: Record<string, string> = {
   needs_review_run: "bg-amber-400",
   complete: "bg-green-400",
   cancelled: "bg-slate-500",
+  unspecified: "bg-slate-500",
 };
 
 const DEFAULT_ENTITY: GraphEntityType = "backlog";

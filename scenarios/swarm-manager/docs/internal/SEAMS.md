@@ -1,6 +1,6 @@
 # Architecture Seams & Internal Design
 
-> Current State (2026-03-28): Swarm Manager runtime is graph-first backlog/scenarios/execution/settings/prompts with proto-backed UI↔API seams. Recommendation generation is owned by Prompt Manager teams and should not be implemented in Swarm Manager.
+> Current State (2026-03-28): Swarm Manager runtime is graph-first backlog/scenarios/execution/agent-activity/settings/prompts with proto-backed UI↔API seams. Recommendation generation is owned by Prompt Manager teams and should not be implemented in Swarm Manager.
 >
 > Historical note: Some lower sections preserve pre-greenfield recommendation-era references for audit history only.
 
@@ -56,6 +56,7 @@ ui/src/
 └── services/
     ├── backlog-service.ts      # Backlog CRUD and actions
     ├── agent-manager-service.ts # Agent-manager availability
+    ├── agent-activity-service.ts # Tracked agent activity queries and stop actions
     ├── graph-service.ts        # Graph projection mapping
     ├── scenarios-service.ts    # Scenarios operations
     ├── settings-service.ts     # Settings persistence
@@ -101,11 +102,23 @@ const service = createBacklogService(mockClient);
 `api/internal/graph/` and `ui/src/services/graph-service.ts` form the graph projection seam.
 
 - **Ingress/egress contract**: `GET /graph` returns proto `swarm-manager.v1.api.GraphResponse`
-- **Projection payloads**: Graph nodes use typed oneof payloads (`backlog`, `initiative`, `capture`, `scenario`, `execution`, `run`) instead of ad hoc JSON maps
+- **Projection payloads**: Graph nodes use typed oneof payloads (`backlog`, `initiative`, `capture`, `scenario`, `execution`, `activity`, `run`) instead of ad hoc JSON maps
 - **UI mapper**: `graph-service.ts` parses proto JSON through `proto-contracts.ts` and maps it into the typed graph node union used by the store/canvas/presentation helpers
 - **Library seam**: React Flow still exposes node data as `Record<string, unknown>` in renderer callbacks; the only intentional UI casts are localized in the graph renderers/helpers at that library boundary
 
 **Testing at the seam**: Go handler/projection tests validate proto JSON shape; UI service/store/presentation tests validate typed graph mapping, clustering, and canvas rendering against the shared graph contract.
+
+### Agent Activity Boundary
+
+`api/internal/agentactivity/` is the canonical Swarm Manager seam for tracked AgentManager usage.
+
+- **Purpose**: persist one durable `AgentActivity` record for every tracked `SpawnBacklog` and `ContinueRun`
+- **Ownership model**: activities belong to a backlog item, scenario, or capture and may optionally link to an execution record
+- **Control-plane split**: execution records remain the governed workflow object; agent activity records are the telemetry/audit object
+- **Integration rule**: backlog, capture, and execution flows must route AgentManager spawn/continue calls through the tracked activity service instead of calling the raw AgentManager client directly
+- **Graph impact**: flow and operations projections read activity records to show workshop/research/classify/follow-up/runtime lineage, not only governed execution runs
+
+**Testing at the seam**: `service_test.go` covers spawn, continue, refresh, and stop transitions against a stub AgentManager seam without filesystem-global state. `handler_test.go` locks the HTTP contract for listing, filtering, and fetching tracked activities.
 
 ### API-to-Integration Seam
 
@@ -118,8 +131,10 @@ type AgentManagerService interface {
     ResolveURL(ctx context.Context) (string, error)
     GetProfileID() string
 
+    SpawnBacklog(ctx context.Context, req BacklogSpawnRequest) (RunResult, error)
     SpawnResearch(ctx context.Context, req ResearchSpawnRequest) (RunResult, error)
-    SpawnRecommendation(ctx context.Context, req RecommendationSpawnRequest) (RunResult, error)
+    GetRunState(ctx context.Context, runID string) (RunState, error)
+    StopRun(ctx context.Context, runID string) error
 }
 
 type EcosystemManagerClient interface {
@@ -158,11 +173,12 @@ execute/
     └── spec.json
 
 .vrooli/
-├── settings.json     # User/system settings (persisted)
-└── queue.json        # Pending local queue items (persisted)
+├── settings.json          # User/system settings (persisted)
+├── queue.json             # Pending local queue items (persisted)
+└── agent-activities.json  # Durable tracked agent usage history
 ```
 
-**Status**: Backlog, scenario metadata, settings, and queue storage implemented.
+**Status**: Backlog, scenario metadata, settings, queue, and agent activity storage implemented.
 
 ### Dependency Graph Boundary
 

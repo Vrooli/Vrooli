@@ -96,6 +96,7 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
+	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/captures"
@@ -113,6 +114,7 @@ import (
 type Server struct {
 	router            *mux.Router
 	agentSvc          *agentmanager.AgentService
+	agentActivitySvc  *agentactivity.Service
 	settingsStore     *settings.Store
 	backlogHandler    *backlog.Handler
 	capturesHandler   *captures.Handler
@@ -210,6 +212,7 @@ func (s *Server) setupRoutes() {
 	scenariosDir := filepath.Dir(scenarioRoot)
 	s.registerHealthRoutes()
 	s.registerSettingsRoutes(scenarioRoot) // Must be before backlog/execution (they depend on settings store)
+	s.registerAgentActivityRoutes(scenarioRoot)
 	backlogHandler := s.registerBacklogRoutes(scenarioRoot)
 	initService := s.registerInitiativeRoutes(scenarioRoot, backlogHandler)
 	s.registerOverviewRoutes(backlogHandler, initService)
@@ -237,7 +240,7 @@ func (s *Server) registerHealthRoutes() {
 func (s *Server) registerBacklogRoutes(scenarioRoot string) *backlog.Handler {
 	// Backlog endpoints
 	// [REQ:REQ-P0-002] Backlog management
-	backlogHandler := backlog.NewHandlerWithClients(scenarioRoot, s.agentSvc, nil)
+	backlogHandler := backlog.NewHandlerWithClients(scenarioRoot, s.requireTrackedAgentService(), nil)
 	backlogHandler.SetPolicyProvider(&settingsPolicyAdapter{store: s.settingsStore})
 	backlogHandler.RegisterRoutes(s.router)
 	s.backlogHandler = backlogHandler
@@ -330,7 +333,7 @@ func (s *Server) registerOverviewRoutes(backlogHandler *backlog.Handler, initSer
 
 func (s *Server) registerCapturesRoutes(scenarioRoot string, backlogHandler *backlog.Handler) {
 	// Captures endpoints for quick-capture unified feed
-	capturesHandler := captures.NewHandler(scenarioRoot, s.agentSvc, nil)
+	capturesHandler := captures.NewHandler(scenarioRoot, s.requireTrackedAgentService(), nil)
 	capturesHandler.SetBacklogCreator(&backlogItemCreatorAdapter{store: backlogHandler.Store()})
 	capturesHandler.RegisterRoutes(s.router)
 	s.capturesHandler = capturesHandler
@@ -354,6 +357,15 @@ func (s *Server) registerSettingsRoutes(scenarioRoot string) {
 	if s.agentSvc != nil {
 		s.agentSvc.SetSettingsReader(&settingsAgentAdapter{store: s.settingsStore})
 	}
+}
+
+func (s *Server) registerAgentActivityRoutes(scenarioRoot string) {
+	s.agentActivitySvc = agentactivity.NewService(agentactivity.ServiceConfig{
+		StorePath:    filepath.Join(scenarioRoot, ".vrooli", "agent-activities.json"),
+		AgentService: s.agentSvc,
+	})
+	agentActivityHandler := agentactivity.NewHandler(s.agentActivitySvc)
+	agentActivityHandler.RegisterRoutes(s.router)
 }
 
 func (s *Server) registerAgentManagerRoutes() {
@@ -381,7 +393,7 @@ func (s *Server) registerExecutionRoutes(scenarioRoot string) {
 		StorePath:                filepath.Join(scenarioRoot, ".vrooli", "execution-runs.json"),
 		PolicyProvider:           &settingsPolicyAdapter{store: s.settingsStore},
 		ReviewThresholdsProvider: &settingsReviewThresholdsAdapter{store: s.settingsStore},
-		AgentService:             s.agentSvc,
+		AgentService:             s.requireTrackedAgentService(),
 		Archiver:                 archiver,
 		ReviewClient:             execution.NewHTTPReviewClient(nil),
 	}
@@ -495,19 +507,6 @@ func (a *executionAdapter) List(ctx context.Context, filters execution.ListFilte
 	return a.svc.List(ctx, filters)
 }
 
-// runStateAdapter bridges agentmanager.AgentService to graph.RunStateGetter.
-type runStateAdapter struct {
-	svc *agentmanager.AgentService
-}
-
-func (a *runStateAdapter) IsAvailable(ctx context.Context) bool {
-	return a.svc.IsAvailable(ctx)
-}
-
-func (a *runStateAdapter) GetRunState(ctx context.Context, runID string) (agentmanager.RunState, error) {
-	return a.svc.GetRunState(ctx, runID)
-}
-
 // backlogItemCreatorAdapter bridges backlog.Store to captures.BacklogItemCreator.
 type backlogItemCreatorAdapter struct {
 	store backlog.Store
@@ -566,8 +565,8 @@ func (s *Server) registerGraphRoutes(scenarioRoot string) {
 	if s.executionSvc != nil {
 		projCfg.Execution = &executionAdapter{svc: s.executionSvc}
 	}
-	if s.agentSvc != nil && s.agentSvc.IsEnabled() {
-		projCfg.RunState = &runStateAdapter{svc: s.agentSvc}
+	if s.agentActivitySvc != nil {
+		projCfg.Activity = s.agentActivitySvc
 	}
 	projSvc := graph.NewProjectionService(projCfg)
 	projectionCache := graph.NewProjectionCache(graph.ProjectionCacheConfig{
@@ -597,9 +596,19 @@ func (s *Server) registerGraphRoutes(scenarioRoot string) {
 	if s.executionSvc != nil {
 		s.executionSvc.SetEventDispatcher(dispatch)
 	}
+	if s.agentActivitySvc != nil {
+		s.agentActivitySvc.SetEventDispatcher(dispatch)
+	}
 	if s.scenariosHandler != nil {
 		s.scenariosHandler.SetEventDispatcher(dispatch)
 	}
+}
+
+func (s *Server) requireTrackedAgentService() *agentactivity.Service {
+	if s.agentActivitySvc == nil {
+		panic("agent activity service must be initialized before agent-dependent routes")
+	}
+	return s.agentActivitySvc
 }
 
 func (s *Server) registerPromptRoutes(scenarioRoot string) {

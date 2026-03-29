@@ -20,6 +20,7 @@ import (
 	"time"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/settings"
@@ -195,8 +196,7 @@ func (h *Handler) spawnWorkshopAsync(item BacklogItem, mode ResearchMode) (runID
 
 	service := h.agentService
 	if service == nil {
-		service = agentmanager.NewAgentService(agentmanager.DefaultServiceConfig())
-		h.agentService = service
+		return "", "", agentmanager.ErrNotAvailable
 	}
 
 	selection, promptErr := h.fetchResearchPrompt(ctx, item, mode)
@@ -206,7 +206,22 @@ func (h *Handler) spawnWorkshopAsync(item BacklogItem, mode ResearchMode) (runID
 		prompt = "Use the backlog item folder as context and perform the requested workshop refinement."
 	}
 
-	runResult, err := service.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
+	activityCtx := agentactivity.WithSpec(ctx, agentactivity.Spec{
+		OwnerType:   agentactivity.OwnerBacklog,
+		OwnerKind:   string(item.Kind),
+		OwnerName:   item.Name,
+		OwnerTitle:  item.Title,
+		Purpose:     researchPurpose(mode),
+		RequestedBy: "swarm-manager",
+		Metadata: map[string]string{
+			"entrypoint":     "backlog.workshop_auto_advance",
+			"mode":           string(mode),
+			"auto_triggered": "true",
+			"skill_id":       selection.SkillID,
+		},
+	})
+
+	runResult, err := service.SpawnBacklog(activityCtx, agentmanager.BacklogSpawnRequest{
 		Kind:        string(item.Kind),
 		Name:        item.Name,
 		Title:       buildResearchTitle(item, mode),

@@ -42,10 +42,25 @@ export const EDGE_STYLES: Record<string, EdgeStyleConfig> = {
     strokeDasharray: "5 3",
     label: "Follow-up",
   },
+  activity_for: {
+    stroke: "rgb(45 212 191)",     // teal-400
+    strokeDasharray: "7 3",
+    label: "Activity for",
+  },
+  records_activity: {
+    stroke: "rgb(192 132 252)",    // purple-400
+    strokeDasharray: "none",
+    label: "Records activity",
+  },
   spawned_run: {
     stroke: "rgb(244 114 182)",    // pink-400
     strokeDasharray: "3 2",
     label: "Spawned run",
+  },
+  continued_run: {
+    stroke: "rgb(244 114 182)",    // pink-400
+    strokeDasharray: "1 3",
+    label: "Continued run",
   },
 };
 
@@ -67,7 +82,13 @@ export function getEdgeStyle(edgeType: string | undefined): React.CSSProperties 
   };
 }
 
-export const SECONDARY_EDGE_TYPES = new Set<string>(["classified_as", "targets", "follow_up"]);
+export const SECONDARY_EDGE_TYPES = new Set<string>([
+  "classified_as",
+  "targets",
+  "follow_up",
+  "records_activity",
+  "continued_run",
+]);
 
 /** Threshold above which edges switch to straight lines for performance. */
 export const STRAIGHT_EDGE_THRESHOLD = 300;

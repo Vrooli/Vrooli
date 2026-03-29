@@ -84,6 +84,27 @@ describe("graphService", () => {
           },
         },
         {
+          id: "agent-activity/act-1",
+          type: "AgentActivity",
+          position: { x: 0, y: 0 },
+          data: {
+            activity: {
+              activity_id: "act-1",
+              owner_type: "backlog",
+              owner_kind: "execute",
+              owner_name: "my-feature",
+              owner_title: "My Feature",
+              execution_id: "ex-1",
+              purpose: "process",
+              interaction_type: "spawn",
+              status: "running",
+              requested_at: "2026-03-28T00:00:00Z",
+              run_id: "run-1",
+              task_id: "task-1",
+            },
+          },
+        },
+        {
           id: "run/run-1",
           type: "Run",
           position: { x: 0, y: 0 },
@@ -105,7 +126,7 @@ describe("graphService", () => {
       ],
       meta: {
         lens: "topology",
-        node_count: 4,
+        node_count: 5,
         edge_count: 1,
         generated_at: "2026-03-28T00:00:00Z",
         agent_manager_available: true,
@@ -116,13 +137,15 @@ describe("graphService", () => {
     const graph = await service.getGraph("topology");
     const backlogNode = graph.nodes[0];
     const executionNode = graph.nodes[2];
-    const runNode = graph.nodes[3];
+    const activityNode = graph.nodes[3];
+    const runNode = graph.nodes[4];
     const memberEdge = graph.edges[0];
 
     expect(graph.nodes.map((node) => node.type)).toEqual([
       "backlog",
       "initiative",
       "execution",
+      "agent-activity",
       "agent-run",
     ]);
     expect(backlogNode).toBeDefined();
@@ -136,6 +159,13 @@ describe("graphService", () => {
       label: "execute/my-feature",
       entityType: "execution",
     });
+    expect(activityNode).toBeDefined();
+    expect(activityNode?.data).toMatchObject({
+      label: "My Feature",
+      entityType: "agent-activity",
+      purpose: "process",
+      runId: "run-1",
+    });
     expect(runNode).toBeDefined();
     expect(runNode?.data).toMatchObject({
       label: "Run run-1",
@@ -148,7 +178,7 @@ describe("graphService", () => {
     });
     expect(graph.meta).toEqual({
       lens: "topology",
-      nodeCount: 4,
+      nodeCount: 5,
       edgeCount: 1,
       generatedAt: "2026-03-28T00:00:00Z",
       agentManagerAvailable: true,

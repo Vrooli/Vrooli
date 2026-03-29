@@ -81,7 +81,7 @@ message GraphScenarioNodeData {
 // GraphExecutionNodeData describes an execution node.
 message GraphExecutionNodeData {
   string execution_id = 1 [(buf.validate.field).string.min_len = 1];
-  string backlog_kind = 2 [(buf.validate.field).string = { in: ["idea", "research", "fix", "execute", "chore"] }];
+  string backlog_kind = 2 [(buf.validate.field).string = { in: ["idea", "research", "fix", "execute", "chore", "spec-sync"] }];
   string backlog_name = 3 [(buf.validate.field).string.min_len = 1];
   string status = 4 [(buf.validate.field).string = { in: [
     "pending",
@@ -99,6 +99,41 @@ message GraphExecutionNodeData {
   optional string run_id = 6;
 }
 
+// GraphAgentActivityNodeData describes a tracked agent activity node.
+message GraphAgentActivityNodeData {
+  string activity_id = 1 [(buf.validate.field).string.min_len = 1];
+  string owner_type = 2 [(buf.validate.field).string = { in: ["backlog", "capture", "scenario"] }];
+  optional string owner_kind = 3;
+  string owner_name = 4 [(buf.validate.field).string.min_len = 1];
+  optional string owner_title = 5;
+  optional string execution_id = 6;
+  string purpose = 7 [(buf.validate.field).string = { in: [
+    "initialize",
+    "workshop",
+    "finalize",
+    "research",
+    "process",
+    "fixup",
+    "followup",
+    "spec_sync",
+    "classify"
+  ] }];
+  string interaction_type = 8 [(buf.validate.field).string = { in: ["spawn", "continue"] }];
+  string status = 9 [(buf.validate.field).string = { in: [
+    "pending",
+    "starting",
+    "running",
+    "needs_review",
+    "complete",
+    "failed",
+    "cancelled",
+    "unspecified"
+  ] }];
+  optional string run_id = 10;
+  optional string task_id = 11;
+  string requested_at = 12 [(buf.validate.field).string.min_len = 1];
+}
+
 // GraphRunNodeData describes an agent-manager run node.
 message GraphRunNodeData {
   string run_id = 1 [(buf.validate.field).string.min_len = 1];
@@ -114,7 +149,8 @@ message GraphNodeData {
     GraphCaptureNodeData capture = 3;
     GraphScenarioNodeData scenario = 4;
     GraphExecutionNodeData execution = 5;
-    GraphRunNodeData run = 6;
+    GraphAgentActivityNodeData activity = 6;
+    GraphRunNodeData run = 7;
   }
 }
 
@@ -127,6 +163,7 @@ message GraphNode {
     "Capture",
     "Scenario",
     "ExecutionRecord",
+    "AgentActivity",
     "Run"
   ] }];
   GraphNodeData data = 3;
@@ -145,7 +182,10 @@ message GraphEdge {
     "targets",
     "executes",
     "follow_up",
-    "spawned_run"
+    "activity_for",
+    "records_activity",
+    "spawned_run",
+    "continued_run"
   ] }];
 }
 

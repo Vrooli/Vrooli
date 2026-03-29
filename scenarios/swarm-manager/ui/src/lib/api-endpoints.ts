@@ -54,6 +54,8 @@ export const API_ENDPOINTS = {
   executionRetry: (executionId: string) => `/execution/${executionId}/retry`,
   executionFollowUp: (executionId: string) => `/execution/${executionId}/follow-up`,
   executionTriggerReview: (executionId: string) => `/execution/${executionId}/trigger-review`,
+  agentActivities: "/agent-activities",
+  agentActivityById: (activityId: string) => `/agent-activities/${activityId}`,
   gctStatus: "/gct/status",
   promptsCatalog: "/prompts/catalog",
   promptSkills: "/prompts/skills",

@@ -12,6 +12,7 @@
 package backlog
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -36,11 +37,16 @@ import (
 	"swarm-manager/internal/workshop"
 )
 
+type AgentSpawner interface {
+	IsEnabled() bool
+	SpawnBacklog(ctx context.Context, req agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error)
+}
+
 // Handler provides HTTP handlers for backlog operations.
 type Handler struct {
 	rootDir            string
 	store              Store
-	agentService       agentmanager.Service
+	agentService       AgentSpawner
 	promptClient       promptmanager.Client
 	initiativeAssigner InitiativeAssigner
 	executionQueuer    ExecutionQueuer
@@ -62,13 +68,13 @@ func NewHandler(rootDir string) *Handler {
 	return &Handler{
 		rootDir:      rootDir,
 		store:        NewFileStore(rootDir),
-		agentService: nil, // Uses default discovery-backed service
+		agentService: nil,
 		promptClient: promptmanager.NewHTTPClient(),
 	}
 }
 
 // NewHandlerWithClients creates a new backlog handler with custom dependencies.
-func NewHandlerWithClients(rootDir string, agentService agentmanager.Service, promptClient promptmanager.Client) *Handler {
+func NewHandlerWithClients(rootDir string, agentService AgentSpawner, promptClient promptmanager.Client) *Handler {
 	if rootDir == "" {
 		rootDir = pathutil.ResolveScenarioRoot("swarm-manager")
 	}

@@ -182,8 +182,9 @@ swarm-manager backlog batch-create --file /tmp/meta-orch-items.json
 
 Workshop round 1 auto-initializes on item creation. Do not manually trigger it.
 
-If the session produced significant architecture context, upload an `orchestration-summary.md` to one of the new items so workshop agents inherit the planning context:
+If the session produced significant architecture context, upload it so workshop agents inherit the planning context. You can upload to either a backlog item or the initiative itself:
 
+**Upload to a backlog item** (for item-specific context):
 ```bash
 swarm-manager backlog file-upload --kind <kind> --name <name> --path orchestration-summary.md --stdin <<'EOF'
 # Meta-Orchestrator Summary
@@ -201,6 +202,24 @@ swarm-manager backlog file-upload --kind <kind> --name <name> --path orchestrati
 - ...
 EOF
 ```
+
+**Upload to the initiative** (for cross-item strategic context):
+```bash
+swarm-manager initiatives file-upload --name <initiative> --path orchestration-summary.md --stdin <<'EOF'
+# Initiative Context
+
+## Strategic Rationale
+[why this initiative exists and what success looks like]
+
+## Cross-Item Decisions
+[decisions that affect multiple items in this initiative]
+
+## Sequencing Notes
+[implementation order rationale, dependency reasoning]
+EOF
+```
+
+Prefer initiative-level uploads when the context spans multiple items. Prefer item-level uploads when context is specific to one item.
 
 ## Duplicate Handling
 

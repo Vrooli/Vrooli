@@ -14,6 +14,7 @@ import (
 	"time"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/promptcatalog"
@@ -88,6 +89,19 @@ func buildResearchTitle(item BacklogItem, mode ResearchMode) string {
 		return "Initialize: " + label
 	default:
 		return "Workshop: " + label
+	}
+}
+
+func researchPurpose(mode ResearchMode) agentactivity.Purpose {
+	switch mode {
+	case ResearchModeInitialize:
+		return agentactivity.PurposeInitialize
+	case ResearchModeFinalize:
+		return agentactivity.PurposeFinalize
+	case ResearchModeWorkshop:
+		return agentactivity.PurposeWorkshop
+	default:
+		return agentactivity.PurposeResearch
 	}
 }
 
@@ -212,8 +226,8 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 
 	service := h.agentService
 	if service == nil {
-		h.agentService = agentmanager.NewAgentService(agentmanager.DefaultServiceConfig())
-		service = h.agentService
+		httputil.ServiceUnavailable(w, "[backlog] research", "agent-manager is not available")
+		return
 	}
 
 	selection, promptErr := h.fetchResearchPrompt(r.Context(), item, mode)
@@ -309,7 +323,21 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	runResult, err := service.SpawnBacklog(r.Context(), agentmanager.BacklogSpawnRequest{
+	activityCtx := agentactivity.WithSpec(r.Context(), agentactivity.Spec{
+		OwnerType:   agentactivity.OwnerBacklog,
+		OwnerKind:   string(kind),
+		OwnerName:   item.Name,
+		OwnerTitle:  item.Title,
+		Purpose:     researchPurpose(mode),
+		RequestedBy: "swarm-manager",
+		Metadata: map[string]string{
+			"entrypoint": "backlog.research",
+			"mode":       string(mode),
+			"skill_id":   selection.SkillID,
+		},
+	})
+
+	runResult, err := service.SpawnBacklog(activityCtx, agentmanager.BacklogSpawnRequest{
 		Kind:        string(kind),
 		Name:        item.Name,
 		Title:       buildResearchTitle(item, mode),

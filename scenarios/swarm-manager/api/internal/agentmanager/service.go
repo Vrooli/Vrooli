@@ -465,6 +465,14 @@ func (s *AgentService) GetRunState(ctx context.Context, runID string) (RunState,
 	return state, nil
 }
 
+// ContinueRun sends a follow-up message to an existing run.
+func (s *AgentService) ContinueRun(ctx context.Context, runID string, message string) error {
+	if !s.enabled {
+		return ErrNotAvailable
+	}
+	return s.client.ContinueRun(ctx, runID, message)
+}
+
 // StopRun requests cancellation of an in-flight run.
 func (s *AgentService) StopRun(ctx context.Context, runID string) error {
 	if !s.enabled {

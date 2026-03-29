@@ -1,4 +1,7 @@
 import type {
+  AgentActivityInteractionType,
+  AgentActivityPurpose,
+  AgentActivityStatus,
   BacklogKind,
   BacklogStatus,
   CaptureStatus,
@@ -6,6 +9,7 @@ import type {
   ExecutionStatus,
 } from "../../types";
 import type {
+  AgentActivityGraphNodeData,
   BacklogGraphNodeData,
   CaptureGraphNodeData,
   ClusterGraphNodeData,
@@ -190,10 +194,48 @@ export function makeRunNode(
   };
 }
 
+export function makeAgentActivityNode(
+  id: string,
+  overrides: Partial<AgentActivityGraphNodeData> = {},
+): GraphNode {
+  const activityId = overrides.activityId ?? lastSegment(id);
+  const ownerName = overrides.ownerName ?? "task";
+  const ownerTitle = overrides.ownerTitle ?? ownerName;
+  const purpose = overrides.purpose ?? ("process" as AgentActivityPurpose);
+  const data: AgentActivityGraphNodeData = {
+    label: overrides.label ?? ownerTitle,
+    entityType: "agent-activity",
+    rawType: "AgentActivity",
+    activityId,
+    ownerType: overrides.ownerType ?? "backlog",
+    ownerKind: overrides.ownerKind ?? ("execute" as BacklogKind),
+    ownerName,
+    ownerTitle,
+    executionId: overrides.executionId,
+    purpose,
+    interactionType: overrides.interactionType ?? ("spawn" as AgentActivityInteractionType),
+    status: overrides.status ?? ("running" as AgentActivityStatus),
+    requestedAt: overrides.requestedAt ?? "2026-03-28T12:00:00Z",
+    runId: overrides.runId,
+    taskId: overrides.taskId,
+    pulsing: overrides.pulsing,
+    kind: overrides.kind ?? purpose,
+    ...overrides,
+  };
+
+  return {
+    id,
+    type: "agent-activity",
+    position: DEFAULT_POSITION,
+    data,
+  };
+}
+
 export function makeGraphNode(
   id: string,
   entityType: GraphEntityType,
   overrides:
+    | Partial<AgentActivityGraphNodeData>
     | Partial<BacklogGraphNodeData>
     | Partial<InitiativeGraphNodeData>
     | Partial<CaptureGraphNodeData>
@@ -212,8 +254,12 @@ export function makeGraphNode(
       return makeScenarioNode(id, overrides as Partial<ScenarioGraphNodeData>);
     case "execution":
       return makeExecutionNode(id, overrides as Partial<ExecutionGraphNodeData>);
+    case "agent-activity":
+      return makeAgentActivityNode(id, overrides as Partial<AgentActivityGraphNodeData>);
     case "agent-run":
       return makeRunNode(id, overrides as Partial<RunGraphNodeData>);
+    default:
+      throw new Error(`Unsupported graph entity type: ${entityType satisfies never}`);
   }
 }
 

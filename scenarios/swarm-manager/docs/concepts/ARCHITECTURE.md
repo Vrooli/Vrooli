@@ -4,7 +4,7 @@
 
 Swarm Manager is the **staging and review layer** for agent-generated plans. Its primary role is to receive work proposals from prompt-manager agent teams, let operators review and refine them, and then control when and how they execute.
 
-The primary operator surface is now the **graph workspace**. Operators navigate backlog items, initiatives, scenarios, executions, runs, and captures primarily through a graph-first view, with sidebar lists and detail routes serving as search, drill-down, and non-graph navigation paths.
+The primary operator surface is now the **graph workspace**. Operators navigate backlog items, initiatives, scenarios, executions, agent activities, runs, and captures primarily through a graph-first view, with sidebar lists and detail routes serving as search, drill-down, and non-graph navigation paths.
 
 ```
 prompt-manager                         swarm-manager
@@ -45,7 +45,8 @@ Recommendation generation lives in Prompt Manager teams, not in Swarm Manager.
 | **Backlog Item** | Unit of work stored as git-tracked folders (`idea`, `research`, `fix`, `execute`, `chore`) | `backlog` -> `researching` -> `ready` -> `queued` -> `in_progress` -> `completed`/`failed`/`archived` | [CODE: ui/src/types/domain.ts#BacklogItem] |
 | **Initiative** | Lightweight grouping of related backlog items by a shared label plus explicit initiative metadata | Derived from member items with explicit operator-managed metadata (`name`, `title`, `description`, `status`) | [CODE: api/internal/initiatives/service.go] |
 | **Dependency** | Directed edge between backlog items (`depends_on` field in spec.json) | N/A (structural, validated on write) | [CODE: api/internal/depgraph/graph.go] |
-| **Execution Run** | Governed execution record linked to backlog work | `pending` -> `scheduled` -> `running` -> `completed`/`failed`/`canceled` | [CODE: ui/src/types/domain.ts#ExecutionRecord] |
+| **Execution Run** | Governed execution-control record linked to backlog work | `pending` -> `scheduled` -> `running` -> `completed`/`failed`/`canceled` | [CODE: ui/src/types/domain.ts#ExecutionRecord] |
+| **Agent Activity** | Durable record for one tracked AgentManager interaction (`spawn` or `continue`) across backlog, scenario, and capture flows | `pending` -> `starting`/`running`/`needs_review` -> `complete`/`failed`/`cancelled` | [CODE: ui/src/types/domain.ts#AgentActivity] |
 | **Scenario** | Runtime scenario in the Vrooli ecosystem | `running`, `stopped`, `error`, `unknown` | [CODE: ui/src/types/domain.ts#Scenario] |
 
 ### Initiatives
@@ -82,7 +83,7 @@ Backlog items can declare dependencies on other items via the `depends_on` field
 
 4. **Execution lifecycle**
    ```
-   Queue backlog item (manual/scheduled/yolo) -> execution run record -> agent-manager run -> status tracked in Execution page
+   Queue backlog item (manual/scheduled/yolo) -> execution record -> tracked agent activity -> agent-manager run -> status tracked in Execution page and graph
    ```
 
 5. **Graph workspace projection**
@@ -108,7 +109,8 @@ Backlog items can declare dependencies on other items via the `depends_on` field
 ├─────────────────────────────────────────────────────────────┤
 │ DOMAIN LOGIC LAYER                                           │
 │ Backlog + initiatives + depgraph + overview + scenarios +    │
-│ execution + promptcatalog + settings orchestration           │
+│ execution + agentactivity + promptcatalog + settings         │
+│ orchestration                                                │
 ├─────────────────────────────────────────────────────────────┤
 │ INTEGRATION LAYER                                            │
 │ agent-manager + prompt-manager + ecosystem-manager + CLI     │
@@ -126,7 +128,7 @@ Backlog items can declare dependencies on other items via the `depends_on` field
 | API Gateway | Implemented | Health, graph, backlog (incl. batch), scenarios, settings, queue, execution, prompts, initiatives, overview, captures, agent-manager status |
 | Domain Logic | Implemented | CRUD, archive, queue, research, batch ops, dependency graph, initiatives, overview aggregation, execution scheduling and run control |
 | Integration | Implemented | Discovery-based clients (agent-manager, prompt-manager) and CLI-backed scenario operations |
-| Persistence | Filesystem-first | Backlog items and execution/settings/queue JSON persisted on disk |
+| Persistence | Filesystem-first | Backlog items and execution/agent-activity/settings/queue JSON persisted on disk |
 
 ## Workshop Readiness Model
 
@@ -151,8 +153,8 @@ See [DOC: docs/guides/workshop-workflow.md] for the full workshop pipeline and s
 Key implementation files:
 - Domain types: [CODE: ui/src/types/domain.ts]
 - API routes/composition: [CODE: api/main.go]
-- Graph workspace: [CODE: ui/src/surfaces/graph/]
-- Graph projection API: [CODE: api/internal/graph/]
+- Graph workspace: [CODE: ui/src/surfaces/graph/components/GraphWorkspace.tsx]
+- Graph projection API: [CODE: api/internal/graph/projection.go]
 - Backlog service: [CODE: ui/src/services/backlog-service.ts]
 - Graph service: [CODE: ui/src/services/graph-service.ts]
 - Scenarios service: [CODE: ui/src/services/scenarios-service.ts]
@@ -207,6 +209,7 @@ api/internal/
 - `/api/v1/settings/*` - settings persistence
 - `/api/v1/queue/*` - queue state operations
 - `/api/v1/execution/*` - execution runs and policy operations
+- `/api/v1/agent-activities/*` - tracked agent activity history and active runtime telemetry
 - `/api/v1/prompts/*` - prompt catalog, skill CRUD, versions, revert, preview, simulate
 - `/api/v1/agent-manager/status` - agent-manager availability
 
@@ -226,7 +229,7 @@ The skill intentionally supports long pre-creation planning so workshop auto-spa
 ## Design Principles
 
 1. **Backlog-first governance**: all planned scenario changes are represented as backlog artifacts.
-2. **Execution visibility**: every run has trackable state in the execution domain.
+2. **Execution visibility**: governed work is visible through execution records, and all agent usage is visible through agent activity records.
 3. **Delegated implementation**: Swarm Manager governs work; agent-manager performs work.
 4. **File-based context**: backlog artifacts remain human-readable and git-trackable.
 5. **Prompt-manager team ownership**: research and recommendations are generated by teams and written into backlog items.

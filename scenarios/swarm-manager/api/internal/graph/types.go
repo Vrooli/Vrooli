@@ -79,6 +79,22 @@ type GraphExecutionNodeData struct {
 	RunID       string `json:"run_id,omitempty"`
 }
 
+// GraphAgentActivityNodeData describes a tracked activity node payload.
+type GraphAgentActivityNodeData struct {
+	ActivityID      string `json:"activity_id"`
+	OwnerType       string `json:"owner_type"`
+	OwnerKind       string `json:"owner_kind,omitempty"`
+	OwnerName       string `json:"owner_name"`
+	OwnerTitle      string `json:"owner_title,omitempty"`
+	ExecutionID     string `json:"execution_id,omitempty"`
+	Purpose         string `json:"purpose"`
+	InteractionType string `json:"interaction_type"`
+	Status          string `json:"status"`
+	RunID           string `json:"run_id,omitempty"`
+	TaskID          string `json:"task_id,omitempty"`
+	RequestedAt     string `json:"requested_at"`
+}
+
 // GraphRunNodeData describes an agent-manager run node payload.
 type GraphRunNodeData struct {
 	RunID  string `json:"run_id"`
@@ -158,6 +174,8 @@ func NodeDataToProtoKind(data any) string {
 		return "scenario"
 	case GraphExecutionNodeData, *GraphExecutionNodeData:
 		return "execution"
+	case GraphAgentActivityNodeData, *GraphAgentActivityNodeData:
+		return "activity"
 	case GraphRunNodeData, *GraphRunNodeData:
 		return "run"
 	default:

@@ -3,7 +3,7 @@ package graph
 import (
 	"context"
 
-	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/execution"
 )
@@ -61,10 +61,10 @@ type ExecutionLister interface {
 	List(ctx context.Context, filters execution.ListFilters) ([]execution.Record, error)
 }
 
-// RunStateGetter retrieves live run state from agent-manager.
-type RunStateGetter interface {
+// AgentActivityLister retrieves tracked agent activity records.
+type AgentActivityLister interface {
+	List(ctx context.Context, filters agentactivity.ListFilters) ([]agentactivity.Record, error)
 	IsAvailable(ctx context.Context) bool
-	GetRunState(ctx context.Context, runID string) (agentmanager.RunState, error)
 }
 
 // Broadcaster sends real-time events to connected WebSocket clients.

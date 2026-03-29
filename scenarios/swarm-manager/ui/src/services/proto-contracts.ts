@@ -28,6 +28,10 @@ import { AgentManagerStatusResponseSchema } from "@vrooli/proto-types/swarm-mana
 import { GraphResponseSchema } from "@vrooli/proto-types/swarm-manager/v1/api/graph_pb";
 import { SettingsResponseSchema } from "@vrooli/proto-types/swarm-manager/v1/api/settings_pb";
 import {
+  ListAgentActivitiesResponseSchema,
+  AgentActivityResponseSchema,
+} from "@vrooli/proto-types/swarm-manager/v1/api/agent_activity_pb";
+import {
   ListScenariosResponseSchema,
   ScenarioResponseSchema,
   DeleteScenarioResponseSchema,
@@ -47,7 +51,13 @@ import {
   FollowUpExecutionRequestSchema,
 } from "@vrooli/proto-types/swarm-manager/v1/api/execution_pb";
 import type { ExecutionRecord as ProtoExecutionRecord } from "@vrooli/proto-types/swarm-manager/v1/domain/execution_pb";
+import type { AgentActivity as ProtoAgentActivity } from "@vrooli/proto-types/swarm-manager/v1/domain/agent_activity_pb";
 import type {
+  AgentActivity,
+  AgentActivityInteractionType,
+  AgentActivityOwnerType,
+  AgentActivityPurpose,
+  AgentActivityStatus,
   BacklogItem as BacklogItemDomain,
   BacklogFile as BacklogFileDomain,
   Scenario as ScenarioDomain,
@@ -95,6 +105,29 @@ const scenarioStatusSet = new Set<string>(SCENARIO_STATUSES);
 const fileTypeSet = new Set<string>(["file", "directory"]);
 const executionStatusSet = new Set<string>(EXECUTION_STATUSES);
 const executionModeSet = new Set<string>(EXECUTION_MODES);
+const agentActivityStatusSet = new Set<string>([
+  "pending",
+  "starting",
+  "running",
+  "needs_review",
+  "complete",
+  "failed",
+  "cancelled",
+  "unspecified",
+]);
+const agentActivityPurposeSet = new Set<string>([
+  "initialize",
+  "workshop",
+  "finalize",
+  "research",
+  "process",
+  "fixup",
+  "followup",
+  "spec_sync",
+  "classify",
+]);
+const agentActivityInteractionTypeSet = new Set<string>(["spawn", "continue"]);
+const agentActivityOwnerTypeSet = new Set<string>(["backlog", "capture", "scenario"]);
 
 function isBacklogStatus(value: unknown): value is BacklogItemDomain["status"] {
   return typeof value === "string" && backlogStatusSet.has(value);
@@ -118,6 +151,22 @@ function isExecutionStatus(value: unknown): value is ExecutionStatus {
 
 function isExecutionMode(value: unknown): value is ExecutionMode {
   return typeof value === "string" && executionModeSet.has(value);
+}
+
+function isAgentActivityStatus(value: unknown): value is AgentActivityStatus {
+  return typeof value === "string" && agentActivityStatusSet.has(value);
+}
+
+function isAgentActivityPurpose(value: unknown): value is AgentActivityPurpose {
+  return typeof value === "string" && agentActivityPurposeSet.has(value);
+}
+
+function isAgentActivityInteractionType(value: unknown): value is AgentActivityInteractionType {
+  return typeof value === "string" && agentActivityInteractionTypeSet.has(value);
+}
+
+function isAgentActivityOwnerType(value: unknown): value is AgentActivityOwnerType {
+  return typeof value === "string" && agentActivityOwnerTypeSet.has(value);
 }
 
 function isThemePreference(value: unknown): value is ThemePreference {
@@ -271,6 +320,14 @@ export const graphResponseSchema = createProtoSchema(
   GraphResponseSchema,
   "graph"
 );
+export const listAgentActivitiesResponseSchema = createProtoSchema(
+  ListAgentActivitiesResponseSchema,
+  "agent activities"
+);
+export const agentActivityResponseSchema = createProtoSchema(
+  AgentActivityResponseSchema,
+  "agent activity"
+);
 
 export { DeleteScenarioRequestSchema, PreserveFilesRequestSchema, SpecSyncArchiveRequestSchema };
 
@@ -397,12 +454,37 @@ export const executionResponseSchema = createProtoSchema(
 );
 export { CreateExecutionRequestSchema, FollowUpExecutionRequestSchema };
 
+export function mapProtoAgentActivity(proto: ProtoAgentActivity): AgentActivity {
+  return {
+    activityId: proto.activityId ?? "",
+    ownerType: isAgentActivityOwnerType(proto.ownerType) ? proto.ownerType : "backlog",
+    ownerKind: proto.ownerKind,
+    ownerName: proto.ownerName ?? "",
+    ownerTitle: proto.ownerTitle,
+    executionId: proto.executionId,
+    purpose: isAgentActivityPurpose(proto.purpose) ? proto.purpose : "process",
+    interactionType: isAgentActivityInteractionType(proto.interactionType)
+      ? proto.interactionType
+      : "spawn",
+    taskId: proto.taskId,
+    runId: proto.runId,
+    status: isAgentActivityStatus(proto.status) ? proto.status : "unspecified",
+    requestedAt: proto.requestedAt ?? "",
+    startedAt: proto.startedAt,
+    finishedAt: proto.finishedAt,
+    failureReason: proto.failureReason,
+    requestedBy: proto.requestedBy,
+    metadata: proto.metadata ?? {},
+    updatedAt: proto.updatedAt ?? "",
+  };
+}
+
 export function mapProtoExecutionRecord(proto: ProtoExecutionRecord): ExecutionRecordDomain {
   const status = isExecutionStatus(proto.status) ? proto.status : "pending";
   const mode = isExecutionMode(proto.mode) ? proto.mode : "manual";
   const record: ExecutionRecordDomain = {
     executionId: proto.executionId ?? "",
-    backlogKind: proto.backlogKind as ExecutionRecordDomain["backlogKind"],
+    backlogKind: (proto.backlogKind ?? "idea") as ExecutionRecordDomain["backlogKind"],
     backlogName: proto.backlogName ?? "",
     taskId: proto.taskId,
     runId: proto.runId,

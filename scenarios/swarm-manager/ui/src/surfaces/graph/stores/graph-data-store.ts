@@ -84,6 +84,7 @@ const DEFAULT_ENTITY_FILTERS: Record<EntityType, boolean> = {
   backlog: true,
   scenario: true,
   execution: true,
+  "agent-activity": true,
   capture: true,
   "agent-run": true,
   initiative: true,
@@ -136,6 +137,7 @@ function isEntityType(value: unknown): value is EntityType {
     value === "backlog" ||
     value === "scenario" ||
     value === "execution" ||
+    value === "agent-activity" ||
     value === "capture" ||
     value === "agent-run" ||
     value === "initiative"

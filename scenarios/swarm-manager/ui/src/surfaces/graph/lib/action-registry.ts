@@ -27,7 +27,7 @@ import {
   Users,
 } from "lucide-react";
 import type { GraphLens, EntityType } from "../stores/graph-data-store";
-import { getGraphNodeStatus, type GraphNode } from "../types";
+import { getGraphNodeData, getGraphNodeStatus, type GraphNode } from "../types";
 import { parseNodeId } from "./node-id-parser";
 import { API_ENDPOINTS } from "../../../lib/api-endpoints";
 import { defaultApiClient } from "../../../lib/api-client";
@@ -271,6 +271,68 @@ function makeStopAgentRunAction(): InspectorAction {
   };
 }
 
+function makeOpenActivityOwnerAction(): InspectorAction {
+  return {
+    id: "open-owner",
+    label: "Open Owner",
+    icon: Eye,
+    variant: "default",
+    async handler() { /* navigation handled by navigateTo */ },
+    navigateTo(node: GraphNode) {
+      const data = getGraphNodeData(node);
+      if (data.entityType !== "agent-activity") return null;
+      if (data.ownerType === "backlog" && data.ownerKind) {
+        return `/details/backlog/${data.ownerKind}/${data.ownerName}`;
+      }
+      if (data.ownerType === "scenario") {
+        return `/details/scenario/${data.ownerName}`;
+      }
+      return null;
+    },
+  };
+}
+
+function makeViewRecordedExecutionAction(): InspectorAction {
+  return {
+    id: "view-recorded-execution",
+    label: "Execution",
+    icon: Eye,
+    variant: "default",
+    enabled(node: GraphNode) {
+      const data = getGraphNodeData(node);
+      return data.entityType === "agent-activity" && Boolean(data.executionId);
+    },
+    async handler() { /* navigation handled by navigateTo */ },
+    navigateTo(node: GraphNode) {
+      const data = getGraphNodeData(node);
+      if (data.entityType !== "agent-activity" || !data.executionId) {
+        return null;
+      }
+      return `/details/execution/${data.executionId}`;
+    },
+  };
+}
+
+function makeStopActivityRunAction(): InspectorAction {
+  return {
+    id: "stop-activity-run",
+    label: "Stop",
+    icon: Square,
+    variant: "destructive",
+    enabled(node: GraphNode) {
+      const data = getGraphNodeData(node);
+      return data.entityType === "agent-activity" && Boolean(data.runId);
+    },
+    async handler(node: GraphNode) {
+      const data = getGraphNodeData(node);
+      if (data.entityType !== "agent-activity" || !data.runId) {
+        throw new Error("Cannot determine run identity");
+      }
+      await defaultApiClient.post(API_ENDPOINTS.agentManagerStopRun(data.runId), {});
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Topology action factory helpers
 // ---------------------------------------------------------------------------
@@ -510,6 +572,11 @@ export const actionRegistry: ActionRegistry = {
       makeQueueAction(),
       makeViewBacklogDetailsAction(),
     ],
+    "agent-activity": [
+      makeOpenActivityOwnerAction(),
+      makeViewRecordedExecutionAction(),
+      makeStopActivityRunAction(),
+    ],
     execution: [
       makeViewExecutionDetailsAction(),
       makeViewPromptTraceAction(),
@@ -525,6 +592,11 @@ export const actionRegistry: ActionRegistry = {
       makeScenarioStopAction(),
       makeScenarioRestartAction(),
       makeViewScenarioDetailsAction(),
+    ],
+    "agent-activity": [
+      makeOpenActivityOwnerAction(),
+      makeViewRecordedExecutionAction(),
+      makeStopActivityRunAction(),
     ],
     execution: [
       makeViewExecutionDetailsAction(),

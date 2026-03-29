@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/handoff"
 	"swarm-manager/internal/idgen"
@@ -76,6 +77,67 @@ func (d *defaultPolicyProvider) LoadPolicy() (Policy, error) {
 		MaxFixupAttempts:    2,
 		AutoFixup:           false,
 	}, nil
+}
+
+func executionActivityPurpose(runType string) agentactivity.Purpose {
+	switch strings.ToLower(strings.TrimSpace(runType)) {
+	case "initialize":
+		return agentactivity.PurposeInitialize
+	case "workshop":
+		return agentactivity.PurposeWorkshop
+	case "finalize":
+		return agentactivity.PurposeFinalize
+	case "research":
+		return agentactivity.PurposeResearch
+	case "process":
+		return agentactivity.PurposeProcess
+	case "fixup":
+		return agentactivity.PurposeFixup
+	case "followup", "custom":
+		return agentactivity.PurposeFollowUp
+	case "spec-sync", "spec_sync":
+		return agentactivity.PurposeSpecSync
+	case "classify":
+		return agentactivity.PurposeClassify
+	default:
+		return agentactivity.PurposeProcess
+	}
+}
+
+func backlogActivitySpec(
+	item backlogItem,
+	executionID string,
+	purpose agentactivity.Purpose,
+	requestedBy string,
+	metadata map[string]string,
+) agentactivity.Spec {
+	return agentactivity.Spec{
+		OwnerType:   agentactivity.OwnerBacklog,
+		OwnerKind:   item.Kind,
+		OwnerName:   item.Name,
+		OwnerTitle:  item.Title,
+		ExecutionID: executionID,
+		Purpose:     purpose,
+		RequestedBy: requestedBy,
+		Metadata:    metadata,
+	}
+}
+
+func scenarioActivitySpec(
+	ac ArchiveContext,
+	executionID string,
+	requestedBy string,
+	metadata map[string]string,
+) agentactivity.Spec {
+	return agentactivity.Spec{
+		OwnerType:   agentactivity.OwnerScenario,
+		OwnerName:   ac.ScenarioName,
+		OwnerTitle:  ac.ScenarioName,
+		ExecutionID: executionID,
+		Purpose:     agentactivity.PurposeSpecSync,
+		RequestedBy: requestedBy,
+		Metadata:    metadata,
+	}
 }
 
 // ServiceConfig configures execution service dependencies.
@@ -343,7 +405,16 @@ func (s *Service) QueueSpecSyncArchive(ctx context.Context, ac ArchiveContext) (
 	}
 
 	// Spawn agent targeting the scenario directory
-	runResult, err := s.agentService.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
+	activityCtx := agentactivity.WithSpec(ctx, scenarioActivitySpec(
+		ac,
+		record.ExecutionID,
+		record.StartedBy,
+		map[string]string{
+			"entrypoint": "execution.spec_sync_archive",
+		},
+	))
+
+	runResult, err := s.agentService.SpawnBacklog(activityCtx, agentmanager.BacklogSpawnRequest{
 		Kind:        "spec-sync",
 		Name:        ac.ScenarioName,
 		Title:       "Spec sync: " + ac.ScenarioName,
@@ -442,7 +513,19 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 		CapturedAt:     nowRFC3339(),
 	}
 
-	runResult, err := s.agentService.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
+	activityCtx := agentactivity.WithSpec(ctx, backlogActivitySpec(
+		item,
+		record.ExecutionID,
+		agentactivity.PurposeProcess,
+		record.StartedBy,
+		map[string]string{
+			"entrypoint": "execution.start",
+			"mode":       string(record.Mode),
+			"operation":  record.Operation,
+		},
+	))
+
+	runResult, err := s.agentService.SpawnBacklog(activityCtx, agentmanager.BacklogSpawnRequest{
 		Kind:            item.Kind,
 		Name:            item.Name,
 		Title:           buildProcessingTitle(item),
@@ -968,7 +1051,18 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 	}
 	records = append(records, fixupRecord)
 
-	runResult, err := s.agentService.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
+	activityCtx := agentactivity.WithSpec(ctx, backlogActivitySpec(
+		item,
+		fixupRecord.ExecutionID,
+		agentactivity.PurposeFixup,
+		"swarm-manager:fixup",
+		map[string]string{
+			"entrypoint": "execution.fixup",
+			"attempt":    fmt.Sprintf("%d", fixupRecord.FixupAttempt),
+		},
+	))
+
+	runResult, err := s.agentService.SpawnBacklog(activityCtx, agentmanager.BacklogSpawnRequest{
 		Kind:            item.Kind,
 		Name:            item.Name,
 		Title:           fmt.Sprintf("Fix-up: %s/%s (attempt %d)", item.Kind, item.Name, fixupRecord.FixupAttempt),
@@ -1112,7 +1206,19 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 		if s.continuer == nil {
 			return Record{}, fmt.Errorf("cannot follow up: run continuation not available")
 		}
-		if err := s.continuer.ContinueRun(ctx, parent.RunID, prompt); err != nil {
+		continueCtx := agentactivity.WithSpec(ctx, backlogActivitySpec(
+			item,
+			followUpRecord.ExecutionID,
+			executionActivityPurpose(runType),
+			followUpRecord.StartedBy,
+			map[string]string{
+				"entrypoint":      "execution.follow_up",
+				"follow_up_type":  runType,
+				"run_mode":        req.RunMode,
+				"parent_execution": parent.ExecutionID,
+			},
+		))
+		if err := s.continuer.ContinueRun(continueCtx, parent.RunID, prompt); err != nil {
 			if strings.Contains(err.Error(), "session_expired") || strings.Contains(err.Error(), "continuation_not_supported") {
 				return Record{}, fmt.Errorf("%w: %v", errSessionExpired, err)
 			}
@@ -1124,7 +1230,19 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 		followUpRecord.StartedAt = now
 	} else {
 		// Spawn a fresh run.
-		runResult, spawnErr := s.agentService.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
+		spawnCtx := agentactivity.WithSpec(ctx, backlogActivitySpec(
+			item,
+			followUpRecord.ExecutionID,
+			executionActivityPurpose(runType),
+			followUpRecord.StartedBy,
+			map[string]string{
+				"entrypoint":       "execution.follow_up",
+				"follow_up_type":   runType,
+				"run_mode":         req.RunMode,
+				"parent_execution": parent.ExecutionID,
+			},
+		))
+		runResult, spawnErr := s.agentService.SpawnBacklog(spawnCtx, agentmanager.BacklogSpawnRequest{
 			Kind:            item.Kind,
 			Name:            item.Name,
 			Title:           fmt.Sprintf("Follow-up: %s/%s", item.Kind, item.Name),

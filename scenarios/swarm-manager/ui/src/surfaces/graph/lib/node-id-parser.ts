@@ -22,6 +22,7 @@ const PREFIX_MAP: Record<string, EntityType> = {
   "backlog-item": "backlog",
   "scenario": "scenario",
   "execution-record": "execution",
+  "agent-activity": "agent-activity",
   "agent-run": "agent-run",
   "run": "agent-run",
   "capture": "capture",
@@ -36,6 +37,7 @@ const PREFIX_MAP: Record<string, EntityType> = {
  * - backlog-item/{kind}/{name}  → entityType: "backlog", kind, name
  * - scenario/{name}             → entityType: "scenario", name
  * - execution-record/{id}       → entityType: "execution", identifier
+ * - agent-activity/{id}         → entityType: "agent-activity", identifier
  * - run/{runId}                 → entityType: "agent-run", identifier
  * - capture/{id}                → entityType: "capture", identifier
  * - initiative/{name}           → entityType: "initiative", name
@@ -137,6 +139,10 @@ export function buildExecutionNodeId(executionId: string): string {
   return `execution-record/${executionId}`;
 }
 
+export function buildActivityNodeId(activityId: string): string {
+  return `agent-activity/${activityId}`;
+}
+
 export function buildRunNodeId(runId: string): string {
   return `run/${runId}`;
 }
@@ -150,6 +156,8 @@ export function toCanonicalNodeId(nodeId: string): string {
       return parsed.kind && parsed.name ? buildBacklogNodeId(parsed.kind, parsed.name) : nodeId;
     case "execution":
       return buildExecutionNodeId(parsed.identifier);
+    case "agent-activity":
+      return buildActivityNodeId(parsed.identifier);
     case "agent-run":
       return buildRunNodeId(parsed.identifier);
     case "scenario":

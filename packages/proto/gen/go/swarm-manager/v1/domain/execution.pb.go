@@ -534,11 +534,11 @@ var File_swarm_manager_v1_domain_execution_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\n" +
-	"'swarm-manager/v1/domain/execution.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xdb\n" +
+	"'swarm-manager/v1/domain/execution.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xe6\n" +
 	"\n" +
 	"\x0fExecutionRecord\x12*\n" +
-	"\fexecution_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vexecutionId\x12M\n" +
-	"\fbacklog_kind\x18\x02 \x01(\tB*\xbaH'r%R\x04ideaR\x03fixR\aexecuteR\bresearchR\x05choreR\vbacklogKind\x12*\n" +
+	"\fexecution_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vexecutionId\x12X\n" +
+	"\fbacklog_kind\x18\x02 \x01(\tB5\xbaH2r0R\x04ideaR\x03fixR\aexecuteR\bresearchR\x05choreR\tspec-syncR\vbacklogKind\x12*\n" +
 	"\fbacklog_name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vbacklogName\x12\x1c\n" +
 	"\atask_id\x18\x04 \x01(\tH\x00R\x06taskId\x88\x01\x01\x12\x1a\n" +
 	"\x06run_id\x18\x05 \x01(\tH\x01R\x05runId\x88\x01\x01\x12\x88\x01\n" +

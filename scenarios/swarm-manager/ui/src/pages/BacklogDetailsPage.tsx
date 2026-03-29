@@ -120,7 +120,7 @@ import type {
   ReviewUpdate,
 } from "../types";
 import type { WorkshopRound } from "../types/domain";
-import { selectLatestRunForBacklog, useAgentRunsStore, useBacklogStore } from "../stores";
+import { selectLatestActivityForBacklog, useAgentActivitiesStore, useBacklogStore } from "../stores";
 
 /** Statuses that users can manually set via the status dropdown. "queued" and "in_progress" are execution-system-only. */
 const USER_SETTABLE_STATUSES: BacklogStatus[] = ["backlog", "researching", "ready", "failed", "completed", "archived"];
@@ -238,76 +238,24 @@ export function BacklogDetailsPage() {
     () => allBacklogItems.find((i) => i.kind === backlogKind && i.name === name),
     [allBacklogItems, backlogKind, name],
   );
-  const upsertSpawnedRun = useAgentRunsStore((state) => state.upsertSpawnedRun);
-  const refreshRun = useAgentRunsStore((state) => state.refreshRun);
-  const stopRun = useAgentRunsStore((state) => state.stopRun);
-  const latestAgentRun = useAgentRunsStore((state) => {
+  const refreshActivities = useAgentActivitiesStore((state) => state.refreshActivities);
+  const stopRun = useAgentActivitiesStore((state) => state.stopRun);
+  const latestAgentActivity = useAgentActivitiesStore((state) => {
     if (!backlogKind || !name) return null;
-    return selectLatestRunForBacklog(state, backlogKind, name);
+    return selectLatestActivityForBacklog(state, backlogKind, name);
   });
-
-  // Sync the agentRunsStore with the execution service's canonical run ID.
-  //
-  // The execution service is the single source of truth for which run is
-  // associated with a backlog item. When an execution is retried, the
-  // execution record gets a new RunID, but the agentRunsStore (localStorage)
-  // still points to the old run. This effect detects the mismatch and
-  // updates the store so the active run banner shows the correct run.
   useEffect(() => {
-    if (!backlogKind || !name) return;
-    let cancelled = false;
-    const sync = async () => {
-      try {
-        const executions = await executionService.list({
-          backlogKind: backlogKind as BacklogKind,
-          backlogName: name,
-        });
-        if (cancelled || executions.length === 0) return;
-        // Find the most recent execution with a run ID.
-        const latest = executions
-          .filter((e) => e.runId)
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-        if (!latest?.runId) return;
-        const currentStoreRun = useAgentRunsStore.getState().runs.find(
-          (r) => r.backlogKind === backlogKind && r.backlogName === name,
-        );
-        // If the execution service has a different (newer) run ID, update the store.
-        if (!currentStoreRun || currentStoreRun.runId !== latest.runId) {
-          upsertSpawnedRun({
-            runId: latest.runId,
-            taskId: latest.taskId ?? "",
-            baseUrl: currentStoreRun?.baseUrl ?? "",
-            createdAt: latest.createdAt,
-            backlogKind: backlogKind as BacklogKind,
-            backlogName: name,
-          });
-          // Immediately refresh the new run to get its current status.
-          void refreshRun(latest.runId);
-        }
-      } catch {
-        // Execution service unavailable — keep existing store data.
-      }
-    };
-    void sync();
-    return () => { cancelled = true; };
-  }, [backlogKind, name, upsertSpawnedRun, refreshRun]);
-
-  // Auto-refresh the latest agent run while it's in an active status.
-  // Without this, the BacklogDetailsPage shows stale localStorage data
-  // while the ExecutionPage (which polls independently) shows the real status.
-  const agentRunId = latestAgentRun?.runId;
-  const agentRunIsActive = latestAgentRun
-    ? ["pending", "starting", "running", "needs_review"].includes(latestAgentRun.status)
-    : false;
-  useEffect(() => {
-    if (!agentRunId || !agentRunIsActive) return;
-    // Refresh immediately on mount/when run becomes active.
-    void refreshRun(agentRunId);
+    void refreshActivities(true);
     const interval = window.setInterval(() => {
-      void refreshRun(agentRunId);
+      void refreshActivities(true);
     }, AGENT_RUN_REFRESH_MS);
     return () => window.clearInterval(interval);
-  }, [agentRunId, agentRunIsActive, refreshRun]);
+  }, [refreshActivities]);
+
+  const agentRunId = latestAgentActivity?.runId;
+  const agentRunIsActive = latestAgentActivity
+    ? ["pending", "starting", "running", "needs_review"].includes(latestAgentActivity.status)
+    : false;
 
   const workspaceRef = useRef<HTMLDivElement | null>(null);
   const headerFileActionsRef = useRef<HTMLDivElement | null>(null);
@@ -515,14 +463,16 @@ export function BacklogDetailsPage() {
 
   // Human-readable label for the active agent run mode (e.g. "Running workshop…").
   const agentRunningLabel = useMemo(() => {
-    if (!agentRunIsActive || !latestAgentRun) return "Agent running…";
-    switch (latestAgentRun.mode) {
+    if (!agentRunIsActive || !latestAgentActivity) return "Agent running…";
+    switch (latestAgentActivity.purpose) {
       case "workshop": return "Running workshop…";
       case "finalize": return "Running finalize…";
       case "research": return "Running research…";
+      case "initialize": return "Initializing workshop…";
+      case "process": return "Processing…";
       default: return "Agent running…";
     }
-  }, [agentRunIsActive, latestAgentRun]);
+  }, [agentRunIsActive, latestAgentActivity]);
 
   const isPageLoading = isLoadingItem && !item;
   const pageError = itemError;
@@ -608,17 +558,7 @@ export function BacklogDetailsPage() {
     onSuccess: (result: ResearchResponse, variables) => {
       setShowAgentDialog(false);
       if (!backlogKind || !name) return;
-      upsertSpawnedRun({
-        runId: result.runId,
-        taskId: result.taskId,
-        baseUrl: result.baseUrl,
-        createdAt: result.created,
-        backlogKind,
-        backlogName: name,
-        backlogTitle: item?.title ?? name,
-        mode: variables.mode ?? "research",
-      });
-      void refreshRun(result.runId);
+      void refreshActivities(true);
       void queryClient.invalidateQueries({ queryKey: ["backlog-maturity-summary"] });
       void queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
     },
@@ -640,16 +580,8 @@ export function BacklogDetailsPage() {
       void refetchFiles();
       void refetchWorkshopRounds();
 
-      // Track auto-advanced agent run so UI shows "generating next round..." state.
       if (result.autoAdvance.triggered && result.autoAdvance.runId) {
-        upsertSpawnedRun({
-          runId: result.autoAdvance.runId,
-          taskId: result.autoAdvance.taskId ?? "",
-          baseUrl: "",
-          backlogKind: backlogKind,
-          backlogName: name,
-          createdAt: new Date().toISOString(),
-        });
+        void refreshActivities(true);
       }
     },
   });
@@ -1873,36 +1805,36 @@ export function BacklogDetailsPage() {
     </div>
   );
 
-  const activeRunBanner = agentRunIsActive && latestAgentRun ? (
+  const activeRunBanner = agentRunIsActive && latestAgentActivity ? (
     <div
       className="flex items-center gap-2 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5"
       data-testid={selectors.backlogDetails.activeRunBanner}
     >
       <span className="relative flex h-2 w-2 shrink-0">
         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
-        <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500" />
+      <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500" />
       </span>
       <span className="text-xs font-medium capitalize text-cyan-200">
-        {latestAgentRun.status.replace("_", " ")}
+        {latestAgentActivity.status.replace("_", " ")}
       </span>
-      {latestAgentRun.mode && (
+      {latestAgentActivity.purpose && (
         <span className="rounded bg-cyan-500/20 px-1.5 py-0.5 text-[11px] font-medium text-cyan-300">
-          {latestAgentRun.mode}
+          {latestAgentActivity.purpose.replace("_", " ")}
         </span>
       )}
       <span className="text-xs text-slate-400">
-        {formatRelativeTime(latestAgentRun.createdAt)}
+        {formatRelativeTime(latestAgentActivity.requestedAt)}
       </span>
       <div className="ml-auto flex items-center gap-1.5">
         <Button
           variant="outline"
           size="sm"
           className="h-7 px-2 text-xs"
-          onClick={() => void stopRun(latestAgentRun.runId)}
-          disabled={latestAgentRun.isStopping}
+          onClick={() => void stopRun(latestAgentActivity.runId ?? "")}
+          disabled={latestAgentActivity.isStopping}
         >
           <Square className="mr-1 h-3 w-3" />
-          {latestAgentRun.isStopping ? "Stopping..." : "Stop"}
+          {latestAgentActivity.isStopping ? "Stopping..." : "Stop"}
         </Button>
         <Button
           variant="outline"
@@ -1953,7 +1885,7 @@ export function BacklogDetailsPage() {
         <div className="mt-2 space-y-1.5">
           {executionHistory.slice(0, 5).map((exec: ExecutionRecord) => {
             const isExpanded = expandedExecIds.has(exec.executionId);
-            const isActiveExecRun = !!(exec.runId && latestAgentRun && exec.runId === latestAgentRun.runId && agentRunIsActive);
+            const isActiveExecRun = !!(exec.runId && latestAgentActivity && exec.runId === latestAgentActivity.runId && agentRunIsActive);
             const duration = exec.startedAt && exec.finishedAt
               ? (new Date(exec.finishedAt).getTime() - new Date(exec.startedAt).getTime()) / 1000
               : undefined;
@@ -2032,11 +1964,11 @@ export function BacklogDetailsPage() {
                           variant="outline"
                           size="sm"
                           className="h-7 px-2 text-xs"
-                          onClick={() => void stopRun(latestAgentRun.runId)}
-                          disabled={latestAgentRun.isStopping}
+                          onClick={() => void stopRun(latestAgentActivity?.runId ?? "")}
+                          disabled={latestAgentActivity?.isStopping}
                         >
                           <Square className="mr-1 h-3 w-3" />
-                          {latestAgentRun.isStopping ? "Stopping..." : "Stop"}
+                          {latestAgentActivity?.isStopping ? "Stopping..." : "Stop"}
                         </Button>
                       )}
                       {canFollowUpExecution(exec.status as ExecutionStatus) && (

@@ -6,7 +6,7 @@ import { selectors } from "../../consts/selectors";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { applyTheme, cn, defaultQueryOptions, formatRelativeTime, watchSystemTheme } from "../../lib";
 import { settingsService } from "../../services";
-import { useAgentRunsStore, useBacklogStore, useScenariosStore } from "../../stores";
+import { useAgentActivitiesStore, useBacklogStore, useScenariosStore } from "../../stores";
 
 interface TabConfig {
   id: string;
@@ -40,9 +40,9 @@ export function MainLayout() {
   const navigate = useNavigate();
   const fetchBacklog = useBacklogStore((state) => state.fetchBacklog);
   const fetchScenarios = useScenariosStore((state) => state.fetchScenarios);
-  const agentRuns = useAgentRunsStore((state) => state.runs);
-  const stopRun = useAgentRunsStore((state) => state.stopRun);
-  const refreshActiveRuns = useAgentRunsStore((state) => state.refreshActiveRuns);
+  const agentActivities = useAgentActivitiesStore((state) => state.activities);
+  const stopRun = useAgentActivitiesStore((state) => state.stopRun);
+  const refreshActivities = useAgentActivitiesStore((state) => state.refreshActivities);
   const [showAgentsDropdown, setShowAgentsDropdown] = useState(false);
 
   const { data: settings } = useQuery({
@@ -74,12 +74,12 @@ export function MainLayout() {
   }, [fetchBacklog, fetchScenarios]);
 
   useEffect(() => {
-    void refreshActiveRuns();
+    void refreshActivities(true);
     const timer = window.setInterval(() => {
-      void refreshActiveRuns();
+      void refreshActivities(true);
     }, 5000);
     return () => window.clearInterval(timer);
-  }, [refreshActiveRuns]);
+  }, [refreshActivities]);
 
   useEffect(() => {
     const theme = settings?.theme ?? "dark";
@@ -94,22 +94,11 @@ export function MainLayout() {
     return undefined;
   }, [settings?.theme]);
 
-  const sortedActiveRuns = useMemo(() => {
-    return [...agentRuns]
-      .filter((run) => ["pending", "starting", "running", "needs_review"].includes(run.status))
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [agentRuns]);
-
-  const formatDuration = (seconds?: number): string => {
-    if (!seconds || seconds <= 0) return "Unknown";
-    if (seconds < 60) return `${Math.round(seconds)}s`;
-    const minutes = Math.floor(seconds / 60);
-    const remainder = Math.round(seconds % 60);
-    if (minutes < 60) return `${minutes}m ${remainder}s`;
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    return `${hours}h ${remainingMinutes}m`;
-  };
+  const sortedActiveActivities = useMemo(() => {
+    return [...agentActivities].sort(
+      (a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime()
+    );
+  }, [agentActivities]);
 
   return (
     <div
@@ -163,7 +152,7 @@ export function MainLayout() {
               <Activity className="h-4 w-4 text-cyan-300" />
               Agents running
               <span className="rounded-full bg-cyan-500/20 px-2 py-0.5 text-xs text-cyan-200">
-                {sortedActiveRuns.length}
+                {sortedActiveActivities.length}
               </span>
             </button>
             {showAgentsDropdown && (
@@ -181,7 +170,7 @@ export function MainLayout() {
                   <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2">
                     <div>
                       <p className="text-sm font-semibold text-slate-100">Agents running</p>
-                      <p className="text-xs text-slate-400">{sortedActiveRuns.length} active run(s)</p>
+                      <p className="text-xs text-slate-400">{sortedActiveActivities.length} active activity item(s)</p>
                     </div>
                     <button
                       type="button"
@@ -192,50 +181,54 @@ export function MainLayout() {
                     </button>
                   </div>
                   <div className="max-h-80 overflow-y-auto p-2">
-                    {sortedActiveRuns.length === 0 ? (
+                    {sortedActiveActivities.length === 0 ? (
                       <p className="rounded-lg border border-slate-800 bg-slate-900/40 px-3 py-6 text-center text-sm text-slate-400">
                         No agents are currently running.
                       </p>
                     ) : (
                       <div className="space-y-2">
-                        {sortedActiveRuns.map((run) => (
-                          <div key={run.runId} className="rounded-lg border border-slate-800 bg-slate-900/45 p-3">
+                        {sortedActiveActivities.map((activity) => (
+                          <div key={activity.activityId} className="rounded-lg border border-slate-800 bg-slate-900/45 p-3">
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0">
                                 <p className="truncate text-sm font-medium text-slate-100">
-                                  {run.backlogTitle ?? `${run.backlogKind}/${run.backlogName}`}
+                                  {activity.ownerTitle ?? `${activity.ownerType}/${activity.ownerName}`}
                                 </p>
-                                <p className="font-mono text-xs text-cyan-300">{run.runId}</p>
+                                {activity.runId && (
+                                  <p className="font-mono text-xs text-cyan-300">{activity.runId}</p>
+                                )}
                               </div>
                               <span className="rounded-full bg-cyan-500/15 px-2 py-0.5 text-[11px] text-cyan-200">
-                                {run.status.replace("_", " ")}
+                                {activity.status.replace("_", " ")}
                               </span>
                             </div>
                             <p className="mt-1 text-xs text-slate-400">
-                              Spawned {formatRelativeTime(run.createdAt)} • Duration {formatDuration(run.durationSeconds)}
+                              {activity.purpose.replace("_", " ")} • Requested {formatRelativeTime(activity.requestedAt)}
                             </p>
                             <div className="mt-2 flex items-center gap-2">
-                              {run.backlogKind && run.backlogName && (
+                              {activity.ownerType === "backlog" && activity.ownerKind && activity.ownerName && (
                                 <button
                                   type="button"
                                   className="rounded border border-slate-700/80 bg-slate-900/60 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800/70"
                                   onClick={() => {
-                                    navigate(`/backlog/${run.backlogKind}/${run.backlogName}`);
+                                    navigate(`/backlog/${activity.ownerKind}/${activity.ownerName}`);
                                     setShowAgentsDropdown(false);
                                   }}
                                 >
                                   Open
                                 </button>
                               )}
-                              <button
-                                type="button"
-                                className="rounded border border-red-500/40 bg-red-500/10 px-2 py-1 text-xs text-red-200 hover:bg-red-500/20"
-                                onClick={() => void stopRun(run.runId)}
-                                disabled={run.isStopping}
-                              >
-                                <Square className="mr-1 inline h-3 w-3" />
-                                {run.isStopping ? "Stopping..." : "Stop"}
-                              </button>
+                              {activity.runId && (
+                                <button
+                                  type="button"
+                                  className="rounded border border-red-500/40 bg-red-500/10 px-2 py-1 text-xs text-red-200 hover:bg-red-500/20"
+                                  onClick={() => void stopRun(activity.runId ?? "")}
+                                  disabled={activity.isStopping}
+                                >
+                                  <Square className="mr-1 inline h-3 w-3" />
+                                  {activity.isStopping ? "Stopping..." : "Stop"}
+                                </button>
+                              )}
                             </div>
                           </div>
                         ))}

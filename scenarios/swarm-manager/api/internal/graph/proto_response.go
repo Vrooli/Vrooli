@@ -153,6 +153,41 @@ func encodeGraphNodeData(data any) (*domainpb.GraphNodeData, error) {
 				Execution: msg,
 			},
 		}, nil
+	case GraphAgentActivityNodeData:
+		return encodeGraphNodeData(&value)
+	case *GraphAgentActivityNodeData:
+		if value == nil {
+			return nil, fmt.Errorf("missing activity node data")
+		}
+		msg := &domainpb.GraphAgentActivityNodeData{
+			ActivityId:      value.ActivityID,
+			OwnerType:       value.OwnerType,
+			OwnerName:       value.OwnerName,
+			Purpose:         value.Purpose,
+			InteractionType: value.InteractionType,
+			Status:          value.Status,
+			RequestedAt:     value.RequestedAt,
+		}
+		if value.OwnerKind != "" {
+			msg.OwnerKind = proto.String(value.OwnerKind)
+		}
+		if value.OwnerTitle != "" {
+			msg.OwnerTitle = proto.String(value.OwnerTitle)
+		}
+		if value.ExecutionID != "" {
+			msg.ExecutionId = proto.String(value.ExecutionID)
+		}
+		if value.RunID != "" {
+			msg.RunId = proto.String(value.RunID)
+		}
+		if value.TaskID != "" {
+			msg.TaskId = proto.String(value.TaskID)
+		}
+		return &domainpb.GraphNodeData{
+			Value: &domainpb.GraphNodeData_Activity{
+				Activity: msg,
+			},
+		}, nil
 	case GraphRunNodeData:
 		return encodeGraphNodeData(&value)
 	case *GraphRunNodeData:

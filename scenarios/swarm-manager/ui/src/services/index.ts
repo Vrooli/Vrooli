@@ -30,6 +30,10 @@ export type { ISettingsService } from "./settings-service";
 export { agentManagerService, createAgentManagerService } from "./agent-manager-service";
 export type { IAgentManagerService } from "./agent-manager-service";
 
+// Agent Activity
+export { agentActivityService, createAgentActivityService } from "./agent-activity-service";
+export type { IAgentActivityService, ListAgentActivitiesFilters } from "./agent-activity-service";
+
 // Execution
 export { executionService, createExecutionService } from "./execution-service";
 export type { IExecutionService, CreateExecutionRequest, ListExecutionFilters } from "./execution-service";

@@ -26,6 +26,18 @@ describe("getEdgeStyle", () => {
     expect(style.strokeDasharray).toBeUndefined();
   });
 
+  it("returns dashed teal for activity_for", () => {
+    const style = getEdgeStyle("activity_for");
+    expect(style.stroke).toBe("rgb(45 212 191)");
+    expect(style.strokeDasharray).toBe("7 3");
+  });
+
+  it("returns dotted pink for continued_run", () => {
+    const style = getEdgeStyle("continued_run");
+    expect(style.stroke).toBe("rgb(244 114 182)");
+    expect(style.strokeDasharray).toBe("1 3");
+  });
+
   it("returns default style for unknown edge types", () => {
     const style = getEdgeStyle("unknown_type");
     expect(style.stroke).toBe("rgb(100 116 139 / 0.5)");
@@ -38,9 +50,18 @@ describe("getEdgeStyle", () => {
 });
 
 describe("EDGE_STYLES", () => {
-  it("has entries for all 4 topology edge types", () => {
+  it("has entries for the graph edge types surfaced in the workspace", () => {
     expect(Object.keys(EDGE_STYLES)).toEqual(
-      expect.arrayContaining(["depends_on", "member_of", "classified_as", "targets"]),
+      expect.arrayContaining([
+        "depends_on",
+        "member_of",
+        "classified_as",
+        "targets",
+        "activity_for",
+        "records_activity",
+        "spawned_run",
+        "continued_run",
+      ]),
     );
   });
 

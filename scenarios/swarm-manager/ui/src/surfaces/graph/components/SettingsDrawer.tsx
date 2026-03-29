@@ -44,8 +44,9 @@ const ENTITY_META: Array<{ type: EntityType; label: string; icon: React.ElementT
   { type: "backlog", label: "Backlog", icon: Lightbulb },
   { type: "scenario", label: "Scenarios", icon: Package },
   { type: "execution", label: "Execution", icon: Zap },
-  { type: "capture", label: "Captures", icon: MessageSquare },
+  { type: "agent-activity", label: "Activities", icon: Activity },
   { type: "agent-run", label: "Runs", icon: Activity },
+  { type: "capture", label: "Captures", icon: MessageSquare },
   { type: "initiative", label: "Initiatives", icon: Target },
 ];
 

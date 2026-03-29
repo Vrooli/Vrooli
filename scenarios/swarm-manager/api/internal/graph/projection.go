@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"sync"
 
+	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/execution"
 )
@@ -18,7 +18,7 @@ type ProjectionService struct {
 	capture    CaptureLister
 	scenario   ScenarioLister
 	execution  ExecutionLister
-	runState   RunStateGetter
+	activity   AgentActivityLister
 }
 
 // ProjectionConfig holds constructor dependencies for ProjectionService.
@@ -28,7 +28,7 @@ type ProjectionConfig struct {
 	Capture    CaptureLister
 	Scenario   ScenarioLister
 	Execution  ExecutionLister
-	RunState   RunStateGetter
+	Activity   AgentActivityLister
 }
 
 // NewProjectionService creates a ProjectionService.
@@ -39,7 +39,7 @@ func NewProjectionService(cfg ProjectionConfig) *ProjectionService {
 		capture:    cfg.Capture,
 		scenario:   cfg.Scenario,
 		execution:  cfg.Execution,
-		runState:   cfg.RunState,
+		activity:   cfg.Activity,
 	}
 }
 
@@ -300,6 +300,11 @@ type runtimeBacklogSelection struct {
 	keys  map[string]struct{}
 }
 
+type runtimeCaptureSelection struct {
+	entries []CaptureEntry
+	ids     map[string]struct{}
+}
+
 func buildBacklogNode(item backlog.BacklogItem) Node {
 	return Node{
 		ID:   backlogItemNodeID(string(item.Kind), item.Name),
@@ -310,6 +315,29 @@ func buildBacklogNode(item backlog.BacklogItem) Node {
 			Title:    item.Title,
 			Status:   string(item.Status),
 			Priority: int32(item.Priority),
+		},
+	}
+}
+
+func buildCaptureNode(cap CaptureEntry) Node {
+	return Node{
+		ID:   "capture/" + cap.ID,
+		Type: "Capture",
+		Data: GraphCaptureNodeData{
+			ID:     cap.ID,
+			Text:   cap.Text,
+			Status: cap.Status,
+		},
+	}
+}
+
+func buildScenarioNode(name, status string) Node {
+	return Node{
+		ID:   "scenario/" + name,
+		Type: "Scenario",
+		Data: GraphScenarioNodeData{
+			Name:   name,
+			Status: status,
 		},
 	}
 }
@@ -329,33 +357,63 @@ func buildExecutionNode(rec execution.Record) Node {
 	}
 }
 
+func buildActivityNode(rec agentactivity.Record) Node {
+	return Node{
+		ID:   activityNodeID(rec.ActivityID),
+		Type: "AgentActivity",
+		Data: GraphAgentActivityNodeData{
+			ActivityID:      rec.ActivityID,
+			OwnerType:       string(rec.OwnerType),
+			OwnerKind:       rec.OwnerKind,
+			OwnerName:       rec.OwnerName,
+			OwnerTitle:      rec.OwnerTitle,
+			ExecutionID:     rec.ExecutionID,
+			Purpose:         string(rec.Purpose),
+			InteractionType: string(rec.InteractionType),
+			Status:          string(rec.Status),
+			RunID:           rec.RunID,
+			TaskID:          rec.TaskID,
+			RequestedAt:     rec.RequestedAt,
+		},
+	}
+}
+
+func buildRunNode(runID, taskID, status string) Node {
+	return Node{
+		ID:   "run/" + runID,
+		Type: "Run",
+		Data: GraphRunNodeData{
+			RunID:  runID,
+			TaskID: taskID,
+			Status: status,
+		},
+	}
+}
+
+func activityNodeID(activityID string) string {
+	return "agent-activity/" + activityID
+}
+
+func ownerNodeID(record agentactivity.Record) string {
+	switch record.OwnerType {
+	case agentactivity.OwnerBacklog:
+		return backlogItemNodeID(record.OwnerKind, record.OwnerName)
+	case agentactivity.OwnerCapture:
+		return "capture/" + record.OwnerName
+	case agentactivity.OwnerScenario:
+		return "scenario/" + record.OwnerName
+	default:
+		return ""
+	}
+}
+
 func selectExecutionRecordsForFlow(records []execution.Record) executionSelection {
-	recordsByID := make(map[string]execution.Record, len(records))
-	included := make(map[string]struct{})
-
+	included := make(map[string]struct{}, len(records))
+	selected := make([]execution.Record, 0, len(records))
 	for _, rec := range records {
-		recordsByID[rec.ExecutionID] = rec
-		if activeExecutionStatuses[rec.Status] {
-			included[rec.ExecutionID] = struct{}{}
-		}
+		included[rec.ExecutionID] = struct{}{}
+		selected = append(selected, rec)
 	}
-
-	for _, rec := range records {
-		if _, ok := included[rec.ExecutionID]; !ok || rec.ParentExecutionID == "" {
-			continue
-		}
-		if _, ok := recordsByID[rec.ParentExecutionID]; ok {
-			included[rec.ParentExecutionID] = struct{}{}
-		}
-	}
-
-	selected := make([]execution.Record, 0, len(included))
-	for _, rec := range records {
-		if _, ok := included[rec.ExecutionID]; ok {
-			selected = append(selected, rec)
-		}
-	}
-
 	return executionSelection{
 		records: selected,
 		ids:     included,
@@ -365,6 +423,7 @@ func selectExecutionRecordsForFlow(records []execution.Record) executionSelectio
 func selectRuntimeBacklogItems(
 	allItems []backlog.BacklogItem,
 	records []execution.Record,
+	activities []agentactivity.Record,
 	includeDependencies bool,
 ) runtimeBacklogSelection {
 	itemsByKey := make(map[string]backlog.BacklogItem, len(allItems))
@@ -392,6 +451,11 @@ func selectRuntimeBacklogItems(
 
 	for _, rec := range records {
 		enqueue(backlogItemKey(rec.BacklogKind, rec.BacklogName))
+	}
+	for _, activity := range activities {
+		if activity.OwnerType == agentactivity.OwnerBacklog {
+			enqueue(backlogItemKey(activity.OwnerKind, activity.OwnerName))
+		}
 	}
 
 	if includeDependencies {
@@ -421,6 +485,85 @@ func selectRuntimeBacklogItems(
 		items: selected,
 		keys:  included,
 	}
+}
+
+func selectRuntimeCaptures(allCaptures []CaptureEntry, activities []agentactivity.Record) runtimeCaptureSelection {
+	included := make(map[string]struct{})
+	for _, activity := range activities {
+		if activity.OwnerType == agentactivity.OwnerCapture {
+			included[activity.OwnerName] = struct{}{}
+		}
+	}
+	selected := make([]CaptureEntry, 0, len(included))
+	for _, cap := range allCaptures {
+		if _, ok := included[cap.ID]; ok {
+			selected = append(selected, cap)
+		}
+	}
+	return runtimeCaptureSelection{
+		entries: selected,
+		ids:     included,
+	}
+}
+
+func addActivityNodesAndEdges(
+	nodes []Node,
+	edges []Edge,
+	activities []agentactivity.Record,
+	executionIDs map[string]struct{},
+	ownerNodeIDs map[string]struct{},
+) ([]Node, []Edge) {
+	runNodes := make(map[string]GraphRunNodeData)
+	for _, activity := range activities {
+		activityNode := buildActivityNode(activity)
+		nodes = append(nodes, activityNode)
+
+		targetID := ownerNodeID(activity)
+		if _, ok := ownerNodeIDs[targetID]; targetID != "" && ok {
+			edges = append(edges, Edge{
+				ID:     fmt.Sprintf("activity_for:%s->%s", activity.ActivityID, targetID),
+				Source: activityNode.ID,
+				Target: targetID,
+				Type:   "activity_for",
+			})
+		}
+		if activity.ExecutionID != "" {
+			if _, ok := executionIDs[activity.ExecutionID]; ok {
+				edges = append(edges, Edge{
+					ID:     fmt.Sprintf("records_activity:%s->%s", activity.ExecutionID, activity.ActivityID),
+					Source: "execution-record/" + activity.ExecutionID,
+					Target: activityNode.ID,
+					Type:   "records_activity",
+				})
+			}
+		}
+		if strings.TrimSpace(activity.RunID) == "" {
+			continue
+		}
+
+		runData, ok := runNodes[activity.RunID]
+		if !ok || runData.Status == string(agentactivity.StatusComplete) || runData.Status == string(agentactivity.StatusCancelled) {
+			runNodes[activity.RunID] = GraphRunNodeData{
+				RunID:  activity.RunID,
+				TaskID: activity.TaskID,
+				Status: string(activity.Status),
+			}
+		}
+		edgeType := "spawned_run"
+		if activity.InteractionType == agentactivity.InteractionContinue {
+			edgeType = "continued_run"
+		}
+		edges = append(edges, Edge{
+			ID:     fmt.Sprintf("%s:%s->%s", edgeType, activity.ActivityID, activity.RunID),
+			Source: activityNode.ID,
+			Target: "run/" + activity.RunID,
+			Type:   edgeType,
+		})
+	}
+	for _, runNode := range runNodes {
+		nodes = append(nodes, buildRunNode(runNode.RunID, runNode.TaskID, runNode.Status))
+	}
+	return nodes, edges
 }
 
 func appendTargetsEdges(
@@ -510,10 +653,24 @@ func (p *ProjectionService) buildFlow(ctx context.Context) (GraphResponse, error
 	var nodes []Node
 	var edges []Edge
 
-	// Load backlog items and include the closure required by active executions.
+	// Load backlog items and include the closure required by tracked execution/activity history.
 	items, err := p.backlog.LoadAll(nil)
 	if err != nil {
 		return GraphResponse{}, fmt.Errorf("load backlog: %w", err)
+	}
+	var captures []CaptureEntry
+	if p.capture != nil {
+		captures, err = p.capture.ListCaptures()
+		if err != nil {
+			log.Printf("[graph] flow: capture list error: %v", err)
+		}
+	}
+	var scenarios []ScenarioEntry
+	if p.scenario != nil {
+		scenarios, err = p.scenario.List(ctx)
+		if err != nil {
+			log.Printf("[graph] flow: scenario list error: %v", err)
+		}
 	}
 	var records []execution.Record
 	if p.execution != nil {
@@ -522,13 +679,23 @@ func (p *ProjectionService) buildFlow(ctx context.Context) (GraphResponse, error
 			log.Printf("[graph] flow: execution list error: %v", err)
 		}
 	}
+	var activities []agentactivity.Record
+	if p.activity != nil {
+		activities, err = p.activity.List(ctx, agentactivity.ListFilters{})
+		if err != nil {
+			log.Printf("[graph] flow: activity list error: %v", err)
+		}
+	}
 
 	selectedExecutions := selectExecutionRecordsForFlow(records)
-	selectedBacklog := selectRuntimeBacklogItems(items, selectedExecutions.records, true)
+	selectedBacklog := selectRuntimeBacklogItems(items, selectedExecutions.records, activities, true)
+	selectedCaptures := selectRuntimeCaptures(captures, activities)
+	ownerNodeIDs := make(map[string]struct{})
 
 	for _, item := range selectedBacklog.items {
 		nodeID := backlogItemNodeID(string(item.Kind), item.Name)
 		nodes = append(nodes, buildBacklogNode(item))
+		ownerNodeIDs[nodeID] = struct{}{}
 		for _, dep := range item.DependsOn {
 			if _, ok := selectedBacklog.keys[dep]; !ok {
 				continue
@@ -539,6 +706,40 @@ func (p *ProjectionService) buildFlow(ctx context.Context) (GraphResponse, error
 				Target: backlogItemNodeIDFromKey(dep),
 				Type:   "depends_on",
 			})
+		}
+	}
+	for _, cap := range selectedCaptures.entries {
+		nodeID := "capture/" + cap.ID
+		nodes = append(nodes, buildCaptureNode(cap))
+		ownerNodeIDs[nodeID] = struct{}{}
+	}
+	scenarioNames := make(map[string]bool)
+	for _, scenario := range scenarios {
+		include := false
+		for _, activity := range activities {
+			if activity.OwnerType == agentactivity.OwnerScenario && activity.OwnerName == scenario.Name {
+				include = true
+				break
+			}
+		}
+		if !include {
+			for _, item := range selectedBacklog.items {
+				for _, pattern := range item.AcceptanceAllow {
+					if matchesAcceptancePattern(pattern, scenario.Name) {
+						include = true
+						break
+					}
+				}
+				if include {
+					break
+				}
+			}
+		}
+		if include {
+			scenarioNames[scenario.Name] = true
+			nodeID := "scenario/" + scenario.Name
+			nodes = append(nodes, buildScenarioNode(scenario.Name, scenario.Status))
+			ownerNodeIDs[nodeID] = struct{}{}
 		}
 	}
 
@@ -568,6 +769,9 @@ func (p *ProjectionService) buildFlow(ctx context.Context) (GraphResponse, error
 		}
 	}
 
+	edges = appendTargetsEdges(edges, selectedBacklog.items, scenarioNames)
+	nodes, edges = addActivityNodesAndEdges(nodes, edges, activities, selectedExecutions.ids, ownerNodeIDs)
+
 	return NewGraphResponse(LensFlow, nodes, edges), nil
 }
 
@@ -579,15 +783,13 @@ func (p *ProjectionService) buildOperations(ctx context.Context) (GraphResponse,
 
 	// Scenario inventory. Operations intentionally includes only scenarios that
 	// are operationally relevant to the active work graph.
-	var scens []struct{ name, status string }
+	var scens []ScenarioEntry
 	if p.scenario != nil {
 		scenList, err := p.scenario.List(ctx)
 		if err != nil {
 			log.Printf("[graph] operations: scenarios error: %v", err)
 		} else {
-			for _, s := range scenList {
-				scens = append(scens, struct{ name, status string }{s.Name, s.Status})
-			}
+			scens = scenList
 		}
 	}
 
@@ -595,15 +797,12 @@ func (p *ProjectionService) buildOperations(ctx context.Context) (GraphResponse,
 	if p.backlog != nil {
 		items, _ = p.backlog.LoadAll(nil)
 	}
-
-	// Active execution records.
-	type runRef struct {
-		runID  string
-		execID string
+	var captures []CaptureEntry
+	if p.capture != nil {
+		captures, _ = p.capture.ListCaptures()
 	}
-	var runRefs []runRef
-	var activeRecords []execution.Record
 
+	var activeRecords []execution.Record
 	if p.execution != nil {
 		records, err := p.execution.List(ctx, execution.ListFilters{})
 		if err != nil {
@@ -615,34 +814,53 @@ func (p *ProjectionService) buildOperations(ctx context.Context) (GraphResponse,
 				}
 				activeRecords = append(activeRecords, rec)
 				nodes = append(nodes, buildExecutionNode(rec))
-				if rec.RunID != "" {
-					runRefs = append(runRefs, runRef{runID: rec.RunID, execID: rec.ExecutionID})
-				}
 			}
 		}
 	}
+	var activeActivities []agentactivity.Record
+	if p.activity != nil {
+		agentAvailable = p.activity.IsAvailable(ctx)
+		activities, err := p.activity.List(ctx, agentactivity.ListFilters{ActiveOnly: true})
+		if err != nil {
+			log.Printf("[graph] operations: activity list error: %v", err)
+		} else {
+			activeActivities = activities
+		}
+	} else {
+		agentAvailable = false
+	}
 
-	selectedBacklog := selectRuntimeBacklogItems(items, activeRecords, false)
+	selectedBacklog := selectRuntimeBacklogItems(items, activeRecords, activeActivities, false)
 	for _, item := range selectedBacklog.items {
 		nodes = append(nodes, buildBacklogNode(item))
 	}
+	selectedCaptures := selectRuntimeCaptures(captures, activeActivities)
+	for _, cap := range selectedCaptures.entries {
+		nodes = append(nodes, buildCaptureNode(cap))
+	}
+	ownerNodeIDs := make(map[string]struct{})
+	for _, item := range selectedBacklog.items {
+		ownerNodeIDs[backlogItemNodeID(string(item.Kind), item.Name)] = struct{}{}
+	}
+	for _, cap := range selectedCaptures.entries {
+		ownerNodeIDs["capture/"+cap.ID] = struct{}{}
+	}
 
-	selectedScenarios, targetEdges := selectOperationalScenarios(selectedBacklog.items, func() []ScenarioEntry {
-		result := make([]ScenarioEntry, 0, len(scens))
-		for _, s := range scens {
-			result = append(result, ScenarioEntry{Name: s.name, Status: s.status})
-		}
-		return result
-	}())
+	selectedScenarios, targetEdges := selectOperationalScenarios(selectedBacklog.items, scens)
 	for _, scenario := range selectedScenarios {
-		nodes = append(nodes, Node{
-			ID:   "scenario/" + scenario.Name,
-			Type: "Scenario",
-			Data: GraphScenarioNodeData{
-				Name:   scenario.Name,
-				Status: scenario.Status,
-			},
-		})
+		nodes = append(nodes, buildScenarioNode(scenario.Name, scenario.Status))
+		ownerNodeIDs["scenario/"+scenario.Name] = struct{}{}
+	}
+	for _, activity := range activeActivities {
+		if activity.OwnerType != agentactivity.OwnerScenario {
+			continue
+		}
+		nodeID := "scenario/" + activity.OwnerName
+		if _, ok := ownerNodeIDs[nodeID]; ok {
+			continue
+		}
+		nodes = append(nodes, buildScenarioNode(activity.OwnerName, "unknown"))
+		ownerNodeIDs[nodeID] = struct{}{}
 	}
 
 	for _, rec := range activeRecords {
@@ -658,58 +876,19 @@ func (p *ProjectionService) buildOperations(ctx context.Context) (GraphResponse,
 	}
 
 	edges = append(edges, targetEdges...)
-
-	// Run nodes from agent-manager.
-	if p.runState != nil && len(runRefs) > 0 {
-		if !p.runState.IsAvailable(ctx) {
-			agentAvailable = false
-		} else {
-			var mu sync.Mutex
-			var wg sync.WaitGroup
-			sem := make(chan struct{}, 5) // bounded concurrency
-			for _, ref := range runRefs {
-				wg.Add(1)
-				go func(r runRef) {
-					defer wg.Done()
-					sem <- struct{}{}
-					defer func() { <-sem }()
-
-					state, err := p.runState.GetRunState(ctx, r.runID)
-					if err != nil {
-						log.Printf("[graph] operations: run state %s error: %v", r.runID, err)
-						return
-					}
-					runNodeID := "run/" + r.runID
-					node := Node{
-						ID:   runNodeID,
-						Type: "Run",
-						Data: GraphRunNodeData{
-							RunID:  state.RunID,
-							TaskID: state.TaskID,
-							Status: state.Status,
-						},
-					}
-					edge := Edge{
-						ID:     fmt.Sprintf("spawned_run:%s->%s", r.execID, r.runID),
-						Source: "execution-record/" + r.execID,
-						Target: runNodeID,
-						Type:   "spawned_run",
-					}
-					mu.Lock()
-					nodes = append(nodes, node)
-					edges = append(edges, edge)
-					mu.Unlock()
-				}(ref)
-			}
-			wg.Wait()
-		}
-	} else if p.runState == nil && len(runRefs) > 0 {
-		agentAvailable = false
-	}
+	nodes, edges = addActivityNodesAndEdges(nodes, edges, activeActivities, selectedExecutionsIDs(activeRecords), ownerNodeIDs)
 
 	resp := NewGraphResponse(LensOperations, nodes, edges)
 	resp.Meta.AgentManagerAvailable = &agentAvailable
 	return resp, nil
+}
+
+func selectedExecutionsIDs(records []execution.Record) map[string]struct{} {
+	ids := make(map[string]struct{}, len(records))
+	for _, record := range records {
+		ids[record.ExecutionID] = struct{}{}
+	}
+	return ids
 }
 
 // backlogItemNodeIDFromKey converts "kind/name" to the full node ID.

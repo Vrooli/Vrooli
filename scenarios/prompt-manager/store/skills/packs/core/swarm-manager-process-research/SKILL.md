@@ -44,7 +44,7 @@ You are processing a completed research backlog item. The research workshop has 
    swarm-manager backlog file-get --kind research --name {{ITEM_NAME}} --path conclusion.md
    ```
 
-   Also read `spec.json` to understand the item's initiative, tags, and other metadata that should be preserved in follow-up items.
+   Also read `spec.json` to understand the item's initiative, tags, and other metadata that should be preserved in follow-up items. If the item belongs to an initiative, check for initiative-level context files (`swarm-manager initiatives files --name <initiative>`) that may inform your processing.
 
 2. **Find the Actions section**
 

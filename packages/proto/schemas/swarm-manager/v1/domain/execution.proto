@@ -9,7 +9,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // ExecutionRecord captures one backlog execution lifecycle entry.
 message ExecutionRecord {
   string execution_id = 1 [(buf.validate.field).string.min_len = 1];
-  string backlog_kind = 2 [(buf.validate.field).string = { in: ["idea", "fix", "execute", "research", "chore"] }];
+  string backlog_kind = 2 [(buf.validate.field).string = { in: ["idea", "fix", "execute", "research", "chore", "spec-sync"] }];
   string backlog_name = 3 [(buf.validate.field).string.min_len = 1];
   optional string task_id = 4;
   optional string run_id = 5;

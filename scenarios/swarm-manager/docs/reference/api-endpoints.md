@@ -132,6 +132,15 @@ The CLI uses `settings.default_mode` when `execution create` is called without `
 | POST | `/api/v1/execution/{id}/trigger-review` | Trigger or re-trigger a GCT review for a terminal execution |
 | GET | `/api/v1/gct/status` | Check git-control-tower availability (`{"available": true/false}`) |
 
+## Agent Activities
+
+`AgentActivity` is the durable telemetry/audit record for tracked AgentManager usage. Unlike execution records, activities are created for workshop/research/classify/follow-up/spec-sync flows in addition to governed backlog processing.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/agent-activities` | List tracked agent activities with optional filters (`owner_type`, `owner_kind`, `owner_name`, `execution_id`, `purpose`, `status`, `run_id`, `active`) |
+| GET | `/api/v1/agent-activities/{activity_id}` | Get one tracked agent activity by ID |
+
 ### Trigger Review
 
 Manually triggers a git-control-tower review for executions in terminal status (`completed`, `needs_fixup`, `failed`). Returns the updated execution record with `status: "validating"` and `review_job_id` set.

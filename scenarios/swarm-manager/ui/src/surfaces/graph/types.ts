@@ -1,8 +1,12 @@
 import type { Edge as FlowEdge, Node as FlowNode } from "@xyflow/react";
 import type {
+  AgentActivityInteractionType,
+  AgentActivityPurpose,
+  AgentActivityStatus,
   BacklogKind,
   BacklogStatus,
   CaptureStatus,
+  ExecutionBacklogKind,
   ExecutionMode,
   ExecutionStatus,
 } from "../../types";
@@ -13,6 +17,7 @@ export type GraphEntityType =
   | "backlog"
   | "scenario"
   | "execution"
+  | "agent-activity"
   | "capture"
   | "agent-run"
   | "initiative";
@@ -76,11 +81,28 @@ export interface ExecutionGraphNodeData extends GraphBaseNodeData {
   entityType: "execution";
   rawType: "ExecutionRecord";
   executionId: string;
-  backlogKind: BacklogKind;
+  backlogKind: ExecutionBacklogKind;
   backlogName: string;
   status: ExecutionStatus;
   mode: ExecutionMode;
   runId?: string;
+}
+
+export interface AgentActivityGraphNodeData extends GraphBaseNodeData {
+  entityType: "agent-activity";
+  rawType: "AgentActivity";
+  activityId: string;
+  ownerType: "backlog" | "capture" | "scenario";
+  ownerKind?: BacklogKind;
+  ownerName: string;
+  ownerTitle?: string;
+  executionId?: string;
+  purpose: AgentActivityPurpose;
+  interactionType: AgentActivityInteractionType;
+  status: AgentActivityStatus;
+  requestedAt: string;
+  runId?: string;
+  taskId?: string;
 }
 
 export interface RunGraphNodeData extends GraphBaseNodeData {
@@ -114,6 +136,7 @@ export type GraphNodeData =
   | CaptureGraphNodeData
   | ScenarioGraphNodeData
   | ExecutionGraphNodeData
+  | AgentActivityGraphNodeData
   | RunGraphNodeData
   | ClusterGraphNodeData
   | CappedGraphNodeData;

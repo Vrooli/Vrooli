@@ -10,6 +10,7 @@
 package captures
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,12 +26,18 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/idgen"
 	"swarm-manager/internal/promptcatalog"
 	"swarm-manager/internal/promptmanager"
 )
+
+type AgentSpawner interface {
+	IsEnabled() bool
+	SpawnBacklog(ctx context.Context, req agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error)
+}
 
 // BacklogItemCreator abstracts backlog item creation for the create-item endpoint.
 type BacklogItemCreator interface {
@@ -46,14 +53,14 @@ type EventDispatcher interface {
 // Handler provides HTTP handlers for capture operations.
 type Handler struct {
 	rootDir         string
-	agentService    agentmanager.Service
+	agentService    AgentSpawner
 	promptClient    promptmanager.Client
 	backlogCreator  BacklogItemCreator
 	eventDispatcher EventDispatcher
 }
 
 // NewHandler creates a new captures handler.
-func NewHandler(rootDir string, agentService agentmanager.Service, promptClient promptmanager.Client) *Handler {
+func NewHandler(rootDir string, agentService AgentSpawner, promptClient promptmanager.Client) *Handler {
 	h := &Handler{
 		rootDir:      rootDir,
 		agentService: agentService,
@@ -549,7 +556,19 @@ func (h *Handler) spawnClassifyAgent(r *http.Request, cap *capture) (*agentmanag
 		return nil, fmt.Errorf("fetch classify prompt: %w", err)
 	}
 
-	result, err := service.SpawnBacklog(r.Context(), agentmanager.BacklogSpawnRequest{
+	activityCtx := agentactivity.WithSpec(r.Context(), agentactivity.Spec{
+		OwnerType:   agentactivity.OwnerCapture,
+		OwnerName:   cap.ID,
+		OwnerTitle:  truncate(cap.Text, 120),
+		Purpose:     agentactivity.PurposeClassify,
+		RequestedBy: "swarm-manager",
+		Metadata: map[string]string{
+			"entrypoint": "captures.classify",
+			"skill_id":   skillID,
+		},
+	})
+
+	result, err := service.SpawnBacklog(activityCtx, agentmanager.BacklogSpawnRequest{
 		Kind:        "capture",
 		Name:        cap.ID,
 		Title:       "Classify capture: " + truncate(cap.Text, 60),

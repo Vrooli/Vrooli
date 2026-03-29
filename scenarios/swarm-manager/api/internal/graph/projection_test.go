@@ -2,10 +2,9 @@ package graph
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
-	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/execution"
 )
@@ -57,24 +56,18 @@ func (m *mockExecutionLister) List(_ context.Context, _ execution.ListFilters) (
 	return m.records, m.err
 }
 
-type mockRunStateGetter struct {
+type mockActivityLister struct {
 	available bool
-	states    map[string]agentmanager.RunState
+	records   []agentactivity.Record
 	err       error
 }
 
-func (m *mockRunStateGetter) IsAvailable(_ context.Context) bool {
+func (m *mockActivityLister) IsAvailable(_ context.Context) bool {
 	return m.available
 }
 
-func (m *mockRunStateGetter) GetRunState(_ context.Context, runID string) (agentmanager.RunState, error) {
-	if m.err != nil {
-		return agentmanager.RunState{}, m.err
-	}
-	if s, ok := m.states[runID]; ok {
-		return s, nil
-	}
-	return agentmanager.RunState{}, fmt.Errorf("run %s not found", runID)
+func (m *mockActivityLister) List(_ context.Context, _ agentactivity.ListFilters) ([]agentactivity.Record, error) {
+	return m.records, m.err
 }
 
 func assertEdgeEndpointsPresent(t *testing.T, resp GraphResponse) {
@@ -202,12 +195,28 @@ func TestProjectFlow(t *testing.T) {
 	svc := NewProjectionService(ProjectionConfig{
 		Backlog: &mockBacklogLister{items: []backlog.BacklogItem{
 			{Kind: "execute", Name: "active-task", Title: "Active", Status: backlog.StatusInProgress},
-			{Kind: "execute", Name: "done-task", Title: "Done", Status: backlog.StatusCompleted}, // excluded
+			{Kind: "execute", Name: "done-task", Title: "Done", Status: backlog.StatusCompleted},
 		}},
 		Execution: &mockExecutionLister{records: []execution.Record{
 			{ExecutionID: "exec-1", BacklogKind: "execute", BacklogName: "active-task", Status: execution.StatusRunning, Mode: "manual", RunID: "run-1"},
 			{ExecutionID: "exec-2", BacklogKind: "execute", BacklogName: "active-task", Status: execution.StatusNeedsFixup, Mode: "manual", ParentExecutionID: "exec-1"},
-			{ExecutionID: "exec-3", BacklogKind: "execute", BacklogName: "done-task", Status: execution.StatusCompleted, Mode: "manual"}, // excluded
+			{ExecutionID: "exec-3", BacklogKind: "execute", BacklogName: "done-task", Status: execution.StatusCompleted, Mode: "manual"},
+		}},
+		Activity: &mockActivityLister{records: []agentactivity.Record{
+			{
+				ActivityID:      "act-1",
+				OwnerType:       agentactivity.OwnerBacklog,
+				OwnerKind:       "execute",
+				OwnerName:       "active-task",
+				ExecutionID:     "exec-1",
+				Purpose:         agentactivity.PurposeProcess,
+				InteractionType: agentactivity.InteractionSpawn,
+				RunID:           "run-1",
+				TaskID:          "task-1",
+				Status:          agentactivity.StatusRunning,
+				RequestedAt:     "2026-03-28T12:00:00Z",
+				UpdatedAt:       "2026-03-28T12:00:01Z",
+			},
 		}},
 	})
 
@@ -220,22 +229,37 @@ func TestProjectFlow(t *testing.T) {
 	for _, n := range resp.Nodes {
 		nodeTypes[n.Type]++
 	}
-	if nodeTypes["BacklogItem"] != 1 {
-		t.Errorf("expected 1 BacklogItem node, got %d", nodeTypes["BacklogItem"])
+	if nodeTypes["BacklogItem"] != 2 {
+		t.Errorf("expected 2 BacklogItem nodes, got %d", nodeTypes["BacklogItem"])
 	}
-	if nodeTypes["ExecutionRecord"] != 2 {
-		t.Errorf("expected 2 ExecutionRecord nodes, got %d", nodeTypes["ExecutionRecord"])
+	if nodeTypes["ExecutionRecord"] != 3 {
+		t.Errorf("expected 3 ExecutionRecord nodes, got %d", nodeTypes["ExecutionRecord"])
+	}
+	if nodeTypes["AgentActivity"] != 1 {
+		t.Errorf("expected 1 AgentActivity node, got %d", nodeTypes["AgentActivity"])
+	}
+	if nodeTypes["Run"] != 1 {
+		t.Errorf("expected 1 Run node, got %d", nodeTypes["Run"])
 	}
 
 	edgeTypes := map[string]int{}
 	for _, e := range resp.Edges {
 		edgeTypes[e.Type]++
 	}
-	if edgeTypes["executes"] != 2 {
-		t.Errorf("expected 2 executes edges, got %d", edgeTypes["executes"])
+	if edgeTypes["executes"] != 3 {
+		t.Errorf("expected 3 executes edges, got %d", edgeTypes["executes"])
 	}
 	if edgeTypes["follow_up"] != 1 {
 		t.Errorf("expected 1 follow_up edge, got %d", edgeTypes["follow_up"])
+	}
+	if edgeTypes["activity_for"] != 1 {
+		t.Errorf("expected 1 activity_for edge, got %d", edgeTypes["activity_for"])
+	}
+	if edgeTypes["records_activity"] != 1 {
+		t.Errorf("expected 1 records_activity edge, got %d", edgeTypes["records_activity"])
+	}
+	if edgeTypes["spawned_run"] != 1 {
+		t.Errorf("expected 1 spawned_run edge, got %d", edgeTypes["spawned_run"])
 	}
 
 	assertEdgeEndpointsPresent(t, resp)
@@ -278,10 +302,23 @@ func TestProjectOperations(t *testing.T) {
 		Execution: &mockExecutionLister{records: []execution.Record{
 			{ExecutionID: "exec-1", BacklogKind: "execute", BacklogName: "task-a", Status: execution.StatusRunning, Mode: "manual", RunID: "run-1"},
 		}},
-		RunState: &mockRunStateGetter{
+		Activity: &mockActivityLister{
 			available: true,
-			states: map[string]agentmanager.RunState{
-				"run-1": {RunID: "run-1", TaskID: "task-1", Status: "running"},
+			records: []agentactivity.Record{
+				{
+					ActivityID:      "act-1",
+					OwnerType:       agentactivity.OwnerBacklog,
+					OwnerKind:       "execute",
+					OwnerName:       "task-a",
+					ExecutionID:     "exec-1",
+					Purpose:         agentactivity.PurposeProcess,
+					InteractionType: agentactivity.InteractionSpawn,
+					RunID:           "run-1",
+					TaskID:          "task-1",
+					Status:          agentactivity.StatusRunning,
+					RequestedAt:     "2026-03-28T12:00:00Z",
+					UpdatedAt:       "2026-03-28T12:00:01Z",
+				},
 			},
 		},
 	})
@@ -304,6 +341,9 @@ func TestProjectOperations(t *testing.T) {
 	if nodeTypes["ExecutionRecord"] != 1 {
 		t.Errorf("expected 1 ExecutionRecord node, got %d", nodeTypes["ExecutionRecord"])
 	}
+	if nodeTypes["AgentActivity"] != 1 {
+		t.Errorf("expected 1 AgentActivity node, got %d", nodeTypes["AgentActivity"])
+	}
 	if nodeTypes["Run"] != 1 {
 		t.Errorf("expected 1 Run node, got %d", nodeTypes["Run"])
 	}
@@ -314,6 +354,12 @@ func TestProjectOperations(t *testing.T) {
 	}
 	if edgeTypes["spawned_run"] != 1 {
 		t.Errorf("expected 1 spawned_run edge, got %d", edgeTypes["spawned_run"])
+	}
+	if edgeTypes["activity_for"] != 1 {
+		t.Errorf("expected 1 activity_for edge, got %d", edgeTypes["activity_for"])
+	}
+	if edgeTypes["records_activity"] != 1 {
+		t.Errorf("expected 1 records_activity edge, got %d", edgeTypes["records_activity"])
 	}
 	if edgeTypes["executes"] != 1 {
 		t.Errorf("expected 1 executes edge, got %d", edgeTypes["executes"])
@@ -338,7 +384,7 @@ func TestProjectOperations_AgentUnavailable(t *testing.T) {
 		Execution: &mockExecutionLister{records: []execution.Record{
 			{ExecutionID: "exec-1", BacklogKind: "execute", BacklogName: "task-a", Status: execution.StatusRunning, RunID: "run-1"},
 		}},
-		RunState: &mockRunStateGetter{available: false},
+		Activity: &mockActivityLister{available: false},
 	})
 
 	resp, err := svc.Project(context.Background(), LensOperations)

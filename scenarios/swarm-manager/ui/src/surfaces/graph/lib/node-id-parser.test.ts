@@ -41,6 +41,15 @@ describe("parseNodeId", () => {
     });
   });
 
+  it("parses agent-activity/{id}", () => {
+    const result = parseNodeId("agent-activity/act-123");
+    expect(result).toEqual({
+      entityType: "agent-activity",
+      identifier: "act-123",
+      name: "act-123",
+    });
+  });
+
   it("parses run/{runId}", () => {
     const result = parseNodeId("run/run-456");
     expect(result).toEqual({
@@ -99,6 +108,7 @@ describe("parseNodeId", () => {
   it("converts legacy IDs to canonical node IDs", () => {
     expect(toCanonicalNodeId("execute/my-feature")).toBe("backlog-item/execute/my-feature");
     expect(toCanonicalNodeId("execution/xyz-789")).toBe("execution-record/xyz-789");
+    expect(toCanonicalNodeId("agent-activity/act-123")).toBe("agent-activity/act-123");
     expect(toCanonicalNodeId("agent-run/run-456")).toBe("run/run-456");
   });
 

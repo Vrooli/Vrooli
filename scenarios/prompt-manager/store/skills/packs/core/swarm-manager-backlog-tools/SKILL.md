@@ -392,6 +392,9 @@ swarm-manager captures classify --id <id>                # AI-classify a capture
 ```
 
 ### Initiatives commands
+
+Initiatives are stored as folders at `.vrooli/initiatives/{name}/` containing an `initiative.json` metadata file and any additional context files (strategy docs, decision logs, health reports, etc.).
+
 ```bash
 swarm-manager initiatives list                                    # List all initiatives with rollup status
 swarm-manager initiatives get --name <name>                       # Get initiative details and member items
@@ -401,6 +404,28 @@ swarm-manager initiatives delete --name <name>                    # Delete an in
 swarm-manager initiatives add-items --name <name> --items kind/name,kind/name   # Add items to initiative
 swarm-manager initiatives remove-items --name <name> --items kind/name,kind/name # Remove items from initiative
 ```
+
+### Initiative file commands
+
+Initiatives support arbitrary context files alongside the `initiative.json` metadata. Use these commands to manage strategic context, decision logs, health reports, or any other files.
+
+```bash
+swarm-manager initiatives files --name <name>                              # List all files in an initiative
+swarm-manager initiatives file-get --name <name> --path <path>             # Read a file
+swarm-manager initiatives file-get --name <name> --path <path> --out local-file  # Download to local file
+swarm-manager initiatives file-upload --name <name> --path <path> --stdin  # Upload from stdin (heredoc)
+swarm-manager initiatives file-upload --name <name> --path <path> --file <local-file>  # Upload local file
+swarm-manager initiatives file-upload --name <name> --path <path> --content "inline text"  # Upload inline
+swarm-manager initiatives file-op --name <name> --op delete --source <path>  # Delete a file
+swarm-manager initiatives file-op --name <name> --op rename --source <old> --dest <new>  # Rename
+swarm-manager initiatives file-op --name <name> --op move --source <from> --dest <to>    # Move
+swarm-manager initiatives file-op --name <name> --op copy --source <from> --dest <to>    # Copy
+```
+
+Notes:
+- `initiative.json` is protected and cannot be modified through file operations (use `initiatives update` instead).
+- The `--stdin` flag is preferred for content with special characters (avoids shell quoting issues).
+- File paths are relative to the initiative folder (e.g., `decisions/d1.md`, `strategy.md`).
 
 ### Overview command
 ```bash

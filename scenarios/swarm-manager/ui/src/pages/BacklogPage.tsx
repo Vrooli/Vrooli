@@ -54,7 +54,7 @@ import type { RunBacklogTarget } from "../components/backlog/run-backlog-modal";
 import type { StepperCompletionResult } from "../components/backlog/inline-question-stepper";
 import { buildFeed, countActionableItems, getAttentionReasons, type AttentionReason, type FeedbackItem, type FeedItem, type MaturityItem } from "../lib/feed";
 import { BacklogCard } from "../components/backlog/backlog-card";
-import { useAgentRunsStore, useBacklogStore, useCaptureStore } from "../stores";
+import { useAgentActivitiesStore, useBacklogStore, useCaptureStore } from "../stores";
 import type { BacklogFormValues, BacklogItem, PendingQuestion } from "../types";
 
 type SortField = "priority" | "updated" | "status" | "title";
@@ -217,35 +217,35 @@ export function BacklogPage() {
   const [transitionItems, setTransitionItems] = useState<Map<string, StepperCompletionResult>>(() => new Map());
   const [searchFocused, setSearchFocused] = useState(false);
   const queryClient = useQueryClient();
-  const upsertSpawnedRun = useAgentRunsStore((state) => state.upsertSpawnedRun);
-  const agentRuns = useAgentRunsStore((state) => state.runs);
+  const agentActivities = useAgentActivitiesStore((state) => state.activities);
+  const refreshActivities = useAgentActivitiesStore((state) => state.refreshActivities);
   const activeRunKeys = useMemo(() => {
-    const ACTIVE = new Set(["pending", "starting", "running", "needs_review"]);
     const keys = new Set<string>();
-    for (const run of agentRuns) {
-      if (run.backlogKind && run.backlogName && ACTIVE.has(run.status)) {
-        keys.add(`${run.backlogKind}/${run.backlogName}`);
+    for (const activity of agentActivities) {
+      if (activity.ownerType === "backlog" && activity.ownerKind && activity.ownerName) {
+        keys.add(`${activity.ownerKind}/${activity.ownerName}`);
       }
     }
     return keys;
-  }, [agentRuns]);
+  }, [agentActivities]);
   /** Map from backlog key → human-readable running label (e.g. "Running workshop…"). */
   const activeRunLabels = useMemo(() => {
-    const ACTIVE = new Set(["pending", "starting", "running", "needs_review"]);
     const labels = new Map<string, string>();
-    for (const run of agentRuns) {
-      if (run.backlogKind && run.backlogName && ACTIVE.has(run.status)) {
-        const key = `${run.backlogKind}/${run.backlogName}`;
-        switch (run.mode) {
+    for (const activity of agentActivities) {
+      if (activity.ownerType === "backlog" && activity.ownerKind && activity.ownerName) {
+        const key = `${activity.ownerKind}/${activity.ownerName}`;
+        switch (activity.purpose) {
           case "workshop": labels.set(key, "Running workshop…"); break;
           case "finalize": labels.set(key, "Running finalize…"); break;
           case "research": labels.set(key, "Running research…"); break;
+          case "initialize": labels.set(key, "Initializing workshop…"); break;
+          case "process": labels.set(key, "Processing…"); break;
           default: labels.set(key, "Agent running…"); break;
         }
       }
     }
     return labels;
-  }, [agentRuns]);
+  }, [agentActivities]);
   const items = useBacklogStore((state) => state.items);
   const status = useBacklogStore((state) => state.status);
   const error = useBacklogStore((state) => state.error);
@@ -260,6 +260,12 @@ export function BacklogPage() {
     void fetchBacklog();
     void fetchCaptures();
   }, [fetchBacklog, fetchCaptures]);
+
+  useEffect(() => {
+    void refreshActivities(true);
+    const interval = window.setInterval(() => void refreshActivities(true), 5000);
+    return () => window.clearInterval(interval);
+  }, [refreshActivities]);
 
   // Polling: refresh captures every 3s when any are classifying (max 60s then stop)
   useEffect(() => {
@@ -380,15 +386,7 @@ export function BacklogPage() {
     onSuccess: (result, variables) => {
       setWorkshopError(null);
       if (result.runId) {
-        upsertSpawnedRun({
-          runId: result.runId,
-          taskId: result.taskId ?? "",
-          baseUrl: result.baseUrl ?? "",
-          backlogKind: variables.kind,
-          backlogName: variables.name,
-          createdAt: new Date().toISOString(),
-          mode: variables.mode,
-        });
+        void refreshActivities(true);
       }
       void queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
     },
@@ -406,15 +404,7 @@ export function BacklogPage() {
       return next;
     });
     if (result.autoAdvance?.triggered && result.autoAdvance.runId) {
-      upsertSpawnedRun({
-        runId: result.autoAdvance.runId,
-        taskId: result.autoAdvance.taskId ?? "",
-        baseUrl: "",
-        backlogKind: item.kind as BacklogKind,
-        backlogName: item.name,
-        backlogTitle: item.title,
-        createdAt: new Date().toISOString(),
-      });
+      void refreshActivities(true);
     }
     setTransitionItems((prev) => {
       const next = new Map(prev);
@@ -429,7 +419,7 @@ export function BacklogPage() {
       });
       void queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
     }, 4000);
-  }, [upsertSpawnedRun, queryClient]);
+  }, [queryClient, refreshActivities]);
 
   const openFeedbackHub = (tab: "review" | "export" | "import", names?: string[]) => {
     setFeedbackHubInitialTab(tab);

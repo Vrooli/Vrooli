@@ -32,6 +32,7 @@ import type { BacklogResearchResponse as ProtoBacklogResearchResponse } from "@v
 import type {
   ExecutionRecord as ProtoExecutionRecord,
 } from "@vrooli/proto-types/swarm-manager/v1/domain/execution_pb";
+import type { AgentActivity as ProtoAgentActivity } from "@vrooli/proto-types/swarm-manager/v1/domain/agent_activity_pb";
 
 type ProtoMessage<T extends Message> = Omit<T, "$typeName" | "$unknown">;
 
@@ -538,6 +539,42 @@ export interface AgentRunState {
   active: boolean;
 }
 
+export type AgentActivityStatus =
+  | "pending"
+  | "starting"
+  | "running"
+  | "needs_review"
+  | "complete"
+  | "failed"
+  | "cancelled"
+  | "unspecified";
+
+export type AgentActivityPurpose =
+  | "initialize"
+  | "workshop"
+  | "finalize"
+  | "research"
+  | "process"
+  | "fixup"
+  | "followup"
+  | "spec_sync"
+  | "classify";
+
+export type AgentActivityInteractionType = "spawn" | "continue";
+export type AgentActivityOwnerType = "backlog" | "capture" | "scenario";
+export type ExecutionBacklogKind = BacklogKind | "spec-sync";
+
+export type AgentActivity = Omit<
+  ProtoMessage<ProtoAgentActivity>,
+  "ownerType" | "purpose" | "interactionType" | "status" | "metadata"
+> & {
+  ownerType: AgentActivityOwnerType;
+  purpose: AgentActivityPurpose;
+  interactionType: AgentActivityInteractionType;
+  status: AgentActivityStatus;
+  metadata?: Record<string, string>;
+};
+
 // ============================================================================
 // Settings Domain
 // ============================================================================
@@ -618,9 +655,10 @@ export interface ReviewResult {
   reviewedAt: string;
 }
 
-export type ExecutionRecord = Omit<ProtoMessage<ProtoExecutionRecord>, "status" | "mode" | "operation" | "fixupAttempt" | "reviewResult"> & {
+export type ExecutionRecord = Omit<ProtoMessage<ProtoExecutionRecord>, "status" | "mode" | "operation" | "fixupAttempt" | "reviewResult" | "backlogKind"> & {
   status: ExecutionStatus;
   mode: ExecutionMode;
+  backlogKind: ExecutionBacklogKind;
   operation?: ExecutionOperation;
   parentExecutionId?: string;
   fixupAttempt?: number;

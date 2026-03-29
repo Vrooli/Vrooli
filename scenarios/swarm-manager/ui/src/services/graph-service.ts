@@ -44,6 +44,7 @@ const NODE_TYPE_MAP: Record<string, GraphEntityType> = {
   BacklogItem: "backlog",
   Scenario: "scenario",
   ExecutionRecord: "execution",
+  AgentActivity: "agent-activity",
   Capture: "capture",
   Run: "agent-run",
   Initiative: "initiative",
@@ -171,7 +172,7 @@ function mapProtoNode(raw: ProtoGraphNode): GraphNode {
           rawType: "ExecutionRecord",
           label: `${execution.backlogKind}/${execution.backlogName}`,
           executionId: execution.executionId,
-          backlogKind: execution.backlogKind as "idea" | "research" | "fix" | "execute" | "chore",
+          backlogKind: execution.backlogKind as "idea" | "research" | "fix" | "execute" | "chore" | "spec-sync",
           backlogName: execution.backlogName,
           status: execution.status as
             | "pending"
@@ -186,6 +187,49 @@ function mapProtoNode(raw: ProtoGraphNode): GraphNode {
             | "canceled",
           mode: execution.mode as "manual" | "scheduled" | "yolo",
           runId: execution.runId,
+        },
+      };
+    }
+    case "activity": {
+      const activity = data.value.value;
+      return {
+        id: raw.id,
+        type: entityType,
+        position,
+        data: {
+          entityType: "agent-activity",
+          rawType: "AgentActivity",
+          label: activity.ownerTitle || activity.purpose.replace("_", " "),
+          activityId: activity.activityId,
+          ownerType: activity.ownerType as "backlog" | "capture" | "scenario",
+          ownerKind: activity.ownerKind as "idea" | "research" | "fix" | "execute" | "chore" | undefined,
+          ownerName: activity.ownerName,
+          ownerTitle: activity.ownerTitle,
+          executionId: activity.executionId,
+          purpose: activity.purpose as
+            | "initialize"
+            | "workshop"
+            | "finalize"
+            | "research"
+            | "process"
+            | "fixup"
+            | "followup"
+            | "spec_sync"
+            | "classify",
+          interactionType: activity.interactionType as "spawn" | "continue",
+          status: activity.status as
+            | "pending"
+            | "starting"
+            | "running"
+            | "needs_review"
+            | "complete"
+            | "failed"
+            | "cancelled"
+            | "unspecified",
+          requestedAt: activity.requestedAt,
+          runId: activity.runId,
+          taskId: activity.taskId,
+          kind: activity.purpose,
         },
       };
     }
