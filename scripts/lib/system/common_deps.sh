@@ -47,6 +47,7 @@ common_deps::check_and_install() {
     system::check_and_install "script"
     system::check_and_install "yq"
     system::check_and_install "ffmpeg"
+    system::check_and_install "tmux"
     
     # Install native module build dependencies for isolated-vm and other packages
     common_deps::setup_native_build_env
