@@ -118,6 +118,11 @@ cli/
 │   ├── client.go               # API client
 │   └── types.go                # Request/Response types
 │
+├── storage/                    # DOMAIN: Storage Migration & Maintenance
+│   ├── command.go              # Storage command dispatcher
+│   ├── import_postgres.go      # Legacy Postgres -> SQLite importer
+│   └── import_postgres_test.go # Import contract tests
+│
 ├── status/                      # DOMAIN: Health & Status
 │   ├── command.go              # Status command
 │   ├── client.go               # Health API client
@@ -190,6 +195,18 @@ View Test Genie health and queue status:
 test-genie status
 ```
 
+### Migrate Legacy Storage
+
+Import operational history from the removed Postgres store into the embedded SQLite database:
+
+```bash
+test-genie storage import-postgres \
+  --source "postgres://user:pass@host:5432/test_genie?sslmode=disable" \
+  --target "${SCENARIO_DATA_DIR}/test-genie.db"
+```
+
+Use `--force` to overwrite existing SQLite operational rows.
+
 ### Manage Requirements (local, no Node required)
 
 Generate coverage, validate registries, sync statuses, and log manual validations using the native Go requirements service:
@@ -214,6 +231,7 @@ The top-level directories communicate business capabilities, not technical conce
 | `generate/` | Queue AI test generation |
 | `execute/` | Run test suites with phases |
 | `runlocal/` | Trigger local test runners |
+| `storage/` | Perform one-time storage migrations |
 | `status/` | Monitor system health |
 
 ### Domain Cohesion

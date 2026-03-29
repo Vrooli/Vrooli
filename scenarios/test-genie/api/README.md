@@ -218,9 +218,11 @@ Direct execution (`go run .`) is blocked—the binary validates `VROOLI_LIFECYCL
 | Variable | Description | Source |
 |----------|-------------|--------|
 | `API_PORT` | HTTP listen port | Lifecycle |
-| `DATABASE_URL` | PostgreSQL connection string | Lifecycle |
-| `POSTGRES_*` | Fallback DB config (HOST, PORT, USER, PASSWORD, DB) | Lifecycle |
+| `TEST_GENIE_SQLITE_PATH` | Embedded SQLite file path override | Lifecycle / operator override |
+| `SCENARIO_DATA_DIR` | Default root used to derive `test-genie.db` when present | Lifecycle |
 | `SCENARIOS_ROOT` | Path to scenarios directory | Lifecycle |
+
+If lifecycle does not export `SCENARIO_DATA_DIR`, the API falls back to `scenarios/test-genie/data/test-genie.db`.
 
 ## Key Concepts
 

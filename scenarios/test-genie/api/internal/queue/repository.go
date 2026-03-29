@@ -6,58 +6,80 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	pq "github.com/lib/pq"
+
+	"test-genie/internal/storage/sqliteutil"
 )
 
-// PostgresSuiteRequestRepository persists suite requests to PostgreSQL.
-type PostgresSuiteRequestRepository struct {
+// SQLiteSuiteRequestRepository persists suite requests in Test Genie's embedded
+// SQLite database.
+type SQLiteSuiteRequestRepository struct {
 	db           *sql.DB
 	clock        func() time.Time
 	activeWindow time.Duration
 }
 
-func NewPostgresSuiteRequestRepository(db *sql.DB) *PostgresSuiteRequestRepository {
-	return &PostgresSuiteRequestRepository{
+func NewSQLiteSuiteRequestRepository(db *sql.DB) *SQLiteSuiteRequestRepository {
+	return &SQLiteSuiteRequestRepository{
 		db:           db,
 		clock:        time.Now,
 		activeWindow: ActiveQueueWindow(),
 	}
 }
 
-func (r *PostgresSuiteRequestRepository) Create(ctx context.Context, req *SuiteRequest) error {
+func (r *SQLiteSuiteRequestRepository) Create(ctx context.Context, req *SuiteRequest) error {
 	const q = `
 INSERT INTO suite_requests (
-	id, scenario_name, requested_types, coverage_target, priority, status, notes, delegation_issue_id
+	id,
+	scenario_name,
+	requested_types,
+	coverage_target,
+	priority,
+	status,
+	notes,
+	delegation_issue_id,
+	created_at,
+	updated_at
 ) VALUES (
-	$1, $2, $3, $4, $5, $6, $7, $8
-)
-RETURNING created_at, updated_at
-`
-	var note sql.NullString
+	?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)`
+
+	requestedTypes, err := sqliteutil.MarshalStringSlice(req.RequestedTypes)
+	if err != nil {
+		return err
+	}
+
+	now := time.Now().UTC()
+	req.CreatedAt = now
+	req.UpdatedAt = now
+
+	var note any
 	if req.Notes != "" {
-		note = sql.NullString{String: req.Notes, Valid: true}
+		note = req.Notes
 	}
 
-	var delegation sql.NullString
+	var delegation any
 	if req.DelegationIssueID != nil && *req.DelegationIssueID != "" {
-		delegation = sql.NullString{String: *req.DelegationIssueID, Valid: true}
+		delegation = *req.DelegationIssueID
 	}
 
-	return r.db.QueryRowContext(
+	_, err = r.db.ExecContext(
 		ctx,
 		q,
-		req.ID,
+		req.ID.String(),
 		req.ScenarioName,
-		pq.Array(req.RequestedTypes),
+		requestedTypes,
 		req.CoverageTarget,
 		req.Priority,
 		req.Status,
 		note,
 		delegation,
-	).Scan(&req.CreatedAt, &req.UpdatedAt)
+		sqliteutil.FormatTimestamp(req.CreatedAt),
+		sqliteutil.FormatTimestamp(req.UpdatedAt),
+	)
+	return err
 }
 
-func (r *PostgresSuiteRequestRepository) List(ctx context.Context, limit int) ([]SuiteRequest, error) {
+func (r *SQLiteSuiteRequestRepository) List(ctx context.Context, limit int) ([]SuiteRequest, error) {
 	const q = `
 SELECT
 	id,
@@ -72,7 +94,7 @@ SELECT
 	updated_at
 FROM suite_requests
 ORDER BY created_at DESC
-LIMIT $1
+LIMIT ?
 `
 	rows, err := r.db.QueryContext(ctx, q, limit)
 	if err != nil {
@@ -94,7 +116,7 @@ LIMIT $1
 	return suites, nil
 }
 
-func (r *PostgresSuiteRequestRepository) GetByID(ctx context.Context, id uuid.UUID) (*SuiteRequest, error) {
+func (r *SQLiteSuiteRequestRepository) GetByID(ctx context.Context, id uuid.UUID) (*SuiteRequest, error) {
 	const q = `
 SELECT
 	id,
@@ -108,9 +130,9 @@ SELECT
 	created_at,
 	updated_at
 FROM suite_requests
-WHERE id = $1
+WHERE id = ?
 `
-	row := r.db.QueryRowContext(ctx, q, id)
+	row := r.db.QueryRowContext(ctx, q, id.String())
 	req, err := scanSuiteRequest(row)
 	if err != nil {
 		return nil, err
@@ -118,14 +140,14 @@ WHERE id = $1
 	return &req, nil
 }
 
-func (r *PostgresSuiteRequestRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status string) error {
+func (r *SQLiteSuiteRequestRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status string) error {
 	const q = `
 UPDATE suite_requests
-SET status = $1,
-    updated_at = NOW()
-WHERE id = $2
+SET status = ?,
+    updated_at = ?
+WHERE id = ?
 `
-	res, err := r.db.ExecContext(ctx, q, status, id)
+	res, err := r.db.ExecContext(ctx, q, status, sqliteutil.FormatTimestamp(time.Now().UTC()), id.String())
 	if err != nil {
 		return err
 	}
@@ -136,23 +158,34 @@ WHERE id = $2
 	return err
 }
 
-func (r *PostgresSuiteRequestRepository) StatusSnapshot(ctx context.Context) (SuiteRequestSnapshot, error) {
-	snapshot := SuiteRequestSnapshot{}
-
-	var oldest sql.NullTime
-	cutoff := r.clock().UTC().Add(-r.activeWindow)
-	if err := r.db.QueryRowContext(ctx, `
+func (r *SQLiteSuiteRequestRepository) StatusSnapshot(ctx context.Context) (SuiteRequestSnapshot, error) {
+	const q = `
 SELECT
 	COUNT(*) AS total,
-	COUNT(*) FILTER (WHERE status = $2 AND updated_at >= $1) AS queued,
-	COUNT(*) FILTER (WHERE status = $3 AND updated_at >= $1) AS delegated,
-	COUNT(*) FILTER (WHERE status = $4) AS running,
-	COUNT(*) FILTER (WHERE status = $5) AS completed,
-	COUNT(*) FILTER (WHERE status = $6) AS failed,
-	COUNT(*) FILTER (WHERE status IN ($2, $3) AND updated_at < $1) AS stale,
-	MIN(created_at) FILTER (WHERE status IN ($2, $3) AND updated_at >= $1) AS oldest_queued_at
+	COALESCE(SUM(CASE WHEN status = ? AND updated_at >= ? THEN 1 ELSE 0 END), 0) AS queued,
+	COALESCE(SUM(CASE WHEN status = ? AND updated_at >= ? THEN 1 ELSE 0 END), 0) AS delegated,
+	COALESCE(SUM(CASE WHEN status = ? THEN 1 ELSE 0 END), 0) AS running,
+	COALESCE(SUM(CASE WHEN status = ? THEN 1 ELSE 0 END), 0) AS completed,
+	COALESCE(SUM(CASE WHEN status = ? THEN 1 ELSE 0 END), 0) AS failed,
+	COALESCE(SUM(CASE WHEN status IN (?, ?) AND updated_at < ? THEN 1 ELSE 0 END), 0) AS stale,
+	MIN(CASE WHEN status IN (?, ?) AND updated_at >= ? THEN created_at END) AS oldest_queued_at
 FROM suite_requests
-`, cutoff, StatusQueued, StatusDelegated, StatusRunning, StatusCompleted, StatusFailed).Scan(
+`
+
+	snapshot := SuiteRequestSnapshot{}
+	cutoff := sqliteutil.FormatTimestamp(r.clock().UTC().Add(-r.activeWindow))
+	var oldest sql.NullString
+	if err := r.db.QueryRowContext(
+		ctx,
+		q,
+		StatusQueued, cutoff,
+		StatusDelegated, cutoff,
+		StatusRunning,
+		StatusCompleted,
+		StatusFailed,
+		StatusQueued, StatusDelegated, cutoff,
+		StatusQueued, StatusDelegated, cutoff,
+	).Scan(
 		&snapshot.Total,
 		&snapshot.Queued,
 		&snapshot.Delegated,
@@ -166,9 +199,11 @@ FROM suite_requests
 	}
 
 	if oldest.Valid {
-		// Normalize to UTC for stable telemetry output.
-		t := oldest.Time.UTC()
-		snapshot.OldestQueuedAt = &t
+		ts, err := sqliteutil.ParseTimestamp(oldest.String)
+		if err != nil {
+			return snapshot, err
+		}
+		snapshot.OldestQueuedAt = &ts
 	}
 
 	return snapshot, nil
@@ -180,12 +215,15 @@ type rowScanner interface {
 
 func scanSuiteRequest(scanner rowScanner) (SuiteRequest, error) {
 	var req SuiteRequest
-	var rawTypes pq.StringArray
+	var rawID string
+	var rawTypes any
 	var note sql.NullString
 	var delegation sql.NullString
+	var createdAt any
+	var updatedAt any
 
 	if err := scanner.Scan(
-		&req.ID,
+		&rawID,
 		&req.ScenarioName,
 		&rawTypes,
 		&req.CoverageTarget,
@@ -193,18 +231,35 @@ func scanSuiteRequest(scanner rowScanner) (SuiteRequest, error) {
 		&req.Status,
 		&note,
 		&delegation,
-		&req.CreatedAt,
-		&req.UpdatedAt,
+		&createdAt,
+		&updatedAt,
 	); err != nil {
 		return req, err
 	}
 
-	req.RequestedTypes = append([]string(nil), rawTypes...)
+	parsedID, err := uuid.Parse(rawID)
+	if err != nil {
+		return req, err
+	}
+	req.ID = parsedID
+
+	req.RequestedTypes, err = sqliteutil.UnmarshalStringSlice(rawTypes)
+	if err != nil {
+		return req, err
+	}
 	if note.Valid {
 		req.Notes = note.String
 	}
 	if delegation.Valid {
 		req.DelegationIssueID = strPtr(delegation.String)
+	}
+	req.CreatedAt, err = sqliteutil.ParseTimestamp(createdAt)
+	if err != nil {
+		return req, err
+	}
+	req.UpdatedAt, err = sqliteutil.ParseTimestamp(updatedAt)
+	if err != nil {
+		return req, err
 	}
 	req.EstimatedQueueTime = estimateQueueSeconds(len(req.RequestedTypes), req.CoverageTarget)
 	return req, nil

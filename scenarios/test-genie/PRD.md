@@ -40,9 +40,9 @@
   - API: Go with scenario-local orchestration packages and HTTP transport adapters
   - UI: React + TypeScript + Vite
   - CLI: Go, thin wrapper over API/runtime capabilities
-  - Storage: PostgreSQL for queue and execution persistence
+  - Storage: embedded SQLite for queue and execution persistence
 - **Data + storage expectations**:
-  - Queue requests and execution history are persisted in Postgres
+  - Queue requests and execution history are persisted in a scenario-local SQLite file
   - Scenario requirements, coverage artifacts, and phase logs remain scenario-local on disk
   - Lifecycle-managed environment variables remain the only supported runtime configuration surface
 - **Integration strategy**:

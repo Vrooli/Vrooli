@@ -9,8 +9,9 @@ These are normally provided by the Vrooli lifecycle system:
 | Variable | Scope | Default | Purpose |
 |----------|-------|---------|---------|
 | `API_PORT` | API runtime | lifecycle | Port the Test Genie API listens on |
-| `DATABASE_URL` | API runtime | lifecycle | Primary Postgres connection string |
-| `POSTGRES_HOST` / `POSTGRES_PORT` / `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | API runtime | lifecycle fallback | Used when `DATABASE_URL` is not exported |
+| `TEST_GENIE_SQLITE_PATH` | API runtime | `${SCENARIO_DATA_DIR}/test-genie.db` | Scenario-local SQLite database path |
+| `SQLITE_PATH` / `SQLITE_DB` | API runtime | unset | Generic SQLite path override used by maintenance tooling |
+| `SCENARIO_DATA_DIR` | API runtime | lifecycle | Default root for embedded persistent state |
 | `SCENARIOS_ROOT` | API runtime | inferred from cwd | Root directory for scenario discovery |
 | `VROOLI_ROOT` | API + CLI | environment | Repo root for docs, scenario lookup, and path resolution |
 
@@ -19,7 +20,7 @@ These are normally provided by the Vrooli lifecycle system:
 | Variable | Scope | Default | Purpose |
 |----------|-------|---------|---------|
 | `TEST_GENIE_EXECUTION_TIMEOUT` | CLI `execute` | `900` seconds | Blocking timeout for synchronous suite execution |
-| `TEST_GENIE_PLAYBOOKS_RETAIN` | Playbooks phase | `0` | Keep temporary Postgres/Redis isolation alive after the phase for debugging |
+| `TEST_GENIE_PLAYBOOKS_RETAIN` | Playbooks phase | `0` | Keep temporary isolated Postgres/Redis/SQLite resources alive after the phase for debugging |
 | `TEST_GENIE_QUEUE_STALE_AFTER` | Queue telemetry | `24h` | How long queued/delegated requests remain part of active queue counts before they are reported as stale |
 | `TEST_GENIE_SKIP_PLAYBOOKS` | Playbooks phase | unset | Hard-disable playbooks execution for debugging or constrained environments |
 | `TEST_GENIE_STANDARDS_FAIL_ON` | Standards phase | phase default | Minimum severity that fails the phase |
@@ -49,7 +50,7 @@ TEST_GENIE_QUEUE_STALE_AFTER=6h test-genie status
 TEST_GENIE_PLAYBOOKS_RETAIN=1 test-genie execute my-scenario --phases playbooks
 ```
 
-When retention is enabled, the playbooks phase leaves its temporary Postgres and Redis instances running and prints inspection commands in the observations.
+When retention is enabled, the playbooks phase leaves its temporary isolated resources alive and prints inspection commands in the observations.
 
 ### Skip playbooks entirely
 

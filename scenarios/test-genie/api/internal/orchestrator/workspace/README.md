@@ -171,7 +171,7 @@ if err != nil {
 }
 
 // Get required resources
-resources := manifest.RequiredResources()  // ["postgres", "redis"]
+resources := manifest.RequiredResources()  // ["sqlite", "redis"]
 ```
 
 ### Manifest Structure

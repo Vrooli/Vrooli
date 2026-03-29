@@ -9,12 +9,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	pq "github.com/lib/pq"
 
 	"test-genie/internal/orchestrator"
+	"test-genie/internal/storage/sqliteutil"
 )
 
-// SuiteExecutionRepository persists execution records.
+// SuiteExecutionRepository persists execution records in Test Genie's embedded
+// SQLite database.
 type SuiteExecutionRepository struct {
 	db *sql.DB
 }
@@ -25,6 +26,18 @@ func NewSuiteExecutionRepository(db *sql.DB) *SuiteExecutionRepository {
 
 func (r *SuiteExecutionRepository) Create(ctx context.Context, record *SuiteExecutionRecord) error {
 	payload, err := json.Marshal(record.Phases)
+	if err != nil {
+		return err
+	}
+	requestedPhases, err := sqliteutil.MarshalStringSlice(record.RequestedPhases)
+	if err != nil {
+		return err
+	}
+	requestedSkipPhases, err := sqliteutil.MarshalStringSlice(record.RequestedSkipPhases)
+	if err != nil {
+		return err
+	}
+	plannedPhases, err := sqliteutil.MarshalStringSlice(record.PlannedPhases)
 	if err != nil {
 		return err
 	}
@@ -45,30 +58,30 @@ INSERT INTO suite_executions (
 	started_at,
 	completed_at
 ) VALUES (
-	$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+	?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )`
 
-	var suiteRequestID interface{}
+	var suiteRequestID any
 	if record.SuiteRequestID != nil {
-		suiteRequestID = *record.SuiteRequestID
+		suiteRequestID = record.SuiteRequestID.String()
 	}
 
 	_, err = r.db.ExecContext(
 		ctx,
 		q,
-		record.ID,
+		record.ID.String(),
 		suiteRequestID,
 		record.ScenarioName,
-		sql.NullString{String: record.PresetUsed, Valid: record.PresetUsed != ""},
-		sql.NullString{String: record.RequestedPreset, Valid: record.RequestedPreset != ""},
-		pq.Array(record.RequestedPhases),
-		pq.Array(record.RequestedSkipPhases),
-		pq.Array(record.PlannedPhases),
-		record.FailFast,
-		record.Success,
-		payload,
-		record.StartedAt,
-		record.CompletedAt,
+		nullIfEmpty(record.PresetUsed),
+		nullIfEmpty(record.RequestedPreset),
+		requestedPhases,
+		requestedSkipPhases,
+		plannedPhases,
+		boolToInt(record.FailFast),
+		boolToInt(record.Success),
+		string(payload),
+		sqliteutil.FormatTimestamp(record.StartedAt),
+		sqliteutil.FormatTimestamp(record.CompletedAt),
 	)
 	return err
 }
@@ -80,6 +93,7 @@ func (r *SuiteExecutionRepository) ListRecent(ctx context.Context, scenario stri
 	if offset < 0 {
 		offset = 0
 	}
+
 	baseQuery := `
 SELECT
 	id,
@@ -96,18 +110,13 @@ SELECT
 	started_at,
 	completed_at
 FROM suite_executions`
-	var args []interface{}
-	argPos := 1
-	if scenario := strings.TrimSpace(scenario); scenario != "" {
-		baseQuery += fmt.Sprintf(" WHERE scenario_name = $%d", argPos)
+	args := make([]any, 0, 3)
+	if scenario = strings.TrimSpace(scenario); scenario != "" {
+		baseQuery += " WHERE scenario_name = ?"
 		args = append(args, scenario)
-		argPos++
 	}
-	baseQuery += fmt.Sprintf(" ORDER BY completed_at DESC LIMIT $%d", argPos)
-	args = append(args, limit)
-	argPos++
-	baseQuery += fmt.Sprintf(" OFFSET $%d", argPos)
-	args = append(args, offset)
+	baseQuery += " ORDER BY completed_at DESC LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
 
 	rows, err := r.db.QueryContext(ctx, baseQuery, args...)
 	if err != nil {
@@ -146,9 +155,9 @@ SELECT
 	started_at,
 	completed_at
 FROM suite_executions
-WHERE id = $1
+WHERE id = ?
 `
-	row := r.db.QueryRowContext(ctx, q, id)
+	row := r.db.QueryRowContext(ctx, q, id.String())
 	record, err := scanSuiteExecutionRecord(row)
 	if err != nil {
 		return nil, err
@@ -192,22 +201,29 @@ func (r *SuiteExecutionRepository) ListPhaseSamples(ctx context.Context, phaseNa
 		return nil, nil
 	}
 
-	const q = `
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(normalized)), ",")
+	q := fmt.Sprintf(`
 SELECT
 	scenario_name,
-	LOWER(TRIM(phase->>'name')) AS phase_name,
-	LOWER(TRIM(COALESCE(phase->>'status', ''))) AS status,
-	GREATEST(COALESCE((phase->>'durationSeconds')::int, 0), 0) AS duration_seconds,
+	LOWER(TRIM(json_extract(phase.value, '$.name'))) AS phase_name,
+	LOWER(TRIM(COALESCE(json_extract(phase.value, '$.status'), ''))) AS status,
+	MAX(CAST(COALESCE(json_extract(phase.value, '$.durationSeconds'), 0) AS INTEGER), 0) AS duration_seconds,
 	completed_at
 FROM suite_executions
-CROSS JOIN LATERAL jsonb_array_elements(phases) AS phase
-WHERE LOWER(TRIM(phase->>'name')) = ANY($1)
-  AND completed_at >= $2
+JOIN json_each(suite_executions.phases) AS phase
+WHERE LOWER(TRIM(json_extract(phase.value, '$.name'))) IN (%s)
+  AND completed_at >= ?
 ORDER BY completed_at DESC
-LIMIT $3
-`
+LIMIT ?
+`, placeholders)
 
-	rows, err := r.db.QueryContext(ctx, q, pq.Array(normalized), since, limit)
+	args := make([]any, 0, len(normalized)+2)
+	for _, phase := range normalized {
+		args = append(args, phase)
+	}
+	args = append(args, sqliteutil.FormatTimestamp(since), limit)
+
+	rows, err := r.db.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -216,13 +232,18 @@ LIMIT $3
 	var samples []PhaseDurationSample
 	for rows.Next() {
 		var sample PhaseDurationSample
+		var completedAt any
 		if err := rows.Scan(
 			&sample.ScenarioName,
 			&sample.PhaseName,
 			&sample.Status,
 			&sample.DurationSeconds,
-			&sample.CompletedAt,
+			&completedAt,
 		); err != nil {
+			return nil, err
+		}
+		sample.CompletedAt, err = sqliteutil.ParseTimestamp(completedAt)
+		if err != nil {
 			return nil, err
 		}
 		samples = append(samples, sample)
@@ -239,16 +260,21 @@ type rowScanner interface {
 
 func scanSuiteExecutionRecord(scanner rowScanner) (SuiteExecutionRecord, error) {
 	var record SuiteExecutionRecord
+	var rawID string
 	var rawSuite sql.NullString
 	var preset sql.NullString
 	var requestedPreset sql.NullString
-	var requestedPhases pq.StringArray
-	var requestedSkipPhases pq.StringArray
-	var plannedPhases pq.StringArray
-	var phasesJSON []byte
+	var requestedPhases any
+	var requestedSkipPhases any
+	var plannedPhases any
+	var failFast int
+	var success int
+	var phasesJSON any
+	var startedAt any
+	var completedAt any
 
 	if err := scanner.Scan(
-		&record.ID,
+		&rawID,
 		&rawSuite,
 		&record.ScenarioName,
 		&preset,
@@ -256,14 +282,20 @@ func scanSuiteExecutionRecord(scanner rowScanner) (SuiteExecutionRecord, error) 
 		&requestedPhases,
 		&requestedSkipPhases,
 		&plannedPhases,
-		&record.FailFast,
-		&record.Success,
+		&failFast,
+		&success,
 		&phasesJSON,
-		&record.StartedAt,
-		&record.CompletedAt,
+		&startedAt,
+		&completedAt,
 	); err != nil {
 		return record, err
 	}
+
+	parsedID, err := uuid.Parse(rawID)
+	if err != nil {
+		return record, err
+	}
+	record.ID = parsedID
 
 	if rawSuite.Valid {
 		if parsed, err := uuid.Parse(rawSuite.String); err == nil {
@@ -276,19 +308,45 @@ func scanSuiteExecutionRecord(scanner rowScanner) (SuiteExecutionRecord, error) 
 	if requestedPreset.Valid {
 		record.RequestedPreset = requestedPreset.String
 	}
-	if len(requestedPhases) > 0 {
-		record.RequestedPhases = append([]string(nil), requestedPhases...)
+	record.RequestedPhases, err = sqliteutil.UnmarshalStringSlice(requestedPhases)
+	if err != nil {
+		return record, err
 	}
-	if len(requestedSkipPhases) > 0 {
-		record.RequestedSkipPhases = append([]string(nil), requestedSkipPhases...)
+	record.RequestedSkipPhases, err = sqliteutil.UnmarshalStringSlice(requestedSkipPhases)
+	if err != nil {
+		return record, err
 	}
-	if len(plannedPhases) > 0 {
-		record.PlannedPhases = append([]string(nil), plannedPhases...)
+	record.PlannedPhases, err = sqliteutil.UnmarshalStringSlice(plannedPhases)
+	if err != nil {
+		return record, err
 	}
-	if len(phasesJSON) > 0 {
-		if err := json.Unmarshal(phasesJSON, &record.Phases); err != nil {
-			return record, err
-		}
+	record.FailFast = failFast == 1
+	record.Success = success == 1
+
+	if err := sqliteutil.UnmarshalJSON(phasesJSON, &record.Phases); err != nil {
+		return record, err
+	}
+	record.StartedAt, err = sqliteutil.ParseTimestamp(startedAt)
+	if err != nil {
+		return record, err
+	}
+	record.CompletedAt, err = sqliteutil.ParseTimestamp(completedAt)
+	if err != nil {
+		return record, err
 	}
 	return record, nil
+}
+
+func nullIfEmpty(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return value
+}
+
+func boolToInt(value bool) int {
+	if value {
+		return 1
+	}
+	return 0
 }

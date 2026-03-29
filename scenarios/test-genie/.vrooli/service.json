@@ -122,7 +122,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83e\uddea Test Genie ready!\\n  \ud83c\udf10 API: http://localhost:${API_PORT}\\n  \ud83d\udda5\ufe0f  UI: http://localhost:${UI_PORT}\\n  \ud83d\udee0\ufe0f CLI: test-genie --help\\n  \ud83d\udce6 Queue Postgres URL: ${DATABASE_URL}'",
+          "run": "echo '\ud83e\uddea Test Genie ready!\\n  \ud83c\udf10 API: http://localhost:${API_PORT}\\n  \ud83d\udda5\ufe0f  UI: http://localhost:${UI_PORT}\\n  \ud83d\udee0\ufe0f CLI: test-genie --help\\n  \ud83d\udce6 SQLite DB: data/test-genie.db (override with TEST_GENIE_SQLITE_PATH)'",
           "description": "Display service entrypoints after setup completes"
         }
       ]
@@ -181,15 +181,7 @@
       ]
     }
   },
-  "dependencies": {
-    "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "description": "Primary relational data store",
-        "schema": "test-genie"
-      }
-    }
+  "environment": {
+    "TEST_GENIE_SQLITE_PATH": "${SCENARIO_DATA_DIR}/test-genie.db"
   }
 }

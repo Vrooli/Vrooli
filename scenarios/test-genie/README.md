@@ -145,8 +145,8 @@ See [docs/phases/business/requirements-sync.md](docs/phases/business/requirement
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PORT` | API server port | `8200` |
-| `POSTGRES_HOST` | Database host | `localhost` |
-| `POSTGRES_DB` | Database name | `test_genie` |
+| `TEST_GENIE_SQLITE_PATH` | Embedded SQLite database path | `${SCENARIO_DATA_DIR}/test-genie.db` |
+| `SCENARIO_DATA_DIR` | Scenario-local persistent data root | Lifecycle-managed |
 
 ## Development
 

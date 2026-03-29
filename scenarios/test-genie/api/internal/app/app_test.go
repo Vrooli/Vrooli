@@ -43,7 +43,8 @@ func TestNewServerWiresRuntimeDependenciesIntoHTTPTransport(t *testing.T) {
 
 	cfg := &runtime.Config{
 		Port:          "9911",
-		DatabaseURL:   "postgres://example",
+		DatabasePath:  "/tmp/test-genie.db",
+		DatabaseDSN:   "file:/tmp/test-genie.db",
 		ScenariosRoot: "/tmp/scenarios",
 	}
 	agentSvc := agentmanager.NewAgentService(agentmanager.Config{

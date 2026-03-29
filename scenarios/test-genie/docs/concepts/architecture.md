@@ -19,9 +19,9 @@ flowchart TB
     phases --> smoke["internal/smoke"]
     phases --> structure["internal/structure"]
 
-    queue --> postgres[(PostgreSQL)]
-    execution --> postgres
-    scenarios --> postgres
+    queue --> sqlite[(SQLite)]
+    execution --> sqlite
+    scenarios --> sqlite
     playbooks --> fs["Scenario filesystem"]
     workspace --> fs
     requirements --> fs
@@ -31,7 +31,7 @@ flowchart TB
 
 | Package | Responsibility | Notes |
 |--------|----------------|-------|
-| `internal/app/runtime` | Lifecycle-provided config and bootstrap | Reads ports, DB URLs, scenario roots |
+| `internal/app/runtime` | Lifecycle-provided config and bootstrap | Reads ports, SQLite paths, scenario roots |
 | `internal/app/httpserver` | HTTP transport and payload shaping | No domain policy beyond request/response mapping |
 | `internal/queue` | Suite request lifecycle and queue telemetry | Owns stale-queue policy |
 | `internal/execution` | Execution records plus queue/execution coordination | Keeps queue state and persisted execution history consistent |
@@ -101,7 +101,7 @@ The most important operator-facing levers are:
 | Lever | Scope | Purpose |
 |------|-------|---------|
 | `TEST_GENIE_EXECUTION_TIMEOUT` | CLI | Extend blocking execution timeout for long suites |
-| `TEST_GENIE_PLAYBOOKS_RETAIN` | Playbooks phase | Keep temporary Postgres/Redis isolation alive for debugging |
+| `TEST_GENIE_PLAYBOOKS_RETAIN` | Playbooks phase | Keep temporary isolated Postgres/Redis/SQLite resources alive for debugging |
 | `TEST_GENIE_QUEUE_STALE_AFTER` | Queue/scenario summaries | Define when queued or delegated requests become stale telemetry |
 | `TEST_GENIE_SKIP_PLAYBOOKS` | Playbooks phase | Hard-disable the phase for debugging or constrained environments |
 

@@ -3,16 +3,16 @@ package scenarios
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
-	pq "github.com/lib/pq"
 
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/queue"
+	"test-genie/internal/storage/sqliteutil"
 )
 
 // ScenarioSummary aggregates queue + execution telemetry for a single scenario.
@@ -40,11 +40,30 @@ type ScenarioSummary struct {
 	Testing                   *TestingCapabilities                `json:"testing,omitempty"`
 }
 
-type rowScanner interface {
-	Scan(dest ...interface{}) error
+type queueSummary struct {
+	TotalRequests             int
+	PendingRequests           int
+	LastRequestAt             *time.Time
+	LastRequestPriority       string
+	LastRequestStatus         string
+	LastRequestNotes          string
+	LastRequestCoverageTarget *int
+	LastRequestTypes          []string
 }
 
-// ScenarioDirectoryRepository loads scenario summaries from Postgres.
+type executionSummary struct {
+	TotalExecutions           int
+	LastExecutionAt           *time.Time
+	LastExecutionID           *uuid.UUID
+	LastExecutionPreset       string
+	LastExecutionSuccess      *bool
+	LastExecutionPhases       []orchestrator.PhaseExecutionResult
+	LastExecutionPhaseSummary *orchestrator.PhaseSummary
+	LastFailureAt             *time.Time
+}
+
+// ScenarioDirectoryRepository loads scenario summaries from Test Genie's
+// embedded SQLite database.
 type ScenarioDirectoryRepository struct {
 	db                *sql.DB
 	clock             func() time.Time
@@ -60,24 +79,11 @@ func NewScenarioDirectoryRepository(db *sql.DB) *ScenarioDirectoryRepository {
 }
 
 func (r *ScenarioDirectoryRepository) List(ctx context.Context) ([]ScenarioSummary, error) {
-	rows, err := r.db.QueryContext(ctx, scenarioSummaryQuery(false), r.activeQueueCutoff())
+	names, err := r.loadScenarioNames(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	var summaries []ScenarioSummary
-	for rows.Next() {
-		summary, err := scanScenarioSummary(rows)
-		if err != nil {
-			return nil, err
-		}
-		summaries = append(summaries, summary)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return summaries, nil
+	return r.buildSummaries(ctx, names)
 }
 
 func (r *ScenarioDirectoryRepository) Get(ctx context.Context, scenario string) (*ScenarioSummary, error) {
@@ -85,192 +91,281 @@ func (r *ScenarioDirectoryRepository) Get(ctx context.Context, scenario string) 
 	if scenario == "" {
 		return nil, fmt.Errorf("scenario is required")
 	}
-	row := r.db.QueryRowContext(ctx, scenarioSummaryQuery(true), r.activeQueueCutoff(), scenario)
-	summary, err := scanScenarioSummary(row)
+
+	summaries, err := r.buildSummaries(ctx, []string{scenario})
 	if err != nil {
 		return nil, err
 	}
-	return &summary, nil
+	if len(summaries) == 0 {
+		return nil, sql.ErrNoRows
+	}
+	return &summaries[0], nil
 }
 
-func scenarioSummaryQuery(filter bool) string {
-	builder := strings.Builder{}
-	builder.WriteString(`
-WITH scenario_names AS (
-	SELECT DISTINCT scenario_name FROM suite_requests
-	UNION
-	SELECT DISTINCT scenario_name FROM suite_executions
-),
-queue_stats AS (
-	SELECT
-		scenario_name,
-		COUNT(*) AS total_requests,
-		COUNT(*) FILTER (WHERE status IN ('queued', 'delegated') AND updated_at >= $1) AS pending_requests,
-		MAX(updated_at) AS last_request_at
-	FROM suite_requests
-	GROUP BY scenario_name
-),
-queue_last AS (
-	SELECT DISTINCT ON (scenario_name)
-		scenario_name,
-		priority,
-		status,
-		notes,
-		coverage_target,
-		requested_types,
-		updated_at
-	FROM suite_requests
-	ORDER BY scenario_name, updated_at DESC
-),
-execution_stats AS (
-	SELECT
-		scenario_name,
-		COUNT(*) AS total_executions,
-		MAX(completed_at) AS last_execution_at
-	FROM suite_executions
-	GROUP BY scenario_name
-),
-execution_last AS (
-	SELECT DISTINCT ON (scenario_name)
-		scenario_name,
-		id,
-		preset_used,
-		success,
-		completed_at,
-		phases
-	FROM suite_executions
-	ORDER BY scenario_name, completed_at DESC
-),
-failure_last AS (
-	SELECT DISTINCT ON (scenario_name)
-		scenario_name,
-		completed_at
-	FROM suite_executions
-	WHERE success = false
-	ORDER BY scenario_name, completed_at DESC
-)
-SELECT
-	names.scenario_name,
-	COALESCE(queue_stats.pending_requests, 0) AS pending_requests,
-	COALESCE(queue_stats.total_requests, 0) AS total_requests,
-	queue_stats.last_request_at,
-	queue_last.priority,
-	queue_last.status,
-	queue_last.notes,
-	queue_last.coverage_target,
-	queue_last.requested_types,
-	COALESCE(execution_stats.total_executions, 0) AS total_executions,
-	execution_stats.last_execution_at,
-	execution_last.id,
-	execution_last.preset_used,
-	execution_last.success,
-	execution_last.phases,
-	failure_last.completed_at
-FROM scenario_names names
-LEFT JOIN queue_stats ON queue_stats.scenario_name = names.scenario_name
-LEFT JOIN queue_last ON queue_last.scenario_name = names.scenario_name
-LEFT JOIN execution_stats ON execution_stats.scenario_name = names.scenario_name
-LEFT JOIN execution_last ON execution_last.scenario_name = names.scenario_name
-LEFT JOIN failure_last ON failure_last.scenario_name = names.scenario_name
-`)
-	if filter {
-		builder.WriteString("WHERE names.scenario_name = $2\n")
+func (r *ScenarioDirectoryRepository) buildSummaries(ctx context.Context, names []string) ([]ScenarioSummary, error) {
+	queueData, err := r.loadQueueSummaries(ctx)
+	if err != nil {
+		return nil, err
 	}
-	builder.WriteString(`ORDER BY COALESCE(execution_stats.last_execution_at, queue_stats.last_request_at) DESC NULLS LAST, names.scenario_name ASC
-`)
-	return builder.String()
+	executionData, err := r.loadExecutionSummaries(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	summaries := make([]ScenarioSummary, 0, len(names))
+	for _, name := range names {
+		queueSummary := queueData[name]
+		executionSummary := executionData[name]
+		if queueSummary == nil && executionSummary == nil {
+			continue
+		}
+
+		summary := ScenarioSummary{ScenarioName: name}
+		if queueSummary != nil {
+			summary.PendingRequests = queueSummary.PendingRequests
+			summary.TotalRequests = queueSummary.TotalRequests
+			summary.LastRequestAt = queueSummary.LastRequestAt
+			summary.LastRequestPriority = queueSummary.LastRequestPriority
+			summary.LastRequestStatus = queueSummary.LastRequestStatus
+			summary.LastRequestNotes = queueSummary.LastRequestNotes
+			summary.LastRequestCoverageTarget = queueSummary.LastRequestCoverageTarget
+			summary.LastRequestTypes = append([]string(nil), queueSummary.LastRequestTypes...)
+		}
+		if executionSummary != nil {
+			summary.TotalExecutions = executionSummary.TotalExecutions
+			summary.LastExecutionAt = executionSummary.LastExecutionAt
+			summary.LastExecutionID = executionSummary.LastExecutionID
+			summary.LastExecutionPreset = executionSummary.LastExecutionPreset
+			summary.LastExecutionSuccess = executionSummary.LastExecutionSuccess
+			summary.LastExecutionPhases = append([]orchestrator.PhaseExecutionResult(nil), executionSummary.LastExecutionPhases...)
+			summary.LastExecutionPhaseSummary = executionSummary.LastExecutionPhaseSummary
+			summary.LastFailureAt = executionSummary.LastFailureAt
+		}
+		summaries = append(summaries, summary)
+	}
+
+	sort.SliceStable(summaries, func(i, j int) bool {
+		left := latestActivity(summaries[i])
+		right := latestActivity(summaries[j])
+		switch {
+		case left == nil && right == nil:
+			return summaries[i].ScenarioName < summaries[j].ScenarioName
+		case left == nil:
+			return false
+		case right == nil:
+			return true
+		case left.Equal(*right):
+			return summaries[i].ScenarioName < summaries[j].ScenarioName
+		default:
+			return left.After(*right)
+		}
+	})
+
+	return summaries, nil
+}
+
+func (r *ScenarioDirectoryRepository) loadScenarioNames(ctx context.Context) ([]string, error) {
+	const q = `
+SELECT scenario_name FROM suite_requests
+UNION
+SELECT scenario_name FROM suite_executions
+ORDER BY scenario_name ASC
+`
+	rows, err := r.db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		names = append(names, name)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return names, nil
+}
+
+func (r *ScenarioDirectoryRepository) loadQueueSummaries(ctx context.Context) (map[string]*queueSummary, error) {
+	const q = `
+SELECT
+	scenario_name,
+	priority,
+	status,
+	notes,
+	coverage_target,
+	requested_types,
+	updated_at
+FROM suite_requests
+ORDER BY scenario_name ASC, updated_at DESC, created_at DESC
+`
+	rows, err := r.db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	cutoff := r.activeQueueCutoff()
+	result := make(map[string]*queueSummary)
+	for rows.Next() {
+		var (
+			scenarioName  string
+			priority      sql.NullString
+			status        sql.NullString
+			notes         sql.NullString
+			coverage      sql.NullInt64
+			requestedType any
+			updatedAt     any
+		)
+		if err := rows.Scan(
+			&scenarioName,
+			&priority,
+			&status,
+			&notes,
+			&coverage,
+			&requestedType,
+			&updatedAt,
+		); err != nil {
+			return nil, err
+		}
+
+		entry := result[scenarioName]
+		if entry == nil {
+			entry = &queueSummary{}
+			result[scenarioName] = entry
+		}
+		entry.TotalRequests++
+
+		updated, err := sqliteutil.ParseTimestamp(updatedAt)
+		if err != nil {
+			return nil, err
+		}
+		statusValue := strings.ToLower(strings.TrimSpace(status.String))
+		if (statusValue == queue.StatusQueued || statusValue == queue.StatusDelegated) && !updated.Before(cutoff) {
+			entry.PendingRequests++
+		}
+		if entry.LastRequestAt != nil {
+			continue
+		}
+
+		entry.LastRequestAt = &updated
+		entry.LastRequestPriority = priority.String
+		entry.LastRequestStatus = status.String
+		entry.LastRequestNotes = notes.String
+		if coverage.Valid {
+			value := int(coverage.Int64)
+			entry.LastRequestCoverageTarget = &value
+		}
+		entry.LastRequestTypes, err = sqliteutil.UnmarshalStringSlice(requestedType)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (r *ScenarioDirectoryRepository) loadExecutionSummaries(ctx context.Context) (map[string]*executionSummary, error) {
+	const q = `
+SELECT
+	scenario_name,
+	id,
+	preset_used,
+	success,
+	phases,
+	completed_at
+FROM suite_executions
+ORDER BY scenario_name ASC, completed_at DESC
+`
+	rows, err := r.db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string]*executionSummary)
+	for rows.Next() {
+		var (
+			scenarioName string
+			rawID        string
+			preset       sql.NullString
+			success      int
+			phasesValue  any
+			completedAt  any
+		)
+		if err := rows.Scan(
+			&scenarioName,
+			&rawID,
+			&preset,
+			&success,
+			&phasesValue,
+			&completedAt,
+		); err != nil {
+			return nil, err
+		}
+
+		entry := result[scenarioName]
+		if entry == nil {
+			entry = &executionSummary{}
+			result[scenarioName] = entry
+		}
+		entry.TotalExecutions++
+
+		completed, err := sqliteutil.ParseTimestamp(completedAt)
+		if err != nil {
+			return nil, err
+		}
+		succeeded := success == 1
+		if !succeeded && entry.LastFailureAt == nil {
+			entry.LastFailureAt = &completed
+		}
+		if entry.LastExecutionAt != nil {
+			continue
+		}
+
+		entry.LastExecutionAt = &completed
+		if parsedID, err := uuid.Parse(rawID); err == nil {
+			entry.LastExecutionID = &parsedID
+		}
+		entry.LastExecutionPreset = preset.String
+		entry.LastExecutionSuccess = &succeeded
+
+		var phases []orchestrator.PhaseExecutionResult
+		if err := sqliteutil.UnmarshalJSON(phasesValue, &phases); err != nil {
+			return nil, err
+		}
+		entry.LastExecutionPhases = phases
+		if len(phases) > 0 {
+			summaryValue := orchestrator.SummarizePhases(phases)
+			entry.LastExecutionPhaseSummary = &summaryValue
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func (r *ScenarioDirectoryRepository) activeQueueCutoff() time.Time {
 	return r.clock().UTC().Add(-r.queueActiveWindow)
 }
 
-func scanScenarioSummary(scanner rowScanner) (ScenarioSummary, error) {
-	var summary ScenarioSummary
-	var lastRequestAt sql.NullTime
-	var lastRequestPriority sql.NullString
-	var lastRequestStatus sql.NullString
-	var lastRequestNotes sql.NullString
-	var coverageTarget sql.NullInt64
-	var requestedTypes pq.StringArray
-	var lastExecutionAt sql.NullTime
-	var lastExecutionID sql.NullString
-	var lastExecutionSuccess sql.NullBool
-	var lastExecutionPreset sql.NullString
-	var lastExecutionPhases []byte
-	var lastFailureAt sql.NullTime
-
-	if err := scanner.Scan(
-		&summary.ScenarioName,
-		&summary.PendingRequests,
-		&summary.TotalRequests,
-		&lastRequestAt,
-		&lastRequestPriority,
-		&lastRequestStatus,
-		&lastRequestNotes,
-		&coverageTarget,
-		&requestedTypes,
-		&summary.TotalExecutions,
-		&lastExecutionAt,
-		&lastExecutionID,
-		&lastExecutionPreset,
-		&lastExecutionSuccess,
-		&lastExecutionPhases,
-		&lastFailureAt,
-	); err != nil {
-		return summary, err
+func latestActivity(summary ScenarioSummary) *time.Time {
+	switch {
+	case summary.LastExecutionAt == nil:
+		return summary.LastRequestAt
+	case summary.LastRequestAt == nil:
+		return summary.LastExecutionAt
+	case summary.LastExecutionAt.After(*summary.LastRequestAt):
+		return summary.LastExecutionAt
+	default:
+		return summary.LastRequestAt
 	}
-
-	if lastRequestAt.Valid {
-		t := lastRequestAt.Time.UTC()
-		summary.LastRequestAt = &t
-	}
-	if lastRequestPriority.Valid {
-		summary.LastRequestPriority = lastRequestPriority.String
-	}
-	if lastRequestStatus.Valid {
-		summary.LastRequestStatus = lastRequestStatus.String
-	}
-	if lastRequestNotes.Valid {
-		summary.LastRequestNotes = lastRequestNotes.String
-	}
-	if coverageTarget.Valid {
-		val := int(coverageTarget.Int64)
-		summary.LastRequestCoverageTarget = &val
-	}
-	if len(requestedTypes) > 0 {
-		summary.LastRequestTypes = append(summary.LastRequestTypes, requestedTypes...)
-	}
-	if lastExecutionAt.Valid {
-		t := lastExecutionAt.Time.UTC()
-		summary.LastExecutionAt = &t
-	}
-	if lastExecutionID.Valid && lastExecutionID.String != "" {
-		if id, err := uuid.Parse(lastExecutionID.String); err == nil {
-			summary.LastExecutionID = &id
-		}
-	}
-	if lastExecutionPreset.Valid {
-		summary.LastExecutionPreset = lastExecutionPreset.String
-	}
-	if lastExecutionSuccess.Valid {
-		val := lastExecutionSuccess.Bool
-		summary.LastExecutionSuccess = &val
-	}
-	if len(lastExecutionPhases) > 0 {
-		var phases []orchestrator.PhaseExecutionResult
-		if err := json.Unmarshal(lastExecutionPhases, &phases); err == nil {
-			summary.LastExecutionPhases = phases
-			if len(phases) > 0 {
-				summaryValue := orchestrator.SummarizePhases(phases)
-				summary.LastExecutionPhaseSummary = &summaryValue
-			}
-		}
-	}
-	if lastFailureAt.Valid {
-		t := lastFailureAt.Time.UTC()
-		summary.LastFailureAt = &t
-	}
-
-	return summary, nil
 }

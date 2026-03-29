@@ -11,12 +11,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/database"
+	_ "modernc.org/sqlite"
+
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/playbooks/config"
 	"test-genie/internal/playbooks/isolation"
 	"test-genie/internal/playbooks/seeds"
 	"test-genie/internal/shared"
 	sharedartifacts "test-genie/internal/shared/artifacts"
+	"test-genie/internal/storage/sqlfiles"
 )
 
 // PlaybooksSeedSession holds state for a seed lifecycle run.
@@ -27,6 +31,13 @@ type PlaybooksSeedSession struct {
 	SeedState  map[string]any
 	CleanupRef string
 	cleanup    func(ctx context.Context) error
+}
+
+type resourceNeeds struct {
+	RequirePostgres bool
+	RequireRedis    bool
+	RequireSQLite   bool
+	SQLiteEnvVars   []string
 }
 
 // Cleanup tears down isolation resources and restarts the scenario to normal resources.
@@ -52,11 +63,13 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 		return nil, fmt.Errorf("playbooks seeds disabled via .vrooli/testing.json")
 	}
 
-	requirePG, requireRedis := detectResourceNeeds(env, logWriter)
+	needs := detectResourceNeeds(env, logWriter)
 	isoManager := isolationManagerFactory(isolation.Config{
 		ScenarioName:    env.ScenarioName,
-		RequirePostgres: requirePG,
-		RequireRedis:    requireRedis,
+		RequirePostgres: needs.RequirePostgres,
+		RequireRedis:    needs.RequireRedis,
+		RequireSQLite:   needs.RequireSQLite,
+		SQLiteEnvVars:   needs.SQLiteEnvVars,
 		Retain:          retain,
 		LogWriter:       logWriter,
 		Timeout:         2 * time.Minute,
@@ -70,7 +83,7 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 	restoreEnv := isolation.ApplyEnv(isoResult.Env)
 	envApplied := true
 
-	if err := applyPlaybooksMigrations(ctx, env, requirePG, logWriter); err != nil {
+	if err := applyPlaybooksMigrations(ctx, env, needs, logWriter); err != nil {
 		if envApplied {
 			restoreEnv()
 		}
@@ -128,42 +141,54 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 }
 
 // applyPlaybooksMigrations applies optional .sql files under bas/seeds/migrations
-// against the current DATABASE_URL (already set via isolation env). Files execute in lexicographic order.
-func applyPlaybooksMigrations(ctx context.Context, env workspace.Environment, requirePostgres bool, logWriter io.Writer) error {
-	if !requirePostgres {
+// against the isolated database backend. Files execute in lexicographic order.
+func applyPlaybooksMigrations(ctx context.Context, env workspace.Environment, needs resourceNeeds, logWriter io.Writer) error {
+	if !needs.RequirePostgres && !needs.RequireSQLite {
 		return nil
 	}
 
 	migrationsDir := filepath.Join(env.ScenarioDir, "bas", "seeds", "migrations")
-	entries, err := os.ReadDir(migrationsDir)
+	commonFiles, err := collectMigrationFiles(migrationsDir, "common")
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return fmt.Errorf("read migrations dir: %w", err)
+		return err
+	}
+	postgresFiles, err := collectScopedMigrationFiles(migrationsDir, "postgres")
+	if err != nil {
+		return err
+	}
+	sqliteFiles, err := collectScopedMigrationFiles(migrationsDir, "sqlite")
+	if err != nil {
+		return err
+	}
+	if len(commonFiles) == 0 && len(postgresFiles) == 0 && len(sqliteFiles) == 0 {
+		return nil
 	}
 
+	if needs.RequirePostgres {
+		files := append([]string(nil), commonFiles...)
+		files = append(files, postgresFiles...)
+		if err := applyPostgresMigrations(ctx, env, files, logWriter); err != nil {
+			return err
+		}
+	}
+	if needs.RequireSQLite {
+		files := append([]string(nil), commonFiles...)
+		files = append(files, sqliteFiles...)
+		if err := applySQLiteMigrations(ctx, env, files, logWriter); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func applyPostgresMigrations(ctx context.Context, env workspace.Environment, files []string, logWriter io.Writer) error {
 	if err := EnsureCommandAvailable("psql"); err != nil {
 		return fmt.Errorf("psql not available for playbooks migrations: %w", err)
 	}
-
 	connURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
 	if connURL == "" {
 		return fmt.Errorf("DATABASE_URL is not set for playbooks migrations")
 	}
-
-	var files []string
-	for _, entry := range entries {
-		if entry.IsDir() || filepath.Ext(entry.Name()) != ".sql" {
-			continue
-		}
-		files = append(files, filepath.Join(migrationsDir, entry.Name()))
-	}
-	if len(files) == 0 {
-		return nil
-	}
-	sort.Strings(files)
-
 	shared.LogStep(logWriter, "applying playbooks migrations (%d file(s))", len(files))
 	for _, file := range files {
 		shared.LogInfo(logWriter, "  psql -f %s", file)
@@ -174,40 +199,124 @@ func applyPlaybooksMigrations(ctx context.Context, env workspace.Environment, re
 	return nil
 }
 
-// detectResourceNeeds inspects the scenario service manifest and returns whether
-// Postgres and Redis should be provisioned for Playbooks isolation. Defaults to
-// provisioning both when the manifest cannot be read or does not declare resources.
-func detectResourceNeeds(env workspace.Environment, logWriter io.Writer) (requirePostgres bool, requireRedis bool) {
+func applySQLiteMigrations(ctx context.Context, env workspace.Environment, files []string, logWriter io.Writer) error {
+	sqliteDSN := strings.TrimSpace(firstNonEmpty(
+		os.Getenv("PLAYBOOKS_SQLITE_DSN"),
+		os.Getenv("PLAYBOOKS_SQLITE_PATH"),
+		os.Getenv("SQLITE_PATH"),
+		os.Getenv("SQLITE_DB"),
+	))
+	if sqliteDSN == "" {
+		return fmt.Errorf("SQLITE_PATH is not set for playbooks migrations")
+	}
+	db, err := database.Connect(ctx, database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          sqliteDSN,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+	if err != nil {
+		return fmt.Errorf("open sqlite migrations database: %w", err)
+	}
+	defer db.Close()
+
+	shared.LogStep(logWriter, "applying playbooks sqlite migrations (%d file(s))", len(files))
+	for _, file := range files {
+		shared.LogInfo(logWriter, "  sqlite migrate %s", file)
+		if err := sqlfiles.ExecFile(db, file); err != nil {
+			return fmt.Errorf("sqlite apply %s: %w", file, err)
+		}
+	}
+	return nil
+}
+
+func collectMigrationFiles(root, scopedDir string) ([]string, error) {
+	legacyFiles, err := collectScopedMigrationFiles(root, "")
+	if err != nil {
+		return nil, err
+	}
+	scopedFiles, err := collectScopedMigrationFiles(root, scopedDir)
+	if err != nil {
+		return nil, err
+	}
+	merged := append([]string(nil), legacyFiles...)
+	merged = append(merged, scopedFiles...)
+	return merged, nil
+}
+
+func collectScopedMigrationFiles(root, scopedDir string) ([]string, error) {
+	targetDir := root
+	if scopedDir != "" {
+		targetDir = filepath.Join(root, scopedDir)
+	}
+	entries, err := os.ReadDir(targetDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read migrations dir %s: %w", targetDir, err)
+	}
+
+	var files []string
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".sql" {
+			continue
+		}
+		files = append(files, filepath.Join(targetDir, entry.Name()))
+	}
+	sort.Strings(files)
+	return files, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
+}
+
+// detectResourceNeeds inspects the scenario service manifest and returns which
+// isolated resources should be provisioned for Playbooks. Defaults to
+// provisioning Postgres + Redis when the manifest cannot be read or does not
+// declare any supported resource types.
+func detectResourceNeeds(env workspace.Environment, logWriter io.Writer) resourceNeeds {
 	manifestPath := filepath.Join(env.ScenarioDir, ".vrooli", "service.json")
 	manifest, err := workspace.LoadServiceManifest(manifestPath)
 	if err != nil {
 		shared.LogWarn(logWriter, "unable to read service manifest (%v); defaulting to Postgres + Redis isolation", err)
-		return true, true
+		return resourceNeeds{RequirePostgres: true, RequireRedis: true}
 	}
 
 	if len(manifest.Dependencies.Resources) == 0 {
-		return true, true
+		return resourceNeeds{RequirePostgres: true, RequireRedis: true}
 	}
 
+	needs := resourceNeeds{
+		SQLiteEnvVars: manifest.SQLitePathEnvVars(),
+	}
 	for _, res := range manifest.Dependencies.Resources {
 		if !res.Enabled && !res.Required {
 			continue
 		}
 		switch strings.ToLower(res.Type) {
 		case "postgres":
-			requirePostgres = true
+			needs.RequirePostgres = true
 		case "redis":
-			requireRedis = true
+			needs.RequireRedis = true
+		case "sqlite":
+			needs.RequireSQLite = true
 		}
 	}
 
-	// If nothing matched, assume both to avoid false negatives.
-	if !requirePostgres && !requireRedis {
-		shared.LogWarn(logWriter, "service manifest declares no postgres/redis resources; defaulting to provision both for playbooks isolation")
-		return true, true
+	// If nothing matched, assume both legacy backing services to avoid false negatives.
+	if !needs.RequirePostgres && !needs.RequireRedis && !needs.RequireSQLite {
+		shared.LogWarn(logWriter, "service manifest declares no postgres/redis/sqlite resources; defaulting to provision Postgres + Redis for playbooks isolation")
+		return resourceNeeds{RequirePostgres: true, RequireRedis: true}
 	}
 
-	return requirePostgres, requireRedis
+	return needs
 }
 
 func applyEnv(env map[string]string) func() {

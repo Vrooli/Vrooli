@@ -1,6 +1,9 @@
 package isolation
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -46,5 +49,40 @@ func TestMergeAndSanitize(t *testing.T) {
 
 	if got := sanitize(" Test Genie/Playbooks "); got != "test_genie_playbooks" {
 		t.Fatalf("expected sanitize to normalize punctuation and whitespace, got %q", got)
+	}
+}
+
+func TestStartSQLiteProvisioning(t *testing.T) {
+	manager := NewManager(Config{
+		ScenarioName:  "Test Genie",
+		RequireSQLite: true,
+		SQLiteEnvVars: []string{"APP_SQLITE_PATH"},
+	})
+
+	result, cleanup, err := manager.startSQLite(context.Background(), "run-id")
+	if err != nil {
+		t.Fatalf("startSQLite returned error: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected sqlite start result")
+	}
+	if result.env["SQLITE_PATH"] == "" || result.env["APP_SQLITE_PATH"] == "" {
+		t.Fatalf("expected sqlite env vars to be populated: %#v", result.env)
+	}
+	if result.env["SQLITE_PATH"] != result.env["APP_SQLITE_PATH"] {
+		t.Fatalf("expected scenario-specific sqlite env to reuse sqlite path: %#v", result.env)
+	}
+	if filepath.Ext(result.env["SQLITE_PATH"]) != ".db" {
+		t.Fatalf("expected sqlite path to point at a db file, got %s", result.env["SQLITE_PATH"])
+	}
+	if _, err := os.Stat(filepath.Dir(result.env["SQLITE_PATH"])); err != nil {
+		t.Fatalf("expected sqlite temp dir to exist: %v", err)
+	}
+
+	if err := cleanup(context.Background()); err != nil {
+		t.Fatalf("cleanup returned error: %v", err)
+	}
+	if _, err := os.Stat(filepath.Dir(result.env["SQLITE_PATH"])); !os.IsNotExist(err) {
+		t.Fatalf("expected sqlite temp dir to be removed, got err=%v", err)
 	}
 }

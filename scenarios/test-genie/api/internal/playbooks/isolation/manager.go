@@ -9,12 +9,15 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+
+	"test-genie/internal/storage/sqlitedb"
 )
 
 // Config controls how isolation resources are provisioned for Playbooks.
@@ -22,6 +25,8 @@ type Config struct {
 	ScenarioName    string
 	RequirePostgres bool
 	RequireRedis    bool
+	RequireSQLite   bool
+	SQLiteEnvVars   []string
 	Retain          bool
 	LogWriter       io.Writer
 	Timeout         time.Duration
@@ -58,8 +63,8 @@ func ShouldRetainFromEnv() bool {
 	return os.Getenv("TEST_GENIE_PLAYBOOKS_RETAIN") == "1"
 }
 
-// Prepare provisions ephemeral Postgres + Redis endpoints and returns the env
-// vars needed to target them. Containers are stopped unless Retain is true.
+// Prepare provisions ephemeral backing services and returns the env vars needed
+// to target them. Containers/files are cleaned up unless Retain is true.
 func (m *Manager) Prepare(ctx context.Context) (*Result, error) {
 	runCtx, cancel := context.WithTimeout(ctx, m.cfg.Timeout)
 	defer cancel()
@@ -70,8 +75,8 @@ func (m *Manager) Prepare(ctx context.Context) (*Result, error) {
 		"TEST_GENIE_RUN_ID":           runID,
 		"TEST_GENIE_PLAYBOOKS_RETAIN": boolToString(m.cfg.Retain),
 	}
-	resources := make([]ResourceInfo, 0, 2)
-	cleanups := make([]func(context.Context) error, 0, 2)
+	resources := make([]ResourceInfo, 0, 3)
+	cleanups := make([]func(context.Context) error, 0, 3)
 
 	if m.cfg.RequirePostgres {
 		pg, pgCleanup, err := m.startPostgres(runCtx, runID)
@@ -95,6 +100,19 @@ func (m *Manager) Prepare(ctx context.Context) (*Result, error) {
 		resources = append(resources, rd.info)
 		env = merge(env, rd.env)
 		cleanups = append(cleanups, redisCleanup)
+	}
+
+	if m.cfg.RequireSQLite {
+		sqliteResult, sqliteCleanup, err := m.startSQLite(runCtx, runID)
+		if err != nil {
+			for _, fn := range cleanups {
+				_ = fn(context.Background())
+			}
+			return nil, fmt.Errorf("sqlite isolation failed: %w", err)
+		}
+		resources = append(resources, sqliteResult.info)
+		env = merge(env, sqliteResult.env)
+		cleanups = append(cleanups, sqliteCleanup)
 	}
 
 	cleanupAll := func(c context.Context) error {
@@ -243,6 +261,54 @@ func (m *Manager) startRedis(ctx context.Context, runID string) (*startResult, f
 
 	if m.cfg.Retain {
 		cleanup = func(context.Context) error { return nil }
+	}
+
+	return &startResult{env: env, info: info}, cleanup, nil
+}
+
+func (m *Manager) startSQLite(ctx context.Context, runID string) (*startResult, func(context.Context) error, error) {
+	rootDir, err := os.MkdirTemp("", fmt.Sprintf("test-genie-playbooks-%s-", sanitize(m.cfg.ScenarioName)))
+	if err != nil {
+		return nil, nil, fmt.Errorf("create sqlite temp dir: %w", err)
+	}
+	dbPath := filepath.Join(rootDir, fmt.Sprintf("%s-%s.db", sanitize(m.cfg.ScenarioName), randomSuffix(runID)))
+	dsn := sqlitedb.BuildDSN(dbPath)
+
+	env := map[string]string{
+		"SQLITE_PATH":           dbPath,
+		"SQLITE_DB":             dbPath,
+		"SQLITE_DATABASE_PATH":  rootDir,
+		"PLAYBOOKS_SQLITE_PATH": dbPath,
+		"PLAYBOOKS_SQLITE_DSN":  dsn,
+	}
+	if !m.cfg.RequirePostgres {
+		env["DATABASE_URL"] = dsn
+		env["PLAYBOOKS_DATABASE_URL"] = dsn
+	}
+	for _, key := range m.cfg.SQLiteEnvVars {
+		env[key] = dbPath
+	}
+
+	info := ResourceInfo{
+		Name:     "sqlite",
+		Endpoint: dbPath,
+		InspectCommands: []string{
+			fmt.Sprintf("sqlite3 %s", dbPath),
+		},
+	}
+
+	cleanup := func(context.Context) error {
+		if m.cfg.Retain {
+			return nil
+		}
+		return os.RemoveAll(rootDir)
+	}
+
+	select {
+	case <-ctx.Done():
+		_ = cleanup(context.Background())
+		return nil, nil, ctx.Err()
+	default:
 	}
 
 	return &startResult{env: env, info: info}, cleanup, nil

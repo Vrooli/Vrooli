@@ -2,22 +2,24 @@ package runtime
 
 import (
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"test-genie/internal/storage/sqlitedb"
 )
 
 // Config captures runtime parameters that should not be hard-coded inside HTTP handlers.
 type Config struct {
 	Port          string
-	DatabaseURL   string
+	DatabasePath  string
+	DatabaseDSN   string
 	ScenariosRoot string
 }
 
 // LoadConfig gathers lifecycle-provided environment variables and resolves derived paths.
 func LoadConfig() (*Config, error) {
-	dbURL, err := resolveDatabaseURL()
+	sqliteCfg, err := resolveDatabaseConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +36,8 @@ func LoadConfig() (*Config, error) {
 
 	return &Config{
 		Port:          port,
-		DatabaseURL:   dbURL,
+		DatabasePath:  sqliteCfg.Path,
+		DatabaseDSN:   sqliteCfg.DSN,
 		ScenariosRoot: scenariosRoot,
 	}, nil
 }
@@ -47,32 +50,26 @@ func requireEnv(key string) (string, error) {
 	return value, nil
 }
 
-func resolveDatabaseURL() (string, error) {
-	if raw := strings.TrimSpace(os.Getenv("DATABASE_URL")); raw != "" {
-		return raw, nil
+func resolveDatabaseConfig() (sqlitedb.Config, error) {
+	cfg, err := sqlitedb.Resolve()
+	if err == nil {
+		return cfg, nil
 	}
 
-	host := strings.TrimSpace(os.Getenv("POSTGRES_HOST"))
-	port := strings.TrimSpace(os.Getenv("POSTGRES_PORT"))
-	user := strings.TrimSpace(os.Getenv("POSTGRES_USER"))
-	password := strings.TrimSpace(os.Getenv("POSTGRES_PASSWORD"))
-	name := strings.TrimSpace(os.Getenv("POSTGRES_DB"))
-
-	if host == "" || port == "" || user == "" || password == "" || name == "" {
-		return "", fmt.Errorf("DATABASE_URL or POSTGRES_HOST/PORT/USER/PASSWORD/DB must be set by the lifecycle system")
+	// Lifecycle should normally provide SCENARIO_DATA_DIR, but some execution
+	// paths only guarantee the scenario working directory. Default to
+	// <scenario>/data/test-genie.db so embedded storage still works portably.
+	root, rootErr := scenarioRoot()
+	if rootErr == nil {
+		fallbackPath := filepath.Join(root, "data", "test-genie.db")
+		fallbackCfg, fallbackResolveErr := sqlitedb.ResolveExplicit(fallbackPath)
+		if fallbackResolveErr == nil {
+			return fallbackCfg, nil
+		}
+		return sqlitedb.Config{}, fmt.Errorf("sqlite configuration failed: %w (fallback path %s also failed: %v)", err, fallbackPath, fallbackResolveErr)
 	}
 
-	pgURL := &url.URL{
-		Scheme: "postgres",
-		User:   url.UserPassword(user, password),
-		Host:   fmt.Sprintf("%s:%s", host, port),
-		Path:   name,
-	}
-	values := pgURL.Query()
-	values.Set("sslmode", "disable")
-	pgURL.RawQuery = values.Encode()
-
-	return pgURL.String(), nil
+	return sqlitedb.Config{}, fmt.Errorf("sqlite configuration failed: %w", err)
 }
 
 func resolveScenariosRoot() (string, error) {

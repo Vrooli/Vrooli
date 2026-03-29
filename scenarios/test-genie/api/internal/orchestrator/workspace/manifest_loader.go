@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
+	"strings"
 )
 
 type ServiceManifest struct {
 	Service struct {
 		Name string `json:"name"`
 	} `json:"service"`
+	Environment map[string]string `json:"environment"`
 	Lifecycle struct {
 		Health struct {
 			Checks []json.RawMessage `json:"checks"`
@@ -47,4 +50,21 @@ func (m *ServiceManifest) RequiredResources() []string {
 		}
 	}
 	return resources
+}
+
+// SQLitePathEnvVars returns environment variable names that look like
+// scenario-specific SQLite path overrides.
+func (m *ServiceManifest) SQLitePathEnvVars() []string {
+	if m == nil || len(m.Environment) == 0 {
+		return nil
+	}
+	var keys []string
+	for key := range m.Environment {
+		upper := strings.ToUpper(key)
+		if strings.Contains(upper, "SQLITE") && strings.HasSuffix(upper, "_PATH") {
+			keys = append(keys, key)
+		}
+	}
+	sort.Strings(keys)
+	return keys
 }

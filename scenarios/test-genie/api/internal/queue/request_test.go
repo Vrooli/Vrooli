@@ -6,8 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
+
+	"test-genie/internal/storage/sqliteutil"
+	"test-genie/internal/testsqlite"
 )
 
 func TestBuildSuiteRequestDefaults(t *testing.T) {
@@ -56,54 +58,81 @@ func TestBuildSuiteRequestInvalidType(t *testing.T) {
 
 func TestSuiteRequestRepositoryUpdateStatus(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-SUITE-P0] repository updates status transitions", func(t *testing.T) {
-		db, mock, err := sqlmock.New()
-		if err != nil {
-			t.Fatalf("failed to create sqlmock: %v", err)
-		}
-		defer db.Close()
-
-		repo := NewPostgresSuiteRequestRepository(db)
+		db := testsqlite.Open(t)
+		repo := NewSQLiteSuiteRequestRepository(db)
 		id := uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
 
-		mock.ExpectExec("UPDATE suite_requests").
-			WithArgs(StatusRunning, id).
-			WillReturnResult(sqlmock.NewResult(0, 1))
+		_, err := db.Exec(`
+INSERT INTO suite_requests (
+	id, scenario_name, requested_types, coverage_target, priority, status, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+`,
+			id.String(),
+			"demo",
+			`["unit"]`,
+			95,
+			PriorityNormal,
+			StatusQueued,
+			sqliteutil.FormatTimestamp(time.Now().UTC().Add(-time.Minute)),
+			sqliteutil.FormatTimestamp(time.Now().UTC().Add(-time.Minute)),
+		)
+		if err != nil {
+			t.Fatalf("seed request: %v", err)
+		}
 
 		if err := repo.UpdateStatus(context.Background(), id, StatusRunning); err != nil {
 			t.Fatalf("expected update to succeed: %v", err)
 		}
 
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Fatalf("unmet expectations: %v", err)
+		req, err := repo.GetByID(context.Background(), id)
+		if err != nil {
+			t.Fatalf("expected request to be readable: %v", err)
+		}
+		if req.Status != StatusRunning {
+			t.Fatalf("expected status %s, got %s", StatusRunning, req.Status)
 		}
 	})
 }
 
 func TestSuiteRequestRepositoryStatusSnapshot(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-SUITE-P0] repository summarizes queue snapshot", func(t *testing.T) {
-		db, mock, err := sqlmock.New()
-		if err != nil {
-			t.Fatalf("failed to create sqlmock: %v", err)
-		}
-		defer db.Close()
-
-		repo := NewPostgresSuiteRequestRepository(db)
+		db := testsqlite.Open(t)
+		repo := NewSQLiteSuiteRequestRepository(db)
 		now := time.Now().UTC()
 		repo.clock = func() time.Time { return now }
 		repo.activeWindow = 24 * time.Hour
 
-		mock.ExpectQuery("SELECT\\s+COUNT\\(\\*\\) AS total").
-			WithArgs(now.Add(-24*time.Hour), StatusQueued, StatusDelegated, StatusRunning, StatusCompleted, StatusFailed).
-			WillReturnRows(sqlmock.NewRows([]string{
-				"total",
-				"queued",
-				"delegated",
-				"running",
-				"completed",
-				"failed",
-				"stale",
-				"oldest_queued_at",
-			}).AddRow(6, 2, 1, 1, 1, 0, 1, now.Add(-2*time.Minute)))
+		rows := []struct {
+			id        string
+			status    string
+			updatedAt time.Time
+			createdAt time.Time
+		}{
+			{"1", StatusQueued, now.Add(-2 * time.Minute), now.Add(-10 * time.Minute)},
+			{"2", StatusQueued, now.Add(-3 * time.Minute), now.Add(-11 * time.Minute)},
+			{"3", StatusDelegated, now.Add(-4 * time.Minute), now.Add(-12 * time.Minute)},
+			{"4", StatusRunning, now.Add(-5 * time.Minute), now.Add(-13 * time.Minute)},
+			{"5", StatusCompleted, now.Add(-6 * time.Minute), now.Add(-14 * time.Minute)},
+			{"6", StatusQueued, now.Add(-25 * time.Hour), now.Add(-26 * time.Hour)},
+		}
+		for _, row := range rows {
+			if _, err := db.Exec(`
+INSERT INTO suite_requests (
+	id, scenario_name, requested_types, coverage_target, priority, status, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+`,
+				row.id,
+				"demo",
+				`["unit"]`,
+				95,
+				PriorityNormal,
+				row.status,
+				sqliteutil.FormatTimestamp(row.createdAt),
+				sqliteutil.FormatTimestamp(row.updatedAt),
+			); err != nil {
+				t.Fatalf("seed request %s: %v", row.id, err)
+			}
+		}
 
 		snapshot, err := repo.StatusSnapshot(context.Background())
 		if err != nil {
@@ -115,9 +144,9 @@ func TestSuiteRequestRepositoryStatusSnapshot(t *testing.T) {
 		if snapshot.OldestQueuedAt == nil {
 			t.Fatal("expected oldest queued timestamp to be populated")
 		}
-
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Fatalf("unmet expectations: %v", err)
+		expectedOldest := now.Add(-12 * time.Minute)
+		if !snapshot.OldestQueuedAt.Equal(expectedOldest) {
+			t.Fatalf("expected oldest queued at %s, got %s", expectedOldest, snapshot.OldestQueuedAt)
 		}
 	})
 }

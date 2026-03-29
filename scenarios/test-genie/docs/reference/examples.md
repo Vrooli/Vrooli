@@ -141,9 +141,9 @@ teardown() {
 
 ## Resource Testing Examples
 
-### PostgreSQL Integration Testing
+### Database Integration Testing
 
-**Location**: `/resources/postgres/test/`
+**Location**: `/resources/sqlite/` or the target scenario's persistence tests
 
 Demonstrates:
 - Database connection validation
@@ -152,15 +152,15 @@ Demonstrates:
 - Connection pool testing
 
 ```bash
-# Example: PostgreSQL health check
-test_postgres_health() {
-    local db_url="postgresql://user:pass@localhost:5432/testdb"
+# Example: SQLite health check
+test_sqlite_health() {
+    local db_path="./data/test.db"
 
-    if psql "$db_url" -c "SELECT 1" >/dev/null 2>&1; then
-        echo "PostgreSQL is healthy"
+    if sqlite3 "$db_path" "SELECT 1" >/dev/null 2>&1; then
+        echo "SQLite is healthy"
         return 0
     else
-        echo "PostgreSQL connection failed"
+        echo "SQLite connection failed"
         return 1
     fi
 }

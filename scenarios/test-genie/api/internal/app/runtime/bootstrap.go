@@ -21,6 +21,7 @@ import (
 	"test-genie/internal/toolregistry"
 
 	"github.com/vrooli/api-core/database"
+	_ "modernc.org/sqlite"
 )
 
 // Bootstrapped holds the concrete dependencies needed by the HTTP server.
@@ -66,8 +67,10 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		return nil, fmt.Errorf("config is required")
 	}
 	db, err := database.Connect(context.Background(), database.Config{
-		Driver: "postgres",
-		DSN:    cfg.DatabaseURL,
+		Driver:       database.DriverSQLite,
+		DSN:          cfg.DatabaseDSN,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
@@ -81,7 +84,7 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		return nil, fmt.Errorf("failed to initialize orchestrator: %w", err)
 	}
 
-	suiteRequestRepo := queue.NewPostgresSuiteRequestRepository(db)
+	suiteRequestRepo := queue.NewSQLiteSuiteRequestRepository(db)
 	suiteRequestService := queue.NewSuiteRequestService(suiteRequestRepo)
 	executionRepo := execution.NewSuiteExecutionRepository(db)
 	executionHistory := execution.NewExecutionHistoryService(executionRepo)

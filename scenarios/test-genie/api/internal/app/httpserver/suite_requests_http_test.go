@@ -10,25 +10,21 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gorilla/mux"
-	pq "github.com/lib/pq"
 
 	"test-genie/internal/queue"
+	"test-genie/internal/storage/sqliteutil"
+	"test-genie/internal/testsqlite"
 )
 
 func TestServer_handleCreateSuiteRequest_InvalidPayload(t *testing.T) {
-	db, _, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("failed to create sqlmock: %v", err)
-	}
-	defer db.Close()
+	db := testsqlite.Open(t)
 
 	srv := &Server{
 		config:        Config{Port: "0", ServiceName: "Test Genie API"},
 		db:            db,
 		router:        mux.NewRouter(),
-		suiteRequests: queue.NewSuiteRequestService(queue.NewPostgresSuiteRequestRepository(db)),
+		suiteRequests: queue.NewSuiteRequestService(queue.NewSQLiteSuiteRequestRepository(db)),
 		logger:        log.New(io.Discard, "", 0),
 	}
 
@@ -43,48 +39,34 @@ func TestServer_handleCreateSuiteRequest_InvalidPayload(t *testing.T) {
 }
 
 func TestServer_handleListSuiteRequests(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("failed to create sqlmock: %v", err)
-	}
-	defer db.Close()
+	db := testsqlite.Open(t)
 
 	srv := &Server{
 		config:        Config{Port: "0", ServiceName: "Test Genie API"},
 		db:            db,
 		router:        mux.NewRouter(),
-		suiteRequests: queue.NewSuiteRequestService(queue.NewPostgresSuiteRequestRepository(db)),
+		suiteRequests: queue.NewSuiteRequestService(queue.NewSQLiteSuiteRequestRepository(db)),
 		logger:        log.New(io.Discard, "", 0),
 	}
 
 	now := time.Now().UTC()
-	rows := sqlmock.NewRows([]string{
-		"id",
-		"scenario_name",
-		"requested_types",
-		"coverage_target",
-		"priority",
-		"status",
-		"notes",
-		"delegation_issue_id",
-		"created_at",
-		"updated_at",
-	}).AddRow(
+	if _, err := db.Exec(`
+INSERT INTO suite_requests (
+	id, scenario_name, requested_types, coverage_target, priority, status, notes, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+`,
 		"11111111-1111-1111-1111-111111111111",
 		"demo",
-		pq.StringArray{"unit"},
+		`["unit"]`,
 		95,
 		"normal",
 		"queued",
 		"note",
-		nil,
-		now,
-		now,
-	)
-
-	mock.ExpectQuery("SELECT\\s+id").
-		WithArgs(queue.MaxSuiteListPage).
-		WillReturnRows(rows)
+		sqliteutil.FormatTimestamp(now),
+		sqliteutil.FormatTimestamp(now),
+	); err != nil {
+		t.Fatalf("seed suite request: %v", err)
+	}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/suite-requests", nil)
 	w := httptest.NewRecorder()
@@ -107,9 +89,5 @@ func TestServer_handleListSuiteRequests(t *testing.T) {
 	}
 	if payload.Items[0].EstimatedQueueTime == 0 {
 		t.Fatalf("expected queue time to be populated: %#v", payload.Items[0])
-	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Fatalf("unmet expectations: %v", err)
 	}
 }

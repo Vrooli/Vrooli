@@ -12,12 +12,12 @@ flowchart TB
 
     subgraph Queue["queue/"]
         svc["SuiteRequestService"]
-        repo["PostgresSuiteRequestRepository"]
+        repo["SQLiteSuiteRequestRepository"]
         build["buildSuiteRequest()"]
         validate["normalizeSuiteTypes()"]
     end
 
-    subgraph Storage["PostgreSQL"]
+    subgraph Storage["SQLite"]
         table["suite_requests"]
     end
 
@@ -43,7 +43,7 @@ flowchart TB
 queue/
 ├── request.go       # Service + domain types + validation
 ├── request_test.go
-└── repository.go    # PostgreSQL persistence
+└── repository.go    # SQLite persistence
 ```
 
 ## Request Lifecycle

@@ -100,13 +100,16 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 	}
 
 	// Determine which resources are actually needed from service manifest.
-	requirePG, requireRedis := detectResourceNeeds(env, logWriter)
+	needs := detectResourceNeeds(env, logWriter)
 
-	// Provision isolated resources for the playbooks run (Postgres + Redis if required).
+	// Provision isolated resources for the playbooks run based on the target
+	// scenario manifest (Postgres, Redis, and/or SQLite).
 	isoManager := isolationManagerFactory(isolation.Config{
 		ScenarioName:    env.ScenarioName,
-		RequirePostgres: requirePG,
-		RequireRedis:    requireRedis,
+		RequirePostgres: needs.RequirePostgres,
+		RequireRedis:    needs.RequireRedis,
+		RequireSQLite:   needs.RequireSQLite,
+		SQLiteEnvVars:   needs.SQLiteEnvVars,
 		Retain:          retainIsolation,
 		LogWriter:       logWriter,
 		Timeout:         2 * time.Minute,
@@ -117,7 +120,7 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 		return RunReport{
 			Err:                   fmt.Errorf("failed to prepare playbooks isolation: %w", err),
 			FailureClassification: FailureClassSystem,
-			Remediation:           "Ensure Docker is available for testcontainers or provide access to start temporary Postgres/Redis instances.",
+			Remediation:           "Ensure Docker is available for testcontainers or provide access to start the temporary database and cache resources required by the target scenario.",
 		}
 	}
 
@@ -134,7 +137,7 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 	}
 
 	// Apply optional SQL migrations for the temp database before restarting the scenario.
-	if err := applyPlaybooksMigrations(ctx, env, requirePG, logWriter); err != nil {
+	if err := applyPlaybooksMigrations(ctx, env, needs, logWriter); err != nil {
 		if envApplied {
 			restoreEnv()
 			envApplied = false
@@ -157,7 +160,7 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 		return RunReport{
 			Err:                   fmt.Errorf("failed to restart scenario with playbooks isolation: %w", err),
 			FailureClassification: FailureClassSystem,
-			Remediation:           "Check lifecycle logs for restart failures and ensure the scenario can connect to the temporary Postgres/Redis instances.",
+			Remediation:           "Check lifecycle logs for restart failures and ensure the scenario can connect to the temporary resources provisioned for the playbooks run.",
 		}
 	}
 

@@ -97,9 +97,9 @@ If a scenario does not need custom seed setup, do not keep an empty `bas/seeds/`
 
 ## Playbooks isolation quickstart
 
-- Playbooks automatically start the scenario against temporary Postgres/Redis for this phase. Seeds run once and write `coverage/runtime/seed-state.json`.
+- Playbooks automatically start the scenario against temporary Postgres, Redis, and/or SQLite resources for this phase, depending on the target scenario manifest. Seeds run once and write `coverage/runtime/seed-state.json`.
 - Retain for debugging: `TEST_GENIE_PLAYBOOKS_RETAIN=1 test-genie execute my-scenario --preset comprehensive`
-  - Observations will include ready-to-run `psql`/`redis-cli` commands to inspect the retained DB/Redis.
+  - Observations will include ready-to-run `psql`/`redis-cli` commands and the retained SQLite database path when those resources are provisioned.
 - Normal runs drop the temp resources and restart the scenario on its usual resources after Playbooks finishes.
 
 See [Directory Structure](../docs/phases/playbooks/directory-structure.md) for complete documentation on playbooks layout, fixtures, and naming conventions.

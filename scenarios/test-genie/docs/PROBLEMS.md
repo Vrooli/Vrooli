@@ -10,14 +10,14 @@
 
 # Failure Topography (2025-12-03)
 - **Critical flows mapped**
-  - *Suite request ingestion*: depends on API payload validation and Postgres writes. Failure modes: invalid requested types/priority (client) vs. DB outages (infra). Current mitigation: validation errors stay 400 and non-validation paths now emit structured logging; DB outage still bubbles a 500—documented for follow-up.
+  - *Suite request ingestion*: depends on API payload validation and embedded SQLite writes. Failure modes: invalid requested types/priority (client) vs. DB access failures (infra). Current mitigation: validation errors stay 400 and non-validation paths now emit structured logging; storage failures still bubble a 500—documented for follow-up.
   - *Suite execution orchestrator*: preflight includes Go-native structure + dependency phases, scenario script registry, and artifact persistence. Dependencies: filesystem layout, `.vrooli/service.json`, toolchain availability (`bash`, `curl`, `jq`, language runtimes, package managers), and manifest-declared resources.
 - **Observed failure modes**
   - Missing directories or manifest drift silently mapped to 500s before this loop. They are now classified as `misconfiguration` with remediation text so UI/API callers can render contextual actions.
   - Dependency gaps were previously reported one-at-a-time; now the Go phase aggregates all missing commands and surfaces a single actionable error plus per-phase observations to avoid repeated API calls.
   - Optional data (e.g., Node workspaces without lockfiles, manifests without required resources) now degrade gracefully by issuing warnings/observations instead of failing the phase.
 - **Remaining risks**
-  - Execution persistence is still a single SQL INSERT with no retry or circuit breaker. If Postgres is down, the orchestrator returns a 500 even though the phase output is available in memory. Future loop: buffer execution records locally and retry asynchronously.
+  - Execution persistence is still a single SQL INSERT with no retry or circuit breaker. If the SQLite store cannot be opened or written, the orchestrator returns a 500 even though the phase output is available in memory. Future loop: buffer execution records locally and retry asynchronously.
   - The Go phases emit failure classifications, but the UI/API have not consumed the new integration/perf telemetry yet—wire it into operator dashboards so failure context surfaces to users.
   - The new history endpoints expose per-phase failures to operators, but they still require a manual poll; future work should stream execution status so long-running suites can surface progress before completion.
 

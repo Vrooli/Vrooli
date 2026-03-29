@@ -12,11 +12,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gorilla/mux"
-	pq "github.com/lib/pq"
 
 	"test-genie/internal/queue"
+	"test-genie/internal/storage/sqliteutil"
+	"test-genie/internal/testsqlite"
 )
 
 func newTestServer(t *testing.T, db *sql.DB) *Server {
@@ -28,7 +28,7 @@ func newTestServer(t *testing.T, db *sql.DB) *Server {
 		},
 		db:            db,
 		router:        mux.NewRouter(),
-		suiteRequests: queue.NewSuiteRequestService(queue.NewPostgresSuiteRequestRepository(db)),
+		suiteRequests: queue.NewSuiteRequestService(queue.NewSQLiteSuiteRequestRepository(db)),
 		logger:        log.New(io.Discard, "", 0),
 	}
 	srv.setupRoutes()
@@ -37,28 +37,9 @@ func newTestServer(t *testing.T, db *sql.DB) *Server {
 
 func TestSuiteRequestLifecycleIntegration(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-SUITE-P0] API queues + fetches suite requests", func(t *testing.T) {
-		db, mock, err := sqlmock.New()
-		if err != nil {
-			t.Fatalf("failed to create sqlmock: %v", err)
-		}
-		defer db.Close()
-
+		db := testsqlite.Open(t)
 		server := newTestServer(t, db)
 		expectedTypes := []string{"unit", "integration"}
-
-		now := time.Now()
-		mock.ExpectQuery("INSERT INTO suite_requests").
-			WithArgs(
-				sqlmock.AnyArg(),    // id
-				"ecosystem-manager", // scenario_name
-				sqlmock.AnyArg(),    // requested_types array
-				95,                  // coverage_target default
-				"normal",            // priority fallback
-				"queued",            // status
-				sqlmock.AnyArg(),    // notes (NULL)
-				sqlmock.AnyArg(),    // delegation_issue_id (NULL)
-			).
-			WillReturnRows(sqlmock.NewRows([]string{"created_at", "updated_at"}).AddRow(now, now))
 
 		body := bytes.NewBufferString(`{"scenarioName":"ecosystem-manager"}`)
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/suite-requests", body)
@@ -95,36 +76,27 @@ func TestSuiteRequestLifecycleIntegration(t *testing.T) {
 			t.Fatalf("expected no delegation issue id for deterministic fallback, got %s", *created.DelegationIssueID)
 		}
 
-		expectedID := created.ID
-		row := sqlmock.NewRows([]string{
-			"id",
-			"scenario_name",
-			"requested_types",
-			"coverage_target",
-			"priority",
-			"status",
-			"notes",
-			"delegation_issue_id",
-			"created_at",
-			"updated_at",
-		}).AddRow(
-			expectedID,
+		now := time.Now().UTC()
+		if _, err := db.Exec(`
+INSERT INTO suite_requests (
+	id, scenario_name, requested_types, coverage_target, priority, status, notes, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET updated_at = excluded.updated_at
+`,
+			created.ID.String(),
 			created.ScenarioName,
-			pq.StringArray([]string{"unit", "integration"}),
+			`["unit","integration"]`,
 			created.CoverageTarget,
 			created.Priority,
 			"queued",
 			nil,
-			nil,
-			now,
-			now,
-		)
+			sqliteutil.FormatTimestamp(now),
+			sqliteutil.FormatTimestamp(now),
+		); err != nil {
+			t.Fatalf("upsert created request: %v", err)
+		}
 
-		mock.ExpectQuery("SELECT\\s+id").
-			WithArgs(expectedID).
-			WillReturnRows(row)
-
-		getReq := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/suite-requests/%s", expectedID), nil)
+		getReq := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/suite-requests/%s", created.ID), nil)
 		getRec := httptest.NewRecorder()
 		server.router.ServeHTTP(getRec, getReq)
 
@@ -137,8 +109,8 @@ func TestSuiteRequestLifecycleIntegration(t *testing.T) {
 			t.Fatalf("failed to decode fetched suite: %v", err)
 		}
 
-		if fetched.ID != expectedID {
-			t.Fatalf("expected id %s, got %s", expectedID, fetched.ID)
+		if fetched.ID != created.ID {
+			t.Fatalf("expected id %s, got %s", created.ID, fetched.ID)
 		}
 		expectedEstimate := (len(expectedTypes) * 30) + 95
 		if fetched.EstimatedQueueTime != expectedEstimate {
@@ -146,10 +118,6 @@ func TestSuiteRequestLifecycleIntegration(t *testing.T) {
 		}
 		if fetched.DelegationIssueID != nil {
 			t.Fatalf("expected nil delegation id, got %s", *fetched.DelegationIssueID)
-		}
-
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Fatalf("unmet expectations: %v", err)
 		}
 	})
 }

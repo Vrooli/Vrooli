@@ -615,7 +615,7 @@ func (p *Printer) printDebugGuides(phasesData []execTypes.Phase) {
 			fmt.Fprintln(p.w, p.color.Cyan("    Quick checks: rerun CLI against API | inspect API logs | rebuild UI bundle"))
 		case "dependencies":
 			fmt.Fprintf(p.w, "  • %s: common issues → missing resources, install drift, pinned versions outdated\n", p.color.Bold("DEPENDENCIES"))
-			fmt.Fprintln(p.w, p.color.Cyan("    Quick checks: verify postgres/redis availability | reinstall deps | rerun install scripts"))
+			fmt.Fprintln(p.w, p.color.Cyan("    Quick checks: verify required resources or SQLite path | reinstall deps | rerun install scripts"))
 		}
 	}
 }

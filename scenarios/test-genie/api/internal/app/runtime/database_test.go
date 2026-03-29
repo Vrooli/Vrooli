@@ -1,95 +1,48 @@
 package runtime
 
 import (
+	"database/sql"
+	"errors"
 	"os"
 	"path/filepath"
-	"regexp"
 	"testing"
 
-	"github.com/DATA-DOG/go-sqlmock"
+	_ "modernc.org/sqlite"
+
+	"test-genie/internal/storage/sqlfiles"
+	"test-genie/internal/storage/sqlitedb"
 )
 
-type scenarioInitPaths struct {
-	apiDir  string
-	schema  string
-	seed    string
-	hasSeed bool
-}
-
-func newScenarioInitFiles(t *testing.T, schemaContent, seedContent string, includeSeed bool) scenarioInitPaths {
-	t.Helper()
-
-	root := t.TempDir()
-	apiDir := filepath.Join(root, "api")
-	if err := os.MkdirAll(apiDir, 0o755); err != nil {
-		t.Fatalf("failed to create api dir: %v", err)
-	}
-
-	initDir := filepath.Join(root, "initialization", "postgres")
-	if err := os.MkdirAll(initDir, 0o755); err != nil {
-		t.Fatalf("failed to create initialization dir: %v", err)
-	}
-
-	schemaPath := filepath.Join(initDir, "schema.sql")
-	if err := os.WriteFile(schemaPath, []byte(schemaContent), 0o644); err != nil {
-		t.Fatalf("failed to write schema file: %v", err)
-	}
-
-	var seedPath string
-	if includeSeed {
-		seedPath = filepath.Join(initDir, "seed.sql")
-		if err := os.WriteFile(seedPath, []byte(seedContent), 0o644); err != nil {
-			t.Fatalf("failed to write seed file: %v", err)
-		}
-	}
-
-	return scenarioInitPaths{
-		apiDir:  apiDir,
-		schema:  schemaPath,
-		seed:    seedPath,
-		hasSeed: includeSeed,
-	}
-}
-
-func withWorkingDir(t *testing.T, dir string) {
-	t.Helper()
-	original, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd failed: %v", err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("failed to chdir to %s: %v", dir, err)
-	}
-	t.Cleanup(func() {
-		if err := os.Chdir(original); err != nil {
-			t.Errorf("failed to restore working directory: %v", err)
-		}
-	})
-}
-
 func TestResolveInitializationFileSuccess(t *testing.T) {
-	files := newScenarioInitFiles(t, "CREATE TABLE example (id INT);", "", false)
-	withWorkingDir(t, files.apiDir)
-
 	got, err := resolveInitializationFile("schema.sql")
 	if err != nil {
 		t.Fatalf("resolveInitializationFile returned error: %v", err)
 	}
-	if got != files.schema {
-		t.Fatalf("expected schema path %s, got %s", files.schema, got)
+
+	if filepath.Base(got) != "schema.sql" {
+		t.Fatalf("expected schema.sql path, got %s", got)
+	}
+	if _, err := os.Stat(got); err != nil {
+		t.Fatalf("expected resolved schema path to exist: %v", err)
+	}
+	if filepath.Base(filepath.Dir(got)) != initializationDialectDir {
+		t.Fatalf("expected sqlite initialization directory, got %s", filepath.Dir(got))
+	}
+	if filepath.Base(filepath.Dir(filepath.Dir(got))) != "initialization" {
+		t.Fatalf("expected initialization root in resolved path, got %s", got)
 	}
 }
 
 func TestResolveInitializationFileErrorWhenMissing(t *testing.T) {
-	files := newScenarioInitFiles(t, "CREATE TABLE example (id INT);", "", false)
-	withWorkingDir(t, files.apiDir)
-
-	if _, err := resolveInitializationFile("seed.sql"); err == nil {
-		t.Fatal("expected error when seed file is missing")
+	_, err := resolveInitializationFile("missing.sql")
+	if err == nil {
+		t.Fatal("expected error when initialization file is missing")
 	}
 }
 
 func TestExecSQLFileRunsStatements(t *testing.T) {
+	db := openSQLite(t)
+
 	tmp := t.TempDir()
 	sqlPath := filepath.Join(tmp, "script.sql")
 	sqlContent := `
@@ -104,91 +57,113 @@ INSERT INTO foo VALUES (1);
 		t.Fatalf("failed to write sql script: %v", err)
 	}
 
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("sqlmock.New error: %v", err)
+	if err := sqlfiles.ExecFile(db, sqlPath); err != nil {
+		t.Fatalf("ExecFile returned error: %v", err)
 	}
-	defer db.Close()
 
-	mock.ExpectExec(regexp.QuoteMeta("CREATE TABLE foo (\n    id INT\n)")).WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO foo VALUES (1)")).WillReturnResult(sqlmock.NewResult(0, 1))
-
-	if err := execSQLFile(db, sqlPath); err != nil {
-		t.Fatalf("execSQLFile returned error: %v", err)
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM foo`).Scan(&count); err != nil {
+		t.Fatalf("count foo rows: %v", err)
 	}
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Fatalf("unmet expectations: %v", err)
+	if count != 1 {
+		t.Fatalf("expected 1 inserted row, got %d", count)
 	}
 }
 
 func TestExecSQLFilePropagatesExecErrors(t *testing.T) {
+	db := openSQLite(t)
+
 	tmp := t.TempDir()
 	sqlPath := filepath.Join(tmp, "script.sql")
-	if err := os.WriteFile(sqlPath, []byte("INSERT INTO foo VALUES (1);"), 0o644); err != nil {
+	if err := os.WriteFile(sqlPath, []byte("INSERT INTO missing_table VALUES (1);"), 0o644); err != nil {
 		t.Fatalf("failed to write sql script: %v", err)
 	}
 
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("sqlmock.New error: %v", err)
+	err := sqlfiles.ExecFile(db, sqlPath)
+	if err == nil {
+		t.Fatal("expected ExecFile to return error")
 	}
-	defer db.Close()
+}
 
-	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO foo VALUES (1)")).WillReturnError(os.ErrInvalid)
+func TestApplySchemaCreatesTablesAndOptionalSeed(t *testing.T) {
+	db := openSQLite(t)
 
-	if err := execSQLFile(db, sqlPath); err == nil {
-		t.Fatal("expected execSQLFile to return error")
+	if err := ApplySchema(db, true); err != nil {
+		t.Fatalf("ApplySchema returned error: %v", err)
+	}
+
+	assertTableExists(t, db, "suite_requests")
+	assertTableExists(t, db, "suite_executions")
+
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM suite_requests WHERE id = ?`, "00000000-0000-0000-0000-000000000001").Scan(&count); err != nil {
+		t.Fatalf("count seeded suite request: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected seeded suite request to exist, got count=%d", count)
+	}
+}
+
+func TestApplySchemaWithoutSeedLeavesPreviewRowAbsent(t *testing.T) {
+	db := openSQLite(t)
+
+	if err := ApplySchema(db, false); err != nil {
+		t.Fatalf("ApplySchema returned error: %v", err)
+	}
+
+	assertTableExists(t, db, "suite_requests")
+	assertTableExists(t, db, "suite_executions")
+
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM suite_requests`).Scan(&count); err != nil {
+		t.Fatalf("count suite requests: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected schema-only initialization to skip seed data, got %d rows", count)
 	}
 }
 
 func TestEnsureDatabaseSchemaExecutesSchemaAndSeed(t *testing.T) {
-	schemaContent := `
-CREATE TABLE foo (
-    id INT
-);
-CREATE INDEX idx_foo ON foo (id);
-`
-	seedContent := `
-INSERT INTO foo VALUES (1);
-`
-	files := newScenarioInitFiles(t, schemaContent, seedContent, true)
-	withWorkingDir(t, files.apiDir)
-
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("sqlmock.New error: %v", err)
-	}
-	defer db.Close()
-
-	mock.ExpectExec(regexp.QuoteMeta("CREATE TABLE foo (\n    id INT\n)")).WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec(regexp.QuoteMeta("CREATE INDEX idx_foo ON foo (id)")).WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO foo VALUES (1)")).WillReturnResult(sqlmock.NewResult(0, 1))
+	db := openSQLite(t)
 
 	if err := ensureDatabaseSchema(db); err != nil {
 		t.Fatalf("ensureDatabaseSchema returned error: %v", err)
 	}
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Fatalf("unmet expectations: %v", err)
+
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM suite_requests`).Scan(&count); err != nil {
+		t.Fatalf("count suite requests: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected schema initialization to load seed row, got %d", count)
 	}
 }
 
-func TestEnsureDatabaseSchemaSkipsMissingSeed(t *testing.T) {
-	schemaContent := "CREATE TABLE foo (id INT);"
-	files := newScenarioInitFiles(t, schemaContent, "", false)
-	withWorkingDir(t, files.apiDir)
+func openSQLite(t *testing.T) *sql.DB {
+	t.Helper()
 
-	db, mock, err := sqlmock.New()
+	dbPath := filepath.Join(t.TempDir(), "runtime-test.db")
+	db, err := sql.Open("sqlite", sqlitedb.BuildDSN(dbPath))
 	if err != nil {
-		t.Fatalf("sqlmock.New error: %v", err)
+		t.Fatalf("open sqlite: %v", err)
 	}
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
-	mock.ExpectExec(regexp.QuoteMeta("CREATE TABLE foo (id INT)")).WillReturnResult(sqlmock.NewResult(0, 0))
-
-	if err := ensureDatabaseSchema(db); err != nil {
-		t.Fatalf("ensureDatabaseSchema returned error: %v", err)
+	if err := db.Ping(); err != nil {
+		t.Fatalf("ping sqlite: %v", err)
 	}
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Fatalf("unmet expectations: %v", err)
+	return db
+}
+
+func assertTableExists(t *testing.T, db *sql.DB, table string) {
+	t.Helper()
+
+	var name string
+	err := db.QueryRow(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&name)
+	if errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("expected table %s to exist", table)
+	}
+	if err != nil {
+		t.Fatalf("query sqlite_master for %s: %v", table, err)
 	}
 }

@@ -28,6 +28,10 @@ type suiteRequestManager interface {
 	UpdateStatus(ctx context.Context, id uuid.UUID, status string) error
 }
 
+type suiteExecutionRecorder interface {
+	Create(ctx context.Context, record *SuiteExecutionRecord) error
+}
+
 // SuiteExecutionInput encapsulates the orchestration request plus optional linkage to a queued suite.
 type SuiteExecutionInput struct {
 	Request        orchestrator.SuiteExecutionRequest
@@ -37,11 +41,11 @@ type SuiteExecutionInput struct {
 // SuiteExecutionService coordinates the orchestrator, queue state transitions, and execution persistence.
 type SuiteExecutionService struct {
 	engine        suiteExecutionEngine
-	executions    *SuiteExecutionRepository
+	executions    suiteExecutionRecorder
 	suiteRequests suiteRequestManager
 }
 
-func NewSuiteExecutionService(engine suiteExecutionEngine, executions *SuiteExecutionRepository, suiteRequests suiteRequestManager) *SuiteExecutionService {
+func NewSuiteExecutionService(engine suiteExecutionEngine, executions suiteExecutionRecorder, suiteRequests suiteRequestManager) *SuiteExecutionService {
 	return &SuiteExecutionService{
 		engine:        engine,
 		executions:    executions,
