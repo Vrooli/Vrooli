@@ -194,4 +194,139 @@ describe("applyNodeCap", () => {
     const ids = visible.filter((n) => n.id !== "__more-items__").map((n) => n.id);
     expect(ids).toEqual(["high", "mid"]);
   });
+
+  it("treats missing priority as 0", () => {
+    const nodes = [
+      makeNode("no-prio", "scenario"), // no priority field on scenarios
+      makeNode("has-prio", "backlog", { priority: 5 }),
+    ];
+    const { visible } = applyNodeCap(nodes, 1);
+    const ids = visible.filter((n) => n.id !== "__more-items__").map((n) => n.id);
+    expect(ids).toEqual(["has-prio"]);
+  });
+});
+
+describe("buildClusterHierarchy — advanced", () => {
+  it("handles multiple initiatives with shared and unshared backlog items", () => {
+    const nodes = [
+      makeNode("initiative/a", "initiative", { title: "Init A" }),
+      makeNode("initiative/b", "initiative", { title: "Init B" }),
+      makeNode("backlog-item/execute/t1", "backlog"),
+      makeNode("backlog-item/execute/t2", "backlog"),
+      makeNode("backlog-item/execute/t3", "backlog"),
+    ];
+    const edges = [
+      makeEdge("mo1", "backlog-item/execute/t1", "initiative/a", "member_of"),
+      makeEdge("mo2", "backlog-item/execute/t2", "initiative/b", "member_of"),
+      // t3 has no member_of edge → unassigned
+    ];
+
+    const { clusters, unclustered } = buildClusterHierarchy(nodes, edges);
+
+    expect(clusters).toHaveLength(3); // init/a, init/b, unassigned
+    const initA = clusters.find((c) => c.id === "initiative/a");
+    const initB = clusters.find((c) => c.id === "initiative/b");
+    const unassigned = clusters.find((c) => c.id === UNASSIGNED_CLUSTER_ID);
+    expect(initA?.members).toEqual(["backlog-item/execute/t1"]);
+    expect(initB?.members).toEqual(["backlog-item/execute/t2"]);
+    expect(unassigned?.members).toEqual(["backlog-item/execute/t3"]);
+    expect(unclustered).toHaveLength(0); // no non-backlog nodes
+  });
+
+  it("puts non-backlog entity types in unclustered even with member_of edges", () => {
+    const nodes = [
+      makeNode("initiative/a", "initiative"),
+      makeNode("scenario/app", "scenario"),
+      makeNode("capture/c1", "capture"),
+      makeNode("execution/e1", "execution"),
+    ];
+    // No edges — only backlog items get clustered, non-backlog entities stay unclustered.
+    const { clusters, unclustered } = buildClusterHierarchy(nodes, []);
+
+    expect(clusters).toHaveLength(0); // no backlog items
+    expect(unclustered).toHaveLength(3); // scenario, capture, execution
+  });
+
+  it("ignores member_of edges pointing to non-existent initiatives", () => {
+    const nodes = [
+      makeNode("backlog-item/execute/t1", "backlog"),
+    ];
+    const edges = [
+      makeEdge("mo1", "backlog-item/execute/t1", "initiative/nonexistent", "member_of"),
+    ];
+
+    const { clusters } = buildClusterHierarchy(nodes, edges);
+
+    // t1's member_of target doesn't exist → falls to unassigned
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0]!.id).toBe(UNASSIGNED_CLUSTER_ID);
+    expect(clusters[0]!.members).toEqual(["backlog-item/execute/t1"]);
+  });
+
+  it("returns empty clusters and unclustered for empty input", () => {
+    const { clusters, unclustered } = buildClusterHierarchy([], []);
+    expect(clusters).toHaveLength(0);
+    expect(unclustered).toHaveLength(0);
+  });
+});
+
+describe("aggregateEdgesForCollapsed — advanced", () => {
+  it("handles member_of edges to collapsed clusters", () => {
+    const clusters = [{
+      id: "initiative/init-1",
+      label: "Init 1",
+      members: ["task-a"],
+      rollup: null,
+    }];
+    const edges = [
+      makeEdge("mo1", "task-a", "initiative/init-1", "member_of"),
+    ];
+
+    const result = aggregateEdgesForCollapsed(edges, new Set(["initiative/init-1"]), clusters);
+    // member_of to collapsed cluster should be removed (redundant)
+    expect(result).toHaveLength(0);
+  });
+
+  it("aggregates edges from multiple collapsed clusters to same target", () => {
+    const clusters = [
+      { id: "init/a", label: "A", members: ["t1"], rollup: null },
+      { id: "init/b", label: "B", members: ["t2"], rollup: null },
+    ];
+    const edges = [
+      makeEdge("e1", "t1", "scenario/app", "targets"),
+      makeEdge("e2", "t2", "scenario/app", "targets"),
+    ];
+
+    const result = aggregateEdgesForCollapsed(
+      edges,
+      new Set(["init/a", "init/b"]),
+      clusters,
+    );
+
+    // Two separate aggregated edges: init/a→scenario/app and init/b→scenario/app
+    const aggregated = result.filter((e) => e.id.startsWith("agg:"));
+    expect(aggregated).toHaveLength(2);
+  });
+
+  it("handles mixed collapsed and expanded clusters", () => {
+    const clusters = [
+      { id: "init/collapsed", label: "Collapsed", members: ["t1"], rollup: null },
+      { id: "init/expanded", label: "Expanded", members: ["t2"], rollup: null },
+    ];
+    const edges = [
+      makeEdge("e1", "t1", "scenario/app", "targets"),
+      makeEdge("e2", "t2", "scenario/app", "targets"),
+    ];
+
+    // Only init/collapsed is collapsed
+    const result = aggregateEdgesForCollapsed(
+      edges,
+      new Set(["init/collapsed"]),
+      clusters,
+    );
+
+    // e1 aggregated (source in collapsed cluster), e2 passes through (source in expanded cluster)
+    expect(result.some((e) => e.source === "init/collapsed")).toBe(true);
+    expect(result.some((e) => e.source === "t2")).toBe(true);
+  });
 });

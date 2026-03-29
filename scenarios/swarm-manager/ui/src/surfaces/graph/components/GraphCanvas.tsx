@@ -245,7 +245,7 @@ export function GraphCanvas() {
   );
 
   const defaultViewport: Viewport = storedViewport ?? { x: 0, y: 0, zoom: 1 };
-  const showMiniMap = visibleNodeCount > 20 && visibleNodeCount <= 120;
+  const showMiniMap = settings.showMiniMap;
   const showFilterSuggestion = processedEdges.length > FILTER_SUGGESTION_THRESHOLD;
 
   return (
@@ -273,7 +273,14 @@ export function GraphCanvas() {
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="rgb(51 65 85 / 0.4)" />
         {showMiniMap && (
           <MiniMap
-            nodeStrokeWidth={3}
+            style={{
+              width: 140,
+              height: 100,
+              backgroundColor: "rgb(15 23 42 / 0.8)",
+              borderRadius: 8,
+              border: "1px solid rgb(51 65 85 / 0.5)",
+            }}
+            nodeStrokeWidth={2}
             nodeColor={(node) => {
               const entityType = getGraphNodeData(node).entityType;
               switch (entityType) {
@@ -294,11 +301,6 @@ export function GraphCanvas() {
               }
             }}
             maskColor="rgb(2 6 23 / 0.7)"
-            style={{
-              backgroundColor: "rgb(15 23 42 / 0.8)",
-              borderRadius: 8,
-              border: "1px solid rgb(51 65 85 / 0.5)",
-            }}
             className="!bottom-3 !right-3"
           />
         )}

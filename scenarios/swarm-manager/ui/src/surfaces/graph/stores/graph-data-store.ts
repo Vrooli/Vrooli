@@ -28,6 +28,7 @@ export interface GraphLensSettings {
   groupingMode: GraphGroupingMode;
   showSecondaryEdges: boolean;
   autoFitOnChange: boolean;
+  showMiniMap: boolean;
 }
 
 interface GraphLensSnapshot {
@@ -65,6 +66,7 @@ export interface GraphDataState {
   setEntityStatusGroupVisibility: (entityType: string, statuses: readonly string[], visible: boolean) => void;
   setGroupingMode: (mode: GraphGroupingMode) => void;
   setShowSecondaryEdges: (visible: boolean) => void;
+  setShowMiniMap: (visible: boolean) => void;
   setAutoFitOnChange: (enabled: boolean) => void;
   resetLensSettings: (lens?: GraphLens) => void;
   setNodePulsing: (nodeId: string, pulsing: boolean) => void;
@@ -97,13 +99,14 @@ function cloneEntityFilters(): Record<EntityType, boolean> {
   return { ...DEFAULT_ENTITY_FILTERS };
 }
 
-export function createDefaultLensSettings(_lens: GraphLens): GraphLensSettings {
+export function createDefaultLensSettings(lens: GraphLens): GraphLensSettings {
   return {
     entityFilters: cloneEntityFilters(),
     statusFilters: {},
-    groupingMode: "none",
+    groupingMode: lens === "topology" ? "initiative" : "none",
     showSecondaryEdges: true,
     autoFitOnChange: true,
+    showMiniMap: false,
   };
 }
 
@@ -122,6 +125,7 @@ function cloneLensSettings(settings: GraphLensSettings): GraphLensSettings {
     groupingMode: settings.groupingMode,
     showSecondaryEdges: settings.showSecondaryEdges,
     autoFitOnChange: settings.autoFitOnChange,
+    showMiniMap: settings.showMiniMap,
   };
 }
 
@@ -234,6 +238,10 @@ function loadPersistedSettings(): Record<GraphLens, GraphLensSettings> {
           typeof record.autoFitOnChange === "boolean"
             ? record.autoFitOnChange
             : defaults[lens].autoFitOnChange,
+        showMiniMap:
+          typeof record.showMiniMap === "boolean"
+            ? record.showMiniMap
+            : defaults[lens].showMiniMap,
       };
     }
 
@@ -605,6 +613,14 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
       updateLensSettings(state, state.lens, (settings) => ({
         ...settings,
         showSecondaryEdges: visible,
+      })),
+    ),
+
+  setShowMiniMap: (visible) =>
+    set((state) =>
+      updateLensSettings(state, state.lens, (settings) => ({
+        ...settings,
+        showMiniMap: visible,
       })),
     ),
 

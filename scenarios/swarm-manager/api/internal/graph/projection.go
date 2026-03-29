@@ -231,24 +231,21 @@ func (p *ProjectionService) buildTopology(ctx context.Context) (GraphResponse, e
 	}
 
 	// Scenario nodes and targets edges.
+	// Only include scenarios that are targeted by at least one active backlog
+	// item — disconnected scenarios clutter the topology with no structural
+	// value and cause Dagre to produce linear layouts.
 	if p.scenario != nil {
 		scens, err := p.scenario.List(ctx)
 		if err != nil {
 			log.Printf("[graph] topology: scenarios error: %v", err)
 		} else {
+			scenByName := make(map[string]ScenarioEntry, len(scens))
 			for _, s := range scens {
-				scenNodeID := "scenario/" + s.Name
-				nodes = append(nodes, Node{
-					ID:   scenNodeID,
-					Type: "Scenario",
-					Data: GraphScenarioNodeData{
-						Name:   s.Name,
-						Status: s.Status,
-					},
-				})
+				scenByName[s.Name] = s
 			}
 
-			// targets edges: backlog items -> scenarios via acceptance_allow prefix match.
+			// Build targets edges first to discover which scenarios are referenced.
+			referencedScenarios := make(map[string]struct{})
 			for _, item := range items {
 				if item.Status == backlog.StatusCompleted || item.Status == backlog.StatusArchived {
 					continue
@@ -263,9 +260,20 @@ func (p *ProjectionService) buildTopology(ctx context.Context) (GraphResponse, e
 								Target: "scenario/" + s.Name,
 								Type:   "targets",
 							})
+							referencedScenarios[s.Name] = struct{}{}
 						}
 					}
 				}
+			}
+
+			// Only emit scenario nodes that are targeted by backlog items.
+			for name := range referencedScenarios {
+				s := scenByName[name]
+				nodes = append(nodes, Node{
+					ID:   "scenario/" + s.Name,
+					Type: "Scenario",
+					Data: GraphScenarioNodeData(s),
+				})
 			}
 		}
 	}

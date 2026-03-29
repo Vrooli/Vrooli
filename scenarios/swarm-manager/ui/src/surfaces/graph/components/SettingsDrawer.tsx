@@ -10,6 +10,7 @@ import {
   FolderTree,
   LayoutGrid,
   Lightbulb,
+  Map as MapIcon,
   Maximize2,
   MessageSquare,
   Package,
@@ -65,6 +66,7 @@ function GraphControlsContent() {
   const setEntityStatusGroupVisibility = useGraphDataStore((s) => s.setEntityStatusGroupVisibility);
   const setGroupingMode = useGraphDataStore((s) => s.setGroupingMode);
   const setShowSecondaryEdges = useGraphDataStore((s) => s.setShowSecondaryEdges);
+  const setShowMiniMap = useGraphDataStore((s) => s.setShowMiniMap);
   const setAutoFitOnChange = useGraphDataStore((s) => s.setAutoFitOnChange);
   const resetLensSettings = useGraphDataStore((s) => s.resetLensSettings);
 
@@ -311,6 +313,12 @@ function GraphControlsContent() {
             settings.autoFitOnChange,
             () => setAutoFitOnChange(!settings.autoFitOnChange),
             Maximize2,
+          )}
+          {renderToggleButton(
+            "Show Mini Map",
+            settings.showMiniMap,
+            () => setShowMiniMap(!settings.showMiniMap),
+            MapIcon,
           )}
         </div>
       </section>

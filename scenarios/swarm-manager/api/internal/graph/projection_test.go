@@ -93,7 +93,7 @@ func assertEdgeEndpointsPresent(t *testing.T, resp GraphResponse) {
 func TestProjectTopology(t *testing.T) {
 	svc := NewProjectionService(ProjectionConfig{
 		Backlog: &mockBacklogLister{items: []backlog.BacklogItem{
-			{Kind: "execute", Name: "task-a", Title: "Task A", Status: backlog.StatusQueued, Priority: 3, DependsOn: []string{"execute/task-b"}, Initiative: "init-1"},
+			{Kind: "execute", Name: "task-a", Title: "Task A", Status: backlog.StatusQueued, Priority: 3, DependsOn: []string{"execute/task-b"}, Initiative: "init-1", AcceptanceAllow: []string{"scenarios/my-app"}},
 			{Kind: "execute", Name: "task-b", Title: "Task B", Status: "ready", Priority: 5},
 			{Kind: "execute", Name: "task-c", Title: "Done", Status: backlog.StatusCompleted}, // should be excluded
 			{Kind: "idea", Name: "archived", Title: "Old", Status: backlog.StatusArchived},    // should be excluded

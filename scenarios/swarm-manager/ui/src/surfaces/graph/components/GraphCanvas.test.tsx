@@ -131,10 +131,17 @@ describe("GraphCanvas", () => {
     expect(renderedNodeIds).not.toContain("backlog-item/execute/task-b");
   });
 
-  it("keeps backlog items visible in the default topology view", async () => {
+  it("keeps backlog items visible in flat topology view", async () => {
     useGraphDataStore.setState((state) => ({
       ...state,
       lens: "topology",
+      settingsByLens: {
+        ...state.settingsByLens,
+        topology: {
+          ...state.settingsByLens.topology,
+          groupingMode: "none",
+        },
+      },
       nodes: [
         makeInitiativeNode("initiative/graph-adoption", {
           label: "Graph Adoption",

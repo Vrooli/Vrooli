@@ -57,11 +57,12 @@ describe("graphDataStore", () => {
   it("defaults to the topology lens with initiative grouping", () => {
     const state = useGraphDataStore.getState();
     expect(state.lens).toBe("topology");
-    expect(state.settingsByLens.topology.groupingMode).toBe("none");
+    expect(state.settingsByLens.topology.groupingMode).toBe("initiative");
     expect(state.settingsByLens.flow.groupingMode).toBe("none");
+    expect(state.settingsByLens.operations.groupingMode).toBe("none");
   });
 
-  it("migrates legacy grouped topology settings to the flat default", () => {
+  it("migrates legacy grouped topology settings to the new topology default", () => {
     window.localStorage.setItem(
       "swarm-manager.graph.settings.v2",
       JSON.stringify({
@@ -75,7 +76,9 @@ describe("graphDataStore", () => {
     );
 
     const initialState = createGraphDataInitialState();
-    expect(initialState.settingsByLens.topology.groupingMode).toBe("none");
+    // Legacy migration resets groupingMode to the default for the lens.
+    // Topology's default is now "initiative".
+    expect(initialState.settingsByLens.topology.groupingMode).toBe("initiative");
     expect(initialState.settingsByLens.topology.entityFilters.capture).toBe(false);
     expect(initialState.settingsByLens.topology.showSecondaryEdges).toBe(false);
   });
@@ -218,7 +221,7 @@ describe("graphDataStore", () => {
 
     const state = useGraphDataStore.getState();
     expect(state.settingsByLens.topology.entityFilters.capture).toBe(true);
-    expect(state.settingsByLens.topology.groupingMode).toBe("none");
+    expect(state.settingsByLens.topology.groupingMode).toBe("initiative");
     expect(state.settingsByLens.topology.statusFilters).toEqual({});
     expect(state.settingsByLens.flow.entityFilters.execution).toBe(false);
   });
@@ -408,5 +411,102 @@ describe("graphDataStore", () => {
       throw new Error("Expected runtime node");
     }
     expect(node.data.pulsing).toBe(true);
+  });
+
+  it("sets error on fetch failure", async () => {
+    getGraphMock.mockRejectedValueOnce(new Error("Network failure"));
+
+    await useGraphDataStore.getState().fetchGraph("topology");
+
+    const state = useGraphDataStore.getState();
+    expect(state.loading).toBe(false);
+    expect(state.error).toBe("Network failure");
+    expect(state.nodes).toHaveLength(0);
+  });
+
+  it("clears error on successful fetch after failure", async () => {
+    getGraphMock
+      .mockRejectedValueOnce(new Error("First fail"))
+      .mockResolvedValueOnce({
+        nodes: [makeNode("scenario/test", "scenario")],
+        edges: [],
+        meta: {
+          lens: "topology",
+          nodeCount: 1,
+          edgeCount: 0,
+          generatedAt: "2026-03-28T00:00:00Z",
+          agentManagerAvailable: null,
+        },
+      });
+
+    await useGraphDataStore.getState().fetchGraph("topology");
+    expect(useGraphDataStore.getState().error).toBe("First fail");
+
+    // Force refetch
+    await useGraphDataStore.getState().fetchGraph("topology", { force: true });
+    expect(useGraphDataStore.getState().error).toBeNull();
+    expect(useGraphDataStore.getState().nodes).toHaveLength(1);
+  });
+
+  it("isolates graph data between lenses", async () => {
+    getGraphMock
+      .mockResolvedValueOnce({
+        nodes: [makeNode("scenario/topo", "scenario")],
+        edges: [],
+        meta: { lens: "topology", nodeCount: 1, edgeCount: 0, generatedAt: "t1", agentManagerAvailable: null },
+      })
+      .mockResolvedValueOnce({
+        nodes: [makeNode("execution/flow", "execution"), makeNode("backlog-item/execute/b", "backlog")],
+        edges: [],
+        meta: { lens: "flow", nodeCount: 2, edgeCount: 0, generatedAt: "t2", agentManagerAvailable: null },
+      });
+
+    await useGraphDataStore.getState().fetchGraph("topology");
+    expect(useGraphDataStore.getState().nodes).toHaveLength(1);
+
+    useGraphDataStore.getState().setLens("flow");
+    await useGraphDataStore.getState().fetchGraph("flow");
+    expect(useGraphDataStore.getState().nodes).toHaveLength(2);
+
+    // Switch back — topology snapshot should be preserved
+    useGraphDataStore.getState().setLens("topology");
+    expect(useGraphDataStore.getState().nodes).toHaveLength(1);
+    expect(useGraphDataStore.getState().nodes[0]?.id).toBe("scenario/topo");
+  });
+
+  it("persists and restores settings including initiative status filters", () => {
+    useGraphDataStore.getState().setStatusVisibility("initiative", "archived", false);
+
+    const persisted = window.localStorage.getItem("swarm-manager.graph.settings.v4");
+    expect(persisted).toBeTruthy();
+
+    // Create new state from localStorage (simulating page reload)
+    const freshState = createGraphDataInitialState();
+    expect(freshState.settingsByLens.topology.statusFilters.initiative?.archived).toBe(false);
+  });
+
+  it("handles silent fetch without showing loading state", async () => {
+    getGraphMock.mockResolvedValueOnce({
+      nodes: [makeNode("scenario/test", "scenario")],
+      edges: [],
+      meta: { lens: "topology", nodeCount: 1, edgeCount: 0, generatedAt: "t1", agentManagerAvailable: null },
+    });
+
+    // Initial fetch
+    await useGraphDataStore.getState().fetchGraph("topology");
+
+    // Force silent refetch
+    getGraphMock.mockResolvedValueOnce({
+      nodes: [makeNode("scenario/test", "scenario"), makeNode("scenario/new", "scenario")],
+      edges: [],
+      meta: { lens: "topology", nodeCount: 2, edgeCount: 0, generatedAt: "t2", agentManagerAvailable: null },
+    });
+
+    const fetchPromise = useGraphDataStore.getState().fetchGraph("topology", { force: true, silent: true });
+    // During silent fetch, loading should remain false
+    expect(useGraphDataStore.getState().loading).toBe(false);
+
+    await fetchPromise;
+    expect(useGraphDataStore.getState().nodes).toHaveLength(2);
   });
 });
