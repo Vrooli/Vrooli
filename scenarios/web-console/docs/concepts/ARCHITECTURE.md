@@ -165,7 +165,9 @@ Client-side [CODE: ui/src/lib/api.ts#APIError] parses these into typed errors. T
 |----------|-----------|
 | Repository interfaces (`ShortcutStore`, `AIConfigStore`) | Decouples handlers from storage backend; in-memory for tests, SQLite for production |
 | SQLite for shortcuts and AI config | User configuration survives restarts; health metrics stay in-memory (ephemeral, high-frequency) |
-| In-memory sessions (PTY process-bound) | PTY state cannot persist across restarts; session metadata persistence is a future target |
+| Backend registry + tmux PTY | Sessions can use "standard" (raw PTY, lost on restart) or "persistent" (tmux-backed, survives restart). Registry tracks availability. |
+| Session metadata persistence (SQLite) | Session metadata (ID, backend, policy, timestamps) is persisted for restart recovery of tmux sessions |
+| Startup recovery | On boot, server discovers surviving tmux sessions, matches against persisted metadata, re-registers them, and cleans up orphans |
 | In-memory conversation store | Session conversations are runtime state scoped to the scenario process; enough for unread/messages/TTS within a run without overcommitting to persistence too early |
 | PTY interface + factory pattern | Enables testing without real shell processes |
 | Conversation events separate from terminal history | Semantic assistant-response features must not depend on raw PTY bytes or terminal rendering heuristics |

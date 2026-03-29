@@ -210,6 +210,8 @@ vi.mock("../lib/api", () => ({
   getSession: vi.fn(),
   uploadFile: vi.fn(),
   summarizeEvent: vi.fn().mockResolvedValue({}),
+  fetchCapabilities: vi.fn().mockResolvedValue({ capabilities: [], timestamp: "" }),
+  getSessionDefaults: vi.fn().mockResolvedValue({ default_backend: "standard", default_policy: { mode: "never" } }),
 }));
 
 // ── Test constants ──

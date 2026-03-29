@@ -72,6 +72,21 @@ type Config struct {
 	//   WC_DEFAULT_CWD -> PROJECT_ROOT -> SCENARIO_DIR -> inferred scenario dir -> current process cwd
 	// Env: WC_DEFAULT_CWD | Default: derived from environment/runtime
 	DefaultCWD string
+
+	// DefaultBackend is the session backend used when the client does not
+	// specify one. "standard" uses a raw PTY; "persistent" uses tmux.
+	// CROSS-LANGUAGE COUPLING: Must match BackendID constants in backend_registry.go.
+	// Env: WC_DEFAULT_BACKEND | Default: "standard"
+	DefaultBackend string
+
+	// DefaultPolicyMode is the default expiration policy mode for new sessions.
+	// Env: WC_DEFAULT_POLICY_MODE | Default: "never"
+	DefaultPolicyMode string
+
+	// DefaultPolicyDuration is the default expiration policy duration for new sessions.
+	// Only used when DefaultPolicyMode is "preset" or "custom".
+	// Env: WC_DEFAULT_POLICY_DURATION | Default: ""
+	DefaultPolicyDuration string
 }
 
 // DefaultConfig returns the default configuration with all sane defaults.
@@ -87,6 +102,9 @@ func DefaultConfig() Config {
 		ClientChannelBuffer:     256,
 		CoalesceNotifyThreshold: 5,
 		DefaultCWD:              resolveWorkingDir(),
+		DefaultBackend:          "standard",
+		DefaultPolicyMode:       "never",
+		DefaultPolicyDuration:   "",
 	}
 }
 
@@ -106,6 +124,16 @@ func LoadConfig() Config {
 
 	cfg.DefaultShell = resolveShell()
 	cfg.DefaultCWD = resolveWorkingDir()
+
+	if v := os.Getenv("WC_DEFAULT_BACKEND"); v != "" {
+		cfg.DefaultBackend = v
+	}
+	if v := os.Getenv("WC_DEFAULT_POLICY_MODE"); v != "" {
+		cfg.DefaultPolicyMode = v
+	}
+	if v := os.Getenv("WC_DEFAULT_POLICY_DURATION"); v != "" {
+		cfg.DefaultPolicyDuration = v
+	}
 
 	return cfg
 }

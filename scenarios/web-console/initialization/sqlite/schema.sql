@@ -5,12 +5,14 @@
 -- Terminal sessions (metadata only; PTY state is process-bound)
 CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,
+    backend TEXT NOT NULL DEFAULT 'standard',
     shell TEXT NOT NULL DEFAULT '/bin/bash',
     cols INTEGER NOT NULL DEFAULT 80,
     rows INTEGER NOT NULL DEFAULT 24,
     policy_mode TEXT NOT NULL DEFAULT 'never' CHECK(policy_mode IN ('never', 'preset', 'custom')),
     policy_duration TEXT,
-    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    detached INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_created ON sessions(created_at DESC);

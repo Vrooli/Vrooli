@@ -14,14 +14,29 @@ export interface ExpirationPolicy {
   duration?: string;
 }
 
+// CROSS-LANGUAGE COUPLING: Backend IDs must match BackendID constants in api/backend_registry.go
+export type BackendID = "standard" | "persistent";
+
+export interface BackendOption {
+  id: BackendID;
+  display_name: string;
+  description: string;
+  survives_restart: boolean;
+  available: boolean;
+  reason?: string;
+}
+
 export interface SessionInfo {
   id: string;
   shell: string;
   created_at: string;
   cols: number;
   rows: number;
+  backend: BackendID;
+  survives_restart: boolean;
   policy: ExpirationPolicy;
   busy: boolean;
+  recovered?: boolean;
 }
 
 export interface PolicyResponse {
@@ -116,7 +131,13 @@ export async function fetchHealth() {
   return res.json() as Promise<{ status: string; service: string; timestamp: string }>;
 }
 
-export async function createSession(opts?: { shell?: string; cols?: number; rows?: number }): Promise<SessionInfo> {
+export async function createSession(opts?: {
+  shell?: string;
+  cols?: number;
+  rows?: number;
+  backend?: BackendID;
+  policy?: { mode: PolicyMode; duration?: string };
+}): Promise<SessionInfo> {
   const url = buildApiUrl("/sessions", { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
@@ -471,6 +492,8 @@ export interface CapabilityState {
 export interface CapabilitiesResponse {
   capabilities: CapabilityState[];
   timestamp: string;
+  session_backends?: BackendOption[];
+  default_backend?: string;
 }
 
 export async function fetchCapabilities(): Promise<CapabilitiesResponse> {
@@ -1079,4 +1102,38 @@ export async function deleteTabGroup(id: string): Promise<void> {
   if (!res.ok) {
     throw await extractAPIError(res, "Failed to delete tab group");
   }
+}
+
+// Session defaults settings
+export interface SessionDefaultsResponse {
+  default_backend: string;
+  default_policy: ExpirationPolicy;
+}
+
+export async function getSessionDefaults(): Promise<SessionDefaultsResponse> {
+  const url = buildApiUrl("/settings/session-defaults", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw await extractAPIError(res, "Failed to get session defaults");
+  }
+  return (await res.json()) as SessionDefaultsResponse;
+}
+
+export async function updateSessionDefaults(update: {
+  default_backend?: string;
+  default_policy?: ExpirationPolicy;
+}): Promise<SessionDefaultsResponse> {
+  const url = buildApiUrl("/settings/session-defaults", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(update),
+  });
+  if (!res.ok) {
+    throw await extractAPIError(res, "Failed to update session defaults");
+  }
+  return (await res.json()) as SessionDefaultsResponse;
 }

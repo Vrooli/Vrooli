@@ -53,6 +53,8 @@ func initSchema(db *sql.DB) error {
 	// errors if the column already exists, so we ignore that specific error.
 	migrations := []string{
 		`ALTER TABLE workspace_panes ADD COLUMN supports_messages_view INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE sessions ADD COLUMN backend TEXT NOT NULL DEFAULT 'standard'`,
+		`ALTER TABLE sessions ADD COLUMN detached INTEGER NOT NULL DEFAULT 0`,
 	}
 	for _, m := range migrations {
 		if _, err := db.Exec(m); err != nil {
@@ -79,6 +81,8 @@ type Server struct {
 	sessions                      *SessionManager
 	events                        *EventLogger
 	metrics                       *Metrics
+	backendRegistry               *BackendRegistry
+	sessionStore                  SessionMetadataStore
 	aiChain                       *AIProviderChain
 	shortcuts                     ShortcutStore
 	aiConfig                      AIConfigStore
@@ -193,12 +197,28 @@ func NewServer(db *sql.DB) *Server {
 	events := NewEventLogger(1000)
 	metrics := NewMetrics()
 	sessions := NewSessionManager()
+
+	// Initialize backend registry and session metadata store
+	backendRegistry := InitDefaultRegistry()
+	sessionStore := NewSQLSessionStore(db)
+	sessions.SetRegistry(backendRegistry)
+	sessions.SetStore(sessionStore)
+
+	// Recover surviving tmux sessions from previous run
+	report := sessions.Recover(sessionStore, backendRegistry)
+	if report.Recovered > 0 || report.OrphanedMetadata > 0 || report.OrphanedTmux > 0 {
+		log.Printf("recovery: recovered=%d orphaned_metadata=%d orphaned_tmux=%d",
+			report.Recovered, report.OrphanedMetadata, report.OrphanedTmux)
+	}
+
 	srv := &Server{
 		db:                            db,
 		router:                        mux.NewRouter(),
 		sessions:                      sessions,
 		events:                        events,
 		metrics:                       metrics,
+		backendRegistry:               backendRegistry,
+		sessionStore:                  sessionStore,
 		aiChain:                       NewAIProviderChain(NewOllamaProvider(), NewOpenRouterProvider()),
 		shortcuts:                     NewSQLShortcutStore(db),
 		aiConfig:                      NewSQLAIConfigStore(db),
@@ -348,6 +368,10 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/workspace/groups", s.handleCreateGroup).Methods("POST")
 	s.router.HandleFunc("/api/v1/workspace/groups/{id}", s.handleUpdateGroup).Methods("PUT")
 	s.router.HandleFunc("/api/v1/workspace/groups/{id}", s.handleDeleteGroup).Methods("DELETE")
+
+	// Session defaults settings
+	s.router.HandleFunc("/api/v1/settings/session-defaults", s.handleGetSessionDefaults).Methods("GET")
+	s.router.HandleFunc("/api/v1/settings/session-defaults", s.handleUpdateSessionDefaults).Methods("PUT")
 
 	// AI command generation - [REQ:P0-005a]
 	s.router.HandleFunc("/api/v1/ai/generate", s.handleAIGenerate).Methods("POST")

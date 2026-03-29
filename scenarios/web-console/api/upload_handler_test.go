@@ -39,7 +39,7 @@ func createUploadRequest(t *testing.T, sessionID, filename, contentType string, 
 
 func TestHandleUpload_ValidPNG(t *testing.T) {
 	srv := newFakeTestServer()
-	sess, err := srv.sessions.Create("", 80, 24)
+	sess, err := srv.sessions.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestHandleUpload_ValidPNG(t *testing.T) {
 
 func TestHandleUpload_AcceptsJPEG(t *testing.T) {
 	srv := newFakeTestServer()
-	sess, err := srv.sessions.Create("", 80, 24)
+	sess, err := srv.sessions.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
@@ -93,7 +93,7 @@ func TestHandleUpload_AcceptsJPEG(t *testing.T) {
 
 func TestHandleUpload_AcceptsWebP(t *testing.T) {
 	srv := newFakeTestServer()
-	sess, err := srv.sessions.Create("", 80, 24)
+	sess, err := srv.sessions.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
@@ -111,7 +111,7 @@ func TestHandleUpload_AcceptsWebP(t *testing.T) {
 
 func TestHandleUpload_AcceptsGIF(t *testing.T) {
 	srv := newFakeTestServer()
-	sess, err := srv.sessions.Create("", 80, 24)
+	sess, err := srv.sessions.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
@@ -129,7 +129,7 @@ func TestHandleUpload_AcceptsGIF(t *testing.T) {
 
 func TestHandleUpload_RejectsNonImageMIME(t *testing.T) {
 	srv := newFakeTestServer()
-	sess, err := srv.sessions.Create("", 80, 24)
+	sess, err := srv.sessions.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
@@ -154,7 +154,7 @@ func TestHandleUpload_RejectsNonImageMIME(t *testing.T) {
 
 func TestHandleUpload_RejectsOversizedFile(t *testing.T) {
 	srv := newFakeTestServer()
-	sess, err := srv.sessions.Create("", 80, 24)
+	sess, err := srv.sessions.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
@@ -193,7 +193,7 @@ func TestHandleUpload_MissingSession(t *testing.T) {
 
 func TestHandleUpload_PathTraversalFilename(t *testing.T) {
 	srv := newFakeTestServer()
-	sess, err := srv.sessions.Create("", 80, 24)
+	sess, err := srv.sessions.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}

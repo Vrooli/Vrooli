@@ -10,11 +10,12 @@ import {
   Trash2,
 } from "lucide-react";
 import { HEADER_COLORS } from "../../consts/config";
+import { BACKEND_OPTIONS } from "../../consts/backend-options";
 import { POLICY_OPTIONS, parsePolicySelection, policyKey } from "../../consts/policy-options";
 import { useCountdown } from "../../hooks/useCountdown";
 import { useWorkspaceSync } from "../../hooks/useWorkspaceSync";
-import type { PolicyMode, SessionInfo } from "../../lib/api";
-import { toErrorInfo, updateSessionPolicy } from "../../lib/api";
+import type { BackendID, PolicyMode, SessionInfo } from "../../lib/api";
+import { toErrorInfo, updateSessionPolicy, getSessionDefaults, updateSessionDefaults, fetchCapabilities } from "../../lib/api";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 import { Button } from "../ui/button";
 import { SettingsCard, SettingsSectionIntro } from "./primitives";
@@ -55,6 +56,111 @@ function SessionPolicyControl({
         </span>
       )}
     </div>
+  );
+}
+
+function SessionDefaultsControl() {
+  const [defaultBackend, setDefaultBackend] = useState<BackendID>("standard");
+  const [defaultPolicyKey, setDefaultPolicyKey] = useState<string>("never");
+  const [availableBackends, setAvailableBackends] = useState<BackendID[]>(["standard"]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    // Load current defaults
+    getSessionDefaults().then((d) => {
+      if (cancelled) return;
+      setDefaultBackend(d.default_backend as BackendID);
+      if (d.default_policy) {
+        setDefaultPolicyKey(policyKey(d.default_policy.mode as PolicyMode, d.default_policy.duration));
+      }
+    }).catch(() => {});
+    // Load available backends
+    fetchCapabilities().then((caps) => {
+      if (cancelled) return;
+      if (caps.session_backends) {
+        setAvailableBackends(
+          caps.session_backends.filter((b) => b.available).map((b) => b.id as BackendID),
+        );
+      }
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleBackendChange = useCallback(async (backend: BackendID) => {
+    setDefaultBackend(backend);
+    setSaving(true);
+    try {
+      await updateSessionDefaults({ default_backend: backend });
+    } catch {
+      // Revert on failure would need previous value — best-effort for now
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
+  const handlePolicyChange = useCallback(async (value: string) => {
+    setDefaultPolicyKey(value);
+    const parsed = parsePolicySelection(value);
+    if (!parsed) return;
+    setSaving(true);
+    try {
+      await updateSessionDefaults({
+        default_policy: { mode: parsed.mode, duration: parsed.duration },
+      });
+    } catch {
+      // Best-effort
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
+  const showBackendSelector = availableBackends.length > 1;
+  const backendOptions = BACKEND_OPTIONS.filter((b) => availableBackends.includes(b.id));
+
+  return (
+    <SettingsCard className="space-y-3">
+      <div>
+        <div className="text-sm font-medium text-wc-text-secondary">Session Defaults</div>
+        <div className="text-[11px] text-wc-text-muted">
+          These defaults pre-populate the launch dialog. You can override per session.
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-4">
+        {showBackendSelector && (
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-wc-text-secondary">Default backend:</label>
+            <select
+              data-testid="session-defaults-backend"
+              className="h-7 rounded-lg border border-wc-default bg-wc-surface-input px-2 text-xs text-wc-text-secondary focus:border-wc-accent focus:outline-none"
+              value={defaultBackend}
+              disabled={saving}
+              onChange={(e) => handleBackendChange(e.target.value as BackendID)}
+            >
+              {backendOptions.map((b) => (
+                <option key={b.id} value={b.id}>{b.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-wc-text-secondary">Default timeout:</label>
+          <select
+            data-testid="session-defaults-policy"
+            className="h-7 rounded-lg border border-wc-default bg-wc-surface-input px-2 text-xs text-wc-text-secondary focus:border-wc-accent focus:outline-none"
+            value={defaultPolicyKey}
+            disabled={saving}
+            onChange={(e) => handlePolicyChange(e.target.value)}
+          >
+            {POLICY_OPTIONS.map((opt) => (
+              <option key={policyKey(opt.mode, opt.duration)} value={policyKey(opt.mode, opt.duration)}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+    </SettingsCard>
   );
 }
 
@@ -113,6 +219,8 @@ export default function SessionManagementSection({
         title="Sessions"
         description="Inspect active terminals, change expiration policies, reorder panes, and jump directly to the pane you need."
       />
+
+      <SessionDefaultsControl />
 
       <SettingsCard className="space-y-4">
         <div className="flex items-center justify-between gap-3">
@@ -222,7 +330,14 @@ export default function SessionManagementSection({
                       </div>
 
                       {session && (
-                        <SessionPolicyControl session={session} onPolicyChange={handlePolicyChange} />
+                        <div className="flex items-center gap-3">
+                          {session.backend === "persistent" && (
+                            <span className="inline-flex items-center rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-300">
+                              Persistent
+                            </span>
+                          )}
+                          <SessionPolicyControl session={session} onPolicyChange={handlePolicyChange} />
+                        </div>
                       )}
                     </div>
 

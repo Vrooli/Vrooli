@@ -122,6 +122,20 @@ var errorCatalog = map[string]appError{
 		Message:  "Invalid expiration policy",
 		Recovery: "Use mode 'never', 'preset' (with 1h/8h/24h), or 'custom' (with a Go duration like 30m)",
 	},
+	"backend_unavailable": {
+		Status:   http.StatusUnprocessableEntity,
+		Code:     "backend_unavailable",
+		Category: "dependency",
+		Message:  "Requested session backend is not available",
+		Recovery: "Use 'standard' backend or install tmux",
+	},
+	"backend_unknown": {
+		Status:   http.StatusUnprocessableEntity,
+		Code:     "backend_unknown",
+		Category: "validation",
+		Message:  "Unknown session backend",
+		Recovery: "Use 'standard' or 'persistent'",
+	},
 	"voice_unavailable": {
 		Status:   http.StatusServiceUnavailable,
 		Code:     "voice_unavailable",

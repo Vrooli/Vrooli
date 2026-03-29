@@ -3,6 +3,7 @@ package main
 import (
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -394,7 +395,7 @@ func TestSessionManagerCreate_UsesSharedAuthAndSessionOwnedRoutingDirs(t *testin
 		return newFakePTYWithOutput(), nil
 	})
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -418,13 +419,67 @@ func TestSessionManagerCreate_UsesSharedAuthAndSessionOwnedRoutingDirs(t *testin
 	}
 }
 
+// TestTmuxAttach_SetsTermEnv verifies that tmuxAttach sets TERM=xterm-256color
+// on the attach command, preventing "terminal does not support clear" failures
+// when the server process has TERM=dumb (common for non-interactive lifecycle).
+func TestTmuxAttach_SetsTermEnv(t *testing.T) {
+	// Skip when tmux is not installed
+	if _, err := exec.LookPath("tmux"); err != nil {
+		t.Skip("tmux not installed")
+	}
+
+	sessionName := tmuxSessionPrefix + "test-term-env"
+	// Create a detached tmux session
+	createCmd := exec.Command("tmux", "new-session", "-d",
+		"-s", sessionName,
+		"-x", "80", "-y", "24",
+		"/bin/sh",
+	)
+	if err := createCmd.Run(); err != nil {
+		t.Fatalf("tmux new-session failed: %v", err)
+	}
+	defer exec.Command("tmux", "kill-session", "-t", sessionName).Run()
+
+	// Temporarily set TERM=dumb to simulate lifecycle-launched server
+	origTerm := os.Getenv("TERM")
+	os.Setenv("TERM", "dumb")
+	defer os.Setenv("TERM", origTerm)
+
+	// tmuxAttach should succeed despite TERM=dumb because it overrides TERM
+	p, err := tmuxAttach(sessionName)
+	if err != nil {
+		t.Fatalf("tmuxAttach failed with TERM=dumb: %v", err)
+	}
+	defer p.Kill()
+	defer p.Close()
+
+	// Verify the session is readable (not immediately dead)
+	buf := make([]byte, 1024)
+	done := make(chan error, 1)
+	go func() {
+		_, readErr := p.Read(buf)
+		done <- readErr
+	}()
+
+	select {
+	case err := <-done:
+		// A successful read (even 0 bytes) or a timeout means the attach
+		// is alive. An immediate error means it died.
+		if err != nil {
+			t.Fatalf("tmux attach died immediately (TERM=dumb not overridden?): %v", err)
+		}
+	case <-time.After(500 * time.Millisecond):
+		// Timeout = attach is alive and waiting for output. Success.
+	}
+}
+
 // [REQ:P0-002a] PTY Session Backend - fast session tests via fake PTY seam
 func TestFakePTY_CreateAndGet(t *testing.T) {
 	fake := newFakePTYWithOutput()
 	defer fake.Close()
 
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
-	sess, err := sm.Create("/fake/shell", 100, 50)
+	sess, err := sm.Create("/fake/shell", 100, 50, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -453,7 +508,7 @@ func TestFakePTY_SubscribeAndBroadcast(t *testing.T) {
 	fake := newFakePTYWithOutput()
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -486,7 +541,7 @@ func TestFakePTY_OfflineBuffer(t *testing.T) {
 	fake := newFakePTYWithOutput()
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -520,7 +575,7 @@ func TestFakePTY_Resize(t *testing.T) {
 	defer fake.Close()
 
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -551,7 +606,7 @@ func TestFakePTY_DeleteCleanup(t *testing.T) {
 	fake := newFakePTYWithOutput()
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -577,7 +632,7 @@ func TestFakePTY_ExitCodeForwarding(t *testing.T) {
 	fake := newFakePTYWithOutput()
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -602,7 +657,7 @@ func TestFakePTY_ExitSignal(t *testing.T) {
 	fake := newFakePTYWithOutput()
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}

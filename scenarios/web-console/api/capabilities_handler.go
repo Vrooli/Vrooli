@@ -13,10 +13,19 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	caps := s.capabilities.Resolve(ctx)
 	log.Printf("capabilities: full resolve took %dms", time.Since(start).Milliseconds())
-	writeJSON(w, http.StatusOK, map[string]any{
+
+	resp := map[string]any{
 		"capabilities": caps,
 		"timestamp":    time.Now().UTC().Format(time.RFC3339),
-	})
+	}
+
+	// Include session backend information
+	if s.backendRegistry != nil {
+		resp["session_backends"] = s.backendRegistry.Available()
+		resp["default_backend"] = s.sessions.cfg.DefaultBackend
+	}
+
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // handleCapabilitiesLiveness returns capability status using fast liveness-only

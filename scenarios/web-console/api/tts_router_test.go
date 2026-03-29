@@ -40,7 +40,7 @@ func TestAppendConversationEvent_RoutesToMappedSession(t *testing.T) {
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
 	srv.sessions = sm
 
-	sess, err := sm.Create("", 80, 24)
+	sess, err := sm.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestAppendConversationEvent_DeduplicatesByEventIdentity(t *testing.T) {
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
 	srv.sessions = sm
 
-	sess, err := sm.Create("", 80, 24)
+	sess, err := sm.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}

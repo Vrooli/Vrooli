@@ -78,7 +78,7 @@ func TestHandleTerminalWS_ExitedSession(t *testing.T) {
 		aiConfig:  NewAIProviderConfigStore(),
 		workspace: NewMemWorkspaceStore(),
 	}
-	deadSess, _ := sm.Create("/fake/shell", 80, 24)
+	deadSess, _ := sm.Create("/fake/shell", 80, 24, "", nil)
 	sessID := deadSess.ID
 
 	// Close output pipe to simulate process exit; auto-removal cleans up the map
@@ -398,7 +398,7 @@ func setupWSServerWithPTY(t *testing.T) (*httptest.Server, string, *fakePTYWithO
 	ts := httptest.NewServer(srv.router)
 	t.Cleanup(ts.Close)
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}

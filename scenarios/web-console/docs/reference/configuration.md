@@ -41,6 +41,14 @@ Set these in your environment or `.env` file before starting the API.
 | `WC_DEFAULT_ROWS` | `24` | 5–200 | Default terminal rows when the client doesn't specify. |
 | `WC_DEFAULT_SHELL` | `$SHELL` or `/bin/sh` | any path | Shell binary to launch for new sessions. Respects the `$SHELL` environment variable by default. Override to force a specific shell for all sessions. |
 
+### Session Backend & Policy Defaults
+
+| Variable | Default | Values | Impact |
+|----------|---------|--------|--------|
+| `WC_DEFAULT_BACKEND` | `standard` | `standard`, `persistent` | Default session backend when not specified at creation. `persistent` uses tmux for restart-survivable sessions. |
+| `WC_DEFAULT_POLICY_MODE` | `never` | `never`, `preset`, `custom` | Default expiration policy mode for new sessions. |
+| `WC_DEFAULT_POLICY_DURATION` | *(empty)* | `1h`, `8h`, `24h`, or Go duration | Default expiration duration. Only used when policy mode is `preset` or `custom`. |
+
 ---
 
 ## UI Constants

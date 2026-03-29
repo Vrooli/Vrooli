@@ -115,7 +115,7 @@ func TestHandleHookStop_RoutesToMappedTerminalSession(t *testing.T) {
 	srv.sessions = sm
 	srv.conversations = NewConversationStore()
 
-	sess, err := sm.Create("", 80, 24)
+	sess, err := sm.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}

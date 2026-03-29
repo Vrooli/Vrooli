@@ -73,20 +73,31 @@ func (c *idempotencyCache) Set(key string, resp SessionResponse) {
 
 // CreateSessionRequest is the JSON body for creating a new session.
 type CreateSessionRequest struct {
-	Shell string `json:"shell,omitempty"`
-	Cols  int    `json:"cols,omitempty"`
-	Rows  int    `json:"rows,omitempty"`
+	Shell   string            `json:"shell,omitempty"`
+	Cols    int               `json:"cols,omitempty"`
+	Rows    int               `json:"rows,omitempty"`
+	Backend string            `json:"backend,omitempty"`
+	Policy  *CreatePolicySpec `json:"policy,omitempty"`
+}
+
+// CreatePolicySpec allows setting a policy at session creation time.
+type CreatePolicySpec struct {
+	Mode     string `json:"mode"`
+	Duration string `json:"duration,omitempty"`
 }
 
 // SessionResponse is the JSON representation of a session.
 type SessionResponse struct {
-	ID        string           `json:"id"`
-	Shell     string           `json:"shell"`
-	CreatedAt string           `json:"created_at"`
-	Cols      int              `json:"cols"`
-	Rows      int              `json:"rows"`
-	Policy    ExpirationPolicy `json:"policy"`
-	Busy      bool             `json:"busy"`
+	ID              string           `json:"id"`
+	Shell           string           `json:"shell"`
+	CreatedAt       string           `json:"created_at"`
+	Cols            int              `json:"cols"`
+	Rows            int              `json:"rows"`
+	Backend         BackendID        `json:"backend"`
+	SurvivesRestart bool             `json:"survives_restart"`
+	Policy          ExpirationPolicy `json:"policy"`
+	Busy            bool             `json:"busy"`
+	Recovered       bool             `json:"recovered,omitempty"`
 }
 
 // sessionToResponse converts an internal Session to the JSON-safe response
@@ -94,13 +105,16 @@ type SessionResponse struct {
 // [REQ:P1-001a] Includes expiration policy in response
 func sessionToResponse(s *Session) SessionResponse {
 	return SessionResponse{
-		ID:        s.ID,
-		Shell:     s.Shell,
-		CreatedAt: s.CreatedAt.Format("2006-01-02T15:04:05Z"),
-		Cols:      int(s.Cols),
-		Rows:      int(s.Rows),
-		Policy:    s.GetPolicy(),
-		Busy:      s.HasChildProcess(),
+		ID:              s.ID,
+		Shell:           s.Shell,
+		CreatedAt:       s.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		Cols:            int(s.Cols),
+		Rows:            int(s.Rows),
+		Backend:         s.Backend,
+		SurvivesRestart: s.Backend == BackendPersistent,
+		Policy:          s.GetPolicy(),
+		Busy:            s.HasChildProcess(),
+		Recovered:       s.recovered,
 	}
 }
 
@@ -111,6 +125,10 @@ func classifyCreateError(err error) appError {
 	switch {
 	case errors.Is(err, ErrSessionLimitReached):
 		return errorCatalog["session_limit_reached"]
+	case errors.Is(err, ErrBackendUnavailable):
+		return errorCatalog["backend_unavailable"]
+	case errors.Is(err, ErrBackendUnknown):
+		return errorCatalog["backend_unknown"]
 	case errors.Is(err, ErrPTYSpawnFailed):
 		return errorCatalog["pty_spawn_failed"]
 	default:
@@ -145,7 +163,21 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sess, err := s.sessions.Create(req.Shell, uint16(req.Cols), uint16(req.Rows))
+	// Resolve policy from request or defaults
+	var policy *ExpirationPolicy
+	if req.Policy != nil {
+		p := ExpirationPolicy{
+			Mode:     PolicyMode(req.Policy.Mode),
+			Duration: req.Policy.Duration,
+		}
+		if err := ValidatePolicy(p); err != nil {
+			writeCatalogError(w, "invalid_policy", err.Error())
+			return
+		}
+		policy = &p
+	}
+
+	sess, err := s.sessions.Create(req.Shell, uint16(req.Cols), uint16(req.Rows), BackendID(req.Backend), policy)
 	if err != nil {
 		log.Printf("create-session [%s]: %v", reqID, err)
 		writeAppError(w, classifyCreateError(err))
@@ -154,9 +186,10 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 
 	// [REQ:P1-004a] Emit session lifecycle event
 	s.events.Emit(EventSessionCreated, sess.ID, map[string]string{
-		"shell": sess.Shell,
-		"cols":  fmt.Sprintf("%d", sess.Cols),
-		"rows":  fmt.Sprintf("%d", sess.Rows),
+		"shell":   sess.Shell,
+		"cols":    fmt.Sprintf("%d", sess.Cols),
+		"rows":    fmt.Sprintf("%d", sess.Rows),
+		"backend": string(sess.Backend),
 	})
 	s.metrics.SessionsCreated.Add(1)
 	s.metrics.ActiveSessions.Add(1)
@@ -292,6 +325,11 @@ func (s *Server) handleUpdatePolicy(w http.ResponseWriter, r *http.Request) {
 	// the same PUT is a no-op for the event log and audit trail.
 	oldPolicy := sess.GetPolicy()
 	sess.SetPolicy(policy)
+
+	// Persist policy update in metadata store
+	if s.sessionStore != nil {
+		_ = s.sessionStore.UpdatePolicy(sess.ID, policy)
+	}
 
 	if oldPolicy.Mode != policy.Mode || oldPolicy.Duration != policy.Duration {
 		s.events.Emit(EventSessionPolicyUpdate, sess.ID, map[string]string{

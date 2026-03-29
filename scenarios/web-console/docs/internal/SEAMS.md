@@ -373,6 +373,29 @@ Verification disabled           → no gating at all (current behavior)
 
 **Benefits**: New capabilities can be added by implementing `StatusChecker` and registering in the registry. Tests verify caching and fallback without network calls.
 
+### Backend Registry Seam (API)
+**File**: `api/backend_registry.go`
+**Purpose**: Decouple session creation from specific PTY backends. The registry maps BackendID to PTYFactory, enabling tests to register mock backends without tmux.
+
+| Component | Production | Test |
+|-----------|-----------|------|
+| `BackendRegistry` | `InitDefaultRegistry()` registers standard + persistent | `NewBackendRegistry()` with custom descriptors |
+| `checkTmuxAvailable` | Function var probing real tmux binary | Override to return controlled availability |
+| `BackendDescriptor` | Contains real availability + reason | Controllable available/reason fields |
+
+### Session Metadata Store Seam (API)
+**File**: `api/session_store.go`
+**Purpose**: Decouple session persistence from SQLite. Tests use `InMemorySessionStore` for fast, isolated metadata CRUD without database setup.
+
+| Component | Production | Test |
+|-----------|-----------|------|
+| `SessionMetadataStore` | `SQLSessionStore` (SQLite) | `InMemorySessionStore` (map-based) |
+| `SessionManager.store` | Set via `SetStore()` | Set to `InMemorySessionStore` or nil |
+
+### tmux Discovery Seam (API)
+**File**: `api/pty_tmux.go`
+**Purpose**: `DiscoverTmuxSessions()` and `tmuxAttach()` are standalone functions that can be tested with controlled tmux state or mocked for recovery tests.
+
 ## Text-to-Speech Provider Seam
 
 **Location (frontend):** `ui/src/hooks/tts/types.ts` (`TTSProvider` interface)

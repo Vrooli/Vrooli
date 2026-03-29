@@ -20,7 +20,7 @@ import {
 } from "../lib/gridLayout";
 import { cn } from "../lib/classnames";
 import { Button } from "./ui/button";
-import { getSession, uploadFile, summarizeEvent } from "../lib/api";
+import { getSession, uploadFile, summarizeEvent, fetchCapabilities, getSessionDefaults, type BackendOption, type BackendID, type ExpirationPolicy } from "../lib/api";
 import ErrorBanner from "./ErrorBanner";
 import ErrorBoundary from "./ErrorBoundary";
 import TerminalPane from "./TerminalPane";
@@ -92,6 +92,18 @@ export default function Workspace() {
   const store = useWorkspaceStore();
   const { syncActivePane, syncPaneUpdate } = useWorkspaceSync();
   const setConversationViewMode = useConversationStore((state) => state.setViewMode);
+
+  // Fetch available backends once on mount (they don't change at runtime)
+  const [availableBackends, setAvailableBackends] = useState<BackendOption[]>();
+  useEffect(() => {
+    let cancelled = false;
+    fetchCapabilities().then((caps) => {
+      if (cancelled) return;
+      if (caps.session_backends) setAvailableBackends(caps.session_backends);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
   const clearConversationSession = useConversationStore((state) => state.clearSession);
   const conversationSessions = useConversationStore((state) => state.sessions);
   const conversationViewModes = useConversationStore((state) => state.viewModes);
@@ -105,6 +117,21 @@ export default function Workspace() {
   const mobileToolbarRef = useRef<MobileToolbarHandle>(null);
 
   const [launcherOpen, setLauncherOpen] = useState(false);
+
+  // Re-fetch session defaults every time the launcher opens so changes
+  // made in Settings are reflected immediately.
+  const [defaultBackend, setDefaultBackend] = useState<BackendID>("standard");
+  const [defaultPolicy, setDefaultPolicy] = useState<ExpirationPolicy>();
+  useEffect(() => {
+    if (!launcherOpen) return;
+    let cancelled = false;
+    getSessionDefaults().then((d) => {
+      if (cancelled) return;
+      if (d.default_backend) setDefaultBackend(d.default_backend as BackendID);
+      if (d.default_policy) setDefaultPolicy(d.default_policy);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [launcherOpen]);
   const [mobileInputText, setMobileInputText] = useState("");
   const pendingActivePaneRef = useRef<string | null>(null);
   const [pendingClose, setPendingClose] = useState<string | null>(null);
@@ -218,8 +245,8 @@ export default function Workspace() {
   const closeLauncher = useCallback(() => setLauncherOpen(false), []);
 
   const handleLaunch = useCallback(
-    async (command?: string) => {
-      const session = await launchSession(command);
+    async (opts?: { command?: string; backend?: string; policy?: { mode: string; duration?: string } }) => {
+      const session = await launchSession(opts);
       if (session) {
         setLauncherOpen(false);
         // Mark session for auto-activation. The reconciliation effect
@@ -749,6 +776,9 @@ export default function Workspace() {
           onClose={closeLauncher}
           onLaunch={handleLaunch}
           isCreating={isCreating}
+          defaultBackend={defaultBackend}
+          defaultPolicy={defaultPolicy}
+          availableBackends={availableBackends}
         />
       </div>
     );
@@ -1221,6 +1251,9 @@ export default function Workspace() {
         onClose={closeLauncher}
         onLaunch={handleLaunch}
         isCreating={isCreating}
+        defaultBackend={defaultBackend}
+        defaultPolicy={defaultPolicy}
+        availableBackends={availableBackends}
       />
 
       {/* Settings Modal */}

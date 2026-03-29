@@ -6,12 +6,20 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+// RecoveryReport summarizes the result of session recovery on startup.
+type RecoveryReport struct {
+	Recovered        int
+	OrphanedMetadata int
+	OrphanedTmux     int
+}
 
 // sgrReset is an ANSI SGR reset sequence that clears all text attributes
 // (color, bold, underline, etc.). Prepended to replayed history so that
@@ -76,6 +84,7 @@ type Session struct {
 	CreatedAt time.Time `json:"created_at"`
 	Cols      uint16    `json:"cols"`
 	Rows      uint16    `json:"rows"`
+	Backend   BackendID `json:"backend"`
 
 	pty    PTY
 	policy ExpirationPolicy // [REQ:P1-001a] per-session expiration policy
@@ -109,6 +118,10 @@ type Session struct {
 
 	// exitCh is closed when the PTY process exits, signaling the session owner.
 	exitCh chan struct{}
+
+	// recovered is true for sessions restored from tmux after a server restart.
+	// Resets to false after the first WebSocket connection.
+	recovered bool
 
 	// Conversation side-channel: fan-out of semantic assistant events to
 	// WebSocket clients subscribed to this terminal session.
@@ -630,6 +643,8 @@ type SessionManager struct {
 	sessions   map[string]*Session
 	ptyFactory PTYFactory
 	cfg        Config
+	registry   *BackendRegistry
+	store      SessionMetadataStore
 }
 
 // NewSessionManager creates a new session manager with the default PTY factory
@@ -650,6 +665,16 @@ func NewSessionManagerWithFactory(factory PTYFactory) *SessionManager {
 		ptyFactory: factory,
 		cfg:        DefaultConfig(),
 	}
+}
+
+// SetRegistry sets the backend registry for backend-aware session creation.
+func (sm *SessionManager) SetRegistry(reg *BackendRegistry) {
+	sm.registry = reg
+}
+
+// SetStore sets the session metadata store for persistence.
+func (sm *SessionManager) SetStore(store SessionMetadataStore) {
+	sm.store = store
 }
 
 // applySessionDefaults fills in zero-valued parameters with configured defaults.
@@ -679,10 +704,37 @@ func (sm *SessionManager) isSessionLimitReached() bool {
 	return count >= sm.cfg.MaxSessions
 }
 
+// ErrBackendUnavailable is returned when the requested backend is not available.
+var ErrBackendUnavailable = errors.New("backend unavailable")
+
+// ErrBackendUnknown is returned when the requested backend is not registered.
+var ErrBackendUnknown = errors.New("unknown backend")
+
 // Create starts a new shell session with a PTY.
 // [REQ:P0-002a] PTY Session Backend
-func (sm *SessionManager) Create(shell string, cols, rows uint16) (*Session, error) {
+func (sm *SessionManager) Create(shell string, cols, rows uint16, backend BackendID, policy *ExpirationPolicy) (*Session, error) {
 	shell, cols, rows = sm.applySessionDefaults(shell, cols, rows)
+
+	// Resolve backend
+	if backend == "" {
+		backend = BackendID(sm.cfg.DefaultBackend)
+	}
+
+	// Look up factory from registry if available, otherwise use injected factory
+	var factory PTYFactory
+	if sm.registry != nil {
+		desc, ok := sm.registry.Get(backend)
+		if !ok {
+			return nil, fmt.Errorf("%w: %s", ErrBackendUnknown, backend)
+		}
+		if !desc.Available {
+			return nil, fmt.Errorf("%w: %s — %s", ErrBackendUnavailable, backend, desc.Reason)
+		}
+		f, _ := sm.registry.Factory(backend)
+		factory = f
+	} else {
+		factory = sm.ptyFactory
+	}
 
 	if sm.isSessionLimitReached() {
 		return nil, fmt.Errorf("%w (%d)", ErrSessionLimitReached, sm.cfg.MaxSessions)
@@ -701,9 +753,22 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16) (*Session, err
 		},
 	}
 
-	p, err := sm.ptyFactory(spec)
+	p, err := factory(spec)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrPTYSpawnFailed, err)
+	}
+
+	// Resolve policy
+	var sessionPolicy ExpirationPolicy
+	if policy != nil {
+		sessionPolicy = *policy
+	} else if sm.cfg.DefaultPolicyMode != "" {
+		sessionPolicy = ExpirationPolicy{
+			Mode:     PolicyMode(sm.cfg.DefaultPolicyMode),
+			Duration: sm.cfg.DefaultPolicyDuration,
+		}
+	} else {
+		sessionPolicy = DefaultPolicy()
 	}
 
 	sess := &Session{
@@ -712,8 +777,9 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16) (*Session, err
 		CreatedAt:               time.Now(),
 		Cols:                    cols,
 		Rows:                    rows,
+		Backend:                 backend,
 		pty:                     p,
-		policy:                  DefaultPolicy(),
+		policy:                  sessionPolicy,
 		clients:                 make(map[chan []byte]*ClientInfo),
 		exitCh:                  make(chan struct{}),
 		offlineBufferMax:        sm.cfg.OfflineBufferMax,
@@ -727,6 +793,21 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16) (*Session, err
 	sm.sessions[sess.ID] = sess
 	sm.mu.Unlock()
 
+	// Persist metadata if store is configured
+	if sm.store != nil {
+		detached := backend == BackendPersistent
+		_ = sm.store.Save(SessionMetadata{
+			ID:       sess.ID,
+			Backend:  backend,
+			Shell:    shell,
+			Cols:     cols,
+			Rows:     rows,
+			Policy:   sessionPolicy,
+			Created:  sess.CreatedAt,
+			Detached: detached,
+		})
+	}
+
 	// Start the PTY output reader; it will close exitCh when the process exits.
 	go sess.readLoop()
 
@@ -738,6 +819,10 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16) (*Session, err
 		sm.mu.Lock()
 		delete(sm.sessions, sess.ID)
 		sm.mu.Unlock()
+		// Clean up persisted metadata
+		if sm.store != nil {
+			_ = sm.store.Delete(sess.ID)
+		}
 		// Clean up session upload directory
 		uploadDir := filepath.Join(resolveUploadDir(), sess.ID)
 		if err := os.RemoveAll(uploadDir); err != nil && !os.IsNotExist(err) {
@@ -781,12 +866,118 @@ func (sm *SessionManager) Delete(id string) error {
 
 	_ = sess.pty.Kill()
 	_ = sess.pty.Close()
+	// Clean up persisted metadata
+	if sm.store != nil {
+		_ = sm.store.Delete(id)
+	}
 	// Clean up session upload directory
 	uploadDir := filepath.Join(resolveUploadDir(), id)
 	if err := os.RemoveAll(uploadDir); err != nil && !os.IsNotExist(err) {
 		log.Printf("session %s: failed to clean up upload dir on delete: %v", id, err)
 	}
 	return nil
+}
+
+// Recover discovers surviving tmux sessions, matches them against persisted
+// metadata, and re-registers them. Called once at server startup.
+func (sm *SessionManager) Recover(store SessionMetadataStore, registry *BackendRegistry) RecoveryReport {
+	report := RecoveryReport{}
+
+	// 1. Load persisted metadata for detached sessions
+	metaList, err := store.ListDetached()
+	if err != nil {
+		log.Printf("recovery: failed to list detached sessions: %v", err)
+		return report
+	}
+	metaMap := make(map[string]SessionMetadata, len(metaList))
+	for _, m := range metaList {
+		metaMap[m.ID] = m
+	}
+
+	// 2. Discover live tmux sessions
+	tmuxSessions, err := DiscoverTmuxSessions()
+	if err != nil {
+		log.Printf("recovery: failed to discover tmux sessions: %v", err)
+		return report
+	}
+	tmuxSet := make(map[string]bool, len(tmuxSessions))
+	for _, id := range tmuxSessions {
+		tmuxSet[id] = true
+	}
+
+	// 3. For each metadata row, try to recover or clean up
+	for id, meta := range metaMap {
+		if !tmuxSet[id] {
+			// tmux session is gone — clean up stale metadata
+			_ = store.Delete(id)
+			report.OrphanedMetadata++
+			log.Printf("recovery: cleaned up orphaned metadata for session %s", id)
+			continue
+		}
+
+		// Re-attach to surviving tmux session
+		sessionName := tmuxSessionPrefix + id
+		p, attachErr := tmuxAttach(sessionName)
+		if attachErr != nil {
+			log.Printf("recovery: failed to reattach session %s: %v", id, attachErr)
+			_ = store.Delete(id)
+			report.OrphanedMetadata++
+			continue
+		}
+
+		sess := &Session{
+			ID:                      id,
+			Shell:                   meta.Shell,
+			CreatedAt:               meta.Created,
+			Cols:                    meta.Cols,
+			Rows:                    meta.Rows,
+			Backend:                 meta.Backend,
+			pty:                     p,
+			policy:                  meta.Policy,
+			clients:                 make(map[chan []byte]*ClientInfo),
+			exitCh:                  make(chan struct{}),
+			offlineBufferMax:        sm.cfg.OfflineBufferMax,
+			ptyReadBuffer:           sm.cfg.PTYReadBuffer,
+			clientChannelBuffer:     sm.cfg.ClientChannelBuffer,
+			coalesceNotifyThreshold: sm.cfg.CoalesceNotifyThreshold,
+			conversationClients:     make(map[chan ConversationEvent]struct{}),
+			recovered:               true,
+		}
+
+		sm.mu.Lock()
+		sm.sessions[id] = sess
+		sm.mu.Unlock()
+
+		go sess.readLoop()
+		go func(sessID string) {
+			<-sess.Done()
+			log.Printf("session %s: recovered process exited", sessID)
+			sm.mu.Lock()
+			delete(sm.sessions, sessID)
+			sm.mu.Unlock()
+			if sm.store != nil {
+				_ = sm.store.Delete(sessID)
+			}
+			uploadDir := filepath.Join(resolveUploadDir(), sessID)
+			if err := os.RemoveAll(uploadDir); err != nil && !os.IsNotExist(err) {
+				log.Printf("session %s: failed to clean up upload dir: %v", sessID, err)
+			}
+		}(id)
+
+		report.Recovered++
+		log.Printf("recovery: recovered session %s (backend=%s)", id, meta.Backend)
+		delete(tmuxSet, id)
+	}
+
+	// 4. Kill orphaned tmux sessions (no metadata)
+	for id := range tmuxSet {
+		sessionName := tmuxSessionPrefix + id
+		_ = exec.Command("tmux", "kill-session", "-t", sessionName).Run()
+		report.OrphanedTmux++
+		log.Printf("recovery: killed orphaned tmux session %s", id)
+	}
+
+	return report
 }
 
 // EffectiveSize returns the current PTY dimensions. Thread-safe.

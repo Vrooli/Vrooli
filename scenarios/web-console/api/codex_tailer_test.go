@@ -53,7 +53,7 @@ func newCodexTailerTestServer(t *testing.T) (*Server, *Session) {
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
 	srv.sessions = sm
 
-	sess, err := sm.Create("", 80, 24)
+	sess, err := sm.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}

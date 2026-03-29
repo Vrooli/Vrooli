@@ -51,12 +51,12 @@ describe("TerminalLauncher", () => {
     expect(screen.getByText("Empty Shell")).toBeTruthy();
   });
 
-  it("calls onLaunch with no arguments when empty shell is clicked", () => {
+  it("calls onLaunch with launch options when empty shell is clicked", () => {
     render(
       <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,
     );
     fireEvent.click(screen.getByTestId("launcher-empty-shell"));
-    expect(onLaunch).toHaveBeenCalledWith();
+    expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({ backend: "standard" }));
   });
 
   it("renders shortcut entries from props", () => {
@@ -73,7 +73,9 @@ describe("TerminalLauncher", () => {
       <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,
     );
     fireEvent.click(screen.getByTestId("launcher-shortcut-claude-code"));
-    expect(onLaunch).toHaveBeenCalledWith("claude --dangerously-skip-permissions");
+    expect(onLaunch).toHaveBeenCalledWith(
+      expect.objectContaining({ command: "claude --dangerously-skip-permissions" }),
+    );
   });
 
   it("custom command input launches on Enter key", () => {
@@ -83,7 +85,7 @@ describe("TerminalLauncher", () => {
     const input = screen.getByTestId("launcher-custom-input");
     fireEvent.change(input, { target: { value: "htop" } });
     fireEvent.keyDown(input, { key: "Enter" });
-    expect(onLaunch).toHaveBeenCalledWith("htop");
+    expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({ command: "htop" }));
   });
 
   it("custom command input clears after launch", () => {

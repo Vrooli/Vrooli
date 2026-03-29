@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { createSession, deleteSession, listSessions, getWorkspaceLayout, updateWorkspacePane, toErrorInfo, type SessionInfo, type ErrorInfo } from "../lib/api";
+import { createSession, deleteSession, listSessions, getWorkspaceLayout, updateWorkspacePane, toErrorInfo, type SessionInfo, type ErrorInfo, type BackendID, type PolicyMode } from "../lib/api";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { DEFAULT_COLS, DEFAULT_ROWS, ERROR_AUTO_DISMISS_MS } from "../consts/config";
 import type { TerminalPaneHandle } from "../components/TerminalPane";
@@ -186,14 +186,24 @@ export function useSessionManager() {
   const createInFlight = useRef(false);
 
   // [REQ:P0-006a] Terminal Launch Flow UI
-  const launchSession = useCallback(async (command?: string) => {
+  const launchSession = useCallback(async (opts?: {
+    command?: string;
+    backend?: BackendID;
+    policy?: { mode: PolicyMode; duration?: string };
+  }) => {
+    const command = opts?.command;
     // Replay guard: if a creation is already in-flight, skip silently.
     if (createInFlight.current) return null;
     createInFlight.current = true;
     setIsCreating(true);
     setCreateError(null);
     try {
-      const session = await createSession({ cols: DEFAULT_COLS, rows: DEFAULT_ROWS });
+      const session = await createSession({
+        cols: DEFAULT_COLS,
+        rows: DEFAULT_ROWS,
+        backend: opts?.backend,
+        policy: opts?.policy,
+      });
       if (command) {
         pendingCommands.current.set(session.id, command);
       }

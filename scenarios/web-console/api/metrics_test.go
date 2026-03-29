@@ -205,7 +205,7 @@ func TestHandleDeleteSession_EmitsEvent(t *testing.T) {
 	srv := newTestServer()
 
 	// Create a session first
-	sess, err := srv.sessions.Create("", 80, 24)
+	sess, err := srv.sessions.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}

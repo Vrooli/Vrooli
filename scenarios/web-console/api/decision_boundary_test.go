@@ -122,7 +122,7 @@ func TestIsSessionLimitReached_Unlimited(t *testing.T) {
 func TestIsSessionLimitReached_UnderLimit(t *testing.T) {
 	sm := NewSessionManagerWithFactory(newFakePTYFactory())
 	sm.cfg.MaxSessions = 5
-	s, _ := sm.Create("", 0, 0)
+	s, _ := sm.Create("", 0, 0, "", nil)
 	defer func() { _ = sm.Delete(s.ID) }()
 	if sm.isSessionLimitReached() {
 		t.Error("1 session with limit 5 should not be reached")
@@ -132,7 +132,7 @@ func TestIsSessionLimitReached_UnderLimit(t *testing.T) {
 func TestIsSessionLimitReached_AtLimit(t *testing.T) {
 	sm := NewSessionManagerWithFactory(newFakePTYFactory())
 	sm.cfg.MaxSessions = 1
-	s, _ := sm.Create("", 0, 0)
+	s, _ := sm.Create("", 0, 0, "", nil)
 	defer func() { _ = sm.Delete(s.ID) }()
 	if !sm.isSessionLimitReached() {
 		t.Error("1 session with limit 1 should be reached")
@@ -143,7 +143,7 @@ func TestIsSessionLimitReached_AtLimit(t *testing.T) {
 
 func TestBuildPolicyResponse_NeverMode_NoTTL(t *testing.T) {
 	sm := NewSessionManagerWithFactory(newFakePTYFactory())
-	sess, _ := sm.Create("", 0, 0)
+	sess, _ := sm.Create("", 0, 0, "", nil)
 	defer func() { _ = sm.Delete(sess.ID) }()
 
 	policy := ExpirationPolicy{Mode: PolicyNever}
@@ -158,7 +158,7 @@ func TestBuildPolicyResponse_NeverMode_NoTTL(t *testing.T) {
 
 func TestBuildPolicyResponse_PresetMode_HasTTL(t *testing.T) {
 	sm := NewSessionManagerWithFactory(newFakePTYFactory())
-	sess, _ := sm.Create("", 0, 0)
+	sess, _ := sm.Create("", 0, 0, "", nil)
 	defer func() { _ = sm.Delete(sess.ID) }()
 
 	policy := ExpirationPolicy{Mode: PolicyPreset, Duration: "1h"}
@@ -176,7 +176,7 @@ func TestBuildPolicyResponse_PresetMode_HasTTL(t *testing.T) {
 
 func TestBuildPolicyResponse_TTLClampedToZero(t *testing.T) {
 	sm := NewSessionManagerWithFactory(newFakePTYFactory())
-	sess, _ := sm.Create("", 0, 0)
+	sess, _ := sm.Create("", 0, 0, "", nil)
 	defer func() { _ = sm.Delete(sess.ID) }()
 
 	// Force creation time far in the past

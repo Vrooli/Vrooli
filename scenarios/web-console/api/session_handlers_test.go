@@ -108,7 +108,7 @@ func TestHandleCreateSession_SessionLimit(t *testing.T) {
 	srv.sessions.cfg.MaxSessions = 1
 
 	// Create one session to hit the limit
-	s1, err := srv.sessions.Create("", 80, 24)
+	s1, err := srv.sessions.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("first session create: %v", err)
 	}
@@ -325,7 +325,7 @@ func TestErrorResponse_SessionLimit_Retryable(t *testing.T) {
 	srv := newFakeTestServer()
 	srv.sessions.cfg.MaxSessions = 1
 
-	s1, err := srv.sessions.Create("", 80, 24)
+	s1, err := srv.sessions.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("first create: %v", err)
 	}
@@ -435,7 +435,7 @@ func TestSessionLimit_VariousLimits(t *testing.T) {
 
 			var sessions []*Session
 			for i := 0; i < limit; i++ {
-				s, err := sm.Create("", 0, 0)
+				s, err := sm.Create("", 0, 0, "", nil)
 				if err != nil {
 					t.Fatalf("session %d: unexpected error: %v", i, err)
 				}
@@ -443,7 +443,7 @@ func TestSessionLimit_VariousLimits(t *testing.T) {
 			}
 
 			// Next one should fail
-			_, err := sm.Create("", 0, 0)
+			_, err := sm.Create("", 0, 0, "", nil)
 			if err == nil {
 				t.Errorf("session %d should be rejected when MaxSessions=%d", limit+1, limit)
 			}
@@ -480,7 +480,7 @@ func TestRequestIDMiddleware(t *testing.T) {
 func TestHandleListSessions(t *testing.T) {
 	srv := newTestServer()
 
-	sess, _ := srv.sessions.Create("", 80, 24)
+	sess, _ := srv.sessions.Create("", 80, 24, "", nil)
 	defer func() { _ = srv.sessions.Delete(sess.ID) }()
 
 	req := httptest.NewRequest("GET", "/api/v1/sessions", nil)
@@ -504,7 +504,7 @@ func TestHandleListSessions(t *testing.T) {
 func TestHandleGetSession(t *testing.T) {
 	srv := newTestServer()
 
-	sess, _ := srv.sessions.Create("", 80, 24)
+	sess, _ := srv.sessions.Create("", 80, 24, "", nil)
 	defer func() { _ = srv.sessions.Delete(sess.ID) }()
 
 	req := httptest.NewRequest("GET", "/api/v1/sessions/"+sess.ID, nil)
@@ -543,7 +543,7 @@ func TestHandleGetSession_NotFound(t *testing.T) {
 func TestHandleDeleteSession(t *testing.T) {
 	srv := newTestServer()
 
-	sess, _ := srv.sessions.Create("", 80, 24)
+	sess, _ := srv.sessions.Create("", 80, 24, "", nil)
 
 	req := httptest.NewRequest("DELETE", "/api/v1/sessions/"+sess.ID, nil)
 	req = mux.SetURLVars(req, map[string]string{"id": sess.ID})
@@ -584,7 +584,7 @@ func TestHandleDeleteSession_NotFound_Idempotent(t *testing.T) {
 func TestDeleteSession_Replay_MetricsOnce(t *testing.T) {
 	srv := newFakeTestServer()
 
-	sess, err := srv.sessions.Create("", 80, 24)
+	sess, err := srv.sessions.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -772,7 +772,7 @@ func TestIdempotencyCache_EvictionScan(t *testing.T) {
 func TestUpdatePolicy_Replay_EventOnlyOnChange(t *testing.T) {
 	srv := newFakeTestServer()
 
-	sess, err := srv.sessions.Create("", 80, 24)
+	sess, err := srv.sessions.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}

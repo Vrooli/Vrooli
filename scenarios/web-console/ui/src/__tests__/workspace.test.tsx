@@ -137,11 +137,11 @@ vi.mock("../components/WorkspaceMinimap", () => ({
 
 vi.mock("../components/TerminalLauncher", () => ({
   default: vi.fn(({ open, onClose, onLaunch, isCreating: creating }: {
-    open: boolean; onClose: () => void; onLaunch: (cmd?: string) => void; isCreating: boolean;
+    open: boolean; onClose: () => void; onLaunch: (opts?: Record<string, unknown>) => void; isCreating: boolean;
   }) =>
     open ? (
       <div data-testid="mock-launcher">
-        <button data-testid="mock-launcher-launch" onClick={() => onLaunch()}>Launch</button>
+        <button data-testid="mock-launcher-launch" onClick={() => onLaunch({})}>Launch</button>
         <button data-testid="mock-launcher-close" onClick={onClose}>Close</button>
         {creating && <span>creating...</span>}
       </div>

@@ -11,7 +11,7 @@ import (
 func TestSessionManager_Create(t *testing.T) {
 	sm := NewSessionManager()
 
-	sess, err := sm.Create("", 80, 24)
+	sess, err := sm.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -35,13 +35,13 @@ func TestSessionManager_Create(t *testing.T) {
 func TestSessionManager_ConcurrentSessions(t *testing.T) {
 	sm := NewSessionManager()
 
-	s1, err := sm.Create("", 80, 24)
+	s1, err := sm.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create s1 failed: %v", err)
 	}
 	defer func() { _ = sm.Delete(s1.ID) }()
 
-	s2, err := sm.Create("", 120, 40)
+	s2, err := sm.Create("", 120, 40, "", nil)
 	if err != nil {
 		t.Fatalf("Create s2 failed: %v", err)
 	}
@@ -61,7 +61,7 @@ func TestSessionManager_ConcurrentSessions(t *testing.T) {
 func TestSessionManager_List(t *testing.T) {
 	sm := NewSessionManager()
 
-	sess, err := sm.Create("", 80, 24)
+	sess, err := sm.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -84,7 +84,7 @@ func TestSessionManager_List(t *testing.T) {
 func TestSessionManager_Get(t *testing.T) {
 	sm := NewSessionManager()
 
-	sess, err := sm.Create("", 80, 24)
+	sess, err := sm.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -108,7 +108,7 @@ func TestSessionManager_Get(t *testing.T) {
 func TestSessionManager_Delete(t *testing.T) {
 	sm := NewSessionManager()
 
-	sess, err := sm.Create("", 80, 24)
+	sess, err := sm.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -133,7 +133,7 @@ func TestSessionManager_Delete(t *testing.T) {
 func TestSession_Resize(t *testing.T) {
 	sm := NewSessionManager()
 
-	sess, err := sm.Create("", 80, 24)
+	sess, err := sm.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -158,7 +158,7 @@ func TestSession_Resize_LastWriterWins(t *testing.T) {
 	fake := newFakePTYWithOutput()
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -191,7 +191,7 @@ func TestSession_NoClients_SizeUnchanged(t *testing.T) {
 	fake := newFakePTYWithOutput()
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -214,7 +214,7 @@ func TestSession_NoClients_SizeUnchanged(t *testing.T) {
 func TestSession_SubscribeAndBroadcast(t *testing.T) {
 	sm := NewSessionManager()
 
-	sess, err := sm.Create("/bin/sh", 80, 24)
+	sess, err := sm.Create("/bin/sh", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -244,7 +244,7 @@ func TestSession_SubscribeAndBroadcast(t *testing.T) {
 func TestSession_OfflineBuffer(t *testing.T) {
 	sm := NewSessionManager()
 
-	sess, err := sm.Create("/bin/sh", 80, 24)
+	sess, err := sm.Create("/bin/sh", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -382,7 +382,7 @@ func TestSubscribe_PrependsSGRReset(t *testing.T) {
 	fake := newFakePTYWithOutput()
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -424,7 +424,7 @@ func TestSession_Broadcast_Coalescing_Notifies(t *testing.T) {
 	sm.cfg.ClientChannelBuffer = 1
 	sm.cfg.CoalesceNotifyThreshold = 2
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -459,7 +459,7 @@ func TestSession_Broadcast_CoalescingThreshold(t *testing.T) {
 	sm.cfg.ClientChannelBuffer = 1
 	sm.cfg.CoalesceNotifyThreshold = 10 // High threshold
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -492,7 +492,7 @@ func TestSession_Broadcast_CoalescingPreservesAllData(t *testing.T) {
 	sm.cfg.ClientChannelBuffer = 1
 	sm.cfg.CoalesceNotifyThreshold = 100 // suppress notifications
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -546,7 +546,7 @@ func TestSession_Broadcast_CoalescingCapRespected(t *testing.T) {
 	sm.cfg.OfflineBufferMax = 32 // tiny cap for pending coalesced data
 	sm.cfg.CoalesceNotifyThreshold = 100
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -599,7 +599,7 @@ func TestSession_FlushPending_UnknownChannel(t *testing.T) {
 	fake := newFakePTYWithOutput()
 	defer fake.Close()
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -651,7 +651,7 @@ func TestReadLoop_UTF8BoundarySafety(t *testing.T) {
 	fake := newFakePTYWithOutput()
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -699,7 +699,7 @@ func TestAppendHistory_TrimDoesNotSplitANSISequence(t *testing.T) {
 	// Override offline buffer to a tiny size to force trimming
 	sm.cfg.OfflineBufferMax = 32
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -750,7 +750,7 @@ func TestSession_Broadcast_CoalescingCapSnapsToCleanBoundary(t *testing.T) {
 	sm.cfg.OfflineBufferMax = 32 // tiny cap to force trimming
 	sm.cfg.CoalesceNotifyThreshold = 100
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -810,7 +810,7 @@ func TestAppendHistory_NoSliceAliasing(t *testing.T) {
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
 	sm.cfg.OfflineBufferMax = 32
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -862,7 +862,7 @@ func TestSubscribe_ChunksLargeHistory(t *testing.T) {
 	// Allow large history so it exceeds historyChunkSize.
 	sm.cfg.OfflineBufferMax = 200 * 1024 // 200 KB
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -919,7 +919,7 @@ func TestSubscribe_SmallHistoryNotChunked(t *testing.T) {
 	fake := newFakePTYWithOutput()
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -958,7 +958,7 @@ func TestSubscribe_ReturnsHadHistoryFalse(t *testing.T) {
 	fake := newFakePTYWithOutput()
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -977,7 +977,7 @@ func TestSubscribe_ReturnsHadHistoryTrue(t *testing.T) {
 	fake := newFakePTYWithOutput()
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -999,7 +999,7 @@ func TestSubscribe_NilSentinelAfterHistoryChunks(t *testing.T) {
 	fake := newFakePTYWithOutput()
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -1045,7 +1045,7 @@ func TestSubscribe_NoSentinelWithoutHistory(t *testing.T) {
 	fake := newFakePTYWithOutput()
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -1076,7 +1076,7 @@ func TestSubscribe_ChannelCapacityFitsChunksAndSentinel(t *testing.T) {
 	sm.cfg.ClientChannelBuffer = 1
 	sm.cfg.OfflineBufferMax = 200 * 1024
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -1131,7 +1131,7 @@ func TestFlushPending_ChunksLargeData(t *testing.T) {
 	sm.cfg.OfflineBufferMax = 200 * 1024
 	sm.cfg.CoalesceNotifyThreshold = 10000
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -1203,7 +1203,7 @@ func TestFlushPending_StopsWhenChannelFull(t *testing.T) {
 	sm.cfg.OfflineBufferMax = 200 * 1024
 	sm.cfg.CoalesceNotifyThreshold = 10000
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -1276,7 +1276,7 @@ func TestDeliver_PrependsSGRResetOnTrim(t *testing.T) {
 	sm.cfg.OfflineBufferMax = 64 // tiny cap to force trimming
 	sm.cfg.CoalesceNotifyThreshold = 100
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -1334,7 +1334,7 @@ func TestFlushPending_TriggersSIGWINCHAfterTrimmedDrain(t *testing.T) {
 	sm.cfg.OfflineBufferMax = 64
 	sm.cfg.CoalesceNotifyThreshold = 100
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -1397,7 +1397,7 @@ func TestFlushPending_NoSIGWINCHWithoutTrim(t *testing.T) {
 	sm.cfg.OfflineBufferMax = 1 << 20 // 1MB — large enough to never trim
 	sm.cfg.CoalesceNotifyThreshold = 100
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -1457,7 +1457,7 @@ func TestFlushPending_SIGWINCHOnlyOncePerTrim(t *testing.T) {
 	sm.cfg.OfflineBufferMax = historyChunkSize + historyChunkSize/2 // 96KB
 	sm.cfg.CoalesceNotifyThreshold = 100
 
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -1538,7 +1538,7 @@ onceFinalCheck:
 func TestSubscribe_TotalOutputBytesTracking(t *testing.T) {
 	fake := newFakePTYWithOutput()
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -1572,7 +1572,7 @@ func TestSubscribe_TotalOutputBytesTracking(t *testing.T) {
 func TestSubscribe_ResumeValidOffset(t *testing.T) {
 	fake := newFakePTYWithOutput()
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -1633,7 +1633,7 @@ doneValidResume:
 func TestSubscribe_ResumeExactMatch(t *testing.T) {
 	fake := newFakePTYWithOutput()
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -1672,7 +1672,7 @@ func TestSubscribe_ResumeExactMatch(t *testing.T) {
 func TestSubscribe_ResumeStaleOffset(t *testing.T) {
 	fake := newFakePTYWithOutput()
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -1726,7 +1726,7 @@ doneStale:
 func TestSubscribe_ResumeZeroOffset(t *testing.T) {
 	fake := newFakePTYWithOutput()
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -1773,7 +1773,7 @@ doneZero:
 func TestSubscribe_ResumeFutureOffset(t *testing.T) {
 	fake := newFakePTYWithOutput()
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -1824,7 +1824,7 @@ doneFuture:
 func TestSubscribe_ResultTotalBytes(t *testing.T) {
 	fake := newFakePTYWithOutput()
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
-	sess, err := sm.Create("/fake/shell", 80, 24)
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}

@@ -198,7 +198,7 @@ describe("useSessionManager", () => {
     const { result } = renderHook(() => useSessionManager());
 
     await act(async () => {
-      await result.current.launchSession("echo from-queued-command");
+      await result.current.launchSession({ command: "echo from-queued-command" });
     });
 
     // Simulate race: onReady fires before ref registration
