@@ -130,9 +130,13 @@ type Session struct {
 	conversationDropLogged bool // log once per session when an event is dropped
 }
 
-// Write sends data to the PTY stdin.
+// Write sends data to the PTY stdin. Thread-safe — the PTY reference may be
+// swapped during tmux re-attach.
 func (s *Session) Write(data []byte) (int, error) {
-	return s.pty.Write(data)
+	s.mu.Lock()
+	p := s.pty
+	s.mu.Unlock()
+	return p.Write(data)
 }
 
 // historyStart returns the byte offset of the first byte in the current
@@ -529,9 +533,33 @@ func (s *Session) FlushPending(ch chan []byte) {
 //
 // DOC: docs/concepts/ARCHITECTURE.md#terminal-io
 func (s *Session) readLoop() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("session %s: readLoop panic (recovered): %v", s.ID, r)
+			// Ensure exit signaling even after a panic so waiters don't hang.
+			s.mu.Lock()
+			if !s.processExited {
+				s.processExited = true
+				s.processExitCode = -1
+				for ch := range s.clients {
+					close(ch)
+					delete(s.clients, ch)
+				}
+			}
+			s.mu.Unlock()
+			select {
+			case <-s.exitCh:
+			default:
+				close(s.exitCh)
+			}
+		}
+	}()
 	buf := make([]byte, s.ptyReadBuffer)
 	for {
-		n, err := s.pty.Read(buf)
+		s.mu.Lock()
+		p := s.pty
+		s.mu.Unlock()
+		n, err := p.Read(buf)
 		if n > 0 {
 			data := buf[:n]
 			// Prepend any incomplete UTF-8 bytes from the previous read.
@@ -549,6 +577,27 @@ func (s *Session) readLoop() {
 			}
 		}
 		if err != nil {
+			// For persistent (tmux) sessions, the attach process can die while
+			// the underlying tmux session survives. Attempt to re-attach before
+			// declaring the session dead.
+			if s.Backend == BackendPersistent {
+				sessionName := tmuxSessionPrefix + s.ID
+				newPTY, reattachErr := tmuxAttach(sessionName)
+				if reattachErr == nil {
+					log.Printf("session %s: tmux attach process died, re-attached successfully", s.ID)
+					// Swap the PTY under lock so concurrent Write/Resize calls
+					// see the new PTY atomically.
+					s.mu.Lock()
+					s.pty = newPTY
+					s.mu.Unlock()
+					// Restore the terminal dimensions so the re-attached session
+					// matches what the client expects.
+					_ = newPTY.SetSize(s.Cols, s.Rows)
+					continue
+				}
+				log.Printf("session %s: tmux re-attach failed (read err: %v, attach err: %v)", s.ID, err, reattachErr)
+			}
+
 			// Flush any remaining incomplete UTF-8 bytes — there is no more
 			// data coming, so send them as-is (the terminal will handle them).
 			if len(s.utf8Buf) > 0 {
@@ -639,13 +688,14 @@ func splitCompleteUTF8(data []byte) (complete, remainder []byte) {
 // SessionManager tracks all active terminal sessions.
 // [REQ:P0-002a] PTY Session Backend
 type SessionManager struct {
-	mu         sync.RWMutex
-	sessions   map[string]*Session
-	ptyFactory PTYFactory
-	cfgMu      sync.RWMutex // protects cfg from concurrent read/write (session-defaults handler vs Create)
-	cfg        Config
-	registry   *BackendRegistry
-	store      SessionMetadataStore
+	mu           sync.RWMutex
+	sessions     map[string]*Session
+	ptyFactory   PTYFactory
+	cfgMu        sync.RWMutex // protects cfg from concurrent read/write (session-defaults handler vs Create)
+	cfg          Config
+	registry     *BackendRegistry
+	store        SessionMetadataStore
+	shuttingDown bool // set by Shutdown(); prevents auto-remove from deleting persistent session metadata
 }
 
 // NewSessionManager creates a new session manager with the default PTY factory
@@ -734,7 +784,7 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16, backend Backen
 	shell, cols, rows = sm.applySessionDefaults(shell, cols, rows)
 
 	// Resolve backend (read default under lock to avoid data race with settings handler)
-	if backend == "" {
+	if backend == "" || backend == "auto" {
 		sm.cfgMu.RLock()
 		backend = BackendID(sm.cfg.DefaultBackend)
 		sm.cfgMu.RUnlock()
@@ -743,6 +793,10 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16, backend Backen
 	// Look up factory from registry if available, otherwise use injected factory
 	var factory PTYFactory
 	if sm.registry != nil {
+		// Resolve "auto" via registry when it wasn't resolved at startup (e.g. tests)
+		if backend == "auto" {
+			backend = sm.registry.ResolveAutoBackend()
+		}
 		desc, ok := sm.registry.Get(backend)
 		if !ok {
 			return nil, fmt.Errorf("%w: %s", ErrBackendUnknown, backend)
@@ -753,6 +807,10 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16, backend Backen
 		f, _ := sm.registry.Factory(backend)
 		factory = f
 	} else {
+		// No registry (test path) — use injected factory, clear backend ID
+		if backend == "auto" {
+			backend = ""
+		}
 		factory = sm.ptyFactory
 	}
 
@@ -844,9 +902,11 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16, backend Backen
 		log.Printf("session %s: process exited", sess.ID)
 		sm.mu.Lock()
 		delete(sm.sessions, sess.ID)
+		shutting := sm.shuttingDown
 		sm.mu.Unlock()
-		// Clean up persisted metadata
-		if sm.store != nil {
+		// During shutdown, preserve metadata for persistent sessions so they
+		// can be recovered on the next startup.
+		if sm.store != nil && !(shutting && backend == BackendPersistent) {
 			_ = sm.store.Delete(sess.ID)
 		}
 		// Clean up session upload directory
@@ -904,6 +964,36 @@ func (sm *SessionManager) Delete(id string) error {
 	return nil
 }
 
+// Shutdown gracefully detaches from all persistent (tmux) sessions without
+// killing them, so they survive for recovery on the next startup. Standard
+// sessions are killed. Must be called before closing the database.
+func (sm *SessionManager) Shutdown() {
+	sm.mu.Lock()
+	sm.shuttingDown = true
+	// Snapshot sessions under lock; iterate outside lock to avoid holding
+	// it while closing PTYs (which triggers readLoop exit + auto-remove).
+	snapshot := make([]*Session, 0, len(sm.sessions))
+	for _, sess := range sm.sessions {
+		snapshot = append(snapshot, sess)
+	}
+	sm.mu.Unlock()
+
+	for _, sess := range snapshot {
+		if sess.Backend == BackendPersistent {
+			// Close the attach PTY fd — this detaches from the tmux session
+			// without killing it. The readLoop will see EOF and exit, but
+			// the auto-remove goroutine checks shuttingDown and preserves
+			// the metadata.
+			_ = sess.pty.Close()
+			log.Printf("shutdown: detached from persistent session %s", sess.ID)
+		} else {
+			_ = sess.pty.Kill()
+			_ = sess.pty.Close()
+			log.Printf("shutdown: killed standard session %s", sess.ID)
+		}
+	}
+}
+
 // Recover discovers surviving tmux sessions, matches them against persisted
 // metadata, and re-registers them. Called once at server startup.
 func (sm *SessionManager) Recover(store SessionMetadataStore, registry *BackendRegistry) RecoveryReport {
@@ -944,10 +1034,7 @@ func (sm *SessionManager) Recover(store SessionMetadataStore, registry *BackendR
 		// Re-apply tmux options (mouse mode, history limit) in case the options
 		// were set by an older version that didn't configure them.
 		sessionName := tmuxSessionPrefix + id
-		_ = exec.Command("tmux", "set-option", "-t", sessionName, "mouse", "on").Run()
-		_ = exec.Command("tmux", "set-option", "-t", sessionName, "history-limit", "50000").Run()
-		_ = exec.Command("tmux", "set-option", "-t", sessionName, "set-titles", "on").Run()
-		_ = exec.Command("tmux", "set-option", "-t", sessionName, "set-titles-string", "#{pane_title}").Run()
+		applyTmuxOptions(sessionName)
 
 		// Re-attach to surviving tmux session
 		p, attachErr := tmuxAttach(sessionName)
@@ -982,20 +1069,23 @@ func (sm *SessionManager) Recover(store SessionMetadataStore, registry *BackendR
 		sm.mu.Unlock()
 
 		go sess.readLoop()
-		go func(sessID string) {
+		go func(sessID string, backend BackendID) {
 			<-sess.Done()
 			log.Printf("session %s: recovered process exited", sessID)
 			sm.mu.Lock()
 			delete(sm.sessions, sessID)
+			shutting := sm.shuttingDown
 			sm.mu.Unlock()
-			if sm.store != nil {
+			// During shutdown, preserve metadata for persistent sessions so
+			// they can be recovered on the next startup.
+			if sm.store != nil && !(shutting && backend == BackendPersistent) {
 				_ = sm.store.Delete(sessID)
 			}
 			uploadDir := filepath.Join(resolveUploadDir(), sessID)
 			if err := os.RemoveAll(uploadDir); err != nil && !os.IsNotExist(err) {
 				log.Printf("session %s: failed to clean up upload dir: %v", sessID, err)
 			}
-		}(id)
+		}(id, meta.Backend)
 
 		report.Recovered++
 		log.Printf("recovery: recovered session %s (backend=%s)", id, meta.Backend)

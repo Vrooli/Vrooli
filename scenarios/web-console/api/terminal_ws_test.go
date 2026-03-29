@@ -197,8 +197,9 @@ func TestHandleTerminalWS_Resize(t *testing.T) {
 	if !ok {
 		t.Fatal("session not found after resize")
 	}
-	if sess.Cols != 120 || sess.Rows != 40 {
-		t.Errorf("expected 120x40, got %dx%d", sess.Cols, sess.Rows)
+	cols, rows := sess.EffectiveSize()
+	if cols != 120 || rows != 40 {
+		t.Errorf("expected 120x40, got %dx%d", cols, rows)
 	}
 }
 
@@ -636,4 +637,109 @@ func TestHandleTerminalWS_HistoryOffset_InvalidResume(t *testing.T) {
 		}
 	}
 	t.Fatal("never received history_end message")
+}
+
+// TestHandleTerminalWS_ServerPingKeepalive verifies that the server sends
+// WebSocket ping frames to keep the connection alive through reverse proxies
+// (e.g. Cloudflare tunnel's ~100s idle timeout).
+func TestHandleTerminalWS_ServerPingKeepalive(t *testing.T) {
+	ts, sessID, _ := setupWSServerWithPTY(t)
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+	skipHistoryEnd(t, conn)
+
+	// Track server-initiated pings via the pong handler.
+	// The gorilla/websocket library automatically responds to pings with pongs,
+	// but we can register a handler to observe them.
+	pingReceived := make(chan struct{}, 1)
+	conn.SetPingHandler(func(appData string) error {
+		select {
+		case pingReceived <- struct{}{}:
+		default:
+		}
+		// Send pong (default behavior)
+		return conn.WriteControl(websocket.PongMessage, []byte(appData), time.Now().Add(time.Second))
+	})
+
+	// Read in a goroutine so the ping handler fires
+	go func() {
+		for {
+			_, _, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	// The server sends pings every 30s. Wait up to 35s for one.
+	select {
+	case <-pingReceived:
+		// Server-initiated ping received — keepalive is working
+	case <-time.After(35 * time.Second):
+		t.Fatal("no server-initiated ping received within 35s (expected every 30s)")
+	}
+}
+
+// TestHandleTerminalWS_ReconnectToSameSession verifies that a client can
+// disconnect and reconnect to the same session, receiving history on the
+// second connection.
+func TestHandleTerminalWS_ReconnectToSameSession(t *testing.T) {
+	ts, sessID, fake := setupWSServerWithPTY(t)
+
+	// First connection: write some output
+	dialer := websocket.Dialer{}
+	conn1, _, err := dialer.Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
+	if err != nil {
+		t.Fatalf("ws dial 1: %v", err)
+	}
+	skipHistoryEnd(t, conn1)
+
+	// Inject PTY output
+	_, _ = fake.outW.Write([]byte("hello from session"))
+	time.Sleep(100 * time.Millisecond)
+
+	// Read the output
+	_ = conn1.SetReadDeadline(time.Now().Add(2 * time.Second))
+	var msg TerminalMessage
+	if err := conn1.ReadJSON(&msg); err != nil {
+		t.Fatalf("read stdout: %v", err)
+	}
+	if msg.Type != MsgTypeStdout || msg.Data != "hello from session" {
+		t.Errorf("first conn: got type=%s data=%q", msg.Type, msg.Data)
+	}
+
+	// Disconnect
+	conn1.Close()
+	time.Sleep(100 * time.Millisecond)
+
+	// Second connection: should get history
+	conn2, _, err := dialer.Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
+	if err != nil {
+		t.Fatalf("ws dial 2: %v", err)
+	}
+	defer conn2.Close()
+
+	// Read history + history_end
+	_ = conn2.SetReadDeadline(time.Now().Add(2 * time.Second))
+	var gotHistory bool
+	for {
+		var m TerminalMessage
+		if err := conn2.ReadJSON(&m); err != nil {
+			t.Fatalf("read on reconnect: %v", err)
+		}
+		if m.Type == MsgTypeStdout {
+			gotHistory = true
+		}
+		if m.Type == MsgTypeHistoryEnd {
+			break
+		}
+	}
+	if !gotHistory {
+		t.Error("expected to receive history on reconnect")
+	}
 }

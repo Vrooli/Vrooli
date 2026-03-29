@@ -89,6 +89,15 @@ func (r *BackendRegistry) IsAvailable(id BackendID) bool {
 	return ok && desc.Available
 }
 
+// ResolveAutoBackend returns BackendPersistent if tmux is available,
+// otherwise BackendStandard. Used to resolve the "auto" default.
+func (r *BackendRegistry) ResolveAutoBackend() BackendID {
+	if r.IsAvailable(BackendPersistent) {
+		return BackendPersistent
+	}
+	return BackendStandard
+}
+
 // checkTmuxAvailable is a function variable for testing.
 var checkTmuxAvailable = defaultCheckTmuxAvailable
 

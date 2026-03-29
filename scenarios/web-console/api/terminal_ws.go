@@ -171,8 +171,21 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 			writeMu.Unlock()
 		}
 
+		// Server-side WebSocket keepalive: send a ping every 30s to prevent
+		// reverse proxies (Cloudflare tunnel default idle timeout ~100s) from
+		// killing the connection during periods without PTY output.
+		pingTicker := time.NewTicker(30 * time.Second)
+		defer pingTicker.Stop()
+
 		for {
 			select {
+			case <-pingTicker.C:
+				writeMu.Lock()
+				err := conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(5*time.Second))
+				writeMu.Unlock()
+				if err != nil {
+					return
+				}
 			case data, ok := <-sub.OutputCh:
 				if !ok {
 					// Channel closed = process exited; forward the real exit code.

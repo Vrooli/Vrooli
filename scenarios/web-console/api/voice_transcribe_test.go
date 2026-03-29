@@ -19,15 +19,12 @@ func serverWithCapability(available bool) *Server {
 	}
 	checker := &fakeChecker{status: status, message: "test"}
 	reg := NewCapabilityRegistry(knownCapabilities, map[string]StatusChecker{"whisper-stt": checker}, time.Minute)
-	return &Server{capabilities: reg, voiceConfig: DefaultVoiceStreamConfig()}
-}
-
-// bypassTranscode installs a no-op transcodeAudio for the duration of the test.
-func bypassTranscode(t *testing.T) {
-	t.Helper()
-	orig := transcodeAudio
-	transcodeAudio = func(_ context.Context, audio []byte) ([]byte, error) { return audio, nil }
-	t.Cleanup(func() { transcodeAudio = orig })
+	return &Server{
+		capabilities:   reg,
+		voiceConfig:    DefaultVoiceStreamConfig(),
+		whisperURL:     resolveWhisperURL(),
+		transcodeAudio: defaultTranscodeAudio,
+	}
 }
 
 func buildMultipartRequest(t *testing.T, fieldName, fileName string, content []byte) *http.Request {
@@ -96,7 +93,6 @@ func TestVoiceTranscribe_MissingAudioFile(t *testing.T) {
 }
 
 func TestVoiceTranscribe_Success(t *testing.T) {
-	bypassTranscode(t)
 	whisper := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify it received multipart form with audio_file
 		if err := r.ParseMultipartForm(10 << 20); err != nil {
@@ -115,11 +111,9 @@ func TestVoiceTranscribe_Success(t *testing.T) {
 	}))
 	defer whisper.Close()
 
-	origURL := whisperURL
-	whisperURL = whisper.URL + "/asr?output=json"
-	defer func() { whisperURL = origURL }()
-
 	srv := serverWithCapability(true)
+	srv.whisperURL = whisper.URL + "/asr?output=json"
+	srv.transcodeAudio = func(_ context.Context, audio []byte) ([]byte, error) { return audio, nil }
 	req := buildMultipartRequest(t, "audio_file", "test.wav", []byte("fake audio data"))
 	rr := httptest.NewRecorder()
 
@@ -139,17 +133,14 @@ func TestVoiceTranscribe_Success(t *testing.T) {
 }
 
 func TestVoiceTranscribe_WhisperError(t *testing.T) {
-	bypassTranscode(t)
 	whisper := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer whisper.Close()
 
-	origURL := whisperURL
-	whisperURL = whisper.URL + "/asr?output=json"
-	defer func() { whisperURL = origURL }()
-
 	srv := serverWithCapability(true)
+	srv.whisperURL = whisper.URL + "/asr?output=json"
+	srv.transcodeAudio = func(_ context.Context, audio []byte) ([]byte, error) { return audio, nil }
 	req := buildMultipartRequest(t, "audio_file", "test.wav", []byte("fake audio data"))
 	rr := httptest.NewRecorder()
 
@@ -169,7 +160,6 @@ func TestVoiceTranscribe_WhisperError(t *testing.T) {
 }
 
 func TestVoiceTranscribe_LanguageParam(t *testing.T) {
-	bypassTranscode(t)
 	var receivedURL string
 	whisper := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedURL = r.URL.String()
@@ -182,11 +172,9 @@ func TestVoiceTranscribe_LanguageParam(t *testing.T) {
 	}))
 	defer whisper.Close()
 
-	origURL := whisperURL
-	whisperURL = whisper.URL + "/asr?output=json"
-	defer func() { whisperURL = origURL }()
-
 	srv := serverWithCapability(true)
+	srv.whisperURL = whisper.URL + "/asr?output=json"
+	srv.transcodeAudio = func(_ context.Context, audio []byte) ([]byte, error) { return audio, nil }
 	req := buildMultipartRequest(t, "audio_file", "test.wav", []byte("fake audio"))
 	req.URL.RawQuery = "language=es"
 	rr := httptest.NewRecorder()
@@ -202,7 +190,6 @@ func TestVoiceTranscribe_LanguageParam(t *testing.T) {
 }
 
 func TestVoiceTranscribe_AutoDetectLanguage(t *testing.T) {
-	bypassTranscode(t)
 	var receivedURL string
 	whisper := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedURL = r.URL.String()
@@ -215,11 +202,9 @@ func TestVoiceTranscribe_AutoDetectLanguage(t *testing.T) {
 	}))
 	defer whisper.Close()
 
-	origURL := whisperURL
-	whisperURL = whisper.URL + "/asr?output=json"
-	defer func() { whisperURL = origURL }()
-
 	srv := serverWithCapability(true)
+	srv.whisperURL = whisper.URL + "/asr?output=json"
+	srv.transcodeAudio = func(_ context.Context, audio []byte) ([]byte, error) { return audio, nil }
 	req := buildMultipartRequest(t, "audio_file", "test.wav", []byte("fake audio"))
 	// No language query param — should trigger auto-detect (no language= in Whisper URL)
 	rr := httptest.NewRecorder()
@@ -235,7 +220,6 @@ func TestVoiceTranscribe_AutoDetectLanguage(t *testing.T) {
 }
 
 func TestVoiceTranscribe_SpeakerVerificationRejectsAudio(t *testing.T) {
-	bypassTranscode(t)
 	var whisperCalls int
 	whisper := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		whisperCalls++
@@ -265,11 +249,9 @@ func TestVoiceTranscribe_SpeakerVerificationRejectsAudio(t *testing.T) {
 	}))
 	defer speaker.Close()
 
-	origWhisperURL := whisperURL
-	whisperURL = whisper.URL + "/asr?output=json"
-	defer func() { whisperURL = origWhisperURL }()
-
 	srv := serverWithCapability(true)
+	srv.whisperURL = whisper.URL + "/asr?output=json"
+	srv.transcodeAudio = func(_ context.Context, audio []byte) ([]byte, error) { return audio, nil }
 	srv.speakerVerificationConfig = SpeakerVerificationConfig{
 		Enabled:                     true,
 		ProfileIDs:                  []string{"default"},

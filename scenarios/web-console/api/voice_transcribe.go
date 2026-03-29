@@ -11,9 +11,8 @@ import (
 
 const maxAudioSize = 10 << 20 // 10 MB
 
-// whisperURL is the Whisper ASR endpoint. Initialized from WHISPER_URL env var
-// with a sensible default for cross-platform portability.
-var whisperURL = resolveWhisperURL()
+// resolveWhisperURL returns the Whisper ASR endpoint URL from WHISPER_URL env
+// var with a sensible default for cross-platform portability.
 
 func resolveWhisperURL() string {
 	base := "http://localhost:8090"
@@ -82,7 +81,7 @@ func (s *Server) handleVoiceTranscribe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	whisperStart := time.Now()
-	text, err := transcribeBytes(ctx, raw, language, true, "")
+	text, err := s.transcribeBytes(ctx, raw, language, true, "")
 	if err != nil {
 		log.Printf("voice-http: whisper failed after %dms: %v", time.Since(whisperStart).Milliseconds(), err)
 		writeCatalogError(w, "voice_transcribe_failed", "Whisper request failed")

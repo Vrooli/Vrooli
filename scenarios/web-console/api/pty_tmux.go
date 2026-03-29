@@ -2,15 +2,23 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
+	"io"
+	"log"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/creack/pty/v2"
 )
+
+// errPTYClosed is returned when I/O is attempted on a closed tmuxPTY.
+var errPTYClosed = errors.New("pty is closed")
 
 // tmuxSessionPrefix distinguishes web console sessions from user tmux sessions.
 const tmuxSessionPrefix = "wc-"
@@ -26,10 +34,33 @@ type tmuxPTY struct {
 	closed      bool
 }
 
-func (p *tmuxPTY) Read(buf []byte) (int, error)  { return p.ptmx.Read(buf) }
-func (p *tmuxPTY) Write(buf []byte) (int, error) { return p.ptmx.Write(buf) }
+func (p *tmuxPTY) Read(buf []byte) (int, error) {
+	p.mu.Lock()
+	if p.closed {
+		p.mu.Unlock()
+		return 0, io.EOF
+	}
+	p.mu.Unlock()
+	return p.ptmx.Read(buf)
+}
+
+func (p *tmuxPTY) Write(buf []byte) (int, error) {
+	p.mu.Lock()
+	if p.closed {
+		p.mu.Unlock()
+		return 0, errPTYClosed
+	}
+	p.mu.Unlock()
+	return p.ptmx.Write(buf)
+}
 
 func (p *tmuxPTY) SetSize(cols, rows uint16) error {
+	p.mu.Lock()
+	if p.closed {
+		p.mu.Unlock()
+		return errPTYClosed
+	}
+	p.mu.Unlock()
 	// Resize the tmux window directly (not the local PTY)
 	if err := exec.Command("tmux", "resize-window", "-t", p.sessionName,
 		"-x", strconv.Itoa(int(cols)),
@@ -51,25 +82,36 @@ func (p *tmuxPTY) Close() error {
 }
 
 func (p *tmuxPTY) Kill() error {
+	p.mu.Lock()
+	closed := p.closed
+	p.mu.Unlock()
+
 	// Kill the tmux session, which kills the shell inside it
-	_ = exec.Command("tmux", "kill-session", "-t", p.sessionName).Run()
-	// Also kill the attach process
-	if p.cmd.Process != nil {
+	if err := exec.Command("tmux", "kill-session", "-t", p.sessionName).Run(); err != nil {
+		log.Printf("tmux: kill-session %s failed: %v", p.sessionName, err)
+	}
+	// Also kill the attach process (only if ptmx wasn't already closed)
+	if !closed && p.cmd.Process != nil {
 		_ = p.cmd.Process.Kill()
 	}
 	return nil
 }
 
 func (p *tmuxPTY) ExitCode() int {
-	// Try to read the exit code from tmux's pane_dead_status
-	out, err := exec.Command("tmux", "display-message", "-t", p.sessionName, "-p", "#{pane_dead_status}").Output()
+	// Check pane_dead first — pane_dead_status is only meaningful when the pane
+	// has exited. Without this guard, a running pane returns "0" for
+	// pane_dead_status which is indistinguishable from "exited with code 0".
+	out, err := exec.Command("tmux", "display-message", "-t", p.sessionName, "-p", "#{pane_dead}:#{pane_dead_status}").Output()
 	if err == nil {
-		status := strings.TrimSpace(string(out))
-		if code, parseErr := strconv.Atoi(status); parseErr == nil {
-			return code
+		parts := strings.SplitN(strings.TrimSpace(string(out)), ":", 2)
+		if len(parts) == 2 && parts[0] == "1" {
+			if code, parseErr := strconv.Atoi(parts[1]); parseErr == nil {
+				return code
+			}
 		}
 	}
-	// Fall back to waiting on the attach process
+	// Fall back to the attach process. ProcessState is set after Wait() returns,
+	// so check it first to avoid calling Wait() twice (which panics).
 	if p.cmd.ProcessState != nil {
 		return p.cmd.ProcessState.ExitCode()
 	}
@@ -131,17 +173,7 @@ func tmuxPTYFactory(spec SessionLaunchSpec) (PTY, error) {
 	}
 
 	// 2. Configure session options
-	_ = exec.Command("tmux", "set-option", "-t", sessionName, "remain-on-exit", "on").Run()
-	// Enable mouse mode so xterm.js scroll wheel events are forwarded to tmux,
-	// which manages its own scrollback buffer (xterm.js has no scrollback when
-	// tmux controls the viewport).
-	_ = exec.Command("tmux", "set-option", "-t", sessionName, "mouse", "on").Run()
-	// Set a generous scrollback limit (default 2000 is often insufficient)
-	_ = exec.Command("tmux", "set-option", "-t", sessionName, "history-limit", "50000").Run()
-	// Propagate pane title changes (from OSC escape sequences) to the parent
-	// terminal so xterm.js onTitleChange fires and tab names update.
-	_ = exec.Command("tmux", "set-option", "-t", sessionName, "set-titles", "on").Run()
-	_ = exec.Command("tmux", "set-option", "-t", sessionName, "set-titles-string", "#{pane_title}").Run()
+	applyTmuxOptions(sessionName)
 
 	// 3. Attach to tmux session via a PTY for I/O streaming
 	p, err := tmuxAttach(sessionName)
@@ -152,9 +184,40 @@ func tmuxPTYFactory(spec SessionLaunchSpec) (PTY, error) {
 	return p, nil
 }
 
+// applyTmuxOptions configures session options (mouse mode, scrollback, titles).
+// Errors are logged but not fatal — a session with missing options is still
+// usable, and callers need to know something went wrong for debugging.
+func applyTmuxOptions(sessionName string) {
+	opts := [][2]string{
+		{"remain-on-exit", "on"},
+		{"mouse", "on"},
+		{"history-limit", "50000"},
+		{"set-titles", "on"},
+		{"set-titles-string", "#{pane_title}"},
+	}
+	for _, opt := range opts {
+		if err := exec.Command("tmux", "set-option", "-t", sessionName, opt[0], opt[1]).Run(); err != nil {
+			log.Printf("tmux: set-option %s=%s on %s failed: %v", opt[0], opt[1], sessionName, err)
+		}
+	}
+}
+
+// tmuxAttachTimeout bounds how long we wait for `tmux attach-session` to start.
+// If the tmux server is hung or saturated, this prevents recovery goroutines
+// from blocking indefinitely.
+const tmuxAttachTimeout = 10 * time.Second
+
 // tmuxAttach connects to an existing tmux session for I/O.
 // Used by both tmuxPTYFactory (new sessions) and recovery (existing sessions).
 func tmuxAttach(sessionName string) (*tmuxPTY, error) {
+	// Verify the session exists and tmux responds before committing to attach.
+	// This fails fast if the tmux server is hung or the session was killed.
+	ctx, cancel := context.WithTimeout(context.Background(), tmuxAttachTimeout)
+	defer cancel()
+	if err := exec.CommandContext(ctx, "tmux", "has-session", "-t", sessionName).Run(); err != nil {
+		return nil, fmt.Errorf("tmux has-session %s: %w", sessionName, err)
+	}
+
 	attachCmd := exec.Command("tmux", "attach-session", "-t", sessionName)
 	// The server process may have TERM=dumb (common when started by a
 	// non-interactive lifecycle manager). tmux attach requires a terminal

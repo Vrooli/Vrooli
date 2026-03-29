@@ -438,7 +438,7 @@ func TestTmuxAttach_SetsTermEnv(t *testing.T) {
 	if err := createCmd.Run(); err != nil {
 		t.Fatalf("tmux new-session failed: %v", err)
 	}
-	defer exec.Command("tmux", "kill-session", "-t", sessionName).Run()
+	defer func() { _ = exec.Command("tmux", "kill-session", "-t", sessionName).Run() }()
 
 	// Temporarily set TERM=dumb to simulate lifecycle-launched server
 	origTerm := os.Getenv("TERM")
@@ -450,7 +450,7 @@ func TestTmuxAttach_SetsTermEnv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("tmuxAttach failed with TERM=dumb: %v", err)
 	}
-	defer p.Kill()
+	defer func() { _ = p.Kill() }()
 	defer p.Close()
 
 	// Verify the session is readable (not immediately dead)

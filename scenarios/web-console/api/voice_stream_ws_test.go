@@ -27,16 +27,9 @@ func setupVoiceWSServer(t *testing.T, whisperHandler http.Handler) (*httptest.Se
 	whisper := httptest.NewServer(whisperHandler)
 	t.Cleanup(whisper.Close)
 
-	origURL := whisperURL
-	whisperURL = whisper.URL + "/asr?output=json"
-	t.Cleanup(func() { whisperURL = origURL })
-
-	// Bypass audio transcoding in tests so ffmpeg availability doesn't matter.
-	origTranscode := transcodeAudio
-	transcodeAudio = func(_ context.Context, audio []byte) ([]byte, error) { return audio, nil }
-	t.Cleanup(func() { transcodeAudio = origTranscode })
-
 	srv := serverWithCapability(true)
+	srv.whisperURL = whisper.URL + "/asr?output=json"
+	srv.transcodeAudio = func(_ context.Context, audio []byte) ([]byte, error) { return audio, nil }
 	srv.router = mux.NewRouter()
 	srv.router.HandleFunc("/api/v1/voice/stream", srv.handleVoiceStreamWS).Methods("GET")
 
@@ -441,15 +434,11 @@ func TestVoiceStreamWS_FlushInterval(t *testing.T) {
 
 func TestVoiceStreamWS_TranscodeSeamCalled(t *testing.T) {
 	var transcodeCalls atomic.Int64
-	origTranscode := transcodeAudio
-	t.Cleanup(func() { transcodeAudio = origTranscode })
 
-	ts, _ := setupVoiceWSServer(t, echoWhisperHandler("transcoded"))
-
-	// Final transcription always runs (full retranscribe with transcode=true).
+	ts, srv := setupVoiceWSServer(t, echoWhisperHandler("transcoded"))
 
 	// Override the passthrough installed by setupVoiceWSServer with a tracker.
-	transcodeAudio = func(_ context.Context, audio []byte) ([]byte, error) {
+	srv.transcodeAudio = func(_ context.Context, audio []byte) ([]byte, error) {
 		transcodeCalls.Add(1)
 		return audio, nil
 	}
@@ -614,15 +603,11 @@ func TestLastNWords(t *testing.T) {
 
 func TestVoiceStreamWS_PartialSkipsTranscode(t *testing.T) {
 	var transcodeCalls atomic.Int64
-	origTranscode := transcodeAudio
-	t.Cleanup(func() { transcodeAudio = origTranscode })
 
-	ts, _ := setupVoiceWSServer(t, echoWhisperHandler("partial-no-transcode"))
-
-	// Final transcription always runs with transcode=true.
+	ts, srv := setupVoiceWSServer(t, echoWhisperHandler("partial-no-transcode"))
 
 	// Override the passthrough with a call counter.
-	transcodeAudio = func(_ context.Context, audio []byte) ([]byte, error) {
+	srv.transcodeAudio = func(_ context.Context, audio []byte) ([]byte, error) {
 		transcodeCalls.Add(1)
 		return audio, nil
 	}

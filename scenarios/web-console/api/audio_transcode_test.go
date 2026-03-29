@@ -12,15 +12,15 @@ func hasFfmpeg() bool {
 }
 
 func TestTranscodeAudio_PassthroughWhenNoFfmpeg(t *testing.T) {
-	// Swap the seam to simulate ffmpeg being unavailable.
-	orig := transcodeAudio
-	transcodeAudio = func(_ context.Context, audio []byte) ([]byte, error) {
-		return audio, nil
+	// Server-level seam: inject a no-op transcoder to simulate ffmpeg unavailable.
+	srv := &Server{
+		transcodeAudio: func(_ context.Context, audio []byte) ([]byte, error) {
+			return audio, nil
+		},
 	}
-	t.Cleanup(func() { transcodeAudio = orig })
 
 	input := []byte("fake audio data")
-	output, err := transcodeAudio(context.Background(), input)
+	output, err := srv.transcodeAudio(context.Background(), input)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

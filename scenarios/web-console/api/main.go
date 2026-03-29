@@ -120,6 +120,8 @@ type Server struct {
 	lastTTSPlayback               *TTSPlaybackEvent
 	lastTTSPlayAt                 time.Time
 	systemContext                 *SystemContext
+	whisperURL                    string
+	transcodeAudio                func(context.Context, []byte) ([]byte, error)
 }
 
 type conversationAppendSnapshot struct {
@@ -204,12 +206,17 @@ func NewServer(db *sql.DB) *Server {
 	sessions.SetRegistry(backendRegistry)
 	sessions.SetStore(sessionStore)
 
+	// Resolve "auto" default backend now that the registry knows tmux availability.
+	if sessions.GetConfig().DefaultBackend == "auto" {
+		resolved := backendRegistry.ResolveAutoBackend()
+		sessions.SetConfigField(func(cfg *Config) { cfg.DefaultBackend = string(resolved) })
+		log.Printf("default-backend: resolved 'auto' -> %q", resolved)
+	}
+
 	// Recover surviving tmux sessions from previous run
 	report := sessions.Recover(sessionStore, backendRegistry)
-	if report.Recovered > 0 || report.OrphanedMetadata > 0 || report.OrphanedTmux > 0 {
-		log.Printf("recovery: recovered=%d orphaned_metadata=%d orphaned_tmux=%d",
-			report.Recovered, report.OrphanedMetadata, report.OrphanedTmux)
-	}
+	log.Printf("recovery: recovered=%d orphaned_metadata=%d orphaned_tmux=%d",
+		report.Recovered, report.OrphanedMetadata, report.OrphanedTmux)
 
 	srv := &Server{
 		db:                            db,
@@ -238,6 +245,8 @@ func NewServer(db *sql.DB) *Server {
 		conversations:                 NewConversationStore(),
 		lastTTSBySource:               make(map[string]conversationAppendSnapshot),
 		lastTTSAckBySrc:               make(map[string]ttsAckSnapshot),
+		whisperURL:                    resolveWhisperURL(),
+		transcodeAudio:                defaultTranscodeAudio,
 	}
 	srv.systemContext = DiscoverSystemContext(DefaultLookPath)
 	log.Printf("system-context: os=%s/%s shell=%s tools-found=%d",
@@ -888,6 +897,9 @@ func main() {
 			if srv.codexTailer != nil {
 				srv.codexTailer.Stop()
 			}
+			// Graceful session shutdown: detach from tmux sessions (preserving
+			// them for recovery) and kill standard sessions.
+			srv.sessions.Shutdown()
 			return db.Close()
 		},
 	}); err != nil {

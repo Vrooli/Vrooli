@@ -267,7 +267,7 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 					}
 
 					t0 := time.Now()
-					text, err := transcribeBytes(segCtx, transcribeAudio, language, true, "")
+					text, err := s.transcribeBytes(segCtx, transcribeAudio, language, true, "")
 					if err != nil {
 						log.Printf("voice-ws: segment-final #%d failed (%v): %v", idx, time.Since(t0), err)
 						return
@@ -363,7 +363,7 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 
 				prompt := lastNWords(accumulatedTranscript, 10)
 				t0 := time.Now()
-				text, err := transcribeBytes(partialCtx, sendData, language, false, prompt)
+				text, err := s.transcribeBytes(partialCtx, sendData, language, false, prompt)
 				elapsed := time.Since(t0)
 				if err != nil {
 					if partialCtx.Err() != nil {
@@ -578,7 +578,7 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	t0 := time.Now()
-	text, err := transcribeBytes(finalCtx, transcribeAudio, language, true, "")
+	text, err := s.transcribeBytes(finalCtx, transcribeAudio, language, true, "")
 	if err != nil {
 		log.Printf("voice-ws: final transcribe failed (%v): %v", time.Since(t0), err)
 		_ = writeJSON(VoiceStreamMessage{Type: VoiceMsgError, Text: "Final transcription failed"})
@@ -714,12 +714,12 @@ func isWhisperHallucination(text string) bool {
 // mono WAV via ffmpeg for best accuracy. The language parameter is an ISO-639-1
 // code (e.g. "en"); when empty, Whisper auto-detects. initialPrompt provides
 // Whisper with context from previous transcription segments.
-func transcribeBytes(ctx context.Context, audio []byte, language string, transcode bool, initialPrompt string) (string, error) {
+func (s *Server) transcribeBytes(ctx context.Context, audio []byte, language string, transcode bool, initialPrompt string) (string, error) {
 	filename := "recording.webm"
 	transcoded := audio
 	if transcode {
 		var tcErr error
-		transcoded, tcErr = transcodeAudio(ctx, audio)
+		transcoded, tcErr = s.transcodeAudio(ctx, audio)
 		if tcErr != nil {
 			log.Printf("voice: transcode failed, sending raw: %v", tcErr)
 			transcoded = audio
@@ -729,7 +729,7 @@ func transcribeBytes(ctx context.Context, audio []byte, language string, transco
 		}
 	}
 
-	targetURL := whisperURL
+	targetURL := s.whisperURL
 	if language != "" {
 		targetURL += "&language=" + language
 	}

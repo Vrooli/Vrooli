@@ -74,9 +74,11 @@ type Config struct {
 	DefaultCWD string
 
 	// DefaultBackend is the session backend used when the client does not
-	// specify one. "standard" uses a raw PTY; "persistent" uses tmux.
+	// specify one. "standard" uses a raw PTY; "persistent" uses tmux;
+	// "auto" (the default) resolves to "persistent" when tmux is available,
+	// falling back to "standard" otherwise. Resolved at server startup.
 	// CROSS-LANGUAGE COUPLING: Must match BackendID constants in backend_registry.go.
-	// Env: WC_DEFAULT_BACKEND | Default: "standard"
+	// Env: WC_DEFAULT_BACKEND | Default: "auto"
 	DefaultBackend string
 
 	// DefaultPolicyMode is the default expiration policy mode for new sessions.
@@ -102,7 +104,7 @@ func DefaultConfig() Config {
 		ClientChannelBuffer:     256,
 		CoalesceNotifyThreshold: 5,
 		DefaultCWD:              resolveWorkingDir(),
-		DefaultBackend:          "standard",
+		DefaultBackend:          "auto",
 		DefaultPolicyMode:       "never",
 		DefaultPolicyDuration:   "",
 	}

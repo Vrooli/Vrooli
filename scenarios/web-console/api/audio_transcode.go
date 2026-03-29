@@ -10,10 +10,6 @@ import (
 	"sync"
 )
 
-// transcodeAudio converts audio bytes to 16kHz mono WAV via ffmpeg for optimal
-// Whisper accuracy. It is a package-level var to enable test injection (seam).
-var transcodeAudio = defaultTranscodeAudio
-
 var (
 	ffmpegOnce      sync.Once
 	ffmpegAvailable bool

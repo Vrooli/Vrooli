@@ -45,7 +45,7 @@ Set these in your environment or `.env` file before starting the API.
 
 | Variable | Default | Values | Impact |
 |----------|---------|--------|--------|
-| `WC_DEFAULT_BACKEND` | `standard` | `standard`, `persistent` | Default session backend when not specified at creation. `persistent` uses tmux for restart-survivable sessions. |
+| `WC_DEFAULT_BACKEND` | `auto` | `auto`, `standard`, `persistent` | Default session backend. `auto` (default) resolves to `persistent` when tmux is available, `standard` otherwise. `persistent` uses tmux for restart-survivable sessions. |
 | `WC_DEFAULT_POLICY_MODE` | `never` | `never`, `preset`, `custom` | Default expiration policy mode for new sessions. |
 | `WC_DEFAULT_POLICY_DURATION` | *(empty)* | `1h`, `8h`, `24h`, or Go duration | Default expiration duration. Only used when policy mode is `preset` or `custom`. |
 
