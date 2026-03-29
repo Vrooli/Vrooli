@@ -2,13 +2,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 
+const mockNavigate = vi.fn();
+vi.mock("react-router-dom", () => ({
+  useNavigate: () => mockNavigate,
+  useSearchParams: () => [new URLSearchParams(), vi.fn()],
+}));
+
 vi.mock("@xyflow/react", async () => {
   const ReactModule = await import("react");
   interface MockGraphNode {
     id: string;
+    style?: Record<string, unknown>;
   }
   interface MockGraphEdge {
     id: string;
+    style?: Record<string, unknown>;
   }
   interface MockReactFlowProps {
     nodes: MockGraphNode[];
@@ -31,6 +39,18 @@ vi.mock("@xyflow/react", async () => {
           <div data-testid="default-viewport">{JSON.stringify(defaultViewport ?? null)}</div>
           <div data-testid="rendered-node-ids">{nodes.map((node) => node.id).join(",")}</div>
           <div data-testid="rendered-edge-ids">{edges.map((edge) => edge.id).join(",")}</div>
+          <div data-testid="node-opacities">{JSON.stringify(
+            nodes.reduce<Record<string, number | undefined>>((acc, n) => {
+              acc[n.id] = n.style?.opacity as number | undefined;
+              return acc;
+            }, {}),
+          )}</div>
+          <div data-testid="edge-opacities">{JSON.stringify(
+            edges.reduce<Record<string, number | undefined>>((acc, e) => {
+              acc[e.id] = e.style?.opacity as number | undefined;
+              return acc;
+            }, {}),
+          )}</div>
           {children}
         </div>
       );
@@ -251,5 +271,131 @@ describe("GraphCanvas", () => {
     expect(screen.getByTestId("default-viewport").textContent).toBe(
       JSON.stringify({ x: 0, y: 0, zoom: 1 }),
     );
+  });
+
+  it("dims non-highlighted nodes and edges when a node is selected", async () => {
+    useGraphDataStore.setState((state) => ({
+      ...state,
+      lens: "topology",
+      settingsByLens: {
+        ...state.settingsByLens,
+        topology: {
+          ...state.settingsByLens.topology,
+          groupingMode: "none",
+        },
+      },
+      nodes: [
+        makeBacklogNode("backlog-item/execute/task-a", { label: "A", status: "queued" }),
+        makeBacklogNode("backlog-item/execute/task-b", { label: "B", status: "queued" }),
+        makeScenarioNode("scenario/app", { label: "App", status: "running" }),
+      ],
+      edges: [
+        makeGraphEdge("e1", "backlog-item/execute/task-a", "backlog-item/execute/task-b", "depends_on"),
+      ],
+    }));
+
+    // Simulate selecting task-a → highlights task-a and task-b (neighbors), dims scenario/app
+    useGraphUIStore.setState((state) => ({
+      ...state,
+      highlightState: {
+        highlighted: new Set(["backlog-item/execute/task-a", "backlog-item/execute/task-b"]),
+        mode: "dim" as const,
+      },
+    }));
+
+    render(<GraphCanvas />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("rendered-node-ids").textContent).toContain("scenario/app");
+    });
+
+    const nodeOpacities = JSON.parse(screen.getByTestId("node-opacities").textContent ?? "{}");
+    // Highlighted nodes should be full opacity
+    expect(nodeOpacities["backlog-item/execute/task-a"]).toBe(1);
+    expect(nodeOpacities["backlog-item/execute/task-b"]).toBe(1);
+    // Non-highlighted node should be dimmed
+    expect(nodeOpacities["scenario/app"]).toBe(0.5);
+
+    const edgeOpacities = JSON.parse(screen.getByTestId("edge-opacities").textContent ?? "{}");
+    // Edge between two highlighted nodes should NOT be dimmed
+    expect(edgeOpacities["e1"]).toBeUndefined(); // no opacity override → full
+  });
+
+  it("dims edges where either endpoint is not highlighted", async () => {
+    useGraphDataStore.setState((state) => ({
+      ...state,
+      lens: "topology",
+      settingsByLens: {
+        ...state.settingsByLens,
+        topology: {
+          ...state.settingsByLens.topology,
+          groupingMode: "none",
+        },
+      },
+      nodes: [
+        makeBacklogNode("backlog-item/execute/task-a", { label: "A", status: "queued" }),
+        makeScenarioNode("scenario/app", { label: "App", status: "running" }),
+      ],
+      edges: [
+        makeGraphEdge("e1", "backlog-item/execute/task-a", "scenario/app", "targets"),
+      ],
+    }));
+
+    // Only task-a is highlighted, scenario/app is NOT
+    useGraphUIStore.setState((state) => ({
+      ...state,
+      highlightState: {
+        highlighted: new Set(["backlog-item/execute/task-a"]),
+        mode: "dim" as const,
+      },
+    }));
+
+    render(<GraphCanvas />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("rendered-edge-ids").textContent).toContain("e1");
+    });
+
+    const edgeOpacities = JSON.parse(screen.getByTestId("edge-opacities").textContent ?? "{}");
+    // Edge has one non-highlighted endpoint → should be dimmed
+    expect(edgeOpacities["e1"]).toBe(0.15);
+  });
+
+  it("all nodes return to full opacity when highlight is cleared", async () => {
+    useGraphDataStore.setState((state) => ({
+      ...state,
+      lens: "topology",
+      settingsByLens: {
+        ...state.settingsByLens,
+        topology: {
+          ...state.settingsByLens.topology,
+          groupingMode: "none",
+        },
+      },
+      nodes: [
+        makeBacklogNode("backlog-item/execute/task-a", { label: "A", status: "queued" }),
+        makeScenarioNode("scenario/app", { label: "App", status: "running" }),
+      ],
+      edges: [],
+    }));
+
+    // Normal mode — no highlighting
+    useGraphUIStore.setState((state) => ({
+      ...state,
+      highlightState: {
+        highlighted: new Set<string>(),
+        mode: "normal" as const,
+      },
+    }));
+
+    render(<GraphCanvas />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("rendered-node-ids").textContent).toContain("scenario/app");
+    });
+
+    const nodeOpacities = JSON.parse(screen.getByTestId("node-opacities").textContent ?? "{}");
+    expect(nodeOpacities["backlog-item/execute/task-a"]).toBe(1);
+    expect(nodeOpacities["scenario/app"]).toBe(1);
   });
 });

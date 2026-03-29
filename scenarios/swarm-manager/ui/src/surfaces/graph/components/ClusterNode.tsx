@@ -5,11 +5,12 @@
  * Expanded: initiative title header with children rendered inside parent boundary by React Flow.
  */
 
-import { memo } from "react";
+import { memo, useCallback } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Target, ChevronRight, ChevronDown } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import type { RollupCounts } from "../lib/clustering-utils";
+import { useGraphUIStore } from "../stores/graph-ui-store";
 import type { ClusterGraphNodeData } from "../types";
 
 function RollupBadge({ rollup }: { rollup: RollupCounts }) {
@@ -32,10 +33,19 @@ function RollupBadge({ rollup }: { rollup: RollupCounts }) {
   );
 }
 
-function ClusterNodeComponent({ data, selected }: NodeProps) {
+function ClusterNodeComponent({ id, data, selected }: NodeProps) {
   const nodeData = data as ClusterGraphNodeData;
   const isCollapsed = nodeData.collapsed;
   const isUnassigned = nodeData.isUnassigned ?? false;
+  const toggleTopologyCluster = useGraphUIStore((s) => s.toggleTopologyCluster);
+
+  const handleChevronClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      toggleTopologyCluster(id);
+    },
+    [id, toggleTopologyCluster],
+  );
 
   return (
     <>
@@ -54,11 +64,19 @@ function ClusterNodeComponent({ data, selected }: NodeProps) {
       >
         {/* Header */}
         <div className="flex items-center gap-1.5 mb-1">
-          {isCollapsed ? (
-            <ChevronRight className="h-3 w-3 text-slate-400" />
-          ) : (
-            <ChevronDown className="h-3 w-3 text-slate-400" />
-          )}
+          <button
+            type="button"
+            onClick={handleChevronClick}
+            className="flex items-center justify-center rounded p-0.5 hover:bg-slate-600/50 transition-colors cursor-pointer"
+            aria-label={isCollapsed ? "Expand cluster" : "Collapse cluster"}
+            data-testid="cluster-toggle"
+          >
+            {isCollapsed ? (
+              <ChevronRight className="h-3 w-3 text-slate-400" />
+            ) : (
+              <ChevronDown className="h-3 w-3 text-slate-400" />
+            )}
+          </button>
           <Target className="h-3 w-3 shrink-0 text-sky-400" />
           <span className={cn(
             "rounded-full px-1.5 py-0 text-[10px] font-medium",

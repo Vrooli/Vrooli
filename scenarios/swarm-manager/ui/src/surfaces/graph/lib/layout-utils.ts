@@ -1,8 +1,8 @@
 /**
  * Layout Utilities
  *
- * Dagre layout configuration for three layout modes.
- * Transforms React Flow nodes/edges into positioned layouts.
+ * Dagre layout configuration for hierarchical and compact modes.
+ * Lane-based grouped layout that organizes nodes by entity type.
  * Disconnected nodes (no edges) are arranged in a grid below the
  * connected subgraph to prevent Dagre's default single-line placement.
  */
@@ -10,6 +10,7 @@
 import dagre from "dagre";
 import type { Node, Edge } from "@xyflow/react";
 import type { LayoutDirection, LayoutMode } from "../stores/graph-ui-store";
+import type { GraphEntityType } from "../types";
 
 const DEFAULT_NODE_WIDTH = 180;
 const DEFAULT_NODE_HEIGHT = 72;
@@ -21,7 +22,7 @@ interface DagreConfig {
   ranker: string;
 }
 
-export function getDagreConfig(mode: LayoutMode, direction: LayoutDirection): DagreConfig {
+export function getDagreConfig(mode: Exclude<LayoutMode, "grouped">, direction: LayoutDirection): DagreConfig {
   switch (mode) {
     case "hierarchical":
       return {
@@ -37,22 +38,120 @@ export function getDagreConfig(mode: LayoutMode, direction: LayoutDirection): Da
         nodesep: 30,
         ranker: "tight-tree",
       };
-    case "grouped":
-      return {
-        rankdir: direction,
-        ranksep: 100,
-        nodesep: 60,
-        ranker: "network-simplex",
-      };
   }
+}
+
+/**
+ * Lane order for grouped layout. Nodes are arranged in lanes by entity type,
+ * matching prompt-manager's approach where each entity type occupies its own
+ * row (TB) or column (LR).
+ */
+const GROUPED_LANE_ORDER: GraphEntityType[] = [
+  "initiative",
+  "backlog",
+  "scenario",
+  "execution",
+  "capture",
+  "agent-run",
+  "agent-activity",
+];
+
+/**
+ * Resolve the entity type from a node's data for lane grouping.
+ * Falls back to the node's `type` field (which maps to nodeTypes in GraphCanvas)
+ * when `data.entityType` is not present.
+ */
+function getNodeEntityType(node: Node): GraphEntityType | undefined {
+  const data = node.data as { entityType?: GraphEntityType } | undefined;
+  if (data?.entityType) return data.entityType;
+  // Node `type` in React Flow maps to the nodeTypes registry keys (backlog, scenario, etc.)
+  if (node.type && GROUPED_LANE_ORDER.includes(node.type as GraphEntityType)) {
+    return node.type as GraphEntityType;
+  }
+  return undefined;
+}
+
+/**
+ * Grouped layout: arrange nodes in lanes by entity type.
+ *
+ * Each entity type gets its own row (TB direction) or column (LR direction).
+ * Within each lane, nodes are arranged in a grid. Lanes are separated by a gap.
+ */
+export function applyGroupedLayout<NodeType extends Node>(
+  nodes: NodeType[],
+  direction: LayoutDirection,
+): NodeType[] {
+  if (nodes.length === 0) return [];
+
+  const cellX = DEFAULT_NODE_WIDTH + 60;
+  const cellY = DEFAULT_NODE_HEIGHT + 60;
+  const laneGap = 120;
+
+  // Bucket nodes by entity type into ordered lanes.
+  const byLane = new Map<GraphEntityType, NodeType[]>();
+  for (const lane of GROUPED_LANE_ORDER) byLane.set(lane, []);
+
+  const untyped: NodeType[] = [];
+  for (const node of nodes) {
+    const entityType = getNodeEntityType(node);
+    if (entityType && byLane.has(entityType)) {
+      byLane.get(entityType)!.push(node);
+    } else {
+      untyped.push(node);
+    }
+  }
+
+  const layoutedNodes: NodeType[] = [];
+  let laneOffset = 0;
+
+  for (const lane of GROUPED_LANE_ORDER) {
+    const laneNodes = byLane.get(lane) ?? [];
+    if (laneNodes.length === 0) continue;
+
+    const columns = Math.max(1, Math.ceil(Math.sqrt(laneNodes.length)));
+    const rows = Math.max(1, Math.ceil(laneNodes.length / columns));
+
+    for (let i = 0; i < laneNodes.length; i++) {
+      const laneNode = laneNodes[i]!;
+      const col = i % columns;
+      const row = Math.floor(i / columns);
+      const x = col * cellX;
+      const y = laneOffset + row * cellY;
+      layoutedNodes.push({
+        ...laneNode,
+        position: direction === "TB" ? { x, y } : { x: y, y: x },
+      });
+    }
+    laneOffset += rows * cellY + laneGap;
+  }
+
+  // Append any untyped nodes at the end.
+  if (untyped.length > 0) {
+    const columns = Math.max(1, Math.ceil(Math.sqrt(untyped.length)));
+    for (let i = 0; i < untyped.length; i++) {
+      const node = untyped[i]!;
+      const col = i % columns;
+      const row = Math.floor(i / columns);
+      const x = col * cellX;
+      const y = laneOffset + row * cellY;
+      layoutedNodes.push({
+        ...node,
+        position: direction === "TB" ? { x, y } : { x: y, y: x },
+      });
+    }
+  }
+
+  return layoutedNodes;
 }
 
 /**
  * Apply Dagre layout to nodes and edges, returning new positioned nodes.
  *
+ * For "grouped" mode, delegates to applyGroupedLayout which arranges nodes
+ * by entity type in lanes. For other modes, uses Dagre for hierarchical layout.
+ *
  * Nodes with no edges are separated and arranged in a compact grid below
- * the connected subgraph, preventing the single-line layout that Dagre
- * produces for isolated nodes.
+ * the connected subgraph to prevent Dagre's default single-line placement.
  */
 export function applyDagreLayout<NodeType extends Node, EdgeType extends Edge>(
   nodes: NodeType[],
@@ -61,6 +160,11 @@ export function applyDagreLayout<NodeType extends Node, EdgeType extends Edge>(
   direction: LayoutDirection,
 ): NodeType[] {
   if (nodes.length === 0) return [];
+
+  // Grouped mode uses lane-based layout, not Dagre.
+  if (mode === "grouped") {
+    return applyGroupedLayout(nodes, direction);
+  }
 
   // Partition nodes into connected (has ≥1 edge) and isolated (no edges).
   const connectedIds = new Set<string>();
@@ -144,13 +248,13 @@ export function applyDagreLayout<NodeType extends Node, EdgeType extends Edge>(
  */
 function arrangeGrid<NodeType extends Node>(
   nodes: NodeType[],
-  mode: LayoutMode,
+  mode: Exclude<LayoutMode, "grouped">,
   startX: number,
   startY: number,
 ): NodeType[] {
   if (nodes.length === 0) return [];
 
-  const gap = mode === "compact" ? 20 : mode === "grouped" ? 50 : 30;
+  const gap = mode === "compact" ? 20 : 30;
   const cols = Math.max(1, Math.ceil(Math.sqrt(nodes.length)));
 
   return nodes.map((node, i) => {

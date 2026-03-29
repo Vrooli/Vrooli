@@ -5,7 +5,7 @@
  * activity feed, graph canvas, and inspector.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Activity, Settings, Square, X } from "lucide-react";
@@ -91,16 +91,26 @@ export function GraphWorkspace() {
     void fetchGraph(urlLens);
   }, [applyLayoutForLens, fetchGraph, setLens, urlLens]);
 
+  // Sync URL → store only on URL-driven changes. Canvas clicks update the
+  // store directly without touching the URL, so we must not deselect when
+  // urlSelect is absent — that would race with the canvas click handler.
+  const prevUrlSelect = useRef(urlSelect);
   useEffect(() => {
+    if (urlSelect === prevUrlSelect.current) {
+      // URL didn't change — nothing to sync.
+      return;
+    }
+    prevUrlSelect.current = urlSelect;
+
     if (urlSelect) {
       if (urlSelect !== selectedNodeId) {
         selectNode(urlSelect);
       }
-      return;
-    }
-
-    if (selectedNodeId) {
-      selectNode(null);
+    } else {
+      // URL param was explicitly removed (e.g. inspector close) — deselect.
+      if (selectedNodeId) {
+        selectNode(null);
+      }
     }
   }, [selectedNodeId, selectNode, urlSelect]);
 

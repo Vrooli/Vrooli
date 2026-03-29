@@ -1,11 +1,18 @@
 import { describe, it, expect } from "vitest";
 import type { Node, Edge } from "@xyflow/react";
-import { applyDagreLayout, getDagreConfig } from "./layout-utils";
+import { applyDagreLayout, applyGroupedLayout, getDagreConfig } from "./layout-utils";
+import type { GraphEntityType } from "../types";
 
 const makeNode = (id: string): Node => ({
   id,
   position: { x: 0, y: 0 },
   data: {},
+});
+
+const makeTypedNode = (id: string, entityType: GraphEntityType): Node => ({
+  id,
+  position: { x: 0, y: 0 },
+  data: { entityType },
 });
 
 const makeEdge = (source: string, target: string): Edge => ({
@@ -25,12 +32,6 @@ describe("getDagreConfig", () => {
     const config = getDagreConfig("compact", "LR");
     expect(config.rankdir).toBe("LR");
     expect(config.ranker).toBe("tight-tree");
-  });
-
-  it("returns TB direction with larger spacing for grouped", () => {
-    const config = getDagreConfig("grouped", "TB");
-    expect(config.rankdir).toBe("TB");
-    expect(config.nodesep).toBeGreaterThan(getDagreConfig("hierarchical", "TB").nodesep);
   });
 });
 
@@ -183,14 +184,112 @@ describe("applyDagreLayout", () => {
     expect(ys.size).toBe(3);
   });
 
-  it("grid gap varies by layout mode", () => {
-    const nodes = [makeNode("a"), makeNode("b")]; // no edges → grid layout
-    const compact = applyDagreLayout(nodes, [], "compact", "TB");
-    const grouped = applyDagreLayout(nodes, [], "grouped", "TB");
+  it("delegates to grouped layout when mode is grouped", () => {
+    const nodes = [
+      makeTypedNode("a", "backlog"),
+      makeTypedNode("b", "scenario"),
+    ];
+    const edges = [makeEdge("a", "b")];
+    const result = applyDagreLayout(nodes, edges, "grouped", "TB");
 
-    const gapCompact = Math.abs(compact[0]!.position.x - compact[1]!.position.x);
-    const gapGrouped = Math.abs(grouped[0]!.position.x - grouped[1]!.position.x);
-    // Grouped has wider gap than compact
-    expect(gapGrouped).toBeGreaterThan(gapCompact);
+    // Grouped layout ignores edges and groups by entity type,
+    // so backlog and scenario should be in different lanes (different y).
+    const posA = result.find((n) => n.id === "a")!.position;
+    const posB = result.find((n) => n.id === "b")!.position;
+    expect(posA.y).not.toBe(posB.y);
+  });
+});
+
+describe("applyGroupedLayout", () => {
+  it("returns empty array for empty input", () => {
+    expect(applyGroupedLayout([], "TB")).toEqual([]);
+  });
+
+  it("groups nodes by entity type into separate lanes (TB)", () => {
+    const nodes = [
+      makeTypedNode("b1", "backlog"),
+      makeTypedNode("b2", "backlog"),
+      makeTypedNode("s1", "scenario"),
+      makeTypedNode("i1", "initiative"),
+    ];
+    const result = applyGroupedLayout(nodes, "TB");
+
+    const posOf = (id: string) => result.find((n) => n.id === id)!.position;
+
+    // Initiative comes before backlog in lane order, backlog before scenario.
+    expect(posOf("i1").y).toBeLessThan(posOf("b1").y);
+    expect(posOf("b1").y).toBeLessThan(posOf("s1").y);
+
+    // Nodes in the same lane (b1, b2) should share the same y range.
+    expect(Math.abs(posOf("b1").y - posOf("b2").y)).toBeLessThan(200);
+  });
+
+  it("swaps axes for LR direction", () => {
+    const nodes = [
+      makeTypedNode("i1", "initiative"),
+      makeTypedNode("b1", "backlog"),
+    ];
+    const resultTB = applyGroupedLayout(nodes, "TB");
+    const resultLR = applyGroupedLayout(nodes, "LR");
+
+    const tbI = resultTB.find((n) => n.id === "i1")!.position;
+    const lrI = resultLR.find((n) => n.id === "i1")!.position;
+
+    // In TB, initiative is at top (small y). In LR, it should be at left (small x).
+    // LR swaps x and y, so LR.x should equal TB.y and LR.y should equal TB.x.
+    expect(lrI.x).toBe(tbI.y);
+    expect(lrI.y).toBe(tbI.x);
+  });
+
+  it("skips empty lanes without adding extra gaps", () => {
+    // Only backlog and execution — no initiative, scenario, etc.
+    const nodes = [
+      makeTypedNode("b1", "backlog"),
+      makeTypedNode("e1", "execution"),
+    ];
+    const result = applyGroupedLayout(nodes, "TB");
+
+    const posB = result.find((n) => n.id === "b1")!.position;
+    const posE = result.find((n) => n.id === "e1")!.position;
+
+    // They should be in consecutive lanes, not separated by empty lane gaps.
+    // With cellY=132 and laneGap=120, one lane gap should be ~252 max.
+    expect(posE.y - posB.y).toBeLessThan(300);
+    expect(posE.y).toBeGreaterThan(posB.y);
+  });
+
+  it("arranges multiple nodes within a lane in a grid", () => {
+    const nodes = Array.from({ length: 4 }, (_, i) =>
+      makeTypedNode(`b${i}`, "backlog"),
+    );
+    const result = applyGroupedLayout(nodes, "TB");
+
+    // 4 nodes → ceil(sqrt(4))=2 columns → should have 2 distinct x values.
+    const xs = new Set(result.map((n) => n.position.x));
+    expect(xs.size).toBe(2);
+  });
+
+  it("preserves node data and id", () => {
+    const node: Node = {
+      id: "test-1",
+      position: { x: 0, y: 0 },
+      data: { entityType: "backlog", label: "Test" },
+    };
+    const result = applyGroupedLayout([node], "TB");
+    expect(result[0]!.id).toBe("test-1");
+    expect((result[0]!.data as { label: string }).label).toBe("Test");
+  });
+
+  it("places nodes without recognized entityType after typed lanes", () => {
+    const nodes = [
+      makeTypedNode("b1", "backlog"),
+      makeNode("unknown1"), // no entityType
+    ];
+    const result = applyGroupedLayout(nodes, "TB");
+
+    const posB = result.find((n) => n.id === "b1")!.position;
+    const posU = result.find((n) => n.id === "unknown1")!.position;
+    // Unknown node should appear after the backlog lane.
+    expect(posU.y).toBeGreaterThan(posB.y);
   });
 });

@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Background,
   BackgroundVariant,
@@ -37,6 +38,7 @@ import {
   type GraphEdge,
   type GraphNode,
 } from "../types";
+import { parseNodeId } from "../lib/node-id-parser";
 import { ClusterNode } from "./ClusterNode";
 import { EdgeLegend } from "./EdgeLegend";
 import { GraphNode as GraphNodeComponent } from "./GraphNode";
@@ -95,16 +97,34 @@ export function GraphCanvas() {
 
   const styledEdges = useMemo<GraphEdge[]>(() => {
     const useStraightEdges = processedEdges.length > STRAIGHT_EDGE_THRESHOLD;
-    return processedEdges.map((edge) => ({
-      ...edge,
-      data: {
-        ...(edge.data ?? {}),
-        relationshipType: edge.type,
-      },
-      type: useStraightEdges ? "straight" : undefined,
-      style: getEdgeStyle(edge.type ?? undefined),
-    }));
-  }, [processedEdges]);
+    return processedEdges.map((edge) => {
+      const baseStyle = getEdgeStyle(edge.type ?? undefined);
+      let style = baseStyle;
+
+      if (highlightState.mode !== "normal") {
+        const srcHighlighted = highlightState.highlighted.has(edge.source);
+        const tgtHighlighted = highlightState.highlighted.has(edge.target);
+        const bothHighlighted = srcHighlighted && tgtHighlighted;
+        if (highlightState.mode === "dim" && !bothHighlighted) {
+          style = { ...baseStyle, opacity: 0.15, transition: "opacity 0.2s ease" };
+        } else if (highlightState.mode === "hide" && !bothHighlighted) {
+          style = { ...baseStyle, opacity: 0, transition: "opacity 0.2s ease" };
+        } else {
+          style = { ...baseStyle, transition: "opacity 0.2s ease" };
+        }
+      }
+
+      return {
+        ...edge,
+        data: {
+          ...(edge.data ?? {}),
+          relationshipType: edge.type,
+        },
+        type: useStraightEdges ? "straight" : undefined,
+        style,
+      };
+    });
+  }, [highlightState, processedEdges]);
 
   const layoutedNodes = useMemo(() => {
     const topLevelNodes = processedNodes.filter((node) => !node.parentId);
@@ -152,8 +172,12 @@ export function GraphCanvas() {
   }, [layoutDirection, layoutMode, processedNodes, styledEdges]);
 
   const styledNodes = useMemo(() => {
+    const transition = "opacity 0.2s ease";
     if (highlightState.mode === "normal") {
-      return layoutedNodes;
+      return layoutedNodes.map((node) => ({
+        ...node,
+        style: { ...node.style, opacity: 1, transition },
+      }));
     }
 
     return layoutedNodes.map((node) => {
@@ -162,9 +186,9 @@ export function GraphCanvas() {
         return { ...node, hidden: true };
       }
       if (highlightState.mode === "dim" && !isHighlighted) {
-        return { ...node, style: { ...node.style, opacity: 0.25 } };
+        return { ...node, style: { ...node.style, opacity: 0.5, transition } };
       }
-      return node;
+      return { ...node, style: { ...node.style, opacity: 1, transition } };
     });
   }, [highlightState, layoutedNodes]);
 
@@ -218,24 +242,55 @@ export function GraphCanvas() {
   const handleNodeClick: NodeMouseHandler = useCallback(
     (_event, node) => {
       const graphNode = node as GraphNode;
-      if (node.type === "cluster") {
-        toggleTopologyCluster(node.id);
-        return;
-      }
-
       selectNode(node.id);
       setHighlightState({
         highlighted: bfsNeighborhood(graphNode.id, processedNodes, styledEdges),
         mode: "dim",
       });
     },
-    [processedNodes, selectNode, setHighlightState, styledEdges, toggleTopologyCluster],
+    [processedNodes, selectNode, setHighlightState, styledEdges],
   );
 
   const handlePaneClick = useCallback(() => {
     selectNode(null);
     setHighlightState({ highlighted: new Set(), mode: "normal" });
   }, [selectNode, setHighlightState]);
+
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const handleNodeDoubleClick: NodeMouseHandler = useCallback(
+    (_event, node) => {
+      if (node.type === "cluster") {
+        toggleTopologyCluster(node.id);
+        return;
+      }
+      const data = getGraphNodeData(node);
+      // Don't navigate for synthetic cap nodes.
+      if ("isCapNode" in data && data.isCapNode) {
+        return;
+      }
+      const parsed = parseNodeId(node.id);
+      if (!parsed) {
+        return;
+      }
+      let detailsPath: string | null = null;
+      if (parsed.entityType === "backlog" && parsed.kind && parsed.name) {
+        detailsPath = `/details/backlog/${parsed.kind}/${parsed.name}`;
+      } else if (parsed.entityType === "scenario" && parsed.name) {
+        detailsPath = `/details/scenario/${parsed.name}`;
+      } else if (parsed.entityType === "execution") {
+        detailsPath = `/details/execution/${parsed.identifier}`;
+      } else if (parsed.entityType === "initiative" && parsed.name) {
+        detailsPath = `/details/initiative/${parsed.name}`;
+      }
+      if (detailsPath) {
+        const returnTo = `/graph?${searchParams.toString()}`;
+        navigate(`${detailsPath}?returnTo=${encodeURIComponent(returnTo)}`);
+      }
+    },
+    [navigate, searchParams, toggleTopologyCluster],
+  );
 
   const handleMoveEnd = useCallback(
     (_event: MouseEvent | TouchEvent | null, viewport: Viewport) => {
@@ -258,6 +313,7 @@ export function GraphCanvas() {
         onNodesChange={onNodesChange as OnNodesChange}
         onEdgesChange={onEdgesChange as OnEdgesChange}
         onNodeClick={handleNodeClick}
+        onNodeDoubleClick={handleNodeDoubleClick}
         onPaneClick={handlePaneClick}
         onMoveEnd={handleMoveEnd}
         onInit={(instance) => {

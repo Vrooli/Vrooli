@@ -17,7 +17,12 @@ import { useGraphDataStore } from "../stores/graph-data-store";
 import type { EntityType } from "../stores/graph-data-store";
 import { getActionsForNode, type InspectorAction } from "../lib/action-registry";
 import { parseNodeId } from "../lib/node-id-parser";
-import { getGraphNodeData, getGraphNodeLabel, type GraphNode } from "../types";
+import {
+  getGraphNodeData,
+  getGraphNodeLabel,
+  isClusterNodeData,
+  type GraphNode,
+} from "../types";
 
 interface InspectorProps {
   isOpen: boolean;
@@ -27,9 +32,22 @@ interface InspectorProps {
 
 /**
  * Build a details-page path for nodes that support drill-down.
- * Returns null for entity types with no detail page.
+ * Returns null for entity types with no detail page or synthetic nodes.
  */
 function getDetailsPath(node: GraphNode): string | null {
+  const data = getGraphNodeData(node);
+
+  // Synthetic cap nodes have no detail page.
+  if ("isCapNode" in data && data.isCapNode) {
+    return null;
+  }
+
+  // Cluster nodes map to the underlying initiative.
+  if (isClusterNodeData(data) && !data.isUnassigned) {
+    const name = node.id.replace(/^initiative\//, "");
+    return name ? `/details/initiative/${name}` : null;
+  }
+
   const parsed = parseNodeId(node.id);
   if (!parsed) {
     return null;
@@ -43,6 +61,9 @@ function getDetailsPath(node: GraphNode): string | null {
   }
   if (parsed.entityType === "execution") {
     return `/details/execution/${parsed.identifier}`;
+  }
+  if (parsed.entityType === "initiative" && parsed.name) {
+    return `/details/initiative/${parsed.name}`;
   }
   return null;
 }
@@ -123,8 +144,6 @@ function InspectorContent({ node }: { node: GraphNode }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const lens = useGraphDataStore((s) => s.lens);
-  const entityType = (data.entityType as EntityType) ?? "backlog";
-  const actions = getActionsForNode(lens, entityType);
   const detailsPath = getDetailsPath(node);
 
   const handleNavigate = useCallback(
@@ -135,24 +154,69 @@ function InspectorContent({ node }: { node: GraphNode }) {
     [navigate, searchParams],
   );
 
+  // Synthetic "More items" cap node — show hint instead of actions.
+  if ("isCapNode" in data && data.isCapNode) {
+    return (
+      <div className="space-y-3" data-testid="inspector-content">
+        <div>
+          <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
+            Hidden items
+          </span>
+          <h3 className="mt-0.5 text-base font-semibold text-slate-100">
+            {data.label ?? node.id}
+          </h3>
+        </div>
+        <p className="text-xs text-slate-400">
+          Use the graph controls to filter by entity type or status to see fewer nodes, or adjust grouping to organize items into clusters.
+        </p>
+      </div>
+    );
+  }
+
+  // For cluster nodes, use initiative actions if available; otherwise fall back.
+  const entityType = isClusterNodeData(data)
+    ? ("initiative" as EntityType)
+    : ((data.entityType as EntityType) ?? "backlog");
+  const actions = getActionsForNode(lens, entityType);
+
   return (
     <div className="space-y-3" data-testid="inspector-content">
       <div>
         <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
-          {data.entityType ?? "Unknown"}
+          {isClusterNodeData(data) ? "initiative" : (data.entityType ?? "Unknown")}
         </span>
         <h3 className="mt-0.5 text-base font-semibold text-slate-100">
           {data.label ?? node.id}
         </h3>
       </div>
       <div className="flex items-center gap-2">
-        <span className="rounded-full bg-slate-700/60 px-2.5 py-0.5 text-xs text-slate-300">
-          {data.status ?? "unknown"}
-        </span>
-        {"kind" in data && typeof data.kind === "string" && (
-          <span className="rounded-full bg-cyan-500/15 px-2.5 py-0.5 text-xs text-cyan-300">
-            {data.kind}
-          </span>
+        {isClusterNodeData(data) && data.rollup ? (
+          <>
+            <span className="rounded-full bg-slate-700/60 px-2.5 py-0.5 text-xs text-slate-300">
+              {data.rollup.total} items
+            </span>
+            {data.rollup.completed > 0 && (
+              <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs text-emerald-300">
+                {data.rollup.completed} done
+              </span>
+            )}
+            {data.rollup.in_progress > 0 && (
+              <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs text-amber-300">
+                {data.rollup.in_progress} active
+              </span>
+            )}
+          </>
+        ) : (
+          <>
+            <span className="rounded-full bg-slate-700/60 px-2.5 py-0.5 text-xs text-slate-300">
+              {data.status ?? "unknown"}
+            </span>
+            {"kind" in data && typeof data.kind === "string" && (
+              <span className="rounded-full bg-cyan-500/15 px-2.5 py-0.5 text-xs text-cyan-300">
+                {data.kind}
+              </span>
+            )}
+          </>
         )}
       </div>
 
@@ -170,8 +234,8 @@ function InspectorContent({ node }: { node: GraphNode }) {
         </div>
       )}
 
-      {/* Fallback "View Details" for lenses without registered actions */}
-      {actions.length === 0 && detailsPath && (
+      {/* "View Details" shown for all nodes that have a detail page */}
+      {detailsPath && (
         <button
           type="button"
           onClick={() => handleNavigate(detailsPath)}
