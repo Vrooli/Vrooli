@@ -28,6 +28,9 @@ export { cn } from "./utils";
 // Formatting Utilities - Pure formatting functions
 export { capitalize, formatDisplayText, formatFileSize, getFileExtension, formatRelativeTime } from "./format-utils";
 
+// Dependency-Aware Sorting
+export { computeDepthMap, dependencyAwareSort, SORT_RESOLVED_STATUSES } from "./dependency-sort";
+
 // Backlog Utilities
 export { sanitizeBacklogName, parseTagsInput, tagsToInput } from "./backlog-utils";
 export {

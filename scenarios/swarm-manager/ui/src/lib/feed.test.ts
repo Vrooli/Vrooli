@@ -140,23 +140,53 @@ describe("buildFeed", () => {
     expect(names.indexOf("unblocked-p3")).toBeLessThan(names.indexOf("blocked-p1"));
   });
 
-  it("items with completed dependencies are NOT blocked", () => {
+  it("completed dependencies do not affect sort depth", () => {
     const dep = makeItem({ name: "dep", kind: "idea", status: "completed", priority: 5 });
     const item = makeItem({ name: "downstream", kind: "fix", priority: 2, dependsOn: ["idea/dep"] });
     const other = makeItem({ name: "other", kind: "fix", priority: 2 });
     // Include finished so dep shows up
     const feed = buildFeed([], [dep, item, other], [], [], { showFinished: true });
     const names = itemNames(feed);
-    // Both should be at the same priority level (not penalized)
+    // Both downstream and other at depth 0 (dep is resolved), so sort by priority
     expect(names.indexOf("downstream")).toBeLessThan(names.indexOf("dep"));
     expect(names.indexOf("other")).toBeLessThan(names.indexOf("dep"));
   });
 
-  it("items with ready dependencies are NOT blocked", () => {
+  it("items with ready dependencies sort below them", () => {
     const dep = makeItem({ name: "dep", kind: "idea", status: "ready", priority: 5 });
     const item = makeItem({ name: "downstream", kind: "fix", priority: 1, dependsOn: ["idea/dep"] });
     const feed = buildFeed([], [dep, item], [], []);
-    // downstream has priority 1, dep has 5 — downstream should be first since dep is ready
+    // dep is incomplete (ready ≠ completed/archived), so downstream sorts below it
+    expect(itemNames(feed)).toEqual(["dep", "downstream"]);
+  });
+
+  it("items with in_progress dependencies sort below them", () => {
+    const dep = makeItem({ name: "dep", kind: "idea", status: "in_progress", priority: 3 });
+    const item = makeItem({ name: "downstream", kind: "fix", priority: 1, dependsOn: ["idea/dep"] });
+    const feed = buildFeed([], [dep, item], [], []);
+    expect(itemNames(feed)).toEqual(["dep", "downstream"]);
+  });
+
+  it("items with failed dependencies sort below them", () => {
+    const dep = makeItem({ name: "dep", kind: "idea", status: "failed", priority: 3 });
+    const item = makeItem({ name: "downstream", kind: "fix", priority: 1, dependsOn: ["idea/dep"] });
+    const feed = buildFeed([], [dep, item], [], []);
+    expect(itemNames(feed)).toEqual(["dep", "downstream"]);
+  });
+
+  it("multi-level chain sorts in dependency order", () => {
+    const c = makeItem({ name: "c", kind: "fix", status: "backlog", priority: 3 });
+    const b = makeItem({ name: "b", kind: "fix", status: "backlog", priority: 2, dependsOn: ["fix/c"] });
+    const a = makeItem({ name: "a", kind: "fix", status: "backlog", priority: 1, dependsOn: ["fix/b"] });
+    const feed = buildFeed([], [a, b, c], [], []);
+    expect(itemNames(feed)).toEqual(["c", "b", "a"]);
+  });
+
+  it("completed dep does not push dependent down", () => {
+    const dep = makeItem({ name: "dep", kind: "idea", status: "completed", priority: 5 });
+    const item = makeItem({ name: "downstream", kind: "fix", priority: 1, dependsOn: ["idea/dep"] });
+    const feed = buildFeed([], [dep, item], [], [], { showFinished: true });
+    // Both at depth 0 — downstream(p1) sorts before dep(p5)
     expect(itemNames(feed)).toEqual(["downstream", "dep"]);
   });
 
@@ -177,7 +207,7 @@ describe("buildFeed", () => {
     const blockedP2 = makeItem({ name: "blocked-p2", kind: "fix", priority: 2, dependsOn: ["idea/dep"], updated: "2026-03-20T00:00:00Z" });
     const feed = buildFeed([], [dep, blockedP2, blockedP1], [], []);
     const names = itemNames(feed);
-    // dep is unblocked (P5), then blocked-p1 (P1+penalty), then blocked-p2 (P2+penalty)
+    // dep at depth 0, then blocked-p1 and blocked-p2 at depth 1 — sorted by priority within depth
     expect(names.indexOf("blocked-p1")).toBeLessThan(names.indexOf("blocked-p2"));
   });
 

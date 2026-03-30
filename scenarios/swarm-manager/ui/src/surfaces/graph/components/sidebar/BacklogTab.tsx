@@ -12,6 +12,7 @@ import { useAgentActivitiesStore, useBacklogStore } from "../../../../stores";
 import { useDetailSelectionStore } from "../../../../stores/detail-selection-store";
 import { backlogService } from "../../../../services";
 import { getItemActions } from "../../../../lib";
+import { dependencyAwareSort } from "../../../../lib/dependency-sort";
 import { buildReadinessData } from "../../../../lib/maturity";
 import { getAttentionReasons } from "../../../../lib/feed";
 import { buildBacklogNodeId } from "../../lib/node-id-parser";
@@ -44,11 +45,9 @@ function applyFilters(items: BacklogItem[], filters: BacklogFilters): BacklogIte
   });
 }
 
-function applySort(items: BacklogItem[], sort: SortConfig): BacklogItem[] {
-  const sorted = [...items];
+function applySort(items: BacklogItem[], sort: SortConfig, allItems: BacklogItem[]): BacklogItem[] {
   const dir = sort.direction === "asc" ? 1 : -1;
-
-  sorted.sort((a, b) => {
+  const compareFn = (a: BacklogItem, b: BacklogItem): number => {
     switch (sort.field) {
       case "priority":
         return (a.priority - b.priority) * dir;
@@ -57,11 +56,12 @@ function applySort(items: BacklogItem[], sort: SortConfig): BacklogItem[] {
       case "status":
         return a.status.localeCompare(b.status) * dir;
       case "alphabetical":
-        return (a.title || a.name).localeCompare(b.title || b.name) * dir;
+        return ((a.title || a.name).localeCompare(b.title || b.name)) * dir;
     }
-  });
-
-  return sorted;
+  };
+  // Dependency-aware sort: deps always appear before dependents.
+  // allItems provides the full list for depth resolution when items is filtered.
+  return dependencyAwareSort(items, compareFn, allItems);
 }
 
 function hasActiveFilters(filters: BacklogFilters): boolean {
@@ -221,7 +221,7 @@ export function BacklogTab({ searchQuery, filters, sort, onItemClick }: BacklogT
       matchesSearch(searchQuery, item.title, item.name, item.description, ...(item.tags ?? [])),
     );
   }
-  const sorted = applySort(filtered, sort);
+  const sorted = applySort(filtered, sort, items);
 
   if (sorted.length === 0) {
     return (

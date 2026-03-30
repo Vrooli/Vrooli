@@ -4,12 +4,16 @@
  * Merges captures and backlog items into a single prioritized feed.
  * Captures appear at top, attention items (needing user input) are boosted,
  * and normal items follow their standard priority ordering.
- * Items blocked by incomplete dependencies are demoted below actionable items.
+ *
+ * Dependencies are respected via topological-depth sorting: items whose
+ * dependencies are still incomplete always appear below those dependencies.
+ * See `dependency-sort.ts` for the sort-blocking vs queue-blocking distinction.
  *
  * DOC: docs/concepts/ARCHITECTURE.md#unified-feed
  */
 
 import type { BacklogItem, BacklogStatus, Capture } from "../types";
+import { dependencyAwareSort } from "./dependency-sort";
 
 export type AttentionReason =
   | { kind: "pending-decisions"; count: number }
@@ -32,20 +36,6 @@ export interface MaturityItem {
   name: string;
   ready: boolean;
   pendingItems: number;
-}
-
-/** Statuses that mean a dependency is not yet planned — blocking downstream items. */
-const BLOCKING_DEP_STATUSES = new Set<BacklogStatus>(["backlog", "researching"]);
-
-/**
- * Check whether a backlog item is blocked by any of its dependencies.
- */
-function isBlockedByDeps(item: BacklogItem, itemsByKey: Map<string, BacklogItem>): boolean {
-  if (!item.dependsOn || item.dependsOn.length === 0) return false;
-  return item.dependsOn.some((dep) => {
-    const depItem = itemsByKey.get(dep);
-    return depItem && BLOCKING_DEP_STATUSES.has(depItem.status);
-  });
 }
 
 /**
@@ -78,28 +68,20 @@ export function getAttentionReasons(
   return reasons;
 }
 
-/** Priority penalty applied to items blocked by incomplete dependencies. */
-const BLOCKED_PENALTY = 100;
-
 /**
  * Compute a numeric priority for sorting. Lower = higher in the feed.
- * Blocked items receive a large penalty so actionable items always appear first.
+ * Used as the tiebreaker within the same dependency depth.
  */
-function computeFeedPriority(entry: FeedItem, blockedKeys: Set<string>): number {
-  let base: number;
+function computeFeedPriority(entry: FeedItem): number {
   switch (entry.type) {
     case "capture":
       return entry.capture.status === "classifying" ? -2 :
              entry.capture.status === "failed" ? -1 : 0;
     case "attention":
-      base = Math.max(entry.item.priority - 2, 0);
-      break;
+      return Math.max(entry.item.priority - 2, 0);
     case "backlog":
-      base = entry.item.priority;
-      break;
+      return entry.item.priority;
   }
-  const key = `${entry.item.kind}/${entry.item.name}`;
-  return blockedKeys.has(key) ? base + BLOCKED_PENALTY : base;
 }
 
 /**
@@ -116,10 +98,17 @@ function getSortTimestamp(entry: FeedItem): number {
 }
 
 /** Statuses excluded from the feed by default (hidden unless showFinished is true). */
-const FINISHED_STATUSES = new Set(["archived"]);
+const FINISHED_STATUSES = new Set<BacklogStatus>(["archived"]);
 
 /**
  * Build the unified action feed from captures and backlog items.
+ *
+ * Sorting strategy:
+ * 1. Captures always appear first (sorted among themselves by capture priority).
+ * 2. Backlog items are sorted with dependency-aware ordering: items whose
+ *    dependencies are incomplete sort below those dependencies.
+ * 3. Within the same dependency depth, items sort by feed priority (attention
+ *    items boosted) then by recency.
  */
 export function buildFeed(
   captures: Capture[],
@@ -138,47 +127,50 @@ export function buildFeed(
     maturityMap.set(`${item.kind}/${item.name}`, item);
   }
 
-  // Build a lookup for dependency blocking.
-  const itemsByKey = new Map<string, BacklogItem>();
-  for (const item of backlogItems) {
-    itemsByKey.set(`${item.kind}/${item.name}`, item);
-  }
+  // Sort captures by their own priority (classifying > failed > normal).
+  const captureFeed: FeedItem[] = captures.map((c) => ({ type: "capture" as const, capture: c }));
+  captureFeed.sort((a, b) => computeFeedPriority(a) - computeFeedPriority(b));
 
-  const blockedKeys = new Set<string>();
-  for (const item of backlogItems) {
-    if (isBlockedByDeps(item, itemsByKey)) {
-      blockedKeys.add(`${item.kind}/${item.name}`);
-    }
-  }
-
-  const feed: FeedItem[] = [];
-
-  // Add captures.
-  for (const capture of captures) {
-    feed.push({ type: "capture", capture });
-  }
-
-  // Add backlog items, classifying as attention or normal.
-  // Exclude finished items (completed/failed/archived) unless explicitly requested.
+  // Classify backlog items as attention or normal.
   const includeFinished = options?.showFinished ?? false;
+  const backlogFeed: FeedItem[] = [];
   for (const item of backlogItems) {
     if (!includeFinished && FINISHED_STATUSES.has(item.status)) continue;
     const reasons = getAttentionReasons(item, feedbackMap, maturityMap);
     if (reasons.length > 0) {
-      feed.push({ type: "attention", item, reasons });
+      backlogFeed.push({ type: "attention", item, reasons });
     } else {
-      feed.push({ type: "backlog", item });
+      backlogFeed.push({ type: "backlog", item });
     }
   }
 
-  // Sort by feed priority (ascending), then by timestamp (descending for recency).
-  feed.sort((a, b) => {
-    const priorityDiff = computeFeedPriority(a, blockedKeys) - computeFeedPriority(b, blockedKeys);
-    if (priorityDiff !== 0) return priorityDiff;
-    return getSortTimestamp(b) - getSortTimestamp(a);
-  });
+  // Build a map from item key to FeedItem for reconstruction after sorting.
+  const feedByKey = new Map<string, FeedItem>();
+  const backlogSubset: BacklogItem[] = [];
+  for (const entry of backlogFeed) {
+    const item = entry.type === "attention" ? entry.item : entry.item;
+    const key = `${item.kind}/${item.name}`;
+    feedByKey.set(key, entry);
+    backlogSubset.push(item);
+  }
 
-  return feed;
+  // Sort with dependency awareness, using feed priority + recency as tiebreaker.
+  const sortedBacklog = dependencyAwareSort(
+    backlogSubset,
+    (a, b) => {
+      const fa = feedByKey.get(`${a.kind}/${a.name}`)!;
+      const fb = feedByKey.get(`${b.kind}/${b.name}`)!;
+      const pd = computeFeedPriority(fa) - computeFeedPriority(fb);
+      if (pd !== 0) return pd;
+      return getSortTimestamp(fb) - getSortTimestamp(fa);
+    },
+    backlogItems, // full list for depth resolution (includes archived items)
+  );
+
+  return [
+    ...captureFeed,
+    ...sortedBacklog.map((item) => feedByKey.get(`${item.kind}/${item.name}`)!),
+  ];
 }
 
 /**

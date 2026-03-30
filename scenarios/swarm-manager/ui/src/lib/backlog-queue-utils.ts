@@ -59,7 +59,15 @@ export const getBacklogNotQueueableReason = (item: QueueableBacklogItem): string
 // Dependency blocking
 // ---------------------------------------------------------------------------
 
-/** Statuses that indicate a dependency is not yet planned/ready — blocking downstream items. */
+/**
+ * Statuses that indicate a dependency is not yet planned/ready — blocking downstream
+ * items from being *queued*. This is intentionally narrow: you CAN workshop an item
+ * whose dependency is `ready`, so only `backlog` and `researching` block queueing.
+ *
+ * For *display ordering* (sort-blocking), see `dependency-sort.ts` which uses a
+ * broader definition: any dependency not `completed`/`archived` pushes the dependent
+ * below it in sorted views.
+ */
 const BLOCKING_DEP_STATUSES = new Set<BacklogStatus>(["backlog", "researching"]);
 
 /**

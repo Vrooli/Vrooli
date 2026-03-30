@@ -35,6 +35,7 @@ import { BACKLOG_STATUS_LEGEND_ITEMS } from "../components/ui/status-legend.cons
 import { WelcomeHint } from "../components/ui/welcome-hint";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { getItemActions, hasBlockingDeps, isBacklogQueueable } from "../lib";
+import { dependencyAwareSort } from "../lib/dependency-sort";
 import { buildReadinessData } from "../lib/maturity";
 import type { ReadinessIndicatorData } from "../lib/maturity";
 import { backlogService } from "../services";
@@ -456,31 +457,27 @@ export function BacklogPage() {
   }, [kindItems, searchTerm, statusFilter, showFinished]);
 
   const sortedItems = useMemo(() => {
-    const sorted = [...filteredItems];
-    switch (sortField) {
-      case "priority":
-        sorted.sort((a, b) =>
-          a.priority !== b.priority
+    const compareFn = (a: BacklogItem, b: BacklogItem): number => {
+      switch (sortField) {
+        case "priority":
+          return a.priority !== b.priority
             ? a.priority - b.priority
-            : new Date(b.updated).getTime() - new Date(a.updated).getTime()
-        );
-        break;
-      case "updated":
-        sorted.sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
-        break;
-      case "status":
-        sorted.sort((a, b) =>
-          STATUS_SORT_ORDER[a.status] !== STATUS_SORT_ORDER[b.status]
+            : new Date(b.updated).getTime() - new Date(a.updated).getTime();
+        case "updated":
+          return new Date(b.updated).getTime() - new Date(a.updated).getTime();
+        case "status":
+          return STATUS_SORT_ORDER[a.status] !== STATUS_SORT_ORDER[b.status]
             ? STATUS_SORT_ORDER[a.status] - STATUS_SORT_ORDER[b.status]
-            : a.priority - b.priority
-        );
-        break;
-      case "title":
-        sorted.sort((a, b) => a.title.localeCompare(b.title));
-        break;
-    }
-    return sorted;
-  }, [filteredItems, sortField]);
+            : a.priority - b.priority;
+        case "title":
+          return a.title.localeCompare(b.title);
+      }
+    };
+    // Dependency-aware sort: items with incomplete deps sort below their deps.
+    // `items` (full unfiltered list) is passed so depth computation sees deps
+    // that may be excluded by the current filter.
+    return dependencyAwareSort(filteredItems, compareFn, items);
+  }, [filteredItems, sortField, items]);
 
   const stats = useMemo(() => {
     const finishedCount = kindItems.filter((item) => FINISHED_STATUSES.includes(item.status)).length;
