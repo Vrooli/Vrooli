@@ -11,7 +11,6 @@ type Status string
 
 const (
 	StatusPending     Status = "pending"
-	StatusScheduled   Status = "scheduled"
 	StatusStarting    Status = "starting"
 	StatusRunning     Status = "running"
 	StatusNeedsReview Status = "needs_review"
@@ -26,15 +25,14 @@ const (
 type Mode string
 
 const (
-	ModeManual    Mode = "manual"
-	ModeScheduled Mode = "scheduled"
-	ModeYOLO      Mode = "yolo"
+	ModeManual Mode = "manual"
+	ModeYOLO   Mode = "yolo"
 )
 
 // ValidateMode returns true if m is a known execution mode.
 func ValidateMode(m Mode) bool {
 	switch m {
-	case ModeManual, ModeScheduled, ModeYOLO:
+	case ModeManual, ModeYOLO:
 		return true
 	default:
 		return false
@@ -60,7 +58,6 @@ type Record struct {
 	RunID             string          `json:"run_id,omitempty"`
 	Status            Status          `json:"status"`
 	Mode              Mode            `json:"mode"`
-	ScheduledAt       string          `json:"scheduled_at,omitempty"`
 	StartedAt         string          `json:"started_at,omitempty"`
 	FinishedAt        string          `json:"finished_at,omitempty"`
 	FailureReason     string          `json:"failure_reason,omitempty"`
@@ -130,21 +127,19 @@ type ProcessBlockingQuestion struct {
 
 // CreateRequest creates an execution record.
 type CreateRequest struct {
-	BacklogKind  string `json:"backlog_kind"`
-	BacklogName  string `json:"backlog_name"`
-	Mode         Mode   `json:"mode"`
-	DelaySeconds int64  `json:"delay_seconds,omitempty"`
-	StartedBy    string `json:"started_by,omitempty"`
-	Operation    string `json:"operation,omitempty"`
-	Force        bool   `json:"force,omitempty"`
+	BacklogKind string `json:"backlog_kind"`
+	BacklogName string `json:"backlog_name"`
+	Mode        Mode   `json:"mode"`
+	StartedBy   string `json:"started_by,omitempty"`
+	Operation   string `json:"operation,omitempty"`
+	Force       bool   `json:"force,omitempty"`
 }
 
 // Policy controls default execution behavior when callers do not provide mode/delay.
 type Policy struct {
-	DefaultMode         Mode  `json:"default_mode"`
-	DefaultDelaySeconds int64 `json:"default_delay_seconds"`
-	MaxFixupAttempts    int   `json:"max_fixup_attempts"`
-	AutoFixup           bool  `json:"auto_fixup"`
+	DefaultMode      Mode `json:"default_mode"`
+	MaxFixupAttempts int  `json:"max_fixup_attempts"`
+	AutoFixup        bool `json:"auto_fixup"`
 }
 
 // FollowUpRequest describes a user-initiated follow-up from a completed/failed execution.

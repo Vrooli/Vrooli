@@ -31,10 +31,9 @@ type Settings struct {
 	Theme string `json:"theme"`
 
 	// Execution defaults.
-	DefaultMode         string `json:"default_mode"`
-	DefaultDelaySeconds int64  `json:"default_delay_seconds"`
-	AutoFixup           bool   `json:"auto_fixup"`
-	MaxFixupAttempts    int    `json:"max_fixup_attempts"`
+	DefaultMode      string `json:"default_mode"`
+	AutoFixup        bool   `json:"auto_fixup"`
+	MaxFixupAttempts int    `json:"max_fixup_attempts"`
 
 	// Workshop.
 	MaxAutoRounds          int  `json:"max_auto_rounds"`
@@ -65,10 +64,9 @@ type Settings struct {
 type SettingsPatch struct {
 	Theme *string `json:"theme,omitempty"`
 
-	DefaultMode         *string `json:"default_mode,omitempty"`
-	DefaultDelaySeconds *int64  `json:"default_delay_seconds,omitempty"`
-	AutoFixup           *bool   `json:"auto_fixup,omitempty"`
-	MaxFixupAttempts    *int    `json:"max_fixup_attempts,omitempty"`
+	DefaultMode      *string `json:"default_mode,omitempty"`
+	AutoFixup        *bool   `json:"auto_fixup,omitempty"`
+	MaxFixupAttempts *int    `json:"max_fixup_attempts,omitempty"`
 
 	MaxAutoRounds          *int  `json:"max_auto_rounds,omitempty"`
 	AutoInitializeWorkshop *bool `json:"auto_initialize_workshop,omitempty"`
@@ -118,8 +116,7 @@ func StoreForPath(path string) *Store {
 func DefaultSettings() Settings {
 	return Settings{
 		Theme:                     "dark",
-		DefaultMode:               "manual",
-		DefaultDelaySeconds:       300,
+		DefaultMode:               "yolo",
 		AutoFixup:                 false,
 		MaxFixupAttempts:          2,
 		MaxAutoRounds:             10,
@@ -210,13 +207,10 @@ func normalizeSettings(settings Settings) Settings {
 	// Execution defaults.
 	mode := strings.TrimSpace(settings.DefaultMode)
 	switch mode {
-	case "manual", "scheduled", "yolo":
+	case "manual", "yolo":
 		settings.DefaultMode = mode
 	default:
-		settings.DefaultMode = "manual"
-	}
-	if settings.DefaultDelaySeconds < 0 {
-		settings.DefaultDelaySeconds = 0
+		settings.DefaultMode = "yolo"
 	}
 	settings.MaxFixupAttempts = clampInt(settings.MaxFixupAttempts, 0, 5)
 
@@ -252,7 +246,7 @@ func validateSettings(settings Settings) error {
 		return errInvalidTheme
 	}
 	switch settings.DefaultMode {
-	case "manual", "scheduled", "yolo":
+	case "manual", "yolo":
 		// ok
 	default:
 		return errInvalidMode
@@ -349,9 +343,6 @@ func applyPatch(current Settings, patch SettingsPatch) Settings {
 	if patch.DefaultMode != nil {
 		current.DefaultMode = strings.TrimSpace(*patch.DefaultMode)
 	}
-	if patch.DefaultDelaySeconds != nil {
-		current.DefaultDelaySeconds = *patch.DefaultDelaySeconds
-	}
 	if patch.AutoFixup != nil {
 		current.AutoFixup = *patch.AutoFixup
 	}
@@ -413,7 +404,6 @@ func settingsToProto(s Settings) *domainpb.Settings {
 	return &domainpb.Settings{
 		Theme:                       s.Theme,
 		DefaultMode:                 s.DefaultMode,
-		DefaultDelaySeconds:         s.DefaultDelaySeconds,
 		AutoFixup:                   s.AutoFixup,
 		MaxFixupAttempts:            int32(s.MaxFixupAttempts),
 		MaxAutoRounds:               int32(s.MaxAutoRounds),
@@ -446,10 +436,6 @@ func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
 	if req.DefaultMode != nil {
 		s := *req.DefaultMode
 		patch.DefaultMode = &s
-	}
-	if req.DefaultDelaySeconds != nil {
-		v := *req.DefaultDelaySeconds
-		patch.DefaultDelaySeconds = &v
 	}
 	if req.AutoFixup != nil {
 		v := *req.AutoFixup
@@ -532,7 +518,6 @@ func isEmptyUpdateSettingsRequest(req *apipb.UpdateSettingsRequest) bool {
 	}
 	return req.Theme == nil &&
 		req.DefaultMode == nil &&
-		req.DefaultDelaySeconds == nil &&
 		req.AutoFixup == nil &&
 		req.MaxFixupAttempts == nil &&
 		req.MaxAutoRounds == nil &&

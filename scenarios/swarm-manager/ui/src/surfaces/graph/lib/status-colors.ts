@@ -79,7 +79,6 @@ const STATUS_TO_GROUP: Record<string, StatusGroup> = {
   validating: "active",
   // Waiting
   queued: "waiting",
-  scheduled: "waiting",
   needs_review: "waiting",
   needs_fixup: "waiting",
   needs_review_run: "waiting",

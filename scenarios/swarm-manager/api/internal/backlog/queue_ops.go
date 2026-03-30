@@ -137,7 +137,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 	if pbReq.GetMode() != "" {
 		mode = execution.Mode(strings.ToLower(strings.TrimSpace(pbReq.GetMode())))
 		if !execution.ValidateMode(mode) {
-			httputil.BadRequest(w, "[backlog] queue", fmt.Sprintf("invalid execution mode %q: must be manual, scheduled, or yolo", mode))
+			httputil.BadRequest(w, "[backlog] queue", fmt.Sprintf("invalid execution mode %q: must be manual or yolo", mode))
 			return
 		}
 	}
@@ -233,13 +233,12 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	record, err := executionService.QueueBacklog(r.Context(), execution.CreateRequest{
-		BacklogKind:  string(kind),
-		BacklogName:  name,
-		Mode:         mode,
-		DelaySeconds: pbReq.GetDelaySeconds(),
-		StartedBy:    startedBy,
-		Operation:    operation,
-		Force:        force,
+		BacklogKind: string(kind),
+		BacklogName: name,
+		Mode:        mode,
+		StartedBy:   startedBy,
+		Operation:   operation,
+		Force:       force,
 	})
 	if err != nil {
 		if errors.Is(err, agentmanager.ErrNotAvailable) {

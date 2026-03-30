@@ -72,10 +72,9 @@ type defaultPolicyProvider struct{}
 
 func (d *defaultPolicyProvider) LoadPolicy() (Policy, error) {
 	return Policy{
-		DefaultMode:         ModeManual,
-		DefaultDelaySeconds: 300,
-		MaxFixupAttempts:    2,
-		AutoFixup:           false,
+		DefaultMode:      ModeYOLO,
+		MaxFixupAttempts: 2,
+		AutoFixup:        false,
 	}, nil
 }
 
@@ -267,10 +266,7 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 		mode = policy.DefaultMode
 	}
 	if mode == "" {
-		return Record{}, fmt.Errorf("mode must be manual, scheduled, or yolo")
-	}
-	if err := validateModeDelayInputs(mode, req.DelaySeconds); err != nil {
-		return Record{}, err
+		return Record{}, fmt.Errorf("mode must be manual or yolo")
 	}
 
 	item, err := s.loadBacklogItem(req.BacklogKind, req.BacklogName)
@@ -310,17 +306,6 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 	if record.Operation == "" {
 		record.Operation = "generator"
 	}
-
-	delaySeconds := req.DelaySeconds
-	if mode == ModeScheduled && delaySeconds == 0 {
-		delaySeconds = policy.DefaultDelaySeconds
-	}
-	if mode == ModeScheduled && delaySeconds <= 0 {
-		return Record{}, fmt.Errorf("scheduled mode requires delay_seconds > 0 (or policy default > 0)")
-	}
-	scheduledAt, status := plannedSchedule(mode, delaySeconds)
-	record.Status = status
-	record.ScheduledAt = scheduledAt
 
 	if err := s.updateBacklogStatus(item, "queued"); err != nil {
 		return Record{}, err
@@ -463,7 +448,7 @@ func (s *Service) Policy(_ context.Context) (Policy, error) {
 	return s.policyProvider.LoadPolicy()
 }
 
-// Start starts a pending/scheduled/failed execution now.
+// Start starts a pending/failed execution now.
 func (s *Service) Start(ctx context.Context, executionID string) (Record, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -561,7 +546,6 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 	record.FailureReason = ""
 	record.Status = StatusStarting
 	record.UpdatedAt = nowRFC3339()
-	record.ScheduledAt = ""
 	records[idx] = record
 	if err := s.store.Save(records); err != nil {
 		return Record{}, err
@@ -582,7 +566,7 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 	record := records[idx]
 
 	switch record.Status {
-	case StatusPending, StatusScheduled:
+	case StatusPending:
 		record.Status = StatusCanceled
 		record.UpdatedAt = nowRFC3339()
 		record.FinishedAt = nowRFC3339()
@@ -631,7 +615,7 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 		s.dispatchStatusUpdate(record)
 		return record, nil
 	default:
-		return Record{}, fmt.Errorf("only pending/scheduled/starting/running/needs_review/validating/needs_fixup executions can be canceled")
+		return Record{}, fmt.Errorf("only pending/starting/running/needs_review/validating/needs_fixup executions can be canceled")
 	}
 }
 
@@ -765,36 +749,6 @@ func (s *Service) ProcessActiveExecutions(ctx context.Context) error {
 	}
 	for _, executionID := range candidates {
 		logFinalizationError(executionID, s.processFinalization(ctx, executionID))
-	}
-	return nil
-}
-
-// ProcessScheduledStarts starts due scheduled executions.
-func (s *Service) ProcessScheduledStarts(ctx context.Context) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	records, err := s.store.Load()
-	if err != nil {
-		return err
-	}
-	now := time.Now().UTC()
-	started := false
-	for i := range records {
-		record := records[i]
-		if record.Status != StatusScheduled {
-			continue
-		}
-		dueAt, err := time.Parse(time.RFC3339, strings.TrimSpace(record.ScheduledAt))
-		if err != nil || dueAt.After(now) {
-			continue
-		}
-		if _, err := s.startLocked(ctx, record.ExecutionID); err == nil {
-			started = true
-		}
-	}
-	if started {
-		return nil
 	}
 	return nil
 }
@@ -1245,8 +1199,6 @@ func normalizeMode(mode Mode) Mode {
 	switch Mode(strings.ToLower(strings.TrimSpace(string(mode)))) {
 	case ModeManual:
 		return ModeManual
-	case ModeScheduled:
-		return ModeScheduled
 	case ModeYOLO:
 		return ModeYOLO
 	default:
@@ -1262,31 +1214,6 @@ func normalizeOperation(operation string) string {
 		return "improver"
 	default:
 		return "generator"
-	}
-}
-
-func validateModeDelayInputs(mode Mode, delaySeconds int64) error {
-	if delaySeconds < 0 {
-		return fmt.Errorf("delay_seconds must be >= 0")
-	}
-	if mode != ModeScheduled && delaySeconds > 0 {
-		return fmt.Errorf("delay_seconds is only supported for scheduled mode")
-	}
-	return nil
-}
-
-func plannedSchedule(mode Mode, delaySeconds int64) (string, Status) {
-	switch mode {
-	case ModeScheduled:
-		delay := time.Duration(delaySeconds) * time.Second
-		if delay < 0 {
-			delay = 0
-		}
-		return time.Now().UTC().Add(delay).Format(time.RFC3339), StatusScheduled
-	case ModeManual:
-		return "", StatusPending
-	default:
-		return "", StatusPending
 	}
 }
 

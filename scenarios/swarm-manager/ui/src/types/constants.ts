@@ -134,7 +134,6 @@ export const INITIATIVE_STATUS_CHIP_COLORS: Record<string, string> = {
 
 export const EXECUTION_STATUSES: ExecutionStatus[] = [
   "pending",
-  "scheduled",
   "starting",
   "running",
   "needs_review",
@@ -145,14 +144,13 @@ export const EXECUTION_STATUSES: ExecutionStatus[] = [
   "canceled",
 ];
 
-export const EXECUTION_MODES: ExecutionMode[] = ["manual", "scheduled", "yolo"];
+export const EXECUTION_MODES: ExecutionMode[] = ["manual", "yolo"];
 
 /**
  * Maps execution status to tailwind background color classes.
  */
 export const EXECUTION_STATUS_COLORS: Record<ExecutionStatus, string> = {
   pending: "bg-slate-500",
-  scheduled: "bg-blue-500",
   starting: "bg-violet-500",
   running: "bg-cyan-500",
   needs_review: "bg-yellow-500",

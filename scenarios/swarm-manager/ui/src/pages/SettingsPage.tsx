@@ -341,11 +341,10 @@ export function SettingsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-medium text-slate-200">Execution Defaults</h3>
-                <p className="mt-1 text-sm text-slate-400">Default mode/delay used when queue requests omit explicit values.</p>
+                <p className="mt-1 text-sm text-slate-400">Default mode used when queue requests omit explicit values.</p>
               </div>
               <button className="text-xs text-slate-500 hover:text-slate-300" onClick={() => patch({
                 defaultMode: DEFAULT_SETTINGS.defaultMode,
-                defaultDelaySeconds: DEFAULT_SETTINGS.defaultDelaySeconds,
                 autoFixup: DEFAULT_SETTINGS.autoFixup,
                 maxFixupAttempts: DEFAULT_SETTINGS.maxFixupAttempts,
               })}>Reset</button>
@@ -357,20 +356,9 @@ export function SettingsPage() {
                   value={form.defaultMode}
                   options={[
                     { value: "manual" as const, label: "manual" },
-                    { value: "scheduled" as const, label: "scheduled" },
                     { value: "yolo" as const, label: "yolo" },
                   ]}
                   onChange={(v) => patch({ defaultMode: v })}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300">Default Schedule Delay (seconds)</label>
-                <Input
-                  type="number"
-                  min={0}
-                  className="mt-1"
-                  value={form.defaultDelaySeconds}
-                  onChange={(e) => patch({ defaultDelaySeconds: Math.max(0, Number(e.target.value || 0)) })}
                 />
               </div>
               <div className="border-t border-white/5 pt-4">

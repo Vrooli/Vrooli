@@ -172,9 +172,8 @@ message QueueBacklogItemRequest {
   // Optional operation hint for idea processing.
   optional string operation = 1 [(buf.validate.field).string = { in: ["generator", "improver"] }];
   // Execution mode override (defaults to policy default).
-  optional string mode = 2 [(buf.validate.field).string = { in: ["manual", "scheduled", "yolo"] }];
-  // Delay in seconds before scheduled start (mode=scheduled).
-  optional int64 delay_seconds = 3 [(buf.validate.field).int64.gte = 0];
+  optional string mode = 2 [(buf.validate.field).string = { in: ["manual", "yolo"] }];
+  reserved 3;
   // Human or agent identifier that initiated the queue action.
   optional string started_by = 4;
   // Explicit confirmation to execute queue mutation. If false or unset, request

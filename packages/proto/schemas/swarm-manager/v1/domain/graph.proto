@@ -88,7 +88,6 @@ message GraphExecutionNodeData {
   string backlog_name = 3 [(buf.validate.field).string.min_len = 1];
   string status = 4 [(buf.validate.field).string = { in: [
     "pending",
-    "scheduled",
     "starting",
     "running",
     "needs_review",
@@ -98,7 +97,7 @@ message GraphExecutionNodeData {
     "failed",
     "canceled"
   ] }];
-  string mode = 5 [(buf.validate.field).string = { in: ["manual", "scheduled", "yolo"] }];
+  string mode = 5 [(buf.validate.field).string = { in: ["manual", "yolo"] }];
   optional string run_id = 6;
 }
 

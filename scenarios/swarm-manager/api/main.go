@@ -152,10 +152,9 @@ func (a *settingsPolicyAdapter) LoadPolicy() (execution.Policy, error) {
 		return execution.Policy{}, err
 	}
 	return execution.Policy{
-		DefaultMode:         execution.Mode(s.DefaultMode),
-		DefaultDelaySeconds: s.DefaultDelaySeconds,
-		AutoFixup:           s.AutoFixup,
-		MaxFixupAttempts:    s.MaxFixupAttempts,
+		DefaultMode:      execution.Mode(s.DefaultMode),
+		AutoFixup:        s.AutoFixup,
+		MaxFixupAttempts: s.MaxFixupAttempts,
 	}, nil
 }
 
@@ -643,7 +642,7 @@ func main() {
 	log.Printf("Running in filesystem-only mode")
 	srv := NewServer()
 	if srv.executionHandler != nil {
-		go srv.executionHandler.StartScheduler(srv.executionStopChan)
+		go srv.executionHandler.StartBackgroundWorker(srv.executionStopChan)
 	}
 
 	if srv.agentSvc != nil && srv.agentSvc.IsEnabled() {

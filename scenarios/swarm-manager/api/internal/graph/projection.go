@@ -106,8 +106,7 @@ func computeInitiativeRollup(items []string, itemByKey map[string]backlog.Backlo
 // Higher values are shown when multiple executions are active.
 var executionStatusPriority = map[execution.Status]int{
 	execution.StatusPending:     1,
-	execution.StatusScheduled:   2,
-	execution.StatusStarting:    3,
+	execution.StatusStarting:    2,
 	execution.StatusNeedsFixup:  4,
 	execution.StatusValidating:  5,
 	execution.StatusNeedsReview: 6,
@@ -355,7 +354,6 @@ func (p *ProjectionService) buildTopology(ctx context.Context) (GraphResponse, e
 // activeExecutionStatuses are statuses considered "active" for flow/operations lenses.
 var activeExecutionStatuses = map[execution.Status]bool{
 	execution.StatusPending:     true,
-	execution.StatusScheduled:   true,
 	execution.StatusStarting:    true,
 	execution.StatusRunning:     true,
 	execution.StatusNeedsReview: true,

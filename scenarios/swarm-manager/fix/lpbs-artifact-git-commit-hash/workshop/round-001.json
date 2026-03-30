@@ -1,0 +1,115 @@
+{
+  "round": 1,
+  "generated_at": "2026-03-30T19:15:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 2,
+    "risk_awareness": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Provenance threading approach in scenario-to-desktop",
+      "context": "The deploy stage needs access to BuildProvenance.GitCommitHash to pass it to proxyCommit. Currently, provenance is stored in StageInput.Provenance (available in build stage) and in Status.Provenance. The deploy stage receives its own StageInput. We need to decide how the deploy stage accesses provenance.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Thread provenance through StageInput (already available)",
+          "rationale": "StageInput already carries Provenance (types.go:425). The deploy stage's StageInput should already have it populated by the orchestrator. Just access input.Provenance.GitCommitHash in the deploy stage and pass it to UploadArtifact/proxyCommit. Minimal change, follows existing patterns.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Read provenance from pipeline Status",
+          "rationale": "Status.Provenance is set at orchestrator level. Deploy stage could read it from the shared status. Adds a coupling to Status that the deploy stage doesn't currently have.",
+          "recommended": false
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": "Pre-selected: StageInput.Provenance is already populated by the orchestrator for every stage. This is the obvious path."
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Should git_commit_hash be included in the artifact's JSON response?",
+      "context": "When the commit endpoint returns the created/updated artifact, and when GET endpoints return artifact details, should git_commit_hash be included in the response body? It's already in the struct, but confirming intent for the API contract.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Yes, include in all artifact responses",
+          "rationale": "The whole point is traceability. Consumers (UI, CLI, other scenarios) should be able to see the commit hash without digging into metadata. The json tag on the struct handles this automatically.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Only include in admin/detailed responses",
+          "rationale": "Keep public-facing artifact responses slim. But this adds complexity for minimal benefit on a TEXT field.",
+          "recommended": false
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": "Pre-selected: the field is lightweight and the whole purpose of this fix is making commit hashes visible."
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "How to handle UploadRequest struct for passing git_commit_hash",
+      "context": "proxyCommit currently receives an *UploadRequest which contains AppKey, Platform, ReleaseVersion, etc. GitCommitHash needs to reach proxyCommit. Options for how to get it there.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Add GitCommitHash field to UploadRequest",
+          "rationale": "UploadRequest is the natural carrier for artifact metadata flowing into the upload pipeline. Adding one field keeps the flow clean. The deploy stage populates it from StageInput.Provenance before calling UploadArtifact.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Pass GitCommitHash as a separate parameter to proxyCommit",
+          "rationale": "Avoids modifying UploadRequest but creates an awkward signature where one piece of artifact metadata is separated from the rest.",
+          "recommended": false
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": "Pre-selected: follows the existing pattern where all artifact metadata flows through UploadRequest."
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "BuildProvenance already stores git_commit_hash in build-stage metadata (stage_build.go:225), but this is in the pipeline's transient state — not persisted to the artifact record. The fix closes this gap by writing it to a dedicated column."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "The LPBS DownloadArtifact struct uses an artifactScanTargets helper pattern (scanDest() + hydrate()). The new column must be added to BOTH the SQL column list AND the scanDest slice in the same position — ordering mismatches cause silent data corruption. This is the highest-risk part of the change."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "This plan appears ready for execution. All 3 decisions have obvious pre-selected answers following existing patterns, the scope is small (effort: S), and the implementation path is well-understood. Consider reviewing and queuing."
+    }
+  ],
+  "plan_updates": "Created full plan.md scaffold with all 13 mandatory sections. Problem statement, scope, technical context (key files with line numbers), 2-phase implementation strategy, contract decisions, testing plan, risks, and definition of done are all populated."
+}

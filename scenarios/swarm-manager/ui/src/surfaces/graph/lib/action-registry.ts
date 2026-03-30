@@ -56,7 +56,7 @@ function isTerminalExecution(node: GraphNode): boolean {
 /** Check if execution is active (can be cancelled). */
 function isActiveExecution(node: GraphNode): boolean {
   const status = getGraphNodeStatus(node);
-  return status === "pending" || status === "scheduled" || status === "starting" || status === "in_progress" || status === "running" || status === "needs_review" || status === "validating" || status === "needs_fixup";
+  return status === "pending" || status === "starting" || status === "in_progress" || status === "running" || status === "needs_review" || status === "validating" || status === "needs_fixup";
 }
 
 // ---------------------------------------------------------------------------

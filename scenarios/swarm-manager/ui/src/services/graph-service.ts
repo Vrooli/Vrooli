@@ -185,7 +185,6 @@ function mapProtoNode(raw: ProtoGraphNode): GraphNode {
           backlogName: execution.backlogName,
           status: execution.status as
             | "pending"
-            | "scheduled"
             | "starting"
             | "running"
             | "needs_review"
@@ -194,7 +193,7 @@ function mapProtoNode(raw: ProtoGraphNode): GraphNode {
             | "completed"
             | "failed"
             | "canceled",
-          mode: execution.mode as "manual" | "scheduled" | "yolo",
+          mode: execution.mode as "manual" | "yolo",
           runId: execution.runId,
         },
       };

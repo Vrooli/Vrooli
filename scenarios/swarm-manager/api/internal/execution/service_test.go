@@ -173,15 +173,12 @@ func TestQueueBacklog_UsesPolicyDefaultsWhenModeMissing(t *testing.T) {
 	})
 	mustWriteDeliverableFile(t, root, "idea", "policy-idea")
 
-	agent := &stubAgentService{}
 	service := NewService(ServiceConfig{
 		RootDir:   root,
 		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
 		PolicyProvider: &stubPolicyProvider{policy: Policy{
-			DefaultMode:         ModeScheduled,
-			DefaultDelaySeconds: 600,
+			DefaultMode: ModeManual,
 		}},
-		AgentService: agent,
 	})
 
 	record, err := service.QueueBacklog(context.Background(), CreateRequest{
@@ -192,70 +189,11 @@ func TestQueueBacklog_UsesPolicyDefaultsWhenModeMissing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("QueueBacklog error: %v", err)
 	}
-	if record.Mode != ModeScheduled {
-		t.Fatalf("expected scheduled mode from policy, got %s", record.Mode)
+	if record.Mode != ModeManual {
+		t.Fatalf("expected manual mode from policy, got %s", record.Mode)
 	}
-	if record.Status != StatusScheduled {
-		t.Fatalf("expected scheduled status, got %s", record.Status)
-	}
-	if record.ScheduledAt == "" {
-		t.Fatalf("expected scheduled_at to be populated")
-	}
-}
-
-func TestQueueBacklog_RejectsDelayForNonScheduledModes(t *testing.T) {
-	root := t.TempDir()
-	mustWriteBacklogItem(t, root, "idea", "delay-manual", map[string]any{
-		"name":        "delay-manual",
-		"title":       "Delay Manual",
-		"description": "desc",
-		"status":      "backlog",
-		"priority":    3,
-		"tags":        []string{},
-	})
-
-	service := NewService(ServiceConfig{
-		RootDir:   root,
-		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
-	})
-
-	_, err := service.QueueBacklog(context.Background(), CreateRequest{
-		BacklogKind:  "idea",
-		BacklogName:  "delay-manual",
-		Mode:         ModeManual,
-		DelaySeconds: 10,
-	})
-	if err == nil {
-		t.Fatal("expected error when delay_seconds is provided for manual mode")
-	}
-}
-
-func TestQueueBacklog_RejectsScheduledModeWithoutEffectiveDelay(t *testing.T) {
-	root := t.TempDir()
-	mustWriteBacklogItem(t, root, "idea", "scheduled-no-delay", map[string]any{
-		"name":        "scheduled-no-delay",
-		"title":       "Scheduled No Delay",
-		"description": "desc",
-		"status":      "backlog",
-		"priority":    3,
-		"tags":        []string{},
-	})
-	service := NewService(ServiceConfig{
-		RootDir:   root,
-		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PolicyProvider: &stubPolicyProvider{policy: Policy{
-			DefaultMode:         ModeScheduled,
-			DefaultDelaySeconds: 0,
-		}},
-	})
-
-	_, err := service.QueueBacklog(context.Background(), CreateRequest{
-		BacklogKind: "idea",
-		BacklogName: "scheduled-no-delay",
-		Mode:        ModeScheduled,
-	})
-	if err == nil {
-		t.Fatal("expected error for scheduled mode without effective delay")
+	if record.Status != StatusPending {
+		t.Fatalf("expected pending status, got %s", record.Status)
 	}
 }
 

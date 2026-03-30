@@ -43,7 +43,6 @@ describe("Constants - Decision Boundaries", () => {
 
   const ALL_EXECUTION_STATUSES: ExecutionStatus[] = [
     "pending",
-    "scheduled",
     "starting",
     "running",
     "needs_review",
@@ -52,7 +51,7 @@ describe("Constants - Decision Boundaries", () => {
     "canceled",
   ];
 
-  const ALL_EXECUTION_MODES: ExecutionMode[] = ["manual", "scheduled", "yolo"];
+  const ALL_EXECUTION_MODES: ExecutionMode[] = ["manual", "yolo"];
 
   describe("BACKLOG_STATUS_COLORS", () => {
     it("has a color mapping for every backlog status", () => {

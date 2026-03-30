@@ -98,7 +98,7 @@ describe("execution-utils", () => {
       expect(canFollowUpExecution("pending")).toBe(false);
       expect(canFollowUpExecution("running")).toBe(false);
       expect(canFollowUpExecution("validating")).toBe(false);
-      expect(canFollowUpExecution("scheduled")).toBe(false);
+      // "scheduled" status removed
       expect(canFollowUpExecution("starting")).toBe(false);
       expect(canFollowUpExecution("needs_review")).toBe(false);
       expect(canFollowUpExecution("canceled")).toBe(false);

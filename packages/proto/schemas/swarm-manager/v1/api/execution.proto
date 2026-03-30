@@ -22,8 +22,8 @@ message ExecutionPolicyResponse {
 message CreateExecutionRequest {
   string backlog_kind = 1 [(buf.validate.field).string.min_len = 1];
   string backlog_name = 2 [(buf.validate.field).string.min_len = 1];
-  string mode = 3 [(buf.validate.field).string = { in: ["manual", "scheduled", "yolo"] }];
-  optional int64 delay_seconds = 4 [(buf.validate.field).int64.gte = 0];
+  string mode = 3 [(buf.validate.field).string = { in: ["manual", "yolo"] }];
+  reserved 4;
   optional string started_by = 5;
   optional string operation = 6;
 }

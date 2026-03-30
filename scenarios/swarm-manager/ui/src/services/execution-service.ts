@@ -18,7 +18,6 @@ export interface CreateExecutionRequest {
   backlogKind: BacklogKind;
   backlogName: string;
   mode: ExecutionMode;
-  delaySeconds?: number;
   startedBy?: string;
   operation?: "generator" | "improver";
 }
@@ -101,7 +100,6 @@ export function createExecutionService(apiClient: IApiClient = defaultApiClient)
         backlogKind: request.backlogKind,
         backlogName: request.backlogName,
         mode: request.mode,
-        ...(request.delaySeconds !== undefined ? { delaySeconds: BigInt(request.delaySeconds) } : {}),
         ...(request.startedBy ? { startedBy: request.startedBy } : {}),
         ...(request.operation ? { operation: request.operation } : {}),
       });

@@ -33,7 +33,7 @@ func (h *Handler) SetExecutionQueuer(eq ExecutionQueuer) {
 // batchQueueRequest is the JSON request body for batch-queuing backlog items.
 type batchQueueRequest struct {
 	Items   []string `json:"items"`           // "kind/name" references
-	Mode    string   `json:"mode,omitempty"`  // execution mode (manual, yolo, scheduled)
+	Mode    string   `json:"mode,omitempty"`  // execution mode (manual, yolo)
 	Confirm bool     `json:"confirm"`         // if false, preview only
 	Force   bool     `json:"force,omitempty"` // override forceable blocking reasons
 }
@@ -83,7 +83,7 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 	if strings.TrimSpace(req.Mode) != "" {
 		mode = execution.Mode(strings.ToLower(strings.TrimSpace(req.Mode)))
 		if !execution.ValidateMode(mode) {
-			httputil.BadRequest(w, "[backlog] batch-queue", fmt.Sprintf("invalid execution mode %q: must be manual, scheduled, or yolo", mode))
+			httputil.BadRequest(w, "[backlog] batch-queue", fmt.Sprintf("invalid execution mode %q: must be manual or yolo", mode))
 			return
 		}
 	}

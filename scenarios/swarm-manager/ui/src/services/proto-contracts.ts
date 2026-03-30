@@ -426,12 +426,10 @@ export function mapSpecSyncArchiveResponse(
 }
 
 export function mapProtoSettings(protoSettings: Settings): SettingsDomain {
-  const delaySeconds = toFiniteNumber(protoSettings.defaultDelaySeconds);
   const mode = isExecutionMode(protoSettings.defaultMode) ? protoSettings.defaultMode : "manual";
   return {
     theme: normalizeThemePreference(protoSettings.theme),
     defaultMode: mode,
-    defaultDelaySeconds: delaySeconds ?? 0,
     autoFixup: protoSettings.autoFixup ?? false,
     maxFixupAttempts: protoSettings.maxFixupAttempts ?? 0,
     maxAutoRounds: protoSettings.maxAutoRounds ?? 10,
@@ -499,7 +497,6 @@ export function mapProtoExecutionRecord(proto: ProtoExecutionRecord): ExecutionR
     runId: proto.runId,
     status,
     mode,
-    scheduledAt: proto.scheduledAt,
     startedAt: proto.startedAt,
     finishedAt: proto.finishedAt,
     failureReason: proto.failureReason,

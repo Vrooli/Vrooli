@@ -225,5 +225,69 @@
       "skill_id": "swarm-manager-workshop"
     },
     "updated_at": "2026-03-30T15:07:40Z"
+  },
+  {
+    "activity_id": "12c20f13a245e447",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "desktop-release-control-plane-audit",
+    "owner_title": "Audit The Desktop Release Control Plane",
+    "execution_id": "6a71fe475cdaf470",
+    "purpose": "process",
+    "interaction_type": "spawn",
+    "task_id": "a1d8fc88-b246-4656-bbec-323a0ea96f21",
+    "run_id": "c092d7a7-d9c5-44d8-88ca-e35fdea8c09a",
+    "status": "running",
+    "requested_at": "2026-03-30T17:57:47Z",
+    "started_at": "2026-03-30T17:57:47Z",
+    "requested_by": "swarm-manager-ui",
+    "metadata": {
+      "entrypoint": "execution.start",
+      "mode": "yolo",
+      "operation": "generator"
+    },
+    "updated_at": "2026-03-30T17:57:50Z"
+  },
+  {
+    "activity_id": "5df9817aadc79455",
+    "owner_type": "backlog",
+    "owner_kind": "fix",
+    "owner_name": "lpbs-artifact-git-commit-hash",
+    "owner_title": "Add git_commit_hash field to LPBS download_artifacts table",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "d053c014-b4b4-496d-b203-96f16e1e34a6",
+    "run_id": "32668497-4a7f-41fb-b9af-c3318624ab7b",
+    "status": "running",
+    "requested_at": "2026-03-30T18:13:46Z",
+    "started_at": "2026-03-30T18:13:46Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-03-30T18:13:46Z"
+  },
+  {
+    "activity_id": "e0ec3e3f10d3afde",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "desktop-post-publish-version-sync",
+    "owner_title": "Add post-publish version sync from scenario-to-desktop to deployment-manager",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "6aaf9c15-ce4d-4629-bf23-f767da6fad12",
+    "run_id": "0c1a62aa-7189-47b7-a6d2-b31fdc10a6d1",
+    "status": "running",
+    "requested_at": "2026-03-30T18:14:00Z",
+    "started_at": "2026-03-30T18:14:00Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-03-30T18:14:00Z"
   }
 ]

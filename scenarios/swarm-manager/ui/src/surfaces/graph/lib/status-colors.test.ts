@@ -30,7 +30,7 @@ describe("getStatusColorClasses", () => {
     },
   );
 
-  it.each(["queued", "scheduled", "needs_review", "needs_fixup", "needs_review_run", "ready"])(
+  it.each(["queued", "needs_review", "needs_fixup", "needs_review_run", "ready"])(
     "returns waiting (amber) colors for %s",
     (status) => {
       const colors = getStatusColorClasses(status);

@@ -14,16 +14,16 @@ export const EXECUTION_TAB_CONFIG: ExecutionTabConfig[] = [
   {
     id: "all",
     label: "All Runs",
-    statuses: ["pending", "scheduled", "starting", "running", "needs_review", "validating", "needs_fixup", "completed", "failed", "canceled"],
+    statuses: ["pending", "starting", "running", "needs_review", "validating", "needs_fixup", "completed", "failed", "canceled"],
     emptyTitle: "No executions yet",
     emptyDescription: "Queue a backlog item to create your first execution run.",
   },
   {
     id: "pending",
     label: "Pending",
-    statuses: ["pending", "scheduled"],
+    statuses: ["pending"],
     emptyTitle: "No pending runs",
-    emptyDescription: "Newly queued and scheduled runs will appear here.",
+    emptyDescription: "Newly queued runs will appear here.",
   },
   {
     id: "running",
@@ -75,7 +75,7 @@ export const isExecutionInTab = (item: ExecutionRecord, tab: ExecutionTabId): bo
 };
 
 export const isExecutionActive = (item: ExecutionRecord): boolean =>
-  item.status === "pending" || item.status === "scheduled" || item.status === "starting" || item.status === "running" || item.status === "needs_review" || item.status === "validating";
+  item.status === "pending" || item.status === "starting" || item.status === "running" || item.status === "needs_review" || item.status === "validating";
 
 const parseDateFilter = (value: string): number | null => {
   if (!value) {
@@ -157,10 +157,10 @@ export const matchesExecutionFilters = (item: ExecutionRecord, filters: Executio
 };
 
 export const canStartExecution = (status: ExecutionStatus): boolean =>
-  status === "pending" || status === "scheduled";
+  status === "pending";
 
 export const canCancelExecution = (status: ExecutionStatus): boolean =>
-  status === "pending" || status === "scheduled" || status === "starting" || status === "running" || status === "needs_review" || status === "validating";
+  status === "pending" || status === "starting" || status === "running" || status === "needs_review" || status === "validating";
 
 export const canFollowUpExecution = (status: ExecutionStatus): boolean =>
   status === "completed" || status === "failed" || status === "needs_fixup";

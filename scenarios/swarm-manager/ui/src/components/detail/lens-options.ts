@@ -9,23 +9,23 @@ export interface LensOption {
 }
 
 export const BACKLOG_LENSES: LensOption[] = [
-  { lens: "topology", label: "View Topology", icon: Network, iconColorClass: "text-indigo-400" },
-  { lens: "flow", label: "View History", icon: History, iconColorClass: "text-cyan-400" },
-  { lens: "operations", label: "View Operations", icon: Activity, iconColorClass: "text-amber-400" },
+  { lens: "topology", label: "Topology", icon: Network, iconColorClass: "text-indigo-400" },
+  { lens: "flow", label: "History", icon: History, iconColorClass: "text-cyan-400" },
+  { lens: "operations", label: "Operations", icon: Activity, iconColorClass: "text-amber-400" },
 ];
 
 export const INITIATIVE_LENSES: LensOption[] = [
-  { lens: "topology", label: "View Topology", icon: Network, iconColorClass: "text-indigo-400" },
-  { lens: "flow", label: "View History", icon: History, iconColorClass: "text-cyan-400" },
-  { lens: "operations", label: "View Operations", icon: Activity, iconColorClass: "text-amber-400" },
+  { lens: "topology", label: "Topology", icon: Network, iconColorClass: "text-indigo-400" },
+  { lens: "flow", label: "History", icon: History, iconColorClass: "text-cyan-400" },
+  { lens: "operations", label: "Operations", icon: Activity, iconColorClass: "text-amber-400" },
 ];
 
 export const EXECUTION_LENSES: LensOption[] = [
-  { lens: "flow", label: "View History", icon: History, iconColorClass: "text-cyan-400" },
-  { lens: "operations", label: "View Operations", icon: Activity, iconColorClass: "text-amber-400" },
+  { lens: "flow", label: "History", icon: History, iconColorClass: "text-cyan-400" },
+  { lens: "operations", label: "Operations", icon: Activity, iconColorClass: "text-amber-400" },
 ];
 
 export const SCENARIO_LENSES: LensOption[] = [
-  { lens: "topology", label: "View Topology", icon: Network, iconColorClass: "text-indigo-400" },
-  { lens: "operations", label: "View Operations", icon: Activity, iconColorClass: "text-amber-400" },
+  { lens: "topology", label: "Topology", icon: Network, iconColorClass: "text-indigo-400" },
+  { lens: "operations", label: "Operations", icon: Activity, iconColorClass: "text-amber-400" },
 ];

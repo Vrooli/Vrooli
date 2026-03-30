@@ -120,8 +120,7 @@ export interface IBacklogService {
     name: string,
     options?: {
       operation?: "generator" | "improver";
-      mode?: "manual" | "scheduled" | "yolo";
-      delaySeconds?: number;
+      mode?: "manual" | "yolo";
       startedBy?: string;
       confirm?: boolean;
       force?: boolean;
@@ -344,8 +343,7 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
       name: string,
     options?: {
       operation?: "generator" | "improver";
-      mode?: "manual" | "scheduled" | "yolo";
-      delaySeconds?: number;
+      mode?: "manual" | "yolo";
       startedBy?: string;
       confirm?: boolean;
       force?: boolean;
@@ -354,7 +352,6 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
       const msg = buildMessage(QueueBacklogItemRequestSchema, {
         operation: options?.operation ?? "generator",
         mode: options?.mode ?? "yolo",
-        ...(options?.delaySeconds !== undefined ? { delaySeconds: BigInt(options.delaySeconds) } : {}),
         ...(options?.startedBy ? { startedBy: options.startedBy } : {}),
         ...(options?.confirm !== undefined ? { confirm: options.confirm } : {}),
         ...(options?.force !== undefined ? { force: options.force } : {}),

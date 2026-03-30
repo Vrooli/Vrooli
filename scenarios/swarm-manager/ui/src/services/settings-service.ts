@@ -19,7 +19,6 @@ import {
 export const DEFAULT_SETTINGS: Settings = {
   theme: "dark",
   defaultMode: "manual",
-  defaultDelaySeconds: 300,
   autoFixup: false,
   maxFixupAttempts: 2,
   autoInitializeWorkshop: true,
@@ -47,7 +46,6 @@ function normalizeSettings(input?: SettingsPatch): Settings {
   return {
     theme: input.theme ?? DEFAULT_SETTINGS.theme,
     defaultMode: input.defaultMode ?? DEFAULT_SETTINGS.defaultMode,
-    defaultDelaySeconds: input.defaultDelaySeconds ?? DEFAULT_SETTINGS.defaultDelaySeconds,
     autoFixup: input.autoFixup ?? DEFAULT_SETTINGS.autoFixup,
     maxFixupAttempts: input.maxFixupAttempts ?? DEFAULT_SETTINGS.maxFixupAttempts,
     autoInitializeWorkshop: input.autoInitializeWorkshop ?? DEFAULT_SETTINGS.autoInitializeWorkshop,
@@ -86,7 +84,6 @@ export function createSettingsService(apiClient: IApiClient = defaultApiClient):
       const message = buildMessage(UpdateSettingsRequestSchema, {
         ...(patch.theme !== undefined ? { theme: patch.theme } : {}),
         ...(patch.defaultMode !== undefined ? { defaultMode: patch.defaultMode } : {}),
-        ...(patch.defaultDelaySeconds !== undefined ? { defaultDelaySeconds: BigInt(patch.defaultDelaySeconds) } : {}),
         ...(patch.autoFixup !== undefined ? { autoFixup: patch.autoFixup } : {}),
         ...(patch.maxFixupAttempts !== undefined ? { maxFixupAttempts: patch.maxFixupAttempts } : {}),
         ...(patch.autoInitializeWorkshop !== undefined ? { autoInitializeWorkshop: patch.autoInitializeWorkshop } : {}),

@@ -25,7 +25,6 @@ const STATUS_STYLES: Record<string, string> = {
   needs_fixup: "bg-amber-400",
   validating: "bg-amber-400",
   pending: "bg-slate-400",
-  scheduled: "bg-slate-400",
   failed: "bg-red-400",
 };
 

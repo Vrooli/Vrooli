@@ -603,7 +603,6 @@ export type Settings = Omit<
   theme: ThemePreference;
   /** Execution defaults */
   defaultMode: ExecutionMode;
-  defaultDelaySeconds: number;
   autoFixup: boolean;
   maxFixupAttempts: number;
   /** Workshop */
@@ -637,9 +636,9 @@ export type ResearchResponse = ProtoMessage<ProtoBacklogResearchResponse>;
 // Execution Domain
 // ============================================================================
 
-export type ExecutionStatus = "pending" | "scheduled" | "starting" | "running" | "needs_review" | "validating" | "needs_fixup" | "completed" | "failed" | "canceled";
+export type ExecutionStatus = "pending" | "starting" | "running" | "needs_review" | "validating" | "needs_fixup" | "completed" | "failed" | "canceled";
 
-export type ExecutionMode = "manual" | "scheduled" | "yolo";
+export type ExecutionMode = "manual" | "yolo";
 
 export type ExecutionOperation = "generator" | "improver" | "fixup" | "followup" | "custom";
 

@@ -114,7 +114,7 @@ export function ExecutionDetailsPage() {
     );
   }
 
-  const isActive = ["pending", "scheduled", "starting", "in_progress", "running", "needs_review", "validating", "needs_fixup"].includes(execution.status);
+  const isActive = ["pending", "starting", "in_progress", "running", "needs_review", "validating", "needs_fixup"].includes(execution.status);
   const isTerminal = ["completed", "failed", "canceled"].includes(execution.status);
 
   // Primary action for header (at most one)

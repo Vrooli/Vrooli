@@ -91,8 +91,8 @@ const BACKLOG_STATUSES = ["backlog", "researching", "ready", "queued", "in_progr
 const BACKLOG_KINDS = ["idea", "research", "fix", "execute", "chore"] as const;
 const CAPTURE_STATUSES = ["classifying", "classified", "failed"] as const;
 const INITIATIVE_STATUSES = ["active", "completed", "archived"] as const;
-const EXECUTION_STATUSES = ["pending", "scheduled", "starting", "running", "needs_review", "validating", "needs_fixup", "completed", "failed", "canceled"] as const;
-const EXECUTION_MODES = ["manual", "scheduled", "yolo"] as const;
+const EXECUTION_STATUSES = ["pending", "starting", "running", "needs_review", "validating", "needs_fixup", "completed", "failed", "canceled"] as const;
+const EXECUTION_MODES = ["manual", "yolo"] as const;
 
 function toggleInArray<T>(arr: T[], value: T): T[] {
   return arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];

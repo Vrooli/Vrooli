@@ -37,8 +37,8 @@ message UpdateSettingsRequest {
   reserved 2, 3, 4;
 
   // Execution defaults.
-  optional string default_mode = 5 [(buf.validate.field).string = { in: ["", "manual", "scheduled", "yolo"] }];
-  optional int64 default_delay_seconds = 6;
+  optional string default_mode = 5 [(buf.validate.field).string = { in: ["", "manual", "yolo"] }];
+  reserved 6;
   optional bool auto_fixup = 7;
   optional int32 max_fixup_attempts = 8;
 

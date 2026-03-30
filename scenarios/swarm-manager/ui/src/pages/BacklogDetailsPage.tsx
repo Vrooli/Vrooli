@@ -2391,8 +2391,12 @@ export function BacklogDetailsPage() {
                 </TabsTrigger>
               </TabsList>
             </div>
-            {nodeId && <LensBar nodeId={nodeId} lenses={BACKLOG_LENSES} onDrillToLens={drillToLens} />}
-            {activeTab === "info" && mobileInfoView}
+            {activeTab === "info" && (
+              <>
+                {nodeId && <LensBar nodeId={nodeId} lenses={BACKLOG_LENSES} onDrillToLens={drillToLens} />}
+                {mobileInfoView}
+              </>
+            )}
             {activeTab === "prompt" && backlogKind && name && (
               <PlanPanel backlogKind={backlogKind as BacklogKind} backlogName={name} className="flex-1 overflow-y-auto" />
             )}
@@ -2533,10 +2537,9 @@ export function BacklogDetailsPage() {
                 </TabsTrigger>
               </TabsList>
 
-              {nodeId && <LensBar nodeId={nodeId} lenses={BACKLOG_LENSES} onDrillToLens={drillToLens} className="pt-2" />}
-
               {activeTab === "info" && (
                 <div className="space-y-6 pt-6">
+                  {nodeId && <LensBar nodeId={nodeId} lenses={BACKLOG_LENSES} onDrillToLens={drillToLens} />}
                   {activeRunBanner}
                   {detailsPanel}
                   {scenariosPanel}

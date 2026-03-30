@@ -32,8 +32,8 @@ message Settings {
   reserved 2, 3, 4;
 
   // Execution defaults (absorbed from ExecutionPolicy).
-  string default_mode = 5 [(buf.validate.field).string = { in: ["manual", "scheduled", "yolo"] }];
-  int64 default_delay_seconds = 6 [(buf.validate.field).int64.gte = 0];
+  string default_mode = 5 [(buf.validate.field).string = { in: ["manual", "yolo"] }];
+  reserved 6;
   bool auto_fixup = 7;
   int32 max_fixup_attempts = 8 [(buf.validate.field).int32 = { gte: 0, lte: 5 }];
 

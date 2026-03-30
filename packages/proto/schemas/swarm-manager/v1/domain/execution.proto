@@ -13,9 +13,9 @@ message ExecutionRecord {
   string backlog_name = 3 [(buf.validate.field).string.min_len = 1];
   optional string task_id = 4;
   optional string run_id = 5;
-  string status = 6 [(buf.validate.field).string = { in: ["pending", "scheduled", "starting", "running", "needs_review", "validating", "needs_fixup", "completed", "failed", "canceled"] }];
-  string mode = 7 [(buf.validate.field).string = { in: ["manual", "scheduled", "yolo"] }];
-  optional string scheduled_at = 8;
+  string status = 6 [(buf.validate.field).string = { in: ["pending", "starting", "running", "needs_review", "validating", "needs_fixup", "completed", "failed", "canceled"] }];
+  string mode = 7 [(buf.validate.field).string = { in: ["manual", "yolo"] }];
+  reserved 8;
   optional string started_at = 9;
   optional string finished_at = 10;
   optional string failure_reason = 11;
@@ -132,8 +132,8 @@ message ScenarioReview {
 
 // ExecutionPolicy controls default mode, delay, and auto-fixup behavior.
 message ExecutionPolicy {
-  string default_mode = 1 [(buf.validate.field).string = { in: ["manual", "scheduled", "yolo"] }];
-  int64 default_delay_seconds = 2 [(buf.validate.field).int64.gte = 0];
+  string default_mode = 1 [(buf.validate.field).string = { in: ["manual", "yolo"] }];
+  reserved 2;
   // When true, automatically re-runs execution when review finds issues.
   bool auto_fixup = 3;
   // Maximum number of automatic fixup attempts (0-5).

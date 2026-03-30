@@ -48,9 +48,9 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/gct/status", h.GCTStatus).Methods("GET")
 }
 
-// StartScheduler launches the background worker for scheduled starts and active
-// execution progression.
-func (h *Handler) StartScheduler(stop <-chan struct{}) {
+// StartBackgroundWorker launches the background worker for active execution
+// progression.
+func (h *Handler) StartBackgroundWorker(stop <-chan struct{}) {
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 	for {
@@ -58,7 +58,6 @@ func (h *Handler) StartScheduler(stop <-chan struct{}) {
 		case <-stop:
 			return
 		case <-ticker.C:
-			_ = h.service.ProcessScheduledStarts(context.Background())
 			_ = h.service.ProcessActiveExecutions(context.Background())
 		}
 	}
@@ -147,12 +146,11 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		mode = ModeYOLO
 	}
 	req := CreateRequest{
-		BacklogKind:  pbReq.BacklogKind,
-		BacklogName:  pbReq.BacklogName,
-		Mode:         mode,
-		DelaySeconds: pbReq.GetDelaySeconds(),
-		StartedBy:    pbReq.GetStartedBy(),
-		Operation:    pbReq.GetOperation(),
+		BacklogKind: pbReq.BacklogKind,
+		BacklogName: pbReq.BacklogName,
+		Mode:        mode,
+		StartedBy:   pbReq.GetStartedBy(),
+		Operation:   pbReq.GetOperation(),
 	}
 	record, err := h.service.QueueBacklog(r.Context(), req)
 	if err != nil {
@@ -188,7 +186,6 @@ func isCreateBadRequestError(err error) bool {
 	return strings.Contains(msg, "cannot be queued") ||
 		strings.Contains(msg, "required") ||
 		strings.Contains(msg, "mode must") ||
-		strings.Contains(msg, "delay_seconds") ||
 		strings.Contains(msg, "process preflight failed")
 }
 
@@ -369,9 +366,6 @@ func recordToProto(r Record) *domainpb.ExecutionRecord {
 	}
 	if r.RunID != "" {
 		pb.RunId = &r.RunID
-	}
-	if r.ScheduledAt != "" {
-		pb.ScheduledAt = &r.ScheduledAt
 	}
 	if r.StartedAt != "" {
 		pb.StartedAt = &r.StartedAt

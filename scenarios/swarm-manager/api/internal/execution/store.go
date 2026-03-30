@@ -59,6 +59,13 @@ func migrateRecords(records []Record) []Record {
 			records[i].Status = StatusFailed
 			records[i].FailureReason = "orphaned execution: no run ID"
 		}
+		// Migrate legacy scheduled records to pending/manual.
+		if records[i].Status == "scheduled" {
+			records[i].Status = StatusPending
+		}
+		if records[i].Mode == "scheduled" {
+			records[i].Mode = ModeManual
+		}
 	}
 	return records
 }

@@ -283,12 +283,7 @@ export const literalSelectors = {
   // Run backlog modal selectors
   runBacklog: {
     dialog: "run-backlog-dialog",
-    modeYolo: "run-backlog-mode-yolo",
-    modeManual: "run-backlog-mode-manual",
-    modeScheduled: "run-backlog-mode-scheduled",
-    delayInput: "run-backlog-delay-input",
     submitButton: "run-backlog-submit",
-    queueDepth: "run-backlog-queue-depth",
     blockingReasons: "run-backlog-blocking-reasons",
     readinessWarning: "run-backlog-readiness-warning",
     error: "run-backlog-error",

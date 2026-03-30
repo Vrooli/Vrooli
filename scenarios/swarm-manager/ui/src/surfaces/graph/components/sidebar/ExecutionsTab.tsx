@@ -20,7 +20,6 @@ interface ExecutionsTabProps {
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-slate-700/60 text-slate-300",
-  scheduled: "bg-slate-700/60 text-slate-300",
   starting: "bg-blue-500/20 text-blue-300",
   running: "bg-cyan-500/20 text-cyan-300",
   needs_review: "bg-amber-500/20 text-amber-300",
@@ -33,7 +32,6 @@ const STATUS_COLORS: Record<string, string> = {
 
 const MODE_LABELS: Record<string, string> = {
   manual: "Manual",
-  scheduled: "Scheduled",
   yolo: "YOLO",
 };
 
