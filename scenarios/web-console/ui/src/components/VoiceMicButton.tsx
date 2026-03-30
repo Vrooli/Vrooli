@@ -7,6 +7,15 @@ import type { StartRecordingOpts } from "../hooks/useVoiceInput";
 /** Hold duration (ms) that distinguishes tap-to-toggle from push-to-talk. */
 const LONG_PRESS_MS = 300;
 
+/**
+ * Grace period (ms) after entering "transcribing" state during which taps are
+ * treated as no-ops instead of cancels.  This prevents the race where VAD
+ * auto-stops recording at the same instant the user taps to stop — without the
+ * guard the tap would land on the new "transcribing" state and discard the
+ * pending transcript.
+ */
+const TRANSCRIBING_GRACE_MS = 400;
+
 interface VoiceMicButtonProps {
   supported: boolean;
   isPreparing: boolean;
@@ -99,13 +108,24 @@ export default function VoiceMicButton({
   /** Tracks the intent of the current pointer interaction to avoid stale-closure races. */
   const pressIntentRef = useRef<"start" | "stop" | "cancel" | "none">("none");
 
+  /** Timestamp (ms) when isTranscribing last became true — used for grace period. */
+  const transcribingAtRef = useRef(0);
+  const prevTranscribingRef = useRef(false);
+  if (isTranscribing && !prevTranscribingRef.current) {
+    transcribingAtRef.current = Date.now();
+  }
+  prevTranscribingRef.current = isTranscribing;
+
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     // Block interaction while preparing to prevent double-tap issues
     if (isPreparing) return;
     pressStartRef.current = Date.now();
     if (isTranscribing) {
-      pressIntentRef.current = onCancel ? "cancel" : "none";
+      // Grace period: if we just entered transcribing (e.g. VAD auto-stopped),
+      // ignore the tap so the user doesn't accidentally cancel the transcript.
+      const inGracePeriod = Date.now() - transcribingAtRef.current < TRANSCRIBING_GRACE_MS;
+      pressIntentRef.current = onCancel && !inGracePeriod ? "cancel" : "none";
     } else if (isMicActive) {
       pressIntentRef.current = "stop";
     } else {

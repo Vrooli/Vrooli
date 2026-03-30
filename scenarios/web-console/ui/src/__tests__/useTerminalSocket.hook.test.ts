@@ -292,6 +292,38 @@ describe("useTerminalSocket hook", () => {
     expect(msg).toEqual({ type: "stdin", data: "ls -la\r" });
   });
 
+  it("strips DA/DSR/CPR terminal responses from input before forwarding", () => {
+    renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket,
+      }),
+    );
+
+    act(() => fakeWs.triggerOpen());
+    fakeWs.sent = [];
+
+    // Pure DA1 response — should be dropped entirely (no stdin sent)
+    act(() => terminal.simulateInput("\x1b[?1;2c"));
+    expect(fakeWs.sent).toHaveLength(0);
+
+    // DA response mixed with real keystrokes — only keystrokes forwarded
+    act(() => terminal.simulateInput("\x1b[?1;2cls\r"));
+    expect(fakeWs.sent).toHaveLength(1);
+    expect(JSON.parse(fakeWs.sent[0] ?? "{}")).toEqual({ type: "stdin", data: "ls\r" });
+
+    fakeWs.sent = [];
+
+    // Cursor Position Report (\e[row;colR)
+    act(() => terminal.simulateInput("\x1b[24;80R"));
+    expect(fakeWs.sent).toHaveLength(0);
+
+    // Device Status Report (\e[0n)
+    act(() => terminal.simulateInput("\x1b[0n"));
+    expect(fakeWs.sent).toHaveLength(0);
+  });
+
   it("closes WebSocket and disposes input listener on cleanup", () => {
     const { unmount } = renderHook(() =>
       useTerminalSocket({

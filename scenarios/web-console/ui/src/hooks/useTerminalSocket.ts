@@ -464,12 +464,29 @@ export function useTerminalSocket({
     // When mobile toolbar modifier toggles are active, apply them to the input
     // before sending. Reading from the store directly (not via subscription)
     // ensures we always see the latest modifier state.
+    // Strip terminal-generated responses (DA, DSR, CPR) from input before
+    // forwarding to the PTY.  xterm.js emits these in reply to queries from
+    // tmux (e.g. after a resize with `mouse on`).  They are host-to-terminal
+    // responses and must never reach the shell, where readline would echo the
+    // unrecognised parameter bytes as visible garbage.
+    //
+    // Matched sequences (all are CSI with optional private-mode prefix):
+    //   \e[?…c   Primary DA response          \e[>…c   Secondary DA response
+    //   \e[…n    Device Status Report          \e[…R    Cursor Position Report
+    const RE_TERMINAL_RESPONSE = /\x1b\[[\x30-\x3f]*[\x20-\x2f]*[cnR]/g;
+    const stripTerminalResponses = (s: string): string => {
+      // Fast path: most input is plain keystrokes with no ESC at all.
+      if (s.indexOf("\x1b") === -1) return s;
+      return s.replace(RE_TERMINAL_RESPONSE, "");
+    };
+
     const inputDisposable = terminal.onData((rawData) => {
       const mods = useWorkspaceStore.getState().modifiers;
       const hasModifier = mods.ctrl || mods.alt || mods.shift;
-      let data = rawData;
+      let data = stripTerminalResponses(rawData);
+      if (data.length === 0) return; // Entire input was terminal responses
       if (hasModifier) {
-        const { data: modified } = applyModifiers(rawData, mods);
+        const { data: modified } = applyModifiers(data, mods);
         data = modified;
         useWorkspaceStore.getState().clearModifiers();
       }

@@ -218,13 +218,36 @@ describe("VoiceMicButton", () => {
 
   // --- Cancel transcription ---
 
-  it("calls onCancel on tap when transcribing", () => {
+  it("calls onCancel on tap when transcribing (after grace period)", () => {
     const onCancel = vi.fn();
-    render(<VoiceMicButton {...defaults} isTranscribing onCancel={onCancel} />);
+    // Render as recording first, then switch to transcribing so the grace timestamp is set
+    const { rerender } = render(
+      <VoiceMicButton {...defaults} isRecording onCancel={onCancel} />,
+    );
+    rerender(<VoiceMicButton {...defaults} isTranscribing onCancel={onCancel} />);
+    // Advance past grace period
+    vi.useFakeTimers();
+    vi.advanceTimersByTime(500);
     const btn = screen.getByTestId("voice-mic-btn");
     fireEvent.pointerDown(btn);
     fireEvent.pointerUp(btn);
     expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onStop).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it("ignores tap during transcribing grace period (race condition guard)", () => {
+    const onCancel = vi.fn();
+    // Start as recording, then transition to transcribing (simulates VAD auto-stop)
+    const { rerender } = render(
+      <VoiceMicButton {...defaults} isRecording onCancel={onCancel} />,
+    );
+    rerender(<VoiceMicButton {...defaults} isTranscribing onCancel={onCancel} />);
+    // Tap immediately — within the grace period
+    const btn = screen.getByTestId("voice-mic-btn");
+    fireEvent.pointerDown(btn);
+    fireEvent.pointerUp(btn);
+    expect(onCancel).not.toHaveBeenCalled();
     expect(onStop).not.toHaveBeenCalled();
   });
 
