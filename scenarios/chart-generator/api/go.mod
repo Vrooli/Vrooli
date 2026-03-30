@@ -1,8 +1,6 @@
 module chart-generator-api
 
-go 1.21.1
-
-toolchain go1.21.13
+go 1.25.0
 
 require (
 	github.com/go-echarts/go-echarts/v2 v2.6.3
@@ -27,8 +25,8 @@ require (
 	github.com/pdfcpu/pdfcpu v0.6.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
-	golang.org/x/image v0.18.0 // indirect
-	golang.org/x/text v0.16.0 // indirect
+	golang.org/x/image v0.38.0 // indirect
+	golang.org/x/text v0.35.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
