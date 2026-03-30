@@ -31,6 +31,7 @@ import { getGraphNodeData, getGraphNodeStatus, type GraphNode } from "../types";
 import { parseNodeId } from "./node-id-parser";
 import { API_ENDPOINTS } from "../../../lib/api-endpoints";
 import { defaultApiClient } from "../../../lib/api-client";
+import type { DetailSelection } from "../../../stores/detail-selection-store";
 
 export interface InspectorAction {
   id: string;
@@ -41,8 +42,8 @@ export interface InspectorAction {
   handler: (node: GraphNode) => Promise<void>;
   /** If provided, determines whether this action is available for the given node. */
   enabled?: (node: GraphNode) => boolean;
-  /** If set, this action navigates to a route instead of calling an API. */
-  navigateTo?: (node: GraphNode) => string | null;
+  /** If set, this action opens a detail page instead of calling an API. */
+  navigateTo?: (node: GraphNode) => DetailSelection | null;
 }
 
 type ActionRegistry = Record<GraphLens, Partial<Record<EntityType, InspectorAction[]>>>;
@@ -99,7 +100,7 @@ function makeViewBacklogDetailsAction(): InspectorAction {
     navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.kind || !parsed?.name) return null;
-      return `/details/backlog/${parsed.kind}/${parsed.name}`;
+      return { entityType: "backlog", kind: parsed.kind, name: parsed.name };
     },
   };
 }
@@ -114,7 +115,7 @@ function makeViewScenarioDetailsAction(): InspectorAction {
     navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.name) return null;
-      return `/details/scenario/${parsed.name}`;
+      return { entityType: "scenario", name: parsed.name };
     },
   };
 }
@@ -129,7 +130,7 @@ function makeViewExecutionDetailsAction(): InspectorAction {
     navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed) return null;
-      return `/details/execution/${parsed.identifier}`;
+      return { entityType: "execution", identifier: parsed.identifier };
     },
   };
 }
@@ -144,7 +145,7 @@ function makeViewPromptTraceAction(): InspectorAction {
     navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed) return null;
-      return `/details/execution/${parsed.identifier}/prompt-trace`;
+      return { entityType: "execution", identifier: parsed.identifier };
     },
   };
 }
@@ -282,10 +283,10 @@ function makeOpenActivityOwnerAction(): InspectorAction {
       const data = getGraphNodeData(node);
       if (data.entityType !== "agent-activity") return null;
       if (data.ownerType === "backlog" && data.ownerKind) {
-        return `/details/backlog/${data.ownerKind}/${data.ownerName}`;
+        return { entityType: "backlog", kind: data.ownerKind, name: data.ownerName };
       }
       if (data.ownerType === "scenario") {
-        return `/details/scenario/${data.ownerName}`;
+        return { entityType: "scenario", name: data.ownerName };
       }
       return null;
     },
@@ -308,7 +309,7 @@ function makeViewRecordedExecutionAction(): InspectorAction {
       if (data.entityType !== "agent-activity" || !data.executionId) {
         return null;
       }
-      return `/details/execution/${data.executionId}`;
+      return { entityType: "execution", identifier: data.executionId };
     },
   };
 }
@@ -393,7 +394,7 @@ function makeBacklogEditAction(): InspectorAction {
     navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.kind || !parsed?.name) return null;
-      return `/details/backlog/${parsed.kind}/${parsed.name}`;
+      return { entityType: "backlog", kind: parsed.kind, name: parsed.name };
     },
   };
 }
@@ -408,7 +409,7 @@ function makeBacklogWorkshopAction(): InspectorAction {
     navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.kind || !parsed?.name) return null;
-      return `/details/backlog/${parsed.kind}/${parsed.name}?tab=workshop`;
+      return { entityType: "backlog", kind: parsed.kind, name: parsed.name, tab: "workshop" };
     },
   };
 }
@@ -419,11 +420,11 @@ function makeBacklogAddDependencyAction(): InspectorAction {
     label: "Add Dependency",
     icon: Link,
     variant: "default",
-    async handler() { /* navigation handled by navigateTo — opens detail page dependency section */ },
+    async handler() { /* navigation handled by navigateTo */ },
     navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.kind || !parsed?.name) return null;
-      return `/details/backlog/${parsed.kind}/${parsed.name}?tab=dependencies`;
+      return { entityType: "backlog", kind: parsed.kind, name: parsed.name, tab: "dependencies" };
     },
   };
 }
@@ -438,7 +439,7 @@ function makeBacklogAssignInitiativeAction(): InspectorAction {
     navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.kind || !parsed?.name) return null;
-      return `/details/backlog/${parsed.kind}/${parsed.name}?tab=initiative`;
+      return { entityType: "backlog", kind: parsed.kind, name: parsed.name, tab: "initiative" };
     },
   };
 }
@@ -453,7 +454,7 @@ function makeBacklogViewFilesAction(): InspectorAction {
     navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.kind || !parsed?.name) return null;
-      return `/details/backlog/${parsed.kind}/${parsed.name}?tab=files`;
+      return { entityType: "backlog", kind: parsed.kind, name: parsed.name, tab: "files" };
     },
   };
 }
@@ -468,7 +469,7 @@ function makeInitiativeEditAction(): InspectorAction {
     navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.name) return null;
-      return `/details/initiative/${parsed.name}`;
+      return { entityType: "initiative", name: parsed.name };
     },
   };
 }
@@ -483,7 +484,7 @@ function makeInitiativeManageMembersAction(): InspectorAction {
     navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.name) return null;
-      return `/details/initiative/${parsed.name}?tab=items`;
+      return { entityType: "initiative", name: parsed.name, tab: "items" };
     },
   };
 }
@@ -518,7 +519,7 @@ function makeScenarioViewFilesAction(): InspectorAction {
     navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.name) return null;
-      return `/details/scenario/${parsed.name}?tab=files`;
+      return { entityType: "scenario", name: parsed.name, tab: "files" };
     },
   };
 }
@@ -533,7 +534,7 @@ function makeScenarioEditMetadataAction(): InspectorAction {
     navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.name) return null;
-      return `/details/scenario/${parsed.name}`;
+      return { entityType: "scenario", name: parsed.name };
     },
   };
 }

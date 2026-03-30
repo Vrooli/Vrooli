@@ -1,9 +1,26 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter, Routes, Route } from "react-router-dom";
+import { MemoryRouter } from "react-router-dom";
 import { ScenarioDetailsPage } from "./ScenarioDetailsPage";
-import { useScenariosStore } from "../stores";
+import { useScenariosStore, useDetailSelectionStore } from "../stores";
+
+// jsdom doesn't provide matchMedia (needed by useIsMobile in DetailPageLayout).
+beforeAll(() => {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+});
 
 /**
  * Mock the config module for testing.
@@ -78,13 +95,11 @@ describe("ScenarioDetailsPage", () => {
   });
 
   const renderPage = (scenarioName = "test-scenario") => {
+    useDetailSelectionStore.getState().selectScenario(scenarioName);
     return render(
-      <MemoryRouter initialEntries={[`/scenarios/${scenarioName}`]}>
+      <MemoryRouter initialEntries={["/graph"]}>
         <QueryClientProvider client={queryClient}>
-          <Routes>
-            <Route path="/scenarios/:name" element={<ScenarioDetailsPage />} />
-            <Route path="/scenarios" element={<div data-testid="scenarios-list-page" />} />
-          </Routes>
+          <ScenarioDetailsPage />
         </QueryClientProvider>
       </MemoryRouter>
     );
@@ -101,15 +116,13 @@ describe("ScenarioDetailsPage", () => {
       });
     });
 
-    it("shows breadcrumb navigation back to scenarios list", async () => {
+    it("shows close button to return to graph", async () => {
       vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByTestId("scenario-details-back")).toBeInTheDocument();
+        expect(screen.getByTestId("detail-close")).toBeInTheDocument();
       });
-      // Breadcrumb shows "Scenarios" link (Phase 29 experience improvement)
-      expect(screen.getByText("Scenarios")).toBeInTheDocument();
     });
   });
 
@@ -902,13 +915,13 @@ describe("ScenarioDetailsPage", () => {
 
   // Edge cases
   describe("edge cases", () => {
-    it("shows error when rendered without name parameter", async () => {
+    it("shows error when rendered without name in selection", async () => {
+      // Clear selection to simulate no name
+      useDetailSelectionStore.getState().clearSelection();
       render(
-        <MemoryRouter initialEntries={["/scenarios/"]}>
+        <MemoryRouter initialEntries={["/graph"]}>
           <QueryClientProvider client={queryClient}>
-            <Routes>
-              <Route path="/scenarios/" element={<ScenarioDetailsPage />} />
-            </Routes>
+            <ScenarioDetailsPage />
           </QueryClientProvider>
         </MemoryRouter>
       );

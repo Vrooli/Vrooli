@@ -12,11 +12,11 @@ export function BacklogRedirect() {
 }
 
 /**
- * Redirect /backlog/:kind/:name → /graph?lens=topology&select=backlog-item/kind/name
+ * Redirect /backlog/:kind/:name or /details/backlog/:kind/:name → /graph with detail params
  */
 export function BacklogDetailsRedirect() {
   const { kind, name } = useParams<{ kind: string; name: string }>();
-  return <Navigate to={`/graph?lens=topology&select=backlog-item/${kind}/${name}`} replace />;
+  return <Navigate to={`/graph?detail=backlog&kind=${kind}&name=${name}`} replace />;
 }
 
 /**
@@ -27,11 +27,11 @@ export function ScenariosRedirect() {
 }
 
 /**
- * Redirect /scenarios/:name → /graph?lens=topology&select=scenario/name
+ * Redirect /scenarios/:name or /details/scenario/:name → /graph with detail params
  */
 export function ScenarioDetailsRedirect() {
   const { name } = useParams<{ name: string }>();
-  return <Navigate to={`/graph?lens=topology&select=scenario/${name}`} replace />;
+  return <Navigate to={`/graph?detail=scenario&name=${name}`} replace />;
 }
 
 /**

@@ -1,9 +1,26 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter, Routes, Route } from "react-router-dom";
+import { MemoryRouter } from "react-router-dom";
 import { BacklogDetailsPage } from "./BacklogDetailsPage";
-import { useBacklogStore } from "../stores";
+import { useBacklogStore, useDetailSelectionStore } from "../stores";
+
+// jsdom doesn't provide matchMedia (needed by useIsMobile in DetailPageLayout).
+beforeAll(() => {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+});
 
 vi.mock("../config", () => ({
   dataFetchingConfig: {
@@ -86,13 +103,12 @@ describe("BacklogDetailsPage", () => {
   });
 
   const renderPage = (kind = "idea", name = "test-idea", tab?: string) => {
+    useDetailSelectionStore.getState().selectBacklog(kind, name, tab);
     const search = tab ? `?tab=${tab}` : "";
     return render(
-      <MemoryRouter initialEntries={[`/backlog/${kind}/${name}${search}`]}>
+      <MemoryRouter initialEntries={[`/graph${search}`]}>
         <QueryClientProvider client={queryClient}>
-          <Routes>
-            <Route path="/backlog/:kind/:name" element={<BacklogDetailsPage />} />
-          </Routes>
+          <BacklogDetailsPage />
         </QueryClientProvider>
       </MemoryRouter>
     );
@@ -109,7 +125,7 @@ describe("BacklogDetailsPage", () => {
     });
   });
 
-  it("shows breadcrumb navigation back to backlog list", async () => {
+  it("shows close button to return to graph", async () => {
     vi.mocked(backlogService.get).mockResolvedValue(mockItem);
     vi.mocked(backlogService.getFiles).mockResolvedValue(mockFiles);
 
@@ -118,8 +134,6 @@ describe("BacklogDetailsPage", () => {
     await waitFor(() => {
       expect(screen.getByTestId("backlog-details-back")).toBeInTheDocument();
     });
-
-    expect(screen.getByText("Backlog")).toBeInTheDocument();
   });
 
   it("shows queue button for idea backlog items", async () => {

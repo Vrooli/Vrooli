@@ -1,9 +1,27 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter, Routes, Route } from "react-router-dom";
+import { MemoryRouter } from "react-router-dom";
 import { InitiativeDetailsPage } from "./InitiativeDetailsPage";
-import { useBacklogStore } from "../stores";
+import { useBacklogStore, useDetailSelectionStore } from "../stores";
+
+// jsdom doesn't provide matchMedia (needed by useIsMobile in DetailPageLayout).
+beforeAll(() => {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+});
 
 vi.mock("../config", () => ({
   dataFetchingConfig: {
@@ -29,6 +47,8 @@ vi.mock("../services", () => ({
   initiativeService: {
     list: vi.fn(),
     get: vi.fn(),
+    listFiles: vi.fn().mockResolvedValue([]),
+    getFileContent: vi.fn(),
   },
 }));
 
@@ -61,6 +81,10 @@ describe("InitiativeDetailsPage", () => {
       defaultOptions: { queries: { retry: false } },
     });
     vi.clearAllMocks();
+
+    // Pre-populate the detail selection store
+    useDetailSelectionStore.getState().selectInitiative("test-initiative");
+
     useBacklogStore.getState().setItems([
       {
         kind: "execute" as const,
@@ -93,14 +117,11 @@ describe("InitiativeDetailsPage", () => {
     ]);
   });
 
-  const renderPage = (name = "test-initiative", search = "") => {
+  const renderPage = () => {
     return render(
-      <MemoryRouter initialEntries={[`/details/initiative/${name}${search}`]}>
+      <MemoryRouter initialEntries={["/graph"]}>
         <QueryClientProvider client={queryClient}>
-          <Routes>
-            <Route path="/details/initiative/:name" element={<InitiativeDetailsPage />} />
-            <Route path="/graph" element={<div data-testid="graph-page" />} />
-          </Routes>
+          <InitiativeDetailsPage />
         </QueryClientProvider>
       </MemoryRouter>,
     );
@@ -114,7 +135,9 @@ describe("InitiativeDetailsPage", () => {
       expect(screen.getByTestId("initiative-details-page")).toBeInTheDocument();
     });
     expect(screen.getByTestId("initiative-details-title")).toHaveTextContent("Test Initiative");
-    expect(screen.getByTestId("initiative-details-status")).toHaveTextContent("active");
+    const badges = screen.getAllByTestId("status-badge");
+    expect(badges.length).toBeGreaterThanOrEqual(1);
+    expect(badges[0]).toHaveTextContent("active");
   });
 
   it("renders description", async () => {
@@ -139,7 +162,7 @@ describe("InitiativeDetailsPage", () => {
     expect(screen.getByText("2 total")).toBeInTheDocument();
   });
 
-  it("renders member item chips as links", async () => {
+  it("renders member item chips as clickable buttons", async () => {
     vi.mocked(initiativeService.get).mockResolvedValue(mockInitiativeData);
     renderPage();
 
@@ -147,17 +170,28 @@ describe("InitiativeDetailsPage", () => {
       expect(screen.getByTestId("initiative-details-items-list")).toBeInTheDocument();
     });
 
-    const item1Link = screen.getByText("Execute Item 1");
-    expect(item1Link.closest("a")).toHaveAttribute(
-      "href",
-      expect.stringContaining("/details/backlog/execute/item-1"),
-    );
+    const item1Button = screen.getByText("Execute Item 1");
+    expect(item1Button.tagName).toBe("BUTTON");
 
-    const item2Link = screen.getByText("Research Item 2");
-    expect(item2Link.closest("a")).toHaveAttribute(
-      "href",
-      expect.stringContaining("/details/backlog/research/item-2"),
-    );
+    const item2Button = screen.getByText("Research Item 2");
+    expect(item2Button.tagName).toBe("BUTTON");
+  });
+
+  it("clicking member item chip selects that backlog item", async () => {
+    vi.mocked(initiativeService.get).mockResolvedValue(mockInitiativeData);
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("initiative-details-items-list")).toBeInTheDocument();
+    });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByText("Execute Item 1"));
+
+    const selection = useDetailSelectionStore.getState().selection;
+    expect(selection?.entityType).toBe("backlog");
+    expect(selection?.kind).toBe("execute");
+    expect(selection?.name).toBe("item-1");
   });
 
   it("shows error state when fetch fails", async () => {
@@ -169,25 +203,18 @@ describe("InitiativeDetailsPage", () => {
     });
   });
 
-  it("back link uses returnTo param when present", async () => {
-    vi.mocked(initiativeService.get).mockResolvedValue(mockInitiativeData);
-    renderPage("test-initiative", "?returnTo=/details/backlog/execute/item-1");
-
-    await waitFor(() => {
-      expect(screen.getByTestId("initiative-details-back-link")).toHaveAttribute(
-        "href",
-        "/details/backlog/execute/item-1",
-      );
-    });
-  });
-
-  it("back link defaults to /graph when no returnTo", async () => {
+  it("close button clears detail selection", async () => {
     vi.mocked(initiativeService.get).mockResolvedValue(mockInitiativeData);
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByTestId("initiative-details-back-link")).toHaveAttribute("href", "/graph");
+      expect(screen.getByTestId("detail-close")).toBeInTheDocument();
     });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("detail-close"));
+
+    expect(useDetailSelectionStore.getState().selection).toBeNull();
   });
 
   it("falls back to kind/name when item not in backlog store", async () => {

@@ -17,11 +17,10 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useParams, Link, useNavigate } from "react-router-dom";
+
 import {
   ChevronDown,
   ChevronLeft,
-  ChevronRight,
   ChevronUp,
   Circle,
   CheckCircle2,
@@ -50,6 +49,13 @@ import { scenariosService, executionService } from "../services";
 import { selectors } from "../consts/selectors";
 import { SCENARIO_STATUS_COLORS, SCENARIO_STATUS_ICONS } from "../types";
 import type { ScenarioFile, PreserveFilesPreset } from "../types";
+import { useDetailSelectionStore } from "../stores/detail-selection-store";
+import { DetailPageHeader } from "../components/detail/DetailPageHeader";
+import { DetailPageLayout } from "../components/detail/DetailPageLayout";
+import { DetailActionButtons } from "../components/detail/DetailActionButtons";
+import { StatusBadge } from "../components/detail/StatusBadge";
+import { useDrillToLens } from "../hooks/useDrillToLens";
+import { selectionToNodeId } from "../stores/detail-selection-store";
 import { useScenariosStore } from "../stores";
 
 const ARCHIVE_PRESET_OPTIONS: { value: PreserveFilesPreset; label: string; description: string }[] = [
@@ -170,11 +176,11 @@ function persistArchivePreferences(preferences: ArchivePreferences): void {
 }
 
 export function ScenarioDetailsPage() {
-  const { name } = useParams<{ name: string }>();
-  const navigate = useNavigate();
-  // When opened from graph inspector, returnTo carries the graph URL to go back to
-  const returnToParam = new URLSearchParams(window.location.search).get("returnTo");
-  const backLink = returnToParam ?? "/scenarios";
+  const selection = useDetailSelectionStore((s) => s.selection);
+  const clearSelection = useDetailSelectionStore((s) => s.clearSelection);
+  const name = selection?.name;
+  const nodeId = selectionToNodeId(selection);
+  const { drillToFlow, drillToOperations } = useDrillToLens();
   const queryClient = useQueryClient();
   const upsertScenario = useScenariosStore((state) => state.upsertScenario);
   const removeScenario = useScenariosStore((state) => state.removeScenario);
@@ -307,7 +313,7 @@ export function ScenarioDetailsPage() {
       if (name) {
         removeScenario(name);
       }
-      navigate("/scenarios");
+      clearSelection();
     },
   });
 
@@ -322,7 +328,7 @@ export function ScenarioDetailsPage() {
           if (name) {
             removeScenario(name);
           }
-          navigate("/scenarios");
+          clearSelection();
         } else if (execution.status === "failed") {
           setSpecSyncPhase("failed");
           setSpecSyncError(execution.failureReason ?? "Spec sync failed");
@@ -335,7 +341,7 @@ export function ScenarioDetailsPage() {
       }
     }, 3000);
     return () => clearInterval(interval);
-  }, [specSyncPhase, specSyncExecutionId, name, removeScenario, navigate]);
+  }, [specSyncPhase, specSyncExecutionId, name, removeScenario, clearSelection]);
 
   // Delete handlers
   const handleDeleteClick = () => {
@@ -548,23 +554,25 @@ export function ScenarioDetailsPage() {
   };
 
   return (
-    <div className="space-y-0 lg:space-y-6" data-testid={selectors.scenarioDetails.page}>
-      {/* Breadcrumb navigation - shows context and allows quick navigation (Phase 29) */}
-      <nav className="hidden items-center gap-2 text-sm lg:flex" data-testid={selectors.scenarioDetails.breadcrumb}>
-        <Link
-          to={backLink}
-          className="flex items-center gap-1.5 text-slate-400 hover:text-slate-200 transition-colors"
-          data-testid={selectors.scenarioDetails.backButton}
-        >
-          <Package className="h-4 w-4" />
-          <span>Scenarios</span>
-        </Link>
-        <ChevronRight className="h-4 w-4 text-slate-600" />
-        <span className="text-slate-200 truncate max-w-[200px]" title={scenario?.displayName || name}>
-          {scenario?.displayName || name}
-        </span>
-      </nav>
-
+    <DetailPageLayout
+      header={
+        <DetailPageHeader
+          entityType="scenario"
+          title={scenario?.displayName || name || "Unknown"}
+          status={scenario?.status}
+          onClose={clearSelection}
+          actions={scenario ? renderActionButtons() : undefined}
+          crossLensNav={nodeId ? {
+            nodeId,
+            onDrillToFlow: drillToFlow,
+            onDrillToOperations: drillToOperations,
+          } : undefined}
+        />
+      }
+      mobileActions={scenario ? renderActionButtons() : undefined}
+      mobileActionsTitle="Scenario Actions"
+    >
+    <div className="space-y-6" data-testid={selectors.scenarioDetails.page}>
       {/* Loading state */}
       {isPageLoading && (
         <PageLoadingState
@@ -589,14 +597,13 @@ export function ScenarioDetailsPage() {
           <div className="flex min-h-[100dvh] flex-col lg:hidden">
             <div className="sticky top-0 z-30 flex items-center gap-2 border-b border-slate-800 bg-slate-950/95 px-3 py-2 backdrop-blur">
               <Button
-                asChild
                 variant="outline"
                 size="sm"
                 className="h-9 w-9 rounded-md border-transparent bg-transparent p-0 hover:bg-slate-800/70"
+                onClick={clearSelection}
+                aria-label="Close scenario details"
               >
-                <Link to={backLink} aria-label="Back to scenarios">
-                  <ChevronLeft className="h-4 w-4" />
-                </Link>
+                <ChevronLeft className="h-4 w-4" />
               </Button>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-slate-100">{scenario.displayName}</p>
@@ -1239,5 +1246,6 @@ export function ScenarioDetailsPage() {
           : { preset: archivePreset, paths: [] }}
       />
     </div>
+    </DetailPageLayout>
   );
 }

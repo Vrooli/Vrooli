@@ -31,7 +31,7 @@ function runEnabledPredicate(action: ReturnType<typeof getAction>, node: GraphNo
   return enabled(node);
 }
 
-function runNavigateTo(action: ReturnType<typeof getAction>, node: GraphNode): string | null {
+function runNavigateTo(action: ReturnType<typeof getAction>, node: GraphNode) {
   const navigateTo = expectDefined(action.navigateTo, `Expected navigateTo for action "${action.id}"`);
   return navigateTo(node);
 }
@@ -167,46 +167,46 @@ describe("action enabled predicates", () => {
 });
 
 describe("action navigateTo", () => {
-  it("view-backlog-details builds correct path", () => {
+  it("view-backlog-details returns backlog DetailSelection", () => {
     const viewDetails = getAction("flow", "backlog", "view-backlog-details");
     const node = makeNode("execute/my-feature", "backlog", "ready", "execute");
-    expect(runNavigateTo(viewDetails, node)).toBe("/details/backlog/execute/my-feature");
+    expect(runNavigateTo(viewDetails, node)).toEqual({ entityType: "backlog", kind: "execute", name: "my-feature" });
   });
 
-  it("view-scenario-details builds correct path", () => {
+  it("view-scenario-details returns scenario DetailSelection", () => {
     const viewDetails = getAction("operations", "scenario", "view-scenario-details");
     const node = makeNode("scenario/swarm-manager", "scenario", "running");
-    expect(runNavigateTo(viewDetails, node)).toBe("/details/scenario/swarm-manager");
+    expect(runNavigateTo(viewDetails, node)).toEqual({ entityType: "scenario", name: "swarm-manager" });
   });
 
-  it("view-execution-details builds correct path", () => {
+  it("view-execution-details returns execution DetailSelection", () => {
     const viewDetails = getAction("flow", "execution", "view-execution-details");
     const node = makeNode("execution/abc-123", "execution", "completed");
-    expect(runNavigateTo(viewDetails, node)).toBe("/details/execution/abc-123");
+    expect(runNavigateTo(viewDetails, node)).toEqual({ entityType: "execution", identifier: "abc-123" });
   });
 
-  it("view-prompt-trace builds correct path", () => {
+  it("view-prompt-trace returns execution DetailSelection", () => {
     const viewTrace = getAction("flow", "execution", "view-prompt-trace");
     const node = makeNode("execution/abc-123", "execution", "completed");
-    expect(runNavigateTo(viewTrace, node)).toBe("/details/execution/abc-123/prompt-trace");
+    expect(runNavigateTo(viewTrace, node)).toEqual({ entityType: "execution", identifier: "abc-123" });
   });
 
   // Topology navigation.
-  it("edit-backlog navigates to backlog detail page", () => {
+  it("edit-backlog returns backlog DetailSelection", () => {
     const edit = getAction("topology", "backlog", "edit-backlog");
     const node = makeNode("backlog-item/execute/my-task", "backlog", "ready", "execute");
-    expect(runNavigateTo(edit, node)).toBe("/details/backlog/execute/my-task");
+    expect(runNavigateTo(edit, node)).toEqual({ entityType: "backlog", kind: "execute", name: "my-task" });
   });
 
-  it("edit-initiative navigates to initiative detail page", () => {
+  it("edit-initiative returns initiative DetailSelection", () => {
     const edit = getAction("topology", "initiative", "edit-initiative");
     const node = makeNode("initiative/my-init", "initiative", "active");
-    expect(runNavigateTo(edit, node)).toBe("/details/initiative/my-init");
+    expect(runNavigateTo(edit, node)).toEqual({ entityType: "initiative", name: "my-init" });
   });
 
-  it("view-scenario-files navigates to scenario files tab", () => {
+  it("view-scenario-files returns scenario DetailSelection with tab", () => {
     const viewFiles = getAction("topology", "scenario", "view-scenario-files");
     const node = makeNode("scenario/my-app", "scenario", "running");
-    expect(runNavigateTo(viewFiles, node)).toBe("/details/scenario/my-app?tab=files");
+    expect(runNavigateTo(viewFiles, node)).toEqual({ entityType: "scenario", name: "my-app", tab: "files" });
   });
 });

@@ -147,7 +147,6 @@ export interface GraphUIState {
   fitViewNonce: number;
   viewportByLens: ViewportByLens;
   sidebarCollapsed: boolean;
-  inspectorOpen: boolean;
   expandedTopologyClusters: Set<string>;
   focusNodeLabel: string | null;
   selectNode: (nodeId: string | null) => void;
@@ -162,8 +161,6 @@ export interface GraphUIState {
   setViewportForLens: (lens: GraphLens, viewport: Viewport) => void;
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
-  toggleInspector: () => void;
-  setInspectorOpen: (open: boolean) => void;
   toggleTopologyCluster: (clusterId: string) => void;
   collapseAllTopologyClusters: () => void;
   expandTopologyClusters: (clusterIds: string[]) => void;
@@ -184,7 +181,6 @@ export const graphUIInitialState = {
   fitViewNonce: 0,
   viewportByLens: initialViewportByLens,
   sidebarCollapsed: initialSidebarCollapsed,
-  inspectorOpen: false,
   expandedTopologyClusters: new Set<string>(),
   focusNodeLabel: null as string | null,
 };
@@ -195,7 +191,6 @@ export const useGraphUIStore = create<GraphUIState>((set, get) => ({
   selectNode: (nodeId) =>
     set({
       selectedNodeId: nodeId,
-      inspectorOpen: nodeId !== null,
     }),
 
   setHighlightState: (highlightState) => set({ highlightState }),
@@ -269,11 +264,6 @@ export const useGraphUIStore = create<GraphUIState>((set, get) => ({
     saveSidebarCollapsed(collapsed);
     set({ sidebarCollapsed: collapsed });
   },
-
-  toggleInspector: () =>
-    set((state) => ({ inspectorOpen: !state.inspectorOpen })),
-
-  setInspectorOpen: (open) => set({ inspectorOpen: open }),
 
   toggleTopologyCluster: (clusterId) =>
     set((state) => {

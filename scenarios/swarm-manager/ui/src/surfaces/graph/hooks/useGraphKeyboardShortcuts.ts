@@ -3,8 +3,7 @@
  *
  * 1-3: switch lenses
  * L: cycle layout mode
- * I: toggle inspector
- * Esc: deselect node / close inspector
+ * Esc: close detail page or deselect node
  * Ctrl+K: preserved for host switcher
  */
 
@@ -15,6 +14,7 @@ import {
 } from "@vrooli/iframe-bridge";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
+import { useDetailSelectionStore } from "../../../stores/detail-selection-store";
 import type { GraphLens } from "../stores/graph-data-store";
 
 function isInputElement(el: HTMLElement): boolean {
@@ -34,7 +34,7 @@ const LENS_MAP: Record<string, GraphLens> = {
 
 interface GraphShortcutHandlers {
   onLensChange: (lens: GraphLens) => void;
-  onInspectorClose: () => void;
+  onDeselectNode: () => void;
   onSettingsToggle: () => void;
   onReturnToAtlas: () => void;
   focusNodeId: string | null;
@@ -42,9 +42,10 @@ interface GraphShortcutHandlers {
 
 export function useGraphKeyboardShortcuts(handlers: GraphShortcutHandlers): void {
   const cycleLayoutMode = useGraphUIStore((s) => s.cycleLayoutMode);
-  const toggleInspector = useGraphUIStore((s) => s.toggleInspector);
   const selectedNodeId = useGraphUIStore((s) => s.selectedNodeId);
   const lens = useGraphDataStore((s) => s.lens);
+  const detailSelection = useDetailSelectionStore((s) => s.selection);
+  const clearDetailSelection = useDetailSelectionStore((s) => s.clearSelection);
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
@@ -84,27 +85,23 @@ export function useGraphKeyboardShortcuts(handlers: GraphShortcutHandlers): void
         return;
       }
 
-      // I — Toggle inspector
-      if (!mod && event.key.toLowerCase() === "i") {
-        toggleInspector();
-        return;
-      }
-
       // Backspace / Alt+Left — Return to atlas
       if (event.key === "Backspace" || (event.altKey && event.key === "ArrowLeft")) {
         handlers.onReturnToAtlas();
         return;
       }
 
-      // Escape — Deselect node / close inspector
+      // Escape — Close detail page, or deselect node
       if (event.key === "Escape") {
-        if (selectedNodeId) {
-          handlers.onInspectorClose();
+        if (detailSelection) {
+          clearDetailSelection();
+        } else if (selectedNodeId) {
+          handlers.onDeselectNode();
         }
         return;
       }
     },
-    [handlers, cycleLayoutMode, lens, toggleInspector, selectedNodeId],
+    [handlers, cycleLayoutMode, lens, selectedNodeId, detailSelection, clearDetailSelection],
   );
 
   useEffect(() => {

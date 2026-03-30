@@ -6,8 +6,8 @@
  * - BrowserRouter: Client-side routing
  * - 404 handler: Catches unknown routes
  *
- * The primary route is /graph (GraphWorkspace), which replaces the
- * old 5-tab MainLayout. Legacy routes redirect to /graph with
+ * The primary route is /graph (GraphWorkspace), which hosts detail pages
+ * as state-driven overlays. Legacy routes redirect to /graph with
  * appropriate query params.
  */
 
@@ -30,26 +30,6 @@ import {
 const GraphWorkspace = lazy(() =>
   import("./surfaces/graph/components/GraphWorkspace").then((m) => ({
     default: m.GraphWorkspace,
-  })),
-);
-const BacklogDetailsPage = lazy(() =>
-  import("./pages/BacklogDetailsPage").then((m) => ({
-    default: m.BacklogDetailsPage,
-  })),
-);
-const ScenarioDetailsPage = lazy(() =>
-  import("./pages/ScenarioDetailsPage").then((m) => ({
-    default: m.ScenarioDetailsPage,
-  })),
-);
-const ExecutionDetailsPage = lazy(() =>
-  import("./pages/ExecutionDetailsPage").then((m) => ({
-    default: m.ExecutionDetailsPage,
-  })),
-);
-const InitiativeDetailsPage = lazy(() =>
-  import("./pages/InitiativeDetailsPage").then((m) => ({
-    default: m.InitiativeDetailsPage,
   })),
 );
 
@@ -85,18 +65,11 @@ export default function App() {
           }
         >
           <Routes>
-            {/* Primary route: graph workspace */}
+            {/* Primary route: graph workspace (detail pages render as overlays inside) */}
             <Route path="/graph" element={<PageErrorBoundary pageName="Graph"><GraphWorkspace /></PageErrorBoundary>} />
 
             {/* Root redirects to /graph */}
             <Route index element={<Navigate to="/graph" replace />} />
-
-            {/* Detail pages (accessible from graph inspector) */}
-            <Route path="/details/backlog/:kind/:name" element={<PageErrorBoundary pageName="Backlog Details"><BacklogDetailsPage /></PageErrorBoundary>} />
-            <Route path="/details/scenario/:name" element={<PageErrorBoundary pageName="Scenario Details"><ScenarioDetailsPage /></PageErrorBoundary>} />
-            <Route path="/details/execution/:executionId" element={<PageErrorBoundary pageName="Execution Details"><ExecutionDetailsPage /></PageErrorBoundary>} />
-            <Route path="/details/execution/:executionId/prompt-trace" element={<PageErrorBoundary pageName="Execution Details"><ExecutionDetailsPage /></PageErrorBoundary>} />
-            <Route path="/details/initiative/:name" element={<PageErrorBoundary pageName="Initiative Details"><InitiativeDetailsPage /></PageErrorBoundary>} />
 
             {/* Legacy route redirects */}
             <Route path="backlog" element={<BacklogRedirect />} />
@@ -106,6 +79,12 @@ export default function App() {
             <Route path="execution" element={<ExecutionRedirect />} />
             <Route path="prompts" element={<PromptsRedirect />} />
             <Route path="settings" element={<SettingsRedirect />} />
+
+            {/* Legacy detail page routes redirect to graph with detail params */}
+            <Route path="details/backlog/:kind/:name" element={<BacklogDetailsRedirect />} />
+            <Route path="details/scenario/:name" element={<ScenarioDetailsRedirect />} />
+            <Route path="details/execution/:executionId" element={<Navigate to="/graph" replace />} />
+            <Route path="details/initiative/:name" element={<Navigate to="/graph" replace />} />
 
             {/* 404 handler */}
             <Route path="*" element={<NotFoundPage />} />

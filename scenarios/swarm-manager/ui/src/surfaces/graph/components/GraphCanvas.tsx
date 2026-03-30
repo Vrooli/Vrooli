@@ -24,6 +24,8 @@ import {
 import "@xyflow/react/dist/style.css";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
+import { useDetailSelectionStore } from "../../../stores/detail-selection-store";
+import { parseNodeId } from "../lib/node-id-parser";
 import { applyDagreLayout } from "../lib/layout-utils";
 import { buildGraphPresentation } from "../lib/graph-presentation";
 import {
@@ -82,6 +84,11 @@ export function GraphCanvas() {
   const setHighlightState = useGraphUIStore((s) => s.setHighlightState);
   const setViewportForLens = useGraphUIStore((s) => s.setViewportForLens);
   const toggleTopologyCluster = useGraphUIStore((s) => s.toggleTopologyCluster);
+
+  const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
+  const selectScenario = useDetailSelectionStore((s) => s.selectScenario);
+  const selectExecution = useDetailSelectionStore((s) => s.selectExecution);
+  const selectInitiative = useDetailSelectionStore((s) => s.selectInitiative);
 
   const flowRef = useRef<ReactFlowInstance<GraphNode, GraphEdge> | null>(null);
 
@@ -246,16 +253,44 @@ export function GraphCanvas() {
       // Cluster nodes toggle on single-click instead of opening inspector.
       if (node.type === "cluster") {
         toggleTopologyCluster(node.id);
+
+        // Cluster nodes backed by an initiative open its detail page.
+        const data = getGraphNodeData(node as GraphNode);
+        if ("isUnassigned" in data && !data.isUnassigned) {
+          const name = node.id.replace(/^initiative\//, "");
+          if (name) selectInitiative(name);
+        }
         return;
       }
+
       const graphNode = node as GraphNode;
       selectNode(node.id);
       setHighlightState({
         highlighted: bfsNeighborhood(graphNode.id, processedNodes, styledEdges),
         mode: "dim",
       });
+
+      // Open detail page for entity types that support it.
+      const parsed = parseNodeId(node.id);
+      if (parsed) {
+        switch (parsed.entityType) {
+          case "backlog":
+            if (parsed.kind && parsed.name) selectBacklog(parsed.kind, parsed.name);
+            break;
+          case "scenario":
+            if (parsed.name) selectScenario(parsed.name);
+            break;
+          case "execution":
+            selectExecution(parsed.identifier);
+            break;
+          case "initiative":
+            if (parsed.name) selectInitiative(parsed.name);
+            break;
+          // capture, agent-activity, agent-run: no detail page — just select/highlight.
+        }
+      }
     },
-    [processedNodes, selectNode, setHighlightState, styledEdges, toggleTopologyCluster],
+    [processedNodes, selectBacklog, selectExecution, selectInitiative, selectNode, selectScenario, setHighlightState, styledEdges, toggleTopologyCluster],
   );
 
   const handlePaneClick = useCallback(() => {

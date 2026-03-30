@@ -14,17 +14,15 @@ describe("graphUIStore", () => {
       expect(useGraphUIStore.getState().selectedNodeId).toBeNull();
     });
 
-    it("selects a node and opens the inspector", () => {
+    it("selects a node", () => {
       useGraphUIStore.getState().selectNode("node-1");
       expect(useGraphUIStore.getState().selectedNodeId).toBe("node-1");
-      expect(useGraphUIStore.getState().inspectorOpen).toBe(true);
     });
 
     it("clears selection on null", () => {
       useGraphUIStore.getState().selectNode("node-1");
       useGraphUIStore.getState().selectNode(null);
       expect(useGraphUIStore.getState().selectedNodeId).toBeNull();
-      expect(useGraphUIStore.getState().inspectorOpen).toBe(false);
     });
   });
 
@@ -98,16 +96,11 @@ describe("graphUIStore", () => {
     });
   });
 
-  describe("sidebar and inspector", () => {
+  describe("sidebar", () => {
     it("toggles the sidebar", () => {
       useGraphUIStore.getState().toggleSidebar();
       expect(useGraphUIStore.getState().sidebarCollapsed).toBe(true);
       expect(window.localStorage.getItem("swarm-manager.graph.sidebar-collapsed")).toBe("true");
-    });
-
-    it("toggles the inspector", () => {
-      useGraphUIStore.getState().toggleInspector();
-      expect(useGraphUIStore.getState().inspectorOpen).toBe(true);
     });
   });
 

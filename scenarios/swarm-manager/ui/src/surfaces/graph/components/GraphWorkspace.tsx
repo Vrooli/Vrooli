@@ -8,7 +8,7 @@
  * - Bottom-right: MiniMap (rendered inside GraphCanvas)
  */
 
-import { Component, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Activity, AlertTriangle, HelpCircle, RefreshCw, Settings, Square, X } from "lucide-react";
@@ -20,12 +20,35 @@ import { useAgentActivitiesStore, useBacklogStore, useCaptureStore } from "../..
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
 import { buildActivityNodeId, buildBacklogNodeId } from "../lib/node-id-parser";
+import { useDetailSelectionStore } from "../../../stores/detail-selection-store";
+import { useDetailUrlSync } from "../../../hooks/useDetailUrlSync";
 import { useGraphKeyboardShortcuts } from "../hooks/useGraphKeyboardShortcuts";
 import { useGraphWebSocket } from "../hooks/useGraphWebSocket";
+import { PageLoadingState } from "../../../components/ui/loading-states";
 import { GraphCanvas } from "./GraphCanvas";
+
+const BacklogDetailsPage = lazy(() =>
+  import("../../../pages/BacklogDetailsPage").then((m) => ({
+    default: m.BacklogDetailsPage,
+  })),
+);
+const ScenarioDetailsPage = lazy(() =>
+  import("../../../pages/ScenarioDetailsPage").then((m) => ({
+    default: m.ScenarioDetailsPage,
+  })),
+);
+const ExecutionDetailsPage = lazy(() =>
+  import("../../../pages/ExecutionDetailsPage").then((m) => ({
+    default: m.ExecutionDetailsPage,
+  })),
+);
+const InitiativeDetailsPage = lazy(() =>
+  import("../../../pages/InitiativeDetailsPage").then((m) => ({
+    default: m.InitiativeDetailsPage,
+  })),
+);
 import { LensNav } from "./LensNav";
 import { Sidebar } from "./Sidebar";
-import { Inspector } from "./Inspector";
 import { SettingsDrawer } from "./SettingsDrawer";
 import { GraphHelpPanel } from "./GraphHelpPanel";
 import { getGraphNodeLabel } from "../types";
@@ -108,9 +131,12 @@ export function GraphWorkspace() {
   const setFocusNodeLabel = useGraphUIStore((s) => s.setFocusNodeLabel);
   const selectedNodeId = useGraphUIStore((s) => s.selectedNodeId);
   const selectNode = useGraphUIStore((s) => s.selectNode);
-  const inspectorOpen = useGraphUIStore((s) => s.inspectorOpen);
-  const setInspectorOpen = useGraphUIStore((s) => s.setInspectorOpen);
   const applyLayoutForLens = useGraphUIStore((s) => s.applyLayoutForLens);
+
+  const detailSelection = useDetailSelectionStore((s) => s.selection);
+  const clearDetailSelection = useDetailSelectionStore((s) => s.clearSelection);
+
+  useDetailUrlSync();
 
   const { data: settings } = useQuery({
     queryKey: ["settings"],
@@ -253,20 +279,14 @@ export function GraphWorkspace() {
     [selectNode, setSearchParams],
   );
 
-  const selectedNode = useMemo(() => {
-    if (!selectedNodeId) return null;
-    return nodes.find((node) => node.id === selectedNodeId) ?? null;
-  }, [nodes, selectedNodeId]);
-
-  const handleInspectorClose = useCallback(() => {
-    setInspectorOpen(false);
+  const handleDeselectNode = useCallback(() => {
     selectNode(null);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.delete("select");
       return next;
     });
-  }, [selectNode, setInspectorOpen, setSearchParams]);
+  }, [selectNode, setSearchParams]);
 
   const sortedActiveActivities = useMemo(() => {
     return [...agentActivities].sort(
@@ -276,7 +296,7 @@ export function GraphWorkspace() {
 
   useGraphKeyboardShortcuts({
     onLensChange: handleLensChange,
-    onInspectorClose: handleInspectorClose,
+    onDeselectNode: handleDeselectNode,
     onSettingsToggle: () => setShowSettingsDrawer((prev) => !prev),
     onReturnToAtlas: handleReturnToAtlas,
     focusNodeId,
@@ -466,13 +486,18 @@ export function GraphWorkspace() {
         {/* Floating panels */}
 
         <GraphHelpPanel isOpen={showHelpPanel} onClose={() => setShowHelpPanel(false)} />
-        <Inspector
-          isOpen={inspectorOpen}
-          onClose={handleInspectorClose}
-          selectedNode={selectedNode}
-          onDrillToFlow={handleDrillToFlow}
-          onDrillToOperations={handleDrillToOperations}
-        />
+
+        {/* Detail page overlay — full-page, covers graph when active */}
+        {detailSelection && (
+          <div className="absolute inset-0 z-40 overflow-y-auto bg-slate-950" data-testid="detail-overlay">
+            <Suspense fallback={<PageLoadingState label="Loading details..." />}>
+              {detailSelection.entityType === "backlog" && <BacklogDetailsPage />}
+              {detailSelection.entityType === "scenario" && <ScenarioDetailsPage />}
+              {detailSelection.entityType === "execution" && <ExecutionDetailsPage />}
+              {detailSelection.entityType === "initiative" && <InitiativeDetailsPage />}
+            </Suspense>
+          </div>
+        )}
       </div>
 
       <SettingsDrawer isOpen={showSettingsDrawer} onClose={() => setShowSettingsDrawer(false)} />

@@ -10,9 +10,14 @@
 
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useParams, Link, useSearchParams } from "react-router-dom";
-import { ChevronLeft, Target, FolderOpen } from "lucide-react";
+import { Target, FolderOpen } from "lucide-react";
 import { Card } from "../components/ui/card";
+import { DetailPageHeader } from "../components/detail/DetailPageHeader";
+import { DetailPageLayout } from "../components/detail/DetailPageLayout";
+import { DetailActionButtons } from "../components/detail/DetailActionButtons";
+import { StatusBadge } from "../components/detail/StatusBadge";
+import { useDrillToLens } from "../hooks/useDrillToLens";
+import { selectionToNodeId } from "../stores/detail-selection-store";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
 import { FileTree, type TreeFile } from "../components/ui/file-tree";
@@ -20,9 +25,9 @@ import { defaultQueryOptions, formatRelativeTime, getFileExtension } from "../li
 import { renderMarkdown } from "../lib/render-markdown";
 import { initiativeService } from "../services";
 import { selectors } from "../consts/selectors";
-import { INITIATIVE_STATUS_CHIP_COLORS, BACKLOG_STATUS_CHIP_COLORS } from "../types";
+import { BACKLOG_STATUS_CHIP_COLORS } from "../types";
 import type { BacklogStatus } from "../types";
-import { useBacklogStore } from "../stores";
+import { useBacklogStore, useDetailSelectionStore } from "../stores";
 
 /** Parse "kind/name" item ref into parts. */
 function parseItemRef(ref: string): { kind: string; name: string } | null {
@@ -32,10 +37,12 @@ function parseItemRef(ref: string): { kind: string; name: string } | null {
 }
 
 export function InitiativeDetailsPage() {
-  const { name } = useParams<{ name: string }>();
-  const [searchParams] = useSearchParams();
-  const returnTo = searchParams.get("returnTo");
-  const backLink = returnTo ?? "/graph";
+  const selection = useDetailSelectionStore((s) => s.selection);
+  const clearSelection = useDetailSelectionStore((s) => s.clearSelection);
+  const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
+  const name = selection?.name;
+  const nodeId = selectionToNodeId(selection);
+  const { drillToFlow, drillToOperations } = useDrillToLens();
 
   const backlogItems = useBacklogStore((s) => s.items);
 
@@ -138,40 +145,45 @@ export function InitiativeDetailsPage() {
 
   if (error || !initiative) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-8">
-        <Link to={backLink} className="mb-4 inline-flex items-center gap-1 text-sm text-slate-400 hover:text-slate-200">
-          <ChevronLeft className="h-4 w-4" /> Back
-        </Link>
-        <ErrorState
-          error={error as Error | undefined}
-          title="Failed to load initiative"
-          message={`Could not load initiative "${name}".`}
-          onRetry={() => refetch()}
-        />
-      </div>
+      <DetailPageLayout
+        header={
+          <DetailPageHeader
+            entityType="initiative"
+            title={name ?? "Unknown"}
+            onClose={clearSelection}
+          />
+        }
+      >
+        <div className="mx-auto max-w-3xl">
+          <ErrorState
+            error={error as Error | undefined}
+            title="Failed to load initiative"
+            message={`Could not load initiative "${name}".`}
+            onRetry={() => refetch()}
+          />
+        </div>
+      </DetailPageLayout>
     );
   }
 
-  const statusColors = INITIATIVE_STATUS_CHIP_COLORS[initiative.status] ?? INITIATIVE_STATUS_CHIP_COLORS.active;
-
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-4 py-6" data-testid={selectors.initiativeDetails.page}>
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-sm">
-        <Link
-          to={backLink}
-          className="flex items-center gap-1 text-slate-400 hover:text-slate-200 transition-colors"
-          data-testid={selectors.initiativeDetails.backLink}
-        >
-          <ChevronLeft className="h-4 w-4" />
-          Back
-        </Link>
-        <span className="text-slate-600">/</span>
-        <span className="text-slate-400">Initiatives</span>
-        <span className="text-slate-600">/</span>
-        <span className="truncate text-slate-200">{initiative.title || initiative.name}</span>
-      </nav>
-
+    <DetailPageLayout
+      header={
+        <DetailPageHeader
+          entityType="initiative"
+          title={initiative.title || initiative.name}
+          status={initiative.status}
+          onClose={clearSelection}
+          actions={<DetailActionButtons entityType="initiative" />}
+          crossLensNav={nodeId ? {
+            nodeId,
+            onDrillToFlow: drillToFlow,
+            onDrillToOperations: drillToOperations,
+          } : undefined}
+        />
+      }
+    >
+      <div className="mx-auto max-w-3xl space-y-6" data-testid={selectors.initiativeDetails.page}>
       {/* Metadata Card */}
       <Card className="rounded-lg border-slate-700/60 bg-slate-900/45 p-5">
         <div className="space-y-4">
@@ -185,12 +197,10 @@ export function InitiativeDetailsPage() {
                 {initiative.title || initiative.name}
               </h1>
             </div>
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors}`}
+            <StatusBadge
+              status={initiative.status}
               data-testid={selectors.initiativeDetails.status}
-            >
-              {initiative.status}
-            </span>
+            />
           </div>
 
           {initiative.description && (
@@ -289,13 +299,14 @@ export function InitiativeDetailsPage() {
               {resolvedItems.map((item) => {
                 const chipColors = BACKLOG_STATUS_CHIP_COLORS[item.status] ?? "bg-slate-600/20 text-slate-300";
                 return (
-                  <Link
+                  <button
                     key={item.ref}
-                    to={`/details/backlog/${item.kind}/${item.name}?returnTo=${encodeURIComponent(`/details/initiative/${name}`)}`}
+                    type="button"
+                    onClick={() => selectBacklog(item.kind, item.name)}
                     className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium transition-colors hover:brightness-125 ${chipColors}`}
                   >
                     {item.title}
-                  </Link>
+                  </button>
                 );
               })}
             </div>
@@ -363,6 +374,7 @@ export function InitiativeDetailsPage() {
           </div>
         </Card>
       )}
-    </div>
+      </div>
+    </DetailPageLayout>
   );
 }

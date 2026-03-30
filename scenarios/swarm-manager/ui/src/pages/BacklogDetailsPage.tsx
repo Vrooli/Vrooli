@@ -18,7 +18,7 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef, type MouseEvent, type PointerEvent } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { useParams, Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import {
   Archive,
   ArrowRightLeft,
@@ -120,7 +120,12 @@ import type {
   ReviewUpdate,
 } from "../types";
 import type { WorkshopRound } from "../types/domain";
-import { selectLatestActivityForBacklog, useAgentActivitiesStore, useBacklogStore } from "../stores";
+import { selectLatestActivityForBacklog, useAgentActivitiesStore, useBacklogStore, useDetailSelectionStore } from "../stores";
+import { DetailPageHeader } from "../components/detail/DetailPageHeader";
+import { DetailPageLayout } from "../components/detail/DetailPageLayout";
+import { DetailActionButtons } from "../components/detail/DetailActionButtons";
+import { useDrillToLens } from "../hooks/useDrillToLens";
+import { selectionToNodeId } from "../stores/detail-selection-store";
 
 /** Statuses that users can manually set via the status dropdown. "queued" and "in_progress" are execution-system-only. */
 const USER_SETTABLE_STATUSES: BacklogStatus[] = ["backlog", "researching", "ready", "failed", "completed", "archived"];
@@ -216,19 +221,15 @@ const remapSelectedPath = (
 };
 
 export function BacklogDetailsPage() {
-  const { kind, name } = useParams<{ kind: string; name: string }>();
+  const selection = useDetailSelectionStore((s) => s.selection);
+  const clearSelection = useDetailSelectionStore((s) => s.clearSelection);
+  const selectInitiative = useDetailSelectionStore((s) => s.selectInitiative);
+  const selectScenario = useDetailSelectionStore((s) => s.selectScenario);
+  const nodeId = selectionToNodeId(selection);
+  const { drillToFlow, drillToOperations } = useDrillToLens();
+  const kind = selection?.kind;
+  const name = selection?.name;
   const backlogKind = BACKLOG_KINDS.includes(kind as BacklogKind) ? (kind as BacklogKind) : null;
-  const navigate = useNavigate();
-  const routeLocation = useLocation();
-  // Capture backlog search params on initial mount — setSearchParams calls
-  // within this page replace the history entry and drop location.state,
-  // so we must snapshot it before that happens.
-  const backSearchRef = useRef(
-    (routeLocation.state as { backlogSearch?: string } | null)?.backlogSearch ?? "",
-  );
-  // When opened from graph inspector, returnTo carries the graph URL to go back to
-  const returnToParam = new URLSearchParams(routeLocation.search).get("returnTo");
-  const backLink = returnToParam ?? `/backlog${backSearchRef.current}`;
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const upsertItem = useBacklogStore((state) => state.upsertItem);
@@ -533,7 +534,7 @@ export function BacklogDetailsPage() {
       if (backlogKind && name) {
         removeItem(name, backlogKind);
       }
-      navigate("/backlog");
+      clearSelection();
     },
   });
 
@@ -1536,13 +1537,14 @@ export function BacklogDetailsPage() {
               <Target className="h-3.5 w-3.5" />
               Initiative
             </div>
-            <Link
-              to={`/details/initiative/${encodeURIComponent(item.initiative)}?returnTo=${encodeURIComponent(routeLocation.pathname + routeLocation.search)}`}
+            <button
+              type="button"
+              onClick={() => item.initiative && selectInitiative(item.initiative)}
               className="inline-flex items-center rounded-full bg-sky-500/15 px-2.5 py-1 text-xs font-medium text-sky-400 transition-colors hover:bg-sky-500/25 hover:text-sky-300"
               data-testid={selectors.backlogDetails.initiativeChip}
             >
               {item.initiative}
-            </Link>
+            </button>
           </div>
         )}
         <DependencyChipList label="Depends on" items={depRelations.parents} icon={ArrowUpRight} />
@@ -1637,14 +1639,15 @@ export function BacklogDetailsPage() {
           <h2 className="text-base font-semibold text-slate-100">Target Scenarios</h2>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {targetScenarios.map((name) => (
-            <Link
-              key={name}
-              to={`/scenarios/${name}`}
+          {targetScenarios.map((scenarioName) => (
+            <button
+              key={scenarioName}
+              type="button"
+              onClick={() => selectScenario(scenarioName)}
               className="inline-flex items-center rounded-full bg-violet-500/15 px-2.5 py-1 text-xs font-medium text-violet-400 hover:bg-violet-500/25 transition-colors"
             >
-              {name}
-            </Link>
+              {scenarioName}
+            </button>
           ))}
         </div>
         {(() => {
@@ -1735,17 +1738,23 @@ export function BacklogDetailsPage() {
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm text-orange-300">
               Workshop paused &mdash; waiting for:{" "}
-              {workshopBlockedDeps.map((dep, i) => (
-                <span key={dep}>
-                  {i > 0 && ", "}
-                  <Link
-                    to={`/backlog/${dep}`}
-                    className="font-medium text-orange-200 underline decoration-orange-500/40 hover:text-orange-100 hover:decoration-orange-400/60"
-                  >
-                    {dep}
-                  </Link>
-                </span>
-              ))}
+              {workshopBlockedDeps.map((dep, i) => {
+                const slashIdx = dep.indexOf("/");
+                const depKind = slashIdx > 0 ? dep.slice(0, slashIdx) : "";
+                const depName = slashIdx > 0 ? dep.slice(slashIdx + 1) : dep;
+                return (
+                  <span key={dep}>
+                    {i > 0 && ", "}
+                    <button
+                      type="button"
+                      onClick={() => { if (depKind && depName) selection && useDetailSelectionStore.getState().selectBacklog(depKind, depName); }}
+                      className="font-medium text-orange-200 underline decoration-orange-500/40 hover:text-orange-100 hover:decoration-orange-400/60"
+                    >
+                      {dep}
+                    </button>
+                  </span>
+                );
+              })}
             </p>
             <button
               className="shrink-0 text-xs text-orange-400 hover:text-orange-300 underline"
@@ -1839,7 +1848,7 @@ export function BacklogDetailsPage() {
           variant="outline"
           size="sm"
           className="h-7 w-7 p-0"
-          onClick={() => navigate(`/execution?backlog=${encodeURIComponent(`${backlogKind}/${name}`)}`)}
+          onClick={() => clearSelection()}
           aria-label="View execution"
         >
           <ArrowUpRight className="h-3.5 w-3.5" />
@@ -1953,7 +1962,7 @@ export function BacklogDetailsPage() {
                         variant="outline"
                         size="sm"
                         className="h-7 px-2 text-xs"
-                        onClick={() => navigate(`/execution?backlog=${encodeURIComponent(`${backlogKind}/${name}`)}`)}
+                        onClick={() => clearSelection()}
                       >
                         <ArrowUpRight className="mr-1 h-3 w-3" />
                         View
@@ -1991,7 +2000,7 @@ export function BacklogDetailsPage() {
               variant="outline"
               size="sm"
               className="w-full border-transparent text-xs text-slate-400 hover:text-slate-200"
-              onClick={() => navigate(`/execution?backlog=${encodeURIComponent(`${backlogKind}/${name}`)}`)}
+              onClick={() => clearSelection()}
             >
               View all {executionHistory.length} executions
             </Button>
@@ -2316,18 +2325,14 @@ export function BacklogDetailsPage() {
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DetailsTab)} className="flex h-dvh flex-col overflow-hidden lg:hidden">
             <div className="sticky top-0 z-30 flex items-center gap-2 border-b border-slate-800 bg-slate-950/95 px-3 py-2 backdrop-blur">
               <Button
-                asChild
                 variant="outline"
                 size="sm"
                 className="h-9 w-9 rounded-md border-transparent bg-transparent p-0 hover:bg-slate-800/70"
+                onClick={clearSelection}
+                data-testid={selectors.backlogDetails.backButton}
+                aria-label="Close backlog details"
               >
-                <Link
-                  to={backLink}
-                  data-testid={selectors.backlogDetails.backButton}
-                  aria-label="Back to backlog"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Link>
+                <ChevronLeft className="h-4 w-4" />
               </Button>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-slate-100" data-testid={selectors.backlogDetails.title}>
