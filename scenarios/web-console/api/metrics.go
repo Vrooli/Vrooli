@@ -28,6 +28,18 @@ type Metrics struct {
 	// Resize operations
 	ResizeCount atomic.Int64
 
+	// tmux re-attach counters (readLoop resilience)
+	ReattachAttempts  atomic.Int64
+	ReattachSuccesses atomic.Int64
+	ReattachFailures  atomic.Int64
+
+	// Recovery counters (startup session restoration)
+	RecoveryRecovered       atomic.Int64
+	RecoveryOrphanedMeta    atomic.Int64
+	RecoveryOrphanedTmux    atomic.Int64
+	RecoveryAttachRetries   atomic.Int64
+	RecoveryPreservedForNow atomic.Int64 // sessions kept for future recovery
+
 	// AI generation counter
 	AIGenerations atomic.Int64
 	// AI suggestion counter
@@ -49,6 +61,8 @@ type MetricsResponse struct {
 	Sessions      SessionMetrics    `json:"sessions"`
 	Connections   ConnectionMetrics `json:"connections"`
 	Messages      MessageMetrics    `json:"messages"`
+	Reattach      ReattachMetrics   `json:"reattach"`
+	Recovery      RecoveryMetrics   `json:"recovery"`
 	AIGenerations int64             `json:"ai_generations"`
 	AISuggestions int64             `json:"ai_suggestions"`
 	Uptime        string            `json:"uptime"`
@@ -74,6 +88,22 @@ type MessageMetrics struct {
 	Received int64 `json:"received"`
 }
 
+// ReattachMetrics tracks tmux re-attach resilience during normal operation.
+type ReattachMetrics struct {
+	Attempts  int64 `json:"attempts"`
+	Successes int64 `json:"successes"`
+	Failures  int64 `json:"failures"`
+}
+
+// RecoveryMetrics tracks session recovery at server startup.
+type RecoveryMetrics struct {
+	Recovered       int64 `json:"recovered"`
+	OrphanedMeta    int64 `json:"orphaned_metadata"`
+	OrphanedTmux    int64 `json:"orphaned_tmux"`
+	AttachRetries   int64 `json:"attach_retries"`
+	PreservedForNow int64 `json:"preserved_for_future_recovery"`
+}
+
 // Snapshot returns a point-in-time view of all metrics.
 func (m *Metrics) Snapshot() MetricsResponse {
 	return MetricsResponse{
@@ -90,6 +120,18 @@ func (m *Metrics) Snapshot() MetricsResponse {
 		Messages: MessageMetrics{
 			Sent:     m.WSMessagesSent.Load(),
 			Received: m.WSMessagesReceived.Load(),
+		},
+		Reattach: ReattachMetrics{
+			Attempts:  m.ReattachAttempts.Load(),
+			Successes: m.ReattachSuccesses.Load(),
+			Failures:  m.ReattachFailures.Load(),
+		},
+		Recovery: RecoveryMetrics{
+			Recovered:       m.RecoveryRecovered.Load(),
+			OrphanedMeta:    m.RecoveryOrphanedMeta.Load(),
+			OrphanedTmux:    m.RecoveryOrphanedTmux.Load(),
+			AttachRetries:   m.RecoveryAttachRetries.Load(),
+			PreservedForNow: m.RecoveryPreservedForNow.Load(),
 		},
 		AIGenerations: m.AIGenerations.Load(),
 		AISuggestions: m.AISuggestions.Load(),

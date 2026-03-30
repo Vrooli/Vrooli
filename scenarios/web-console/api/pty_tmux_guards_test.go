@@ -27,7 +27,7 @@ func TestTmuxPTY_ReadAfterClose(t *testing.T) {
 		t.Fatalf("tmuxPTYFactory: %v", err)
 	}
 	sessionName := tmuxSessionPrefix + spec.SessionID
-	defer func() { _ = exec.Command("tmux", "kill-session", "-t", sessionName).Run() }()
+	defer func() { _ = tmuxCmd("kill-session", "-t", sessionName).Run() }()
 
 	// Close the PTY
 	if err := p.Close(); err != nil {
@@ -59,7 +59,7 @@ func TestTmuxPTY_WriteAfterClose(t *testing.T) {
 		t.Fatalf("tmuxPTYFactory: %v", err)
 	}
 	sessionName := tmuxSessionPrefix + spec.SessionID
-	defer func() { _ = exec.Command("tmux", "kill-session", "-t", sessionName).Run() }()
+	defer func() { _ = tmuxCmd("kill-session", "-t", sessionName).Run() }()
 
 	if err := p.Close(); err != nil {
 		t.Fatalf("Close: %v", err)
@@ -89,7 +89,7 @@ func TestTmuxPTY_SetSizeAfterClose(t *testing.T) {
 		t.Fatalf("tmuxPTYFactory: %v", err)
 	}
 	sessionName := tmuxSessionPrefix + spec.SessionID
-	defer func() { _ = exec.Command("tmux", "kill-session", "-t", sessionName).Run() }()
+	defer func() { _ = tmuxCmd("kill-session", "-t", sessionName).Run() }()
 
 	if err := p.Close(); err != nil {
 		t.Fatalf("Close: %v", err)
@@ -119,7 +119,7 @@ func TestTmuxPTY_CloseIdempotent(t *testing.T) {
 		t.Fatalf("tmuxPTYFactory: %v", err)
 	}
 	sessionName := tmuxSessionPrefix + spec.SessionID
-	defer func() { _ = exec.Command("tmux", "kill-session", "-t", sessionName).Run() }()
+	defer func() { _ = tmuxCmd("kill-session", "-t", sessionName).Run() }()
 
 	// Close twice should not panic
 	if err := p.Close(); err != nil {

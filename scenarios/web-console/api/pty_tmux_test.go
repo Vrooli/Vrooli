@@ -30,10 +30,10 @@ func TestTmuxPTYFactory_EnablesMouseMode(t *testing.T) {
 	defer p.Close()
 
 	sessionName := tmuxSessionPrefix + spec.SessionID
-	defer func() { _ = exec.Command("tmux", "kill-session", "-t", sessionName).Run() }()
+	defer func() { _ = tmuxCmd("kill-session", "-t", sessionName).Run() }()
 
 	// Query the tmux mouse option for this session
-	out, err := exec.Command("tmux", "show-options", "-t", sessionName, "mouse").Output()
+	out, err := tmuxCmd("show-options", "-t", sessionName, "mouse").Output()
 	if err != nil {
 		t.Fatalf("tmux show-options failed: %v", err)
 	}
@@ -66,10 +66,10 @@ func TestTmuxPTYFactory_SetsHistoryLimit(t *testing.T) {
 	defer p.Close()
 
 	sessionName := tmuxSessionPrefix + spec.SessionID
-	defer func() { _ = exec.Command("tmux", "kill-session", "-t", sessionName).Run() }()
+	defer func() { _ = tmuxCmd("kill-session", "-t", sessionName).Run() }()
 
 	// Query the tmux history-limit for this session
-	out, err := exec.Command("tmux", "show-options", "-t", sessionName, "history-limit").Output()
+	out, err := tmuxCmd("show-options", "-t", sessionName, "history-limit").Output()
 	if err != nil {
 		t.Fatalf("tmux show-options failed: %v", err)
 	}

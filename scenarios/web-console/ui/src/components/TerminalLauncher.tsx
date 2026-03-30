@@ -91,13 +91,20 @@ export default function TerminalLauncher({
   const buildLaunchOptions = useCallback(
     (command?: string): LaunchOptions => {
       const parsed = parsePolicySelection(selectedPolicyKey);
+      // Only include backend when the user explicitly changed it from the
+      // default. When omitted, the API uses its configured server default
+      // (typically "persistent"). This avoids a race where the hardcoded
+      // fallback ("standard") is sent before the async fetch of the real
+      // server default completes — which previously caused all sessions to
+      // be non-persistent and lost on restart.
+      const userChangedBackend = selectedBackend !== defaultBackend;
       return {
         command,
-        backend: selectedBackend,
+        backend: userChangedBackend ? selectedBackend : undefined,
         policy: parsed ?? undefined,
       };
     },
-    [selectedBackend, selectedPolicyKey],
+    [selectedBackend, selectedPolicyKey, defaultBackend],
   );
 
   // Custom command launch is separate because it validates non-empty input

@@ -227,6 +227,31 @@ func TestFilterServiceEnv_HandlesEmptyEnv(t *testing.T) {
 	}
 }
 
+func TestFilterServiceEnv_RemovesLifecycleVars(t *testing.T) {
+	// REGRESSION: The tmux server inherited VROOLI_LIFECYCLE_MANAGED from the
+	// API process. The autoheal orphan checker then detected the tmux server as
+	// a Vrooli process and killed it as an "orphan", destroying all persistent
+	// sessions. These lifecycle vars must be stripped.
+	env := []string{
+		"HOME=/home/user",
+		"VROOLI_LIFECYCLE_MANAGED=true",
+		"VROOLI_SCENARIO=web-console",
+		"VROOLI_STEP=start-api",
+		"VROOLI_PHASE=develop",
+		"PATH=/usr/bin",
+	}
+	got := filterServiceEnv(env)
+
+	for _, v := range got {
+		if strings.HasPrefix(v, "VROOLI_") {
+			t.Errorf("Vrooli lifecycle var should be filtered out: %s", v)
+		}
+	}
+	if len(got) != 2 {
+		t.Errorf("expected 2 env vars (HOME, PATH), got %d: %v", len(got), got)
+	}
+}
+
 // fakePTY is a pipe-based PTY substitute for fast, deterministic tests.
 // It satisfies the PTY interface without spawning real shell processes.
 // Use fakePTYWithOutput when you need to simulate PTY stdout.
@@ -429,8 +454,8 @@ func TestTmuxAttach_SetsTermEnv(t *testing.T) {
 	}
 
 	sessionName := tmuxSessionPrefix + "test-term-env"
-	// Create a detached tmux session
-	createCmd := exec.Command("tmux", "new-session", "-d",
+	// Create a detached tmux session on the dedicated wc socket
+	createCmd := tmuxCmd("new-session", "-d",
 		"-s", sessionName,
 		"-x", "80", "-y", "24",
 		"/bin/sh",
@@ -438,7 +463,7 @@ func TestTmuxAttach_SetsTermEnv(t *testing.T) {
 	if err := createCmd.Run(); err != nil {
 		t.Fatalf("tmux new-session failed: %v", err)
 	}
-	defer func() { _ = exec.Command("tmux", "kill-session", "-t", sessionName).Run() }()
+	defer func() { _ = tmuxCmd("kill-session", "-t", sessionName).Run() }()
 
 	// Temporarily set TERM=dumb to simulate lifecycle-launched server
 	origTerm := os.Getenv("TERM")

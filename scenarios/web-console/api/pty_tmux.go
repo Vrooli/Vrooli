@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/creack/pty/v2"
@@ -22,6 +23,17 @@ var errPTYClosed = errors.New("pty is closed")
 
 // tmuxSessionPrefix distinguishes web console sessions from user tmux sessions.
 const tmuxSessionPrefix = "wc-"
+
+// tmuxSocket is the dedicated tmux socket name for web-console sessions.
+// Using a separate socket ensures the tmux server is distinct from the user's
+// default tmux server, giving us full lifecycle control.
+const tmuxSocket = "wc"
+
+// tmuxScopeName is the systemd scope unit name used to isolate the tmux server
+// from the parent service's cgroup. Without this, the tmux server inherits
+// the API's cgroup (e.g., vrooli-autoheal.service), and gets killed when that
+// service restarts.
+const tmuxScopeName = "wc-tmux-server"
 
 // tmuxPTY implements the PTY interface using a tmux session as the backing process.
 // The shell runs inside a detached tmux session; I/O is streamed via
@@ -62,7 +74,7 @@ func (p *tmuxPTY) SetSize(cols, rows uint16) error {
 	}
 	p.mu.Unlock()
 	// Resize the tmux window directly (not the local PTY)
-	if err := exec.Command("tmux", "resize-window", "-t", p.sessionName,
+	if err := tmuxCmd("resize-window", "-t", p.sessionName,
 		"-x", strconv.Itoa(int(cols)),
 		"-y", strconv.Itoa(int(rows))).Run(); err != nil {
 		return fmt.Errorf("tmux resize: %w", err)
@@ -87,7 +99,7 @@ func (p *tmuxPTY) Kill() error {
 	p.mu.Unlock()
 
 	// Kill the tmux session, which kills the shell inside it
-	if err := exec.Command("tmux", "kill-session", "-t", p.sessionName).Run(); err != nil {
+	if err := tmuxCmd("kill-session", "-t", p.sessionName).Run(); err != nil {
 		log.Printf("tmux: kill-session %s failed: %v", p.sessionName, err)
 	}
 	// Also kill the attach process (only if ptmx wasn't already closed)
@@ -101,7 +113,7 @@ func (p *tmuxPTY) ExitCode() int {
 	// Check pane_dead first — pane_dead_status is only meaningful when the pane
 	// has exited. Without this guard, a running pane returns "0" for
 	// pane_dead_status which is indistinguishable from "exited with code 0".
-	out, err := exec.Command("tmux", "display-message", "-t", p.sessionName, "-p", "#{pane_dead}:#{pane_dead_status}").Output()
+	out, err := tmuxCmd("display-message", "-t", p.sessionName, "-p", "#{pane_dead}:#{pane_dead_status}").Output()
 	if err == nil {
 		parts := strings.SplitN(strings.TrimSpace(string(out)), ":", 2)
 		if len(parts) == 2 && parts[0] == "1" {
@@ -126,7 +138,7 @@ func (p *tmuxPTY) ExitCode() int {
 
 func (p *tmuxPTY) HasChildProcess() bool {
 	// Get the pane PID from tmux
-	out, err := exec.Command("tmux", "display-message", "-t", p.sessionName, "-p", "#{pane_pid}").Output()
+	out, err := tmuxCmd("display-message", "-t", p.sessionName, "-p", "#{pane_pid}").Output()
 	if err != nil {
 		return false
 	}
@@ -156,20 +168,65 @@ func buildSessionEnv(spec SessionLaunchSpec) []string {
 	)
 }
 
+// tmuxCmd builds a tmux command that uses the dedicated web-console socket.
+// All tmux operations MUST go through this helper to ensure they target the
+// correct server (isolated from the parent service's cgroup).
+func tmuxCmd(args ...string) *exec.Cmd {
+	fullArgs := append([]string{"-L", tmuxSocket}, args...)
+	return exec.Command("tmux", fullArgs...)
+}
+
+// tmuxCmdContext is like tmuxCmd but accepts a context for timeout/cancellation.
+func tmuxCmdContext(ctx context.Context, args ...string) *exec.Cmd {
+	fullArgs := append([]string{"-L", tmuxSocket}, args...)
+	return exec.CommandContext(ctx, "tmux", fullArgs...)
+}
+
 // tmuxPTYFactory creates a tmux-backed PTY for persistent sessions.
 func tmuxPTYFactory(spec SessionLaunchSpec) (PTY, error) {
 	sessionName := tmuxSessionPrefix + spec.SessionID
 
-	// 1. Create detached tmux session with the target shell
-	createCmd := exec.Command("tmux", "new-session", "-d",
+	// 1. Create detached tmux session with the target shell.
+	// We use systemd-run --scope to launch the tmux new-session command in
+	// its own systemd scope. On the FIRST invocation (when no tmux server
+	// exists), this causes the forked tmux server to live in the scope
+	// instead of inheriting the parent's cgroup (e.g., vrooli-autoheal.service).
+	// This is critical: without it, a service restart kills the tmux server.
+	//
+	// On subsequent calls the tmux server is already running (in its own
+	// scope); the new-session client just asks it to create a session, and
+	// the scope only wraps the short-lived client — which is harmless.
+	//
+	// Setpgid isolates the child from the API's process group so that
+	// lifecycle SIGTERM (kill -TERM -$pgid) doesn't kill tmux processes.
+	tmuxArgs := []string{"-L", tmuxSocket, "new-session", "-d",
 		"-s", sessionName,
 		"-x", strconv.Itoa(int(spec.Cols)),
 		"-y", strconv.Itoa(int(spec.Rows)),
 		spec.Shell,
-	)
+	}
+	createCmd := exec.Command("systemd-run", append([]string{
+		"--user", "--scope", "--unit=" + tmuxScopeName,
+		"tmux",
+	}, tmuxArgs...)...)
+	createCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	createCmd.Env = buildSessionEnv(spec)
 	if err := createCmd.Run(); err != nil {
-		return nil, fmt.Errorf("tmux new-session: %w", err)
+		// Fallback: if systemd-run fails (e.g., no systemd user session),
+		// create directly. The server will inherit the parent cgroup, but
+		// that's better than failing entirely.
+		log.Printf("tmux: systemd-run scope creation failed, falling back to direct: %v", err)
+		fallbackCmd := tmuxCmd("new-session", "-d",
+			"-s", sessionName,
+			"-x", strconv.Itoa(int(spec.Cols)),
+			"-y", strconv.Itoa(int(spec.Rows)),
+			spec.Shell,
+		)
+		fallbackCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		fallbackCmd.Env = buildSessionEnv(spec)
+		if err := fallbackCmd.Run(); err != nil {
+			return nil, fmt.Errorf("tmux new-session: %w", err)
+		}
 	}
 
 	// 2. Configure session options
@@ -178,7 +235,7 @@ func tmuxPTYFactory(spec SessionLaunchSpec) (PTY, error) {
 	// 3. Attach to tmux session via a PTY for I/O streaming
 	p, err := tmuxAttach(sessionName)
 	if err != nil {
-		_ = exec.Command("tmux", "kill-session", "-t", sessionName).Run()
+		_ = tmuxCmd("kill-session", "-t", sessionName).Run()
 		return nil, err
 	}
 	return p, nil
@@ -196,7 +253,7 @@ func applyTmuxOptions(sessionName string) {
 		{"set-titles-string", "#{pane_title}"},
 	}
 	for _, opt := range opts {
-		if err := exec.Command("tmux", "set-option", "-t", sessionName, opt[0], opt[1]).Run(); err != nil {
+		if err := tmuxCmd("set-option", "-t", sessionName, opt[0], opt[1]).Run(); err != nil {
 			log.Printf("tmux: set-option %s=%s on %s failed: %v", opt[0], opt[1], sessionName, err)
 		}
 	}
@@ -214,11 +271,18 @@ func tmuxAttach(sessionName string) (*tmuxPTY, error) {
 	// This fails fast if the tmux server is hung or the session was killed.
 	ctx, cancel := context.WithTimeout(context.Background(), tmuxAttachTimeout)
 	defer cancel()
-	if err := exec.CommandContext(ctx, "tmux", "has-session", "-t", sessionName).Run(); err != nil {
+	hasCmd := tmuxCmdContext(ctx, "has-session", "-t", sessionName)
+	hasCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if err := hasCmd.Run(); err != nil {
 		return nil, fmt.Errorf("tmux has-session %s: %w", sessionName, err)
 	}
 
-	attachCmd := exec.Command("tmux", "attach-session", "-t", sessionName)
+	attachCmd := tmuxCmd("attach-session", "-t", sessionName)
+	// NOTE: No Setpgid here — pty.Start() below sets Setsid=true internally,
+	// which already puts the attach process in its own session+process group,
+	// isolating it from lifecycle SIGTERM (kill -TERM -$pgid). Setting both
+	// Setpgid and Setsid causes EPERM because a session leader cannot setpgid.
+	//
 	// The server process may have TERM=dumb (common when started by a
 	// non-interactive lifecycle manager). tmux attach requires a terminal
 	// type that supports basic operations like clear, so we ensure
@@ -235,10 +299,16 @@ func tmuxAttach(sessionName string) (*tmuxPTY, error) {
 	}, nil
 }
 
+// tmuxAttachAsPTY wraps tmuxAttach to return the PTY interface, matching
+// TmuxAttachFunc's signature so production code and tests use the same type.
+func tmuxAttachAsPTY(sessionName string) (PTY, error) {
+	return tmuxAttach(sessionName)
+}
+
 // DiscoverTmuxSessions finds surviving web console tmux sessions.
 // Returns session IDs (without the "wc-" prefix).
 func DiscoverTmuxSessions() ([]string, error) {
-	out, err := exec.Command("tmux", "list-sessions", "-F", "#{session_name}").Output()
+	out, err := tmuxCmd("list-sessions", "-F", "#{session_name}").Output()
 	if err != nil {
 		// tmux not running or no sessions — not an error
 		return nil, nil

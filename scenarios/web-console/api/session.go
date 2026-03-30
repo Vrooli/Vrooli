@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sync"
 	"time"
@@ -32,6 +31,15 @@ var sgrReset = []byte("\x1b[0m")
 // prevent browser UI freezes during large history replays.
 // DOC: docs/concepts/ARCHITECTURE.md#history-replay-limitations
 const historyChunkSize = 64 * 1024 // 64 KB
+
+// tmux re-attach retry parameters. When the attach process dies but the tmux
+// session itself survives, we retry with exponential backoff before declaring
+// the session dead. A single transient failure (brief tmux unresponsiveness,
+// resource pressure) should not permanently destroy a session.
+const (
+	tmuxReattachMaxRetries = 3
+	tmuxReattachBaseDelay  = 500 * time.Millisecond
+)
 
 // Sentinel errors for session operations. Handlers use these to select the
 // correct HTTP status code and user-facing message.
@@ -122,6 +130,17 @@ type Session struct {
 	// recovered is true for sessions restored from tmux after a server restart.
 	// Resets to false after the first WebSocket connection.
 	recovered bool
+
+	// closing is set by Shutdown() before closing the PTY fd. readLoop checks
+	// this to skip re-attach retries during graceful shutdown, avoiding churn.
+	closing bool
+
+	// reattachFunc is the function readLoop uses to re-attach to a tmux
+	// session. Defaults to tmuxAttach; injectable for testing.
+	reattachFunc TmuxAttachFunc
+
+	// metrics is optional; when set, readLoop increments re-attach counters.
+	metrics *Metrics
 
 	// Conversation side-channel: fan-out of semantic assistant events to
 	// WebSocket clients subscribed to this terminal session.
@@ -578,24 +597,59 @@ func (s *Session) readLoop() {
 		}
 		if err != nil {
 			// For persistent (tmux) sessions, the attach process can die while
-			// the underlying tmux session survives. Attempt to re-attach before
-			// declaring the session dead.
+			// the underlying tmux session survives. Retry re-attach with
+			// exponential backoff before declaring the session dead. A single
+			// transient failure should not permanently destroy a session.
 			if s.Backend == BackendPersistent {
-				sessionName := tmuxSessionPrefix + s.ID
-				newPTY, reattachErr := tmuxAttach(sessionName)
-				if reattachErr == nil {
-					log.Printf("session %s: tmux attach process died, re-attached successfully", s.ID)
-					// Swap the PTY under lock so concurrent Write/Resize calls
-					// see the new PTY atomically.
-					s.mu.Lock()
-					s.pty = newPTY
-					s.mu.Unlock()
-					// Restore the terminal dimensions so the re-attached session
-					// matches what the client expects.
-					_ = newPTY.SetSize(s.Cols, s.Rows)
-					continue
+				s.mu.Lock()
+				isClosing := s.closing
+				s.mu.Unlock()
+				if !isClosing {
+					sessionName := tmuxSessionPrefix + s.ID
+					reattached := false
+					for attempt := 0; attempt < tmuxReattachMaxRetries; attempt++ {
+						delay := tmuxReattachBaseDelay << attempt // 500ms, 1s, 2s
+						time.Sleep(delay)
+						// Re-check closing in case Shutdown() was called during backoff.
+						s.mu.Lock()
+						isClosing = s.closing
+						s.mu.Unlock()
+						if isClosing {
+							log.Printf("session %s: shutdown detected during re-attach backoff, stopping retries", s.ID)
+							break
+						}
+						if s.metrics != nil {
+							s.metrics.ReattachAttempts.Add(1)
+						}
+						newPTY, reattachErr := s.reattachFunc(sessionName)
+						if reattachErr == nil {
+							log.Printf("session %s: tmux attach process died, re-attached successfully (attempt %d)", s.ID, attempt+1)
+							if s.metrics != nil {
+								s.metrics.ReattachSuccesses.Add(1)
+							}
+							s.mu.Lock()
+							oldPTY := s.pty
+							s.pty = newPTY
+							s.mu.Unlock()
+							// Close the old PTY fd to prevent file descriptor leaks.
+							// The old attach process has already exited (that's why
+							// we're here), but its PTY master fd is still open.
+							_ = oldPTY.Close()
+							_ = newPTY.SetSize(s.Cols, s.Rows)
+							reattached = true
+							break
+						}
+						log.Printf("session %s: tmux re-attach attempt %d/%d failed (read err: %v, attach err: %v)",
+							s.ID, attempt+1, tmuxReattachMaxRetries, err, reattachErr)
+					}
+					if reattached {
+						continue
+					}
+					if s.metrics != nil {
+						s.metrics.ReattachFailures.Add(1)
+					}
+					log.Printf("session %s: all re-attach attempts exhausted, declaring session dead", s.ID)
 				}
-				log.Printf("session %s: tmux re-attach failed (read err: %v, attach err: %v)", s.ID, err, reattachErr)
 			}
 
 			// Flush any remaining incomplete UTF-8 bytes — there is no more
@@ -685,6 +739,15 @@ func splitCompleteUTF8(data []byte) (complete, remainder []byte) {
 	return data[:i], data[i:]
 }
 
+// TmuxAttachFunc creates a PTY by attaching to an existing tmux session.
+// Returns the PTY interface so tests can substitute fakes.
+// Defaults to tmuxAttachAsPTY; overridden in tests.
+type TmuxAttachFunc func(sessionName string) (PTY, error)
+
+// TmuxDiscoverFunc discovers surviving tmux sessions by name prefix.
+// Defaults to DiscoverTmuxSessions; overridden in tests.
+type TmuxDiscoverFunc func() ([]string, error)
+
 // SessionManager tracks all active terminal sessions.
 // [REQ:P0-002a] PTY Session Backend
 type SessionManager struct {
@@ -696,15 +759,28 @@ type SessionManager struct {
 	registry     *BackendRegistry
 	store        SessionMetadataStore
 	shuttingDown bool // set by Shutdown(); prevents auto-remove from deleting persistent session metadata
+
+	// Seams for testability: injectable tmux operations.
+	tmuxAttachFunc   TmuxAttachFunc
+	tmuxDiscoverFunc TmuxDiscoverFunc
+
+	// Observability: optional metrics and event logger for session lifecycle.
+	metrics *Metrics
+	events  *EventLogger
+
+	// reattachStopCh signals the periodic re-attach watchdog to stop.
+	reattachStopCh chan struct{}
 }
 
 // NewSessionManager creates a new session manager with the default PTY factory
 // and configuration loaded from environment variables.
 func NewSessionManager() *SessionManager {
 	return &SessionManager{
-		sessions:   make(map[string]*Session),
-		ptyFactory: defaultPTYFactory,
-		cfg:        LoadConfig(),
+		sessions:         make(map[string]*Session),
+		ptyFactory:       defaultPTYFactory,
+		cfg:              LoadConfig(),
+		tmuxAttachFunc:   tmuxAttachAsPTY,
+		tmuxDiscoverFunc: DiscoverTmuxSessions,
 	}
 }
 
@@ -712,9 +788,11 @@ func NewSessionManager() *SessionManager {
 // Use this in tests to substitute a fake PTY implementation.
 func NewSessionManagerWithFactory(factory PTYFactory) *SessionManager {
 	return &SessionManager{
-		sessions:   make(map[string]*Session),
-		ptyFactory: factory,
-		cfg:        DefaultConfig(),
+		sessions:         make(map[string]*Session),
+		ptyFactory:       factory,
+		cfg:              DefaultConfig(),
+		tmuxAttachFunc:   tmuxAttachAsPTY,
+		tmuxDiscoverFunc: DiscoverTmuxSessions,
 	}
 }
 
@@ -726,6 +804,16 @@ func (sm *SessionManager) SetRegistry(reg *BackendRegistry) {
 // SetStore sets the session metadata store for persistence.
 func (sm *SessionManager) SetStore(store SessionMetadataStore) {
 	sm.store = store
+}
+
+// SetMetrics sets the metrics collector for session lifecycle counters.
+func (sm *SessionManager) SetMetrics(m *Metrics) {
+	sm.metrics = m
+}
+
+// SetEvents sets the event logger for structured session lifecycle events.
+func (sm *SessionManager) SetEvents(el *EventLogger) {
+	sm.events = el
 }
 
 // GetConfig returns a snapshot of the current configuration. Thread-safe.
@@ -871,6 +959,8 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16, backend Backen
 		clientChannelBuffer:     sm.cfg.ClientChannelBuffer,
 		coalesceNotifyThreshold: sm.cfg.CoalesceNotifyThreshold,
 		conversationClients:     make(map[chan ConversationEvent]struct{}),
+		reattachFunc:            sm.tmuxAttachFunc,
+		metrics:                 sm.metrics,
 	}
 
 	sm.mu.Lock()
@@ -899,14 +989,18 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16, backend Backen
 	// any upload temp directory so List()/Get() no longer return a terminated session.
 	go func() {
 		<-sess.Done()
-		log.Printf("session %s: process exited", sess.ID)
+		log.Printf("session %s: process exited (backend=%s)", sess.ID, backend)
 		sm.mu.Lock()
 		delete(sm.sessions, sess.ID)
-		shutting := sm.shuttingDown
 		sm.mu.Unlock()
-		// During shutdown, preserve metadata for persistent sessions so they
-		// can be recovered on the next startup.
-		if sm.store != nil && !(shutting && backend == BackendPersistent) {
+		// Persistent sessions: ALWAYS preserve metadata so recovery can
+		// re-attach on the next startup. The tmux session survives in its
+		// own systemd scope even when the attach process dies. Deleting
+		// metadata here would orphan the tmux session, causing recovery to
+		// kill it — permanently destroying a recoverable session.
+		//
+		// Standard sessions: always delete metadata (they cannot survive).
+		if sm.store != nil && backend != BackendPersistent {
 			_ = sm.store.Delete(sess.ID)
 		}
 		// Clean up session upload directory
@@ -978,6 +1072,18 @@ func (sm *SessionManager) Shutdown() {
 	}
 	sm.mu.Unlock()
 
+	// Mark persistent sessions as closing BEFORE closing PTY fds. This
+	// tells readLoop to skip re-attach retries, avoiding churn during
+	// shutdown where retries would create new attach processes that get
+	// immediately killed.
+	for _, sess := range snapshot {
+		if sess.Backend == BackendPersistent {
+			sess.mu.Lock()
+			sess.closing = true
+			sess.mu.Unlock()
+		}
+	}
+
 	for _, sess := range snapshot {
 		if sess.Backend == BackendPersistent {
 			// Close the attach PTY fd — this detaches from the tmux session
@@ -1011,7 +1117,7 @@ func (sm *SessionManager) Recover(store SessionMetadataStore, registry *BackendR
 	}
 
 	// 2. Discover live tmux sessions
-	tmuxSessions, err := DiscoverTmuxSessions()
+	tmuxSessions, err := sm.tmuxDiscoverFunc()
 	if err != nil {
 		log.Printf("recovery: failed to discover tmux sessions: %v", err)
 		return report
@@ -1036,11 +1142,31 @@ func (sm *SessionManager) Recover(store SessionMetadataStore, registry *BackendR
 		sessionName := tmuxSessionPrefix + id
 		applyTmuxOptions(sessionName)
 
-		// Re-attach to surviving tmux session
-		p, attachErr := tmuxAttach(sessionName)
+		// Re-attach to surviving tmux session with retries. A transient
+		// failure (tmux server briefly busy at startup) should not
+		// permanently destroy the session.
+		var p PTY
+		var attachErr error
+		for attempt := 0; attempt <= tmuxReattachMaxRetries; attempt++ {
+			if attempt > 0 {
+				delay := tmuxReattachBaseDelay << (attempt - 1)
+				time.Sleep(delay)
+			}
+			p, attachErr = sm.tmuxAttachFunc(sessionName)
+			if attachErr == nil {
+				break
+			}
+			log.Printf("recovery: reattach session %s attempt %d/%d failed: %v",
+				id, attempt+1, tmuxReattachMaxRetries+1, attachErr)
+		}
 		if attachErr != nil {
-			log.Printf("recovery: failed to reattach session %s: %v", id, attachErr)
-			_ = store.Delete(id)
+			// All retries exhausted. Preserve BOTH metadata and the tmux
+			// session so the next server restart can try again. Previous
+			// behavior deleted metadata here and then killed the tmux
+			// session as an "orphan" — permanently destroying a
+			// recoverable session on a transient failure.
+			log.Printf("recovery: preserving session %s for future recovery (attach failed: %v)", id, attachErr)
+			delete(tmuxSet, id) // prevent orphan-kill in step 4
 			report.OrphanedMetadata++
 			continue
 		}
@@ -1062,6 +1188,8 @@ func (sm *SessionManager) Recover(store SessionMetadataStore, registry *BackendR
 			coalesceNotifyThreshold: sm.cfg.CoalesceNotifyThreshold,
 			conversationClients:     make(map[chan ConversationEvent]struct{}),
 			recovered:               true,
+			reattachFunc:            sm.tmuxAttachFunc,
+			metrics:                 sm.metrics,
 		}
 
 		sm.mu.Lock()
@@ -1071,14 +1199,13 @@ func (sm *SessionManager) Recover(store SessionMetadataStore, registry *BackendR
 		go sess.readLoop()
 		go func(sessID string, backend BackendID) {
 			<-sess.Done()
-			log.Printf("session %s: recovered process exited", sessID)
+			log.Printf("session %s: recovered process exited (backend=%s)", sessID, backend)
 			sm.mu.Lock()
 			delete(sm.sessions, sessID)
-			shutting := sm.shuttingDown
 			sm.mu.Unlock()
-			// During shutdown, preserve metadata for persistent sessions so
-			// they can be recovered on the next startup.
-			if sm.store != nil && !(shutting && backend == BackendPersistent) {
+			// Persistent sessions: preserve metadata for future recovery.
+			// Standard sessions: delete metadata (they cannot survive).
+			if sm.store != nil && backend != BackendPersistent {
 				_ = sm.store.Delete(sessID)
 			}
 			uploadDir := filepath.Join(resolveUploadDir(), sessID)
@@ -1095,12 +1222,166 @@ func (sm *SessionManager) Recover(store SessionMetadataStore, registry *BackendR
 	// 4. Kill orphaned tmux sessions (no metadata)
 	for id := range tmuxSet {
 		sessionName := tmuxSessionPrefix + id
-		_ = exec.Command("tmux", "kill-session", "-t", sessionName).Run()
+		_ = tmuxCmd("kill-session", "-t", sessionName).Run()
 		report.OrphanedTmux++
 		log.Printf("recovery: killed orphaned tmux session %s", id)
 	}
 
+	// 5. Record recovery metrics and emit events for observability.
+	if sm.metrics != nil {
+		sm.metrics.RecoveryRecovered.Add(int64(report.Recovered))
+		sm.metrics.RecoveryOrphanedMeta.Add(int64(report.OrphanedMetadata))
+		sm.metrics.RecoveryOrphanedTmux.Add(int64(report.OrphanedTmux))
+	}
+	if sm.events != nil {
+		sm.events.Emit("session.recovery_complete", "", map[string]string{
+			"recovered":        fmt.Sprintf("%d", report.Recovered),
+			"orphaned_meta":    fmt.Sprintf("%d", report.OrphanedMetadata),
+			"orphaned_tmux":    fmt.Sprintf("%d", report.OrphanedTmux),
+			"metadata_entries": fmt.Sprintf("%d", len(metaList)),
+			"tmux_sessions":    fmt.Sprintf("%d", len(tmuxSessions)),
+		})
+	}
+
 	return report
+}
+
+// reattachWatchdogInterval controls how often the watchdog checks for
+// persistent sessions that have metadata but are not in the active sessions map
+// (i.e., the readLoop failed and auto-remove removed them, but the tmux session
+// may still be alive). 30 seconds balances responsiveness with low overhead.
+const reattachWatchdogInterval = 30 * time.Second
+
+// StartReattachWatchdog launches a background goroutine that periodically
+// checks for persistent sessions with metadata but no active in-memory session.
+// When found, it attempts to re-attach to the tmux session and re-register it.
+// This handles the case where a transient failure kills the attach process
+// during normal operation — the session recovers without requiring a full
+// server restart.
+func (sm *SessionManager) StartReattachWatchdog() {
+	sm.mu.Lock()
+	if sm.reattachStopCh != nil {
+		sm.mu.Unlock()
+		return
+	}
+	sm.reattachStopCh = make(chan struct{})
+	sm.mu.Unlock()
+
+	go sm.reattachWatchdogLoop()
+}
+
+// StopReattachWatchdog terminates the background re-attach watchdog.
+func (sm *SessionManager) StopReattachWatchdog() {
+	sm.mu.Lock()
+	if sm.reattachStopCh != nil {
+		close(sm.reattachStopCh)
+		sm.reattachStopCh = nil
+	}
+	sm.mu.Unlock()
+}
+
+func (sm *SessionManager) reattachWatchdogLoop() {
+	ticker := time.NewTicker(reattachWatchdogInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			sm.reattachOrphanedSessions()
+		case <-sm.reattachStopCh:
+			return
+		}
+	}
+}
+
+// reattachOrphanedSessions finds persistent sessions with metadata in the
+// store but no corresponding entry in the active sessions map, and attempts
+// to re-attach them. This is a lightweight version of Recover that runs
+// during normal operation.
+func (sm *SessionManager) reattachOrphanedSessions() {
+	if sm.store == nil {
+		return
+	}
+	metaList, err := sm.store.ListDetached()
+	if err != nil {
+		return
+	}
+
+	for _, meta := range metaList {
+		// Skip sessions that are already active
+		sm.mu.RLock()
+		_, active := sm.sessions[meta.ID]
+		shutting := sm.shuttingDown
+		sm.mu.RUnlock()
+		if active || shutting {
+			continue
+		}
+
+		sessionName := tmuxSessionPrefix + meta.ID
+		p, attachErr := sm.tmuxAttachFunc(sessionName)
+		if attachErr != nil {
+			// tmux session is gone — clean up stale metadata
+			_ = sm.store.Delete(meta.ID)
+			log.Printf("reattach-watchdog: session %s tmux session gone, cleaned up metadata", meta.ID)
+			continue
+		}
+
+		sess := &Session{
+			ID:                      meta.ID,
+			Shell:                   meta.Shell,
+			CreatedAt:               meta.Created,
+			Cols:                    meta.Cols,
+			Rows:                    meta.Rows,
+			Backend:                 meta.Backend,
+			pty:                     p,
+			policy:                  meta.Policy,
+			clients:                 make(map[chan []byte]*ClientInfo),
+			exitCh:                  make(chan struct{}),
+			offlineBufferMax:        sm.cfg.OfflineBufferMax,
+			ptyReadBuffer:           sm.cfg.PTYReadBuffer,
+			clientChannelBuffer:     sm.cfg.ClientChannelBuffer,
+			coalesceNotifyThreshold: sm.cfg.CoalesceNotifyThreshold,
+			conversationClients:     make(map[chan ConversationEvent]struct{}),
+			recovered:               true,
+			reattachFunc:            sm.tmuxAttachFunc,
+			metrics:                 sm.metrics,
+		}
+
+		sm.mu.Lock()
+		// Double-check another goroutine didn't re-add it
+		if _, exists := sm.sessions[meta.ID]; exists {
+			sm.mu.Unlock()
+			_ = p.Close()
+			continue
+		}
+		sm.sessions[meta.ID] = sess
+		sm.mu.Unlock()
+
+		go sess.readLoop()
+		go func(sessID string, backend BackendID) {
+			<-sess.Done()
+			log.Printf("session %s: re-attached process exited (backend=%s)", sessID, backend)
+			sm.mu.Lock()
+			delete(sm.sessions, sessID)
+			sm.mu.Unlock()
+			if sm.store != nil && backend != BackendPersistent {
+				_ = sm.store.Delete(sessID)
+			}
+			uploadDir := filepath.Join(resolveUploadDir(), sessID)
+			if err := os.RemoveAll(uploadDir); err != nil && !os.IsNotExist(err) {
+				log.Printf("session %s: failed to clean up upload dir: %v", sessID, err)
+			}
+		}(meta.ID, meta.Backend)
+
+		log.Printf("reattach-watchdog: re-attached session %s", meta.ID)
+		if sm.events != nil {
+			sm.events.Emit("session.reattach_watchdog", meta.ID, map[string]string{
+				"backend": string(meta.Backend),
+			})
+		}
+		if sm.metrics != nil {
+			sm.metrics.ReattachSuccesses.Add(1)
+		}
+	}
 }
 
 // EffectiveSize returns the current PTY dimensions. Thread-safe.

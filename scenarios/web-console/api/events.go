@@ -23,6 +23,9 @@ const (
 	EventAIGenerate          = "ai.generate"
 	EventAISuggest           = "ai.suggest"
 	EventSessionPolicyUpdate = "session.policy_updated"
+	EventSessionReattach     = "session.reattach"
+	EventSessionRecovered    = "session.recovered"
+	EventSessionRecoveryFail = "session.recovery_failed"
 
 	// Workspace layout events
 	EventWorkspaceLayoutUpdated = "workspace.layout_updated"

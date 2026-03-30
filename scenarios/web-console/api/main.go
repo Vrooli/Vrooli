@@ -205,6 +205,8 @@ func NewServer(db *sql.DB) *Server {
 	sessionStore := NewSQLSessionStore(db)
 	sessions.SetRegistry(backendRegistry)
 	sessions.SetStore(sessionStore)
+	sessions.SetMetrics(metrics)
+	sessions.SetEvents(events)
 
 	// Resolve "auto" default backend now that the registry knows tmux availability.
 	if sessions.GetConfig().DefaultBackend == "auto" {
@@ -328,6 +330,7 @@ func NewServer(db *sql.DB) *Server {
 		log.Println("capabilities: initial check complete")
 	}()
 	srv.sweeper.Start()
+	sessions.StartReattachWatchdog()
 	srv.setupRoutes()
 
 	// Start Codex rollout tailer for auto-TTS.
@@ -894,6 +897,7 @@ func main() {
 		WriteTimeout: 150 * time.Second,
 		Cleanup: func(ctx context.Context) error {
 			srv.sweeper.Stop()
+			srv.sessions.StopReattachWatchdog()
 			if srv.codexTailer != nil {
 				srv.codexTailer.Stop()
 			}

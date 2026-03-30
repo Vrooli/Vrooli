@@ -118,20 +118,22 @@ export default function Workspace() {
 
   const [launcherOpen, setLauncherOpen] = useState(false);
 
-  // Re-fetch session defaults every time the launcher opens so changes
-  // made in Settings are reflected immediately.
+  // Fetch session defaults on mount AND each time the launcher opens so
+  // the dropdown shows the correct server default immediately.
   const [defaultBackend, setDefaultBackend] = useState<BackendID>("standard");
   const [defaultPolicy, setDefaultPolicy] = useState<ExpirationPolicy>();
-  useEffect(() => {
-    if (!launcherOpen) return;
-    let cancelled = false;
+  const fetchDefaults = useCallback(() => {
     getSessionDefaults().then((d) => {
-      if (cancelled) return;
       if (d.default_backend) setDefaultBackend(d.default_backend as BackendID);
       if (d.default_policy) setDefaultPolicy(d.default_policy);
     }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [launcherOpen]);
+  }, []);
+  // Fetch on mount to avoid the "standard" initial state persisting.
+  useEffect(() => { fetchDefaults(); }, [fetchDefaults]);
+  // Re-fetch when launcher opens so Settings changes are reflected.
+  useEffect(() => {
+    if (launcherOpen) fetchDefaults();
+  }, [launcherOpen, fetchDefaults]);
   const [mobileInputText, setMobileInputText] = useState("");
   const pendingActivePaneRef = useRef<string | null>(null);
   const [pendingClose, setPendingClose] = useState<string | null>(null);

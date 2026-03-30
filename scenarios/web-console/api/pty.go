@@ -151,13 +151,23 @@ func filterClaudeEnv(env []string) []string {
 // service process (web-console) and must not leak into terminal sessions.
 // Without this filter, scenario CLIs (e.g. tunnel-manager) inherit
 // web-console's API_PORT and connect to the wrong API.
+//
+// Vrooli lifecycle vars (VROOLI_LIFECYCLE_MANAGED, VROOLI_SCENARIO, etc.)
+// are also stripped because the tmux server inherits them and the autoheal
+// orphan checker then detects the tmux server as a Vrooli process. Since
+// tmux is not tracked by the lifecycle system, it gets classified as an
+// "orphan" and killed — destroying all persistent sessions.
 var serviceEnvVars = map[string]struct{}{
-	"API_PORT":          {},
-	"API_BASE_URL":      {},
-	"API_BASE":          {},
-	"UI_PORT":           {},
-	"WS_PORT":           {},
-	"VITE_API_BASE_URL": {},
+	"API_PORT":                 {},
+	"API_BASE_URL":             {},
+	"API_BASE":                 {},
+	"UI_PORT":                  {},
+	"WS_PORT":                  {},
+	"VITE_API_BASE_URL":        {},
+	"VROOLI_LIFECYCLE_MANAGED": {},
+	"VROOLI_SCENARIO":          {},
+	"VROOLI_STEP":              {},
+	"VROOLI_PHASE":             {},
 }
 
 // filterServiceEnv removes service-specific environment variables that
