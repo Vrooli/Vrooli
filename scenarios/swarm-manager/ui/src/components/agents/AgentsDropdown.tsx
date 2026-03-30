@@ -12,7 +12,7 @@ import { useState } from "react";
 import { Activity, Square, X } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { formatRelativeTime } from "../../lib";
-import { buildBacklogNodeId, buildActivityNodeId } from "../../surfaces/graph/lib/node-id-parser";
+import { buildBacklogNodeId } from "../../surfaces/graph/lib/node-id-parser";
 import type { AgentActivityRecord } from "../../stores/agent-activities-store";
 
 export interface AgentsDropdownProps {

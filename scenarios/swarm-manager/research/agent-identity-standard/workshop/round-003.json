@@ -1,0 +1,36 @@
+{
+  "round": 3,
+  "generated_at": "2026-03-30T12:00:00Z",
+  "mode": "finalize",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 2,
+    "risk_awareness": 2
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Incorporated round 2 answered decisions into conclusion: (d1) Token TTL set to 24-hour default per user direction — agents will run longer as AI capabilities improve, so a generous TTL avoids mid-execution invalidation without requiring refresh. (d2) Single verify endpoint returning full claims — no separate introspection endpoint. (d3) Fail open with warning on verification failure — fall back to anonymous attribution, matching backward-compat model."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "All 7 design decisions are now settled across rounds 1 and 2: token format (custom HMAC-SHA256), verification model (server-side), protocol (REST), claims structure (minimal + meta), TTL (24h default), endpoint contract (single verify), and failure handling (fail open). No open questions remain that block execution."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Remaining gaps documented in Limitations: (1) revocation store design (in-memory set vs DB column) deferred to implementation, (2) no load testing analysis, (3) HMAC secret rotation strategy unspecified, (4) fail-open may need revisiting for multi-tenant. These are implementation-time decisions, not research blockers."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "Conclusion defines 3 concrete execute backlog items with dependencies: agent-manager-identity-tokens → cli-core-identity-consumer → swarm-manager-identity-adoption. Plus a future-work section for non-blocking follow-ups (secret rotation, audit logging, rate limiting)."
+    }
+  ],
+  "plan_updates": "Finalized conclusion.md: moved round 2 decisions (TTL, endpoint contract, failure handling) from Open Questions to settled Design Decisions. Updated Summary to reflect 24h TTL and fail-open handling. Expanded Actions section with full backlog item specs including dependencies. Refined Limitations to distinguish implementation-time decisions from research gaps."
+}

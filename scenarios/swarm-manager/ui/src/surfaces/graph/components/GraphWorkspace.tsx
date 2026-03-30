@@ -135,7 +135,6 @@ export function GraphWorkspace() {
   const applyLayoutForLens = useGraphUIStore((s) => s.applyLayoutForLens);
 
   const detailSelection = useDetailSelectionStore((s) => s.selection);
-  const clearDetailSelection = useDetailSelectionStore((s) => s.clearSelection);
   const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
   const selectScenario = useDetailSelectionStore((s) => s.selectScenario);
   const selectExecution = useDetailSelectionStore((s) => s.selectExecution);
@@ -222,38 +221,6 @@ export function GraphWorkspace() {
       });
     },
     [setSearchParams],
-  );
-
-  const handleDrillToFlow = useCallback(
-    (nodeId: string) => {
-      const node = nodes.find((n) => n.id === nodeId);
-      if (node) setFocusNodeLabel(getGraphNodeLabel(node));
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        next.set("lens", "flow");
-        next.set("focus", nodeId);
-        next.set("returnLens", lens);
-        next.delete("select");
-        return next;
-      });
-    },
-    [lens, nodes, setFocusNodeLabel, setSearchParams],
-  );
-
-  const handleDrillToOperations = useCallback(
-    (nodeId: string) => {
-      const node = nodes.find((n) => n.id === nodeId);
-      if (node) setFocusNodeLabel(getGraphNodeLabel(node));
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        next.set("lens", "operations");
-        next.set("focus", nodeId);
-        next.set("returnLens", lens);
-        next.delete("select");
-        return next;
-      });
-    },
-    [lens, nodes, setFocusNodeLabel, setSearchParams],
   );
 
   const handleReturnToAtlas = useCallback(() => {

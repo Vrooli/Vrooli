@@ -80,6 +80,16 @@ export function GraphHelpPanel({ isOpen, onClose }: GraphHelpPanelProps) {
               </div>
             ))}
           </div>
+          <div className="mt-2 space-y-1 text-[11px] text-slate-400">
+            <div className="flex items-center gap-2">
+              <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-cyan-400" />
+              <span><strong className="text-slate-300">Top-right dot</strong> — active execution (pulsing = running)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-2.5 w-2.5 shrink-0 rounded-full border-2 border-slate-200 bg-slate-300/60" />
+              <span><strong className="text-slate-300">Top-left dot</strong> — actionable (appears in Operations)</span>
+            </div>
+          </div>
         </section>
 
         {/* Edge Types */}

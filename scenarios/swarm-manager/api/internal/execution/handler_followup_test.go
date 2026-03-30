@@ -129,13 +129,29 @@ func TestFollowUp_FixupFromNeedsFixup(t *testing.T) {
 		RunID:          "run-fixup-1",
 		TaskID:         "task-fixup-1",
 		FixupAttempt:   1,
-		ReviewResult: &ReviewResult{
-			JobID:          "review-1",
-			Classification: "needs_work",
-			Summary:        "Tests failing",
-			Dimensions: []ReviewDimension{
-				{Name: "tests", Status: "red", Details: "2 tests failing"},
-			},
+		Finalization: &Finalization{
+			Eligible:                true,
+			Status:                  FinalizationStatusCompleted,
+			Phase:                   FinalizationPhaseCompleted,
+			AggregateClassification: FinalizationAggregateNeedsWork,
+			AggregateSummary:        "Tests failing",
+			Scenarios: []ScenarioFinalization{{
+				ScenarioName: "fixup-item",
+				Restart:      RestartResult{Status: FinalizationStatusCompleted},
+				Health:       HealthCheckResult{Status: FinalizationStatusCompleted, SchemaValid: true},
+				Review: ScenarioReviewStep{
+					Status: FinalizationStatusCompleted,
+					JobID:  "review-1",
+					Result: &ReviewResult{
+						JobID:          "review-1",
+						Classification: "needs_work",
+						Summary:        "Tests failing",
+						Dimensions: []ReviewDimension{
+							{Name: "tests", Status: "red", Details: "2 tests failing"},
+						},
+					},
+				},
+			}},
 		},
 		CreatedAt: "2026-03-24T00:00:00Z",
 		UpdatedAt: "2026-03-24T01:00:00Z",

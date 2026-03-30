@@ -112,6 +112,19 @@ export function getStatusRgb(status: string | undefined): string {
   return STATUS_GROUP_RGB[getStatusGroup(status)];
 }
 
+/**
+ * Backlog statuses considered "actionable" — these items appear in the Operations lens.
+ * Mirrors the Go-side `actionableBacklogStatuses` in projection.go.
+ */
+export const ACTIONABLE_BACKLOG_STATUSES: ReadonlySet<string> = new Set([
+  "backlog", "researching", "ready", "queued", "in_progress", "failed",
+]);
+
+/** Whether a backlog status is actionable (would appear in the Operations lens). */
+export function isActionableBacklogStatus(status: string | undefined): boolean {
+  return status !== undefined && ACTIONABLE_BACKLOG_STATUSES.has(status);
+}
+
 /** All status groups with their display info, for use in legends/help panels. */
 export const STATUS_GROUP_INFO: { group: StatusGroup; label: string; exampleStatuses: string[]; classes: StatusColorClasses }[] = [
   { group: "neutral", label: "Pending", exampleStatuses: ["pending", "backlog", "stopped"], classes: STATUS_GROUP_COLORS.neutral },

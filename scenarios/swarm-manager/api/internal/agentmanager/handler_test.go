@@ -48,6 +48,10 @@ func (s *handlerStubService) GetRunState(_ context.Context, runID string) (RunSt
 	return state, nil
 }
 
+func (s *handlerStubService) GetRunDiff(_ context.Context, runID string) (RunDiff, error) {
+	return RunDiff{RunID: runID}, nil
+}
+
 func (s *handlerStubService) StopRun(_ context.Context, runID string) error {
 	s.stopped = runID
 	return s.stopErr

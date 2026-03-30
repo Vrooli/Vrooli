@@ -248,7 +248,7 @@ describe("BacklogDetailsPage", () => {
       expect(screen.getAllByText("Target Scenarios").length).toBeGreaterThan(0);
     });
     expect(screen.getAllByText("web-console").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Review will run after execution").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Post-run checks will run after execution").length).toBeGreaterThan(0);
   });
 
   it("hides target scenarios panel when no acceptanceAllow", async () => {

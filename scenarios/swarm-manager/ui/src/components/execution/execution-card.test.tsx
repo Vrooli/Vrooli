@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { ExecutionCard } from "./execution-card";
-import type { ExecutionRecord } from "../../types";
+import type { ExecutionRecord, Finalization, ReviewResult } from "../../types";
 
 const makeExecution = (overrides?: Partial<ExecutionRecord>): ExecutionRecord => ({
   executionId: "exec-1",
@@ -11,6 +11,50 @@ const makeExecution = (overrides?: Partial<ExecutionRecord>): ExecutionRecord =>
   mode: "manual",
   createdAt: "2026-03-20T00:00:00Z",
   updatedAt: "2026-03-20T01:00:00Z",
+  ...overrides,
+});
+
+const makeReviewResult = (overrides?: Partial<ReviewResult>): ReviewResult => ({
+  jobId: "job-1",
+  classification: "needs_work",
+  dimensions: [],
+  summary: "Fix the tests",
+  reviewedAt: "2026-03-20T03:00:00Z",
+  ...overrides,
+});
+
+const makeFinalization = (overrides?: Partial<Finalization>): Finalization => ({
+  eligible: true,
+  status: "completed",
+  phase: "completed",
+  scopeSource: "sandbox_diff",
+  warnings: [],
+  affectedScenarios: ["swarm-manager"],
+  aggregateClassification: "needs_work",
+  aggregateSummary: "Fix the tests",
+  scenarios: [
+    {
+      scenarioName: "swarm-manager",
+      changedPaths: ["scenarios/swarm-manager/ui/src/components/execution/execution-card.tsx"],
+      restart: {
+        status: "completed",
+        attempts: 1,
+        startedAt: "2026-03-20T02:30:00Z",
+        finishedAt: "2026-03-20T02:31:00Z",
+      },
+      health: {
+        status: "completed",
+        scenarioStatus: "running",
+        healthStatus: "healthy",
+        schemaValid: true,
+        checkedAt: "2026-03-20T02:32:00Z",
+      },
+      review: {
+        status: "completed",
+        result: makeReviewResult(),
+      },
+    },
+  ],
   ...overrides,
 });
 
@@ -302,17 +346,11 @@ describe("ExecutionCard", () => {
     expect(screen.getByText("Write tests")).toBeInTheDocument();
   });
 
-  it("shows review status badge when reviewResult is present", () => {
+  it("shows post-run status badge when finalization is present", () => {
     render(
       <ExecutionCard
         item={makeExecution({
-          reviewResult: {
-            jobId: "job-1",
-            classification: "needs_work",
-            dimensions: [],
-            summary: "Fix the tests",
-            reviewedAt: "2026-03-20T03:00:00Z",
-          },
+          finalization: makeFinalization(),
         })}
         isBusy={false}
         canStart={false}
@@ -322,7 +360,7 @@ describe("ExecutionCard", () => {
       />,
     );
 
-    expect(screen.getByText("Issues found")).toBeInTheDocument();
+    expect(screen.getByText("Needs fixup")).toBeInTheDocument();
   });
 
   it("shows validating indicator when status is validating", () => {
@@ -337,10 +375,10 @@ describe("ExecutionCard", () => {
       />,
     );
 
-    expect(screen.getByTestId("review-validating-indicator")).toBeInTheDocument();
+    expect(screen.getByTestId("post-run-validating-indicator")).toBeInTheDocument();
   });
 
-  it("shows Run Review button for completed executions without review", () => {
+  it("shows Run Post-Run Checks button for completed executions without finalization", () => {
     const onTriggerReview = vi.fn();
     render(
       <ExecutionCard
@@ -358,18 +396,30 @@ describe("ExecutionCard", () => {
     expect(onTriggerReview).toHaveBeenCalledWith("exec-1");
   });
 
-  it("does not show Run Review for executions that already have a review", () => {
+  it("does not show the standalone post-run checks button when finalization already exists", () => {
     render(
       <ExecutionCard
         item={makeExecution({
           status: "completed",
-          reviewResult: {
-            jobId: "job-1",
-            classification: "ready",
-            dimensions: [],
-            summary: "All good",
-            reviewedAt: "2026-03-20T03:00:00Z",
-          },
+          finalization: makeFinalization({
+            aggregateClassification: "ready",
+            aggregateSummary: "All good",
+            scenarios: [
+              {
+                scenarioName: "swarm-manager",
+                changedPaths: [],
+                restart: { status: "completed", attempts: 1 },
+                health: { status: "completed", schemaValid: true },
+                review: {
+                  status: "completed",
+                  result: makeReviewResult({
+                    classification: "ready",
+                    summary: "All good",
+                  }),
+                },
+              },
+            ],
+          }),
         })}
         isBusy={false}
         canStart={false}
@@ -381,6 +431,7 @@ describe("ExecutionCard", () => {
     );
 
     expect(screen.queryByTestId("review-trigger-button")).not.toBeInTheDocument();
+    expect(screen.getByTestId("post-run-rerun-button")).toBeInTheDocument();
   });
 
   it("maps backlog kinds to readable labels", () => {

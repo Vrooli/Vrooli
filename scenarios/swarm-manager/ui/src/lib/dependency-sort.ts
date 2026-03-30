@@ -123,7 +123,7 @@ export function dependencyAwareSort<T extends Pick<BacklogItem, "kind" | "name" 
 
   // Compute depths from the full item set (which includes status info).
   // When items is a filtered subset, allItems provides the complete picture.
-  const depthSource: ReadonlyArray<DepthItem> = allItems ?? (items as ReadonlyArray<DepthItem>);
+  const depthSource: ReadonlyArray<DepthItem> = allItems ?? (items as unknown as ReadonlyArray<DepthItem>);
   const depths = computeDepthMap(depthSource);
 
   return [...items].sort((a, b) => {

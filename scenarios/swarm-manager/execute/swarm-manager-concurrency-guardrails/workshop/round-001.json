@@ -1,0 +1,141 @@
+{
+  "round": 1,
+  "generated_at": "2026-03-30T12:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Circuit breaker state storage mechanism",
+      "context": "Circuit breaker needs to track consecutive failures per backlog item. The system already uses filesystem-based JSON storage (settings.json, execution.json, queue.json) with atomic writes via storage.WriteJSONAtomic(). Alternatives include embedding state in execution records or using a dedicated state file.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Dedicated state file (.vrooli/circuit-breaker.json)",
+          "rationale": "Clean separation of concerns. Circuit breaker state has different lifecycle than executions (reset on cooldown, manual clear). Easy to inspect and debug. Follows existing pattern (settings.json, queue.json). Recommended because it keeps execution records focused and avoids bloating them with governance metadata.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Embed in execution records",
+          "rationale": "No new files. But execution records are per-run, not per-item — tracking per-item consecutive failures across records requires aggregation logic on every check. Makes the execution store bigger and mixes concerns."
+        },
+        {
+          "key": "C",
+          "label": "In-memory only with recovery from execution history",
+          "rationale": "No persistence overhead. On restart, scan recent executions to rebuild failure counts. But loses state on crash/restart race conditions and adds startup complexity."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Cost estimation model",
+      "context": "The executionCostCapPerRun setting needs a cost estimate before execution starts. Actual token usage is unknowable in advance. The system already has agentMaxTurns in settings (default: 60, range 5-200). We need a cost-per-turn estimate to multiply against.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Single costPerTurnEstimate setting (e.g. $0.05/turn)",
+          "rationale": "Simple, user-configurable. User sets their expected average cost per agent turn. Total estimate = costPerTurn * agentMaxTurns. Easy to understand. Recommended for simplicity — users can adjust based on their observed costs.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Hardcoded cost-per-turn constant",
+          "rationale": "Zero configuration. But costs vary by model (Opus vs Sonnet vs Haiku), prompt size, and context length. Would quickly become inaccurate."
+        },
+        {
+          "key": "C",
+          "label": "No separate cost-per-turn setting — just use executionCostCapPerRun as a flat dollar cap",
+          "rationale": "Simplest: user sets a max dollar amount, system warns if they're about to start an execution. But without knowing cost-per-turn, the system can't estimate whether the cap would be exceeded."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Behavior when concurrency limit reached in yolo mode",
+      "context": "Currently QueueBacklog() with yolo mode immediately calls startLocked() and rolls back the queue record if start fails. With concurrency limits, yolo mode at capacity needs different handling. The item should stay queued and start when a slot opens, rather than being rejected entirely.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Yolo at capacity falls back to pending — poller starts it when slot opens",
+          "rationale": "Queuing succeeds, execution is deferred. User sees item as 'pending' and it auto-starts. The existing ProcessScheduledStarts() poller (2s tick) is expanded to also drain pending items. Recommended because it preserves the yolo intent (auto-start without intervention) while respecting limits.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Yolo at capacity returns an error — user must retry",
+          "rationale": "Clear feedback that the system is busy. But defeats the purpose of yolo mode (fire-and-forget). In batch scenarios, this would require retry logic in the caller."
+        },
+        {
+          "key": "C",
+          "label": "Yolo at capacity queues with a 'waiting' sub-status",
+          "rationale": "New sub-status distinguishes 'waiting for slot' from 'pending approval'. More informative UI. But adds status complexity and a new enum value."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Which execution statuses count as 'active' for concurrency limit",
+      "context": "The concurrency limit gates how many executions can run simultaneously. Need to define which statuses consume a concurrency slot. Current lifecycle: pending → scheduled → starting → running → needs_review → validating → needs_fixup → completed/failed/canceled.",
+      "options": [
+        {
+          "key": "A",
+          "label": "starting + running only",
+          "rationale": "Tightest definition. Once an execution finishes (even if pending review), the slot opens. Maximizes throughput. But a flood of needs_review items could overwhelm the review system."
+        },
+        {
+          "key": "B",
+          "label": "starting + running + needs_review + validating",
+          "rationale": "Conservative — slot stays occupied until the full lifecycle (including review) completes. Prevents overwhelming the review pipeline. Recommended because it prevents cascading overload: if review is slow, the system naturally throttles.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "starting + running + needs_review + validating + needs_fixup",
+          "rationale": "Most conservative — includes fixup retries. But needs_fixup items are waiting for a decision, not actively using resources."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The settings proto uses field numbers 1-24 (with 2-4 reserved). New fields should use 25-29 to avoid conflicts. The proto already has buf.validate constraints for all existing fields, so the new fields should follow the same pattern (int32 gte/lte for ranges, double gte for cost)."
+    }
+  ],
+  "plan_updates": "Created initial plan scaffold with all 13 mandatory sections. Covers the full settings pipeline (proto → Go → normalization → HTTP → UI), execution service integration points, 6 implementation phases, testing strategy, and governance status visibility. acceptance_allow already set on spec."
+}

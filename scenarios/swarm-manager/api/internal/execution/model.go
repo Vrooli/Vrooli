@@ -71,12 +71,15 @@ type Record struct {
 	ArchiveContext    *ArchiveContext `json:"archive_context,omitempty"`
 	ParentExecutionID string          `json:"parent_execution_id,omitempty"`
 	FixupAttempt      int             `json:"fixup_attempt,omitempty"`
-	ReviewResult      *ReviewResult   `json:"review_result,omitempty"`
-	ReviewJobID       string          `json:"review_job_id,omitempty"`
-	ReviewSkipReason  string          `json:"review_skip_reason,omitempty"`
-	ReviewStartedAt   string          `json:"review_started_at,omitempty"`
-	CreatedAt         string          `json:"created_at"`
-	UpdatedAt         string          `json:"updated_at"`
+	Finalization      *Finalization   `json:"finalization,omitempty"`
+	// Deprecated: migration-only fields preserved so legacy execution history can
+	// be converted into the unified finalization model on read.
+	LegacyReviewResult     *ReviewResult `json:"review_result,omitempty"`
+	LegacyReviewJobID      string        `json:"review_job_id,omitempty"`
+	LegacyReviewSkipReason string        `json:"review_skip_reason,omitempty"`
+	LegacyReviewStartedAt  string        `json:"review_started_at,omitempty"`
+	CreatedAt              string        `json:"created_at"`
+	UpdatedAt              string        `json:"updated_at"`
 }
 
 // PromptTrace captures prompt details used to launch the execution.

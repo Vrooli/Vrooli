@@ -10,10 +10,10 @@ import { useState, useEffect, useCallback } from "react";
 import { Loader2, MessageSquare, Wrench, PenLine } from "lucide-react";
 import { Dialog } from "../ui/dialog";
 import { Button } from "../ui/button";
-import { cn } from "../../lib";
+import { buildFinalizationContext, cn, hasActionableFinalizationIssues } from "../../lib";
 import { selectors } from "../../consts/selectors";
 import { executionService } from "../../services";
-import type { ExecutionRecord, ReviewResult } from "../../types";
+import type { ExecutionRecord } from "../../types";
 import type { FollowUpRequest } from "../../services/execution-service";
 
 type FollowUpType = FollowUpRequest["followUpType"];
@@ -27,34 +27,18 @@ interface FollowUpDialogProps {
 }
 
 function buildDefaultContext(execution: ExecutionRecord, type: FollowUpType): string {
-  if (type !== "fixup" || !execution.reviewResult) return "";
-  const rr = execution.reviewResult;
-  let ctx = rr.summary ?? "";
-  for (const dim of rr.dimensions ?? []) {
-    if (dim.status !== "green" && dim.status !== "skipped") {
-      ctx += `\n- ${dim.name} (${dim.status})${dim.details ? `: ${dim.details}` : ""}`;
-    }
-  }
-  return ctx;
+  if (type !== "fixup") return "";
+  return buildFinalizationContext(execution.finalization);
 }
 
-function ReviewSummaryPanel({ result }: { result: ReviewResult }) {
-  const nonGreen = (result.dimensions ?? []).filter((d) => d.status !== "green" && d.status !== "skipped");
-  if (nonGreen.length === 0) return null;
+function ReviewSummaryPanel({ execution }: { execution: ExecutionRecord }) {
+  const summary = buildFinalizationContext(execution.finalization);
+  if (!summary.trim()) return null;
 
   return (
     <div className="rounded-md border border-slate-700 bg-slate-800/50 p-3 space-y-1.5" data-testid={selectors.followUp.reviewSummary}>
-      <p className="text-xs font-medium text-slate-300">Review Findings</p>
-      {nonGreen.map((dim) => (
-        <div key={dim.name} className="flex items-center gap-2 text-xs">
-          <span className={cn(
-            "h-1.5 w-1.5 shrink-0 rounded-full",
-            dim.status === "red" ? "bg-red-500" : "bg-amber-500",
-          )} />
-          <span className="text-slate-300">{dim.name}</span>
-          {dim.details && <span className="text-slate-500">— {dim.details}</span>}
-        </div>
-      ))}
+      <p className="text-xs font-medium text-slate-300">Post-Run Findings</p>
+      <pre className="whitespace-pre-wrap break-words text-[11px] leading-relaxed text-slate-400">{summary}</pre>
     </div>
   );
 }
@@ -84,7 +68,7 @@ const TYPE_OPTIONS: { type: FollowUpType; label: string; description: string; ic
 ];
 
 export function FollowUpDialog({ isOpen, onClose, execution, onSuccess }: FollowUpDialogProps) {
-  const hasReviewIssues = execution.reviewResult?.classification === "needs_work" || execution.reviewResult?.classification === "not_assessable";
+  const hasReviewIssues = hasActionableFinalizationIssues(execution);
   const canContinue = Boolean(execution.runId);
 
   const [followUpType, setFollowUpType] = useState<FollowUpType>(hasReviewIssues ? "fixup" : "followup");
@@ -220,9 +204,9 @@ export function FollowUpDialog({ isOpen, onClose, execution, onSuccess }: Follow
           </p>
         </div>
 
-        {/* Review summary (when review result exists and type is fixup) */}
-        {followUpType === "fixup" && execution.reviewResult && (
-          <ReviewSummaryPanel result={execution.reviewResult} />
+        {/* Review summary (when fixup is available) */}
+        {followUpType === "fixup" && execution.finalization && (
+          <ReviewSummaryPanel execution={execution} />
         )}
 
         {/* Context textarea */}

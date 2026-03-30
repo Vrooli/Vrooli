@@ -1274,6 +1274,10 @@ func (m *mockAgentService) SpawnResearch(_ context.Context, _ agentmanager.Resea
 func (m *mockAgentService) GetRunState(_ context.Context, _ string) (agentmanager.RunState, error) {
 	return agentmanager.RunState{}, nil
 }
+
+func (m *mockAgentService) GetRunDiff(_ context.Context, runID string) (agentmanager.RunDiff, error) {
+	return agentmanager.RunDiff{RunID: runID}, nil
+}
 func (m *mockAgentService) StopRun(_ context.Context, _ string) error { return nil }
 
 func TestGetFileContent_PathIsDirectory(t *testing.T) {

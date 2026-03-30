@@ -7,16 +7,9 @@
  * current entity.
  */
 
-import { Activity, History, Network, type LucideIcon } from "lucide-react";
 import { cn } from "../../lib/utils";
 import type { GraphLens } from "../../surfaces/graph/stores/graph-data-store";
-
-export interface LensOption {
-  lens: GraphLens;
-  label: string;
-  icon: LucideIcon;
-  iconColorClass: string;
-}
+import type { LensOption } from "./lens-options";
 
 interface LensBarProps {
   nodeId: string;
@@ -24,32 +17,6 @@ interface LensBarProps {
   onDrillToLens: (nodeId: string, lens: GraphLens) => void;
   className?: string;
 }
-
-// ── Lens presets per entity type ──────────────────────────────────────
-
-export const BACKLOG_LENSES: LensOption[] = [
-  { lens: "topology", label: "View Topology", icon: Network, iconColorClass: "text-indigo-400" },
-  { lens: "flow", label: "View History", icon: History, iconColorClass: "text-cyan-400" },
-  { lens: "operations", label: "View Operations", icon: Activity, iconColorClass: "text-amber-400" },
-];
-
-export const INITIATIVE_LENSES: LensOption[] = [
-  { lens: "topology", label: "View Topology", icon: Network, iconColorClass: "text-indigo-400" },
-  { lens: "flow", label: "View History", icon: History, iconColorClass: "text-cyan-400" },
-  { lens: "operations", label: "View Operations", icon: Activity, iconColorClass: "text-amber-400" },
-];
-
-export const EXECUTION_LENSES: LensOption[] = [
-  { lens: "flow", label: "View History", icon: History, iconColorClass: "text-cyan-400" },
-  { lens: "operations", label: "View Operations", icon: Activity, iconColorClass: "text-amber-400" },
-];
-
-export const SCENARIO_LENSES: LensOption[] = [
-  { lens: "topology", label: "View Topology", icon: Network, iconColorClass: "text-indigo-400" },
-  { lens: "operations", label: "View Operations", icon: Activity, iconColorClass: "text-amber-400" },
-];
-
-// ── Component ─────────────────────────────────────────────────────────
 
 export function LensBar({ nodeId, lenses, onDrillToLens, className }: LensBarProps) {
   if (lenses.length === 0) return null;

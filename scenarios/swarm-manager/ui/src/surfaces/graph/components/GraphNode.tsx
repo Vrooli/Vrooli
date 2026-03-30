@@ -14,9 +14,9 @@ import { Lightbulb, Package, Zap, MessageSquare, Activity, Target } from "lucide
 import { cn } from "../../../lib/utils";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import type { GraphEntityType, GraphNodeData } from "../types";
-import { StatusBadge } from "./StatusBadge";
+import { ActionableBadge, StatusBadge } from "./StatusBadge";
 import { getShapeClasses, getShapeDimensions, needsContentCounterRotation, usesClipPath } from "../lib/entity-shapes";
-import { getStatusColorClasses } from "../lib/status-colors";
+import { getStatusColorClasses, isActionableBacklogStatus } from "../lib/status-colors";
 
 const ENTITY_ICONS: Record<GraphEntityType, React.ElementType> = {
   backlog: Lightbulb,
@@ -61,9 +61,6 @@ function GraphNodeComponent({ data, selected }: NodeProps) {
           }
         }}
       >
-        {lens === "topology" && entityType === "backlog" && "activeExecutionStatus" in nodeData && (
-          <StatusBadge executionStatus={(nodeData as { activeExecutionStatus?: string }).activeExecutionStatus} />
-        )}
         <div
           className={cn(
             "border-2 shadow-md backdrop-blur-sm",
@@ -106,6 +103,13 @@ function GraphNodeComponent({ data, selected }: NodeProps) {
             )}
           </div>
         </div>
+        {/* Badges render AFTER the shape div so they paint above the backdrop-blur */}
+        {lens === "topology" && entityType === "backlog" && "activeExecutionStatus" in nodeData && (
+          <StatusBadge executionStatus={(nodeData as { activeExecutionStatus?: string }).activeExecutionStatus} />
+        )}
+        {lens === "topology" && entityType === "backlog" && nodeData.status && isActionableBacklogStatus(nodeData.status) && (
+          <ActionableBadge status={nodeData.status} />
+        )}
       </div>
       <Handle type="source" position={Position.Bottom} className="!bg-slate-500 !border-slate-400 !w-2 !h-2" />
     </>

@@ -4,7 +4,7 @@
 How should agent-manager implement verifiable agent identity tokens so that spawned agents can cryptographically prove their identity to consuming scenarios, replacing the current unverified `CreatedBy` string attribution?
 
 ## Summary
-Agent-manager will issue HMAC-SHA256 signed identity tokens to every spawned agent via the `VROOLI_AGENT_IDENTITY_TOKEN` env var. Tokens use a custom two-segment wire format (base64url claims + HMAC signature) built entirely on Go stdlib. Consuming scenarios verify tokens by calling a REST endpoint (`POST /api/v1/identity/verify`) on agent-manager, which validates the signature, checks expiry/revocation, and returns verified claims. The consumer Go interface in `packages/cli-core/cliutil/identity.go` mirrors the established `sandbox.go` pattern. Identity is orthogonal to sandboxing — both sandboxed and in-place runs receive tokens.
+Agent-manager will issue HMAC-SHA256 signed identity tokens to every spawned agent via the `VROOLI_AGENT_IDENTITY_TOKEN` env var. Tokens use a custom two-segment wire format (base64url claims + HMAC signature) built entirely on Go stdlib. Consuming scenarios verify tokens by calling a REST endpoint (`POST /api/v1/identity/verify`) on agent-manager, which validates the signature, checks expiry/revocation, and returns verified claims. Tokens have a 24-hour default TTL to accommodate increasingly long-running agents. Verification failures are handled gracefully — scenarios fall back to anonymous attribution when agent-manager is unreachable. The consumer Go interface in `packages/cli-core/cliutil/identity.go` mirrors the established `sandbox.go` pattern. Identity is orthogonal to sandboxing — both sandboxed and in-place runs receive tokens.
 
 ## Methodology
 - Examined the existing sandbox env var pattern in `packages/cli-core/cliutil/sandbox.go` (DetectSandbox, ScenarioInScope, ResolveMergedPath) as the ergonomic model to mirror
@@ -18,10 +18,10 @@ Agent-manager will issue HMAC-SHA256 signed identity tokens to every spawned age
 ## Findings
 
 ### Finding 1: No gRPC exists — agent-manager is HTTP-only
-Agent-manager's API is built on `gorilla/mux` with standard `net/http` handlers. No gRPC service or dependency exists. Proto schemas under `packages/proto/schemas/agent-manager/` are used for JSON serialization only. **Decision: REST verification endpoint** (settled round 1, d3).
+Agent-manager's API is built on `gorilla/mux` with standard `net/http` handlers. No gRPC dependency or service definitions exist. Proto schemas under `packages/proto/schemas/agent-manager/` are used for JSON serialization only.
 
 ### Finding 2: cli-core has zero external dependencies
-`packages/cli-core/go.mod` declares only `go 1.22` with no `require` block. JWT libraries (e.g., golang-jwt) would be the first external dep, propagating to every scenario. **Decision: custom HMAC-SHA256 using crypto/hmac + crypto/sha256 from stdlib** (settled round 1, d1).
+`packages/cli-core/go.mod` declares only `go 1.22` with no `require` block. JWT libraries (e.g., golang-jwt) would be the first external dep, propagating to every scenario. HMAC-SHA256 verification uses only `crypto/hmac` + `crypto/sha256` from stdlib.
 
 ### Finding 3: sandbox.go establishes the canonical consumer pattern
 The sandbox detection pattern uses:
@@ -51,13 +51,14 @@ Linux env var limit is 128KB–2MB total per process. The proposed token format 
 - Default run timeout: 30 minutes (configurable per AgentProfile)
 - Heartbeat interval: 15 seconds, stale threshold: 5 minutes
 - Cancellation via `StopRun()` triggers state transition to `RunStatusCancelled`
-- Token TTL should exceed run timeout to avoid mid-execution invalidation
+- As AI agents become more capable, run durations will increase significantly beyond the current 30-minute default
+- Token TTL should be generous to avoid mid-execution invalidation
 - Revocation integrates with run completion/cancellation state transitions
 
 ### Finding 8: cli-core HTTP client is ready for verification calls
 `cliutil/httpclient.go` provides `HTTPClient` with Bearer token injection and configurable timeouts (30s default). `cliutil/apiclient.go` wraps it with base URL resolution. Verification calls can reuse this infrastructure — `client.Post("/api/v1/identity/verify", tokenPayload)`.
 
-## Design Decisions (Settled)
+## Design Decisions (All Settled)
 
 ### Token Format (Round 1, d1): Custom HMAC-SHA256
 Wire format: `base64url(json_claims) + '.' + base64url(hmac_sha256(claims_bytes, server_secret))`
@@ -70,7 +71,7 @@ Two segments separated by a dot. Claims JSON structure:
   "profile_key": "string",
   "scope_path": "string",
   "iat": 1711734000,
-  "exp": 1711736100,
+  "exp": 1711820400,
   "meta": {}
 }
 ```
@@ -84,24 +85,14 @@ Tokens are opaque to consumers. The HMAC secret never leaves agent-manager. Cons
 ### Claims Structure (Round 1, d4): Minimal core + extensible metadata
 Core claims: `run_id`, `task_id`, `profile_key`, `scope_path`, `iat`, `exp`. Extensible `meta` map for scenario-specific claims (initiative, spawning_scenario, etc.).
 
-## Open Questions
+### Token TTL Strategy (Round 2, d1): 24-hour default TTL
+Static TTL of 24 hours (86400 seconds). Rationale: agents are becoming more capable and will run for increasingly longer durations — the current 30-minute default timeout is already short and will grow. A 1-day TTL avoids mid-execution invalidation without requiring a refresh mechanism. Revocation on run cancellation/failure invalidates tokens early regardless of TTL. No refresh endpoint needed.
 
-### Token TTL Strategy (Round 2, d1)
-Options under consideration:
-- **A**: Static TTL = run timeout + 5 min buffer (recommended — simple, no refresh needed)
-- **B**: Short TTL with heartbeat-based refresh (tighter security, more complexity)
-- **C**: No expiry, revocation only (simplest but risky)
+### Verification Endpoint Contract (Round 2, d2): Single verify endpoint
+`POST /api/v1/identity/verify` with `{"token": "..."}` body. Returns 200 with full claims JSON on success, 401 on invalid/expired/revoked. Consumers get everything they need in one call. No separate introspection endpoint.
 
-### Verification Endpoint Contract (Round 2, d2)
-Options under consideration:
-- **A**: Single verify endpoint returning full claims (recommended — simple, sufficient)
-- **B**: Verify + separate introspection (/api/v1/identity/me) endpoint
-
-### Verification Failure Handling (Round 2, d3)
-Options under consideration:
-- **A**: Fail open with warning, fall back to anonymous (recommended — matches backward-compat)
-- **B**: Fail closed, reject unverifiable requests
-- **C**: Cache-based fallback with short TTL
+### Verification Failure Handling (Round 2, d3): Fail open with warning
+If verification fails due to network issues (agent-manager unreachable), treat the request as anonymous/unverified and log a warning. Matches the backward-compatibility model where missing tokens = anonymous. Avoids blocking legitimate work due to transient infrastructure issues. Scenarios can optionally override this to fail closed if they require strict identity enforcement.
 
 ## Consumer Interface Design
 
@@ -152,13 +143,41 @@ Identity is orthogonal to sandboxing. A run can have both identity + sandbox var
 - No breaking changes to existing env vars or APIs
 
 ## Limitations
-- Token TTL, verification endpoint contract, and failure handling are pending decisions (round 2)
-- No revocation store design yet — needs specification of how agent-manager tracks revoked tokens (in-memory set vs DB column)
+- No revocation store design yet — needs specification of how agent-manager tracks revoked tokens (in-memory set vs DB column on runs table)
 - No load testing analysis — verification endpoint latency under concurrent agents not measured
 - Secret rotation strategy not yet addressed — how to rotate the HMAC signing key without invalidating active tokens
+- Fail-open default is appropriate for current single-operator deployment but may need revisiting for multi-tenant scenarios
 
 ## Actions
-1. **Create execute item**: `agent-manager-identity-tokens` — implement token generation, signing, injection, verification endpoint, and revocation in agent-manager API
-2. **Create execute item**: `cli-core-identity-consumer` — implement `identity.go` in packages/cli-core with DetectIdentity/VerifyIdentity
-3. **Create execute item**: `swarm-manager-identity-adoption` — update swarm-manager to verify agent identity on backlog mutations and execution attribution
-4. **Future**: Secret rotation mechanism, audit logging of verification attempts, rate limiting on verification endpoint
+
+### Action 1: Create backlog item — Implement identity token generation and verification in agent-manager
+- **Kind**: execute
+- **Title**: Implement agent identity token generation, signing, injection, and verification endpoint in agent-manager API
+- **Description**: Add HMAC-SHA256 token signing with server-side secret. Implement `IdentityEnvVars()` on RunExecutor to inject `VROOLI_AGENT_IDENTITY_TOKEN` for all runs. Add `POST /api/v1/identity/verify` REST endpoint that validates signature, checks expiry/revocation, and returns verified claims. Add revocation tracking (mark tokens invalid on run cancellation/completion). Default TTL: 24 hours.
+- **Initiative**: swarm-manager-feature-parity
+- **Priority**: 2
+- **Effort**: M
+
+### Action 2: Create backlog item — Implement identity consumer interface in cli-core
+- **Kind**: execute
+- **Title**: Implement identity.go consumer interface in packages/cli-core
+- **Description**: Add `cliutil/identity.go` with `IdentityEnv` struct, `DetectIdentity()`, `IsIdentityPresent()`, and `VerifyIdentity()` functions. Mirror the established `sandbox.go` ergonomic pattern. Zero external dependencies — use existing `HTTPClient` for verification calls. Handle verification failures gracefully (fail open with warning by default).
+- **Initiative**: swarm-manager-feature-parity
+- **Priority**: 2
+- **Effort**: S
+- **Depends on**: execute/agent-manager-identity-tokens
+
+### Action 3: Create backlog item — Update swarm-manager to verify agent identity
+- **Kind**: execute
+- **Title**: Update swarm-manager to verify agent identity on backlog mutations and execution attribution
+- **Description**: Import cli-core identity package. On backlog mutations and execution attribution, verify `VROOLI_AGENT_IDENTITY_TOKEN` against agent-manager before trusting `StartedBy`/`CreatedBy` fields. Fall back to anonymous attribution if token absent or verification fails.
+- **Initiative**: swarm-manager-feature-parity
+- **Priority**: 2
+- **Effort**: S
+- **Depends on**: execute/cli-core-identity-consumer
+
+### Action 4: Future work (not immediate backlog items)
+- Secret rotation mechanism for HMAC signing key
+- Audit logging of verification attempts
+- Rate limiting on verification endpoint
+- Multi-tenant identity scoping if deployment model changes

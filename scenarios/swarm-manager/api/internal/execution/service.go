@@ -147,6 +147,8 @@ type ServiceConfig struct {
 	PolicyProvider           PolicyProvider
 	ReviewThresholdsProvider ReviewThresholdsProvider
 	AgentService             agentSpawner
+	ScenarioLifecycle        ScenarioLifecycle
+	ScenarioHealthChecker    ScenarioHealthChecker
 	PromptClient             promptmanager.Client
 	Archiver                 Archiver
 	ReviewClient             ReviewClient
@@ -169,9 +171,13 @@ type Service struct {
 	archiver                 Archiver
 	reviewClient             ReviewClient
 	inspector                runInspector
+	differ                   RunDiffer
 	stopper                  runStopper
 	continuer                runContinuer
+	scenarioLifecycle        ScenarioLifecycle
+	scenarioHealth           ScenarioHealthChecker
 	eventDispatcher          EventDispatcher
+	processingFinalizations  map[string]struct{}
 	mu                       sync.Mutex
 }
 
@@ -200,9 +206,15 @@ func NewService(cfg ServiceConfig) *Service {
 		promptClient:             pc,
 		archiver:                 cfg.Archiver,
 		reviewClient:             cfg.ReviewClient,
+		scenarioLifecycle:        cfg.ScenarioLifecycle,
+		scenarioHealth:           cfg.ScenarioHealthChecker,
+		processingFinalizations:  map[string]struct{}{},
 	}
 	if inspector, ok := cfg.AgentService.(runInspector); ok {
 		service.inspector = inspector
+	}
+	if differ, ok := cfg.AgentService.(RunDiffer); ok {
+		service.differ = differ
 	}
 	if continuer, ok := cfg.AgentService.(runContinuer); ok {
 		service.continuer = continuer
@@ -634,27 +646,12 @@ func (s *Service) restoreBacklogStatusForRecord(record Record) error {
 	return nil
 }
 
-// shouldTriggerReview returns true if the completed execution should undergo review.
-// Review is triggered when acceptance_allow patterns reference at least one scenario.
-func (s *Service) shouldTriggerReview(item backlogItem, record Record) bool {
-	if s.reviewClient == nil {
-		return false
-	}
-	if record.ArchiveContext != nil {
-		return false
-	}
-	return len(pathutil.ScenariosFromGlobs(item.AcceptanceAllow)) > 0
-}
-
-// TriggerReview manually triggers a GCT review for a terminal execution.
+// TriggerReview reruns the unified post-run finalization flow for a terminal
+// execution.
 // DOC: docs/internal/SEAMS.md#trigger-review-api
 func (s *Service) TriggerReview(ctx context.Context, executionID string) (Record, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	if s.reviewClient == nil {
-		return Record{}, fmt.Errorf("review client not configured")
-	}
 
 	records, idx, err := s.loadRecordLocked(executionID)
 	if err != nil {
@@ -666,42 +663,34 @@ func (s *Service) TriggerReview(ctx context.Context, executionID string) (Record
 	case StatusCompleted, StatusNeedsFixup, StatusFailed:
 		// Valid terminal statuses for triggering review
 	default:
-		return Record{}, fmt.Errorf("cannot trigger review for execution in %q status", record.Status)
+		return Record{}, fmt.Errorf("cannot trigger post-run checks for execution in %q status", record.Status)
 	}
 
-	// Build review request from backlog item's acceptance patterns or the backlog name.
-	item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName)
-	scenarioName := record.BacklogName
-	var expectedPaths []string
-	if loadErr == nil {
-		scenarios := pathutil.ScenariosFromGlobs(item.AcceptanceAllow)
-		if len(scenarios) > 0 {
-			scenarioName = scenarios[0]
-		}
-		expectedPaths = item.AcceptanceAllow
+	if _, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr != nil {
+		return Record{}, fmt.Errorf("load backlog item for post-run checks: %w", loadErr)
 	}
-
-	req := ReviewRequest{
-		ScenarioName:  scenarioName,
-		ExpectedPaths: expectedPaths,
-	}
-	if s.reviewThresholdsProvider != nil {
-		if th, thErr := s.reviewThresholdsProvider.LoadReviewThresholds(); thErr == nil {
-			req.Thresholds = th
-		}
-	}
-	jobID, triggerErr := s.reviewClient.TriggerReview(ctx, req)
-	if triggerErr != nil {
-		return Record{}, fmt.Errorf("trigger review: %w", triggerErr)
+	if !isFinalizationEligible(*record) {
+		return Record{}, fmt.Errorf("execution type %q does not support post-run checks", record.effectiveRunType())
 	}
 
 	record.Status = StatusValidating
-	record.ReviewJobID = jobID
-	record.ReviewStartedAt = nowRFC3339()
-	record.ReviewResult = nil
-	record.ReviewSkipReason = ""
+	record.Finalization = &Finalization{
+		Eligible:          true,
+		Status:            FinalizationStatusPending,
+		Phase:             FinalizationPhaseScopeDetection,
+		ScopeSource:       FinalizationScopeNone,
+		Warnings:          []FinalizationWarning{},
+		AffectedScenarios: []string{},
+		Scenarios:         []ScenarioFinalization{},
+		StartedAt:         nowRFC3339(),
+	}
+	record.LegacyReviewResult = nil
+	record.LegacyReviewJobID = ""
+	record.LegacyReviewSkipReason = ""
+	record.LegacyReviewStartedAt = ""
 	record.FinishedAt = ""
 	record.UpdatedAt = nowRFC3339()
+	record.FailureReason = ""
 
 	if err := s.store.Save(records); err != nil {
 		return Record{}, err
@@ -727,9 +716,9 @@ func (s *Service) Retry(ctx context.Context, executionID string) (Record, error)
 
 // Get returns a single execution by ID after status refresh.
 func (s *Service) Get(ctx context.Context, executionID string) (Record, error) {
+	_ = s.ProcessActiveExecutions(ctx)
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	_ = s.refreshRunningLocked(ctx)
 	records, idx, err := s.loadRecordLocked(executionID)
 	if err != nil {
 		return Record{}, err
@@ -739,10 +728,9 @@ func (s *Service) Get(ctx context.Context, executionID string) (Record, error) {
 
 // List returns executions ordered by created_at descending.
 func (s *Service) List(ctx context.Context, filters ListFilters) ([]Record, error) {
+	_ = s.ProcessActiveExecutions(ctx)
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	_ = s.refreshRunningLocked(ctx)
 	records, err := s.store.Load()
 	if err != nil {
 		return nil, err
@@ -764,6 +752,21 @@ func (s *Service) List(ctx context.Context, filters ListFilters) ([]Record, erro
 	})
 
 	return filtered, nil
+}
+
+// ProcessActiveExecutions advances agent-manager-backed executions and drives
+// any in-progress post-run finalization work.
+func (s *Service) ProcessActiveExecutions(ctx context.Context) error {
+	s.mu.Lock()
+	candidates, err := s.refreshRunningLocked(ctx)
+	s.mu.Unlock()
+	if err != nil {
+		return err
+	}
+	for _, executionID := range candidates {
+		logFinalizationError(executionID, s.processFinalization(ctx, executionID))
+	}
+	return nil
 }
 
 // ProcessScheduledStarts starts due scheduled executions.
@@ -796,174 +799,121 @@ func (s *Service) ProcessScheduledStarts(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) refreshRunningLocked(ctx context.Context) error {
+func (s *Service) refreshRunningLocked(ctx context.Context) ([]string, error) {
 	records, err := s.store.Load()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	changed := false
 	changedRecords := make(map[string]Record)
+	finalizationCandidates := make([]string, 0)
 
-	// Handle validating records (poll review jobs).
-	const reviewPollTimeout = 10 * time.Minute
 	for i := range records {
 		record := &records[i]
-		if record.Status != StatusValidating || strings.TrimSpace(record.ReviewJobID) == "" {
-			continue
-		}
-		if s.reviewClient == nil {
-			continue
-		}
-		// Time out stuck review jobs.
-		if record.ReviewStartedAt != "" {
-			startedAt, parseErr := time.Parse(time.RFC3339, record.ReviewStartedAt)
-			if parseErr == nil && time.Since(startedAt) > reviewPollTimeout {
-				record.ReviewResult = &ReviewResult{
-					JobID:          record.ReviewJobID,
-					Classification: "not_assessable",
-					Summary:        "Review timed out after " + reviewPollTimeout.String(),
-					ReviewedAt:     nowRFC3339(),
-				}
-				record.Status = StatusNeedsFixup
-				record.FinishedAt = nowRFC3339()
-				record.UpdatedAt = nowRFC3339()
-				if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
-					_ = s.updateBacklogStatus(item, "failed")
-				}
+		if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
+			if migrateLegacyFinalizationState(record, item) {
 				changed = true
 				changedRecords[record.ExecutionID] = *record
-				continue
 			}
 		}
-		result, done, pollErr := s.reviewClient.PollReview(ctx, record.ReviewJobID)
-		if pollErr != nil {
-			log.Printf("[execution] review poll error for %s: %v", record.ExecutionID, pollErr)
-			continue
-		}
-		if !done {
-			continue
-		}
-		record.ReviewResult = result
-		record.UpdatedAt = nowRFC3339()
+	}
 
-		if result.Classification == "ready" || result.Classification == "ready_with_notes" {
-			record.Status = StatusCompleted
-			record.FinishedAt = nowRFC3339()
-			if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
-				_ = s.updateBacklogStatus(item, "completed")
-			}
-		} else {
-			policy, _ := s.policyProvider.LoadPolicy()
-			if policy.AutoFixup && record.FixupAttempt < policy.MaxFixupAttempts {
-				if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
-					s.spawnFixupRun(ctx, record, item)
-				}
-			} else {
-				record.Status = StatusNeedsFixup
-				record.FinishedAt = nowRFC3339()
-				if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
-					_ = s.updateBacklogStatus(item, "failed")
-				}
+	for i := range records {
+		record := &records[i]
+		if record.Status == StatusValidating && effectiveFinalization(*record) != nil {
+			if _, exists := s.processingFinalizations[record.ExecutionID]; !exists {
+				finalizationCandidates = append(finalizationCandidates, record.ExecutionID)
 			}
 		}
-		changed = true
-		changedRecords[record.ExecutionID] = *record
 	}
 
 	// Handle running/starting/needs_review records.
-	if s.inspector == nil {
-		if changed {
-			if err := s.store.Save(records); err != nil {
-				return err
+	if s.inspector != nil {
+		for i := range records {
+			record := &records[i]
+			if (record.Status != StatusStarting && record.Status != StatusRunning && record.Status != StatusNeedsReview) || strings.TrimSpace(record.RunID) == "" {
+				continue
 			}
-			for _, record := range changedRecords {
-				s.dispatchStatusUpdate(record)
+			runState, err := s.inspector.GetRunState(ctx, record.RunID)
+			if err != nil {
+				continue
 			}
-			return nil
-		}
-		return nil
-	}
-
-	for i := range records {
-		record := &records[i]
-		if (record.Status != StatusStarting && record.Status != StatusRunning && record.Status != StatusNeedsReview) || strings.TrimSpace(record.RunID) == "" {
-			continue
-		}
-		runState, err := s.inspector.GetRunState(ctx, record.RunID)
-		if err != nil {
-			continue
-		}
-		nextStatus, reason := mapRunStatus(runState.Status, runState.ErrorMsg)
-		if nextStatus == record.Status {
-			continue
-		}
-		record.Status = nextStatus
-		record.FailureReason = reason
-		record.UpdatedAt = nowRFC3339()
-		// Only set FinishedAt for terminal statuses
-		if nextStatus == StatusCompleted || nextStatus == StatusFailed || nextStatus == StatusCanceled {
-			if strings.TrimSpace(runState.FinishedAt) != "" {
-				record.FinishedAt = runState.FinishedAt
-			} else {
-				record.FinishedAt = nowRFC3339()
+			nextStatus, reason := mapRunStatus(runState.Status, runState.ErrorMsg)
+			if nextStatus == record.Status {
+				continue
 			}
-			// Post-completion hook: archive scenario after successful spec-sync
-			if record.ArchiveContext != nil {
-				if nextStatus == StatusCompleted {
-					s.handleSpecSyncComplete(ctx, record)
+			record.Status = nextStatus
+			record.FailureReason = reason
+			record.UpdatedAt = nowRFC3339()
+			// Only set FinishedAt for terminal statuses
+			if nextStatus == StatusCompleted || nextStatus == StatusFailed || nextStatus == StatusCanceled {
+				if strings.TrimSpace(runState.FinishedAt) != "" {
+					record.FinishedAt = runState.FinishedAt
+				} else {
+					record.FinishedAt = nowRFC3339()
 				}
-				// For spec-sync failures, leave status as failed for UI recovery
-			} else if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
-				if nextStatus == StatusCompleted {
-					// Check if this execution should trigger a review
-					scenarios := pathutil.ScenariosFromGlobs(item.AcceptanceAllow)
-					if s.shouldTriggerReview(item, *record) && len(scenarios) > 0 {
-						req := ReviewRequest{
-							ScenarioName:  scenarios[0],
-							ExpectedPaths: item.AcceptanceAllow,
-						}
-						if s.reviewThresholdsProvider != nil {
-							if th, thErr := s.reviewThresholdsProvider.LoadReviewThresholds(); thErr == nil {
-								req.Thresholds = th
-							}
-						}
-						jobID, triggerErr := s.reviewClient.TriggerReview(ctx, req)
-						if triggerErr != nil {
-							log.Printf("[execution] review trigger failed for %s: %v", record.ExecutionID, triggerErr)
-							record.ReviewSkipReason = fmt.Sprintf("GCT unavailable: %v", triggerErr)
-							_ = s.updateBacklogStatus(item, "completed")
-						} else {
-							record.Status = StatusValidating
-							record.ReviewJobID = jobID
-							record.ReviewStartedAt = nowRFC3339()
-							record.FinishedAt = ""
-							// Don't update backlog — not terminal yet
-						}
-					} else {
-						_ = s.updateBacklogStatus(item, "completed")
+				// Post-completion hook: archive scenario after successful spec-sync
+				if record.ArchiveContext != nil {
+					if nextStatus == StatusCompleted {
+						s.handleSpecSyncComplete(ctx, record)
 					}
-				} else if nextStatus == StatusFailed {
-					_ = s.updateBacklogStatus(item, "failed")
-				} else if nextStatus == StatusCanceled {
-					_ = s.updateBacklogStatus(item, restoreBacklogStatus(*record))
+					// For spec-sync failures, leave status as failed for UI recovery
+				} else if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
+					if nextStatus == StatusCompleted {
+						if isFinalizationEligible(*record) {
+							record.Status = StatusValidating
+							record.Finalization = &Finalization{
+								Eligible:          true,
+								Status:            FinalizationStatusPending,
+								Phase:             FinalizationPhaseScopeDetection,
+								ScopeSource:       FinalizationScopeNone,
+								Warnings:          []FinalizationWarning{},
+								AffectedScenarios: []string{},
+								Scenarios:         []ScenarioFinalization{},
+								StartedAt:         nowRFC3339(),
+							}
+							record.FinishedAt = ""
+							finalizationCandidates = append(finalizationCandidates, record.ExecutionID)
+						} else {
+							record.Finalization = &Finalization{
+								Eligible:                false,
+								Status:                  FinalizationStatusSkipped,
+								Phase:                   FinalizationPhaseSkipped,
+								ScopeSource:             FinalizationScopeNone,
+								SkipReason:              "execution type does not use post-run checks",
+								StartedAt:               nowRFC3339(),
+								CompletedAt:             nowRFC3339(),
+								AggregateClassification: FinalizationAggregateSkipped,
+								AggregateSummary:        "execution type does not use post-run checks",
+								Warnings:                []FinalizationWarning{},
+								AffectedScenarios:       []string{},
+								Scenarios:               []ScenarioFinalization{},
+							}
+							_ = s.updateBacklogStatus(item, "completed")
+						}
+					} else if nextStatus == StatusFailed {
+						_ = s.updateBacklogStatus(item, "failed")
+					} else if nextStatus == StatusCanceled {
+						_ = s.updateBacklogStatus(item, restoreBacklogStatus(*record))
+					}
 				}
 			}
+			changed = true
+			changedRecords[record.ExecutionID] = *record
 		}
-		changed = true
-		changedRecords[record.ExecutionID] = *record
 	}
 
 	if changed {
 		if err := s.store.Save(records); err != nil {
-			return err
+			return nil, err
 		}
 		for _, record := range changedRecords {
 			s.dispatchStatusUpdate(record)
 		}
-		return nil
+		return pathutil.UniqueSortedStrings(finalizationCandidates), nil
 	}
-	return nil
+	return pathutil.UniqueSortedStrings(finalizationCandidates), nil
 }
 
 // handleSpecSyncComplete performs the archive after a successful spec-sync run.
@@ -1018,7 +968,7 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 		RunType:            "fixup",
 		DeliverablePath:    deliverablePath,
 		DeliverableContent: workshop.LoadPlanContentByName(itemDir, deliverablePath),
-		ReviewFeedback:     buildReviewFeedback(record.ReviewResult),
+		ReviewFeedback:     buildFinalizationFeedback(effectiveFinalization(*record)),
 		IdeaHandoff:        ideaHandoff,
 	})
 
@@ -1171,7 +1121,7 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 		RunType:            runType,
 		DeliverablePath:    deliverablePath,
 		DeliverableContent: workshop.LoadPlanContentByName(itemDir, deliverablePath),
-		ReviewFeedback:     buildReviewFeedback(parent.ReviewResult),
+		ReviewFeedback:     buildFinalizationFeedback(effectiveFinalization(*parent)),
 		FollowUpNote:       strings.TrimSpace(req.Context),
 		IdeaHandoff:        ideaHandoff,
 	})
@@ -1212,9 +1162,9 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 			executionActivityPurpose(runType),
 			followUpRecord.StartedBy,
 			map[string]string{
-				"entrypoint":      "execution.follow_up",
-				"follow_up_type":  runType,
-				"run_mode":        req.RunMode,
+				"entrypoint":       "execution.follow_up",
+				"follow_up_type":   runType,
+				"run_mode":         req.RunMode,
 				"parent_execution": parent.ExecutionID,
 			},
 		))
@@ -1626,16 +1576,67 @@ func buildExecutionPrompt(p executionPromptParams) string {
 	return b.String()
 }
 
-// buildReviewFeedback formats a ReviewResult into a readable feedback string.
-func buildReviewFeedback(result *ReviewResult) string {
-	if result == nil {
+// buildFinalizationFeedback formats multi-scenario finalization output into a
+// readable prompt block for fixup/follow-up runs.
+func buildFinalizationFeedback(finalization *Finalization) string {
+	if finalization == nil {
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString(result.Summary)
-	for _, dim := range result.Dimensions {
-		if dim.Status != "green" {
-			b.WriteString(fmt.Sprintf("\n- %s (%s): %s", dim.Name, dim.Status, dim.Details))
+	if strings.TrimSpace(finalization.AggregateSummary) != "" {
+		b.WriteString(finalization.AggregateSummary)
+	}
+	for _, warning := range finalization.Warnings {
+		if b.Len() > 0 {
+			b.WriteString("\n")
+		}
+		if warning.ScenarioName != "" {
+			b.WriteString(fmt.Sprintf("- warning [%s] %s: %s", warning.Code, warning.ScenarioName, warning.Message))
+		} else {
+			b.WriteString(fmt.Sprintf("- warning [%s]: %s", warning.Code, warning.Message))
+		}
+	}
+	for _, scenario := range finalization.Scenarios {
+		if scenario.Restart.Status != "" && scenario.Restart.Status != FinalizationStatusCompleted {
+			if b.Len() > 0 {
+				b.WriteString("\n")
+			}
+			b.WriteString(fmt.Sprintf("- %s restart: %s", scenario.ScenarioName, scenario.Restart.LastError))
+		}
+		if scenario.Health.Status != "" && scenario.Health.Status != FinalizationStatusCompleted {
+			if b.Len() > 0 {
+				b.WriteString("\n")
+			}
+			b.WriteString(fmt.Sprintf("- %s health: %s", scenario.ScenarioName, scenario.Health.Details))
+		}
+		if scenario.Review.Result == nil {
+			if scenario.Review.SkipReason == "" {
+				continue
+			}
+			if b.Len() > 0 {
+				b.WriteString("\n")
+			}
+			b.WriteString(fmt.Sprintf("- %s review: %s", scenario.ScenarioName, scenario.Review.SkipReason))
+			continue
+		}
+		if strings.TrimSpace(scenario.Review.Result.Summary) != "" {
+			if b.Len() > 0 {
+				b.WriteString("\n")
+			}
+			b.WriteString(fmt.Sprintf("- %s review summary: %s", scenario.ScenarioName, scenario.Review.Result.Summary))
+		}
+		for _, dim := range scenario.Review.Result.Dimensions {
+			if dim.Status == "green" || dim.Status == "skipped" {
+				continue
+			}
+			if b.Len() > 0 {
+				b.WriteString("\n")
+			}
+			if dim.Details != "" {
+				b.WriteString(fmt.Sprintf("- %s %s (%s): %s", scenario.ScenarioName, dim.Name, dim.Status, dim.Details))
+			} else {
+				b.WriteString(fmt.Sprintf("- %s %s (%s)", scenario.ScenarioName, dim.Name, dim.Status))
+			}
 		}
 	}
 	return b.String()

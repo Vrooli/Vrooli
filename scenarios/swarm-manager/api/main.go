@@ -394,6 +394,8 @@ func (s *Server) registerExecutionRoutes(scenarioRoot string) {
 		PolicyProvider:           &settingsPolicyAdapter{store: s.settingsStore},
 		ReviewThresholdsProvider: &settingsReviewThresholdsAdapter{store: s.settingsStore},
 		AgentService:             s.requireTrackedAgentService(),
+		ScenarioLifecycle:        scenarios.NewCLILifecycle(),
+		ScenarioHealthChecker:    scenarios.NewCLIHealthChecker(20 * time.Second),
 		Archiver:                 archiver,
 		ReviewClient:             execution.NewHTTPReviewClient(nil),
 	}

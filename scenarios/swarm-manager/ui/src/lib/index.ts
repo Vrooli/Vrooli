@@ -92,6 +92,12 @@ export {
   matchesExecutionFilters,
 } from "./execution-utils";
 export type { ExecutionFilters, ExecutionTabId } from "./execution-utils";
+export {
+  buildFinalizationContext,
+  canRunPostRunChecks,
+  getExecutionReviewResults,
+  hasActionableFinalizationIssues,
+} from "./finalization";
 
 // Scenario Utilities
 export { scenariosFromGlobs } from "./scenario-utils";

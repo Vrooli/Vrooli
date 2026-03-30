@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { FollowUpDialog } from "./follow-up-dialog";
-import type { ExecutionRecord, ReviewResult } from "../../types";
+import type { ExecutionRecord, Finalization, ReviewResult } from "../../types";
 import { selectors } from "../../consts/selectors";
 
 vi.mock("../../services", () => ({
@@ -41,12 +41,49 @@ function makeReviewResult(overrides?: Partial<ReviewResult>): ReviewResult {
   };
 }
 
+function makeFinalization(overrides?: Partial<Finalization>): Finalization {
+  return {
+    eligible: true,
+    status: "completed",
+    phase: "completed",
+    scopeSource: "sandbox_diff",
+    warnings: [],
+    affectedScenarios: ["swarm-manager"],
+    aggregateClassification: "needs_work",
+    aggregateSummary: "Work needs fixes",
+    scenarios: [
+      {
+        scenarioName: "swarm-manager",
+        changedPaths: ["scenarios/swarm-manager/ui/src/components/execution/follow-up-dialog.tsx"],
+        restart: {
+          status: "completed",
+          attempts: 1,
+          startedAt: "2026-03-24T00:30:00Z",
+          finishedAt: "2026-03-24T00:31:00Z",
+        },
+        health: {
+          status: "completed",
+          scenarioStatus: "running",
+          healthStatus: "healthy",
+          schemaValid: true,
+          checkedAt: "2026-03-24T00:32:00Z",
+        },
+        review: {
+          status: "completed",
+          result: makeReviewResult(),
+        },
+      },
+    ],
+    ...overrides,
+  };
+}
+
 describe("FollowUpDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("renders dialog with type options; fixup type hidden when execution has no reviewResult", () => {
+  it("renders dialog with type options; fixup type hidden when execution has no finalization issues", () => {
     render(
       <FollowUpDialog
         isOpen={true}
@@ -62,16 +99,16 @@ describe("FollowUpDialog", () => {
     expect(screen.getByText("General Follow-up")).toBeInTheDocument();
     expect(screen.getByText("Custom")).toBeInTheDocument();
 
-    // "Fix Review Issues" should NOT be visible (no reviewResult)
+    // "Fix Review Issues" should NOT be visible without actionable post-run findings.
     expect(screen.queryByText("Fix Review Issues")).not.toBeInTheDocument();
   });
 
-  it("fixup type shown and pre-selected when execution has reviewResult with classification needs_work", () => {
+  it("fixup type shown and pre-selected when execution has actionable finalization findings", () => {
     render(
       <FollowUpDialog
         isOpen={true}
         onClose={vi.fn()}
-        execution={makeExecution({ reviewResult: makeReviewResult() })}
+        execution={makeExecution({ finalization: makeFinalization() })}
       />,
     );
 
@@ -83,8 +120,9 @@ describe("FollowUpDialog", () => {
     expect(fixupButton).toHaveClass("border-cyan-500");
 
     // Review summary panel should be visible
-    expect(screen.getByTestId(selectors.followUp.reviewSummary)).toBeInTheDocument();
-    expect(screen.getByText("Tests")).toBeInTheDocument();
+    const reviewSummary = screen.getByTestId(selectors.followUp.reviewSummary);
+    expect(reviewSummary).toBeInTheDocument();
+    expect(within(reviewSummary).getByText(/swarm-manager Tests \(red\): No tests found/)).toBeInTheDocument();
   });
 
   it("run mode toggle: Continue Run disabled when execution has no runId", () => {

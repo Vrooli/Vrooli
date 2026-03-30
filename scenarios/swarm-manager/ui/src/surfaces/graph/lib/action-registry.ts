@@ -7,7 +7,6 @@
 
 import type { LucideIcon } from "lucide-react";
 import {
-  Play,
   Square,
   RotateCcw,
   ListPlus,
@@ -60,21 +59,12 @@ function isActiveExecution(node: GraphNode): boolean {
   return status === "pending" || status === "scheduled" || status === "starting" || status === "in_progress" || status === "running" || status === "needs_review" || status === "validating" || status === "needs_fixup";
 }
 
-/** Check if a scenario is running. */
-function isScenarioRunning(node: GraphNode): boolean {
-  const status = getGraphNodeStatus(node);
-  return status === "running";
-}
-
-/** Check if a scenario is stopped. */
-function isScenarioStopped(node: GraphNode): boolean {
-  const status = getGraphNodeStatus(node);
-  return status === "stopped" || status === "error" || status === "unknown";
-}
-
 // ---------------------------------------------------------------------------
 // Action factory helpers
 // ---------------------------------------------------------------------------
+
+/** Statuses where queuing is not applicable (already queued, in progress, or terminal). */
+const NON_QUEUEABLE_STATUSES = new Set(["queued", "in_progress", "completed", "archived"]);
 
 function makeQueueAction(): InspectorAction {
   return {
@@ -82,6 +72,10 @@ function makeQueueAction(): InspectorAction {
     label: "Queue",
     icon: ListPlus,
     variant: "default",
+    enabled(node: GraphNode) {
+      const status = getGraphNodeStatus(node);
+      return typeof status === "string" && !NON_QUEUEABLE_STATUSES.has(status);
+    },
     async handler(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.kind || !parsed?.name) throw new Error("Cannot determine backlog item identity");
@@ -101,21 +95,6 @@ function makeViewBacklogDetailsAction(): InspectorAction {
       const parsed = parseNodeId(node.id);
       if (!parsed?.kind || !parsed?.name) return null;
       return { entityType: "backlog", kind: parsed.kind, name: parsed.name };
-    },
-  };
-}
-
-function makeViewScenarioDetailsAction(): InspectorAction {
-  return {
-    id: "view-scenario-details",
-    label: "View Details",
-    icon: Eye,
-    variant: "default",
-    async handler() { /* navigation handled by navigateTo */ },
-    navigateTo(node: GraphNode) {
-      const parsed = parseNodeId(node.id);
-      if (!parsed?.name) return null;
-      return { entityType: "scenario", name: parsed.name };
     },
   };
 }
@@ -186,7 +165,7 @@ function makeRetryAction(): InspectorAction {
 function makeTriggerReviewAction(): InspectorAction {
   return {
     id: "trigger-review",
-    label: "Trigger Review",
+    label: "Run Post-Run Checks",
     icon: ClipboardCheck,
     variant: "default",
     enabled: isTerminalExecution,
@@ -209,65 +188,6 @@ function makeCancelExecutionAction(): InspectorAction {
       const parsed = parseNodeId(node.id);
       if (!parsed) throw new Error("Cannot determine execution identity");
       await defaultApiClient.post(API_ENDPOINTS.executionCancel(parsed.identifier), {});
-    },
-  };
-}
-
-function makeScenarioStartAction(): InspectorAction {
-  return {
-    id: "start",
-    label: "Start",
-    icon: Play,
-    variant: "default",
-    enabled: isScenarioStopped,
-    async handler(node: GraphNode) {
-      const parsed = parseNodeId(node.id);
-      if (!parsed?.name) throw new Error("Cannot determine scenario name");
-      await defaultApiClient.post(API_ENDPOINTS.scenarioStart(parsed.name), {});
-    },
-  };
-}
-
-function makeScenarioStopAction(): InspectorAction {
-  return {
-    id: "stop",
-    label: "Stop",
-    icon: Square,
-    variant: "destructive",
-    enabled: isScenarioRunning,
-    async handler(node: GraphNode) {
-      const parsed = parseNodeId(node.id);
-      if (!parsed?.name) throw new Error("Cannot determine scenario name");
-      await defaultApiClient.post(API_ENDPOINTS.scenarioStop(parsed.name), {});
-    },
-  };
-}
-
-function makeScenarioRestartAction(): InspectorAction {
-  return {
-    id: "restart",
-    label: "Restart",
-    icon: RotateCcw,
-    variant: "default",
-    enabled: isScenarioRunning,
-    async handler(node: GraphNode) {
-      const parsed = parseNodeId(node.id);
-      if (!parsed?.name) throw new Error("Cannot determine scenario name");
-      await defaultApiClient.post(API_ENDPOINTS.scenarioRestart(parsed.name), {});
-    },
-  };
-}
-
-function makeStopAgentRunAction(): InspectorAction {
-  return {
-    id: "stop-run",
-    label: "Stop",
-    icon: Square,
-    variant: "destructive",
-    async handler(node: GraphNode) {
-      const parsed = parseNodeId(node.id);
-      if (!parsed) throw new Error("Cannot determine run identity");
-      await defaultApiClient.post(API_ENDPOINTS.agentManagerStopRun(parsed.identifier), {});
     },
   };
 }

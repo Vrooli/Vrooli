@@ -1,0 +1,24 @@
+{
+  "acceptance_allow": [
+    "packages/cli-core/**"
+  ],
+  "created": "2026-03-30T14:55:00Z",
+  "depends_on": [
+    "execute/agent-manager-identity-tokens"
+  ],
+  "description": "Implement the identity consumer interface in packages/cli-core so any scenario can detect and verify agent identity tokens.\n\n## Context\n\nThe research (research/agent-identity-standard) established that the consumer interface should mirror the existing sandbox.go pattern in packages/cli-core/cliutil/. cli-core has zero external dependencies — this implementation uses only Go stdlib (crypto/hmac, crypto/sha256, encoding/base64, encoding/json).\n\n## Research Decisions Applied\n\n- Tokens are opaque to consumers — verification requires calling agent-manager's REST endpoint\n- Fail open with warning when agent-manager is unreachable\n- Zero external dependencies — reuse existing HTTPClient/APIClient in cli-core\n\n## Expected Deliverables\n\n1. **identity.go**: `cliutil/identity.go` with:\n   - `IdentityEnv` struct: `Token`, `RunID`, `TaskID`, `ProfileKey`, `ScopePath`, `IssuedAt`, `ExpiresAt`, `Meta`\n   - `DetectIdentity()`: Reads `VROOLI_AGENT_IDENTITY_TOKEN` from environment, returns zero-value if absent\n   - `IsIdentityPresent()`: Returns true if token was found\n   - `VerifyIdentity(client *HTTPClient) (*VerifiedClaims, error)`: Calls `POST /api/v1/identity/verify` on agent-manager, returns verified claims or error\n\n2. **VerifiedClaims type**: Struct matching the verification endpoint response (run_id, task_id, profile_key, scope_path, iat, exp, meta)\n\n3. **Graceful failure**: When verification fails due to network issues, return a descriptive error. Consuming scenarios decide whether to fail open or closed.\n\n4. **Tests**: Unit tests for DetectIdentity with/without env var. Integration-style tests for VerifyIdentity using httptest server mocks.",
+  "effort": "S",
+  "initiative": "swarm-manager-feature-parity",
+  "kind": "execute",
+  "name": "cli-core-identity-consumer",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "cli-core",
+    "identity",
+    "consumer",
+    "cross-scenario"
+  ],
+  "title": "Implement Identity Consumer Interface in cli-core",
+  "updated": "2026-03-30T14:55:00Z"
+}

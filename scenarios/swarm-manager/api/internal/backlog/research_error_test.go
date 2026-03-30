@@ -34,6 +34,10 @@ func (m *mockAgentErrorService) SpawnResearch(_ context.Context, _ agentmanager.
 func (m *mockAgentErrorService) GetRunState(_ context.Context, _ string) (agentmanager.RunState, error) {
 	return agentmanager.RunState{}, nil
 }
+
+func (m *mockAgentErrorService) GetRunDiff(_ context.Context, runID string) (agentmanager.RunDiff, error) {
+	return agentmanager.RunDiff{RunID: runID}, nil
+}
 func (m *mockAgentErrorService) StopRun(_ context.Context, _ string) error { return nil }
 
 func TestResearch_InvalidJSON(t *testing.T) {

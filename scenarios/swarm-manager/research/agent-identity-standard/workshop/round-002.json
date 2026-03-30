@@ -2,13 +2,13 @@
   "round": 2,
   "generated_at": "2026-03-29T18:00:00Z",
   "mode": "workshop",
-  "pending_synthesis": false,
+  "pending_synthesis": true,
   "readiness": {
-    "problem_clarity": 3,
-    "scope_defined": 3,
     "approach_solid": 2,
-    "testable": 2,
-    "risk_awareness": 2
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
   },
   "items": [
     {
@@ -64,9 +64,8 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "__other__",
+      "freeform": "Option A but the timeout should be a day. Agents are getting more capable over time as AI improves, which includes the amount of time they can run. 30 minutes is already short, and they’ll likely be able to run for hours pretty soon. So 1 day is a better default"
     },
     {
       "id": "d2",
@@ -91,9 +90,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d3",
@@ -123,9 +120,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     }
   ],
   "plan_updates": "Incorporated round 1 decisions (HMAC-SHA256, server-side verify, REST, minimal+metadata claims). Added findings on token lifecycle, wire format, injection point, cli-core HTTP client reuse, and swarm-manager attribution patterns. Updated conclusion with detailed token format, verification endpoint contract, lifecycle design, consumer interface, and env var convention."

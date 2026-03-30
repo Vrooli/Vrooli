@@ -820,48 +820,27 @@ func TestRefreshRunning_CanceledRunRestoresBacklogStatus(t *testing.T) {
 	}
 }
 
-func TestShouldTriggerReview_WithScenarioGlobs(t *testing.T) {
-	service := &Service{reviewClient: NewHTTPReviewClient(nil)}
-	item := backlogItem{AcceptanceAllow: []string{"scenarios/web-console/**"}}
-	record := Record{}
-	if !service.shouldTriggerReview(item, record) {
-		t.Fatal("expected true when acceptance_allow references a scenario")
+func TestIsFinalizationEligible(t *testing.T) {
+	tests := []struct {
+		name     string
+		record   Record
+		expected bool
+	}{
+		{name: "default process run", record: Record{}, expected: true},
+		{name: "fixup run", record: Record{PromptTrace: &PromptTrace{Purpose: "fixup"}}, expected: true},
+		{name: "followup run", record: Record{PromptTrace: &PromptTrace{Purpose: "followup"}}, expected: true},
+		{name: "custom run", record: Record{PromptTrace: &PromptTrace{Purpose: "custom"}}, expected: true},
+		{name: "research run excluded", record: Record{PromptTrace: &PromptTrace{Purpose: "research"}}, expected: false},
+		{name: "archive run excluded", record: Record{ArchiveContext: &ArchiveContext{ScenarioName: "web-console"}}, expected: false},
 	}
-}
 
-func TestShouldTriggerReview_NoAcceptanceAllow(t *testing.T) {
-	service := &Service{reviewClient: NewHTTPReviewClient(nil)}
-	item := backlogItem{}
-	record := Record{}
-	if service.shouldTriggerReview(item, record) {
-		t.Fatal("expected false when acceptance_allow is empty")
-	}
-}
-
-func TestShouldTriggerReview_NoReviewClient(t *testing.T) {
-	service := &Service{}
-	item := backlogItem{AcceptanceAllow: []string{"scenarios/web-console/**"}}
-	record := Record{}
-	if service.shouldTriggerReview(item, record) {
-		t.Fatal("expected false when review client is nil")
-	}
-}
-
-func TestShouldTriggerReview_NonScenarioGlobs(t *testing.T) {
-	service := &Service{reviewClient: NewHTTPReviewClient(nil)}
-	item := backlogItem{AcceptanceAllow: []string{"packages/proto/**"}}
-	record := Record{}
-	if service.shouldTriggerReview(item, record) {
-		t.Fatal("expected false when acceptance_allow has no scenario globs")
-	}
-}
-
-func TestShouldTriggerReview_ArchiveContext(t *testing.T) {
-	service := &Service{reviewClient: NewHTTPReviewClient(nil)}
-	item := backlogItem{AcceptanceAllow: []string{"scenarios/web-console/**"}}
-	record := Record{ArchiveContext: &ArchiveContext{ScenarioName: "web-console"}}
-	if service.shouldTriggerReview(item, record) {
-		t.Fatal("expected false when archive context is set")
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			if actual := isFinalizationEligible(tc.record); actual != tc.expected {
+				t.Fatalf("expected eligible=%t, got %t", tc.expected, actual)
+			}
+		})
 	}
 }
 
@@ -881,7 +860,7 @@ func mustLoadRecords(t *testing.T, path string) []map[string]any {
 	return records
 }
 
-func TestRecordToProto_MapsReviewResult(t *testing.T) {
+func TestRecordToProto_MapsFinalization(t *testing.T) {
 	record := Record{
 		ExecutionID:       "exec-review-1",
 		BacklogKind:       "idea",
@@ -890,14 +869,55 @@ func TestRecordToProto_MapsReviewResult(t *testing.T) {
 		Mode:              ModeYOLO,
 		ParentExecutionID: "parent-exec-0",
 		FixupAttempt:      2,
-		ReviewResult: &ReviewResult{
-			JobID:          "review-job-1",
-			Classification: "needs_work",
-			Summary:        "Tests failing",
-			ReviewedAt:     "2026-03-24T12:00:00Z",
-			Dimensions: []ReviewDimension{
-				{Name: "tests", Status: "red", Details: "3 tests failing"},
-				{Name: "lint", Status: "green"},
+		Finalization: &Finalization{
+			Eligible:                true,
+			Status:                  FinalizationStatusCompleted,
+			Phase:                   FinalizationPhaseCompleted,
+			ScopeSource:             FinalizationScopeSandboxDiff,
+			StartedAt:               "2026-03-24T10:00:00Z",
+			CompletedAt:             "2026-03-24T12:00:00Z",
+			AggregateClassification: FinalizationAggregateNeedsWork,
+			AggregateSummary:        "Tests failing",
+			AffectedScenarios:       []string{"web-console"},
+			Warnings: []FinalizationWarning{{
+				Code:      "health_retry",
+				Message:   "restarted twice",
+				Retryable: true,
+				CreatedAt: "2026-03-24T11:00:00Z",
+			}},
+			Scenarios: []ScenarioFinalization{
+				{
+					ScenarioName: "web-console",
+					ChangedPaths: []string{"scenarios/web-console/ui/src/App.tsx"},
+					Restart: RestartResult{
+						Status:     FinalizationStatusCompleted,
+						Attempts:   2,
+						StartedAt:  "2026-03-24T10:00:00Z",
+						FinishedAt: "2026-03-24T10:01:00Z",
+					},
+					Health: HealthCheckResult{
+						Status:         FinalizationStatusCompleted,
+						ScenarioStatus: "running",
+						HealthStatus:   "healthy",
+						SchemaValid:    true,
+						Details:        "scenario is healthy",
+						CheckedAt:      "2026-03-24T10:02:00Z",
+					},
+					Review: ScenarioReviewStep{
+						Status: FinalizationStatusCompleted,
+						JobID:  "review-job-1",
+						Result: &ReviewResult{
+							JobID:          "review-job-1",
+							Classification: "needs_work",
+							Summary:        "Tests failing",
+							ReviewedAt:     "2026-03-24T12:00:00Z",
+							Dimensions: []ReviewDimension{
+								{Name: "tests", Status: "red", Details: "3 tests failing"},
+								{Name: "lint", Status: "green"},
+							},
+						},
+					},
+				},
 			},
 		},
 		CreatedAt: "2026-03-24T00:00:00Z",
@@ -911,32 +931,33 @@ func TestRecordToProto_MapsReviewResult(t *testing.T) {
 	if pb.FixupAttempt != 2 {
 		t.Fatalf("expected fixup_attempt 2, got %d", pb.FixupAttempt)
 	}
-	if pb.ReviewResult == nil {
-		t.Fatal("expected review_result to be set")
+	if pb.Finalization == nil {
+		t.Fatal("expected finalization to be set")
 	}
-	if pb.ReviewResult.JobId != "review-job-1" {
-		t.Fatalf("expected job_id review-job-1, got %s", pb.ReviewResult.JobId)
+	if pb.Finalization.AggregateClassification != "needs_work" {
+		t.Fatalf("expected aggregate classification needs_work, got %s", pb.Finalization.AggregateClassification)
 	}
-	if pb.ReviewResult.Classification != "needs_work" {
-		t.Fatalf("expected classification needs_work, got %s", pb.ReviewResult.Classification)
+	if pb.Finalization.AggregateSummary == nil || *pb.Finalization.AggregateSummary != "Tests failing" {
+		t.Fatalf("expected aggregate summary 'Tests failing', got %v", pb.Finalization.AggregateSummary)
 	}
-	if pb.ReviewResult.Summary != "Tests failing" {
-		t.Fatalf("expected summary 'Tests failing', got %s", pb.ReviewResult.Summary)
+	if len(pb.Finalization.Scenarios) != 1 {
+		t.Fatalf("expected 1 scenario finalization, got %d", len(pb.Finalization.Scenarios))
 	}
-	if pb.ReviewResult.ReviewedAt != "2026-03-24T12:00:00Z" {
-		t.Fatalf("expected reviewed_at 2026-03-24T12:00:00Z, got %s", pb.ReviewResult.ReviewedAt)
+	if len(pb.Finalization.Warnings) != 1 {
+		t.Fatalf("expected 1 warning, got %d", len(pb.Finalization.Warnings))
 	}
-	if len(pb.ReviewResult.Dimensions) != 2 {
-		t.Fatalf("expected 2 dimensions, got %d", len(pb.ReviewResult.Dimensions))
+	scenario := pb.Finalization.Scenarios[0]
+	if scenario.Review == nil || scenario.Review.Result == nil {
+		t.Fatal("expected scenario review result to be set")
 	}
-	dim0 := pb.ReviewResult.Dimensions[0]
+	dim0 := scenario.Review.Result.Dimensions[0]
 	if dim0.Name != "tests" || dim0.Status != "red" {
 		t.Fatalf("expected tests/red, got %s/%s", dim0.Name, dim0.Status)
 	}
 	if dim0.Details == nil || *dim0.Details != "3 tests failing" {
 		t.Fatalf("expected details '3 tests failing', got %v", dim0.Details)
 	}
-	dim1 := pb.ReviewResult.Dimensions[1]
+	dim1 := scenario.Review.Result.Dimensions[1]
 	if dim1.Name != "lint" || dim1.Status != "green" {
 		t.Fatalf("expected lint/green, got %s/%s", dim1.Name, dim1.Status)
 	}
@@ -1005,14 +1026,14 @@ func TestTriggerReview_CompletedExecution(t *testing.T) {
 	if result.Status != StatusValidating {
 		t.Fatalf("expected status validating, got %s", result.Status)
 	}
-	if result.ReviewJobID != "job-new" {
-		t.Fatalf("expected ReviewJobID job-new, got %s", result.ReviewJobID)
+	if result.Finalization == nil {
+		t.Fatal("expected finalization to be initialized")
 	}
-	if result.ReviewStartedAt == "" {
-		t.Fatal("expected ReviewStartedAt to be set")
+	if result.Finalization.Status != FinalizationStatusPending {
+		t.Fatalf("expected pending finalization status, got %s", result.Finalization.Status)
 	}
-	if result.ReviewSkipReason != "" {
-		t.Fatalf("expected empty ReviewSkipReason, got %s", result.ReviewSkipReason)
+	if result.Finalization.Phase != FinalizationPhaseScopeDetection {
+		t.Fatalf("expected scope_detection phase, got %s", result.Finalization.Phase)
 	}
 }
 
@@ -1046,49 +1067,53 @@ func TestTriggerReview_WrongStatus(t *testing.T) {
 			if err == nil {
 				t.Fatal("expected error for non-terminal execution")
 			}
-			if !strings.Contains(err.Error(), "cannot trigger review") {
+			if !strings.Contains(err.Error(), "cannot trigger post-run checks") {
 				t.Fatalf("expected status validation error, got: %v", err)
 			}
 		})
 	}
 }
 
-func TestTriggerReview_NoClient(t *testing.T) {
+func TestTriggerReview_MissingExecution(t *testing.T) {
 	svc := &Service{
+		store:          NewStore(filepath.Join(t.TempDir(), "exec.json")),
 		policyProvider: &defaultPolicyProvider{},
 	}
 	_, err := svc.TriggerReview(context.Background(), "exec-x")
 	if err == nil {
-		t.Fatal("expected error when reviewClient is nil")
+		t.Fatal("expected error when execution is missing")
 	}
-	if !strings.Contains(err.Error(), "not configured") {
-		t.Fatalf("expected 'not configured' error, got: %v", err)
+	if !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("expected not found error, got: %v", err)
 	}
 }
 
-func TestRecordToProto_MapsNewReviewFields(t *testing.T) {
+func TestRecordToProto_MapsLegacyReviewFieldsIntoFinalization(t *testing.T) {
 	record := Record{
-		ExecutionID:      "exec-new-fields",
-		BacklogKind:      "execute",
-		BacklogName:      "test",
-		Status:           StatusCompleted,
-		Mode:             ModeYOLO,
-		ReviewSkipReason: "GCT unavailable: connection refused",
-		ReviewStartedAt:  "2026-03-24T10:00:00Z",
-		CreatedAt:        "2026-03-24T00:00:00Z",
-		UpdatedAt:        "2026-03-24T01:00:00Z",
+		ExecutionID:            "exec-new-fields",
+		BacklogKind:            "execute",
+		BacklogName:            "test",
+		Status:                 StatusCompleted,
+		Mode:                   ModeYOLO,
+		LegacyReviewSkipReason: "GCT unavailable: connection refused",
+		LegacyReviewStartedAt:  "2026-03-24T10:00:00Z",
+		CreatedAt:              "2026-03-24T00:00:00Z",
+		UpdatedAt:              "2026-03-24T01:00:00Z",
 	}
 	pb := recordToProto(record)
 
-	if pb.ReviewSkipReason == nil || *pb.ReviewSkipReason != "GCT unavailable: connection refused" {
-		t.Fatalf("expected ReviewSkipReason to be mapped, got %v", pb.ReviewSkipReason)
+	if pb.Finalization == nil {
+		t.Fatal("expected finalization to be synthesized")
 	}
-	if pb.ReviewStartedAt == nil || *pb.ReviewStartedAt != "2026-03-24T10:00:00Z" {
-		t.Fatalf("expected ReviewStartedAt to be mapped, got %v", pb.ReviewStartedAt)
+	if pb.Finalization.SkipReason == nil || *pb.Finalization.SkipReason != "GCT unavailable: connection refused" {
+		t.Fatalf("expected skip reason to be mapped, got %v", pb.Finalization.SkipReason)
+	}
+	if pb.Finalization.StartedAt == nil || *pb.Finalization.StartedAt != "2026-03-24T10:00:00Z" {
+		t.Fatalf("expected started_at to be mapped, got %v", pb.Finalization.StartedAt)
 	}
 }
 
-func TestRecordToProto_OmitsEmptyNewFields(t *testing.T) {
+func TestRecordToProto_OmitsEmptyFinalization(t *testing.T) {
 	record := Record{
 		ExecutionID: "exec-empty-fields",
 		BacklogKind: "execute",
@@ -1100,11 +1125,8 @@ func TestRecordToProto_OmitsEmptyNewFields(t *testing.T) {
 	}
 	pb := recordToProto(record)
 
-	if pb.ReviewSkipReason != nil {
-		t.Fatalf("expected nil ReviewSkipReason for empty string, got %v", pb.ReviewSkipReason)
-	}
-	if pb.ReviewStartedAt != nil {
-		t.Fatalf("expected nil ReviewStartedAt for empty string, got %v", pb.ReviewStartedAt)
+	if pb.Finalization != nil {
+		t.Fatalf("expected nil finalization for empty record, got %v", pb.Finalization)
 	}
 }
 
@@ -1286,33 +1308,50 @@ func TestBuildExecutionPrompt_NoTitle(t *testing.T) {
 	}
 }
 
-func TestBuildReviewFeedback_NilResult(t *testing.T) {
-	if got := buildReviewFeedback(nil); got != "" {
+func TestBuildFinalizationFeedback_NilResult(t *testing.T) {
+	if got := buildFinalizationFeedback(nil); got != "" {
 		t.Errorf("expected empty string for nil result, got %q", got)
 	}
 }
 
-func TestBuildReviewFeedback_WithDimensions(t *testing.T) {
-	result := &ReviewResult{
-		Summary: "Needs work.",
-		Dimensions: []ReviewDimension{
-			{Name: "tests", Status: "red", Details: "3 tests failing"},
-			{Name: "docs", Status: "green", Details: "OK"},
-			{Name: "lint", Status: "yellow", Details: "2 warnings"},
-		},
+func TestBuildFinalizationFeedback_WithDimensions(t *testing.T) {
+	result := &Finalization{
+		AggregateSummary: "Needs work.",
+		Warnings: []FinalizationWarning{{
+			Code:      "health_retry",
+			Message:   "restarted twice",
+			Retryable: true,
+			CreatedAt: "2026-03-24T01:00:00Z",
+		}},
+		Scenarios: []ScenarioFinalization{{
+			ScenarioName: "web-console",
+			Review: ScenarioReviewStep{
+				Result: &ReviewResult{
+					Summary: "Needs work.",
+					Dimensions: []ReviewDimension{
+						{Name: "tests", Status: "red", Details: "3 tests failing"},
+						{Name: "docs", Status: "green", Details: "OK"},
+						{Name: "lint", Status: "yellow", Details: "2 warnings"},
+					},
+				},
+			},
+		}},
 	}
-	got := buildReviewFeedback(result)
+	got := buildFinalizationFeedback(result)
 
 	if !strings.Contains(got, "Needs work.") {
 		t.Error("missing summary")
 	}
-	if !strings.Contains(got, "tests (red): 3 tests failing") {
+	if !strings.Contains(got, "web-console tests (red): 3 tests failing") {
 		t.Error("missing red dimension")
 	}
 	if strings.Contains(got, "docs (green)") {
 		t.Error("green dimensions should be excluded")
 	}
-	if !strings.Contains(got, "lint (yellow): 2 warnings") {
+	if !strings.Contains(got, "warning [health_retry]: restarted twice") {
+		t.Error("missing warning")
+	}
+	if !strings.Contains(got, "web-console lint (yellow): 2 warnings") {
 		t.Error("missing yellow dimension")
 	}
 }

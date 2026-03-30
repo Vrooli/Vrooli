@@ -46,16 +46,10 @@ type ExecutionRecord struct {
 	ParentExecutionId *string `protobuf:"bytes,17,opt,name=parent_execution_id,json=parentExecutionId,proto3,oneof" json:"parent_execution_id,omitempty"`
 	// Number of fixup attempts (0 for original execution).
 	FixupAttempt int32 `protobuf:"varint,18,opt,name=fixup_attempt,json=fixupAttempt,proto3" json:"fixup_attempt,omitempty"`
-	// Post-execution review result from git-control-tower.
-	ReviewResult *ReviewResult `protobuf:"bytes,19,opt,name=review_result,json=reviewResult,proto3,oneof" json:"review_result,omitempty"`
-	// Job ID for the in-progress review.
-	ReviewJobId *string `protobuf:"bytes,20,opt,name=review_job_id,json=reviewJobId,proto3,oneof" json:"review_job_id,omitempty"`
-	// Reason review was skipped (GCT unavailable, not configured, etc.).
-	ReviewSkipReason *string `protobuf:"bytes,21,opt,name=review_skip_reason,json=reviewSkipReason,proto3,oneof" json:"review_skip_reason,omitempty"`
-	// Timestamp when review job was submitted (for timeout calculation).
-	ReviewStartedAt *string `protobuf:"bytes,22,opt,name=review_started_at,json=reviewStartedAt,proto3,oneof" json:"review_started_at,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Unified post-run finalization state for restart + health + review.
+	Finalization  *Finalization `protobuf:"bytes,23,opt,name=finalization,proto3,oneof" json:"finalization,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ExecutionRecord) Reset() {
@@ -214,32 +208,11 @@ func (x *ExecutionRecord) GetFixupAttempt() int32 {
 	return 0
 }
 
-func (x *ExecutionRecord) GetReviewResult() *ReviewResult {
+func (x *ExecutionRecord) GetFinalization() *Finalization {
 	if x != nil {
-		return x.ReviewResult
+		return x.Finalization
 	}
 	return nil
-}
-
-func (x *ExecutionRecord) GetReviewJobId() string {
-	if x != nil && x.ReviewJobId != nil {
-		return *x.ReviewJobId
-	}
-	return ""
-}
-
-func (x *ExecutionRecord) GetReviewSkipReason() string {
-	if x != nil && x.ReviewSkipReason != nil {
-		return *x.ReviewSkipReason
-	}
-	return ""
-}
-
-func (x *ExecutionRecord) GetReviewStartedAt() string {
-	if x != nil && x.ReviewStartedAt != nil {
-		return *x.ReviewStartedAt
-	}
-	return ""
 }
 
 // ArchiveContext captures archive parameters for spec-sync-archive executions.
@@ -459,6 +432,527 @@ func (x *ReviewDimension) GetDetails() string {
 	return ""
 }
 
+// Finalization captures the full post-run orchestration state for an execution.
+type Finalization struct {
+	state                   protoimpl.MessageState  `protogen:"open.v1"`
+	Eligible                bool                    `protobuf:"varint,1,opt,name=eligible,proto3" json:"eligible,omitempty"`
+	Status                  string                  `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Phase                   string                  `protobuf:"bytes,3,opt,name=phase,proto3" json:"phase,omitempty"`
+	ScopeSource             string                  `protobuf:"bytes,4,opt,name=scope_source,json=scopeSource,proto3" json:"scope_source,omitempty"`
+	SkipReason              *string                 `protobuf:"bytes,5,opt,name=skip_reason,json=skipReason,proto3,oneof" json:"skip_reason,omitempty"`
+	StartedAt               *string                 `protobuf:"bytes,6,opt,name=started_at,json=startedAt,proto3,oneof" json:"started_at,omitempty"`
+	CompletedAt             *string                 `protobuf:"bytes,7,opt,name=completed_at,json=completedAt,proto3,oneof" json:"completed_at,omitempty"`
+	Warnings                []*FinalizationWarning  `protobuf:"bytes,8,rep,name=warnings,proto3" json:"warnings,omitempty"`
+	AffectedScenarios       []string                `protobuf:"bytes,9,rep,name=affected_scenarios,json=affectedScenarios,proto3" json:"affected_scenarios,omitempty"`
+	AggregateClassification string                  `protobuf:"bytes,10,opt,name=aggregate_classification,json=aggregateClassification,proto3" json:"aggregate_classification,omitempty"`
+	AggregateSummary        *string                 `protobuf:"bytes,11,opt,name=aggregate_summary,json=aggregateSummary,proto3,oneof" json:"aggregate_summary,omitempty"`
+	Scenarios               []*ScenarioFinalization `protobuf:"bytes,12,rep,name=scenarios,proto3" json:"scenarios,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *Finalization) Reset() {
+	*x = Finalization{}
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Finalization) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Finalization) ProtoMessage() {}
+
+func (x *Finalization) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Finalization.ProtoReflect.Descriptor instead.
+func (*Finalization) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *Finalization) GetEligible() bool {
+	if x != nil {
+		return x.Eligible
+	}
+	return false
+}
+
+func (x *Finalization) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *Finalization) GetPhase() string {
+	if x != nil {
+		return x.Phase
+	}
+	return ""
+}
+
+func (x *Finalization) GetScopeSource() string {
+	if x != nil {
+		return x.ScopeSource
+	}
+	return ""
+}
+
+func (x *Finalization) GetSkipReason() string {
+	if x != nil && x.SkipReason != nil {
+		return *x.SkipReason
+	}
+	return ""
+}
+
+func (x *Finalization) GetStartedAt() string {
+	if x != nil && x.StartedAt != nil {
+		return *x.StartedAt
+	}
+	return ""
+}
+
+func (x *Finalization) GetCompletedAt() string {
+	if x != nil && x.CompletedAt != nil {
+		return *x.CompletedAt
+	}
+	return ""
+}
+
+func (x *Finalization) GetWarnings() []*FinalizationWarning {
+	if x != nil {
+		return x.Warnings
+	}
+	return nil
+}
+
+func (x *Finalization) GetAffectedScenarios() []string {
+	if x != nil {
+		return x.AffectedScenarios
+	}
+	return nil
+}
+
+func (x *Finalization) GetAggregateClassification() string {
+	if x != nil {
+		return x.AggregateClassification
+	}
+	return ""
+}
+
+func (x *Finalization) GetAggregateSummary() string {
+	if x != nil && x.AggregateSummary != nil {
+		return *x.AggregateSummary
+	}
+	return ""
+}
+
+func (x *Finalization) GetScenarios() []*ScenarioFinalization {
+	if x != nil {
+		return x.Scenarios
+	}
+	return nil
+}
+
+// FinalizationWarning captures a non-fatal issue encountered during post-run
+// orchestration.
+type FinalizationWarning struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	ScenarioName  *string                `protobuf:"bytes,2,opt,name=scenario_name,json=scenarioName,proto3,oneof" json:"scenario_name,omitempty"`
+	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	Retryable     bool                   `protobuf:"varint,4,opt,name=retryable,proto3" json:"retryable,omitempty"`
+	CreatedAt     string                 `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FinalizationWarning) Reset() {
+	*x = FinalizationWarning{}
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FinalizationWarning) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FinalizationWarning) ProtoMessage() {}
+
+func (x *FinalizationWarning) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FinalizationWarning.ProtoReflect.Descriptor instead.
+func (*FinalizationWarning) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *FinalizationWarning) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *FinalizationWarning) GetScenarioName() string {
+	if x != nil && x.ScenarioName != nil {
+		return *x.ScenarioName
+	}
+	return ""
+}
+
+func (x *FinalizationWarning) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *FinalizationWarning) GetRetryable() bool {
+	if x != nil {
+		return x.Retryable
+	}
+	return false
+}
+
+func (x *FinalizationWarning) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+// ScenarioFinalization captures restart, health, and review state for one
+// affected scenario.
+type ScenarioFinalization struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ScenarioName  string                 `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	ChangedPaths  []string               `protobuf:"bytes,2,rep,name=changed_paths,json=changedPaths,proto3" json:"changed_paths,omitempty"`
+	Restart       *RestartResult         `protobuf:"bytes,3,opt,name=restart,proto3" json:"restart,omitempty"`
+	Health        *HealthCheckResult     `protobuf:"bytes,4,opt,name=health,proto3" json:"health,omitempty"`
+	Review        *ScenarioReview        `protobuf:"bytes,5,opt,name=review,proto3" json:"review,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScenarioFinalization) Reset() {
+	*x = ScenarioFinalization{}
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioFinalization) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioFinalization) ProtoMessage() {}
+
+func (x *ScenarioFinalization) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioFinalization.ProtoReflect.Descriptor instead.
+func (*ScenarioFinalization) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ScenarioFinalization) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+func (x *ScenarioFinalization) GetChangedPaths() []string {
+	if x != nil {
+		return x.ChangedPaths
+	}
+	return nil
+}
+
+func (x *ScenarioFinalization) GetRestart() *RestartResult {
+	if x != nil {
+		return x.Restart
+	}
+	return nil
+}
+
+func (x *ScenarioFinalization) GetHealth() *HealthCheckResult {
+	if x != nil {
+		return x.Health
+	}
+	return nil
+}
+
+func (x *ScenarioFinalization) GetReview() *ScenarioReview {
+	if x != nil {
+		return x.Review
+	}
+	return nil
+}
+
+// RestartResult captures restart attempts for one scenario.
+type RestartResult struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	Attempts      int32                  `protobuf:"varint,2,opt,name=attempts,proto3" json:"attempts,omitempty"`
+	LastError     *string                `protobuf:"bytes,3,opt,name=last_error,json=lastError,proto3,oneof" json:"last_error,omitempty"`
+	StartedAt     *string                `protobuf:"bytes,4,opt,name=started_at,json=startedAt,proto3,oneof" json:"started_at,omitempty"`
+	FinishedAt    *string                `protobuf:"bytes,5,opt,name=finished_at,json=finishedAt,proto3,oneof" json:"finished_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RestartResult) Reset() {
+	*x = RestartResult{}
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RestartResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RestartResult) ProtoMessage() {}
+
+func (x *RestartResult) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RestartResult.ProtoReflect.Descriptor instead.
+func (*RestartResult) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *RestartResult) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *RestartResult) GetAttempts() int32 {
+	if x != nil {
+		return x.Attempts
+	}
+	return 0
+}
+
+func (x *RestartResult) GetLastError() string {
+	if x != nil && x.LastError != nil {
+		return *x.LastError
+	}
+	return ""
+}
+
+func (x *RestartResult) GetStartedAt() string {
+	if x != nil && x.StartedAt != nil {
+		return *x.StartedAt
+	}
+	return ""
+}
+
+func (x *RestartResult) GetFinishedAt() string {
+	if x != nil && x.FinishedAt != nil {
+		return *x.FinishedAt
+	}
+	return ""
+}
+
+// HealthCheckResult captures the standard health contract outcome for one
+// scenario.
+type HealthCheckResult struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Status         string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	ScenarioStatus *string                `protobuf:"bytes,2,opt,name=scenario_status,json=scenarioStatus,proto3,oneof" json:"scenario_status,omitempty"`
+	HealthStatus   *string                `protobuf:"bytes,3,opt,name=health_status,json=healthStatus,proto3,oneof" json:"health_status,omitempty"`
+	SchemaValid    bool                   `protobuf:"varint,4,opt,name=schema_valid,json=schemaValid,proto3" json:"schema_valid,omitempty"`
+	Details        *string                `protobuf:"bytes,5,opt,name=details,proto3,oneof" json:"details,omitempty"`
+	CheckedAt      *string                `protobuf:"bytes,6,opt,name=checked_at,json=checkedAt,proto3,oneof" json:"checked_at,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *HealthCheckResult) Reset() {
+	*x = HealthCheckResult{}
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HealthCheckResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HealthCheckResult) ProtoMessage() {}
+
+func (x *HealthCheckResult) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HealthCheckResult.ProtoReflect.Descriptor instead.
+func (*HealthCheckResult) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *HealthCheckResult) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *HealthCheckResult) GetScenarioStatus() string {
+	if x != nil && x.ScenarioStatus != nil {
+		return *x.ScenarioStatus
+	}
+	return ""
+}
+
+func (x *HealthCheckResult) GetHealthStatus() string {
+	if x != nil && x.HealthStatus != nil {
+		return *x.HealthStatus
+	}
+	return ""
+}
+
+func (x *HealthCheckResult) GetSchemaValid() bool {
+	if x != nil {
+		return x.SchemaValid
+	}
+	return false
+}
+
+func (x *HealthCheckResult) GetDetails() string {
+	if x != nil && x.Details != nil {
+		return *x.Details
+	}
+	return ""
+}
+
+func (x *HealthCheckResult) GetCheckedAt() string {
+	if x != nil && x.CheckedAt != nil {
+		return *x.CheckedAt
+	}
+	return ""
+}
+
+// ScenarioReview captures one scenario review job and result.
+type ScenarioReview struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	JobId         *string                `protobuf:"bytes,2,opt,name=job_id,json=jobId,proto3,oneof" json:"job_id,omitempty"`
+	SkipReason    *string                `protobuf:"bytes,3,opt,name=skip_reason,json=skipReason,proto3,oneof" json:"skip_reason,omitempty"`
+	Result        *ReviewResult          `protobuf:"bytes,4,opt,name=result,proto3,oneof" json:"result,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScenarioReview) Reset() {
+	*x = ScenarioReview{}
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioReview) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioReview) ProtoMessage() {}
+
+func (x *ScenarioReview) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioReview.ProtoReflect.Descriptor instead.
+func (*ScenarioReview) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ScenarioReview) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ScenarioReview) GetJobId() string {
+	if x != nil && x.JobId != nil {
+		return *x.JobId
+	}
+	return ""
+}
+
+func (x *ScenarioReview) GetSkipReason() string {
+	if x != nil && x.SkipReason != nil {
+		return *x.SkipReason
+	}
+	return ""
+}
+
+func (x *ScenarioReview) GetResult() *ReviewResult {
+	if x != nil {
+		return x.Result
+	}
+	return nil
+}
+
 // ExecutionPolicy controls default mode, delay, and auto-fixup behavior.
 type ExecutionPolicy struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
@@ -474,7 +968,7 @@ type ExecutionPolicy struct {
 
 func (x *ExecutionPolicy) Reset() {
 	*x = ExecutionPolicy{}
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[4]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -486,7 +980,7 @@ func (x *ExecutionPolicy) String() string {
 func (*ExecutionPolicy) ProtoMessage() {}
 
 func (x *ExecutionPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[4]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -499,7 +993,7 @@ func (x *ExecutionPolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecutionPolicy.ProtoReflect.Descriptor instead.
 func (*ExecutionPolicy) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{4}
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ExecutionPolicy) GetDefaultMode() string {
@@ -534,8 +1028,7 @@ var File_swarm_manager_v1_domain_execution_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\n" +
-	"'swarm-manager/v1/domain/execution.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xe6\n" +
-	"\n" +
+	"'swarm-manager/v1/domain/execution.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\x9e\t\n" +
 	"\x0fExecutionRecord\x12*\n" +
 	"\fexecution_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vexecutionId\x12X\n" +
 	"\fbacklog_kind\x18\x02 \x01(\tB5\xbaH2r0R\x04ideaR\x03fixR\aexecuteR\bresearchR\x05choreR\tspec-syncR\vbacklogKind\x12*\n" +
@@ -561,12 +1054,9 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"updated_at\x18\x0f \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tupdatedAt\x12N\n" +
 	"\x0farchive_context\x18\x10 \x01(\v2 .swarm_manager.v1.ArchiveContextH\bR\x0earchiveContext\x88\x01\x01\x123\n" +
 	"\x13parent_execution_id\x18\x11 \x01(\tH\tR\x11parentExecutionId\x88\x01\x01\x12#\n" +
-	"\rfixup_attempt\x18\x12 \x01(\x05R\ffixupAttempt\x12H\n" +
-	"\rreview_result\x18\x13 \x01(\v2\x1e.swarm_manager.v1.ReviewResultH\n" +
-	"R\freviewResult\x88\x01\x01\x12'\n" +
-	"\rreview_job_id\x18\x14 \x01(\tH\vR\vreviewJobId\x88\x01\x01\x121\n" +
-	"\x12review_skip_reason\x18\x15 \x01(\tH\fR\x10reviewSkipReason\x88\x01\x01\x12/\n" +
-	"\x11review_started_at\x18\x16 \x01(\tH\rR\x0freviewStartedAt\x88\x01\x01B\n" +
+	"\rfixup_attempt\x18\x12 \x01(\x05R\ffixupAttempt\x12G\n" +
+	"\ffinalization\x18\x17 \x01(\v2\x1e.swarm_manager.v1.FinalizationH\n" +
+	"R\ffinalization\x88\x01\x01B\n" +
 	"\n" +
 	"\b_task_idB\t\n" +
 	"\a_run_idB\x0f\n" +
@@ -578,11 +1068,8 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\n" +
 	"_operationB\x12\n" +
 	"\x10_archive_contextB\x16\n" +
-	"\x14_parent_execution_idB\x10\n" +
-	"\x0e_review_resultB\x10\n" +
-	"\x0e_review_job_idB\x15\n" +
-	"\x13_review_skip_reasonB\x14\n" +
-	"\x12_review_started_at\"\x99\x02\n" +
+	"\x14_parent_execution_idB\x0f\n" +
+	"\r_finalizationJ\x04\b\x13\x10\x17\"\x99\x02\n" +
 	"\x0eArchiveContext\x12,\n" +
 	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x12,\n" +
 	"\rscenario_path\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioPath\x12-\n" +
@@ -605,7 +1092,75 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x1d\n" +
 	"\adetails\x18\x03 \x01(\tH\x00R\adetails\x88\x01\x01B\n" +
 	"\n" +
-	"\b_details\"\xe9\x01\n" +
+	"\b_details\"\xd8\x04\n" +
+	"\fFinalization\x12\x1a\n" +
+	"\beligible\x18\x01 \x01(\bR\beligible\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x14\n" +
+	"\x05phase\x18\x03 \x01(\tR\x05phase\x12!\n" +
+	"\fscope_source\x18\x04 \x01(\tR\vscopeSource\x12$\n" +
+	"\vskip_reason\x18\x05 \x01(\tH\x00R\n" +
+	"skipReason\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"started_at\x18\x06 \x01(\tH\x01R\tstartedAt\x88\x01\x01\x12&\n" +
+	"\fcompleted_at\x18\a \x01(\tH\x02R\vcompletedAt\x88\x01\x01\x12A\n" +
+	"\bwarnings\x18\b \x03(\v2%.swarm_manager.v1.FinalizationWarningR\bwarnings\x12-\n" +
+	"\x12affected_scenarios\x18\t \x03(\tR\x11affectedScenarios\x129\n" +
+	"\x18aggregate_classification\x18\n" +
+	" \x01(\tR\x17aggregateClassification\x120\n" +
+	"\x11aggregate_summary\x18\v \x01(\tH\x03R\x10aggregateSummary\x88\x01\x01\x12D\n" +
+	"\tscenarios\x18\f \x03(\v2&.swarm_manager.v1.ScenarioFinalizationR\tscenariosB\x0e\n" +
+	"\f_skip_reasonB\r\n" +
+	"\v_started_atB\x0f\n" +
+	"\r_completed_atB\x14\n" +
+	"\x12_aggregate_summary\"\xbc\x01\n" +
+	"\x13FinalizationWarning\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\tR\x04code\x12(\n" +
+	"\rscenario_name\x18\x02 \x01(\tH\x00R\fscenarioName\x88\x01\x01\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\x12\x1c\n" +
+	"\tretryable\x18\x04 \x01(\bR\tretryable\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x05 \x01(\tR\tcreatedAtB\x10\n" +
+	"\x0e_scenario_name\"\x92\x02\n" +
+	"\x14ScenarioFinalization\x12#\n" +
+	"\rscenario_name\x18\x01 \x01(\tR\fscenarioName\x12#\n" +
+	"\rchanged_paths\x18\x02 \x03(\tR\fchangedPaths\x129\n" +
+	"\arestart\x18\x03 \x01(\v2\x1f.swarm_manager.v1.RestartResultR\arestart\x12;\n" +
+	"\x06health\x18\x04 \x01(\v2#.swarm_manager.v1.HealthCheckResultR\x06health\x128\n" +
+	"\x06review\x18\x05 \x01(\v2 .swarm_manager.v1.ScenarioReviewR\x06review\"\xdf\x01\n" +
+	"\rRestartResult\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\x12\x1a\n" +
+	"\battempts\x18\x02 \x01(\x05R\battempts\x12\"\n" +
+	"\n" +
+	"last_error\x18\x03 \x01(\tH\x00R\tlastError\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"started_at\x18\x04 \x01(\tH\x01R\tstartedAt\x88\x01\x01\x12$\n" +
+	"\vfinished_at\x18\x05 \x01(\tH\x02R\n" +
+	"finishedAt\x88\x01\x01B\r\n" +
+	"\v_last_errorB\r\n" +
+	"\v_started_atB\x0e\n" +
+	"\f_finished_at\"\xaa\x02\n" +
+	"\x11HealthCheckResult\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\x12,\n" +
+	"\x0fscenario_status\x18\x02 \x01(\tH\x00R\x0escenarioStatus\x88\x01\x01\x12(\n" +
+	"\rhealth_status\x18\x03 \x01(\tH\x01R\fhealthStatus\x88\x01\x01\x12!\n" +
+	"\fschema_valid\x18\x04 \x01(\bR\vschemaValid\x12\x1d\n" +
+	"\adetails\x18\x05 \x01(\tH\x02R\adetails\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"checked_at\x18\x06 \x01(\tH\x03R\tcheckedAt\x88\x01\x01B\x12\n" +
+	"\x10_scenario_statusB\x10\n" +
+	"\x0e_health_statusB\n" +
+	"\n" +
+	"\b_detailsB\r\n" +
+	"\v_checked_at\"\xcd\x01\n" +
+	"\x0eScenarioReview\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\x12\x1a\n" +
+	"\x06job_id\x18\x02 \x01(\tH\x00R\x05jobId\x88\x01\x01\x12$\n" +
+	"\vskip_reason\x18\x03 \x01(\tH\x01R\n" +
+	"skipReason\x88\x01\x01\x12;\n" +
+	"\x06result\x18\x04 \x01(\v2\x1e.swarm_manager.v1.ReviewResultH\x02R\x06result\x88\x01\x01B\t\n" +
+	"\a_job_idB\x0e\n" +
+	"\f_skip_reasonB\t\n" +
+	"\a_result\"\xe9\x01\n" +
 	"\x0fExecutionPolicy\x12A\n" +
 	"\fdefault_mode\x18\x01 \x01(\tB\x1e\xbaH\x1br\x19R\x06manualR\tscheduledR\x04yoloR\vdefaultMode\x12;\n" +
 	"\x15default_delay_seconds\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\x13defaultDelaySeconds\x12\x1d\n" +
@@ -625,23 +1180,35 @@ func file_swarm_manager_v1_domain_execution_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_domain_execution_proto_rawDescData
 }
 
-var file_swarm_manager_v1_domain_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_swarm_manager_v1_domain_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_swarm_manager_v1_domain_execution_proto_goTypes = []any{
-	(*ExecutionRecord)(nil), // 0: swarm_manager.v1.ExecutionRecord
-	(*ArchiveContext)(nil),  // 1: swarm_manager.v1.ArchiveContext
-	(*ReviewResult)(nil),    // 2: swarm_manager.v1.ReviewResult
-	(*ReviewDimension)(nil), // 3: swarm_manager.v1.ReviewDimension
-	(*ExecutionPolicy)(nil), // 4: swarm_manager.v1.ExecutionPolicy
+	(*ExecutionRecord)(nil),      // 0: swarm_manager.v1.ExecutionRecord
+	(*ArchiveContext)(nil),       // 1: swarm_manager.v1.ArchiveContext
+	(*ReviewResult)(nil),         // 2: swarm_manager.v1.ReviewResult
+	(*ReviewDimension)(nil),      // 3: swarm_manager.v1.ReviewDimension
+	(*Finalization)(nil),         // 4: swarm_manager.v1.Finalization
+	(*FinalizationWarning)(nil),  // 5: swarm_manager.v1.FinalizationWarning
+	(*ScenarioFinalization)(nil), // 6: swarm_manager.v1.ScenarioFinalization
+	(*RestartResult)(nil),        // 7: swarm_manager.v1.RestartResult
+	(*HealthCheckResult)(nil),    // 8: swarm_manager.v1.HealthCheckResult
+	(*ScenarioReview)(nil),       // 9: swarm_manager.v1.ScenarioReview
+	(*ExecutionPolicy)(nil),      // 10: swarm_manager.v1.ExecutionPolicy
 }
 var file_swarm_manager_v1_domain_execution_proto_depIdxs = []int32{
 	1, // 0: swarm_manager.v1.ExecutionRecord.archive_context:type_name -> swarm_manager.v1.ArchiveContext
-	2, // 1: swarm_manager.v1.ExecutionRecord.review_result:type_name -> swarm_manager.v1.ReviewResult
+	4, // 1: swarm_manager.v1.ExecutionRecord.finalization:type_name -> swarm_manager.v1.Finalization
 	3, // 2: swarm_manager.v1.ReviewResult.dimensions:type_name -> swarm_manager.v1.ReviewDimension
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	5, // 3: swarm_manager.v1.Finalization.warnings:type_name -> swarm_manager.v1.FinalizationWarning
+	6, // 4: swarm_manager.v1.Finalization.scenarios:type_name -> swarm_manager.v1.ScenarioFinalization
+	7, // 5: swarm_manager.v1.ScenarioFinalization.restart:type_name -> swarm_manager.v1.RestartResult
+	8, // 6: swarm_manager.v1.ScenarioFinalization.health:type_name -> swarm_manager.v1.HealthCheckResult
+	9, // 7: swarm_manager.v1.ScenarioFinalization.review:type_name -> swarm_manager.v1.ScenarioReview
+	2, // 8: swarm_manager.v1.ScenarioReview.result:type_name -> swarm_manager.v1.ReviewResult
+	9, // [9:9] is the sub-list for method output_type
+	9, // [9:9] is the sub-list for method input_type
+	9, // [9:9] is the sub-list for extension type_name
+	9, // [9:9] is the sub-list for extension extendee
+	0, // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_domain_execution_proto_init() }
@@ -652,13 +1219,18 @@ func file_swarm_manager_v1_domain_execution_proto_init() {
 	file_swarm_manager_v1_domain_execution_proto_msgTypes[0].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_execution_proto_msgTypes[1].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_execution_proto_msgTypes[3].OneofWrappers = []any{}
+	file_swarm_manager_v1_domain_execution_proto_msgTypes[4].OneofWrappers = []any{}
+	file_swarm_manager_v1_domain_execution_proto_msgTypes[5].OneofWrappers = []any{}
+	file_swarm_manager_v1_domain_execution_proto_msgTypes[7].OneofWrappers = []any{}
+	file_swarm_manager_v1_domain_execution_proto_msgTypes[8].OneofWrappers = []any{}
+	file_swarm_manager_v1_domain_execution_proto_msgTypes[9].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_domain_execution_proto_rawDesc), len(file_swarm_manager_v1_domain_execution_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

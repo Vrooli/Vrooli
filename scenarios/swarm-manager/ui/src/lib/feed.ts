@@ -148,7 +148,8 @@ export function buildFeed(
   const feedByKey = new Map<string, FeedItem>();
   const backlogSubset: BacklogItem[] = [];
   for (const entry of backlogFeed) {
-    const item = entry.type === "attention" ? entry.item : entry.item;
+    const item = entry.type === "capture" ? null : entry.item;
+    if (!item) continue;
     const key = `${item.kind}/${item.name}`;
     feedByKey.set(key, entry);
     backlogSubset.push(item);
@@ -158,8 +159,11 @@ export function buildFeed(
   const sortedBacklog = dependencyAwareSort(
     backlogSubset,
     (a, b) => {
-      const fa = feedByKey.get(`${a.kind}/${a.name}`)!;
-      const fb = feedByKey.get(`${b.kind}/${b.name}`)!;
+      const fa = feedByKey.get(`${a.kind}/${a.name}`);
+      const fb = feedByKey.get(`${b.kind}/${b.name}`);
+      if (!fa || !fb) {
+        return 0;
+      }
       const pd = computeFeedPriority(fa) - computeFeedPriority(fb);
       if (pd !== 0) return pd;
       return getSortTimestamp(fb) - getSortTimestamp(fa);
@@ -169,7 +173,10 @@ export function buildFeed(
 
   return [
     ...captureFeed,
-    ...sortedBacklog.map((item) => feedByKey.get(`${item.kind}/${item.name}`)!),
+    ...sortedBacklog.flatMap((item) => {
+      const feedItem = feedByKey.get(`${item.kind}/${item.name}`);
+      return feedItem ? [feedItem] : [];
+    }),
   ];
 }
 

@@ -134,5 +134,96 @@
       "skill_id": "swarm-manager-workshop-research"
     },
     "updated_at": "2026-03-30T03:11:50Z"
+  },
+  {
+    "activity_id": "219065008404d87e",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "swarm-manager-concurrency-guardrails",
+    "owner_title": "Add Concurrency Controls, Rate Limiting, and Cost Awareness to Swarm-Manager Executions",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "d7863dd3-8252-441f-84ac-1758197920f5",
+    "run_id": "e435336d-03de-4ef3-9ddf-265f46fc1537",
+    "status": "complete",
+    "requested_at": "2026-03-30T14:45:32Z",
+    "started_at": "2026-03-30T14:45:32Z",
+    "finished_at": "2026-03-30T14:51:16Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-03-30T14:51:17Z"
+  },
+  {
+    "activity_id": "ea97ee3bfdb6a434",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "agent-identity-standard",
+    "owner_title": "Design a Verifiable Agent Identity Standard for Agent-Manager",
+    "purpose": "finalize",
+    "interaction_type": "spawn",
+    "task_id": "06acdb31-faa6-408c-8563-59d6b1bcce52",
+    "run_id": "6115f5c2-2993-4080-9e77-40d68f735fca",
+    "status": "complete",
+    "requested_at": "2026-03-30T14:48:26Z",
+    "started_at": "2026-03-30T14:48:26Z",
+    "finished_at": "2026-03-30T14:50:21Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "auto_triggered": "true",
+      "entrypoint": "backlog.workshop_auto_advance",
+      "mode": "finalize",
+      "skill_id": "swarm-manager-workshop-research-finalize"
+    },
+    "updated_at": "2026-03-30T14:50:22Z"
+  },
+  {
+    "activity_id": "a354b00d6092574f",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "agent-identity-standard",
+    "owner_title": "Design a Verifiable Agent Identity Standard for Agent-Manager",
+    "execution_id": "c836c805f2516f9e",
+    "purpose": "process",
+    "interaction_type": "spawn",
+    "task_id": "7efba790-a30d-4bfc-9da2-ecc129ed0378",
+    "run_id": "1ce39404-4872-4e95-9aae-d33e792de610",
+    "status": "complete",
+    "requested_at": "2026-03-30T14:51:04Z",
+    "started_at": "2026-03-30T14:51:04Z",
+    "finished_at": "2026-03-30T14:55:22Z",
+    "requested_by": "swarm-manager-ui",
+    "metadata": {
+      "entrypoint": "execution.start",
+      "mode": "yolo",
+      "operation": "generator"
+    },
+    "updated_at": "2026-03-30T14:55:23Z"
+  },
+  {
+    "activity_id": "c13c471c2492304f",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "swarm-manager-concurrency-guardrails",
+    "owner_title": "Add Concurrency Controls, Rate Limiting, and Cost Awareness to Swarm-Manager Executions",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "2e7f5841-2359-4efb-9986-d4a1575d880d",
+    "run_id": "ea9e8c74-dd48-4c6b-b6f3-41f474a1f23b",
+    "status": "complete",
+    "requested_at": "2026-03-30T14:52:42Z",
+    "started_at": "2026-03-30T14:52:43Z",
+    "finished_at": "2026-03-30T14:57:44Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "auto_triggered": "true",
+      "entrypoint": "backlog.workshop_auto_advance",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-03-30T15:07:40Z"
   }
 ]

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getStatusColorClasses, getStatusRgb, STATUS_GROUP_INFO } from "./status-colors";
+import { getStatusColorClasses, getStatusRgb, isActionableBacklogStatus, ACTIONABLE_BACKLOG_STATUSES, STATUS_GROUP_INFO } from "./status-colors";
 
 describe("getStatusColorClasses", () => {
   it("returns neutral colors for undefined status", () => {
@@ -87,6 +87,26 @@ describe("getStatusRgb", () => {
     const active = getStatusRgb("running");
     const error = getStatusRgb("failed");
     expect(active).not.toBe(error);
+  });
+});
+
+describe("isActionableBacklogStatus", () => {
+  it.each(["backlog", "researching", "ready", "queued", "in_progress", "failed"])(
+    "returns true for actionable status %s",
+    (status) => {
+      expect(isActionableBacklogStatus(status)).toBe(true);
+    },
+  );
+
+  it.each(["completed", "archived", "running", "cancelled", undefined])(
+    "returns false for non-actionable status %s",
+    (status) => {
+      expect(isActionableBacklogStatus(status)).toBe(false);
+    },
+  );
+
+  it("ACTIONABLE_BACKLOG_STATUSES contains exactly 6 statuses", () => {
+    expect(ACTIONABLE_BACKLOG_STATUSES.size).toBe(6);
   });
 });
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ArrowUpRight, ChevronDown, ChevronUp, ExternalLink, Loader2, MessageSquare, RefreshCw } from "lucide-react";
 import { Button } from "../ui/button";
-import { cn, formatRelativeTime, canFollowUpExecution } from "../../lib";
+import { cn, formatRelativeTime, canFollowUpExecution, canRunPostRunChecks } from "../../lib";
 import {
   BACKLOG_KIND_LABELS,
   EXECUTION_STATUS_COLORS,
@@ -11,7 +11,7 @@ import {
   type ExecutionRecord,
   type PromptTrace,
 } from "../../types";
-import { ReviewStatusBadge, ReviewValidatingIndicator, ReviewSkipIndicator } from "./review-status-badge";
+import { PostRunStatusBadge } from "./post-run-status-badge";
 
 // ============================================================================
 // ExecutionCard
@@ -21,7 +21,7 @@ import { ReviewStatusBadge, ReviewValidatingIndicator, ReviewSkipIndicator } fro
 //   2. Title:       clickable — navigates to the backlog item detail page
 //   3. Meta row:    started-by  |  timestamps (updated / created)
 //   4. Failure:     only when failureReason is present
-//   5. Review:      ReviewStatusBadge / validating / skip indicator
+//   5. Post-run:    PostRunStatusBadge / validating indicator
 //   6. Actions:     primary (Start/Cancel/Retry/Follow Up) + secondary (Run link, Trace, IDs)
 // ============================================================================
 
@@ -70,8 +70,7 @@ export function ExecutionCard({
   const triggerReview = onTriggerReview ? () => onTriggerReview(item.executionId) : null;
 
   const hasPrimaryActions = canStart || canCancel || canRetry || canFollowUp;
-  const hasReviewTrigger = !item.reviewResult && !item.reviewSkipReason && item.status !== "validating"
-    && triggerReview !== null && (item.status === "completed" || item.status === "needs_fixup");
+  const hasReviewTrigger = triggerReview !== null && !item.finalization && canRunPostRunChecks(item);
 
   return (
     <article className="group block space-y-2.5" data-testid={testId}>
@@ -134,23 +133,32 @@ export function ExecutionCard({
         </p>
       ) : null}
 
-      {/* ── Zone 5: Review status ── */}
-      {item.reviewResult ? (
-        <ReviewStatusBadge
-          result={item.reviewResult}
+      {/* ── Zone 5: Post-run status ── */}
+      {item.finalization ? (
+        <PostRunStatusBadge
+          execution={item}
           onOpenSandbox={onOpenReviewSandbox ? () => onOpenReviewSandbox(item.executionId) : undefined}
-          onTriggerReview={onTriggerReview ? () => onTriggerReview(item.executionId) : undefined}
+          onRunChecks={onTriggerReview ? () => onTriggerReview(item.executionId) : undefined}
         />
       ) : item.status === "validating" ? (
-        <ReviewValidatingIndicator />
-      ) : item.reviewSkipReason ? (
-        <ReviewSkipIndicator
-          reason={item.reviewSkipReason}
-          onTriggerReview={onTriggerReview ? () => onTriggerReview(item.executionId) : undefined}
+        <PostRunStatusBadge
+          execution={{
+            ...item,
+            finalization: {
+              eligible: true,
+              status: "running",
+              phase: "scope_detection",
+              scopeSource: "none",
+              warnings: [],
+              affectedScenarios: [],
+              aggregateClassification: "not_assessable",
+              scenarios: [],
+            },
+          }}
         />
       ) : null}
 
-      {/* Run Review button for terminal executions without a review */}
+      {/* Run post-run checks button for terminal executions without finalization */}
       {hasReviewTrigger && (
         <Button
           size="sm"
@@ -162,7 +170,7 @@ export function ExecutionCard({
           data-testid="review-trigger-button"
         >
           <RefreshCw className="mr-1.5 h-3 w-3" />
-          Run Review
+          Run Post-Run Checks
         </Button>
       )}
 

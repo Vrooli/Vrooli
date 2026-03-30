@@ -2,7 +2,8 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Activity, History, Network } from "lucide-react";
-import { LensBar, type LensOption } from "./LensBar";
+import { LensBar } from "./LensBar";
+import type { LensOption } from "./lens-options";
 
 const testLenses: LensOption[] = [
   { lens: "topology", label: "View Topology", icon: Network, iconColorClass: "text-indigo-400" },

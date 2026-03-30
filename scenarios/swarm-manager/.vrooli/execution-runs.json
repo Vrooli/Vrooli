@@ -241,35 +241,62 @@
       "used_fallback": false,
       "captured_at": "2026-03-26T22:04:32Z"
     },
-    "review_result": {
-      "job_id": "8834aa6c-b4ba-4653-ba9b-ae52185d03d2",
-      "classification": "ready_with_notes",
-      "dimensions": [
-        {
-          "name": "codeQuality",
-          "status": "red",
-          "details": "0.0 score, 77 violations"
-        },
-        {
-          "name": "tests",
-          "status": "red",
-          "details": "5/11 passed"
-        },
-        {
-          "name": "standards",
-          "status": "yellow",
-          "details": "14 warnings"
-        },
-        {
-          "name": "provenance",
-          "status": "green"
-        }
+    "finalization": {
+      "eligible": true,
+      "status": "completed",
+      "phase": "completed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-03-27T00:52:20Z",
+      "completed_at": "2026-03-27T00:55:53Z",
+      "affected_scenarios": [
+        "development-toolchain-validator"
       ],
-      "summary": "Scenario development-toolchain-validator readiness: yellow",
-      "reviewed_at": "2026-03-27T00:55:53Z"
+      "aggregate_classification": "ready_with_notes",
+      "aggregate_summary": "Scenario development-toolchain-validator readiness: yellow",
+      "scenarios": [
+        {
+          "scenario_name": "development-toolchain-validator",
+          "restart": {
+            "status": "completed"
+          },
+          "health": {
+            "status": "completed",
+            "schema_valid": true
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "8834aa6c-b4ba-4653-ba9b-ae52185d03d2",
+            "result": {
+              "job_id": "8834aa6c-b4ba-4653-ba9b-ae52185d03d2",
+              "classification": "ready_with_notes",
+              "dimensions": [
+                {
+                  "name": "codeQuality",
+                  "status": "red",
+                  "details": "0.0 score, 77 violations"
+                },
+                {
+                  "name": "tests",
+                  "status": "red",
+                  "details": "5/11 passed"
+                },
+                {
+                  "name": "standards",
+                  "status": "yellow",
+                  "details": "14 warnings"
+                },
+                {
+                  "name": "provenance",
+                  "status": "green"
+                }
+              ],
+              "summary": "Scenario development-toolchain-validator readiness: yellow",
+              "reviewed_at": "2026-03-27T00:55:53Z"
+            }
+          }
+        }
+      ]
     },
-    "review_job_id": "8834aa6c-b4ba-4653-ba9b-ae52185d03d2",
-    "review_started_at": "2026-03-27T00:52:20Z",
     "created_at": "2026-03-26T22:04:32Z",
     "updated_at": "2026-03-27T00:55:53Z"
   },
@@ -293,38 +320,65 @@
       "used_fallback": false,
       "captured_at": "2026-03-27T20:05:55Z"
     },
-    "review_result": {
-      "job_id": "aa529597-c165-4026-b4d5-c66c01734230",
-      "classification": "needs_work",
-      "dimensions": [
-        {
-          "name": "provenance",
-          "status": "green"
-        },
-        {
-          "name": "codeQuality",
-          "status": "red",
-          "details": "0.0 score, 230 violations"
-        },
-        {
-          "name": "tests",
-          "status": "yellow"
-        },
-        {
-          "name": "standards",
-          "status": "yellow",
-          "details": "3 warnings"
-        },
-        {
-          "name": "visual",
-          "status": "red"
-        }
+    "finalization": {
+      "eligible": true,
+      "status": "completed",
+      "phase": "completed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-03-27T20:09:56Z",
+      "completed_at": "2026-03-27T20:14:04Z",
+      "affected_scenarios": [
+        "swarm-manager"
       ],
-      "summary": "Scenario swarm-manager readiness: red",
-      "reviewed_at": "2026-03-27T20:14:04Z"
+      "aggregate_classification": "needs_work",
+      "aggregate_summary": "Scenario swarm-manager readiness: red",
+      "scenarios": [
+        {
+          "scenario_name": "swarm-manager",
+          "restart": {
+            "status": "completed"
+          },
+          "health": {
+            "status": "completed",
+            "schema_valid": true
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "aa529597-c165-4026-b4d5-c66c01734230",
+            "result": {
+              "job_id": "aa529597-c165-4026-b4d5-c66c01734230",
+              "classification": "needs_work",
+              "dimensions": [
+                {
+                  "name": "provenance",
+                  "status": "green"
+                },
+                {
+                  "name": "codeQuality",
+                  "status": "red",
+                  "details": "0.0 score, 230 violations"
+                },
+                {
+                  "name": "tests",
+                  "status": "yellow"
+                },
+                {
+                  "name": "standards",
+                  "status": "yellow",
+                  "details": "3 warnings"
+                },
+                {
+                  "name": "visual",
+                  "status": "red"
+                }
+              ],
+              "summary": "Scenario swarm-manager readiness: red",
+              "reviewed_at": "2026-03-27T20:14:04Z"
+            }
+          }
+        }
+      ]
     },
-    "review_job_id": "aa529597-c165-4026-b4d5-c66c01734230",
-    "review_started_at": "2026-03-27T20:09:56Z",
     "created_at": "2026-03-27T20:05:55Z",
     "updated_at": "2026-03-27T20:14:04Z"
   },
@@ -348,34 +402,61 @@
       "used_fallback": false,
       "captured_at": "2026-03-27T21:46:41Z"
     },
-    "review_result": {
-      "job_id": "a960cd22-6b94-4f0d-870c-cb46e18681d9",
-      "classification": "needs_work",
-      "dimensions": [
-        {
-          "name": "codeQuality",
-          "status": "red",
-          "details": "0.0 score, 113 violations"
-        },
-        {
-          "name": "standards",
-          "status": "yellow",
-          "details": "4 warnings"
-        },
-        {
-          "name": "visual",
-          "status": "red"
-        },
-        {
-          "name": "provenance",
-          "status": "green"
-        }
+    "finalization": {
+      "eligible": true,
+      "status": "completed",
+      "phase": "completed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-03-27T22:00:44Z",
+      "completed_at": "2026-03-27T22:09:32Z",
+      "affected_scenarios": [
+        "swarm-manager"
       ],
-      "summary": "Scenario swarm-manager readiness: red",
-      "reviewed_at": "2026-03-27T22:09:32Z"
+      "aggregate_classification": "needs_work",
+      "aggregate_summary": "Scenario swarm-manager readiness: red",
+      "scenarios": [
+        {
+          "scenario_name": "swarm-manager",
+          "restart": {
+            "status": "completed"
+          },
+          "health": {
+            "status": "completed",
+            "schema_valid": true
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "a960cd22-6b94-4f0d-870c-cb46e18681d9",
+            "result": {
+              "job_id": "a960cd22-6b94-4f0d-870c-cb46e18681d9",
+              "classification": "needs_work",
+              "dimensions": [
+                {
+                  "name": "codeQuality",
+                  "status": "red",
+                  "details": "0.0 score, 113 violations"
+                },
+                {
+                  "name": "standards",
+                  "status": "yellow",
+                  "details": "4 warnings"
+                },
+                {
+                  "name": "visual",
+                  "status": "red"
+                },
+                {
+                  "name": "provenance",
+                  "status": "green"
+                }
+              ],
+              "summary": "Scenario swarm-manager readiness: red",
+              "reviewed_at": "2026-03-27T22:09:32Z"
+            }
+          }
+        }
+      ]
     },
-    "review_job_id": "a960cd22-6b94-4f0d-870c-cb46e18681d9",
-    "review_started_at": "2026-03-27T22:00:44Z",
     "created_at": "2026-03-27T21:46:41Z",
     "updated_at": "2026-03-27T22:09:32Z"
   },
@@ -399,34 +480,61 @@
       "used_fallback": false,
       "captured_at": "2026-03-28T02:05:55Z"
     },
-    "review_result": {
-      "job_id": "2d943448-3c5a-4e93-adc2-a34f1a91795e",
-      "classification": "needs_work",
-      "dimensions": [
-        {
-          "name": "visual",
-          "status": "red"
-        },
-        {
-          "name": "provenance",
-          "status": "green"
-        },
-        {
-          "name": "codeQuality",
-          "status": "red",
-          "details": "0.0 score, 117 violations"
-        },
-        {
-          "name": "standards",
-          "status": "yellow",
-          "details": "4 warnings"
-        }
+    "finalization": {
+      "eligible": true,
+      "status": "completed",
+      "phase": "completed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-03-28T02:19:38Z",
+      "completed_at": "2026-03-28T02:23:20Z",
+      "affected_scenarios": [
+        "swarm-manager"
       ],
-      "summary": "Scenario swarm-manager readiness: red",
-      "reviewed_at": "2026-03-28T02:23:20Z"
+      "aggregate_classification": "needs_work",
+      "aggregate_summary": "Scenario swarm-manager readiness: red",
+      "scenarios": [
+        {
+          "scenario_name": "swarm-manager",
+          "restart": {
+            "status": "completed"
+          },
+          "health": {
+            "status": "completed",
+            "schema_valid": true
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "2d943448-3c5a-4e93-adc2-a34f1a91795e",
+            "result": {
+              "job_id": "2d943448-3c5a-4e93-adc2-a34f1a91795e",
+              "classification": "needs_work",
+              "dimensions": [
+                {
+                  "name": "visual",
+                  "status": "red"
+                },
+                {
+                  "name": "provenance",
+                  "status": "green"
+                },
+                {
+                  "name": "codeQuality",
+                  "status": "red",
+                  "details": "0.0 score, 117 violations"
+                },
+                {
+                  "name": "standards",
+                  "status": "yellow",
+                  "details": "4 warnings"
+                }
+              ],
+              "summary": "Scenario swarm-manager readiness: red",
+              "reviewed_at": "2026-03-28T02:23:20Z"
+            }
+          }
+        }
+      ]
     },
-    "review_job_id": "2d943448-3c5a-4e93-adc2-a34f1a91795e",
-    "review_started_at": "2026-03-28T02:19:38Z",
     "created_at": "2026-03-28T02:05:55Z",
     "updated_at": "2026-03-28T02:23:20Z"
   },
@@ -450,34 +558,61 @@
       "used_fallback": false,
       "captured_at": "2026-03-28T02:55:13Z"
     },
-    "review_result": {
-      "job_id": "3738e8c7-2fbd-4bb4-bbde-a97cd4223f47",
-      "classification": "needs_work",
-      "dimensions": [
-        {
-          "name": "visual",
-          "status": "red"
-        },
-        {
-          "name": "provenance",
-          "status": "green"
-        },
-        {
-          "name": "codeQuality",
-          "status": "red",
-          "details": "0.0 score, 108 violations"
-        },
-        {
-          "name": "standards",
-          "status": "yellow",
-          "details": "4 warnings"
-        }
+    "finalization": {
+      "eligible": true,
+      "status": "completed",
+      "phase": "completed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-03-28T03:11:50Z",
+      "completed_at": "2026-03-28T03:20:33Z",
+      "affected_scenarios": [
+        "swarm-manager"
       ],
-      "summary": "Scenario swarm-manager readiness: red",
-      "reviewed_at": "2026-03-28T03:20:33Z"
+      "aggregate_classification": "needs_work",
+      "aggregate_summary": "Scenario swarm-manager readiness: red",
+      "scenarios": [
+        {
+          "scenario_name": "swarm-manager",
+          "restart": {
+            "status": "completed"
+          },
+          "health": {
+            "status": "completed",
+            "schema_valid": true
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "3738e8c7-2fbd-4bb4-bbde-a97cd4223f47",
+            "result": {
+              "job_id": "3738e8c7-2fbd-4bb4-bbde-a97cd4223f47",
+              "classification": "needs_work",
+              "dimensions": [
+                {
+                  "name": "visual",
+                  "status": "red"
+                },
+                {
+                  "name": "provenance",
+                  "status": "green"
+                },
+                {
+                  "name": "codeQuality",
+                  "status": "red",
+                  "details": "0.0 score, 108 violations"
+                },
+                {
+                  "name": "standards",
+                  "status": "yellow",
+                  "details": "4 warnings"
+                }
+              ],
+              "summary": "Scenario swarm-manager readiness: red",
+              "reviewed_at": "2026-03-28T03:20:33Z"
+            }
+          }
+        }
+      ]
     },
-    "review_job_id": "3738e8c7-2fbd-4bb4-bbde-a97cd4223f47",
-    "review_started_at": "2026-03-28T03:11:50Z",
     "created_at": "2026-03-28T02:55:13Z",
     "updated_at": "2026-03-28T03:20:33Z"
   },
@@ -501,34 +636,61 @@
       "used_fallback": false,
       "captured_at": "2026-03-28T14:28:12Z"
     },
-    "review_result": {
-      "job_id": "4c1d5aae-3d3d-41f9-a6b4-0e1ba721021b",
-      "classification": "needs_work",
-      "dimensions": [
-        {
-          "name": "standards",
-          "status": "yellow",
-          "details": "4 warnings"
-        },
-        {
-          "name": "visual",
-          "status": "red"
-        },
-        {
-          "name": "provenance",
-          "status": "green"
-        },
-        {
-          "name": "codeQuality",
-          "status": "red",
-          "details": "0.0 score, 122 violations"
-        }
+    "finalization": {
+      "eligible": true,
+      "status": "completed",
+      "phase": "completed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-03-28T14:46:22Z",
+      "completed_at": "2026-03-28T14:55:11Z",
+      "affected_scenarios": [
+        "swarm-manager"
       ],
-      "summary": "Scenario swarm-manager readiness: red",
-      "reviewed_at": "2026-03-28T14:55:11Z"
+      "aggregate_classification": "needs_work",
+      "aggregate_summary": "Scenario swarm-manager readiness: red",
+      "scenarios": [
+        {
+          "scenario_name": "swarm-manager",
+          "restart": {
+            "status": "completed"
+          },
+          "health": {
+            "status": "completed",
+            "schema_valid": true
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "4c1d5aae-3d3d-41f9-a6b4-0e1ba721021b",
+            "result": {
+              "job_id": "4c1d5aae-3d3d-41f9-a6b4-0e1ba721021b",
+              "classification": "needs_work",
+              "dimensions": [
+                {
+                  "name": "standards",
+                  "status": "yellow",
+                  "details": "4 warnings"
+                },
+                {
+                  "name": "visual",
+                  "status": "red"
+                },
+                {
+                  "name": "provenance",
+                  "status": "green"
+                },
+                {
+                  "name": "codeQuality",
+                  "status": "red",
+                  "details": "0.0 score, 122 violations"
+                }
+              ],
+              "summary": "Scenario swarm-manager readiness: red",
+              "reviewed_at": "2026-03-28T14:55:11Z"
+            }
+          }
+        }
+      ]
     },
-    "review_job_id": "4c1d5aae-3d3d-41f9-a6b4-0e1ba721021b",
-    "review_started_at": "2026-03-28T14:46:22Z",
     "created_at": "2026-03-28T14:28:12Z",
     "updated_at": "2026-03-28T14:55:11Z"
   },
@@ -552,40 +714,125 @@
       "used_fallback": false,
       "captured_at": "2026-03-29T19:40:44Z"
     },
-    "review_result": {
-      "job_id": "b67ff3fe-47b3-4508-bb85-2e1bd8c701b6",
-      "classification": "ready_with_notes",
-      "dimensions": [
-        {
-          "name": "codeQuality",
-          "status": "red",
-          "details": "0.0 score, 279 violations"
-        },
-        {
-          "name": "tests",
-          "status": "yellow",
-          "details": "10/11 passed"
-        },
-        {
-          "name": "standards",
-          "status": "yellow",
-          "details": "4 warnings"
-        },
-        {
-          "name": "visual",
-          "status": "red"
-        },
-        {
-          "name": "provenance",
-          "status": "green"
-        }
+    "finalization": {
+      "eligible": true,
+      "status": "completed",
+      "phase": "completed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-03-29T19:55:47Z",
+      "completed_at": "2026-03-29T19:58:55Z",
+      "affected_scenarios": [
+        "swarm-manager"
       ],
-      "summary": "Scenario swarm-manager readiness: yellow",
-      "reviewed_at": "2026-03-29T19:58:55Z"
+      "aggregate_classification": "ready_with_notes",
+      "aggregate_summary": "Scenario swarm-manager readiness: yellow",
+      "scenarios": [
+        {
+          "scenario_name": "swarm-manager",
+          "restart": {
+            "status": "completed"
+          },
+          "health": {
+            "status": "completed",
+            "schema_valid": true
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "b67ff3fe-47b3-4508-bb85-2e1bd8c701b6",
+            "result": {
+              "job_id": "b67ff3fe-47b3-4508-bb85-2e1bd8c701b6",
+              "classification": "ready_with_notes",
+              "dimensions": [
+                {
+                  "name": "codeQuality",
+                  "status": "red",
+                  "details": "0.0 score, 279 violations"
+                },
+                {
+                  "name": "tests",
+                  "status": "yellow",
+                  "details": "10/11 passed"
+                },
+                {
+                  "name": "standards",
+                  "status": "yellow",
+                  "details": "4 warnings"
+                },
+                {
+                  "name": "visual",
+                  "status": "red"
+                },
+                {
+                  "name": "provenance",
+                  "status": "green"
+                }
+              ],
+              "summary": "Scenario swarm-manager readiness: yellow",
+              "reviewed_at": "2026-03-29T19:58:55Z"
+            }
+          }
+        }
+      ]
     },
-    "review_job_id": "b67ff3fe-47b3-4508-bb85-2e1bd8c701b6",
-    "review_started_at": "2026-03-29T19:55:47Z",
     "created_at": "2026-03-29T19:40:44Z",
     "updated_at": "2026-03-29T19:58:55Z"
+  },
+  {
+    "execution_id": "c836c805f2516f9e",
+    "backlog_kind": "research",
+    "backlog_name": "agent-identity-standard",
+    "previous_status": "backlog",
+    "task_id": "7efba790-a30d-4bfc-9da2-ecc129ed0378",
+    "run_id": "1ce39404-4872-4e95-9aae-d33e792de610",
+    "status": "needs_fixup",
+    "mode": "yolo",
+    "started_at": "2026-03-30T14:51:04Z",
+    "finished_at": "2026-03-30T15:07:41Z",
+    "started_by": "swarm-manager-ui",
+    "operation": "generator",
+    "prompt_trace": {
+      "purpose": "process",
+      "prompt": "\u003cexecution-context\u003e\nBacklog item: research/agent-identity-standard\nTitle: Design a Verifiable Agent Identity Standard for Agent-Manager\nItem folder: /home/matthalloran8/Vrooli/scenarios/swarm-manager/research/agent-identity-standard\nRun type: process\n\u003c/execution-context\u003e\n\n\u003cresearch-conclusion path=\"conclusion.md\"\u003e\n# Research Conclusion: Verifiable Agent Identity Standard for Agent-Manager\n\n## Research Question\nHow should agent-manager implement verifiable agent identity tokens so that spawned agents can cryptographically prove their identity to consuming scenarios, replacing the current unverified `CreatedBy` string attribution?\n\n## Summary\nAgent-manager will issue HMAC-SHA256 signed identity tokens to every spawned agent via the `VROOLI_AGENT_IDENTITY_TOKEN` env var. Tokens use a custom two-segment wire format (base64url claims + HMAC signature) built entirely on Go stdlib. Consuming scenarios verify tokens by calling a REST endpoint (`POST /api/v1/identity/verify`) on agent-manager, which validates the signature, checks expiry/revocation, and returns verified claims. Tokens have a 24-hour default TTL to accommodate increasingly long-running agents. Verification failures are handled gracefully — scenarios fall back to anonymous attribution when agent-manager is unreachable. The consumer Go interface in `packages/cli-core/cliutil/identity.go` mirrors the established `sandbox.go` pattern. Identity is orthogonal to sandboxing — both sandboxed and in-place runs receive tokens.\n\n## Methodology\n- Examined the existing sandbox env var pattern in `packages/cli-core/cliutil/sandbox.go` (DetectSandbox, ScenarioInScope, ResolveMergedPath) as the ergonomic model to mirror\n- Reviewed agent-manager's run executor (`internal/orchestration/run_executor.go`) and runner env injection (`internal/adapters/runner/claude_code.go`) to understand the injection point\n- Surveyed current provenance tracking: unverified `CreatedBy` strings in tasks, `StartedBy`/`RequestedBy` in swarm-manager execution/activity records\n- Checked existing dependencies: agent-manager uses gorilla/mux (HTTP only, no gRPC); cli-core has zero external dependencies; neither has JWT libraries\n- Reviewed downstream execute items (`agent-manager-identity-tokens`, `swarm-manager-identity-adoption`) to understand planned consumption\n- Analyzed run timeout (30 min default), heartbeat (15s interval, 5-min stale), and cancellation (StopRun/Terminator) to inform token lifecycle\n- Reviewed cli-core HTTPClient (httpclient.go) and APIClient (apiclient.go) for verification endpoint consumption patterns\n\n## Findings\n\n### Finding 1: No gRPC exists — agent-manager is HTTP-only\nAgent-manager's API is built on `gorilla/mux` with standard `net/http` handlers. No gRPC dependency or service definitions exist. Proto schemas under `packages/proto/schemas/agent-manager/` are used for JSON serialization only.\n\n### Finding 2: cli-core has zero external dependencies\n`packages/cli-core/go.mod` declares only `go 1.22` with no `require` block. JWT libraries (e.g., golang-jwt) would be the first external dep, propagating to every scenario. HMAC-SHA256 verification uses only `crypto/hmac` + `crypto/sha256` from stdlib.\n\n### Finding 3: sandbox.go establishes the canonical consumer pattern\nThe sandbox detection pattern uses:\n1. **Struct encapsulation**: `SandboxEnv{ID, Merged, Scope}` bundles related env vars\n2. **Single detection entry point**: `DetectSandbox()` reads all env vars once\n3. **Active check**: `IsSandboxActive()` validates required fields\n4. **High-level helpers**: `ResolveScenarioPath()` abstracts complexity\n5. **Zero-value safety**: Empty struct means \"not in sandbox\"\n\nThe identity standard mirrors this: `IdentityEnv` struct, `DetectIdentity()`, `IsIdentityPresent()`, and `VerifyIdentity()`.\n\n### Finding 4: The injection point is well-defined\n`RunExecutor.SandboxEnvVars()` (run_executor.go:923-941) returns a `map[string]string` that flows through `ExecuteRequest.Environment` → `buildEnv()` → `cmd.Env`. A new `IdentityEnvVars()` method on `RunExecutor` follows the same pattern. Unlike sandbox vars (only for sandboxed runs), identity vars are injected for ALL run modes.\n\n### Finding 5: Current attribution is string-only and unverified\n- `Task.created_by`: free-form string\n- `execution.Record.StartedBy`: free-form string\n- `PromptSkillVersion.CreatedBy`: free-form string\n- No authentication middleware exists in agent-manager's HTTP handlers\n\nAny process can claim any identity. The token standard lets consumers verify claims.\n\n### Finding 6: Token size in env vars is not a practical concern\nLinux env var limit is 128KB–2MB total per process. The proposed token format (base64url JSON claims + HMAC signature) is ~250-400 bytes. Negligible.\n\n### Finding 7: Run lifecycle informs token TTL\n- Default run timeout: 30 minutes (configurable per AgentProfile)\n- Heartbeat interval: 15 seconds, stale threshold: 5 minutes\n- Cancellation via `StopRun()` triggers state transition to `RunStatusCancelled`\n- As AI agents become more capable, run durations will increase significantly beyond the current 30-minute default\n- Token TTL should be generous to avoid mid-execution invalidation\n- Revocation integrates with run completion/cancellation state transitions\n\n### Finding 8: cli-core HTTP client is ready for verification calls\n`cliutil/httpclient.go` provides `HTTPClient` with Bearer token injection and configurable timeouts (30s default). `cliutil/apiclient.go` wraps it with base URL resolution. Verification calls can reuse this infrastructure — `client.Post(\"/api/v1/identity/verify\", tokenPayload)`.\n\n## Design Decisions (All Settled)\n\n### Token Format (Round 1, d1): Custom HMAC-SHA256\nWire format: `base64url(json_claims) + '.' + base64url(hmac_sha256(claims_bytes, server_secret))`\n\nTwo segments separated by a dot. Claims JSON structure:\n```json\n{\n  \"run_id\": \"uuid\",\n  \"task_id\": \"uuid\",\n  \"profile_key\": \"string\",\n  \"scope_path\": \"string\",\n  \"iat\": 1711734000,\n  \"exp\": 1711820400,\n  \"meta\": {}\n}\n```\n\n### Verification Model (Round 1, d2): Server-side verification\nTokens are opaque to consumers. The HMAC secret never leaves agent-manager. Consumers call the verification endpoint to validate tokens.\n\n### Verification Protocol (Round 1, d3): REST\n`POST /api/v1/identity/verify` — consistent with agent-manager's existing HTTP API and cli-core's HTTP client.\n\n### Claims Structure (Round 1, d4): Minimal core + extensible metadata\nCore claims: `run_id`, `task_id`, `profile_key`, `scope_path`, `iat`, `exp`. Extensible `meta` map for scenario-specific claims (initiative, spawning_scenario, etc.).\n\n### Token TTL Strategy (Round 2, d1): 24-hour default TTL\nStatic TTL of 24 hours (86400 seconds). Rationale: agents are becoming more capable and will run for increasingly longer durations — the current 30-minute default timeout is already short and will grow. A 1-day TTL avoids mid-execution invalidation without requiring a refresh mechanism. Revocation on run cancellation/failure invalidates tokens early regardless of TTL. No refresh endpoint needed.\n\n### Verification Endpoint Contract (Round 2, d2): Single verify endpoint\n`POST /api/v1/identity/verify` with `{\"token\": \"...\"}` body. Returns 200 with full claims JSON on success, 401 on invalid/expired/revoked. Consumers get everything they need in one call. No separate introspection endpoint.\n\n### Verification Failure Handling (Round 2, d3): Fail open with warning\nIf verification fails due to network issues (agent-manager unreachable), treat the request as anonymous/unverified and log a warning. Matches the backward-compatibility model where missing tokens = anonymous. Avoids blocking legitimate work due to transient infrastructure issues. Scenarios can optionally override this to fail closed if they require strict identity enforcement.\n\n## Consumer Interface Design\n\n**File**: `packages/cli-core/cliutil/identity.go`\n\n```go\n// IdentityEnv holds verified agent identity claims from the environment.\ntype IdentityEnv struct {\n    Token      string // Raw VROOLI_AGENT_IDENTITY_TOKEN value\n    RunID      string\n    TaskID     string\n    ProfileKey string\n    ScopePath  string\n    IssuedAt   int64\n    ExpiresAt  int64\n    Meta       map[string]string\n}\n\n// DetectIdentity reads VROOLI_AGENT_IDENTITY_TOKEN from the environment.\n// Returns zero-value IdentityEnv if the var is absent.\nfunc DetectIdentity() IdentityEnv { ... }\n\n// IsIdentityPresent returns true if a token was found in the environment.\nfunc (id IdentityEnv) IsIdentityPresent() bool { ... }\n\n// VerifyIdentity calls agent-manager's verification endpoint and returns\n// verified claims. Returns error if verification fails or agent-manager\n// is unreachable.\nfunc (id IdentityEnv) VerifyIdentity(client *HTTPClient) (*VerifiedClaims, error) { ... }\n```\n\n## Env Var Convention\n\n| Variable | Purpose | Injected When |\n|----------|---------|---------------|\n| `VROOLI_AGENT_IDENTITY_TOKEN` | Signed identity token | All runs (sandboxed and in-place) |\n| `VROOLI_SANDBOX_ID` | Sandbox UUID | Sandboxed runs only |\n| `VROOLI_SANDBOX_MERGED` | Overlay merged path | Sandboxed runs only |\n| `VROOLI_SANDBOX_SCOPE` | Scope path | Sandboxed runs with scope |\n\nIdentity is orthogonal to sandboxing. A run can have both identity + sandbox vars, or identity only (in-place runs).\n\n## Backward Compatibility\n- Runs created before this standard: no `VROOLI_AGENT_IDENTITY_TOKEN` in env\n- `DetectIdentity()` returns zero-value → `IsIdentityPresent()` returns false\n- Consumers fall back to anonymous/operator attribution (existing `CreatedBy` strings)\n- Identity verification is opt-in: scenarios that don't import identity.go are unaffected\n- No breaking changes to existing env vars or APIs\n\n## Limitations\n- No revocation store design yet — needs specification of how agent-manager tracks revoked tokens (in-memory set vs DB column on runs table)\n- No load testing analysis — verification endpoint latency under concurrent agents not measured\n- Secret rotation strategy not yet addressed — how to rotate the HMAC signing key without invalidating active tokens\n- Fail-open default is appropriate for current single-operator deployment but may need revisiting for multi-tenant scenarios\n\n## Actions\n\n### Action 1: Create backlog item — Implement identity token generation and verification in agent-manager\n- **Kind**: execute\n- **Title**: Implement agent identity token generation, signing, injection, and verification endpoint in agent-manager API\n- **Description**: Add HMAC-SHA256 token signing with server-side secret. Implement `IdentityEnvVars()` on RunExecutor to inject `VROOLI_AGENT_IDENTITY_TOKEN` for all runs. Add `POST /api/v1/identity/verify` REST endpoint that validates signature, checks expiry/revocation, and returns verified claims. Add revocation tracking (mark tokens invalid on run cancellation/completion). Default TTL: 24 hours.\n- **Initiative**: swarm-manager-feature-parity\n- **Priority**: 2\n- **Effort**: M\n\n### Action 2: Create backlog item — Implement identity consumer interface in cli-core\n- **Kind**: execute\n- **Title**: Implement identity.go consumer interface in packages/cli-core\n- **Description**: Add `cliutil/identity.go` with `IdentityEnv` struct, `DetectIdentity()`, `IsIdentityPresent()`, and `VerifyIdentity()` functions. Mirror the established `sandbox.go` ergonomic pattern. Zero external dependencies — use existing `HTTPClient` for verification calls. Handle verification failures gracefully (fail open with warning by default).\n- **Initiative**: swarm-manager-feature-parity\n- **Priority**: 2\n- **Effort**: S\n- **Depends on**: execute/agent-manager-identity-tokens\n\n### Action 3: Create backlog item — Update swarm-manager to verify agent identity\n- **Kind**: execute\n- **Title**: Update swarm-manager to verify agent identity on backlog mutations and execution attribution\n- **Description**: Import cli-core identity package. On backlog mutations and execution attribution, verify `VROOLI_AGENT_IDENTITY_TOKEN` against agent-manager before trusting `StartedBy`/`CreatedBy` fields. Fall back to anonymous attribution if token absent or verification fails.\n- **Initiative**: swarm-manager-feature-parity\n- **Priority**: 2\n- **Effort**: S\n- **Depends on**: execute/cli-core-identity-consumer\n\n### Action 4: Future work (not immediate backlog items)\n- Secret rotation mechanism for HMAC signing key\n- Audit logging of verification attempts\n- Rate limiting on verification endpoint\n- Multi-tenant identity scoping if deployment model changes\n\n\u003c/research-conclusion\u003e\n",
+      "prompt_revision": "sha256:0108d865bebae1e1",
+      "used_fallback": false,
+      "captured_at": "2026-03-30T14:51:04Z"
+    },
+    "finalization": {
+      "eligible": true,
+      "status": "completed",
+      "phase": "completed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-03-30T14:55:24Z",
+      "completed_at": "2026-03-30T15:07:41Z",
+      "affected_scenarios": [
+        "agent-manager"
+      ],
+      "aggregate_classification": "not_assessable",
+      "aggregate_summary": "Review timed out after 10m0s",
+      "scenarios": [
+        {
+          "scenario_name": "agent-manager",
+          "restart": {
+            "status": "completed"
+          },
+          "health": {
+            "status": "completed",
+            "schema_valid": true
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "2345979c-eb28-4fe0-a3c3-f11f4f18f560",
+            "result": {
+              "job_id": "2345979c-eb28-4fe0-a3c3-f11f4f18f560",
+              "classification": "not_assessable",
+              "summary": "Review timed out after 10m0s",
+              "reviewed_at": "2026-03-30T15:07:41Z"
+            }
+          }
+        }
+      ]
+    },
+    "created_at": "2026-03-30T14:51:04Z",
+    "updated_at": "2026-03-30T15:07:41Z"
   }
 ]

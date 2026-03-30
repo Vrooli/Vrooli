@@ -31,6 +31,7 @@ type Service interface {
 	SpawnBacklog(ctx context.Context, req BacklogSpawnRequest) (RunResult, error)
 	SpawnResearch(ctx context.Context, req ResearchSpawnRequest) (RunResult, error)
 	GetRunState(ctx context.Context, runID string) (RunState, error)
+	GetRunDiff(ctx context.Context, runID string) (RunDiff, error)
 	StopRun(ctx context.Context, runID string) error
 }
 
@@ -292,6 +293,20 @@ type RunState struct {
 	SandboxID  string
 }
 
+// RunDiff captures the changed files for a sandboxed run.
+type RunDiff struct {
+	RunID       string
+	SandboxID   string
+	GeneratedAt string
+	Files       []RunDiffFile
+}
+
+// RunDiffFile captures one changed file from a run diff.
+type RunDiffFile struct {
+	Path       string
+	ChangeType string
+}
+
 // SpawnResearch creates a research task/run in agent-manager.
 func (s *AgentService) SpawnResearch(ctx context.Context, req ResearchSpawnRequest) (RunResult, error) {
 	if !s.enabled {
@@ -463,6 +478,37 @@ func (s *AgentService) GetRunState(ctx context.Context, runID string) (RunState,
 		state.FinishedAt = run.EndedAt.AsTime().UTC().Format(time.RFC3339)
 	}
 	return state, nil
+}
+
+// GetRunDiff resolves changed files for a sandboxed run.
+func (s *AgentService) GetRunDiff(ctx context.Context, runID string) (RunDiff, error) {
+	if !s.enabled {
+		return RunDiff{}, ErrNotAvailable
+	}
+
+	run, err := s.client.GetRun(ctx, runID)
+	if err != nil {
+		return RunDiff{}, err
+	}
+	diff, err := s.client.GetRunDiff(ctx, runID)
+	if err != nil {
+		return RunDiff{}, err
+	}
+
+	result := RunDiff{
+		RunID:     strings.TrimSpace(diff.RunId),
+		SandboxID: strings.TrimSpace(run.GetSandboxId()),
+	}
+	if diff.GeneratedAt != nil {
+		result.GeneratedAt = diff.GeneratedAt.AsTime().UTC().Format(time.RFC3339)
+	}
+	for _, file := range diff.Files {
+		result.Files = append(result.Files, RunDiffFile{
+			Path:       strings.TrimSpace(file.Path),
+			ChangeType: strings.TrimSpace(file.ChangeType),
+		})
+	}
+	return result, nil
 }
 
 // ContinueRun sends a follow-up message to an existing run.

@@ -73,7 +73,7 @@ import { BacklogAgentDialog } from "../components/backlog/backlog-agent-dialog";
 import { WorkshopPanel } from "../components/backlog/workshop-panel";
 import { ReadinessDetailsPanel } from "../components/backlog/readiness-details-panel";
 import { FollowUpDialog } from "../components/execution/follow-up-dialog";
-import { ReviewStatusBadge, ReviewValidatingIndicator, ReviewSkipIndicator } from "../components/execution/review-status-badge";
+import { PostRunStatusBadge } from "../components/execution/post-run-status-badge";
 import { OperationalTargetsPanel } from "../components/backlog/operational-targets-panel";
 import { BulkActionToolbar } from "../components/backlog/bulk-action-toolbar";
 import { RequirementFormDialog } from "../components/backlog/requirement-form-dialog";
@@ -121,8 +121,8 @@ import type {
 } from "../types";
 import type { WorkshopRound } from "../types/domain";
 import { selectLatestActivityForBacklog, useAgentActivitiesStore, useBacklogStore, useDetailSelectionStore } from "../stores";
-import { LensBar, BACKLOG_LENSES } from "../components/detail/LensBar";
-import { DetailActionButtons } from "../components/detail/DetailActionButtons";
+import { LensBar } from "../components/detail/LensBar";
+import { BACKLOG_LENSES } from "../components/detail/lens-options";
 import { useDrillToLens } from "../hooks/useDrillToLens";
 import { selectionToNodeId } from "../stores/detail-selection-store";
 
@@ -1651,26 +1651,12 @@ export function BacklogDetailsPage() {
         </div>
         {(() => {
           const latestExec = executionHistory?.[0];
-          if (latestExec?.reviewResult) {
+          if (latestExec?.finalization) {
             return (
               <div className="border-t border-slate-800 pt-2">
-                <ReviewStatusBadge result={latestExec.reviewResult} />
-              </div>
-            );
-          }
-          if (latestExec?.status === "validating") {
-            return (
-              <div className="border-t border-slate-800 pt-2">
-                <ReviewValidatingIndicator />
-              </div>
-            );
-          }
-          if (latestExec?.reviewSkipReason) {
-            return (
-              <div className="border-t border-slate-800 pt-2">
-                <ReviewSkipIndicator
-                  reason={latestExec.reviewSkipReason}
-                  onTriggerReview={async () => {
+                <PostRunStatusBadge
+                  execution={latestExec}
+                  onRunChecks={async () => {
                     try {
                       await executionService.triggerReview(latestExec.executionId);
                     } catch {
@@ -1681,20 +1667,41 @@ export function BacklogDetailsPage() {
               </div>
             );
           }
+          if (latestExec?.status === "validating") {
+            return (
+              <div className="border-t border-slate-800 pt-2">
+                <PostRunStatusBadge
+                  execution={{
+                    ...latestExec,
+                    finalization: {
+                      eligible: true,
+                      status: "running",
+                      phase: "scope_detection",
+                      scopeSource: "none",
+                      warnings: [],
+                      affectedScenarios: [],
+                      aggregateClassification: "not_assessable",
+                      scenarios: [],
+                    },
+                  }}
+                />
+              </div>
+            );
+          }
           if (!latestExec) {
             return (
               <div className="flex items-center gap-1.5 border-t border-slate-800 pt-2">
                 <CheckCircle2 className="h-3.5 w-3.5 text-slate-500" />
-                <span className="text-xs text-slate-400">Review will run after execution</span>
+                <span className="text-xs text-slate-400">Post-run checks will run after execution</span>
               </div>
             );
           }
-          // Completed/failed execution with no review data — offer to run one
+          // Completed/failed execution with no finalization data — offer to run it.
           return (
             <div className="space-y-2 border-t border-slate-800 pt-2">
               <div className="flex items-center gap-1.5">
                 <CheckCircle2 className="h-3.5 w-3.5 text-slate-500" />
-                <span className="text-xs text-slate-400">No review results yet</span>
+                <span className="text-xs text-slate-400">No post-run checks yet</span>
               </div>
               <Button
                 size="sm"
@@ -1709,7 +1716,7 @@ export function BacklogDetailsPage() {
                 }}
               >
                 <RefreshCw className="mr-1.5 h-3 w-3" />
-                Run Review
+                Run Post-Run Checks
               </Button>
             </div>
           );
@@ -1746,7 +1753,11 @@ export function BacklogDetailsPage() {
                     {i > 0 && ", "}
                     <button
                       type="button"
-                      onClick={() => { if (depKind && depName) selection && useDetailSelectionStore.getState().selectBacklog(depKind, depName); }}
+                      onClick={() => {
+                        if (depKind && depName) {
+                          useDetailSelectionStore.getState().selectBacklog(depKind, depName);
+                        }
+                      }}
                       className="font-medium text-orange-200 underline decoration-orange-500/40 hover:text-orange-100 hover:decoration-orange-400/60"
                     >
                       {dep}
@@ -1930,12 +1941,24 @@ export function BacklogDetailsPage() {
                         {exec.failureReason}
                       </p>
                     )}
-                    {exec.reviewResult ? (
-                      <ReviewStatusBadge result={exec.reviewResult} />
+                    {exec.finalization ? (
+                      <PostRunStatusBadge execution={exec} />
                     ) : exec.status === "validating" ? (
-                      <ReviewValidatingIndicator />
-                    ) : exec.reviewSkipReason ? (
-                      <ReviewSkipIndicator reason={exec.reviewSkipReason} />
+                      <PostRunStatusBadge
+                        execution={{
+                          ...exec,
+                          finalization: {
+                            eligible: true,
+                            status: "running",
+                            phase: "scope_detection",
+                            scopeSource: "none",
+                            warnings: [],
+                            affectedScenarios: [],
+                            aggregateClassification: "not_assessable",
+                            scenarios: [],
+                          },
+                        }}
+                      />
                     ) : null}
                     <div className="space-y-1 text-xs text-slate-400">
                       {duration !== undefined && (

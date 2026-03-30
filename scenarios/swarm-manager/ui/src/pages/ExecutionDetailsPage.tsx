@@ -4,7 +4,7 @@
  * Displays detailed information about a single execution record including:
  * - Execution metadata (status, mode, operation, timestamps)
  * - Prompt trace (if available)
- * - Action buttons (retry, cancel, follow-up, trigger review)
+ * - Action buttons (retry, cancel, follow-up, run post-run checks)
  */
 
 import { useState } from "react";
@@ -33,8 +33,10 @@ import {
 } from "../types";
 import { useDetailSelectionStore, selectionToNodeId } from "../stores/detail-selection-store";
 import { DetailActionButtons } from "../components/detail/DetailActionButtons";
-import { LensBar, EXECUTION_LENSES } from "../components/detail/LensBar";
+import { LensBar } from "../components/detail/LensBar";
+import { EXECUTION_LENSES } from "../components/detail/lens-options";
 import { useDrillToLens } from "../hooks/useDrillToLens";
+import { PostRunStatusBadge } from "../components/execution/post-run-status-badge";
 
 export function ExecutionDetailsPage() {
   const selection = useDetailSelectionStore((s) => s.selection);
@@ -55,14 +57,24 @@ export function ExecutionDetailsPage() {
     refetch: refetchExec,
   } = useQuery({
     queryKey: ["execution", executionId],
-    queryFn: () => executionService.get(executionId!),
+    queryFn: async () => {
+      if (!executionId) {
+        throw new Error("Missing execution ID");
+      }
+      return executionService.get(executionId);
+    },
     enabled: !!executionId,
     ...defaultQueryOptions,
   });
 
   const { data: trace } = useQuery({
     queryKey: ["execution", executionId, "prompt-trace"],
-    queryFn: () => promptService.getExecutionPromptTrace(executionId!).catch(() => null),
+    queryFn: async () => {
+      if (!executionId) {
+        return null;
+      }
+      return promptService.getExecutionPromptTrace(executionId).catch(() => null);
+    },
     enabled: !!executionId,
     ...defaultQueryOptions,
   });
@@ -147,7 +159,7 @@ export function ExecutionDetailsPage() {
         onClick={() => void doAction(() => executionService.triggerReview(execution.executionId))}
       >
         {actionBusy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <ClipboardCheck className="mr-1 h-3.5 w-3.5" />}
-        Trigger Review
+        Run Post-Run Checks
       </Button>
     </div>
   ) : null;
@@ -223,7 +235,11 @@ export function ExecutionDetailsPage() {
                 <p className="text-xs text-slate-500 uppercase tracking-wider">Parent Execution</p>
                 <button
                   type="button"
-                  onClick={() => selectExecution(execution.parentExecutionId!)}
+                  onClick={() => {
+                    if (execution.parentExecutionId) {
+                      selectExecution(execution.parentExecutionId);
+                    }
+                  }}
                   className="text-cyan-400 hover:text-cyan-300 text-sm"
                 >
                   {execution.parentExecutionId}
@@ -236,6 +252,28 @@ export function ExecutionDetailsPage() {
             <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
               <p className="text-xs text-red-400 font-medium uppercase tracking-wider mb-1">Failure Reason</p>
               <p className="text-sm text-red-200 whitespace-pre-wrap">{execution.failureReason}</p>
+            </div>
+          )}
+
+          {(execution.finalization || execution.status === "validating") && (
+            <div className="space-y-2">
+              <p className="text-xs text-slate-500 uppercase tracking-wider">Post-Run Checks</p>
+              <PostRunStatusBadge
+                execution={execution.finalization ? execution : {
+                  ...execution,
+                  finalization: {
+                    eligible: true,
+                    status: "running",
+                    phase: "scope_detection",
+                    scopeSource: "none",
+                    warnings: [],
+                    affectedScenarios: [],
+                    aggregateClassification: "not_assessable",
+                    scenarios: [],
+                  },
+                }}
+                onRunChecks={() => void doAction(() => executionService.triggerReview(execution.executionId))}
+              />
             </div>
           )}
         </Card>

@@ -251,7 +251,7 @@ export function ExecutionPage() {
       const updated = await executionService.triggerReview(executionId);
       upsertExecution(updated);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to trigger review.";
+      const message = err instanceof Error ? err.message : "Failed to run post-run checks.";
       setActionError(message);
     } finally {
       setBusyId(null);

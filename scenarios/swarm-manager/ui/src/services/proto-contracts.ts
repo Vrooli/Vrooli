@@ -50,7 +50,11 @@ import {
   CreateExecutionRequestSchema,
   FollowUpExecutionRequestSchema,
 } from "@vrooli/proto-types/swarm-manager/v1/api/execution_pb";
-import type { ExecutionRecord as ProtoExecutionRecord } from "@vrooli/proto-types/swarm-manager/v1/domain/execution_pb";
+import type {
+  ExecutionRecord as ProtoExecutionRecord,
+  Finalization as ProtoFinalization,
+  ReviewResult as ProtoReviewResult,
+} from "@vrooli/proto-types/swarm-manager/v1/domain/execution_pb";
 import type { AgentActivity as ProtoAgentActivity } from "@vrooli/proto-types/swarm-manager/v1/domain/agent_activity_pb";
 import type {
   AgentActivity,
@@ -68,6 +72,11 @@ import type {
   ExecutionRecord as ExecutionRecordDomain,
   ExecutionStatus,
   ExecutionMode,
+  Finalization,
+  FinalizationAggregateClassification,
+  FinalizationPhase,
+  FinalizationScopeSource,
+  FinalizationStatus,
   ReviewClassification,
 } from "../types";
 import {
@@ -498,24 +507,74 @@ export function mapProtoExecutionRecord(proto: ProtoExecutionRecord): ExecutionR
     operation: proto.operation as ExecutionRecordDomain["operation"],
     parentExecutionId: proto.parentExecutionId,
     fixupAttempt: proto.fixupAttempt ?? 0,
-    reviewJobId: proto.reviewJobId,
-    reviewSkipReason: proto.reviewSkipReason,
-    reviewStartedAt: proto.reviewStartedAt,
     createdAt: proto.createdAt ?? "",
     updatedAt: proto.updatedAt ?? "",
   };
-  if (proto.reviewResult) {
-    record.reviewResult = {
-      jobId: proto.reviewResult.jobId ?? "",
-      classification: (proto.reviewResult.classification ?? "not_assessable") as ReviewClassification,
-      dimensions: (proto.reviewResult.dimensions ?? []).map((dim) => ({
-        name: dim.name ?? "",
-        status: dim.status ?? "",
-        details: dim.details,
-      })),
-      summary: proto.reviewResult.summary ?? "",
-      reviewedAt: proto.reviewResult.reviewedAt ?? "",
-    };
+  if (proto.finalization) {
+    record.finalization = mapProtoFinalization(proto.finalization);
   }
   return record;
+}
+
+function mapProtoReviewResult(
+  proto: ProtoReviewResult,
+): NonNullable<NonNullable<ExecutionRecordDomain["finalization"]>["scenarios"][number]["review"]["result"]> {
+  return {
+    jobId: proto.jobId ?? "",
+    classification: (proto.classification ?? "not_assessable") as ReviewClassification,
+    dimensions: (proto.dimensions ?? []).map((dim) => ({
+      name: dim.name ?? "",
+      status: dim.status ?? "",
+      details: dim.details,
+    })),
+    summary: proto.summary ?? "",
+    reviewedAt: proto.reviewedAt ?? "",
+  };
+}
+
+function mapProtoFinalization(proto: ProtoFinalization): Finalization {
+  return {
+    eligible: proto.eligible ?? false,
+    status: (proto.status ?? "pending") as FinalizationStatus,
+    phase: (proto.phase ?? "scope_detection") as FinalizationPhase,
+    scopeSource: (proto.scopeSource ?? "none") as FinalizationScopeSource,
+    skipReason: proto.skipReason,
+    startedAt: proto.startedAt,
+    completedAt: proto.completedAt,
+    warnings: (proto.warnings ?? []).map((warning) => ({
+      code: warning.code ?? "",
+      scenarioName: warning.scenarioName,
+      message: warning.message ?? "",
+      retryable: warning.retryable ?? false,
+      createdAt: warning.createdAt ?? "",
+    })),
+    affectedScenarios: proto.affectedScenarios ?? [],
+    aggregateClassification: (proto.aggregateClassification ?? "not_assessable") as FinalizationAggregateClassification,
+    aggregateSummary: proto.aggregateSummary,
+    scenarios: (proto.scenarios ?? []).map((scenario) => ({
+      scenarioName: scenario.scenarioName ?? "",
+      changedPaths: scenario.changedPaths ?? [],
+      restart: {
+        status: (scenario.restart?.status ?? "pending") as FinalizationStatus,
+        attempts: scenario.restart?.attempts ?? 0,
+        lastError: scenario.restart?.lastError,
+        startedAt: scenario.restart?.startedAt,
+        finishedAt: scenario.restart?.finishedAt,
+      },
+      health: {
+        status: (scenario.health?.status ?? "pending") as FinalizationStatus,
+        scenarioStatus: scenario.health?.scenarioStatus,
+        healthStatus: scenario.health?.healthStatus,
+        schemaValid: scenario.health?.schemaValid ?? false,
+        details: scenario.health?.details,
+        checkedAt: scenario.health?.checkedAt,
+      },
+      review: {
+        status: (scenario.review?.status ?? "pending") as FinalizationStatus,
+        jobId: scenario.review?.jobId,
+        skipReason: scenario.review?.skipReason,
+        result: scenario.review?.result ? mapProtoReviewResult(scenario.review.result) : undefined,
+      },
+    })),
+  };
 }

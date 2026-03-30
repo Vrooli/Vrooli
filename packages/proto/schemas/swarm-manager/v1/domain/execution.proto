@@ -33,17 +33,10 @@ message ExecutionRecord {
   // Number of fixup attempts (0 for original execution).
   int32 fixup_attempt = 18;
 
-  // Post-execution review result from git-control-tower.
-  optional ReviewResult review_result = 19;
+  reserved 19 to 22;
 
-  // Job ID for the in-progress review.
-  optional string review_job_id = 20;
-
-  // Reason review was skipped (GCT unavailable, not configured, etc.).
-  optional string review_skip_reason = 21;
-
-  // Timestamp when review job was submitted (for timeout calculation).
-  optional string review_started_at = 22;
+  // Unified post-run finalization state for restart + health + review.
+  optional Finalization finalization = 23;
 }
 
 // ArchiveContext captures archive parameters for spec-sync-archive executions.
@@ -71,6 +64,70 @@ message ReviewDimension {
   // Status: green, yellow, red, skipped.
   string status = 2;
   optional string details = 3;
+}
+
+// Finalization captures the full post-run orchestration state for an execution.
+message Finalization {
+  bool eligible = 1;
+  string status = 2;
+  string phase = 3;
+  string scope_source = 4;
+  optional string skip_reason = 5;
+  optional string started_at = 6;
+  optional string completed_at = 7;
+  repeated FinalizationWarning warnings = 8;
+  repeated string affected_scenarios = 9;
+  string aggregate_classification = 10;
+  optional string aggregate_summary = 11;
+  repeated ScenarioFinalization scenarios = 12;
+}
+
+// FinalizationWarning captures a non-fatal issue encountered during post-run
+// orchestration.
+message FinalizationWarning {
+  string code = 1;
+  optional string scenario_name = 2;
+  string message = 3;
+  bool retryable = 4;
+  string created_at = 5;
+}
+
+// ScenarioFinalization captures restart, health, and review state for one
+// affected scenario.
+message ScenarioFinalization {
+  string scenario_name = 1;
+  repeated string changed_paths = 2;
+  RestartResult restart = 3;
+  HealthCheckResult health = 4;
+  ScenarioReview review = 5;
+}
+
+// RestartResult captures restart attempts for one scenario.
+message RestartResult {
+  string status = 1;
+  int32 attempts = 2;
+  optional string last_error = 3;
+  optional string started_at = 4;
+  optional string finished_at = 5;
+}
+
+// HealthCheckResult captures the standard health contract outcome for one
+// scenario.
+message HealthCheckResult {
+  string status = 1;
+  optional string scenario_status = 2;
+  optional string health_status = 3;
+  bool schema_valid = 4;
+  optional string details = 5;
+  optional string checked_at = 6;
+}
+
+// ScenarioReview captures one scenario review job and result.
+message ScenarioReview {
+  string status = 1;
+  optional string job_id = 2;
+  optional string skip_reason = 3;
+  optional ReviewResult result = 4;
 }
 
 // ExecutionPolicy controls default mode, delay, and auto-fixup behavior.

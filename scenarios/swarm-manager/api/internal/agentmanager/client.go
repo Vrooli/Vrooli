@@ -204,6 +204,33 @@ func (c *HTTPClient) GetRun(ctx context.Context, runID string) (*domainpb.Run, e
 	return result.Run, nil
 }
 
+// GetRunDiff retrieves the diff for a sandboxed run.
+func (c *HTTPClient) GetRunDiff(ctx context.Context, runID string) (*domainpb.RunDiff, error) {
+	trimmed := strings.TrimSpace(runID)
+	if trimmed == "" {
+		return nil, fmt.Errorf("%w: run id is required", ErrRequestFailed)
+	}
+
+	resp, err := c.doRequest(ctx, http.MethodGet, "/api/v1/runs/"+url.PathEscape(trimmed)+"/diff", nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, readErrorResponse(resp)
+	}
+
+	var result apipb.GetRunDiffResponse
+	if err := decodeProtoResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	if result.Diff == nil {
+		return nil, fmt.Errorf("%w: missing run diff", ErrRequestFailed)
+	}
+	return result.Diff, nil
+}
+
 // ContinueRun sends a follow-up message to an existing run's conversation.
 func (c *HTTPClient) ContinueRun(ctx context.Context, runID string, message string) error {
 	trimmed := strings.TrimSpace(runID)

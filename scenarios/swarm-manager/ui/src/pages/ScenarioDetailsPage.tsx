@@ -52,10 +52,9 @@ import type { ScenarioFile, PreserveFilesPreset } from "../types";
 import { useDetailSelectionStore } from "../stores/detail-selection-store";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
-import { DetailActionButtons } from "../components/detail/DetailActionButtons";
-import { StatusBadge } from "../components/detail/StatusBadge";
 import { useDrillToLens } from "../hooks/useDrillToLens";
-import { LensBar, SCENARIO_LENSES } from "../components/detail/LensBar";
+import { LensBar } from "../components/detail/LensBar";
+import { SCENARIO_LENSES } from "../components/detail/lens-options";
 import { selectionToNodeId } from "../stores/detail-selection-store";
 import { useScenariosStore } from "../stores";
 

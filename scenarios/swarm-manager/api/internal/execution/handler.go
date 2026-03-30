@@ -48,7 +48,8 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/gct/status", h.GCTStatus).Methods("GET")
 }
 
-// StartScheduler launches a polling worker for scheduled starts.
+// StartScheduler launches the background worker for scheduled starts and active
+// execution progression.
 func (h *Handler) StartScheduler(stop <-chan struct{}) {
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
@@ -58,6 +59,7 @@ func (h *Handler) StartScheduler(stop <-chan struct{}) {
 			return
 		case <-ticker.C:
 			_ = h.service.ProcessScheduledStarts(context.Background())
+			_ = h.service.ProcessActiveExecutions(context.Background())
 		}
 	}
 }
@@ -405,17 +407,8 @@ func recordToProto(r Record) *domainpb.ExecutionRecord {
 		pb.ParentExecutionId = &r.ParentExecutionID
 	}
 	pb.FixupAttempt = int32(r.FixupAttempt)
-	if r.ReviewJobID != "" {
-		pb.ReviewJobId = &r.ReviewJobID
-	}
-	if r.ReviewResult != nil {
-		pb.ReviewResult = reviewResultToProto(r.ReviewResult)
-	}
-	if r.ReviewSkipReason != "" {
-		pb.ReviewSkipReason = &r.ReviewSkipReason
-	}
-	if r.ReviewStartedAt != "" {
-		pb.ReviewStartedAt = &r.ReviewStartedAt
+	if finalization := effectiveFinalization(r); finalization != nil {
+		pb.Finalization = finalizationToProto(finalization)
 	}
 	return pb
 }
@@ -436,6 +429,93 @@ func reviewResultToProto(rr *ReviewResult) *domainpb.ReviewResult {
 			pbDim.Details = &dim.Details
 		}
 		pb.Dimensions = append(pb.Dimensions, pbDim)
+	}
+	return pb
+}
+
+func finalizationToProto(finalization *Finalization) *domainpb.Finalization {
+	if finalization == nil {
+		return nil
+	}
+	pb := &domainpb.Finalization{
+		Eligible:                finalization.Eligible,
+		Status:                  finalization.Status,
+		Phase:                   finalization.Phase,
+		ScopeSource:             finalization.ScopeSource,
+		AffectedScenarios:       append([]string(nil), finalization.AffectedScenarios...),
+		AggregateClassification: finalization.AggregateClassification,
+	}
+	if finalization.SkipReason != "" {
+		pb.SkipReason = &finalization.SkipReason
+	}
+	if finalization.StartedAt != "" {
+		pb.StartedAt = &finalization.StartedAt
+	}
+	if finalization.CompletedAt != "" {
+		pb.CompletedAt = &finalization.CompletedAt
+	}
+	if finalization.AggregateSummary != "" {
+		pb.AggregateSummary = &finalization.AggregateSummary
+	}
+	for _, warning := range finalization.Warnings {
+		pbWarning := &domainpb.FinalizationWarning{
+			Code:      warning.Code,
+			Message:   warning.Message,
+			Retryable: warning.Retryable,
+			CreatedAt: warning.CreatedAt,
+		}
+		if warning.ScenarioName != "" {
+			pbWarning.ScenarioName = &warning.ScenarioName
+		}
+		pb.Warnings = append(pb.Warnings, pbWarning)
+	}
+	for _, scenario := range finalization.Scenarios {
+		pbScenario := &domainpb.ScenarioFinalization{
+			ScenarioName: scenario.ScenarioName,
+			ChangedPaths: append([]string(nil), scenario.ChangedPaths...),
+			Restart: &domainpb.RestartResult{
+				Status:   scenario.Restart.Status,
+				Attempts: int32(scenario.Restart.Attempts),
+			},
+			Health: &domainpb.HealthCheckResult{
+				Status:      scenario.Health.Status,
+				SchemaValid: scenario.Health.SchemaValid,
+			},
+			Review: &domainpb.ScenarioReview{
+				Status: scenario.Review.Status,
+			},
+		}
+		if scenario.Restart.LastError != "" {
+			pbScenario.Restart.LastError = &scenario.Restart.LastError
+		}
+		if scenario.Restart.StartedAt != "" {
+			pbScenario.Restart.StartedAt = &scenario.Restart.StartedAt
+		}
+		if scenario.Restart.FinishedAt != "" {
+			pbScenario.Restart.FinishedAt = &scenario.Restart.FinishedAt
+		}
+		if scenario.Health.ScenarioStatus != "" {
+			pbScenario.Health.ScenarioStatus = &scenario.Health.ScenarioStatus
+		}
+		if scenario.Health.HealthStatus != "" {
+			pbScenario.Health.HealthStatus = &scenario.Health.HealthStatus
+		}
+		if scenario.Health.Details != "" {
+			pbScenario.Health.Details = &scenario.Health.Details
+		}
+		if scenario.Health.CheckedAt != "" {
+			pbScenario.Health.CheckedAt = &scenario.Health.CheckedAt
+		}
+		if scenario.Review.JobID != "" {
+			pbScenario.Review.JobId = &scenario.Review.JobID
+		}
+		if scenario.Review.SkipReason != "" {
+			pbScenario.Review.SkipReason = &scenario.Review.SkipReason
+		}
+		if scenario.Review.Result != nil {
+			pbScenario.Review.Result = reviewResultToProto(scenario.Review.Result)
+		}
+		pb.Scenarios = append(pb.Scenarios, pbScenario)
 	}
 	return pb
 }
