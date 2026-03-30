@@ -98,6 +98,53 @@ describe("TabBar reorder sync", () => {
     expect((call?.[0] as Record<string, unknown>)?.pane_order).toBeInstanceOf(Array);
   });
 
+  it("does not reorder or activate a tab after a touch swipe", () => {
+    useWorkspaceStore.setState({ activePane: "b" });
+
+    render(
+      <TabBar
+        panes={useWorkspaceStore.getState().panes}
+        activePane="b"
+        onNewTerminal={vi.fn()}
+        onOpenLauncher={vi.fn()}
+        onClosePane={vi.fn()}
+      />,
+    );
+
+    const tabA = screen.getByTestId("tab-a");
+    const startPoint = { x: 50, y: 10 };
+
+    fireEvent.pointerDown(tabA, {
+      button: 0,
+      pointerType: "touch",
+      clientX: startPoint.x,
+      clientY: startPoint.y,
+      pointerId: 1,
+    });
+
+    fireEvent.pointerMove(window, {
+      clientX: startPoint.x + 10,
+      clientY: startPoint.y,
+      pointerId: 1,
+    });
+
+    fireEvent.pointerUp(tabA, {
+      button: 0,
+      pointerType: "touch",
+      clientX: startPoint.x + 10,
+      clientY: startPoint.y,
+      pointerId: 1,
+    });
+
+    act(() => {
+      vi.runOnlyPendingTimers();
+    });
+
+    expect(useWorkspaceStore.getState().panes.map((pane) => pane.sessionId)).toEqual(["a", "b", "c"]);
+    expect(useWorkspaceStore.getState().activePane).toBe("b");
+    expect(mockSaveWorkspaceLayout).not.toHaveBeenCalled();
+  });
+
   it("persists active pane when the user switches tabs", () => {
     render(
       <TabBar

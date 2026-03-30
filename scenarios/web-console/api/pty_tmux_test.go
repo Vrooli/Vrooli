@@ -79,3 +79,41 @@ func TestTmuxPTYFactory_SetsHistoryLimit(t *testing.T) {
 		t.Errorf("expected tmux history-limit to be 'history-limit 50000', got %q", got)
 	}
 }
+
+func TestTmuxPTYFactory_UsesResolvedWorkingDir(t *testing.T) {
+	if _, err := exec.LookPath("tmux"); err != nil {
+		t.Skip("tmux not installed")
+	}
+
+	workingDir := t.TempDir()
+	t.Setenv("WC_DEFAULT_CWD", workingDir)
+	t.Setenv("PROJECT_ROOT", "")
+	t.Setenv("SCENARIO_DIR", "")
+
+	spec := SessionLaunchSpec{
+		SessionID: "test-working-dir",
+		Shell:     "/bin/sh",
+		Cols:      80,
+		Rows:      24,
+	}
+
+	p, err := tmuxPTYFactory(spec)
+	if err != nil {
+		t.Fatalf("tmuxPTYFactory failed: %v", err)
+	}
+	defer func() { _ = p.Kill() }()
+	defer p.Close()
+
+	sessionName := tmuxSessionPrefix + spec.SessionID
+	defer func() { _ = tmuxCmd("kill-session", "-t", sessionName).Run() }()
+
+	out, err := tmuxCmd("display-message", "-t", sessionName, "-p", "#{pane_current_path}").Output()
+	if err != nil {
+		t.Fatalf("tmux display-message failed: %v", err)
+	}
+
+	got := strings.TrimSpace(string(out))
+	if got != workingDir {
+		t.Errorf("expected tmux pane path %q, got %q", workingDir, got)
+	}
+}

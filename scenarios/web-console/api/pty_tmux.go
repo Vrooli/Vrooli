@@ -185,6 +185,7 @@ func tmuxCmdContext(ctx context.Context, args ...string) *exec.Cmd {
 // tmuxPTYFactory creates a tmux-backed PTY for persistent sessions.
 func tmuxPTYFactory(spec SessionLaunchSpec) (PTY, error) {
 	sessionName := tmuxSessionPrefix + spec.SessionID
+	workingDir := resolveWorkingDir()
 
 	// 1. Create detached tmux session with the target shell.
 	// We use systemd-run --scope to launch the tmux new-session command in
@@ -199,8 +200,10 @@ func tmuxPTYFactory(spec SessionLaunchSpec) (PTY, error) {
 	//
 	// Setpgid isolates the child from the API's process group so that
 	// lifecycle SIGTERM (kill -TERM -$pgid) doesn't kill tmux processes.
-	tmuxArgs := []string{"-L", tmuxSocket, "new-session", "-d",
+	tmuxArgs := []string{
+		"-L", tmuxSocket, "new-session", "-d",
 		"-s", sessionName,
+		"-c", workingDir,
 		"-x", strconv.Itoa(int(spec.Cols)),
 		"-y", strconv.Itoa(int(spec.Rows)),
 		spec.Shell,
@@ -218,6 +221,7 @@ func tmuxPTYFactory(spec SessionLaunchSpec) (PTY, error) {
 		log.Printf("tmux: systemd-run scope creation failed, falling back to direct: %v", err)
 		fallbackCmd := tmuxCmd("new-session", "-d",
 			"-s", sessionName,
+			"-c", workingDir,
 			"-x", strconv.Itoa(int(spec.Cols)),
 			"-y", strconv.Itoa(int(spec.Rows)),
 			spec.Shell,

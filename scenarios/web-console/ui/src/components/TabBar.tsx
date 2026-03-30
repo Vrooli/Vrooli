@@ -132,7 +132,9 @@ export default function TabBar({
     y: number;
     pointerId: number;
     target: HTMLElement;
+    allowReorder: boolean;
   } | null>(null);
+  const suppressPointerUpActivationRef = useRef(false);
 
   /** Movement threshold (px) before a pointer-down becomes a drag. */
   const DRAG_THRESHOLD = 5;
@@ -229,7 +231,17 @@ export default function TabBar({
         const dx = e.clientX - pending.x;
         const dy = e.clientY - pending.y;
         if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD) {
-          commitDrag(pending.paneId, pending.target, pending.pointerId);
+          suppressPointerUpActivationRef.current = true;
+          if (pending.allowReorder) {
+            commitDrag(pending.paneId, pending.target, pending.pointerId);
+          } else {
+            if (longPressTimer.current) {
+              clearTimeout(longPressTimer.current);
+              longPressTimer.current = null;
+            }
+            longPressReady.current = false;
+            longPressPaneId.current = null;
+          }
           dragStartRef.current = null;
         }
         return;
@@ -423,6 +435,7 @@ export default function TabBar({
                 openContextMenu(pane.sessionId, e.clientX, e.clientY);
               }}
               onPointerDown={(e) => {
+                suppressPointerUpActivationRef.current = false;
                 // Left-click on mouse: start tracking for drag threshold
                 if (e.button === 0 && e.pointerType === "mouse") {
                   dragStartRef.current = {
@@ -431,12 +444,13 @@ export default function TabBar({
                     y: e.clientY,
                     pointerId: e.pointerId,
                     target: e.currentTarget as HTMLElement,
+                    allowReorder: true,
                   };
                   return;
                 }
                 // Start long-press timer for touch/pen.
                 // Sets longPressReady flag; context menu opens on pointerUp so
-                // drag gestures can cancel the long-press.
+                // swipe gestures can cancel the long-press without reordering.
                 if (e.pointerType !== "mouse" && e.button === 0) {
                   longPressFired.current = false;
                   longPressReady.current = false;
@@ -447,6 +461,7 @@ export default function TabBar({
                     y: e.clientY,
                     pointerId: e.pointerId,
                     target: e.currentTarget as HTMLElement,
+                    allowReorder: false,
                   };
                   longPressTimer.current = setTimeout(() => {
                     longPressReady.current = true;
@@ -454,6 +469,8 @@ export default function TabBar({
                 }
               }}
               onPointerUp={(e) => {
+                const suppressActivation = suppressPointerUpActivationRef.current;
+                suppressPointerUpActivationRef.current = false;
                 if (longPressTimer.current) {
                   clearTimeout(longPressTimer.current);
                   longPressTimer.current = null;
@@ -471,11 +488,12 @@ export default function TabBar({
                 // Activate tab immediately on pointer-up rather than waiting
                 // for onClick, which mobile browsers may delay or suppress
                 // when the element is inside a scrollable container.
-                if (!longPressFired.current && !isDragging) {
+                if (!longPressFired.current && !isDragging && !suppressActivation) {
                   activatePane(pane.sessionId);
                 }
               }}
               onPointerCancel={() => {
+                suppressPointerUpActivationRef.current = false;
                 if (longPressTimer.current) {
                   clearTimeout(longPressTimer.current);
                   longPressTimer.current = null;
