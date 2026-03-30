@@ -33,6 +33,8 @@ import {
 } from "../types";
 import { useDetailSelectionStore, selectionToNodeId } from "../stores/detail-selection-store";
 import { DetailActionButtons } from "../components/detail/DetailActionButtons";
+import { LensBar, EXECUTION_LENSES } from "../components/detail/LensBar";
+import { useDrillToLens } from "../hooks/useDrillToLens";
 
 export function ExecutionDetailsPage() {
   const selection = useDetailSelectionStore((s) => s.selection);
@@ -41,6 +43,7 @@ export function ExecutionDetailsPage() {
   const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
   const executionId = selection?.identifier;
   const nodeId = selectionToNodeId(selection);
+  const { drillToLens } = useDrillToLens();
 
   const [actionBusy, setActionBusy] = useState(false);
   const [showTrace, setShowTrace] = useState(false);
@@ -102,50 +105,58 @@ export function ExecutionDetailsPage() {
   const isActive = ["pending", "scheduled", "starting", "in_progress", "running", "needs_review", "validating", "needs_fixup"].includes(execution.status);
   const isTerminal = ["completed", "failed", "canceled"].includes(execution.status);
 
-  const actionButtons = (
+  // Primary action for header (at most one)
+  const primaryAction = isActive ? (
+    <Button
+      variant="destructive"
+      size="sm"
+      disabled={actionBusy}
+      onClick={() => void doAction(() => executionService.cancel(execution.executionId))}
+    >
+      {actionBusy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <XCircle className="mr-1 h-3.5 w-3.5" />}
+      Cancel
+    </Button>
+  ) : isTerminal ? (
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={actionBusy}
+      onClick={() => void doAction(() => executionService.retry(execution.executionId))}
+    >
+      {actionBusy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="mr-1 h-3.5 w-3.5" />}
+      Retry
+    </Button>
+  ) : null;
+
+  // Secondary actions for body content
+  const secondaryActions = isTerminal ? (
     <div className="flex flex-wrap gap-2">
-      {isActive && (
-        <Button
-          variant="destructive"
-          size="sm"
-          disabled={actionBusy}
-          onClick={() => void doAction(() => executionService.cancel(execution.executionId))}
-        >
-          {actionBusy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <XCircle className="mr-1 h-3.5 w-3.5" />}
-          Cancel
-        </Button>
-      )}
-      {isTerminal && (
-        <>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={actionBusy}
-            onClick={() => void doAction(() => executionService.retry(execution.executionId))}
-          >
-            {actionBusy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="mr-1 h-3.5 w-3.5" />}
-            Retry
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={actionBusy}
-            onClick={() => void doAction(() => executionService.followUp(execution.executionId, { followUpType: "followup", runMode: "new" }))}
-          >
-            {actionBusy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1 h-3.5 w-3.5" />}
-            Follow-up
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={actionBusy}
-            onClick={() => void doAction(() => executionService.triggerReview(execution.executionId))}
-          >
-            {actionBusy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <ClipboardCheck className="mr-1 h-3.5 w-3.5" />}
-            Trigger Review
-          </Button>
-        </>
-      )}
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={actionBusy}
+        onClick={() => void doAction(() => executionService.followUp(execution.executionId, { followUpType: "followup", runMode: "new" }))}
+      >
+        {actionBusy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1 h-3.5 w-3.5" />}
+        Follow-up
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={actionBusy}
+        onClick={() => void doAction(() => executionService.triggerReview(execution.executionId))}
+      >
+        {actionBusy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <ClipboardCheck className="mr-1 h-3.5 w-3.5" />}
+        Trigger Review
+      </Button>
+    </div>
+  ) : null;
+
+  // All actions for mobile bottom sheet
+  const allActions = (
+    <div className="flex flex-wrap gap-2">
+      {primaryAction}
+      {secondaryActions}
     </div>
   );
 
@@ -158,13 +169,14 @@ export function ExecutionDetailsPage() {
           subtitle={execution.executionId}
           status={execution.status}
           onClose={clearSelection}
-          actions={actionButtons}
+          actions={primaryAction}
         />
       }
-      mobileActions={actionButtons}
+      mobileActions={allActions}
       mobileActionsTitle="Execution Actions"
     >
       <div className="mx-auto max-w-3xl space-y-4">
+        {nodeId && <LensBar nodeId={nodeId} lenses={EXECUTION_LENSES} onDrillToLens={drillToLens} />}
         {/* Status + metadata card */}
         <Card className="space-y-3 p-4">
           <div className="flex items-center justify-between">
@@ -227,6 +239,9 @@ export function ExecutionDetailsPage() {
             </div>
           )}
         </Card>
+
+        {/* Secondary actions */}
+        {secondaryActions}
 
         {/* Registry actions */}
         {nodeId && <DetailActionButtons entityType="execution" direction="row" />}

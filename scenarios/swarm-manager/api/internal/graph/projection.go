@@ -363,23 +363,21 @@ var activeExecutionStatuses = map[execution.Status]bool{
 	execution.StatusNeedsFixup:  true,
 }
 
-// operationalBacklogStatuses are backlog statuses considered "in-flight or needs attention"
-// for the operations lens. Includes pre-execution items that need operator input.
-var operationalBacklogStatuses = map[backlog.BacklogStatus]bool{
+// actionableBacklogStatuses are backlog statuses where a user can take a next action
+// (workshop, execute, review, retry, archive, etc.) for the operations lens.
+// Excludes archived and completed which are terminal/non-actionable.
+var actionableBacklogStatuses = map[backlog.BacklogStatus]bool{
+	backlog.StatusBacklog:     true,
 	backlog.StatusResearching: true,
 	backlog.StatusReady:       true,
 	backlog.StatusQueued:      true,
 	backlog.StatusInProgress:  true,
+	backlog.StatusFailed:      true,
 }
 
 type runtimeBacklogSelection struct {
 	items []backlog.BacklogItem
 	keys  map[string]struct{}
-}
-
-type runtimeCaptureSelection struct {
-	entries []CaptureEntry
-	ids     map[string]struct{}
 }
 
 func buildBacklogNode(item backlog.BacklogItem) Node {
@@ -392,18 +390,6 @@ func buildBacklogNode(item backlog.BacklogItem) Node {
 			Title:    item.Title,
 			Status:   string(item.Status),
 			Priority: int32(item.Priority),
-		},
-	}
-}
-
-func buildCaptureNode(cap CaptureEntry) Node {
-	return Node{
-		ID:   "capture/" + cap.ID,
-		Type: "Capture",
-		Data: GraphCaptureNodeData{
-			ID:     cap.ID,
-			Text:   cap.Text,
-			Status: cap.Status,
 		},
 	}
 }
@@ -496,7 +482,11 @@ func selectRuntimeBacklogItems(
 	queue := make([]string, 0)
 
 	enqueue := func(key string) {
-		if _, ok := itemsByKey[key]; !ok {
+		item, ok := itemsByKey[key]
+		if !ok {
+			return
+		}
+		if !activeStatuses[item.Status] {
 			return
 		}
 		if _, ok := included[key]; ok {
@@ -549,25 +539,6 @@ func selectRuntimeBacklogItems(
 	return runtimeBacklogSelection{
 		items: selected,
 		keys:  included,
-	}
-}
-
-func selectRuntimeCaptures(allCaptures []CaptureEntry, activities []agentactivity.Record) runtimeCaptureSelection {
-	included := make(map[string]struct{})
-	for _, activity := range activities {
-		if activity.OwnerType == agentactivity.OwnerCapture {
-			included[activity.OwnerName] = struct{}{}
-		}
-	}
-	selected := make([]CaptureEntry, 0, len(included))
-	for _, cap := range allCaptures {
-		if _, ok := included[cap.ID]; ok {
-			selected = append(selected, cap)
-		}
-	}
-	return runtimeCaptureSelection{
-		entries: selected,
-		ids:     included,
 	}
 }
 
@@ -629,65 +600,6 @@ func addActivityNodesAndEdges(
 		nodes = append(nodes, buildRunNode(runNode.RunID, runNode.TaskID, runNode.Status))
 	}
 	return nodes, edges
-}
-
-func isOperationalScenarioStatus(status string) bool {
-	switch status {
-	case "running", "error":
-		return true
-	default:
-		return false
-	}
-}
-
-func selectOperationalScenarios(
-	items []backlog.BacklogItem,
-	scenarios []ScenarioEntry,
-) ([]ScenarioEntry, []Edge) {
-	if len(scenarios) == 0 {
-		return nil, nil
-	}
-
-	selectedNames := make(map[string]struct{}, len(scenarios))
-	edgeIDs := make(map[string]struct{})
-	edges := make([]Edge, 0)
-
-	for _, item := range items {
-		sourceKey := backlogItemKey(string(item.Kind), item.Name)
-		sourceID := backlogItemNodeID(string(item.Kind), item.Name)
-
-		for _, pattern := range item.AcceptanceAllow {
-			for _, scenario := range scenarios {
-				if !matchesAcceptancePattern(pattern, scenario.Name) {
-					continue
-				}
-
-				selectedNames[scenario.Name] = struct{}{}
-
-				edgeID := fmt.Sprintf("targets:%s->%s", sourceKey, scenario.Name)
-				if _, seen := edgeIDs[edgeID]; seen {
-					continue
-				}
-				edgeIDs[edgeID] = struct{}{}
-				edges = append(edges, Edge{
-					ID:     edgeID,
-					Source: sourceID,
-					Target: "scenario/" + scenario.Name,
-					Type:   "targets",
-				})
-			}
-		}
-	}
-
-	selected := make([]ScenarioEntry, 0, len(scenarios))
-	for _, scenario := range scenarios {
-		_, targeted := selectedNames[scenario.Name]
-		if targeted || isOperationalScenarioStatus(scenario.Status) {
-			selected = append(selected, scenario)
-		}
-	}
-
-	return selected, edges
 }
 
 // buildFlow builds the flow lens projection, focused on a specific node.
@@ -970,108 +882,110 @@ func (p *ProjectionService) buildFlowForScenario(ctx context.Context, name strin
 }
 
 // buildOperations builds the operations lens projection.
-// When focusNodeID is set, results are filtered to entities related to the focus.
+// The operations lens shows only actionable entities: backlog items that need
+// attention, their active executions, and initiatives (for grouping context).
+// Scenarios, agent activities, runs, and captures are excluded.
 func (p *ProjectionService) buildOperations(ctx context.Context, focusNodeID string) (GraphResponse, error) {
 	var nodes []Node
 	var edges []Edge
 	agentAvailable := true
 
-	// Scenario inventory. Operations intentionally includes only scenarios that
-	// are operationally relevant to the active work graph.
-	var scens []ScenarioEntry
-	if p.scenario != nil {
-		scenList, err := p.scenario.List(ctx)
-		if err != nil {
-			log.Printf("[graph] operations: scenarios error: %v", err)
-		} else {
-			scens = scenList
-		}
-	}
-
+	// Load backlog items.
 	var items []backlog.BacklogItem
 	if p.backlog != nil {
 		items, _ = p.backlog.LoadAll(nil)
 	}
-	var captures []CaptureEntry
-	if p.capture != nil {
-		captures, _ = p.capture.ListCaptures()
-	}
 
-	var activeRecords []execution.Record
+	// Load all execution records.
+	var allRecords []execution.Record
 	if p.execution != nil {
 		records, err := p.execution.List(ctx, execution.ListFilters{})
 		if err != nil {
 			log.Printf("[graph] operations: execution list error: %v", err)
 		} else {
 			for _, rec := range records {
-				if !activeExecutionStatuses[rec.Status] {
-					continue
+				if activeExecutionStatuses[rec.Status] {
+					allRecords = append(allRecords, rec)
 				}
-				activeRecords = append(activeRecords, rec)
-				nodes = append(nodes, buildExecutionNode(rec))
 			}
 		}
 	}
-	var activeActivities []agentactivity.Record
+
+	// Check agent-manager availability (useful for frontend even without activity nodes).
 	if p.activity != nil {
 		agentAvailable = p.activity.IsAvailable(ctx)
-		activities, err := p.activity.List(ctx, agentactivity.ListFilters{ActiveOnly: true})
-		if err != nil {
-			log.Printf("[graph] operations: activity list error: %v", err)
-		} else {
-			activeActivities = activities
-		}
 	} else {
 		agentAvailable = false
 	}
 
-	selectedBacklog := selectRuntimeBacklogItems(items, activeRecords, activeActivities, false, operationalBacklogStatuses)
+	// Select actionable backlog items. The status gate in enqueue ensures
+	// cross-referenced items (from executions) are also filtered by status.
+	selectedBacklog := selectRuntimeBacklogItems(items, allRecords, nil, false, actionableBacklogStatuses)
 	for _, item := range selectedBacklog.items {
 		nodes = append(nodes, buildBacklogNode(item))
 	}
-	selectedCaptures := selectRuntimeCaptures(captures, activeActivities)
-	for _, cap := range selectedCaptures.entries {
-		nodes = append(nodes, buildCaptureNode(cap))
-	}
-	ownerNodeIDs := make(map[string]struct{})
-	for _, item := range selectedBacklog.items {
-		ownerNodeIDs[backlogItemNodeID(string(item.Kind), item.Name)] = struct{}{}
-	}
-	for _, cap := range selectedCaptures.entries {
-		ownerNodeIDs["capture/"+cap.ID] = struct{}{}
-	}
 
-	selectedScenarios, targetEdges := selectOperationalScenarios(selectedBacklog.items, scens)
-	for _, scenario := range selectedScenarios {
-		nodes = append(nodes, buildScenarioNode(scenario.Name, scenario.Status))
-		ownerNodeIDs["scenario/"+scenario.Name] = struct{}{}
-	}
-	for _, activity := range activeActivities {
-		if activity.OwnerType != agentactivity.OwnerScenario {
-			continue
-		}
-		nodeID := "scenario/" + activity.OwnerName
-		if _, ok := ownerNodeIDs[nodeID]; ok {
-			continue
-		}
-		nodes = append(nodes, buildScenarioNode(activity.OwnerName, "unknown"))
-		ownerNodeIDs[nodeID] = struct{}{}
-	}
-
-	for _, rec := range activeRecords {
+	// Build execution nodes only for executions whose parent backlog is actionable.
+	for _, rec := range allRecords {
 		targetKey := backlogItemKey(rec.BacklogKind, rec.BacklogName)
-		if _, ok := selectedBacklog.keys[targetKey]; ok {
-			edges = append(edges, Edge{
-				ID:     fmt.Sprintf("executes:%s->%s", rec.ExecutionID, targetKey),
-				Source: "execution-record/" + rec.ExecutionID,
-				Target: backlogItemNodeIDFromKey(targetKey),
-				Type:   "executes",
-			})
+		if _, ok := selectedBacklog.keys[targetKey]; !ok {
+			continue
 		}
+		nodes = append(nodes, buildExecutionNode(rec))
+		edges = append(edges, Edge{
+			ID:     fmt.Sprintf("executes:%s->%s", rec.ExecutionID, targetKey),
+			Source: "execution-record/" + rec.ExecutionID,
+			Target: backlogItemNodeIDFromKey(targetKey),
+			Type:   "executes",
+		})
 	}
 
-	edges = append(edges, targetEdges...)
-	nodes, edges = addActivityNodesAndEdges(nodes, edges, activeActivities, selectedExecutionsIDs(activeRecords), ownerNodeIDs)
+	// Initiative nodes and member_of edges (placeholder for future actions).
+	itemByKey := make(map[string]backlog.BacklogItem, len(items))
+	for _, item := range items {
+		itemByKey[backlogItemKey(string(item.Kind), item.Name)] = item
+	}
+	if p.initiative != nil {
+		inits, err := p.initiative.List()
+		if err != nil {
+			log.Printf("[graph] operations: initiatives error: %v", err)
+		} else {
+			for _, init := range inits {
+				if init.Status == "archived" {
+					continue
+				}
+				rollup := computeInitiativeRollup(init.Items, itemByKey)
+				nodes = append(nodes, Node{
+					ID:   "initiative/" + init.Name,
+					Type: "Initiative",
+					Data: GraphInitiativeNodeData{
+						Name:   init.Name,
+						Title:  init.Title,
+						Status: init.Status,
+						Rollup: GraphInitiativeRollup{
+							Total:      int32(rollup.Total),
+							Completed:  int32(rollup.Completed),
+							InProgress: int32(rollup.InProgress),
+							Failed:     int32(rollup.Failed),
+							Pending:    int32(rollup.Pending),
+						},
+					},
+				})
+			}
+		}
+	}
+	for _, item := range selectedBacklog.items {
+		if item.Initiative == "" {
+			continue
+		}
+		key := backlogItemKey(string(item.Kind), item.Name)
+		edges = append(edges, Edge{
+			ID:     fmt.Sprintf("member_of:%s->%s", key, item.Initiative),
+			Source: backlogItemNodeID(string(item.Kind), item.Name),
+			Target: "initiative/" + item.Initiative,
+			Type:   "member_of",
+		})
+	}
 
 	resp := NewGraphResponse(LensOperations, nodes, edges)
 	resp.Meta.AgentManagerAvailable = &agentAvailable
@@ -1081,14 +995,6 @@ func (p *ProjectionService) buildOperations(ctx context.Context, focusNodeID str
 		resp.Meta.FocusNodeType = nodeType
 	}
 	return resp, nil
-}
-
-func selectedExecutionsIDs(records []execution.Record) map[string]struct{} {
-	ids := make(map[string]struct{}, len(records))
-	for _, record := range records {
-		ids[record.ExecutionID] = struct{}{}
-	}
-	return ids
 }
 
 // backlogItemNodeIDFromKey converts "kind/name" to the full node ID.

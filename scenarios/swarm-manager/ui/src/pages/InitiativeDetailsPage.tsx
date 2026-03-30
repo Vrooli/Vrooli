@@ -17,6 +17,7 @@ import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { DetailActionButtons } from "../components/detail/DetailActionButtons";
 import { StatusBadge } from "../components/detail/StatusBadge";
 import { useDrillToLens } from "../hooks/useDrillToLens";
+import { LensBar, INITIATIVE_LENSES } from "../components/detail/LensBar";
 import { selectionToNodeId } from "../stores/detail-selection-store";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
@@ -42,7 +43,7 @@ export function InitiativeDetailsPage() {
   const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
   const name = selection?.name;
   const nodeId = selectionToNodeId(selection);
-  const { drillToFlow, drillToOperations } = useDrillToLens();
+  const { drillToLens } = useDrillToLens();
 
   const backlogItems = useBacklogStore((s) => s.items);
 
@@ -175,15 +176,11 @@ export function InitiativeDetailsPage() {
           status={initiative.status}
           onClose={clearSelection}
           actions={<DetailActionButtons entityType="initiative" />}
-          crossLensNav={nodeId ? {
-            nodeId,
-            onDrillToFlow: drillToFlow,
-            onDrillToOperations: drillToOperations,
-          } : undefined}
         />
       }
     >
       <div className="mx-auto max-w-3xl space-y-6" data-testid={selectors.initiativeDetails.page}>
+      {nodeId && <LensBar nodeId={nodeId} lenses={INITIATIVE_LENSES} onDrillToLens={drillToLens} />}
       {/* Metadata Card */}
       <Card className="rounded-lg border-slate-700/60 bg-slate-900/45 p-5">
         <div className="space-y-4">

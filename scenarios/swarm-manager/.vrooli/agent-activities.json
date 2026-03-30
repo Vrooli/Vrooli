@@ -89,5 +89,50 @@
       "operation": "generator"
     },
     "updated_at": "2026-03-29T19:55:47Z"
+  },
+  {
+    "activity_id": "66e7994838cf005d",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "agent-identity-standard",
+    "owner_title": "Design a Verifiable Agent Identity Standard for Agent-Manager",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "9bc64444-653b-4f40-a689-b2c17d4231e5",
+    "run_id": "f56bff05-2a43-4a17-a3b7-5b03d680cb06",
+    "status": "complete",
+    "requested_at": "2026-03-30T02:02:15Z",
+    "started_at": "2026-03-30T02:02:15Z",
+    "finished_at": "2026-03-30T02:06:19Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop-research"
+    },
+    "updated_at": "2026-03-30T02:18:01Z"
+  },
+  {
+    "activity_id": "f2da07243403c615",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "agent-identity-standard",
+    "owner_title": "Design a Verifiable Agent Identity Standard for Agent-Manager",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "0308fe44-0a0c-4f82-9ef3-0690f27eaf07",
+    "run_id": "18b884d4-a1af-420d-af88-28889429f017",
+    "status": "complete",
+    "requested_at": "2026-03-30T02:20:28Z",
+    "started_at": "2026-03-30T02:20:28Z",
+    "finished_at": "2026-03-30T02:24:39Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "auto_triggered": "true",
+      "entrypoint": "backlog.workshop_auto_advance",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop-research"
+    },
+    "updated_at": "2026-03-30T03:11:50Z"
   }
 ]

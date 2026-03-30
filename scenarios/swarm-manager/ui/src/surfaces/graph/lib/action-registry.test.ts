@@ -91,13 +91,13 @@ describe("getActionsForNode", () => {
   });
 
   // Operations lens.
-  it("returns scenario actions for operations/scenario", () => {
-    const actions = getActionsForNode("operations", "scenario");
+  it("returns backlog actions for operations/backlog", () => {
+    const actions = getActionsForNode("operations", "backlog");
     expect(actions.map((a) => a.id)).toEqual([
-      "start",
-      "stop",
-      "restart",
-      "view-scenario-details",
+      "queue",
+      "workshop",
+      "view-files",
+      "view-backlog-details",
     ]);
   });
 
@@ -106,13 +106,19 @@ describe("getActionsForNode", () => {
     expect(actions.map((a) => a.id)).toEqual([
       "view-execution-details",
       "view-prompt-trace",
+      "follow-up",
+      "retry",
+      "trigger-review",
       "cancel",
     ]);
   });
 
-  it("returns stop action for operations/agent-run", () => {
-    const actions = getActionsForNode("operations", "agent-run");
-    expect(actions.map((a) => a.id)).toEqual(["stop-run"]);
+  it("returns empty for operations/scenario (not in ops registry)", () => {
+    expect(getActionsForNode("operations", "scenario")).toEqual([]);
+  });
+
+  it("returns empty for operations/agent-run (not in ops registry)", () => {
+    expect(getActionsForNode("operations", "agent-run")).toEqual([]);
   });
 });
 
@@ -141,28 +147,10 @@ describe("action enabled predicates", () => {
     expect(runEnabledPredicate(retry, activeNode)).toBe(false);
   });
 
-  it("start is enabled for stopped scenarios", () => {
-    const start = getAction("operations", "scenario", "start");
-    const stoppedNode = makeNode("scenario/my-scenario", "scenario", "stopped");
-    expect(runEnabledPredicate(start, stoppedNode)).toBe(true);
-  });
-
-  it("start is disabled for running scenarios", () => {
-    const start = getAction("operations", "scenario", "start");
-    const runningNode = makeNode("scenario/my-scenario", "scenario", "running");
-    expect(runEnabledPredicate(start, runningNode)).toBe(false);
-  });
-
-  it("stop is enabled for running scenarios", () => {
-    const stop = getAction("operations", "scenario", "stop");
-    const runningNode = makeNode("scenario/my-scenario", "scenario", "running");
-    expect(runEnabledPredicate(stop, runningNode)).toBe(true);
-  });
-
-  it("stop is disabled for stopped scenarios", () => {
-    const stop = getAction("operations", "scenario", "stop");
-    const stoppedNode = makeNode("scenario/my-scenario", "scenario", "stopped");
-    expect(runEnabledPredicate(stop, stoppedNode)).toBe(false);
+  it("queue is enabled for ready backlog items in operations", () => {
+    const queue = getAction("operations", "backlog", "queue");
+    const readyNode = makeNode("backlog-item/execute/my-task", "backlog", "ready", "execute");
+    expect(runEnabledPredicate(queue, readyNode)).toBe(true);
   });
 });
 
@@ -173,10 +161,10 @@ describe("action navigateTo", () => {
     expect(runNavigateTo(viewDetails, node)).toEqual({ entityType: "backlog", kind: "execute", name: "my-feature" });
   });
 
-  it("view-scenario-details returns scenario DetailSelection", () => {
-    const viewDetails = getAction("operations", "scenario", "view-scenario-details");
-    const node = makeNode("scenario/swarm-manager", "scenario", "running");
-    expect(runNavigateTo(viewDetails, node)).toEqual({ entityType: "scenario", name: "swarm-manager" });
+  it("view-backlog-details returns backlog DetailSelection from operations", () => {
+    const viewDetails = getAction("operations", "backlog", "view-backlog-details");
+    const node = makeNode("backlog-item/execute/my-task", "backlog", "ready", "execute");
+    expect(runNavigateTo(viewDetails, node)).toEqual({ entityType: "backlog", kind: "execute", name: "my-task" });
   });
 
   it("view-execution-details returns execution DetailSelection", () => {

@@ -15,7 +15,7 @@
   "kind": "execute",
   "name": "swarm-manager-flow-and-ops-views",
   "priority": 2,
-  "status": "completed",
+  "status": "archived",
   "tags": [
     "swarm-manager",
     "ux",
@@ -25,5 +25,5 @@
     "sse"
   ],
   "title": "Implement Flow and Operations Views in the Graph Workspace",
-  "updated": "2026-03-28T12:53:26Z"
+  "updated": "2026-03-30T02:01:43Z"
 }

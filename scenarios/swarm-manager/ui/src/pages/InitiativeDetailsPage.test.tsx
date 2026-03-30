@@ -203,6 +203,18 @@ describe("InitiativeDetailsPage", () => {
     });
   });
 
+  it("renders lens bar with navigation buttons", async () => {
+    vi.mocked(initiativeService.get).mockResolvedValue(mockInitiativeData);
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("lens-bar")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("lens-bar-topology")).toBeInTheDocument();
+    expect(screen.getByTestId("lens-bar-flow")).toBeInTheDocument();
+    expect(screen.getByTestId("lens-bar-operations")).toBeInTheDocument();
+  });
+
   it("close button clears detail selection", async () => {
     vi.mocked(initiativeService.get).mockResolvedValue(mockInitiativeData);
     renderPage();

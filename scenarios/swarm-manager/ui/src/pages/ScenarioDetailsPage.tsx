@@ -55,6 +55,7 @@ import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { DetailActionButtons } from "../components/detail/DetailActionButtons";
 import { StatusBadge } from "../components/detail/StatusBadge";
 import { useDrillToLens } from "../hooks/useDrillToLens";
+import { LensBar, SCENARIO_LENSES } from "../components/detail/LensBar";
 import { selectionToNodeId } from "../stores/detail-selection-store";
 import { useScenariosStore } from "../stores";
 
@@ -180,7 +181,7 @@ export function ScenarioDetailsPage() {
   const clearSelection = useDetailSelectionStore((s) => s.clearSelection);
   const name = selection?.name;
   const nodeId = selectionToNodeId(selection);
-  const { drillToFlow, drillToOperations } = useDrillToLens();
+  const { drillToLens } = useDrillToLens();
   const queryClient = useQueryClient();
   const upsertScenario = useScenariosStore((state) => state.upsertScenario);
   const removeScenario = useScenariosStore((state) => state.removeScenario);
@@ -562,17 +563,13 @@ export function ScenarioDetailsPage() {
           status={scenario?.status}
           onClose={clearSelection}
           actions={scenario ? renderActionButtons() : undefined}
-          crossLensNav={nodeId ? {
-            nodeId,
-            onDrillToFlow: drillToFlow,
-            onDrillToOperations: drillToOperations,
-          } : undefined}
         />
       }
       mobileActions={scenario ? renderActionButtons() : undefined}
       mobileActionsTitle="Scenario Actions"
     >
     <div className="space-y-6" data-testid={selectors.scenarioDetails.page}>
+      {nodeId && <LensBar nodeId={nodeId} lenses={SCENARIO_LENSES} onDrillToLens={drillToLens} />}
       {/* Loading state */}
       {isPageLoading && (
         <PageLoadingState

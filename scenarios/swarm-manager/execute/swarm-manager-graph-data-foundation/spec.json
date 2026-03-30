@@ -18,7 +18,7 @@
   "kind": "execute",
   "name": "swarm-manager-graph-data-foundation",
   "priority": 1,
-  "status": "completed",
+  "status": "archived",
   "tags": [
     "swarm-manager",
     "ux",
@@ -27,5 +27,5 @@
     "greenfield"
   ],
   "title": "Build Swarm Manager Graph Data Foundation",
-  "updated": "2026-03-28T02:26:47Z"
+  "updated": "2026-03-30T02:01:26Z"
 }

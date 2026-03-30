@@ -55,5 +55,10 @@ export function useDrillToLens() {
     [drillToLens],
   );
 
-  return { drillToFlow, drillToOperations };
+  const drillToTopology = useCallback(
+    (nodeId: string) => drillToLens(nodeId, "topology"),
+    [drillToLens],
+  );
+
+  return { drillToLens, drillToTopology, drillToFlow, drillToOperations };
 }

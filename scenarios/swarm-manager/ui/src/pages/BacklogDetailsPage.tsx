@@ -121,8 +121,7 @@ import type {
 } from "../types";
 import type { WorkshopRound } from "../types/domain";
 import { selectLatestActivityForBacklog, useAgentActivitiesStore, useBacklogStore, useDetailSelectionStore } from "../stores";
-import { DetailPageHeader } from "../components/detail/DetailPageHeader";
-import { DetailPageLayout } from "../components/detail/DetailPageLayout";
+import { LensBar, BACKLOG_LENSES } from "../components/detail/LensBar";
 import { DetailActionButtons } from "../components/detail/DetailActionButtons";
 import { useDrillToLens } from "../hooks/useDrillToLens";
 import { selectionToNodeId } from "../stores/detail-selection-store";
@@ -226,7 +225,7 @@ export function BacklogDetailsPage() {
   const selectInitiative = useDetailSelectionStore((s) => s.selectInitiative);
   const selectScenario = useDetailSelectionStore((s) => s.selectScenario);
   const nodeId = selectionToNodeId(selection);
-  const { drillToFlow, drillToOperations } = useDrillToLens();
+  const { drillToLens } = useDrillToLens();
   const kind = selection?.kind;
   const name = selection?.name;
   const backlogKind = BACKLOG_KINDS.includes(kind as BacklogKind) ? (kind as BacklogKind) : null;
@@ -2369,6 +2368,7 @@ export function BacklogDetailsPage() {
                 </TabsTrigger>
               </TabsList>
             </div>
+            {nodeId && <LensBar nodeId={nodeId} lenses={BACKLOG_LENSES} onDrillToLens={drillToLens} />}
             {activeTab === "info" && mobileInfoView}
             {activeTab === "prompt" && backlogKind && name && (
               <PlanPanel backlogKind={backlogKind as BacklogKind} backlogName={name} className="flex-1 overflow-y-auto" />
@@ -2509,6 +2509,8 @@ export function BacklogDetailsPage() {
                   Files
                 </TabsTrigger>
               </TabsList>
+
+              {nodeId && <LensBar nodeId={nodeId} lenses={BACKLOG_LENSES} onDrillToLens={drillToLens} className="pt-2" />}
 
               {activeTab === "info" && (
                 <div className="space-y-6 pt-6">

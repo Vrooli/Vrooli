@@ -6,21 +6,16 @@
  * - Entity type badge
  * - Title and optional subtitle
  * - Status badge
- * - Optional cross-lens navigation (View History / View Operations)
  * - Action slot for entity-specific buttons
+ *
+ * Cross-lens navigation is handled by the separate LensBar component,
+ * which each detail page renders below its tab bar.
  */
 
 import { type ReactNode } from "react";
-import { X, History, Activity as ActivityIcon } from "lucide-react";
+import { X } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { StatusBadge } from "./StatusBadge";
-
-interface CrossLensNavProps {
-  nodeId: string;
-  onDrillToFlow?: (nodeId: string) => void;
-  onDrillToOperations?: (nodeId: string) => void;
-  activeExecutionStatus?: string;
-}
 
 interface DetailPageHeaderProps {
   entityType: string;
@@ -29,53 +24,7 @@ interface DetailPageHeaderProps {
   status?: string;
   onClose: () => void;
   actions?: ReactNode;
-  crossLensNav?: CrossLensNavProps;
   className?: string;
-}
-
-function CrossLensNav({ nodeId, onDrillToFlow, onDrillToOperations, activeExecutionStatus }: CrossLensNavProps) {
-  if (!onDrillToFlow && !onDrillToOperations) return null;
-
-  return (
-    <div className="flex items-center gap-2" data-testid="detail-cross-lens-nav">
-      {onDrillToFlow && (
-        <button
-          type="button"
-          onClick={() => onDrillToFlow(nodeId)}
-          className="flex items-center gap-1.5 rounded-lg bg-slate-700/50 px-3 py-1.5 text-sm font-medium text-slate-100 transition-colors hover:bg-slate-700/70"
-          data-testid="detail-drill-flow"
-        >
-          <History className="h-3.5 w-3.5 text-cyan-400" />
-          View History
-        </button>
-      )}
-      {onDrillToOperations && (
-        <button
-          type="button"
-          onClick={() => onDrillToOperations(nodeId)}
-          className="flex items-center gap-1.5 rounded-lg bg-slate-700/50 px-3 py-1.5 text-sm font-medium text-slate-100 transition-colors hover:bg-slate-700/70"
-          data-testid="detail-drill-operations"
-        >
-          <ActivityIcon className="h-3.5 w-3.5 text-amber-400" />
-          View Operations
-          {activeExecutionStatus && (
-            <span
-              className={cn(
-                "ml-0.5 h-2 w-2 rounded-full",
-                activeExecutionStatus === "running" || activeExecutionStatus === "starting"
-                  ? "animate-pulse bg-cyan-400"
-                  : activeExecutionStatus === "needs_review" || activeExecutionStatus === "needs_fixup"
-                    ? "bg-amber-400"
-                    : activeExecutionStatus === "failed"
-                      ? "bg-red-400"
-                      : "bg-slate-400",
-              )}
-            />
-          )}
-        </button>
-      )}
-    </div>
-  );
 }
 
 export function DetailPageHeader({
@@ -85,12 +34,10 @@ export function DetailPageHeader({
   status,
   onClose,
   actions,
-  crossLensNav,
   className,
 }: DetailPageHeaderProps) {
   return (
     <header className={cn("border-b border-slate-800", className)} data-testid="detail-page-header">
-      {/* Primary row */}
       <div className="flex items-center gap-3 px-4 py-3 md:px-6">
         <button
           type="button"
@@ -121,13 +68,6 @@ export function DetailPageHeader({
           </div>
         )}
       </div>
-
-      {/* Cross-lens navigation row (only if provided) */}
-      {crossLensNav && (
-        <div className="border-t border-slate-800/50 px-4 py-2 md:px-6">
-          <CrossLensNav {...crossLensNav} />
-        </div>
-      )}
     </header>
   );
 }

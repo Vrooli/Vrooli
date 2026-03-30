@@ -588,24 +588,19 @@ export const actionRegistry: ActionRegistry = {
     ],
   },
   operations: {
-    scenario: [
-      makeScenarioStartAction(),
-      makeScenarioStopAction(),
-      makeScenarioRestartAction(),
-      makeViewScenarioDetailsAction(),
-    ],
-    "agent-activity": [
-      makeOpenActivityOwnerAction(),
-      makeViewRecordedExecutionAction(),
-      makeStopActivityRunAction(),
+    backlog: [
+      makeQueueAction(),
+      makeBacklogWorkshopAction(),
+      makeBacklogViewFilesAction(),
+      makeViewBacklogDetailsAction(),
     ],
     execution: [
       makeViewExecutionDetailsAction(),
       makeViewPromptTraceAction(),
+      makeFollowUpAction(),
+      makeRetryAction(),
+      makeTriggerReviewAction(),
       makeCancelExecutionAction(),
-    ],
-    "agent-run": [
-      makeStopAgentRunAction(),
     ],
   },
 };

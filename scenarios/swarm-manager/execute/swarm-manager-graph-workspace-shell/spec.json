@@ -12,7 +12,7 @@
   "kind": "execute",
   "name": "swarm-manager-graph-workspace-shell",
   "priority": 1,
-  "status": "completed",
+  "status": "archived",
   "tags": [
     "swarm-manager",
     "ux",
@@ -21,5 +21,5 @@
     "greenfield"
   ],
   "title": "Replace the Tabbed Shell with the Graph Workspace Shell",
-  "updated": "2026-03-28T02:27:38Z"
+  "updated": "2026-03-30T02:01:17Z"
 }
