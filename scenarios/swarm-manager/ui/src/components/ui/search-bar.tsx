@@ -2,7 +2,7 @@
  * SearchBar Component
  *
  * A reusable search input with consistent styling, used across list pages.
- * Extracts the common search pattern from BacklogPage and ScenariosPage.
+ * Extracts the common search pattern used across list views and sidebar tabs.
  */
 
 import { Search } from "lucide-react";

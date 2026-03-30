@@ -1,13 +1,7 @@
 /**
  * Capture Card
  *
- * Displays a raw capture with classification triage inside a unified feed card.
- *
- * Design: Matches backlog card aesthetic via ResponsiveListItem card shell.
- * Header mirrors backlog cards (status dot + "Capture" badge left, timestamp + dismiss right).
- * Original text renders as card title. Suggestions show as compact rows with
- * icon-only action buttons. Detail (description, tags) is hidden by default
- * and revealed on expand.
+ * Displays a raw capture with classification triage.
  *
  * States:
  * 1. Classifying: spinner + "Classifying..." below title

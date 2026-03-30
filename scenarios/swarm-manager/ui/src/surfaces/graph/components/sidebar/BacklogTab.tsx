@@ -1,7 +1,7 @@
 /**
  * BacklogTab - Lists backlog items with rich action cards.
  *
- * Uses the same BacklogCard component as BacklogPage, providing inline
+ * Uses the shared BacklogCard component, providing inline
  * decision answering, run/workshop/finalize actions, and follow-up/archive.
  */
 

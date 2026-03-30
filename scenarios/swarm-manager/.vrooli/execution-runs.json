@@ -842,9 +842,11 @@
     "previous_status": "backlog",
     "task_id": "a1d8fc88-b246-4656-bbec-323a0ea96f21",
     "run_id": "c092d7a7-d9c5-44d8-88ca-e35fdea8c09a",
-    "status": "running",
+    "status": "failed",
     "mode": "yolo",
     "started_at": "2026-03-30T17:57:47Z",
+    "finished_at": "2026-03-30T18:27:47Z",
+    "failure_reason": "Runner claude-code encountered an error. Please check runner configuration.",
     "started_by": "swarm-manager-ui",
     "operation": "generator",
     "prompt_trace": {
@@ -855,6 +857,6 @@
       "captured_at": "2026-03-30T17:57:47Z"
     },
     "created_at": "2026-03-30T17:57:47Z",
-    "updated_at": "2026-03-30T17:57:47Z"
+    "updated_at": "2026-03-30T18:27:47Z"
   }
 ]

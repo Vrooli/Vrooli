@@ -124,22 +124,24 @@ export function QuickCaptureInput({ onOpenForm }: QuickCaptureInputProps) {
   };
 
   return (
-    <div className="relative mb-4" data-testid={selectors.captures.quickInput}>
+    <div className="relative" data-testid={selectors.captures.quickInput}>
       <CaptureAttachmentPreview attachments={attachments} onRemove={removeFile} />
 
       <div className="flex items-end gap-2 rounded-xl border border-slate-700 bg-slate-800/50 p-3 transition-colors focus-within:border-cyan-500/50 focus-within:bg-slate-800">
-        <button
-          type="button"
-          onClick={() => {
-            onOpenForm?.(text.trim());
-            setText("");
-            try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
-          }}
-          className="mb-0.5 shrink-0 rounded p-1 text-slate-500 transition-colors hover:bg-slate-700 hover:text-slate-300"
-          title="Create manually"
-        >
-          <MessageSquarePlus className="h-5 w-5" />
-        </button>
+        {onOpenForm && (
+          <button
+            type="button"
+            onClick={() => {
+              onOpenForm(text.trim());
+              setText("");
+              try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+            }}
+            className="mb-0.5 shrink-0 rounded p-1 text-slate-500 transition-colors hover:bg-slate-700 hover:text-slate-300"
+            title="Create manually"
+          >
+            <MessageSquarePlus className="h-5 w-5" />
+          </button>
+        )}
 
         <textarea
           ref={inputRef}

@@ -2,7 +2,7 @@
  * Dependency-Aware Sort Ordering
  *
  * Provides topological-depth-based sorting so that dependencies always appear
- * before their dependents in every sorted view (feed, BacklogPage, sidebar).
+ * before their dependents in every sorted view (feed, sidebar tabs).
  *
  * **Important distinction — two different "blocking" concepts exist:**
  *

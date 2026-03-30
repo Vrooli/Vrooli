@@ -2,7 +2,7 @@
  * BacklogCard — shared card interior for backlog items.
  *
  * Renders everything inside `<ResponsiveListItem>`. The wrapper/Link stays
- * in BacklogPage so routing context is controlled by the page.
+ * in the parent component so routing context is controlled by the caller.
  *
  * Action visibility/disabled logic comes from the `itemActions` prop
  * (computed by `getItemActions()` in the parent) — this component only renders.

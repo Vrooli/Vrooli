@@ -4,8 +4,8 @@
  * Renders a list of tags with truncation support. Shows the first N tags
  * and displays a "+X more" indicator when there are additional tags.
  *
- * This component eliminates duplicate tag truncation logic across pages
- * (BacklogPage, ScenariosPage) by providing a single, reusable implementation.
+ * This component eliminates duplicate tag truncation logic across surfaces
+ * by providing a single, reusable implementation.
  */
 
 interface TagListProps {

@@ -3,6 +3,7 @@
  */
 
 import { cn } from "../../../../lib/utils";
+import { useCaptureStore } from "../../../../stores";
 import { SIDEBAR_TABS, TAB_LABELS, type SidebarTab } from "./types";
 
 interface SidebarTabsProps {
@@ -11,6 +12,9 @@ interface SidebarTabsProps {
 }
 
 export function SidebarTabs({ activeTab, onTabChange }: SidebarTabsProps) {
+  const captures = useCaptureStore((s) => s.captures);
+  const pendingCount = captures.filter((c) => c.status === "classified").length;
+
   return (
     <div className="flex overflow-x-auto border-b border-slate-200/20 scrollbar-none" role="tablist">
       {SIDEBAR_TABS.map((tab) => (
@@ -29,6 +33,11 @@ export function SidebarTabs({ activeTab, onTabChange }: SidebarTabsProps) {
           data-testid={`sidebar-tab-${tab}`}
         >
           {TAB_LABELS[tab]}
+          {tab === "captures" && pendingCount > 0 && (
+            <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-violet-500/30 px-1 text-[10px] font-semibold text-violet-300">
+              {pendingCount}
+            </span>
+          )}
         </button>
       ))}
     </div>

@@ -11,7 +11,7 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, HelpCircle, RefreshCw, Settings } from "lucide-react";
+import { AlertTriangle, HelpCircle, MessageSquarePlus, RefreshCw, Settings } from "lucide-react";
 import { defaultQueryOptions } from "../../../lib";
 import { applyTheme, watchSystemTheme } from "../../../lib/theme-utils";
 import { buildFeed } from "../../../lib/feed";
@@ -25,8 +25,12 @@ import { useDetailUrlSync } from "../../../hooks/useDetailUrlSync";
 import { AgentsDropdown } from "../../../components/agents/AgentsDropdown";
 import { useGraphKeyboardShortcuts } from "../hooks/useGraphKeyboardShortcuts";
 import { useGraphWebSocket } from "../hooks/useGraphWebSocket";
+import { FloatingActionButton } from "../../../components/ui/floating-action-button";
 import { PageLoadingState } from "../../../components/ui/loading-states";
+import { useCapturePolling } from "../../../hooks/useCapturePolling";
+import { cn } from "../../../lib/utils";
 import { GraphCanvas } from "./GraphCanvas";
+import { CapturePanel } from "./CapturePanel";
 
 const BacklogDetailsPage = lazy(() =>
   import("../../../pages/BacklogDetailsPage").then((m) => ({
@@ -103,6 +107,7 @@ export function GraphWorkspace() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
   const [showHelpPanel, setShowHelpPanel] = useState(false);
+  const [showCapturePanel, setShowCapturePanel] = useState(false);
 
   const searchLens = searchParams.get("lens");
   const urlLens: GraphLens = isGraphLens(searchLens) ? searchLens : "topology";
@@ -142,6 +147,7 @@ export function GraphWorkspace() {
   const toggleSidebar = useGraphUIStore((s) => s.toggleSidebar);
 
   useDetailUrlSync();
+  useCapturePolling();
 
   const { data: settings } = useQuery({
     queryKey: ["settings"],
@@ -391,6 +397,19 @@ export function GraphWorkspace() {
         {/* Floating panels */}
 
         <GraphHelpPanel isOpen={showHelpPanel} onClose={() => setShowHelpPanel(false)} />
+
+        {/* Capture FAB — hidden when detail overlay is open */}
+        {!detailSelection && (
+          <FloatingActionButton
+            icon={<MessageSquarePlus className="h-5 w-5" />}
+            label="New capture"
+            onClick={() => setShowCapturePanel((prev) => !prev)}
+            className={cn(!sidebarCollapsed && "md:right-[21.5rem]")}
+            data-testid="capture-fab"
+          />
+        )}
+
+        <CapturePanel isOpen={showCapturePanel} onClose={() => setShowCapturePanel(false)} />
 
         {/* Detail page overlay — full-page, covers graph when active */}
         {detailSelection && (
