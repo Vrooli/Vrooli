@@ -11,17 +11,18 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, AlertTriangle, HelpCircle, RefreshCw, Settings, Square, X } from "lucide-react";
-import { defaultQueryOptions, formatRelativeTime } from "../../../lib";
+import { AlertTriangle, HelpCircle, RefreshCw, Settings } from "lucide-react";
+import { defaultQueryOptions } from "../../../lib";
 import { applyTheme, watchSystemTheme } from "../../../lib/theme-utils";
 import { buildFeed } from "../../../lib/feed";
 import { settingsService } from "../../../services";
 import { useAgentActivitiesStore, useBacklogStore, useCaptureStore } from "../../../stores";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
-import { buildActivityNodeId, buildBacklogNodeId } from "../lib/node-id-parser";
+import { buildActivityNodeId, parseNodeId } from "../lib/node-id-parser";
 import { useDetailSelectionStore } from "../../../stores/detail-selection-store";
 import { useDetailUrlSync } from "../../../hooks/useDetailUrlSync";
+import { AgentsDropdown } from "../../../components/agents/AgentsDropdown";
 import { useGraphKeyboardShortcuts } from "../hooks/useGraphKeyboardShortcuts";
 import { useGraphWebSocket } from "../hooks/useGraphWebSocket";
 import { PageLoadingState } from "../../../components/ui/loading-states";
@@ -100,7 +101,6 @@ class CanvasErrorBoundary extends Component<
 
 export function GraphWorkspace() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [showAgentsDropdown, setShowAgentsDropdown] = useState(false);
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
   const [showHelpPanel, setShowHelpPanel] = useState(false);
 
@@ -117,6 +117,7 @@ export function GraphWorkspace() {
   const agentActivities = useAgentActivitiesStore((s) => s.activities);
   const stopRun = useAgentActivitiesStore((s) => s.stopRun);
   const refreshActivities = useAgentActivitiesStore((s) => s.refreshActivities);
+  const sidebarCollapsed = useGraphUIStore((s) => s.sidebarCollapsed);
 
   const lens = useGraphDataStore((s) => s.lens);
   const fetchGraph = useGraphDataStore((s) => s.fetchGraph);
@@ -135,6 +136,11 @@ export function GraphWorkspace() {
 
   const detailSelection = useDetailSelectionStore((s) => s.selection);
   const clearDetailSelection = useDetailSelectionStore((s) => s.clearSelection);
+  const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
+  const selectScenario = useDetailSelectionStore((s) => s.selectScenario);
+  const selectExecution = useDetailSelectionStore((s) => s.selectExecution);
+  const selectInitiative = useDetailSelectionStore((s) => s.selectInitiative);
+  const toggleSidebar = useGraphUIStore((s) => s.toggleSidebar);
 
   useDetailUrlSync();
 
@@ -275,8 +281,32 @@ export function GraphWorkspace() {
         next.set("select", nodeId);
         return next;
       });
+
+      // Open the detail page for entity types that support it.
+      const parsed = parseNodeId(nodeId);
+      if (parsed) {
+        switch (parsed.entityType) {
+          case "backlog":
+            if (parsed.kind && parsed.name) selectBacklog(parsed.kind, parsed.name);
+            break;
+          case "scenario":
+            if (parsed.name) selectScenario(parsed.name);
+            break;
+          case "execution":
+            selectExecution(parsed.identifier);
+            break;
+          case "initiative":
+            if (parsed.name) selectInitiative(parsed.name);
+            break;
+        }
+      }
+
+      // Collapse sidebar on mobile so the detail page is visible.
+      if (window.innerWidth < 768 && !sidebarCollapsed) {
+        toggleSidebar();
+      }
     },
-    [selectNode, setSearchParams],
+    [selectNode, setSearchParams, selectBacklog, selectScenario, selectExecution, selectInitiative, sidebarCollapsed, toggleSidebar],
   );
 
   const handleDeselectNode = useCallback(() => {
@@ -287,12 +317,6 @@ export function GraphWorkspace() {
       return next;
     });
   }, [selectNode, setSearchParams]);
-
-  const sortedActiveActivities = useMemo(() => {
-    return [...agentActivities].sort(
-      (a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime(),
-    );
-  }, [agentActivities]);
 
   useGraphKeyboardShortcuts({
     onLensChange: handleLensChange,
@@ -318,10 +342,32 @@ export function GraphWorkspace() {
     onNodePulse: handleNodePulse,
   });
 
+  const handleViewActivity = useCallback(
+    (activityId: string) => {
+      handleLensChange("operations");
+      handleSidebarItemClick(buildActivityNodeId(activityId));
+    },
+    [handleLensChange, handleSidebarItemClick],
+  );
+
+  const handleViewBacklog = useCallback(
+    (nodeId: string) => {
+      handleLensChange("topology");
+      handleSidebarItemClick(nodeId);
+    },
+    [handleLensChange, handleSidebarItemClick],
+  );
+
   return (
     <div className="flex h-screen bg-slate-950 text-slate-50" data-testid="graph-workspace">
       {/* Sidebar (activity feed) */}
-      <Sidebar feed={feed} onItemClick={handleSidebarItemClick} />
+      <Sidebar
+        feed={feed}
+        onItemClick={handleSidebarItemClick}
+        onSettingsOpen={() => setShowSettingsDrawer(true)}
+        onViewActivity={handleViewActivity}
+        onViewBacklog={handleViewBacklog}
+      />
 
       {/* Main canvas area with HUD overlays */}
       <div className="relative flex-1">
@@ -343,7 +389,7 @@ export function GraphWorkspace() {
             onReturnToAtlas={handleReturnToAtlas}
           />
 
-          {/* Right: Settings + Help + Agents */}
+          {/* Right: Settings + Help + Agents (agents hidden on desktop when sidebar open) */}
           <div className="flex items-center gap-1.5">
             <button
               type="button"
@@ -363,123 +409,15 @@ export function GraphWorkspace() {
             >
               <HelpCircle className="h-4 w-4" />
             </button>
-            <div className="relative">
-              <button
-                type="button"
-                className="flex items-center gap-1.5 rounded-lg border border-slate-700/60 bg-slate-900/80 px-2.5 py-1.5 text-sm text-slate-100 hover:bg-slate-800/80"
-                onClick={() => setShowAgentsDropdown((prev) => !prev)}
-                data-testid="graph-agents-toggle"
-              >
-                <Activity className="h-4 w-4 text-cyan-300" />
-                <span className="rounded-full bg-cyan-500/20 px-1.5 py-0.5 text-xs text-cyan-200">
-                  {sortedActiveActivities.length}
-                </span>
-              </button>
-              {showAgentsDropdown && (
-                <>
-                  <button
-                    type="button"
-                    className="fixed inset-0 z-40 cursor-default bg-transparent"
-                    aria-label="Close agents dropdown"
-                    onClick={() => setShowAgentsDropdown(false)}
-                  />
-                  <div
-                    className="absolute right-0 top-12 z-50 w-[calc(100vw-2rem)] max-w-[360px] rounded-lg border border-slate-700/80 bg-slate-950 shadow-xl"
-                    data-testid="graph-agents-dropdown"
-                  >
-                    <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-100">Agents running</p>
-                        <p className="text-xs text-slate-400">{sortedActiveActivities.length} active activity item(s)</p>
-                      </div>
-                      <button
-                        type="button"
-                        className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-                        onClick={() => setShowAgentsDropdown(false)}
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                    <div className="max-h-80 overflow-y-auto p-2">
-                      {sortedActiveActivities.length === 0 ? (
-                        <p className="rounded-lg border border-slate-800 bg-slate-900/40 px-3 py-6 text-center text-sm text-slate-400">
-                          No agents are currently running.
-                        </p>
-                      ) : (
-                        <div className="space-y-2">
-                          {sortedActiveActivities.map((activity) => {
-                            const backlogNodeId =
-                              activity.ownerType === "backlog" &&
-                              typeof activity.ownerKind === "string" &&
-                              typeof activity.ownerName === "string"
-                                ? buildBacklogNodeId(activity.ownerKind, activity.ownerName)
-                                : null;
-
-                            return (
-                              <div key={activity.activityId} className="rounded-lg border border-slate-800 bg-slate-900/45 p-3">
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="min-w-0">
-                                    <p className="truncate text-sm font-medium text-slate-100">
-                                      {activity.ownerTitle ?? `${activity.ownerType}/${activity.ownerName}`}
-                                    </p>
-                                    {activity.runId && (
-                                      <p className="font-mono text-xs text-cyan-300">{activity.runId}</p>
-                                    )}
-                                  </div>
-                                  <span className="rounded-full bg-cyan-500/15 px-2 py-0.5 text-[11px] text-cyan-200">
-                                    {activity.status.replace("_", " ")}
-                                  </span>
-                                </div>
-                                <p className="mt-1 text-xs text-slate-400">
-                                  {activity.purpose.replace("_", " ")} • Requested {formatRelativeTime(activity.requestedAt)}
-                                </p>
-                                <div className="mt-2 flex items-center gap-2">
-                                  <button
-                                    type="button"
-                                    className="rounded border border-slate-700/80 bg-slate-900/60 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800/70"
-                                    onClick={() => {
-                                      handleLensChange("operations");
-                                      handleSidebarItemClick(buildActivityNodeId(activity.activityId));
-                                      setShowAgentsDropdown(false);
-                                    }}
-                                  >
-                                    View Activity
-                                  </button>
-                                  {backlogNodeId && (
-                                    <button
-                                      type="button"
-                                      className="rounded border border-slate-700/80 bg-slate-900/60 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800/70"
-                                      onClick={() => {
-                                        handleLensChange("topology");
-                                        handleSidebarItemClick(backlogNodeId);
-                                        setShowAgentsDropdown(false);
-                                      }}
-                                    >
-                                      View Backlog
-                                    </button>
-                                  )}
-                                  {activity.runId && (
-                                    <button
-                                      type="button"
-                                      className="rounded border border-red-500/40 bg-red-500/10 px-2 py-1 text-xs text-red-200 hover:bg-red-500/20"
-                                      onClick={() => void stopRun(activity.runId ?? "")}
-                                      disabled={activity.isStopping}
-                                    >
-                                      <Square className="mr-1 inline h-3 w-3" />
-                                      {activity.isStopping ? "Stopping..." : "Stop"}
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
+            {/* Show HUD agents button on mobile always, desktop only when sidebar collapsed */}
+            <AgentsDropdown
+              activities={agentActivities}
+              onViewActivity={handleViewActivity}
+              onViewBacklog={handleViewBacklog}
+              onStopRun={(runId) => void stopRun(runId)}
+              variant="button"
+              className={sidebarCollapsed ? "" : "md:hidden"}
+            />
           </div>
         </div>
 

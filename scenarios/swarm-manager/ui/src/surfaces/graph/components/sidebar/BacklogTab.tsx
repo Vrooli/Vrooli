@@ -1,15 +1,31 @@
 /**
- * BacklogTab - Lists backlog items with kind icons, status badges, and priority.
+ * BacklogTab - Lists backlog items with rich action cards.
+ *
+ * Uses the same BacklogCard component as BacklogPage, providing inline
+ * decision answering, run/workshop/finalize actions, and follow-up/archive.
  */
 
-import { Bug, Cog, FlaskConical, Lightbulb, ListTodo, Wrench } from "lucide-react";
-import { cn } from "../../../../lib/utils";
-import { formatRelativeTime } from "../../../../lib/format-utils";
-import { useBacklogStore } from "../../../../stores";
+import { useCallback, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ListTodo } from "lucide-react";
+import { useAgentActivitiesStore, useBacklogStore } from "../../../../stores";
+import { useDetailSelectionStore } from "../../../../stores/detail-selection-store";
+import { backlogService } from "../../../../services";
+import { getItemActions } from "../../../../lib";
+import { buildReadinessData } from "../../../../lib/maturity";
+import { getAttentionReasons } from "../../../../lib/feed";
 import { buildBacklogNodeId } from "../../lib/node-id-parser";
 import { matchesSearch } from "./useSidebarSearch";
-import type { BacklogItem, BacklogKind } from "../../../../types";
+import { BacklogCard } from "../../../../components/backlog/backlog-card";
+import { RunBacklogModal } from "../../../../components/backlog/run-backlog-modal";
+import type { RunBacklogTarget } from "../../../../components/backlog/run-backlog-modal";
+import type { StepperCompletionResult } from "../../../../components/backlog/inline-question-stepper";
+import type { ReadinessIndicatorData } from "../../../../lib/maturity";
+import type { AttentionReason, FeedbackItem, MaturityItem } from "../../../../lib/feed";
+import type { BacklogItem, BacklogKind, PendingQuestion } from "../../../../types";
 import type { BacklogFilters, SortConfig } from "./types";
+
+const ACTIVE_REFRESH_MS = 6000;
 
 interface BacklogTabProps {
   searchQuery: string;
@@ -17,25 +33,6 @@ interface BacklogTabProps {
   sort: SortConfig;
   onItemClick: (nodeId: string) => void;
 }
-
-const KIND_ICONS: Record<BacklogKind, React.ReactNode> = {
-  idea: <Lightbulb className="h-3.5 w-3.5 text-amber-400" />,
-  research: <FlaskConical className="h-3.5 w-3.5 text-purple-400" />,
-  fix: <Bug className="h-3.5 w-3.5 text-red-400" />,
-  execute: <Cog className="h-3.5 w-3.5 text-cyan-400" />,
-  chore: <Wrench className="h-3.5 w-3.5 text-slate-400" />,
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  backlog: "bg-slate-700/60 text-slate-300",
-  researching: "bg-blue-500/20 text-blue-300",
-  ready: "bg-emerald-500/20 text-emerald-300",
-  queued: "bg-amber-500/20 text-amber-300",
-  in_progress: "bg-cyan-500/20 text-cyan-300",
-  completed: "bg-green-500/20 text-green-300",
-  failed: "bg-red-500/20 text-red-300",
-  archived: "bg-slate-700/40 text-slate-500",
-};
 
 function applyFilters(items: BacklogItem[], filters: BacklogFilters): BacklogItem[] {
   return items.filter((item) => {
@@ -67,9 +64,157 @@ function applySort(items: BacklogItem[], sort: SortConfig): BacklogItem[] {
   return sorted;
 }
 
-export function BacklogTab({ searchQuery, filters, sort, onItemClick }: BacklogTabProps) {
-  const items = useBacklogStore((s) => s.items);
+function hasActiveFilters(filters: BacklogFilters): boolean {
+  return filters.statuses.length > 0 || filters.kinds.length > 0 || filters.priorityMin !== null || filters.priorityMax !== null;
+}
 
+export function BacklogTab({ searchQuery, filters, sort, onItemClick }: BacklogTabProps) {
+  const queryClient = useQueryClient();
+  const items = useBacklogStore((s) => s.items);
+  const fetchBacklog = useBacklogStore((s) => s.fetchBacklog);
+  const agentActivities = useAgentActivitiesStore((s) => s.activities);
+  const refreshActivities = useAgentActivitiesStore((s) => s.refreshActivities);
+  const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
+
+  const [runModalTarget, setRunModalTarget] = useState<RunBacklogTarget | undefined>();
+  const [completedSteppers, setCompletedSteppers] = useState<Set<string>>(new Set());
+  const [transitionItems, setTransitionItems] = useState<Map<string, StepperCompletionResult>>(new Map());
+
+  // ── Active run tracking ──────────────────────────────────────────────
+  const activeRunKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const activity of agentActivities) {
+      if (activity.ownerType === "backlog" && activity.ownerKind && activity.ownerName) {
+        keys.add(`${activity.ownerKind}/${activity.ownerName}`);
+      }
+    }
+    return keys;
+  }, [agentActivities]);
+
+  const activeRunLabels = useMemo(() => {
+    const labels = new Map<string, string>();
+    for (const activity of agentActivities) {
+      if (activity.ownerType === "backlog" && activity.ownerKind && activity.ownerName) {
+        const key = `${activity.ownerKind}/${activity.ownerName}`;
+        switch (activity.purpose) {
+          case "workshop": labels.set(key, "Running workshop\u2026"); break;
+          case "finalize": labels.set(key, "Running finalize\u2026"); break;
+          case "research": labels.set(key, "Running research\u2026"); break;
+          case "initialize": labels.set(key, "Initializing workshop\u2026"); break;
+          case "process": labels.set(key, "Processing\u2026"); break;
+          default: labels.set(key, "Agent running\u2026"); break;
+        }
+      }
+    }
+    return labels;
+  }, [agentActivities]);
+
+  // ── Summary query (readiness, pending questions, feedback) ───────────
+  const summaryQuery = useQuery({
+    queryKey: ["backlog-summary"],
+    queryFn: () => backlogService.getBacklogSummary(),
+    staleTime: 60_000,
+    refetchInterval: activeRunKeys.size > 0 ? ACTIVE_REFRESH_MS : false,
+  });
+
+  const readinessMap = useMemo(() => {
+    const map = new Map<string, ReadinessIndicatorData>();
+    if (!summaryQuery.data?.maturity?.items) return map;
+    for (const item of summaryQuery.data.maturity.items) {
+      map.set(`${item.kind}/${item.name}`, buildReadinessData(item));
+    }
+    return map;
+  }, [summaryQuery.data?.maturity]);
+
+  const pendingQuestionsMap = useMemo(() => {
+    const map = new Map<string, PendingQuestion[]>();
+    if (!summaryQuery.data?.pending_questions?.items) return map;
+    for (const pqi of summaryQuery.data.pending_questions.items) {
+      map.set(`${pqi.kind}/${pqi.name}`, pqi.questions);
+    }
+    return map;
+  }, [summaryQuery.data?.pending_questions]);
+
+  const feedbackSummary = summaryQuery.data?.feedback;
+  const feedbackItems = useMemo<FeedbackItem[]>(
+    () => (feedbackSummary?.items ?? []).map((item) => ({
+      kind: item.kind,
+      name: item.name,
+      pendingDecisions: item.pending_decisions ?? 0,
+    })),
+    [feedbackSummary],
+  );
+
+  const maturityItems = useMemo<MaturityItem[]>(
+    () => (summaryQuery.data?.maturity?.items ?? []).map((item) => ({
+      kind: item.kind,
+      name: item.name,
+      ready: item.ready ?? false,
+      pendingItems: item.pending_items ?? 0,
+    })),
+    [summaryQuery.data?.maturity],
+  );
+
+  const attentionReasonsMap = useMemo(() => {
+    const fbMap = new Map(feedbackItems.map((f) => [`${f.kind}/${f.name}`, f]));
+    const matMap = new Map(maturityItems.map((m) => [`${m.kind}/${m.name}`, m]));
+    const map = new Map<string, AttentionReason[]>();
+    for (const item of items) {
+      const reasons = getAttentionReasons(item, fbMap, matMap);
+      if (reasons.length > 0) map.set(`${item.kind}/${item.name}`, reasons);
+    }
+    return map;
+  }, [items, feedbackItems, maturityItems]);
+
+  // ── Mutations ────────────────────────────────────────────────────────
+  const archiveMutation = useMutation({
+    mutationFn: ({ kind, name: itemName, item }: { kind: BacklogKind; name: string; item: BacklogItem }) =>
+      backlogService.update(kind, itemName, { ...item, status: "archived" }),
+    onSuccess: () => {
+      void fetchBacklog({ force: true });
+    },
+  });
+
+  const workshopMutation = useMutation({
+    mutationFn: ({ kind, name: itemName, mode, prompt }: {
+      kind: BacklogKind;
+      name: string;
+      mode: "workshop" | "finalize";
+      prompt: string;
+    }) => backlogService.research(kind, itemName, { mode, prompt }),
+    onSuccess: (result) => {
+      if (result.runId) {
+        void refreshActivities(true);
+      }
+      void queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
+    },
+  });
+
+  const handleStepperCompleted = useCallback((itemKey: string, _item: BacklogItem, result: StepperCompletionResult) => {
+    setCompletedSteppers((prev) => {
+      const next = new Set(prev);
+      next.add(itemKey);
+      return next;
+    });
+    if (result.autoAdvance?.triggered && result.autoAdvance.runId) {
+      void refreshActivities(true);
+    }
+    setTransitionItems((prev) => {
+      const next = new Map(prev);
+      next.set(itemKey, result);
+      return next;
+    });
+    setTimeout(() => {
+      setTransitionItems((prev) => {
+        const next = new Map(prev);
+        next.delete(itemKey);
+        return next;
+      });
+      void queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
+    }, 4000);
+  }, [queryClient, refreshActivities]);
+
+  // ── Filter, search, sort ─────────────────────────────────────────────
   let filtered = applyFilters(items, filters);
   if (searchQuery) {
     filtered = filtered.filter((item) =>
@@ -88,41 +233,90 @@ export function BacklogTab({ searchQuery, filters, sort, onItemClick }: BacklogT
   }
 
   return (
-    <div className="space-y-1.5">
-      {sorted.map((item) => {
-        const nodeId = buildBacklogNodeId(item.kind, item.name);
-        return (
-          <button
-            key={nodeId}
-            type="button"
-            onClick={() => onItemClick(nodeId)}
-            className="w-full rounded-lg border border-slate-800/80 bg-slate-900/50 p-2.5 text-left transition-colors hover:border-slate-700/80 hover:bg-slate-800/60"
-            data-testid="sidebar-backlog-item"
-          >
-            <div className="flex items-start gap-2">
-              <span className="mt-0.5 shrink-0">{KIND_ICONS[item.kind]}</span>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="line-clamp-2 text-[13px] font-medium leading-snug text-slate-100">
-                    {item.title || item.name}
-                  </p>
-                  <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium", STATUS_COLORS[item.status] ?? "bg-slate-700/60 text-slate-300")}>
-                    {item.status.replace(/_/g, " ")}
-                  </span>
-                </div>
-                <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500">
-                  <span>P{item.priority}</span>
-                  <span>{formatRelativeTime(item.updated)}</span>
-                </div>
-              </div>
-            </div>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+    <>
+      <div className="space-y-2">
+        {sorted.map((item) => {
+          const nodeId = buildBacklogNodeId(item.kind, item.name);
+          const itemKey = `${item.kind}/${item.name}`;
+          const readiness = readinessMap.get(itemKey);
+          const reasons = attentionReasonsMap.get(itemKey) ?? [];
 
-function hasActiveFilters(filters: BacklogFilters): boolean {
-  return filters.statuses.length > 0 || filters.kinds.length > 0 || filters.priorityMin !== null || filters.priorityMax !== null;
+          return (
+            <button
+              key={nodeId}
+              type="button"
+              onClick={() => onItemClick(nodeId)}
+              className="group w-full rounded-lg border border-slate-800/80 bg-slate-900/50 p-2.5 text-left transition-colors hover:border-slate-700/80 hover:bg-slate-800/60"
+              data-testid="sidebar-backlog-item"
+            >
+              <BacklogCard
+                item={item}
+                allItems={items}
+                readinessData={readiness}
+                itemActions={getItemActions({
+                  item,
+                  allItems: items,
+                  readinessReady: readiness ? readiness.ready : null,
+                  pendingSynthesis: readiness?.pendingSynthesis ?? false,
+                  agentRunning: activeRunKeys.has(itemKey),
+                  hasPendingDecisions: (pendingQuestionsMap.get(itemKey)?.length ?? 0) > 0,
+                  hasExecutionHistory: item.status === "completed" || item.status === "failed",
+                })}
+                attentionReasons={reasons}
+                pendingQuestions={pendingQuestionsMap.get(itemKey)}
+                isStepperCompleted={completedSteppers.has(itemKey)}
+                transitionResult={transitionItems.get(itemKey)}
+                onStepperCompleted={(result) => handleStepperCompleted(itemKey, item, result)}
+                batchMode={false}
+                isSelected={false}
+                onToggleSelection={() => {}}
+                onRun={() => setRunModalTarget({ kind: item.kind, name: item.name, title: item.title })}
+                onArchive={() => archiveMutation.mutate({ kind: item.kind as BacklogKind, name: item.name, item })}
+                onFollowUp={() => selectBacklog(item.kind, item.name)}
+                onFinalize={() => workshopMutation.mutate({
+                  kind: item.kind as BacklogKind,
+                  name: item.name,
+                  mode: "finalize",
+                  prompt: "Finalize the latest workshop answers into the primary deliverable for this backlog item.",
+                })}
+                onWorkshop={() => workshopMutation.mutate({
+                  kind: item.kind as BacklogKind,
+                  name: item.name,
+                  mode: "workshop",
+                  prompt: "Run the next workshop round for this backlog item.",
+                })}
+                runningLabel={activeRunLabels.get(itemKey)}
+                archivePending={archiveMutation.isPending}
+                finalizePending={
+                  workshopMutation.isPending &&
+                  workshopMutation.variables?.kind === item.kind &&
+                  workshopMutation.variables?.name === item.name &&
+                  workshopMutation.variables?.mode === "finalize"
+                }
+                workshopPending={
+                  workshopMutation.isPending &&
+                  workshopMutation.variables?.kind === item.kind &&
+                  workshopMutation.variables?.name === item.name &&
+                  workshopMutation.variables?.mode === "workshop"
+                }
+                workshopLabel={(readiness?.roundsCompleted ?? 0) > 0 ? "Next Round" : "Workshop"}
+              />
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Run modal */}
+      <RunBacklogModal
+        isOpen={!!runModalTarget}
+        onClose={() => setRunModalTarget(undefined)}
+        target={runModalTarget}
+        onSuccess={() => {
+          setRunModalTarget(undefined);
+          void fetchBacklog({ force: true });
+          void refreshActivities(true);
+        }}
+      />
+    </>
+  );
 }
