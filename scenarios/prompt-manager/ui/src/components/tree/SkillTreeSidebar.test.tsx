@@ -39,6 +39,17 @@ vi.mock('@/lib/api', () => ({
   },
 }))
 
+vi.mock('@/hooks/useTeamData', () => ({
+  useTeamData: vi.fn().mockReturnValue({
+    teams: [],
+    isLoading: false,
+    isError: false,
+    createTeam: vi.fn(),
+    deleteTeam: vi.fn(),
+    refetch: vi.fn(),
+  }),
+}))
+
 vi.mock('@/hooks/useTopicData', () => ({
   useTopics: vi.fn().mockReturnValue({
     topics: [],

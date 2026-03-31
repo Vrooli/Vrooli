@@ -51,6 +51,7 @@ import { useEditorStore } from '@/stores/editorStore'
 import { useAgentEditorStore } from '@/stores/agentEditorStore'
 import { useCombineStore } from '@/stores/combineStore'
 import { formatAgents, formatTeams, formatTopics } from '@/lib/formatEntities'
+import { recordCopySet } from '@/lib/copySetStorage'
 import { api } from '@/lib/api'
 import { SettingsDialog } from '../shared/SettingsDialog'
 import { getAllItemIdsInSubtree } from '@/services/treeService'
@@ -376,6 +377,7 @@ export function SkillManagerLayout() {
     copyAsyncToClipboard(contentPromise)
       .then(() => {
         setCombineCopySuccess(true)
+        recordCopySet(combineEntityType, identifiers, combineFormat)
         toast({
           title: 'Copied to clipboard',
           description: `${identifiers.length} ${entityLabel}${identifiers.length !== 1 ? 's' : ''} combined as ${combineFormat.toUpperCase()}`,

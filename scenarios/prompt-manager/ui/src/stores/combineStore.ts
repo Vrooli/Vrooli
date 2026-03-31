@@ -8,6 +8,7 @@
 
 import { create } from 'zustand'
 import { getSavedFormat, saveFormat } from '@/lib/formatPreference'
+import { loadPersistedSelection, savePersistedSelection, clearPersistedSelection } from '@/lib/selectionPersistence'
 
 export type CombineFormat = 'xml' | 'markdown' | 'json' | 'cli'
 export type CombineMode = 'skill-combine' | 'ai-select'
@@ -52,17 +53,34 @@ interface CombineStore {
   getSelectedContentChars: () => number
 }
 
-const INITIAL_STATE = {
-  isActive: false,
-  mode: 'skill-combine' as CombineMode,
-  entityType: 'skills' as CombineEntityType,
-  selectedIds: new Set<string>(),
-  format: getSavedFormat() as CombineFormat,
-  isCopying: false,
-  contentCharsMap: new Map<string, number>(),
-  budgetChars: null as number | null,
-  budgetStatus: null as string | null,
+function getInitialState() {
+  const defaults = {
+    isActive: false,
+    mode: 'skill-combine' as CombineMode,
+    entityType: 'skills' as CombineEntityType,
+    selectedIds: new Set<string>(),
+    format: getSavedFormat() as CombineFormat,
+    isCopying: false,
+    contentCharsMap: new Map<string, number>(),
+    budgetChars: null as number | null,
+    budgetStatus: null as string | null,
+  }
+
+  // Restore selection from localStorage if available
+  const persisted = loadPersistedSelection()
+  if (persisted) {
+    return {
+      ...defaults,
+      isActive: true,
+      mode: persisted.mode,
+      entityType: persisted.entityType,
+      selectedIds: new Set(persisted.selectedIds),
+    }
+  }
+  return defaults
 }
+
+const INITIAL_STATE = getInitialState()
 
 export const useCombineStore = create<CombineStore>((set, get) => ({
   ...INITIAL_STATE,
@@ -176,3 +194,23 @@ export const useCombineStore = create<CombineStore>((set, get) => ({
     return total
   },
 }))
+
+// Persist selection state to localStorage on changes
+useCombineStore.subscribe((state, prevState) => {
+  if (!state.isActive) {
+    if (prevState.isActive) {
+      clearPersistedSelection()
+    }
+  } else if (
+    state.isActive !== prevState.isActive ||
+    state.selectedIds !== prevState.selectedIds ||
+    state.entityType !== prevState.entityType
+  ) {
+    savePersistedSelection({
+      isActive: state.isActive,
+      mode: state.mode,
+      entityType: state.entityType,
+      selectedIds: Array.from(state.selectedIds),
+    })
+  }
+})

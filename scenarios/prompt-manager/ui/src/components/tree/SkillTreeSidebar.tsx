@@ -39,6 +39,7 @@ import { TopicTreeView } from '../topic/TopicTreeView'
 import { TopicCardView } from '../topic/TopicCardView'
 import { ViewModeToggle } from '../sidebar/ViewModeToggle'
 import { useTopics } from '@/hooks/useTopicData'
+import { useTeamData } from '@/hooks/useTeamData'
 import { FolderContextMenu } from './FolderContextMenu'
 import { SkillContextMenu } from './SkillContextMenu'
 import { SearchResultsList } from '../search/SearchResultsList'
@@ -46,6 +47,9 @@ import { DiscoverControls } from '../search/DiscoverControls'
 import { api } from '@/lib/api'
 import type { CombineEntityType } from '@/stores/combineStore'
 import { CombineActionBar } from './CombineActionBar'
+import { SavedSetsPanel } from './SavedSetsPanel'
+import { SavedSetEditor } from './SavedSetEditor'
+import type { CopySetEntry } from '@/lib/copySetStorage'
 import { UnsavedChangesMenu, UnsavedChangesCollapsedBadge } from './UnsavedChangesMenu'
 import { RunningAgentsPopover } from './RunningAgentsPopover'
 import { PendingDecisionsPopover } from './PendingDecisionsPopover'
@@ -533,6 +537,7 @@ export function SkillTreeSidebar({
   const [topicViewMode, setTopicViewMode] = useState<ViewMode>('tree')
   const [topicDetailMode, setTopicDetailMode] = useState<DetailMode>('compact')
   const { topics: allTopics } = useTopics()
+  const { teams: allTeams } = useTeamData()
 
   const filteredTopics = useMemo(() => {
     if (!topicSearchQuery) return allTopics
@@ -541,6 +546,53 @@ export function SkillTreeSidebar({
       (t) => t.name.toLowerCase().includes(lower) || t.description.toLowerCase().includes(lower)
     )
   }, [allTopics, topicSearchQuery])
+
+  // Saved sets state
+  const [showSavedSets, setShowSavedSets] = useState(false)
+  const [editingSet, setEditingSet] = useState<CopySetEntry | null>(null)
+  const [savedSetsRefreshKey, setSavedSetsRefreshKey] = useState(0)
+
+  // Build entity lookup maps for saved sets display
+  const entityLookup = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const s of skills) map.set(s.id, s.name)
+    for (const a of agents) map.set(a.id, a.displayName)
+    for (const t of allTeams) map.set(t.id, t.displayName)
+    for (const t of allTopics) map.set(t.id, t.name)
+    return map
+  }, [skills, agents, allTeams, allTopics])
+
+  // Build allEntities list for set editor
+  const allEntitiesForEditor = useMemo(() => {
+    const entityType = TAB_TO_ENTITY_TYPE[activeTab]
+    if (entityType === 'skills') return skills.map((s) => ({ id: s.id, name: s.name }))
+    if (entityType === 'agents') return agents.map((a) => ({ id: a.id, name: a.displayName }))
+    if (entityType === 'teams') return allTeams.map((t) => ({ id: t.id, name: t.displayName }))
+    if (entityType === 'topics') return allTopics.map((t) => ({ id: t.id, name: t.name }))
+    return []
+  }, [activeTab, skills, agents, allTeams, allTopics])
+
+  const handleApplySavedSet = useCallback((ids: string[]) => {
+    const entityType = TAB_TO_ENTITY_TYPE[activeTab]
+    if (!entityType) return
+    // Enter combine mode and select all IDs from the saved set
+    if (activeTab === 'skills' && searchMode !== 'ai') {
+      onEnterCombineMode?.()
+    } else {
+      onEnterSelectMode?.(entityType)
+    }
+    // Apply selection after a tick to let mode activate
+    setTimeout(() => {
+      useCombineStore.getState().selectMultiple(ids)
+    }, 0)
+    setShowSavedSets(false)
+    setEditingSet(null)
+  }, [activeTab, searchMode, onEnterCombineMode, onEnterSelectMode])
+
+  const handleSavedSetEditorSave = useCallback(() => {
+    setEditingSet(null)
+    setSavedSetsRefreshKey((n) => n + 1)
+  }, [])
 
   // Unified search query for the current tab
   const currentSearchQuery = activeTab === 'skills' ? searchQuery
@@ -564,6 +616,8 @@ export function SkillTreeSidebar({
   const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab)
     onActiveTabChange?.(tab)
+    setShowSavedSets(false)
+    setEditingSet(null)
     // Keep combineEntityType in sync when switching tabs while in select mode
     if (combineMode) {
       const entityType = TAB_TO_ENTITY_TYPE[tab]
@@ -619,6 +673,8 @@ export function SkillTreeSidebar({
   // Toggle select/combine mode for the current tab
   const handleSelectModeToggle = useCallback(() => {
     if (combineMode) {
+      setShowSavedSets(false)
+      setEditingSet(null)
       onExitCombineMode?.()
     } else {
       const entityType = TAB_TO_ENTITY_TYPE[activeTab]
@@ -1255,29 +1311,55 @@ export function SkillTreeSidebar({
                   </button>
                 )}
               </div>
-              {/* Select (combine) toggle — available on all entity tabs */}
+              {/* Select (combine) toggle + Saved Sets — available on all entity tabs */}
               {activeTab in TAB_TO_ENTITY_TYPE && (onEnterCombineMode || onEnterSelectMode) && (
-                <button
-                  type="button"
-                  onClick={handleSelectModeToggle}
-                  className={cn(
-                    'flex items-center gap-1 px-2 py-1 text-[10px] rounded border transition-colors',
-                    combineMode
-                      ? 'bg-primary/10 text-primary border-primary/40'
-                      : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/50'
+                <div className="flex items-center gap-1">
+                  {combineMode && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (showSavedSets) {
+                          setShowSavedSets(false)
+                          setEditingSet(null)
+                        } else {
+                          setShowSavedSets(true)
+                          setEditingSet(null)
+                          setSavedSetsRefreshKey((n) => n + 1)
+                        }
+                      }}
+                      className={cn(
+                        'flex items-center gap-1 px-2 py-1 text-[10px] rounded border transition-colors',
+                        showSavedSets
+                          ? 'bg-primary/10 text-primary border-primary/40'
+                          : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/50'
+                      )}
+                      title={showSavedSets ? 'Back to browse' : 'View saved sets'}
+                    >
+                      Saved
+                    </button>
                   )}
-                  title={combineMode ? 'Exit select mode' : 'Select items to copy'}
-                  data-testid="combine-mode-toggle"
-                >
-                  <Layers className="h-3 w-3" />
-                  Select
-                </button>
+                  <button
+                    type="button"
+                    onClick={handleSelectModeToggle}
+                    className={cn(
+                      'flex items-center gap-1 px-2 py-1 text-[10px] rounded border transition-colors',
+                      combineMode
+                        ? 'bg-primary/10 text-primary border-primary/40'
+                        : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/50'
+                    )}
+                    title={combineMode ? 'Exit select mode' : 'Select items to copy'}
+                    data-testid="combine-mode-toggle"
+                  >
+                    <Layers className="h-3 w-3" />
+                    Select
+                  </button>
+                </div>
               )}
             </div>
           )}
 
           {/* AI mode: discover controls (skills tab only) */}
-          {searchMode === 'ai' && activeTab === 'skills' && (
+          {searchMode === 'ai' && activeTab === 'skills' && !showSavedSets && (
             <div className="mt-2">
               <DiscoverControls
                 useDiscover={useDiscover}
@@ -1393,6 +1475,26 @@ export function SkillTreeSidebar({
 
         {/* Skills Tab */}
         <Tabs.Content value="skills" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">
+          {showSavedSets ? (
+            editingSet ? (
+              <SavedSetEditor
+                entry={editingSet}
+                entityType="skills"
+                allEntities={allEntitiesForEditor}
+                onSave={handleSavedSetEditorSave}
+                onCancel={() => setEditingSet(null)}
+              />
+            ) : (
+              <SavedSetsPanel
+                entityType="skills"
+                onApplySet={handleApplySavedSet}
+                onEditSet={setEditingSet}
+                entityLookup={entityLookup}
+                refreshKey={savedSetsRefreshKey}
+              />
+            )
+          ) : (
+          <>
           {/* Tree / Results */}
           <div className="flex-1 overflow-y-auto py-1">
             {searchMode === 'ai' && currentSearchQuery.trim() ? (
@@ -1711,10 +1813,32 @@ export function SkillTreeSidebar({
               </button>
             )}
           </div>
+          </>
+          )}
         </Tabs.Content>
 
         {/* Agents Tab */}
         <Tabs.Content value="agents" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">
+          {showSavedSets ? (
+            editingSet ? (
+              <SavedSetEditor
+                entry={editingSet}
+                entityType="agents"
+                allEntities={allEntitiesForEditor}
+                onSave={handleSavedSetEditorSave}
+                onCancel={() => setEditingSet(null)}
+              />
+            ) : (
+              <SavedSetsPanel
+                entityType="agents"
+                onApplySet={handleApplySavedSet}
+                onEditSet={setEditingSet}
+                entityLookup={entityLookup}
+                refreshKey={savedSetsRefreshKey}
+              />
+            )
+          ) : (
+          <>
           {searchMode === 'ai' && agentSearchQuery.trim() ? (
             <div className="flex-1 overflow-y-auto px-3 py-2">
               {aiLoading && (
@@ -1777,10 +1901,32 @@ export function SkillTreeSidebar({
               />
             </div>
           )}
+          </>
+          )}
         </Tabs.Content>
 
         {/* Teams Tab */}
         <Tabs.Content value="teams" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">
+          {showSavedSets ? (
+            editingSet ? (
+              <SavedSetEditor
+                entry={editingSet}
+                entityType="teams"
+                allEntities={allEntitiesForEditor}
+                onSave={handleSavedSetEditorSave}
+                onCancel={() => setEditingSet(null)}
+              />
+            ) : (
+              <SavedSetsPanel
+                entityType="teams"
+                onApplySet={handleApplySavedSet}
+                onEditSet={setEditingSet}
+                entityLookup={entityLookup}
+                refreshKey={savedSetsRefreshKey}
+              />
+            )
+          ) : (
+          <>
           {searchMode === 'ai' && teamSearchQuery.trim() ? (
             <div className="flex-1 overflow-y-auto px-3 py-2">
               {aiLoading && (
@@ -1841,6 +1987,8 @@ export function SkillTreeSidebar({
               />
             </div>
           )}
+          </>
+          )}
         </Tabs.Content>
 
         {/* Runs Tab */}
@@ -1855,6 +2003,26 @@ export function SkillTreeSidebar({
 
         {/* Topics Tab */}
         <Tabs.Content value="topics" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">
+          {showSavedSets ? (
+            editingSet ? (
+              <SavedSetEditor
+                entry={editingSet}
+                entityType="topics"
+                allEntities={allEntitiesForEditor}
+                onSave={handleSavedSetEditorSave}
+                onCancel={() => setEditingSet(null)}
+              />
+            ) : (
+              <SavedSetsPanel
+                entityType="topics"
+                onApplySet={handleApplySavedSet}
+                onEditSet={setEditingSet}
+                entityLookup={entityLookup}
+                refreshKey={savedSetsRefreshKey}
+              />
+            )
+          ) : (
+          <>
           {searchMode === 'ai' && topicSearchQuery.trim() ? (
             <div className="flex-1 overflow-y-auto px-3 py-2">
               {aiLoading && (
@@ -1957,6 +2125,8 @@ export function SkillTreeSidebar({
                 entityLabel="topic"
               />
             </div>
+          )}
+          </>
           )}
         </Tabs.Content>
       </Tabs.Root>
