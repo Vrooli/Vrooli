@@ -52,10 +52,9 @@ import type { ScenarioFile, PreserveFilesPreset } from "../types";
 import { useDetailSelectionStore } from "../stores/detail-selection-store";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
-import { useDrillToLens } from "../hooks/useDrillToLens";
-import { LensBar } from "../components/detail/LensBar";
 import { SCENARIO_LENSES } from "../components/detail/lens-options";
 import { selectionToNodeId } from "../stores/detail-selection-store";
+import { useDetailNavigation } from "../hooks/useDetailNavigation";
 import { useScenariosStore } from "../stores";
 
 const ARCHIVE_PRESET_OPTIONS: { value: PreserveFilesPreset; label: string; description: string }[] = [
@@ -177,10 +176,9 @@ function persistArchivePreferences(preferences: ArchivePreferences): void {
 
 export function ScenarioDetailsPage() {
   const selection = useDetailSelectionStore((s) => s.selection);
-  const clearSelection = useDetailSelectionStore((s) => s.clearSelection);
   const name = selection?.name;
   const nodeId = selectionToNodeId(selection);
-  const { drillToLens } = useDrillToLens();
+  const { closeDetail } = useDetailNavigation();
   const queryClient = useQueryClient();
   const upsertScenario = useScenariosStore((state) => state.upsertScenario);
   const removeScenario = useScenariosStore((state) => state.removeScenario);
@@ -313,7 +311,7 @@ export function ScenarioDetailsPage() {
       if (name) {
         removeScenario(name);
       }
-      clearSelection();
+      closeDetail();
     },
   });
 
@@ -328,7 +326,7 @@ export function ScenarioDetailsPage() {
           if (name) {
             removeScenario(name);
           }
-          clearSelection();
+          closeDetail();
         } else if (execution.status === "failed") {
           setSpecSyncPhase("failed");
           setSpecSyncError(execution.failureReason ?? "Spec sync failed");
@@ -341,7 +339,7 @@ export function ScenarioDetailsPage() {
       }
     }, 3000);
     return () => clearInterval(interval);
-  }, [specSyncPhase, specSyncExecutionId, name, removeScenario, clearSelection]);
+  }, [specSyncPhase, specSyncExecutionId, name, removeScenario, closeDetail]);
 
   // Delete handlers
   const handleDeleteClick = () => {
@@ -560,7 +558,8 @@ export function ScenarioDetailsPage() {
           entityType="scenario"
           title={scenario?.displayName || name || "Unknown"}
           status={scenario?.status}
-          onClose={clearSelection}
+          nodeId={nodeId}
+          lenses={SCENARIO_LENSES}
           actions={scenario ? renderActionButtons() : undefined}
         />
       }
@@ -568,7 +567,6 @@ export function ScenarioDetailsPage() {
       mobileActionsTitle="Scenario Actions"
     >
     <div className="space-y-6" data-testid={selectors.scenarioDetails.page}>
-      {nodeId && <LensBar nodeId={nodeId} lenses={SCENARIO_LENSES} onDrillToLens={drillToLens} />}
       {/* Loading state */}
       {isPageLoading && (
         <PageLoadingState
@@ -596,7 +594,7 @@ export function ScenarioDetailsPage() {
                 variant="outline"
                 size="sm"
                 className="h-9 w-9 rounded-md border-transparent bg-transparent p-0 hover:bg-slate-800/70"
-                onClick={clearSelection}
+                onClick={closeDetail}
                 aria-label="Close scenario details"
               >
                 <ChevronLeft className="h-4 w-4" />

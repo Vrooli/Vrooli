@@ -125,14 +125,14 @@ describe("BacklogDetailsPage", () => {
     });
   });
 
-  it("shows close button to return to graph", async () => {
+  it("shows nav button in shared header", async () => {
     vi.mocked(backlogService.get).mockResolvedValue(mockItem);
     vi.mocked(backlogService.getFiles).mockResolvedValue(mockFiles);
 
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByTestId("backlog-details-back")).toBeInTheDocument();
+      expect(screen.getByTestId("detail-nav-button")).toBeInTheDocument();
     });
   });
 

@@ -5,6 +5,8 @@
  * - Execution metadata (status, mode, operation, timestamps)
  * - Prompt trace (if available)
  * - Action buttons (retry, cancel, follow-up, run post-run checks)
+ *
+ * DOC: docs/plans/navigation-header-unification-plan.md#phase-5
  */
 
 import { useState } from "react";
@@ -33,19 +35,15 @@ import {
 } from "../types";
 import { useDetailSelectionStore, selectionToNodeId } from "../stores/detail-selection-store";
 import { DetailActionButtons } from "../components/detail/DetailActionButtons";
-import { LensBar } from "../components/detail/LensBar";
 import { EXECUTION_LENSES } from "../components/detail/lens-options";
-import { useDrillToLens } from "../hooks/useDrillToLens";
 import { PostRunStatusBadge } from "../components/execution/post-run-status-badge";
 
 export function ExecutionDetailsPage() {
   const selection = useDetailSelectionStore((s) => s.selection);
-  const clearSelection = useDetailSelectionStore((s) => s.clearSelection);
   const selectExecution = useDetailSelectionStore((s) => s.selectExecution);
   const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
   const executionId = selection?.identifier;
   const nodeId = selectionToNodeId(selection);
-  const { drillToLens } = useDrillToLens();
 
   const [actionBusy, setActionBusy] = useState(false);
   const [showTrace, setShowTrace] = useState(false);
@@ -99,7 +97,8 @@ export function ExecutionDetailsPage() {
           <DetailPageHeader
             entityType="execution"
             title={executionId ?? "Unknown"}
-            onClose={clearSelection}
+            nodeId={null}
+            lenses={[]}
           />
         }
       >
@@ -117,7 +116,6 @@ export function ExecutionDetailsPage() {
   const isActive = ["pending", "starting", "in_progress", "running", "needs_review", "validating", "needs_fixup"].includes(execution.status);
   const isTerminal = ["completed", "failed", "canceled"].includes(execution.status);
 
-  // Primary action for header (at most one)
   const primaryAction = isActive ? (
     <Button
       variant="destructive"
@@ -140,7 +138,6 @@ export function ExecutionDetailsPage() {
     </Button>
   ) : null;
 
-  // Secondary actions for body content
   const secondaryActions = isTerminal ? (
     <div className="flex flex-wrap gap-2">
       <Button
@@ -164,7 +161,6 @@ export function ExecutionDetailsPage() {
     </div>
   ) : null;
 
-  // All actions for mobile bottom sheet
   const allActions = (
     <div className="flex flex-wrap gap-2">
       {primaryAction}
@@ -180,7 +176,8 @@ export function ExecutionDetailsPage() {
           title="Execution Details"
           subtitle={execution.executionId}
           status={execution.status}
-          onClose={clearSelection}
+          nodeId={nodeId}
+          lenses={EXECUTION_LENSES}
           actions={primaryAction}
         />
       }
@@ -188,7 +185,6 @@ export function ExecutionDetailsPage() {
       mobileActionsTitle="Execution Actions"
     >
       <div className="mx-auto max-w-3xl space-y-4">
-        {nodeId && <LensBar nodeId={nodeId} lenses={EXECUTION_LENSES} onDrillToLens={drillToLens} />}
         {/* Status + metadata card */}
         <Card className="space-y-3 p-4">
           <div className="flex items-center justify-between">

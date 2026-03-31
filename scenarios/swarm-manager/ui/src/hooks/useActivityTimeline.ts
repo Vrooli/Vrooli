@@ -125,7 +125,7 @@ export function useActivityTimeline({
     queryFn: () =>
       executionService.list({
         backlogKind: backlogKind as BacklogKind,
-        backlogName: backlogName!,
+        backlogName: backlogName ?? "",
       }),
     enabled: hasParams && enabled,
     refetchInterval: enabled ? POLL_INTERVAL_MS : false,

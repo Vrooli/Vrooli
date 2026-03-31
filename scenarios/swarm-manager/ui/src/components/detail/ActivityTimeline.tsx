@@ -3,11 +3,12 @@
  * activities for a backlog item, displayed inside the Activity Timeline Drawer.
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   ArrowUpRight,
   ChevronDown,
   ChevronRight,
+  ExternalLink,
   Loader2,
   Square,
 } from "lucide-react";
@@ -82,13 +83,15 @@ export interface ActivityTimelineProps {
   onFollowUp: (exec: ExecutionRecord) => void;
   latestAgentActivity: AgentActivityRecord | undefined;
   agentRunIsActive: boolean;
+  /** Base URL for the agent-manager UI. When set, "Run" links appear on items that have a runId. */
+  agentManagerUiUrl?: string;
 }
 
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function ActivityItem({ activity }: { activity: AgentActivity }) {
+function ActivityItem({ activity, agentManagerUiUrl }: { activity: AgentActivity; agentManagerUiUrl?: string }) {
   const [expanded, setExpanded] = useState(false);
   const statusColor = ACTIVITY_STATUS_COLORS[activity.status] ?? "bg-slate-500";
   const purposeColor = ACTIVITY_PURPOSE_COLORS[activity.purpose] ?? "bg-slate-500";
@@ -140,6 +143,19 @@ function ActivityItem({ activity }: { activity: AgentActivity }) {
               Run: {activity.runId}
             </p>
           )}
+          {activity.runId && agentManagerUiUrl && (
+            <a
+              href={`${agentManagerUiUrl}/runs/${activity.runId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Button size="sm" variant="outline" className="h-6 px-1.5 text-[10px]">
+                <ExternalLink className="mr-1 h-2.5 w-2.5" />
+                Run
+              </Button>
+            </a>
+          )}
         </div>
       )}
     </div>
@@ -159,8 +175,28 @@ export function ActivityTimeline({
   onFollowUp,
   latestAgentActivity,
   agentRunIsActive,
+  agentManagerUiUrl,
 }: ActivityTimelineProps) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const seenIdsRef = useRef<Set<string>>(new Set());
+
+  // Auto-expand new execution entries as they arrive
+  useEffect(() => {
+    const newExecIds: string[] = [];
+    for (const entry of entries) {
+      if (entry.type === "execution" && !seenIdsRef.current.has(entry.id)) {
+        newExecIds.push(entry.id);
+        seenIdsRef.current.add(entry.id);
+      }
+    }
+    if (newExecIds.length > 0) {
+      setExpandedIds((prev) => {
+        const next = new Set(prev);
+        for (const id of newExecIds) next.add(id);
+        return next;
+      });
+    }
+  }, [entries]);
 
   const toggleExpand = useCallback((id: string) => {
     setExpandedIds((prev) => {
@@ -214,6 +250,7 @@ export function ActivityTimeline({
               onFollowUp={onFollowUp}
               latestAgentActivity={latestAgentActivity}
               agentRunIsActive={agentRunIsActive}
+              agentManagerUiUrl={agentManagerUiUrl}
             />
           );
         }
@@ -221,7 +258,7 @@ export function ActivityTimeline({
         if (entry.type === "activity" && entry.activity) {
           return (
             <div key={entry.id} className="ml-0">
-              <ActivityItem activity={entry.activity} />
+              <ActivityItem activity={entry.activity} agentManagerUiUrl={agentManagerUiUrl} />
             </div>
           );
         }
@@ -245,6 +282,7 @@ function ExecutionTimelineItem({
   onFollowUp,
   latestAgentActivity,
   agentRunIsActive,
+  agentManagerUiUrl,
 }: {
   entry: TimelineEntry;
   isExpanded: boolean;
@@ -254,8 +292,10 @@ function ExecutionTimelineItem({
   onFollowUp: (exec: ExecutionRecord) => void;
   latestAgentActivity: AgentActivityRecord | undefined;
   agentRunIsActive: boolean;
+  agentManagerUiUrl?: string;
 }) {
-  const exec = entry.execution!;
+  const exec = entry.execution;
+  if (!exec) return null;
   const statusColor = EXECUTION_STATUS_COLORS[exec.status as ExecutionStatus] ?? "bg-slate-500";
   const isActiveExecRun = !!(
     exec.runId &&
@@ -353,6 +393,19 @@ function ExecutionTimelineItem({
               <ArrowUpRight className="mr-1 h-3 w-3" />
               View
             </Button>
+            {exec.runId && agentManagerUiUrl && (
+              <a
+                href={`${agentManagerUiUrl}/runs/${exec.runId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Button variant="outline" size="sm" className="h-7 px-2 text-xs">
+                  <ExternalLink className="mr-1 h-3 w-3" />
+                  Run
+                </Button>
+              </a>
+            )}
             {isActiveExecRun && (
               <Button
                 variant="outline"
@@ -384,7 +437,7 @@ function ExecutionTimelineItem({
                 Agent Activities
               </p>
               {entry.childActivities.map((act) => (
-                <ActivityItem key={act.activityId} activity={act} />
+                <ActivityItem key={act.activityId} activity={act} agentManagerUiUrl={agentManagerUiUrl} />
               ))}
             </div>
           )}

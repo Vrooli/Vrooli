@@ -65,10 +65,10 @@ describe("validateGlobLines", () => {
     const result = validateGlobLines("src/**\n/absolute\n[bad");
     expect(result.valid).toBe(false);
     expect(result.errors).toHaveLength(2);
-    expect(result.errors[0].line).toBe(2);
-    expect(result.errors[0].error).toContain("absolute");
-    expect(result.errors[1].line).toBe(3);
-    expect(result.errors[1].error).toContain("[");
+    expect(result.errors[0]?.line).toBe(2);
+    expect(result.errors[0]?.error).toContain("absolute");
+    expect(result.errors[1]?.line).toBe(3);
+    expect(result.errors[1]?.error).toContain("[");
   });
 
   it("handles trailing newlines gracefully", () => {

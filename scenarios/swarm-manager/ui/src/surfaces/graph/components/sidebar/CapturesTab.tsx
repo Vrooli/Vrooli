@@ -7,7 +7,6 @@
 
 import { useState } from "react";
 import { MessageSquare } from "lucide-react";
-import { cn } from "../../../../lib/utils";
 import { useCaptureStore } from "../../../../stores";
 import { CaptureCard } from "../../../../components/capture/capture-card";
 import { BacklogFormDialog } from "../../../../components/backlog/backlog-form-dialog";
@@ -49,7 +48,7 @@ function applySort(items: Capture[], sort: SortConfig): Capture[] {
   return sorted;
 }
 
-export function CapturesTab({ searchQuery, filters, sort, onItemClick }: CapturesTabProps) {
+export function CapturesTab({ searchQuery, filters, sort, onItemClick: _onItemClick }: CapturesTabProps) {
   const captures = useCaptureStore((s) => s.captures);
   const upsertBacklogItem = useBacklogStore((s) => s.upsertItem);
 

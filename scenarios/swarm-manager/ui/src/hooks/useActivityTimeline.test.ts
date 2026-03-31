@@ -37,9 +37,9 @@ describe("mergeTimeline", () => {
     ];
     const result = mergeTimeline(execs, []);
     expect(result).toHaveLength(2);
-    expect(result[0]!.id).toBe("e1");
-    expect(result[0]!.type).toBe("execution");
-    expect(result[1]!.id).toBe("e2");
+    expect(result[0]?.id).toBe("e1");
+    expect(result[0]?.type).toBe("execution");
+    expect(result[1]?.id).toBe("e2");
   });
 
   it("groups activities under their parent execution", () => {
@@ -52,11 +52,11 @@ describe("mergeTimeline", () => {
     ];
     const result = mergeTimeline(execs, acts);
     expect(result).toHaveLength(1);
-    expect(result[0]!.type).toBe("execution");
-    expect(result[0]!.childActivities).toHaveLength(2);
+    expect(result[0]?.type).toBe("execution");
+    expect(result[0]?.childActivities).toHaveLength(2);
     // Sorted newest-first
-    expect(result[0]!.childActivities![0]!.activityId).toBe("a2");
-    expect(result[0]!.childActivities![1]!.activityId).toBe("a1");
+    expect(result[0]?.childActivities?.[0]?.activityId).toBe("a2");
+    expect(result[0]?.childActivities?.[1]?.activityId).toBe("a1");
   });
 
   it("places orphan activities as standalone top-level entries", () => {
@@ -66,9 +66,9 @@ describe("mergeTimeline", () => {
     ];
     const result = mergeTimeline([], acts);
     expect(result).toHaveLength(2);
-    expect(result[0]!.type).toBe("activity");
-    expect(result[0]!.id).toBe("a1");
-    expect(result[1]!.id).toBe("a2");
+    expect(result[0]?.type).toBe("activity");
+    expect(result[0]?.id).toBe("a1");
+    expect(result[1]?.id).toBe("a2");
   });
 
   it("sorts top-level entries newest-first", () => {
@@ -94,9 +94,9 @@ describe("mergeTimeline", () => {
     const result = mergeTimeline(execs, acts);
     expect(result).toHaveLength(2);
     // a2 (orphan at 11:00) is newest, e1 (10:00) is second
-    expect(result[0]!.id).toBe("a2");
-    expect(result[0]!.type).toBe("activity");
-    expect(result[1]!.id).toBe("e1");
-    expect(result[1]!.childActivities).toHaveLength(1);
+    expect(result[0]?.id).toBe("a2");
+    expect(result[0]?.type).toBe("activity");
+    expect(result[1]?.id).toBe("e1");
+    expect(result[1]?.childActivities).toHaveLength(1);
   });
 });

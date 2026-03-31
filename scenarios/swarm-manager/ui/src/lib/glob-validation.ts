@@ -56,7 +56,7 @@ export function validateGlobLines(text: string): GlobValidationResult {
   const lines = text.split("\n");
   const errors: GlobLineError[] = [];
   for (let i = 0; i < lines.length; i++) {
-    const raw = lines[i];
+    const raw = lines[i] ?? "";
     // Skip blank lines — they are filtered out by parseGlobTextarea
     if (raw.trim() === "") continue;
     const err = validateGlobLine(raw);

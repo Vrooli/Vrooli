@@ -1,12 +1,16 @@
 /**
  * SidebarHeader — Top bar for the graph sidebar.
  *
- * Shows the app title, a compact running-agents badge, a settings gear,
- * and a collapse/close button. Reads agent activity data directly from the store.
+ * Shows the app title, a home button (returns to graph view), a compact
+ * running-agents badge, a settings gear, and a collapse/close button.
+ *
+ * DOC: docs/plans/navigation-header-unification-plan.md#phase-3
  */
 
-import { PanelLeft, Settings, X } from "lucide-react";
+import { Home, PanelLeft, Settings, X } from "lucide-react";
 import { useAgentActivitiesStore } from "../../../../stores";
+import { useDetailSelectionStore } from "../../../../stores/detail-selection-store";
+import { useGraphUIStore } from "../../stores/graph-ui-store";
 import { AgentsDropdown } from "../../../../components/agents/AgentsDropdown";
 
 export interface SidebarHeaderProps {
@@ -24,11 +28,29 @@ export function SidebarHeader({
 }: SidebarHeaderProps) {
   const activities = useAgentActivitiesStore((s) => s.activities);
   const stopRun = useAgentActivitiesStore((s) => s.stopRun);
+  const clearSelection = useDetailSelectionStore((s) => s.clearSelection);
+  const setSidebarCollapsed = useGraphUIStore((s) => s.setSidebarCollapsed);
+
+  const handleGoHome = () => {
+    clearSelection();
+    setSidebarCollapsed(true);
+  };
 
   return (
     <div className="flex shrink-0 items-center justify-between border-b border-slate-200/20 px-3 py-2">
-      {/* Left: App title */}
-      <span className="text-sm font-semibold text-slate-200">Swarm Manager</span>
+      {/* Left: Home button + App title */}
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={handleGoHome}
+          className="rounded p-1.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
+          aria-label="Go to graph view"
+          data-testid="sidebar-home"
+        >
+          <Home className="h-4 w-4" />
+        </button>
+        <span className="text-sm font-semibold text-slate-200">Swarm Manager</span>
+      </div>
 
       {/* Right: Agents badge + Settings + Collapse/Close */}
       <div className="flex items-center gap-1">

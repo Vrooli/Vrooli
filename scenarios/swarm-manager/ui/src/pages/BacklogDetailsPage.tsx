@@ -24,9 +24,6 @@ import {
   ArrowRightLeft,
   ArrowUpRight,
   CheckCircle2,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   CircleHelp,
   Copy,
   Edit,
@@ -54,7 +51,6 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { PlanPanel } from "../components/backlog/plan-panel";
 import { useUrlState } from "../hooks/use-url-state";
-import { BottomSheet } from "../components/ui/bottom-sheet";
 import { Dialog } from "../components/ui/dialog";
 import { Popover } from "../components/ui/popover";
 import { Button } from "../components/ui/button";
@@ -122,9 +118,10 @@ import type {
 } from "../types";
 import type { WorkshopRound } from "../types/domain";
 import { selectLatestActivityForBacklog, useAgentActivitiesStore, useBacklogStore, useDetailSelectionStore } from "../stores";
-import { LensBar } from "../components/detail/LensBar";
 import { BACKLOG_LENSES } from "../components/detail/lens-options";
-import { useDrillToLens } from "../hooks/useDrillToLens";
+import { DetailPageHeader } from "../components/detail/DetailPageHeader";
+import { DetailPageLayout } from "../components/detail/DetailPageLayout";
+import { useDetailNavigation } from "../hooks/useDetailNavigation";
 import { selectionToNodeId } from "../stores/detail-selection-store";
 
 /** Statuses that users can manually set via the status dropdown. "queued" and "in_progress" are execution-system-only. */
@@ -212,11 +209,10 @@ const remapSelectedPath = (
 
 export function BacklogDetailsPage() {
   const selection = useDetailSelectionStore((s) => s.selection);
-  const clearSelection = useDetailSelectionStore((s) => s.clearSelection);
   const selectInitiative = useDetailSelectionStore((s) => s.selectInitiative);
   const selectScenario = useDetailSelectionStore((s) => s.selectScenario);
   const nodeId = selectionToNodeId(selection);
-  const { drillToLens } = useDrillToLens();
+  const { closeDetail } = useDetailNavigation();
   const kind = selection?.kind;
   const name = selection?.name;
   const backlogKind = BACKLOG_KINDS.includes(kind as BacklogKind) ? (kind as BacklogKind) : null;
@@ -255,7 +251,6 @@ export function BacklogDetailsPage() {
     validate: (v): v is DetailsTab => ["info", "prompt", "files"].includes(v),
   });
   const [showFilesSheet, setShowFilesSheet] = useState(false);
-  const [showActionsSheet, setShowActionsSheet] = useState(false);
   const [fileSearch, setFileSearch] = useState("");
   const [recentFiles, setRecentFiles] = useState<BacklogFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<BacklogFile | null>(null);
@@ -278,6 +273,7 @@ export function BacklogDetailsPage() {
   const [showGlobDialog, setShowGlobDialog] = useState(false);
 
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
+  const [agentManagerUiUrl, setAgentManagerUiUrl] = useState<string | null>(null);
   const [followUpTarget, setFollowUpTarget] = useState<ExecutionRecord | null>(null);
   const [selectedTargetIds, setSelectedTargetIds] = useState<Set<string>>(new Set());
   const [selectedRequirementIds, setSelectedRequirementIds] = useState<Set<string>>(new Set());
@@ -346,6 +342,18 @@ export function BacklogDetailsPage() {
     enabled: !!backlogKind && !!name,
     refetchInterval: 10_000,
   });
+
+  // Fetch agent-manager external URL for "View Run" links in the activity timeline.
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/embedded/${encodeURIComponent("agent-manager")}/external-url`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { url?: string } | null) => {
+        if (!cancelled && data?.url) setAgentManagerUiUrl(data.url);
+      })
+      .catch(() => { /* agent-manager not available */ });
+    return () => { cancelled = true; };
+  }, []);
 
   // Activity timeline (activities + executions merged) — fetches only when the drawer is open.
   const timeline = useActivityTimeline({ backlogKind: backlogKind ?? undefined, backlogName: name, enabled: isTimelineOpen, agentRunIsActive });
@@ -543,7 +551,7 @@ export function BacklogDetailsPage() {
       if (backlogKind && name) {
         removeItem(name, backlogKind);
       }
-      clearSelection();
+      closeDetail();
     },
   });
 
@@ -1883,7 +1891,7 @@ export function BacklogDetailsPage() {
           variant="outline"
           size="sm"
           className="h-7 w-7 p-0"
-          onClick={() => clearSelection()}
+          onClick={() => closeDetail()}
           aria-label="View execution"
         >
           <ArrowUpRight className="h-3.5 w-3.5" />
@@ -1893,11 +1901,8 @@ export function BacklogDetailsPage() {
   ) : null;
 
 
-  const renderActionButtons = (closeOnAction = false) => {
+  const renderActionButtons = () => {
     const runAction = (action: () => void) => {
-      if (closeOnAction) {
-        setShowActionsSheet(false);
-      }
       action();
     };
 
@@ -2020,7 +2025,6 @@ export function BacklogDetailsPage() {
                     priority: item.priority,
                     tags: item.tags,
                   });
-                  if (closeOnAction) setShowActionsSheet(false);
                 }
               }}
               data-testid={selectors.backlogDetails.statusSelect}
@@ -2182,7 +2186,44 @@ export function BacklogDetailsPage() {
     </div>
   );
 
+  const tabBar = item ? (
+    <div className="border-t border-slate-800/50" data-testid={selectors.backlogDetails.tabRow}>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DetailsTab)}>
+        <TabsList className="w-full flex-nowrap justify-start gap-1 overflow-x-auto no-scrollbar rounded-none bg-transparent p-0 px-3">
+          <TabsTrigger value="info" className="gap-2" data-testid={selectors.backlogDetails.tabInfo}>
+            <CircleHelp className="h-4 w-4" />
+            Info
+          </TabsTrigger>
+          <TabsTrigger value="prompt" className="gap-2" data-testid={selectors.backlogDetails.tabPrompt}>
+            <Sparkles className="h-4 w-4" />
+            {backlogKind === "research" ? "Conclusion" : "Plan"}
+          </TabsTrigger>
+          <TabsTrigger value="files" className="gap-2" data-testid={selectors.backlogDetails.tabFiles}>
+            <Files className="h-4 w-4" />
+            Files
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+    </div>
+  ) : null;
+
   return (
+    <DetailPageLayout
+      header={
+        <DetailPageHeader
+          entityType={backlogKind ? BACKLOG_KIND_LABELS[backlogKind] : "backlog"}
+          title={item?.title ?? name ?? "Loading..."}
+          subtitle={item ? formatBacklogStatus(item.status) : undefined}
+          status={item?.status}
+          nodeId={nodeId}
+          lenses={BACKLOG_LENSES}
+          actions={item ? renderHeaderPrimaryAction("shrink-0") : undefined}
+          tabBar={tabBar}
+        />
+      }
+      mobileActions={item ? renderActionButtons() : undefined}
+      mobileActionsTitle="Backlog Actions"
+    >
     <div className="space-y-0 lg:space-y-6" data-testid={selectors.backlogDetails.page}>
 
       {isPageLoading && (
@@ -2205,72 +2246,14 @@ export function BacklogDetailsPage() {
 
       {item && !pageError && (
         <>
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DetailsTab)} className="flex h-dvh flex-col overflow-hidden lg:hidden">
-            <div className="sticky top-0 z-30 flex items-center gap-2 border-b border-slate-800 bg-slate-950/95 px-3 py-2 backdrop-blur">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 w-9 rounded-md border-transparent bg-transparent p-0 hover:bg-slate-800/70"
-                onClick={clearSelection}
-                data-testid={selectors.backlogDetails.backButton}
-                aria-label="Close backlog details"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-slate-100" data-testid={selectors.backlogDetails.title}>
-                  {item.title}
-                </p>
-                <button
-                  type="button"
-                  onClick={openTimeline}
-                  className="flex items-center gap-1 truncate text-xs text-slate-400 hover:text-slate-200 transition-colors"
-                  data-testid={selectors.backlogDetails.timelineButton}
-                >
-                  <span className="underline decoration-slate-600 underline-offset-2">
-                    {BACKLOG_KIND_LABELS[item.kind]} · {formatBacklogStatus(item.status)}
-                  </span>
-                  <History className="h-3 w-3 shrink-0" />
-                </button>
-              </div>
-              {renderHeaderPrimaryAction("shrink-0")}
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 w-9 rounded-md border-transparent bg-transparent p-0 hover:bg-slate-800/70"
-                onClick={() => setShowActionsSheet(true)}
-                aria-label="More actions"
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="border-b border-slate-800" data-testid={selectors.backlogDetails.tabRow}>
-              <TabsList className="w-full flex-nowrap justify-start gap-1 overflow-x-auto no-scrollbar rounded-none bg-transparent p-0 px-3">
-                <TabsTrigger value="info" className="gap-2" data-testid={selectors.backlogDetails.tabInfo}>
-                  <CircleHelp className="h-4 w-4" />
-                  Info
-                </TabsTrigger>
-                <TabsTrigger value="prompt" className="gap-2" data-testid={selectors.backlogDetails.tabPrompt}>
-                  <Sparkles className="h-4 w-4" />
-                  {backlogKind === "research" ? "Conclusion" : "Plan"}
-                </TabsTrigger>
-                <TabsTrigger value="files" className="gap-2" data-testid={selectors.backlogDetails.tabFiles}>
-                  <Files className="h-4 w-4" />
-                  Files
-                </TabsTrigger>
-              </TabsList>
-            </div>
-            {activeTab === "info" && (
-              <>
-                {nodeId && <LensBar nodeId={nodeId} lenses={BACKLOG_LENSES} onDrillToLens={drillToLens} />}
-                {mobileInfoView}
-              </>
-            )}
+          {/* Mobile tab content */}
+          <div className="lg:hidden">
+            {activeTab === "info" && mobileInfoView}
             {activeTab === "prompt" && backlogKind && name && (
               <PlanPanel backlogKind={backlogKind as BacklogKind} backlogName={name} className="flex-1 overflow-y-auto" />
             )}
             {activeTab === "files" && fileWorkspace}
-          </Tabs>
+          </div>
 
           <div className="hidden space-y-6 lg:block">
             <Card data-testid={selectors.backlogDetails.header}>
@@ -2376,15 +2359,6 @@ export function BacklogDetailsPage() {
                   <Sparkles className="mr-2 h-4 w-4" />
                   {agentLabel}
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-9 w-9 rounded-md border-transparent bg-transparent p-0 hover:bg-slate-800/70 lg:hidden"
-                  onClick={() => setShowActionsSheet(true)}
-                  aria-label="More actions"
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
               </div>
             </div>
 
@@ -2397,28 +2371,10 @@ export function BacklogDetailsPage() {
             )}
           </Card>
 
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DetailsTab)}>
-              <TabsList
-                className="w-full flex-nowrap justify-start gap-1 overflow-x-auto no-scrollbar rounded-none bg-transparent p-0 lg:w-auto lg:flex-wrap lg:overflow-visible lg:rounded-md lg:bg-slate-800/50 lg:p-1"
-                data-testid={selectors.backlogDetails.tabRow}
-              >
-                <TabsTrigger value="info" className="gap-2" data-testid={selectors.backlogDetails.tabInfo}>
-                  <CircleHelp className="h-4 w-4" />
-                  Info
-                </TabsTrigger>
-                <TabsTrigger value="prompt" className="gap-2" data-testid={selectors.backlogDetails.tabPrompt}>
-                  <Sparkles className="h-4 w-4" />
-                  {backlogKind === "research" ? "Conclusion" : "Plan"}
-                </TabsTrigger>
-                <TabsTrigger value="files" className="gap-2" data-testid={selectors.backlogDetails.tabFiles}>
-                  <Files className="h-4 w-4" />
-                  Files
-                </TabsTrigger>
-              </TabsList>
-
+            <div>
               {activeTab === "info" && (
                 <div className="space-y-6 pt-6">
-                  {nodeId && <LensBar nodeId={nodeId} lenses={BACKLOG_LENSES} onDrillToLens={drillToLens} />}
+  
                   {activeRunBanner}
                   {detailsPanel}
                   {scenariosPanel}
@@ -2462,17 +2418,9 @@ export function BacklogDetailsPage() {
                   {fileWorkspace}
                 </div>
               )}
-            </Tabs>
+            </div>
           </div>
 
-          <BottomSheet
-            isOpen={showActionsSheet}
-            onClose={() => setShowActionsSheet(false)}
-            title="Actions"
-            description="Quick actions for this backlog item"
-          >
-            {renderActionButtons(true)}
-          </BottomSheet>
         </>
       )}
 
@@ -2726,14 +2674,16 @@ export function BacklogDetailsPage() {
           entries={timeline.entries}
           isLoading={timeline.isLoading}
           error={timeline.error}
-          onViewExecution={() => { setIsTimelineOpen(false); clearSelection(); }}
+          onViewExecution={() => { setIsTimelineOpen(false); closeDetail(); }}
           onStopRun={(runId) => void stopRun(runId)}
           onFollowUp={(exec) => { setIsTimelineOpen(false); setFollowUpTarget(exec); }}
           latestAgentActivity={latestAgentActivity ?? undefined}
           agentRunIsActive={agentRunIsActive}
+          agentManagerUiUrl={agentManagerUiUrl ?? undefined}
         />
       </Drawer>
 
     </div>
+    </DetailPageLayout>
   );
 }

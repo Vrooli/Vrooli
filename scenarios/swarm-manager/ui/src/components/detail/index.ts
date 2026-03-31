@@ -1,4 +1,5 @@
-export { DetailPageHeader } from "./DetailPageHeader";
-export { DetailPageLayout } from "./DetailPageLayout";
+export { DetailPageHeader, type DetailPageHeaderProps } from "./DetailPageHeader";
+export { DetailPageLayout, type DetailPageLayoutProps } from "./DetailPageLayout";
 export { DetailActionButtons } from "./DetailActionButtons";
 export { StatusBadge } from "./StatusBadge";
+export { LensBar } from "./LensBar";

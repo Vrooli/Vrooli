@@ -61,15 +61,15 @@ export function Sidebar({ feed, onItemClick, onSettingsOpen, onViewActivity, onV
       {/* Mobile backdrop */}
       <button
         type="button"
-        className="fixed inset-0 z-20 bg-black/40 backdrop-blur-[2px] md:hidden"
+        className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] md:hidden"
         aria-label="Close sidebar"
         onClick={toggleSidebar}
       />
 
       <aside
         className={cn(
-          "fixed inset-0 z-40 flex w-full flex-col border-r border-slate-200/20 bg-slate-950 shadow-2xl",
-          "md:relative md:w-80 md:shrink-0 md:shadow-none",
+          "fixed inset-0 z-50 flex w-full flex-col border-r border-slate-200/20 bg-slate-950 shadow-2xl",
+          "md:relative md:z-auto md:w-80 md:shrink-0 md:shadow-none",
         )}
         style={{ touchAction: "manipulation" }}
         data-testid="sidebar"

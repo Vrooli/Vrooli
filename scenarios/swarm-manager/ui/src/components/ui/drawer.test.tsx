@@ -92,7 +92,7 @@ describe("Drawer", () => {
     // aria-labelledby should point to the title element
     const labelledBy = dialog.getAttribute("aria-labelledby");
     expect(labelledBy).toBeTruthy();
-    const titleEl = document.getElementById(labelledBy!);
+    const titleEl = labelledBy ? document.getElementById(labelledBy) : null;
     expect(titleEl?.textContent).toBe("Accessible Title");
   });
 });

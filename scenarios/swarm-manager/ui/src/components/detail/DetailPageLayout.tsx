@@ -4,8 +4,11 @@
  * Full-page overlay wrapper for entity detail pages. Renders on top of
  * the graph workspace (which stays mounted underneath). Handles:
  * - Full-screen overlay with scroll
- * - Mobile action BottomSheet integration
+ * - Sticky header on mobile
+ * - Mobile action BottomSheet + FAB integration
  * - Consistent background and spacing
+ *
+ * DOC: docs/plans/navigation-header-unification-plan.md#phase-2
  */
 
 import { type ReactNode, useState } from "react";
@@ -14,14 +17,14 @@ import { cn } from "../../lib/utils";
 import { BottomSheet } from "../ui/bottom-sheet";
 import { useIsMobile } from "../../hooks/useMediaQuery";
 
-interface DetailPageLayoutProps {
-  /** The DetailPageHeader component */
+export interface DetailPageLayoutProps {
+  /** The DetailPageHeader component. */
   header: ReactNode;
-  /** Page body content */
+  /** Page body content. */
   children: ReactNode;
-  /** Content for mobile action BottomSheet. If provided, a "more" button appears on mobile. */
+  /** Content for mobile action BottomSheet. If provided, a FAB appears on mobile. */
   mobileActions?: ReactNode;
-  /** Title for the mobile actions sheet */
+  /** Title for the mobile actions sheet. */
   mobileActionsTitle?: string;
   className?: string;
 }

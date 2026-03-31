@@ -215,16 +215,16 @@ describe("InitiativeDetailsPage", () => {
     expect(screen.getByTestId("lens-bar-operations")).toBeInTheDocument();
   });
 
-  it("close button clears detail selection", async () => {
+  it("nav button clears detail selection on desktop", async () => {
     vi.mocked(initiativeService.get).mockResolvedValue(mockInitiativeData);
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByTestId("detail-close")).toBeInTheDocument();
+      expect(screen.getByTestId("detail-nav-button")).toBeInTheDocument();
     });
 
     const user = userEvent.setup();
-    await user.click(screen.getByTestId("detail-close"));
+    await user.click(screen.getByTestId("detail-nav-button"));
 
     expect(useDetailSelectionStore.getState().selection).toBeNull();
   });

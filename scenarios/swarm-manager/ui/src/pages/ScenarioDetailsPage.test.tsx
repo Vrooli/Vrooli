@@ -116,12 +116,12 @@ describe("ScenarioDetailsPage", () => {
       });
     });
 
-    it("shows close button to return to graph", async () => {
+    it("shows nav button in shared header", async () => {
       vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByTestId("detail-close")).toBeInTheDocument();
+        expect(screen.getByTestId("detail-nav-button")).toBeInTheDocument();
       });
     });
   });

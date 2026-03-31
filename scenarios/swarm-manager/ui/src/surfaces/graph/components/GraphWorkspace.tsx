@@ -22,6 +22,7 @@ import { useGraphUIStore } from "../stores/graph-ui-store";
 import { buildActivityNodeId, parseNodeId } from "../lib/node-id-parser";
 import { useDetailSelectionStore } from "../../../stores/detail-selection-store";
 import { useDetailUrlSync } from "../../../hooks/useDetailUrlSync";
+import { useDetailNavigation } from "../../../hooks/useDetailNavigation";
 import { AgentsDropdown } from "../../../components/agents/AgentsDropdown";
 import { useGraphKeyboardShortcuts } from "../hooks/useGraphKeyboardShortcuts";
 import { useGraphWebSocket } from "../hooks/useGraphWebSocket";
@@ -140,11 +141,7 @@ export function GraphWorkspace() {
   const applyLayoutForLens = useGraphUIStore((s) => s.applyLayoutForLens);
 
   const detailSelection = useDetailSelectionStore((s) => s.selection);
-  const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
-  const selectScenario = useDetailSelectionStore((s) => s.selectScenario);
-  const selectExecution = useDetailSelectionStore((s) => s.selectExecution);
-  const selectInitiative = useDetailSelectionStore((s) => s.selectInitiative);
-  const toggleSidebar = useGraphUIStore((s) => s.toggleSidebar);
+  const { openDetail } = useDetailNavigation();
 
   useDetailUrlSync();
   useCapturePolling();
@@ -255,31 +252,31 @@ export function GraphWorkspace() {
         return next;
       });
 
-      // Open the detail page for entity types that support it.
       const parsed = parseNodeId(nodeId);
       if (parsed) {
-        switch (parsed.entityType) {
-          case "backlog":
-            if (parsed.kind && parsed.name) selectBacklog(parsed.kind, parsed.name);
-            break;
-          case "scenario":
-            if (parsed.name) selectScenario(parsed.name);
-            break;
-          case "execution":
-            selectExecution(parsed.identifier);
-            break;
-          case "initiative":
-            if (parsed.name) selectInitiative(parsed.name);
-            break;
+        const selection = (() => {
+          switch (parsed.entityType) {
+            case "backlog":
+              return parsed.kind && parsed.name
+                ? { entityType: "backlog" as const, kind: parsed.kind, name: parsed.name }
+                : null;
+            case "scenario":
+              return parsed.name ? { entityType: "scenario" as const, name: parsed.name } : null;
+            case "execution":
+              return { entityType: "execution" as const, identifier: parsed.identifier };
+            case "initiative":
+              return parsed.name ? { entityType: "initiative" as const, name: parsed.name } : null;
+            default:
+              return null;
+          }
+        })();
+
+        if (selection) {
+          openDetail(selection, { fromSidebar: !sidebarCollapsed });
         }
       }
-
-      // Collapse sidebar on mobile so the detail page is visible.
-      if (window.innerWidth < 768 && !sidebarCollapsed) {
-        toggleSidebar();
-      }
     },
-    [selectNode, setSearchParams, selectBacklog, selectScenario, selectExecution, selectInitiative, sidebarCollapsed, toggleSidebar],
+    [selectNode, setSearchParams, openDetail, sidebarCollapsed],
   );
 
   const handleDeselectNode = useCallback(() => {

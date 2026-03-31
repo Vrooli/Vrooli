@@ -16,8 +16,6 @@ import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { DetailActionButtons } from "../components/detail/DetailActionButtons";
 import { StatusBadge } from "../components/detail/StatusBadge";
-import { useDrillToLens } from "../hooks/useDrillToLens";
-import { LensBar } from "../components/detail/LensBar";
 import { INITIATIVE_LENSES } from "../components/detail/lens-options";
 import { selectionToNodeId } from "../stores/detail-selection-store";
 import { ErrorState } from "../components/ui/error-state";
@@ -40,11 +38,9 @@ function parseItemRef(ref: string): { kind: string; name: string } | null {
 
 export function InitiativeDetailsPage() {
   const selection = useDetailSelectionStore((s) => s.selection);
-  const clearSelection = useDetailSelectionStore((s) => s.clearSelection);
   const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
   const name = selection?.name;
   const nodeId = selectionToNodeId(selection);
-  const { drillToLens } = useDrillToLens();
 
   const backlogItems = useBacklogStore((s) => s.items);
 
@@ -152,7 +148,8 @@ export function InitiativeDetailsPage() {
           <DetailPageHeader
             entityType="initiative"
             title={name ?? "Unknown"}
-            onClose={clearSelection}
+            nodeId={null}
+            lenses={[]}
           />
         }
       >
@@ -175,13 +172,13 @@ export function InitiativeDetailsPage() {
           entityType="initiative"
           title={initiative.title || initiative.name}
           status={initiative.status}
-          onClose={clearSelection}
+          nodeId={nodeId}
+          lenses={INITIATIVE_LENSES}
           actions={<DetailActionButtons entityType="initiative" />}
         />
       }
     >
       <div className="mx-auto max-w-3xl space-y-6" data-testid={selectors.initiativeDetails.page}>
-      {nodeId && <LensBar nodeId={nodeId} lenses={INITIATIVE_LENSES} onDrillToLens={drillToLens} />}
       {/* Metadata Card */}
       <Card className="rounded-lg border-slate-700/60 bg-slate-900/45 p-5">
         <div className="space-y-4">
