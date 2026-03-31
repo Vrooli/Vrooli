@@ -109,6 +109,50 @@ Key invariants:
 - `dispose()` always stops tracks regardless of `retainStream` — it's a full cleanup, not a session-end
 - The micReadiness module handles the release-then-reacquire cycle after recording finishes
 
+## Audio Cue Contract
+
+Audio cues (rising/falling chimes) signal recording session boundaries to the user. They are scoped to the **logical recording session**, not the **mic hardware lifecycle**. This distinction is critical because low-latency mode pre-warms the mic before recording starts.
+
+### When cues play
+
+| Event | Start cue | Stop cue |
+|-------|-----------|----------|
+| Recording starts (user pressed mic, provider ready) | Yes | — |
+| Recording stops (user pressed stop) | — | Yes |
+| VAD auto-stop (silence timeout) | — | Yes |
+| VAD no-speech (no speech detected) | — | Yes |
+| Abort during startup (stop requested while starting) | Already played | Yes |
+
+### When cues must NOT play
+
+| Event | Reason |
+|-------|--------|
+| Mic pre-warm (low-latency acquireStream) | Not a recording session |
+| Mic release (visibility handler, cleanup) | Not a user-initiated stop |
+| Component unmount / app close | Lifecycle event, not recording stop |
+| Error recovery / backend fallback | Error, not normal completion |
+| Transcription cancellation | Stop cue already played at recording end |
+| Wake word passive listening | Different mode, not a recording session |
+
+### Implementation: cue session guard
+
+A `cueSessionActiveRef` in `useVoiceInput.ts` enforces the contract:
+
+1. **Start cue**: Sets `cueSessionActiveRef = true`, then plays the chime
+2. **Stop cue**: Checks `cueSessionActiveRef`; if true, sets it to false and plays the chime
+3. **Non-stop exits** (cleanup, error, cancel, onResult): Set `cueSessionActiveRef = false` WITHOUT playing the stop cue
+
+This guarantees:
+- Cues are always paired (every start has exactly one stop)
+- No phantom stop cues on lifecycle events
+- No double-stop from redundant `stopRecording()` calls
+
+### Related files
+
+- [CODE: ui/src/hooks/voice/audioCues.ts] — cue playback implementation
+- [CODE: ui/src/hooks/useVoiceInput.ts] — cue session guard (`cueSessionActiveRef`)
+- [CODE: ui/src/hooks/__tests__/audioCueContract.test.ts] — regression tests
+
 ## Expected Latency
 
 | Operation | Before | After (default) | After (low-latency ON) |

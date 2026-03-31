@@ -13,6 +13,30 @@
 //      realise recording stopped and keep talking into the void. A falling
 //      chime makes the cutoff obvious.
 //
+// ── Audio Cue Contract ──
+//
+// Cues are scoped to the RECORDING SESSION, not the mic hardware lifecycle.
+// They must ONLY play during these transitions:
+//
+//   Start cue: user pressed mic → provider started → ready to accept speech
+//   Stop cue:  user pressed stop, VAD auto-stopped, or abort during startup
+//
+// They must NEVER play during these events:
+//
+//   - Mic pre-warm (low-latency mode acquireStream)
+//   - Mic release (visibility handler, cleanup, audio ducking cycle)
+//   - Component unmount / app close
+//   - Error recovery or backend fallback
+//   - Transcription cancellation
+//   - Wake word passive listening start/stop
+//
+// The `cueSessionActiveRef` in useVoiceInput.ts enforces this contract. The
+// start cue sets it to true; the stop cue checks it before playing and sets
+// it to false. All non-stop exit paths (cleanup, error, cancel) clear it
+// WITHOUT playing the stop cue.
+//
+// DOC: docs/internal/VOICE-LATENCY.md#audio-cue-contract
+//
 // Implementation: pure Web Audio API oscillators with soft gain envelopes.
 // No external dependencies or audio files needed. The tones are designed to
 // be gentle and unobtrusive — a soft two-note chime, not a harsh beep.

@@ -149,6 +149,21 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
   /** When true, stopRecording was called during startup -- recording should abort after start completes. */
   const stopRequestedRef = useRef(false);
 
+  // ── Audio Cue Session Guard ──
+  //
+  // Tracks whether we're in a cue-eligible recording session. This decouples
+  // audio cues from the mic hardware lifecycle: cues play ONLY when the user
+  // is actively recording/listening, never during mic pre-warm, visibility
+  // release, cleanup/dispose, or error recovery.
+  //
+  // The guard ensures cues are always paired: a start cue is always followed
+  // by exactly one stop cue for the same session, regardless of which code
+  // path ends the recording (user stop, VAD auto-stop, abort during startup,
+  // or unmount).
+  //
+  // DOC: docs/internal/VOICE-LATENCY.md#audio-cue-contract
+  const cueSessionActiveRef = useRef(false);
+
   // Track whether the mount-time capability check has resolved,
   // so startRecording knows if streamingAvailableRef is trustworthy.
   const capCheckResolvedRef = useRef(false);
@@ -487,6 +502,10 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     return () => {
       cancelled = true;
       if (bgRefreshInterval) clearInterval(bgRefreshInterval);
+      // Clear the cue session guard WITHOUT playing the stop cue. Unmount is
+      // not a user-initiated recording stop — it's a lifecycle event. Playing
+      // a cue here would be confusing (e.g., closing a tab shouldn't chime).
+      cueSessionActiveRef.current = false;
       providerRef.current?.dispose();
       providerRef.current = null;
       // Do NOT close the shared AudioContext here — it is app-lifetime and
@@ -628,6 +647,10 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
 
       provider.onResult = (text) => {
         console.info("[voice] Transcript:", text.length, "chars");
+        // Clear cue session — the stop cue already played in stopRecording().
+        // If onResult fires without stopRecording() (e.g. server-side stop),
+        // we still clear the guard to prevent a stale cue on next session.
+        cueSessionActiveRef.current = false;
         if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
 
         // Persist the current noise floor so the next recording session can
@@ -673,6 +696,10 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
         }
       };
       provider.onError = (error) => {
+        // Clear cue session without playing stop cue — errors are not normal
+        // recording stops. Playing a pleasant "done" chime after an error
+        // would be misleading.
+        cueSessionActiveRef.current = false;
         if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
         vadActiveRef.current = false;
         vadRef.current.state = "idle";
@@ -782,6 +809,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
           segments: [],
           commandSuggestion: null,
         }));
+        cueSessionActiveRef.current = true;
         playRecordingStartCue();
         startLevelMonitor(stream);
 
@@ -797,8 +825,14 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
         }, 2000);
 
         // If stop was requested during async start, abort immediately.
+        // The start cue already played above, so play the matching stop cue
+        // to keep the pair balanced.
         if (stopRequestedRef.current) {
           stopRequestedRef.current = false;
+          if (cueSessionActiveRef.current) {
+            cueSessionActiveRef.current = false;
+            playRecordingStopCue();
+          }
           if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
           vadActiveRef.current = false;
           vadRef.current.state = "idle";
@@ -808,9 +842,9 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
             voiceState: "idle",
             audioLevel: 0,
             partialTranscript: "",
-          segments: [],
-          speakerNotice: null,
-        }));
+            segments: [],
+            speakerNotice: null,
+          }));
           provider.dispose();
           providerRef.current = null;
           return;
@@ -834,7 +868,13 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     if (!provider || !isActive) return;
 
     console.info("[voice] %s stopped", isListening ? "Listening" : "Recording");
-    playRecordingStopCue();
+    // Only play the stop cue if a cue session is active (start cue was played).
+    // This prevents the stop sound from firing during cleanup, error recovery,
+    // or any other path that disposes the provider without a preceding start cue.
+    if (cueSessionActiveRef.current) {
+      cueSessionActiveRef.current = false;
+      playRecordingStopCue();
+    }
     if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
     vadActiveRef.current = false;
     vadRef.current.state = "idle";
@@ -865,6 +905,10 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     if (!provider || !isTranscribing) return;
 
     console.info("[voice] Transcription cancelled");
+    // Clear cue session without playing stop cue — cancellation is not a
+    // normal recording stop. The stop cue already played when stopRecording()
+    // transitioned the state to "transcribing".
+    cueSessionActiveRef.current = false;
     provider.onResult = null;
     provider.onError = null;
     if (provider.onPartial !== undefined) provider.onPartial = null;
