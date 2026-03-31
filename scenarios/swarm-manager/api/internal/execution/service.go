@@ -159,6 +159,15 @@ type EventDispatcher interface {
 	DispatchInvalidate(lenses ...string)
 }
 
+// EventLogger records execution state-change events for analytics.
+type EventLogger interface {
+	EmitExecutionCreated(execID, backlogKind, backlogName, mode string)
+	EmitExecutionStatusChanged(execID, from, to string)
+	EmitExecutionCompleted(execID string, durationSecs float64, hadFixups bool)
+	EmitExecutionFailed(execID, reason string, durationSecs float64)
+	EmitExecutionCanceled(execID, reason string)
+}
+
 // Service owns execution lifecycle logic.
 type Service struct {
 	rootDir                  string
@@ -176,6 +185,7 @@ type Service struct {
 	scenarioLifecycle        ScenarioLifecycle
 	scenarioHealth           ScenarioHealthChecker
 	eventDispatcher          EventDispatcher
+	eventLogger              EventLogger
 	processingFinalizations  map[string]struct{}
 	mu                       sync.Mutex
 }
@@ -229,6 +239,11 @@ func (s *Service) SetEventDispatcher(d EventDispatcher) {
 	s.eventDispatcher = d
 }
 
+// SetEventLogger injects an optional event logger for analytics tracking.
+func (s *Service) SetEventLogger(l EventLogger) {
+	s.eventLogger = l
+}
+
 // dispatchStatusUpdate emits a node-update event for an execution record status change.
 func (s *Service) dispatchStatusUpdate(record Record) {
 	if s.eventDispatcher == nil {
@@ -243,6 +258,45 @@ func (s *Service) dispatchStatusUpdate(record Record) {
 		"run_id":       record.RunID,
 	})
 	s.eventDispatcher.DispatchInvalidate("topology", "flow", "operations")
+}
+
+// logExecutionEvent emits an event log entry for an execution status transition.
+func (s *Service) logExecutionEvent(record Record, prevStatus Status) {
+	if s.eventLogger == nil {
+		return
+	}
+	if prevStatus == "" {
+		// New record — emit created event.
+		s.eventLogger.EmitExecutionCreated(record.ExecutionID, record.BacklogKind, record.BacklogName, string(record.Mode))
+		return
+	}
+	if prevStatus == record.Status {
+		return
+	}
+	s.eventLogger.EmitExecutionStatusChanged(record.ExecutionID, string(prevStatus), string(record.Status))
+
+	switch record.Status {
+	case StatusCompleted:
+		dur := executionDuration(record)
+		s.eventLogger.EmitExecutionCompleted(record.ExecutionID, dur, record.FixupAttempt > 0)
+	case StatusFailed:
+		dur := executionDuration(record)
+		s.eventLogger.EmitExecutionFailed(record.ExecutionID, record.FailureReason, dur)
+	case StatusCanceled:
+		s.eventLogger.EmitExecutionCanceled(record.ExecutionID, "user canceled")
+	}
+}
+
+func executionDuration(r Record) float64 {
+	if r.StartedAt == "" || r.FinishedAt == "" {
+		return 0
+	}
+	start, err1 := time.Parse(time.RFC3339, r.StartedAt)
+	end, err2 := time.Parse(time.RFC3339, r.FinishedAt)
+	if err1 != nil || err2 != nil {
+		return 0
+	}
+	return end.Sub(start).Seconds()
 }
 
 // QueueBacklog creates an execution record and optionally starts it.
@@ -315,6 +369,7 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 	if err := s.store.Save(records); err != nil {
 		return Record{}, err
 	}
+	s.logExecutionEvent(record, "")
 
 	if mode == ModeYOLO {
 		started, startErr := s.startLocked(ctx, record.ExecutionID)
@@ -565,6 +620,7 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 	}
 	record := records[idx]
 
+	prevStatus := record.Status
 	switch record.Status {
 	case StatusPending:
 		record.Status = StatusCanceled
@@ -574,6 +630,7 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 		if err := s.store.Save(records); err != nil {
 			return Record{}, err
 		}
+		s.logExecutionEvent(record, prevStatus)
 		s.dispatchStatusUpdate(record)
 		if err := s.restoreBacklogStatusForRecord(record); err != nil {
 			return Record{}, err
@@ -599,6 +656,7 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 		if err := s.restoreBacklogStatusForRecord(record); err != nil {
 			return Record{}, err
 		}
+		s.logExecutionEvent(record, prevStatus)
 		s.dispatchStatusUpdate(record)
 		return record, nil
 	case StatusValidating, StatusNeedsFixup:
@@ -612,6 +670,7 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 		if err := s.restoreBacklogStatusForRecord(record); err != nil {
 			return Record{}, err
 		}
+		s.logExecutionEvent(record, prevStatus)
 		s.dispatchStatusUpdate(record)
 		return record, nil
 	default:
@@ -797,6 +856,7 @@ func (s *Service) refreshRunningLocked(ctx context.Context) ([]string, error) {
 			if nextStatus == record.Status {
 				continue
 			}
+			prevStatus := record.Status
 			record.Status = nextStatus
 			record.FailureReason = reason
 			record.UpdatedAt = nowRFC3339()
@@ -855,6 +915,7 @@ func (s *Service) refreshRunningLocked(ctx context.Context) ([]string, error) {
 			}
 			changed = true
 			changedRecords[record.ExecutionID] = *record
+			s.logExecutionEvent(*record, prevStatus)
 		}
 	}
 

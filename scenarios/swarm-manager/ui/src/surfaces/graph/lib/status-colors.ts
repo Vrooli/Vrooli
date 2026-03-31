@@ -21,34 +21,39 @@ export interface StatusRgb {
 
 type StatusGroup = "neutral" | "active" | "waiting" | "done" | "error" | "terminal";
 
+// PERF: Backgrounds use 90% opacity (solid enough to hide the dot grid
+// behind the node) instead of 20% + backdrop-blur-sm. backdrop-blur forces
+// per-node GPU compositor layers with Gaussian blur every frame during
+// pan/zoom — the single most expensive CSS property in the graph.
+// 90% opaque on the dark slate-950 background is visually nearly identical.
 const STATUS_GROUP_COLORS: Record<StatusGroup, StatusColorClasses> = {
   neutral: {
-    background: "bg-slate-500/20",
+    background: "bg-slate-800/90",
     border: "border-slate-400/70",
     text: "text-slate-200",
   },
   active: {
-    background: "bg-cyan-500/20",
+    background: "bg-cyan-950/90",
     border: "border-cyan-400/80",
     text: "text-cyan-100",
   },
   waiting: {
-    background: "bg-amber-500/20",
+    background: "bg-amber-950/90",
     border: "border-amber-400/80",
     text: "text-amber-100",
   },
   done: {
-    background: "bg-emerald-500/20",
+    background: "bg-emerald-950/90",
     border: "border-emerald-400/80",
     text: "text-emerald-100",
   },
   error: {
-    background: "bg-red-500/20",
+    background: "bg-red-950/90",
     border: "border-red-400/80",
     text: "text-red-100",
   },
   terminal: {
-    background: "bg-slate-600/20",
+    background: "bg-slate-900/90",
     border: "border-slate-500/50",
     text: "text-slate-400",
   },

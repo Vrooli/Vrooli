@@ -20,9 +20,10 @@ Most of the time, humans review code changes and commit them. Do **not** default
 The director-swarm should treat `swarm-manager` as its primary planning surface.
 
 Start every heartbeat from:
-- `swarm-manager overview --format json`
-- `swarm-manager initiatives list --json`
+- `swarm-manager overview`
+- `swarm-manager initiatives list`
 - `swarm-manager initiatives get --name <initiative>` for the most important or most ambiguous initiatives
+- `swarm-manager stats summary` for throughput, blocking, initiative health, and agent efficiency metrics
 - prompt-manager decisions/tasks/handoffs that already capture approved portfolio focus or pending approvals
 
 Repo/runtime/test/git signals are secondary evidence. Use them when they materially affect an active initiative, a backlog readiness question, or an explicit human request.

@@ -1,0 +1,174 @@
+package eventlog
+
+import (
+	"context"
+	"encoding/json"
+	"log"
+	"time"
+)
+
+// Emitter provides typed methods for emitting events. All methods are
+// fire-and-forget: errors are logged but never returned, so event logging
+// cannot block or fail the calling mutation.
+type Emitter struct {
+	repo Repository
+}
+
+// NewEmitter creates an Emitter backed by the given repository.
+func NewEmitter(repo Repository) *Emitter {
+	return &Emitter{repo: repo}
+}
+
+// --- Backlog events ---
+
+func (e *Emitter) EmitBacklogCreated(entityID, kind, status string, priority int, initiative, effort string) {
+	e.emit(EntityBacklogItem, entityID, EventBacklogCreated, BacklogCreatedPayload{
+		Kind:       kind,
+		Status:     status,
+		Priority:   priority,
+		Initiative: initiative,
+		Effort:     effort,
+	})
+}
+
+func (e *Emitter) EmitBacklogStatusChanged(entityID, from, to string) {
+	e.emit(EntityBacklogItem, entityID, EventBacklogStatusChanged, StatusChangePayload{From: from, To: to})
+}
+
+func (e *Emitter) EmitBacklogPriorityChanged(entityID string, from, to int) {
+	e.emit(EntityBacklogItem, entityID, EventBacklogPriorityChanged, PriorityChangePayload{From: from, To: to})
+}
+
+func (e *Emitter) EmitBacklogEffortChanged(entityID, from, to string) {
+	e.emit(EntityBacklogItem, entityID, EventBacklogEffortChanged, EffortChangePayload{From: from, To: to})
+}
+
+func (e *Emitter) EmitBacklogDependencyAdded(entityID, target string) {
+	e.emit(EntityBacklogItem, entityID, EventBacklogDependencyAdded, DependencyPayload{Target: target})
+}
+
+func (e *Emitter) EmitBacklogDependencyRemoved(entityID, target string) {
+	e.emit(EntityBacklogItem, entityID, EventBacklogDependencyRemoved, DependencyPayload{Target: target})
+}
+
+func (e *Emitter) EmitBacklogInitiativeChanged(entityID, from, to string) {
+	e.emit(EntityBacklogItem, entityID, EventBacklogInitiativeChanged, InitiativeChangePayload{From: from, To: to})
+}
+
+func (e *Emitter) EmitBacklogBlocked(entityID, reason string) {
+	e.emit(EntityBacklogItem, entityID, EventBacklogBlocked, BlockPayload{Reason: reason})
+}
+
+func (e *Emitter) EmitBacklogUnblocked(entityID, reason string) {
+	e.emit(EntityBacklogItem, entityID, EventBacklogUnblocked, BlockPayload{Reason: reason})
+}
+
+func (e *Emitter) EmitBacklogArchived(entityID string) {
+	e.emit(EntityBacklogItem, entityID, EventBacklogArchived, nil)
+}
+
+// --- Execution events ---
+
+func (e *Emitter) EmitExecutionCreated(execID, backlogKind, backlogName, mode string) {
+	e.emit(EntityExecution, execID, EventExecutionCreated, ExecutionCreatedPayload{
+		BacklogKind: backlogKind,
+		BacklogName: backlogName,
+		Mode:        mode,
+	})
+}
+
+func (e *Emitter) EmitExecutionStatusChanged(execID, from, to string) {
+	e.emit(EntityExecution, execID, EventExecutionStatusChanged, StatusChangePayload{From: from, To: to})
+}
+
+func (e *Emitter) EmitExecutionCompleted(execID string, durationSecs float64, hadFixups bool) {
+	e.emit(EntityExecution, execID, EventExecutionCompleted, ExecutionCompletedPayload{
+		DurationSeconds: durationSecs,
+		HadFixups:       hadFixups,
+	})
+}
+
+func (e *Emitter) EmitExecutionFailed(execID, reason string, durationSecs float64) {
+	e.emit(EntityExecution, execID, EventExecutionFailed, ExecutionFailedPayload{
+		Reason:          reason,
+		DurationSeconds: durationSecs,
+	})
+}
+
+func (e *Emitter) EmitExecutionCanceled(execID, reason string) {
+	e.emit(EntityExecution, execID, EventExecutionCanceled, ExecutionCanceledPayload{Reason: reason})
+}
+
+// --- Initiative events ---
+
+func (e *Emitter) EmitInitiativeCreated(name string) {
+	e.emit(EntityInitiative, name, EventInitiativeCreated, nil)
+}
+
+func (e *Emitter) EmitInitiativeItemAdded(name, item string) {
+	e.emit(EntityInitiative, name, EventInitiativeItemAdded, InitiativeItemPayload{Item: item})
+}
+
+func (e *Emitter) EmitInitiativeItemRemoved(name, item string) {
+	e.emit(EntityInitiative, name, EventInitiativeItemRemoved, InitiativeItemPayload{Item: item})
+}
+
+func (e *Emitter) EmitInitiativeStatusChanged(name, from, to string) {
+	e.emit(EntityInitiative, name, EventInitiativeStatusChanged, StatusChangePayload{From: from, To: to})
+}
+
+func (e *Emitter) EmitInitiativeArchived(name string) {
+	e.emit(EntityInitiative, name, EventInitiativeArchived, nil)
+}
+
+// --- Queue events ---
+
+func (e *Emitter) EmitQueued(backlogKind, backlogName string, position int) {
+	e.emit(EntityQueue, backlogKind+"/"+backlogName, EventQueued, QueuePayload{
+		BacklogKind: backlogKind,
+		BacklogName: backlogName,
+		Position:    position,
+	})
+}
+
+func (e *Emitter) EmitDequeued(backlogKind, backlogName, reason string) {
+	e.emit(EntityQueue, backlogKind+"/"+backlogName, EventDequeued, QueuePayload{
+		BacklogKind: backlogKind,
+		BacklogName: backlogName,
+		Reason:      reason,
+	})
+}
+
+// --- Decision/workshop events ---
+
+func (e *Emitter) EmitWorkshopRoundCompleted(entityID string, roundNumber int) {
+	e.emit(EntityBacklogItem, entityID, EventWorkshopRoundCompleted, WorkshopRoundPayload{
+		RoundNumber: roundNumber,
+	})
+}
+
+// emit is the internal helper that marshals metadata and appends the event.
+func (e *Emitter) emit(entityType EntityType, entityID string, eventType EventType, payload any) {
+	var metadata json.RawMessage
+	if payload != nil {
+		data, err := json.Marshal(payload)
+		if err != nil {
+			log.Printf("[eventlog] failed to marshal payload for %s: %v", eventType, err)
+			return
+		}
+		metadata = data
+	}
+
+	event := Event{
+		Timestamp:  time.Now().UTC(),
+		EntityType: entityType,
+		EntityID:   entityID,
+		EventType:  eventType,
+		ActorType:  "user",
+		Metadata:   metadata,
+	}
+
+	if _, err := e.repo.Append(context.Background(), event); err != nil {
+		log.Printf("[eventlog] failed to append %s event for %s/%s: %v", eventType, entityType, entityID, err)
+	}
+}

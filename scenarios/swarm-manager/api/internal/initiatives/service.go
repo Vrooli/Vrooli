@@ -18,11 +18,21 @@ type EventDispatcher interface {
 	DispatchInvalidate(lenses ...string)
 }
 
+// EventLogger records initiative state-change events for analytics.
+type EventLogger interface {
+	EmitInitiativeCreated(name string)
+	EmitInitiativeItemAdded(name, item string)
+	EmitInitiativeItemRemoved(name, item string)
+	EmitInitiativeStatusChanged(name, from, to string)
+	EmitInitiativeArchived(name string)
+}
+
 // Service provides business logic for initiative operations.
 type Service struct {
 	store           *Store
 	backlogLoader   BacklogLoader
 	eventDispatcher EventDispatcher
+	eventLogger     EventLogger
 }
 
 // NewService creates a Service with the given store and backlog loader.
@@ -36,6 +46,11 @@ func NewService(store *Store, backlogLoader BacklogLoader) *Service {
 // SetEventDispatcher injects an optional graph invalidation dispatcher.
 func (s *Service) SetEventDispatcher(d EventDispatcher) {
 	s.eventDispatcher = d
+}
+
+// SetEventLogger injects an optional event logger for analytics tracking.
+func (s *Service) SetEventLogger(l EventLogger) {
+	s.eventLogger = l
 }
 
 // InitDir returns the absolute path for an initiative's folder, delegating to
@@ -89,6 +104,12 @@ func (s *Service) Create(req CreateRequest) (*Initiative, error) {
 	if err := s.store.Save(init); err != nil {
 		return nil, fmt.Errorf("save initiative: %w", err)
 	}
+	if s.eventLogger != nil {
+		s.eventLogger.EmitInitiativeCreated(name)
+		for _, item := range items {
+			s.eventLogger.EmitInitiativeItemAdded(name, item)
+		}
+	}
 	s.invalidateTopologyGraph()
 	return init, nil
 }
@@ -140,6 +161,8 @@ func (s *Service) Update(name string, req UpdateRequest) (*Initiative, error) {
 		return nil, fmt.Errorf("at least one field must be provided")
 	}
 
+	oldStatus := init.Status
+
 	if req.Title != nil {
 		title := strings.TrimSpace(*req.Title)
 		if title == "" {
@@ -165,6 +188,9 @@ func (s *Service) Update(name string, req UpdateRequest) (*Initiative, error) {
 	if err := s.store.Save(init); err != nil {
 		return nil, fmt.Errorf("save initiative: %w", err)
 	}
+	if s.eventLogger != nil && oldStatus != init.Status {
+		s.eventLogger.EmitInitiativeStatusChanged(name, oldStatus, init.Status)
+	}
 	s.invalidateTopologyGraph()
 	return init, nil
 }
@@ -176,6 +202,9 @@ func (s *Service) Delete(name string) error {
 	}
 	if err := s.store.Delete(name); err != nil {
 		return err
+	}
+	if s.eventLogger != nil {
+		s.eventLogger.EmitInitiativeArchived(name)
 	}
 	s.invalidateTopologyGraph()
 	return nil
@@ -257,15 +286,22 @@ func (s *Service) AddItems(name string, items []string) error {
 	for _, item := range init.Items {
 		existing[item] = true
 	}
+	var added []string
 	for _, item := range items {
 		if !existing[item] {
 			init.Items = append(init.Items, item)
 			existing[item] = true
+			added = append(added, item)
 		}
 	}
 	init.Updated = time.Now().UTC().Format(time.RFC3339)
 	if err := s.store.Save(init); err != nil {
 		return err
+	}
+	if s.eventLogger != nil {
+		for _, item := range added {
+			s.eventLogger.EmitInitiativeItemAdded(name, item)
+		}
 	}
 	s.invalidateTopologyGraph()
 	return nil
@@ -291,6 +327,13 @@ func (s *Service) RemoveItems(name string, items []string) error {
 	init.Updated = time.Now().UTC().Format(time.RFC3339)
 	if err := s.store.Save(init); err != nil {
 		return err
+	}
+	if s.eventLogger != nil {
+		for _, item := range items {
+			if remove[item] {
+				s.eventLogger.EmitInitiativeItemRemoved(name, item)
+			}
+		}
 	}
 	s.invalidateTopologyGraph()
 	return nil

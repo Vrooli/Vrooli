@@ -52,11 +52,25 @@ type Handler struct {
 	executionQueuer    ExecutionQueuer
 	policyProvider     execution.PolicyProvider
 	eventDispatcher    EventDispatcher
+	eventLogger        EventLogger
 }
 
 // EventDispatcher emits graph invalidation events for graph projections.
 type EventDispatcher interface {
 	DispatchInvalidate(lenses ...string)
+}
+
+// EventLogger records state-change events for analytics.
+type EventLogger interface {
+	EmitBacklogCreated(entityID, kind, status string, priority int, initiative, effort string)
+	EmitBacklogStatusChanged(entityID, from, to string)
+	EmitBacklogPriorityChanged(entityID string, from, to int)
+	EmitBacklogEffortChanged(entityID, from, to string)
+	EmitBacklogDependencyAdded(entityID, target string)
+	EmitBacklogDependencyRemoved(entityID, target string)
+	EmitBacklogInitiativeChanged(entityID, from, to string)
+	EmitBacklogArchived(entityID string)
+	EmitWorkshopRoundCompleted(entityID string, roundNumber int)
 }
 
 // NewHandler creates a new backlog handler.
@@ -104,6 +118,32 @@ func (h *Handler) SetPolicyProvider(pp execution.PolicyProvider) {
 // SetEventDispatcher injects an optional graph invalidation dispatcher.
 func (h *Handler) SetEventDispatcher(d EventDispatcher) {
 	h.eventDispatcher = d
+}
+
+// SetEventLogger injects an optional event logger for analytics tracking.
+func (h *Handler) SetEventLogger(l EventLogger) {
+	h.eventLogger = l
+}
+
+func (h *Handler) emitDependencyChanges(entityID string, oldDeps, newDeps []string) {
+	old := make(map[string]bool, len(oldDeps))
+	for _, d := range oldDeps {
+		old[d] = true
+	}
+	cur := make(map[string]bool, len(newDeps))
+	for _, d := range newDeps {
+		cur[d] = true
+	}
+	for d := range cur {
+		if !old[d] {
+			h.eventLogger.EmitBacklogDependencyAdded(entityID, d)
+		}
+	}
+	for d := range old {
+		if !cur[d] {
+			h.eventLogger.EmitBacklogDependencyRemoved(entityID, d)
+		}
+	}
 }
 
 func (h *Handler) invalidateAllGraphLenses() {
@@ -401,6 +441,9 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	h.maybeAutoWorkshop(item, false)
 
 	log.Printf("[backlog] created: %q (kind=%s, priority=%d, status=%s)", name, kind, priority, StatusBacklog)
+	if h.eventLogger != nil {
+		h.eventLogger.EmitBacklogCreated(string(kind)+"/"+name, string(kind), string(StatusBacklog), priority, item.Initiative, item.Effort)
+	}
 	h.invalidateAllGraphLenses()
 	resp := &apipb.BacklogItemResponse{Item: backlogToProto(item)}
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusCreated, resp); err != nil {
@@ -524,6 +567,9 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	oldStatus := existing.Status
 	oldPriority := existing.Priority
+	oldEffort := existing.Effort
+	oldInitiative := existing.Initiative
+	oldDependsOn := append([]string(nil), existing.DependsOn...)
 
 	if fields.Has(updateFieldEffort) {
 		normalized, err := validateEffort(update.GetEffort())
@@ -565,6 +611,23 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[backlog] updated: %q (status=%s→%s, priority=%d→%d)", name, oldStatus, existing.Status, oldPriority, existing.Priority)
 	} else {
 		log.Printf("[backlog] updated: %q", name)
+	}
+
+	if h.eventLogger != nil {
+		entityID := string(kind) + "/" + name
+		if oldStatus != existing.Status {
+			h.eventLogger.EmitBacklogStatusChanged(entityID, string(oldStatus), string(existing.Status))
+		}
+		if oldPriority != existing.Priority {
+			h.eventLogger.EmitBacklogPriorityChanged(entityID, oldPriority, existing.Priority)
+		}
+		if oldEffort != existing.Effort {
+			h.eventLogger.EmitBacklogEffortChanged(entityID, oldEffort, existing.Effort)
+		}
+		if oldInitiative != existing.Initiative {
+			h.eventLogger.EmitBacklogInitiativeChanged(entityID, oldInitiative, existing.Initiative)
+		}
+		h.emitDependencyChanges(entityID, oldDependsOn, existing.DependsOn)
 	}
 
 	// Cascade: when status transitions to workshop-ready, trigger
@@ -610,6 +673,9 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("[backlog] deleted: %q (kind=%s)", name, kind)
+	if h.eventLogger != nil {
+		h.eventLogger.EmitBacklogArchived(string(kind) + "/" + name)
+	}
 	h.invalidateAllGraphLenses()
 	w.WriteHeader(http.StatusNoContent)
 }

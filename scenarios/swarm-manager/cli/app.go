@@ -209,5 +209,16 @@ func (a *App) registerSubcommandGroups() []cliapp.SubcommandGroup {
 				{Name: "run-stop", NeedsAPI: true, Description: "Stop a run (--id ID) [--json]", Run: a.cmdAgentManagerRunStop},
 			},
 		},
+		{
+			Name:        "stats",
+			Description: "Event-driven analytics and metrics",
+			Subcommands: []cliapp.Command{
+				{Name: "summary", NeedsAPI: true, Description: "Full stats dashboard", Run: a.cmdStatsSummary},
+				{Name: "throughput", NeedsAPI: true, Description: "Throughput metrics", Run: a.cmdStatsThroughput},
+				{Name: "blocking", NeedsAPI: true, Description: "Blocking analysis", Run: a.cmdStatsBlocking},
+				{Name: "initiatives", NeedsAPI: true, Description: "Initiative health", Run: a.cmdStatsInitiatives},
+				{Name: "agent", NeedsAPI: true, Description: "Agent efficiency metrics", Run: a.cmdStatsAgent},
+			},
+		},
 	}
 }

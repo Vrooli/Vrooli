@@ -440,6 +440,17 @@ swarm-manager agent-manager run-get --id <run-id>   # Get execution run status
 swarm-manager agent-manager run-stop --id <run-id>  # Stop a running execution
 ```
 
+### Stats commands
+```bash
+swarm-manager stats summary                # Full stats dashboard (throughput, timing, blocking, initiatives, agent efficiency)
+swarm-manager stats throughput             # Throughput metrics (completed/created counts, net delta)
+swarm-manager stats blocking              # Blocking analysis (blocked ratio, top reasons, avg block hours)
+swarm-manager stats initiatives           # Initiative health (per-initiative completed/total/blocked/scope_creep)
+swarm-manager stats agent                 # Agent efficiency (success/failure rates, execution time, workshop rounds)
+```
+
+The `summary` subcommand returns all stat categories in one call. Use the focused subcommands when you only need a specific slice.
+
 ### Convert item kind
 ```bash
 swarm-manager backlog convert --kind <kind> --name <name> --target-kind <new-kind>

@@ -47,7 +47,9 @@ function GraphNodeComponent({ data, selected }: NodeProps) {
 
   return (
     <>
-      <Handle type="target" position={Position.Top} className="!bg-slate-500 !border-slate-400 !w-2 !h-2" />
+      {/* PERF: Minimal handles — only needed for React Flow edge routing.
+          Invisible (opacity-0) since graph is read-only (nodesConnectable=false). */}
+      <Handle type="target" position={Position.Top} className="!opacity-0 !w-1 !h-1 !min-w-0 !min-h-0 !border-0 !p-0" />
       {/* Outer wrapper: handles drop-shadow for clipped shapes */}
       <div
         className={cn(
@@ -63,7 +65,7 @@ function GraphNodeComponent({ data, selected }: NodeProps) {
       >
         <div
           className={cn(
-            "border-2 backdrop-blur-sm",
+            "border-2",
             "flex items-center justify-center",
             shapeClass,
             statusColors.background,
@@ -111,7 +113,7 @@ function GraphNodeComponent({ data, selected }: NodeProps) {
           <ActionableBadge status={nodeData.status} />
         )}
       </div>
-      <Handle type="source" position={Position.Bottom} className="!bg-slate-500 !border-slate-400 !w-2 !h-2" />
+      <Handle type="source" position={Position.Bottom} className="!opacity-0 !w-1 !h-1 !min-w-0 !min-h-0 !border-0 !p-0" />
     </>
   );
 }

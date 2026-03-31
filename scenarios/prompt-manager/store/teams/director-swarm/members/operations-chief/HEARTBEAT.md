@@ -19,4 +19,5 @@ Produce an execution-readiness brief for the director.
 - Identify which approved initiative has the best next unblocked item.
 - Flag backlog items that need stronger description, acceptance criteria, allow/deny constraints, effort, or initiative assignment before they should move forward.
 - Identify the smallest next approved move that would increase initiative momentum.
+- Use `swarm-manager stats blocking` and `swarm-manager stats agent` to quantify execution friction and agent reliability.
 - Do not create backlog items or authorize execution inside this heartbeat.

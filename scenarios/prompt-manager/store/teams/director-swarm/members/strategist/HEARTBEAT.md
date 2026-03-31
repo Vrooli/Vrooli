@@ -11,7 +11,8 @@ Produce a decision-ready strategy brief for the director.
 - Latest handoff and recent director decisions.
 - Intelligence-officer brief.
 - Operations-chief brief.
-- `swarm-manager overview --format json`
+- `swarm-manager overview`
+- `swarm-manager stats summary` for throughput trends and initiative health metrics.
 - Current task board and major blockers.
 - Relevant existing revenue-research findings, if any.
 

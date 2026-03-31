@@ -8,8 +8,9 @@ Produce a structured intelligence brief for the director.
 - Prioritize initiative, backlog, dependency, and approval signals over broad repo commentary.
 
 ## Inputs To Review
-- `swarm-manager overview --format json`
-- `swarm-manager initiatives list --json`
+- `swarm-manager overview`
+- `swarm-manager initiatives list`
+- `swarm-manager stats summary` — throughput, blocking, initiative health, and agent efficiency. Use focused subcommands (`stats throughput`, `stats blocking`, `stats initiatives`, `stats agent`) when drilling into specific signals.
 - Latest handoff, recent director decisions, and active tasks.
 - Relevant initiative member items via `swarm-manager initiatives get --name <initiative>` when needed.
 - Recent execution anomalies or repeated friction that materially affect active initiatives.

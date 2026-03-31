@@ -406,6 +406,13 @@ export const GraphCanvas = memo(function GraphCanvas() {
     [lens, setViewportForLens],
   );
 
+  const handleInit = useCallback(
+    (instance: ReactFlowInstance<GraphNode, GraphEdge>) => {
+      flowRef.current = instance;
+    },
+    [],
+  );
+
   // PERF: Read the initial viewport once at mount time, not reactively.
   // The storedViewport changes on every pan/zoom (via setViewportForLens),
   // but defaultViewport is only used by React Flow on initial mount.
@@ -416,6 +423,14 @@ export const GraphCanvas = memo(function GraphCanvas() {
   const hasStoredViewport = initialViewportRef.current !== null;
   const showMiniMap = settings.showMiniMap;
   const showFilterSuggestion = processedEdges.length > FILTER_SUGGESTION_THRESHOLD;
+
+  // PERF: Stable callback reference so MiniMap doesn't re-render on every
+  // GraphCanvas render. Without this, the inline arrow function creates a
+  // new reference each render, causing MiniMap to redraw all node colors.
+  const miniMapNodeColor = useCallback(
+    (node: { data?: unknown }) => getStatusRgb(getGraphNodeData(node).status),
+    [],
+  );
 
   return (
     <div className="h-full w-full" data-testid="graph-canvas">
@@ -429,9 +444,7 @@ export const GraphCanvas = memo(function GraphCanvas() {
         onNodeClick={handleNodeClick}
         onPaneClick={handlePaneClick}
         onMoveEnd={handleMoveEnd}
-        onInit={(instance) => {
-          flowRef.current = instance as unknown as ReactFlowInstance<GraphNode, GraphEdge>;
-        }}
+        onInit={handleInit}
         defaultViewport={defaultViewport}
         fitView={!hasStoredViewport}
         fitViewOptions={{ padding: 0.2, maxZoom: 1.2 }}
@@ -460,7 +473,7 @@ export const GraphCanvas = memo(function GraphCanvas() {
               border: "1px solid rgb(51 65 85 / 0.5)",
             }}
             nodeStrokeWidth={2}
-            nodeColor={(node) => getStatusRgb(getGraphNodeData(node).status)}
+            nodeColor={miniMapNodeColor}
             maskColor="rgb(2 6 23 / 0.7)"
             className="!bottom-3 !right-3"
           />

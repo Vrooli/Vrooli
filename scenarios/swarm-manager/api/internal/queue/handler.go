@@ -78,14 +78,26 @@ func (s *Store) Save(items []Item) error {
 	return storage.WriteJSONAtomic(s.path, items)
 }
 
+// EventLogger records queue state-change events for analytics.
+type EventLogger interface {
+	EmitQueued(backlogKind, backlogName string, position int)
+	EmitDequeued(backlogKind, backlogName, reason string)
+}
+
 // Handler exposes HTTP endpoints for queue operations.
 type Handler struct {
-	store *Store
+	store       *Store
+	eventLogger EventLogger
 }
 
 // NewHandler creates a new queue handler.
 func NewHandler(path string) *Handler {
 	return &Handler{store: NewStore(path)}
+}
+
+// SetEventLogger injects an optional event logger for analytics tracking.
+func (h *Handler) SetEventLogger(l EventLogger) {
+	h.eventLogger = l
 }
 
 // RegisterRoutes registers queue endpoints.
@@ -143,6 +155,9 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("[queue] added: id=%s kind=%s", item.ID, item.Kind)
+	if h.eventLogger != nil {
+		h.eventLogger.EmitQueued(item.Kind, item.ID, len(items))
+	}
 	if err := httputil.JSONWithStatus(w, http.StatusCreated, ItemResponse{Item: item}); err != nil {
 		httputil.InternalError(w, "[queue] create", "failed to encode response")
 		return
@@ -176,6 +191,9 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("[queue] removed: id=%s", id)
+	if h.eventLogger != nil {
+		h.eventLogger.EmitDequeued("", id, "removed")
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 

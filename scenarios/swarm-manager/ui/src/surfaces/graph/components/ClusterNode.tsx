@@ -49,10 +49,10 @@ function ClusterNodeComponent({ id, data, selected }: NodeProps) {
 
   return (
     <>
-      <Handle type="target" position={Position.Top} className="!bg-slate-500 !border-slate-400 !w-2 !h-2" />
+      <Handle type="target" position={Position.Top} className="!opacity-0 !w-1 !h-1 !min-w-0 !min-h-0 !border-0 !p-0" />
       <div
         className={cn(
-          "rounded-xl border px-3 py-2 shadow-md backdrop-blur-sm",
+          "rounded-xl border px-3 py-2",
           isUnassigned
             ? "bg-slate-800/80 border-slate-600/40"
             : "bg-slate-800/90 border-sky-500/40",
@@ -97,7 +97,7 @@ function ClusterNodeComponent({ id, data, selected }: NodeProps) {
           </div>
         )}
       </div>
-      <Handle type="source" position={Position.Bottom} className="!bg-slate-500 !border-slate-400 !w-2 !h-2" />
+      <Handle type="source" position={Position.Bottom} className="!opacity-0 !w-1 !h-1 !min-w-0 !min-h-0 !border-0 !p-0" />
     </>
   );
 }
