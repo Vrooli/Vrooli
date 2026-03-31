@@ -1,0 +1,131 @@
+{
+  "round": 2,
+  "generated_at": "2026-03-30T22:30:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 2,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "All 5 round-1 decisions have been incorporated into plan.md. The plan now has a concrete phased implementation strategy: Phase 1 (custom hook with DI), Phase 2 (UI component), Phase 3 (unit tests), Phase 4 (polish). The hook API surface is defined with state machine transitions and TypeScript interfaces."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "acceptance_allow update via backlog API returns HTTP 405. Intended globs: scenarios/web-console/ui/src/components/settings/**, scenarios/web-console/ui/src/hooks/voice/**. These will need to be set when the API supports it."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Mutual exclusion mechanism between test and enrollment recording",
+      "context": "VoiceInputSection manages enrollment recording via refs (wwRecorderRef, wwStreamRef, wwRecordingIdx). The live test hook will also need mic access. Both cannot use the mic simultaneously. Need to decide how to coordinate.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Shared isRecording flag lifted to VoiceInputSection",
+          "rationale": "Add a simple boolean state in VoiceInputSection that both enrollment and test check before starting. Enrollment sets it when wwRecordingIdx !== null, test hook accepts it as a disabled parameter. Lightweight, explicit, and keeps coordination in the parent component where both features live. Recommended because it's the simplest correct solution.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Single shared MediaStream managed by parent",
+          "rationale": "Parent acquires the stream once and passes it down to both enrollment and test. Avoids multiple getUserMedia calls. More complex to manage lifecycle — who opens/closes the stream? Overkill since enrollment and test never run simultaneously."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Hook file location and component extraction",
+      "context": "The new useWakeWordTest hook needs a home. VoiceInputSection.tsx is already large (~500+ lines) with enrollment logic. The test UI adds more state and rendering. Should the test section be a separate component?",
+      "options": [
+        {
+          "key": "A",
+          "label": "Hook in hooks/voice/wakeword/useWakeWordTest.ts, inline UI in VoiceInputSection",
+          "rationale": "Hook lives alongside other wake word code. UI stays inline in VoiceInputSection since it's a settings subsection, not a reusable component. Keeps the file count low. Recommended because the hook is the reusable/testable unit, and the UI is a one-off settings section.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Hook + extracted WakeWordTestPanel component",
+          "rationale": "Both hook and a new WakeWordTestPanel.tsx component. Reduces VoiceInputSection size. But adds a file for a component that's only used in one place — premature extraction."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Recording duration limits for push-to-test",
+      "context": "The push-to-test button records while held. Enrollment uses a 5-second hard cap. The test recording needs bounds too — too short clips won't have enough MFCC frames, too long wastes time and could produce poor DTW scores.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Min 0.5s, max 3s, auto-stop at max",
+          "rationale": "Wake words are typically 0.5-2s. A 3s max prevents overly long recordings that would dilute DTW matching. Auto-stop on max keeps UX clean. If released before 0.5s, show a hint to hold longer. Recommended as it matches typical wake word utterance length.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Same as enrollment: max 5s, no minimum",
+          "rationale": "Consistent with enrollment recording. But 5s is unnecessarily long for a quick test, and very short recordings (\u003c0.3s) produce garbage MFCC that would always fail."
+        },
+        {
+          "key": "C",
+          "label": "No limits — user controls entirely",
+          "rationale": "Simplest implementation. User can record as long as they want. Risk of very short or very long recordings producing confusing results."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Score bar visual design details",
+      "context": "Round 1 decided on a score bar with threshold line. Need to pin down the visual implementation: what component library to use, how the threshold line renders, color scheme details.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Plain div-based bar with CSS, inline threshold marker",
+          "rationale": "A container div with an inner div sized to score percentage. Threshold shown as an absolute-positioned vertical line. Green/red via Tailwind classes based on isMatch. No extra dependencies, matches existing settings page style (no chart library). Recommended for simplicity and consistency with existing UI patterns.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "HTML5 Canvas bar with animated fill",
+          "rationale": "Allows smooth fill animation and precise rendering. But overkill for a simple score indicator and inconsistent with the rest of the settings page."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    }
+  ],
+  "plan_updates": "Fully incorporated all 5 round-1 decisions into the plan. Added concrete hook API (UseWakeWordTestReturn interface, state machine), phased implementation strategy with details, unit test plan with specific test cases, and refined definition of done. Removed TBD placeholders."
+}

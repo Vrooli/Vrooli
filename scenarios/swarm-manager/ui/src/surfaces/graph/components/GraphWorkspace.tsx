@@ -28,7 +28,7 @@ import { useGraphWebSocket } from "../hooks/useGraphWebSocket";
 import { FloatingActionButton } from "../../../components/ui/floating-action-button";
 import { PageLoadingState } from "../../../components/ui/loading-states";
 import { useCapturePolling } from "../../../hooks/useCapturePolling";
-import { cn } from "../../../lib/utils";
+
 import { GraphCanvas } from "./GraphCanvas";
 import { CapturePanel } from "./CapturePanel";
 
@@ -404,7 +404,7 @@ export function GraphWorkspace() {
             icon={<MessageSquarePlus className="h-5 w-5" />}
             label="New capture"
             onClick={() => setShowCapturePanel((prev) => !prev)}
-            className={cn(!sidebarCollapsed && "md:right-[21.5rem]")}
+
             data-testid="capture-fab"
           />
         )}

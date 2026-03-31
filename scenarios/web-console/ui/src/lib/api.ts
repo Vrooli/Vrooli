@@ -579,7 +579,8 @@ export interface VoiceStreamConfig {
   minDeltaBytes: number;
   overlapBytes: number;
   persistentMode: boolean;
-  commandPrefix: string;
+  wakeWordEnabled: boolean;
+  wakeWordThreshold: number;
   segmentSilenceMs: number;
 }
 
@@ -604,6 +605,42 @@ export async function updateVoiceStreamConfig(
   });
   if (!res.ok) throw await extractAPIError(res, "Failed to update voice config");
   return (await res.json()) as VoiceStreamConfig;
+}
+
+// Wake word template configuration
+export interface WakeWordConfig {
+  configured: boolean;
+  template: import("../hooks/voice/wakeword/types").WakeWordTemplate | null;
+}
+
+export async function getWakeWordConfig(): Promise<WakeWordConfig> {
+  const url = buildApiUrl("/voice/wakeword", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) throw await extractAPIError(res, "Failed to get wake word config");
+  return (await res.json()) as WakeWordConfig;
+}
+
+export async function updateWakeWordConfig(
+  template: import("../hooks/voice/wakeword/types").WakeWordTemplate,
+): Promise<WakeWordConfig> {
+  const url = buildApiUrl("/voice/wakeword", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(template),
+  });
+  if (!res.ok) throw await extractAPIError(res, "Failed to save wake word template");
+  return (await res.json()) as WakeWordConfig;
+}
+
+export async function deleteWakeWordConfig(): Promise<WakeWordConfig> {
+  const url = buildApiUrl("/voice/wakeword", { baseUrl: API_BASE });
+  const res = await fetch(url, { method: "DELETE" });
+  if (!res.ok) throw await extractAPIError(res, "Failed to delete wake word template");
+  return (await res.json()) as WakeWordConfig;
 }
 
 export interface SpeakerVerificationConfig {

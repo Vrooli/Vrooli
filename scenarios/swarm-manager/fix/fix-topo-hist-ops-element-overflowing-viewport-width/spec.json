@@ -1,0 +1,16 @@
+{
+  "created": "2026-03-30T20:13:27Z",
+  "description": "The topo/hist/ops element has a width that is too large, pushing content outside the viewport. Needs CSS or layout fix to constrain it within bounds.",
+  "kind": "fix",
+  "name": "fix-topo-hist-ops-element-overflowing-viewport-width",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [
+    "swarm-manager",
+    "layout",
+    "overflow",
+    "graph-ui"
+  ],
+  "title": "Fix topo/hist/ops element overflowing viewport width",
+  "updated": "2026-03-30T20:13:27Z"
+}

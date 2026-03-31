@@ -1,0 +1,146 @@
+{
+  "round": 2,
+  "generated_at": "2026-03-30T22:15:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 2,
+    "testable": 1
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Modal layout: combined or separate dialogs for allow vs deny?",
+      "context": "The modal needs to let users edit both acceptance_allow and acceptance_deny patterns. We can either put both in one dialog (tabbed or stacked) or have separate edit buttons/dialogs for each.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Single modal with two stacked textareas",
+          "rationale": "One dialog with labeled sections for allow and deny. Simpler to implement, user sees full picture at once. Recommended — matches the detail page layout where both are displayed together.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Single modal with tabs (Allow | Deny)",
+          "rationale": "Cleaner visual separation, especially if pattern lists are long. Adds tab component complexity."
+        },
+        {
+          "key": "C",
+          "label": "Separate edit buttons and dialogs for each",
+          "rationale": "Most granular control — user edits only what they need. But splits a related concern into two interactions."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Describe your preferred layout"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "API path validation: how to check that globs match real project paths?",
+      "context": "You indicated validation should check that globs match real paths in the project. The current API validates glob syntax but does NOT check against the filesystem. We need to decide how to implement this path-existence check.",
+      "options": [
+        {
+          "key": "A",
+          "label": "New API endpoint: POST /backlog/validate-globs",
+          "rationale": "Dedicated endpoint that accepts an array of globs and returns which ones match files. Clean separation but requires backend work.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Enhance existing PATCH validation to return match counts",
+          "rationale": "Piggyback on the existing update endpoint — return matched file counts in the response. Less API surface but mixes concerns."
+        },
+        {
+          "key": "C",
+          "label": "Client-side only: validate syntax, skip path checking",
+          "rationale": "Simplest approach — just check glob syntax client-side. Users must know their paths. Fastest to ship but doesn't meet the stated requirement."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Describe your preferred approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Validation UX: when to show errors?",
+      "context": "With per-line validation in a textarea, we need to decide how and when validation feedback appears. Options range from real-time to on-save-only.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Validate on save only, show errors inline",
+          "rationale": "Simplest — user clicks Save, invalid lines are highlighted with error messages. No interruption while typing."
+        },
+        {
+          "key": "B",
+          "label": "Validate on blur + debounced typing (500ms)",
+          "rationale": "Errors appear shortly after user stops typing or leaves the textarea. Good balance of feedback vs. interruption. Recommended — familiar pattern from code editors.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Real-time validation on every keystroke",
+          "rationale": "Immediate feedback but can be distracting, especially with API path checks that add latency."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Describe your preferred timing"
+        }
+      ],
+      "selected": "B"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Error display format for invalid lines",
+      "context": "When a glob line fails validation, we need to show which line has the error and why. In a plain textarea, we can't annotate individual lines inline. We need an approach for displaying per-line errors.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Error summary below textarea with line numbers",
+          "rationale": "Show a list of errors below the textarea: 'Line 3: absolute path not allowed'. Simple to implement with a plain textarea. Recommended.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Replace textarea with a line-editor component (one input per line)",
+          "rationale": "Each line gets its own input field with inline validation icon. More precise feedback but significantly more complex to build and style."
+        },
+        {
+          "key": "C",
+          "label": "CodeMirror/Monaco with line markers",
+          "rationale": "Full code editor experience with gutter markers. Overkill for glob patterns but provides excellent UX. Heavy dependency."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Describe your preferred approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The existing Dialog component supports all needed features: portal rendering, escape/click-outside close, customizable max-width, loading state, and ARIA labeling. No new primitives needed."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "The BacklogFormDialog already has acceptance_allow/acceptance_deny inputs as comma-separated text fields (lines 360-398). The new modal will supersede this pattern with per-line textarea editing. Consider whether to also update BacklogFormDialog for consistency, or leave it as-is since it's for creation (where patterns are typically shorter)."
+    }
+  ],
+  "plan_updates": "Incorporated all 5 resolved decisions from round 1 into the plan. Added detailed phased approach (component creation, validation logic, integration). Expanded technical context with codebase findings (Dialog component, locked state implementation, existing form patterns). Updated target files to include new AcceptanceGlobDialog component and validation utility."
+}

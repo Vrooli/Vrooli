@@ -1,0 +1,136 @@
+{
+  "round": 2,
+  "generated_at": "2026-03-30T20:30:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 3,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 2,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Progress summary format and placement",
+      "context": "Round 1 settled on adding a progress summary. The segmented bar currently shows colored segments but no text. Other dashboards use either a fraction ('3 of 7') or percentage ('43%') or both. Placement can be above the bar (as a heading supplement) or below (as a caption).",
+      "options": [
+        {
+          "key": "A",
+          "label": "Fraction below bar: '3 of 7 completed'",
+          "rationale": "Clean, reads naturally, placed as a caption below the progress bar. Matches the mental model of counting items. Recommended because it's the most scannable format for small counts (\u003c50 items).",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Percentage + fraction: '43% (3/7)'",
+          "rationale": "More data-dense. Good for large counts where percentage is more meaningful. But for initiative sizes (typically 3-15 items), the fraction alone is clearer."
+        },
+        {
+          "key": "C",
+          "label": "Inline with section header: 'Progress (3/7)'",
+          "rationale": "Compact — puts the count in the header itself. Saves vertical space but makes the header inconsistent with other section headers that are text-only."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own format/placement"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Specific Lucide icons for section headers",
+      "context": "Round 1 settled on adding icons to Progress and Items headers. Need to lock in exact icon choices. Files already uses FolderOpen. Other detail pages use domain-specific icons (Settings2, Terminal, Clock, etc.). For Progress and Items, several candidates exist in the Lucide library.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Progress: BarChart3, Items: Layers",
+          "rationale": "BarChart3 visually suggests metrics/progress. Layers suggests stacked items. Both are distinct from FolderOpen and commonly used in dashboard UIs. Recommended for clarity and visual balance.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Progress: TrendingUp, Items: List",
+          "rationale": "TrendingUp suggests forward motion. List is more literal. But TrendingUp implies growth rather than completion progress, which could be misleading."
+        },
+        {
+          "key": "C",
+          "label": "Progress: PieChart, Items: LayoutGrid",
+          "rationale": "PieChart maps to the segmented bar concept. LayoutGrid suggests a structured collection. But PieChart is visually dense at small sizes."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Specify your preferred icons"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Item chip truncation threshold and behavior",
+      "context": "The plan proposes truncating item chips at 12+ items with a '+N more' chip. Need to confirm the threshold and how the overflow chip behaves. Most initiatives have 3-10 items, but some could grow larger.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Show first 12, then '+N more' as non-interactive muted chip",
+          "rationale": "12 is enough to see a good cross-section. The '+N more' chip is informational only — users scroll or use the backlog view for the full list. Simple implementation.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Show first 8, then '+N more' that expands to show all",
+          "rationale": "Lower threshold keeps the card compact. Click-to-expand provides access without navigation. But adds state management and makes the card height unpredictable."
+        },
+        {
+          "key": "C",
+          "label": "Show all items, no truncation",
+          "rationale": "Simplest implementation. For the current range of initiative sizes (3-15 items), truncation may never trigger. But future-proofing is lost."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Specify your threshold and behavior"
+        }
+      ],
+      "selected": "B"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Test approach for visual/layout changes",
+      "context": "The current test file (244 lines) uses React Testing Library with assertions on text content, button clicks, and query states. Layout changes (grid, spacing, icons) are harder to test with RTL. Options range from purely structural tests to snapshot-based approaches.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Behavioral tests only — test presence and interaction, not layout",
+          "rationale": "Test that empty states render when data is empty, kind icons are present via aria-label or test-id, progress summary text appears. Don't test CSS classes or grid structure. Recommended because layout is best verified visually and behavioral tests are more maintainable.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Behavioral tests + snapshot test for the full page",
+          "rationale": "Snapshot catches unintended layout regressions. But snapshots are brittle — any markup change breaks them, creating maintenance burden."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your testing approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The current codebase already imports Lucide icons (Wrench, Play, Lightbulb, CheckSquare, BarChart3, Layers, FolderOpen, Inbox, FileX) in other swarm-manager UI files — no new icon dependencies needed. The BACKLOG_STATUS_CHIP_COLORS mapping and kind-to-icon mapping can be co-located near each other for maintainability."
+    }
+  ],
+  "plan_updates": "Incorporated all 4 settled decisions from round 1 into a 'Settled Decisions' section. Expanded the plan to include all 13 mandatory sections (Required Reading, Problem Statement, Scope, Current Technical Context, Target End State, Implementation Strategy with 4 phases, Contract Decisions, Testing Plan, Risks \u0026 Mitigations, Non-goals, Definition of Done). Added detailed cross-page comparison table and specific file references."
+}

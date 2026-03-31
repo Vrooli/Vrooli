@@ -68,7 +68,7 @@ export function Sidebar({ feed, onItemClick, onSettingsOpen, onViewActivity, onV
 
       <aside
         className={cn(
-          "fixed inset-0 z-30 flex w-full flex-col border-r border-slate-200/20 bg-slate-950 shadow-2xl",
+          "fixed inset-0 z-40 flex w-full flex-col border-r border-slate-200/20 bg-slate-950 shadow-2xl",
           "md:relative md:w-80 md:shrink-0 md:shadow-none",
         )}
         style={{ touchAction: "manipulation" }}

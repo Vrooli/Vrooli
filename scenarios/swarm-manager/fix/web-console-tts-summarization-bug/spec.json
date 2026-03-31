@@ -10,8 +10,8 @@
   "kind": "fix",
   "name": "web-console-tts-summarization-bug",
   "priority": 3,
-  "status": "backlog",
+  "status": "archived",
   "tags": [],
   "title": "Fix TTS Summarization Not Triggering for Long Messages",
-  "updated": "2026-03-26T20:54:35Z"
+  "updated": "2026-03-30T20:22:11Z"
 }

@@ -1,0 +1,31 @@
+{
+  "round": 3,
+  "generated_at": "2026-03-30T21:15:00Z",
+  "mode": "finalize",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 2,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "All 8 workshop decisions from rounds 1 and 2 have been incorporated into plan.md. Key synthesis changes: (1) Chip truncation threshold updated from 12 to 8 with click-to-expand behavior per user's round 2 selection of option B — this adds a local useState toggle but keeps the card compact by default. (2) Progress summary confirmed as fraction-below-bar format. (3) Section header icons locked to BarChart3 and Layers. (4) Test approach confirmed as behavioral-only (no snapshots). (5) Added Final Cleanup & Verification phase per plan-authoring conventions. (6) Added greenfield constraint statement."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Readiness assessment: problem_clarity (3) — all 8 issues fully enumerated with cross-page comparison evidence. scope_defined (2) — acceptance_allow/acceptance_deny not set on the backlog item; in-scope files are documented in plan but not enforced via globs. approach_solid (3) — 4-phase strategy with specific file targets, icon choices, thresholds, and patterns all locked. testable (3) — behavioral test plan covers all new behaviors with specific test descriptions. risk_awareness (3) — expanded risk table covers the new expand-state UX risk from the truncation change."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Remaining gap: scope_defined is 2 because acceptance_allow and acceptance_deny are not set on the backlog item metadata. The plan clearly documents the target files (InitiativeDetailsPage.tsx, its test file, and potentially shared detail components), but for full score the user would need to set acceptance_allow globs on the backlog item via: swarm-manager backlog update --kind execute --name polish-initiative-details-page-layout-and-styling --data '{\"acceptance_allow\":[\"scenarios/swarm-manager/ui/src/pages/InitiativeDetailsPage*\",\"scenarios/swarm-manager/ui/src/components/**\"]}'"
+    }
+  ],
+  "plan_updates": "Incorporated all round 2 decisions: chip truncation changed to 8-item threshold with click-to-expand (option B), progress summary as fraction below bar, BarChart3/Layers for section icons, behavioral-only testing. Added greenfield constraint, Final Cleanup & Verification phase, expanded risk table for expand-state UX, and prohibited snapshot tests in Non-goals. Settled Decisions table now has both round 1 and round 2 sections."
+}

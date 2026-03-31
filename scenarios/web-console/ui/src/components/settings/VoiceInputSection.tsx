@@ -7,6 +7,7 @@ import {
   Circle,
   Keyboard,
   Mic,
+  Play,
   RefreshCw,
   RotateCcw,
   Square,
@@ -16,20 +17,31 @@ import {
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 import {
   clearSpeakerVerificationProfile,
+  deleteWakeWordConfig,
   deleteSpeakerVerificationProfile,
   enrollSpeakerVerificationProfile,
   fetchCapabilities,
   getSpeakerVerificationStatus,
   getVoiceStreamConfig,
+  getWakeWordConfig,
   removeSpeakerVerificationProfile,
   toErrorInfo,
+  updateWakeWordConfig,
   type CapabilityState,
   type SpeakerVerificationStatusResponse,
   type VoiceStreamConfig,
+  type WakeWordConfig,
   updateSpeakerVerificationConfig,
   updateVoiceStreamConfig,
 } from "../../lib/api";
 import { VOICE_COMMANDS } from "../../hooks/voice/commands";
+import {
+  createWakeWordEngine,
+  MIN_ENROLLMENT_SAMPLES,
+  MAX_ENROLLMENT_SAMPLES,
+  type AudioFeatures,
+  type WakeWordTemplate,
+} from "../../hooks/voice/wakeword";
 import { formatShortcutFromEvent } from "../../lib/shortcutParser";
 import { Button } from "../ui/button";
 import { SettingsCard, SettingsRow, SettingsSectionIntro, SettingsToggle } from "./primitives";
@@ -46,7 +58,7 @@ export default function VoiceInputSection() {
   const voiceLanguage = useWorkspaceStore((state) => state.voiceLanguage);
   const setVoiceLanguage = useWorkspaceStore((state) => state.setVoiceLanguage);
   const setStorePersistentMode = useWorkspaceStore((state) => state.setPersistentMode);
-  const setStoreCommandPrefix = useWorkspaceStore((state) => state.setCommandPrefix);
+  const setStoreWakeWordEnabled = useWorkspaceStore((state) => state.setWakeWordEnabled);
   const setStoreSegmentSilenceMs = useWorkspaceStore((state) => state.setSegmentSilenceMs);
 
   const [recordingShortcut, setRecordingShortcut] = useState(false);
@@ -67,6 +79,25 @@ export default function VoiceInputSection() {
   const [profileDisplayName, setProfileDisplayName] = useState("My Voice");
   const [reEnrollTargetId, setReEnrollTargetId] = useState<string | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  // Wake word state
+  const [wakeWordConfig, setWakeWordConfig] = useState<WakeWordConfig | null>(null);
+  const [wakeWordLoading, setWakeWordLoading] = useState(false);
+  const [wakeWordError, setWakeWordError] = useState<string | null>(null);
+  const [wwRecordingIdx, setWwRecordingIdx] = useState<number | null>(null);
+  const [wwRecordingSeconds, setWwRecordingSeconds] = useState(0);
+  const [wwPlayingIdx, setWwPlayingIdx] = useState<number | null>(null);
+  const [wwTestResult, setWwTestResult] = useState<string | null>(null);
+  const [wwLabel, setWwLabel] = useState("Hey Vrooli");
+  const wwSamplesRef = useRef<(AudioFeatures | null)[]>([]);
+  const wwAudioBlobsRef = useRef<(Blob | null)[]>([]);
+  const wwRecorderRef = useRef<MediaRecorder | null>(null);
+  const wwStreamRef = useRef<MediaStream | null>(null);
+  const wwChunksRef = useRef<Blob[]>([]);
+  const wwTickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const wwStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wwEngineRef = useRef(createWakeWordEngine());
+  const wwPlaybackRef = useRef<HTMLAudioElement | null>(null);
+
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const enrollmentChunksRef = useRef<Blob[]>([]);
   const enrollmentRecorderRef = useRef<MediaRecorder | null>(null);
@@ -90,6 +121,124 @@ export default function VoiceInputSection() {
   useEffect(() => {
     void checkMicPermission();
   }, [checkMicPermission]);
+
+  // ── Wake word config loading ──
+  const loadWakeWordConfig = useCallback(async (signal?: { cancelled: boolean }) => {
+    setWakeWordLoading(true);
+    setWakeWordError(null);
+    try {
+      const config = await getWakeWordConfig();
+      if (signal?.cancelled) return;
+      setWakeWordConfig(config);
+      if (config.template) {
+        setWwLabel(config.template.label);
+        wwSamplesRef.current = [...config.template.samples];
+        // No audio blobs available for previously saved samples
+        wwAudioBlobsRef.current = config.template.samples.map(() => null);
+      }
+    } catch (error) {
+      if (!signal?.cancelled) setWakeWordError(toErrorInfo(error).message);
+    } finally {
+      if (!signal?.cancelled) setWakeWordLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!voiceEnabled) return;
+    const signal = { cancelled: false };
+    void loadWakeWordConfig(signal);
+    return () => { signal.cancelled = true; };
+  }, [voiceEnabled, loadWakeWordConfig]);
+
+  const stopWwRecording = useCallback(() => {
+    if (wwTickerRef.current) { clearInterval(wwTickerRef.current); wwTickerRef.current = null; }
+    if (wwStopTimerRef.current) { clearTimeout(wwStopTimerRef.current); wwStopTimerRef.current = null; }
+    if (wwRecorderRef.current?.state === "recording") wwRecorderRef.current.stop();
+  }, []);
+
+  const startWwRecording = useCallback(async (slotIdx: number) => {
+    setWakeWordError(null);
+    setWwTestResult(null);
+    setWwRecordingIdx(slotIdx);
+    setWwRecordingSeconds(0);
+    wwChunksRef.current = [];
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      wwStreamRef.current = stream;
+      const recorder = new MediaRecorder(stream, {
+        mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "audio/webm",
+      });
+      wwRecorderRef.current = recorder;
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) wwChunksRef.current.push(e.data); };
+      recorder.onerror = () => { setWwRecordingIdx(null); setWakeWordError("Recording failed."); };
+      recorder.onstop = async () => {
+        wwStreamRef.current?.getTracks().forEach((t) => t.stop());
+        wwStreamRef.current = null;
+        const blob = new Blob(wwChunksRef.current, { type: "audio/webm" });
+        if (blob.size === 0) { setWwRecordingIdx(null); setWakeWordError("Recording was empty."); return; }
+        // Decode audio and extract MFCC features
+        try {
+          const arrayBuf = await blob.arrayBuffer();
+          const audioCtx = new AudioContext({ sampleRate: 16000 });
+          const decoded = await audioCtx.decodeAudioData(arrayBuf);
+          const pcm = decoded.getChannelData(0);
+          await audioCtx.close();
+          const features = wwEngineRef.current.extractFeatures(pcm, 16000);
+          const next = [...wwSamplesRef.current];
+          while (next.length <= slotIdx) next.push(null);
+          next[slotIdx] = features;
+          wwSamplesRef.current = next;
+          const blobs = [...wwAudioBlobsRef.current];
+          while (blobs.length <= slotIdx) blobs.push(null);
+          blobs[slotIdx] = blob;
+          wwAudioBlobsRef.current = blobs;
+        } catch (err) {
+          setWakeWordError(`Feature extraction failed: ${err}`);
+        }
+        setWwRecordingIdx(null);
+      };
+      recorder.start(250);
+      wwTickerRef.current = setInterval(() => setWwRecordingSeconds((v) => v + 1), 1000);
+      wwStopTimerRef.current = setTimeout(() => stopWwRecording(), 5000);
+    } catch (error) {
+      setWwRecordingIdx(null);
+      setWakeWordError(toErrorInfo(error).message);
+    }
+  }, [stopWwRecording]);
+
+  const playWwSample = useCallback((idx: number) => {
+    const blob = wwAudioBlobsRef.current[idx];
+    if (!blob) return;
+    if (wwPlaybackRef.current) { wwPlaybackRef.current.pause(); wwPlaybackRef.current = null; }
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    wwPlaybackRef.current = audio;
+    setWwPlayingIdx(idx);
+    audio.onended = () => { setWwPlayingIdx(null); URL.revokeObjectURL(url); };
+    audio.play().catch(() => setWwPlayingIdx(null));
+  }, []);
+
+  const removeWwSample = useCallback((idx: number) => {
+    const next = [...wwSamplesRef.current];
+    next[idx] = null;
+    wwSamplesRef.current = next;
+    const blobs = [...wwAudioBlobsRef.current];
+    blobs[idx] = null;
+    wwAudioBlobsRef.current = blobs;
+    // Force re-render by updating a derived piece of state
+    setWwTestResult(null);
+    setWakeWordError(null);
+  }, []);
+
+  // Cleanup wake word recording on unmount
+  useEffect(() => {
+    return () => {
+      if (wwTickerRef.current) clearInterval(wwTickerRef.current);
+      if (wwStopTimerRef.current) clearTimeout(wwStopTimerRef.current);
+      wwStreamRef.current?.getTracks().forEach((t) => t.stop());
+      if (wwPlaybackRef.current) { wwPlaybackRef.current.pause(); wwPlaybackRef.current = null; }
+    };
+  }, []);
 
   const requestMicPermission = useCallback(async () => {
     setMicRequesting(true);
@@ -143,7 +292,7 @@ export default function VoiceInputSection() {
         // Hydrate workspace store from backend config so useVoiceInput picks up
         // persisted values without waiting for the user to toggle settings.
         setStorePersistentMode(config.persistentMode);
-        setStoreCommandPrefix(config.commandPrefix || "hey do");
+        setStoreWakeWordEnabled(config.wakeWordEnabled ?? false);
         setStoreSegmentSilenceMs(config.segmentSilenceMs || 1500);
       }
     } catch (error) {
@@ -155,7 +304,7 @@ export default function VoiceInputSection() {
         setVsConfigLoading(false);
       }
     }
-  }, [setStorePersistentMode, setStoreCommandPrefix, setStoreSegmentSilenceMs]);
+  }, [setStorePersistentMode, setStoreWakeWordEnabled, setStoreSegmentSilenceMs]);
 
   const loadSpeakerStatus = useCallback(async (signal?: { cancelled: boolean }) => {
     setSpeakerLoading(true);
@@ -201,7 +350,7 @@ export default function VoiceInputSection() {
     setVsConfig((current) => (current ? { ...current, ...patch } : null));
     // Update workspace store immediately for reactive consumers (useVoiceInput)
     if (patch.persistentMode !== undefined) setStorePersistentMode(patch.persistentMode);
-    if (patch.commandPrefix !== undefined) setStoreCommandPrefix(patch.commandPrefix);
+    if (patch.wakeWordEnabled !== undefined) setStoreWakeWordEnabled(patch.wakeWordEnabled);
     if (patch.segmentSilenceMs !== undefined) setStoreSegmentSilenceMs(patch.segmentSilenceMs);
     // Debounce the backend write
     if (saveTimerRef.current) {
@@ -216,7 +365,60 @@ export default function VoiceInputSection() {
         setVsConfigError(toErrorInfo(error).message);
       }
     }, 500);
-  }, [setStorePersistentMode, setStoreCommandPrefix, setStoreSegmentSilenceMs]);
+  }, [setStorePersistentMode, setStoreWakeWordEnabled, setStoreSegmentSilenceMs]);
+
+  const saveWakeWord = useCallback(async () => {
+    const samples = wwSamplesRef.current.filter((s): s is AudioFeatures => s !== null);
+    if (samples.length < MIN_ENROLLMENT_SAMPLES) {
+      setWakeWordError(`Record at least ${MIN_ENROLLMENT_SAMPLES} samples before saving.`);
+      return;
+    }
+    setWakeWordError(null);
+    const threshold = useWorkspaceStore.getState().wakeWordThreshold;
+    const template: WakeWordTemplate = {
+      samples,
+      label: wwLabel.trim() || "Hey Vrooli",
+      threshold,
+      updatedAt: new Date().toISOString(),
+    };
+    try {
+      const updated = await updateWakeWordConfig(template);
+      setWakeWordConfig(updated);
+      handleVsConfigChange({ wakeWordEnabled: true });
+      setWwTestResult("Saved! Wake word is now active.");
+    } catch (error) {
+      setWakeWordError(toErrorInfo(error).message);
+    }
+  }, [wwLabel, handleVsConfigChange]);
+
+  const deleteWakeWord = useCallback(async () => {
+    setWakeWordError(null);
+    try {
+      const updated = await deleteWakeWordConfig();
+      setWakeWordConfig(updated);
+      wwSamplesRef.current = [];
+      wwAudioBlobsRef.current = [];
+      handleVsConfigChange({ wakeWordEnabled: false });
+      setWwTestResult(null);
+    } catch (error) {
+      setWakeWordError(toErrorInfo(error).message);
+    }
+  }, [handleVsConfigChange]);
+
+  const testWakeWord = useCallback(async () => {
+    const samples = wwSamplesRef.current.filter((s): s is AudioFeatures => s !== null);
+    if (samples.length < 2) { setWwTestResult("Need at least 2 samples to test."); return; }
+    const threshold = useWorkspaceStore.getState().wakeWordThreshold;
+    let matches = 0;
+    let total = 0;
+    for (let i = 0; i < samples.length; i++) {
+      const others = samples.filter((_, j) => j !== i);
+      const result = wwEngineRef.current.compareBest(samples[i]!, others, threshold);
+      total++;
+      if (result.isMatch) matches++;
+    }
+    setWwTestResult(`Cross-validation: ${matches}/${total} samples matched (threshold ${threshold.toFixed(2)})`);
+  }, []);
 
   const resetVsConfig = useCallback(async () => {
     try {
@@ -225,7 +427,8 @@ export default function VoiceInputSection() {
         minDeltaBytes: 4096,
         overlapBytes: 2048,
         persistentMode: false,
-        commandPrefix: "hey do",
+        wakeWordEnabled: false,
+        wakeWordThreshold: 0.65,
         segmentSilenceMs: 1500,
       });
       setVsConfig(updated);
@@ -491,19 +694,191 @@ export default function VoiceInputSection() {
               {vsConfig.persistentMode && (
                 <>
                   <SettingsRow
-                    label="Command prefix"
-                    hint="Say this word before a command (e.g., &quot;hey do new tab&quot;)."
+                    label="Wake word"
+                    hint="Record a custom wake phrase to activate voice hands-free."
                     control={(
-                      <input
-                        data-testid="command-prefix-input"
-                        type="text"
-                        value={vsConfig.commandPrefix}
-                        onChange={(event) => handleVsConfigChange({ commandPrefix: event.target.value })}
-                        className="w-28 rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
-                        placeholder="hey do"
+                      <SettingsToggle
+                        testId="wake-word-toggle"
+                        checked={vsConfig.wakeWordEnabled}
+                        onClick={() => {
+                          if (!vsConfig.wakeWordEnabled && !wakeWordConfig?.configured) {
+                            setWakeWordError("Record and save a wake word below before enabling.");
+                            return;
+                          }
+                          handleVsConfigChange({ wakeWordEnabled: !vsConfig.wakeWordEnabled });
+                        }}
                       />
                     )}
                   />
+
+                  <div className="rounded-xl border border-wc-default bg-wc-surface-base/60 p-3 space-y-3">
+                    <div className="flex items-center gap-2 text-sm font-medium text-wc-text-secondary">
+                      <Mic className="h-4 w-4" />
+                      Wake word recording
+                    </div>
+                    <p className="text-[11px] text-wc-text-muted">
+                      Record {MIN_ENROLLMENT_SAMPLES}–{MAX_ENROLLMENT_SAMPLES} samples of your wake phrase (e.g. &ldquo;Hey Vrooli&rdquo;). Speak clearly in a quiet environment.
+                    </p>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-wc-text-muted shrink-0">Label:</span>
+                      <input
+                        data-testid="wake-word-label"
+                        type="text"
+                        value={wwLabel}
+                        onChange={(e) => setWwLabel(e.target.value)}
+                        className="w-36 rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
+                        placeholder="Hey Vrooli"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      {Array.from({ length: MAX_ENROLLMENT_SAMPLES }, (_, i) => {
+                        const hasSample = wwSamplesRef.current[i] != null;
+                        const hasBlob = wwAudioBlobsRef.current[i] != null;
+                        const isRecording = wwRecordingIdx === i;
+                        const isPlaying = wwPlayingIdx === i;
+                        return (
+                          <div key={i} className="flex items-center gap-2 h-8">
+                            <span className="w-16 text-[11px] text-wc-text-muted">
+                              Sample {i + 1}
+                              {i < MIN_ENROLLMENT_SAMPLES ? "" : " (opt)"}
+                            </span>
+                            {hasSample ? (
+                              <>
+                                <CheckCircle className="h-3.5 w-3.5 text-green-400 shrink-0" />
+                                <span className="text-[10px] text-green-400">
+                                  {wwSamplesRef.current[i]!.durationSec.toFixed(1)}s
+                                </span>
+                                {hasBlob && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    title="Play sample"
+                                    onClick={() => isPlaying ? undefined : playWwSample(i)}
+                                    disabled={isPlaying}
+                                  >
+                                    <Play className="h-3 w-3 text-wc-text-faint" />
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  title="Re-record"
+                                  onClick={() => { removeWwSample(i); void startWwRecording(i); }}
+                                  disabled={wwRecordingIdx !== null}
+                                >
+                                  <RotateCcw className="h-3 w-3 text-wc-text-faint" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  title="Remove"
+                                  onClick={() => removeWwSample(i)}
+                                >
+                                  <Trash2 className="h-3 w-3 text-wc-text-faint" />
+                                </Button>
+                              </>
+                            ) : isRecording ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 px-2 text-[10px]"
+                                onClick={stopWwRecording}
+                              >
+                                <Square className="mr-1 h-3 w-3" />
+                                Stop ({wwRecordingSeconds}s)
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 px-2 text-[10px]"
+                                onClick={() => void startWwRecording(i)}
+                                disabled={wwRecordingIdx !== null}
+                              >
+                                <Mic className="mr-1 h-3 w-3" />
+                                Record
+                              </Button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <SettingsRow
+                      label="Sensitivity"
+                      hint="Lower values are more permissive; higher values require a closer match."
+                      control={(
+                        <div className="flex items-center gap-2">
+                          <input
+                            data-testid="wake-word-threshold-slider"
+                            type="range"
+                            min={0.1}
+                            max={0.95}
+                            step={0.05}
+                            value={useWorkspaceStore.getState().wakeWordThreshold}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              useWorkspaceStore.getState().setWakeWordThreshold(val);
+                              handleVsConfigChange({ wakeWordThreshold: val });
+                            }}
+                            className="w-24 accent-wc-accent"
+                          />
+                          <span className="w-10 text-right text-xs text-wc-text-muted">
+                            {useWorkspaceStore.getState().wakeWordThreshold.toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                    />
+
+                    {wakeWordError && (
+                      <div className="flex items-center gap-2 text-xs text-wc-error-detail">
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                        {wakeWordError}
+                      </div>
+                    )}
+                    {wwTestResult && (
+                      <div className="text-xs text-wc-text-muted">{wwTestResult}</div>
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        data-testid="wake-word-save"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-3 text-xs"
+                        onClick={() => void saveWakeWord()}
+                        disabled={wwSamplesRef.current.filter((s) => s != null).length < MIN_ENROLLMENT_SAMPLES || wwRecordingIdx !== null}
+                      >
+                        Save wake word
+                      </Button>
+                      <Button
+                        data-testid="wake-word-test"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-3 text-xs text-wc-text-faint"
+                        onClick={() => void testWakeWord()}
+                        disabled={wwSamplesRef.current.filter((s) => s != null).length < 2}
+                      >
+                        Test cross-match
+                      </Button>
+                      {wakeWordConfig?.configured && (
+                        <Button
+                          data-testid="wake-word-delete"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-3 text-xs text-wc-text-faint"
+                          onClick={() => void deleteWakeWord()}
+                        >
+                          Delete wake word
+                        </Button>
+                      )}
+                    </div>
+                  </div>
 
                   <SettingsRow
                     label="Segment silence"
@@ -530,7 +905,7 @@ export default function VoiceInputSection() {
                   <div className="space-y-1.5">
                     <div className="text-xs font-medium text-wc-text-secondary">Voice commands</div>
                     <div className="text-[11px] text-wc-text-muted mb-1">
-                      Say &quot;{vsConfig.commandPrefix}&quot; followed by a command:
+                      Say your wake word, then speak a command:
                     </div>
                     <div className="grid grid-cols-2 gap-1">
                       {VOICE_COMMANDS.map((cmd) => (

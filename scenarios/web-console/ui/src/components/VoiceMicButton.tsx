@@ -22,6 +22,8 @@ interface VoiceMicButtonProps {
   isRecording: boolean;
   /** True when persistent voice mode is active (distinct from one-shot recording). */
   isListening?: boolean;
+  /** True when passive wake word listening is active (mic open, no streaming). */
+  isPassive?: boolean;
   isTranscribing: boolean;
   error: string | null;
   /** 0-1 audio level for live mic visualization */
@@ -35,6 +37,8 @@ interface VoiceMicButtonProps {
   onStart: (opts?: StartRecordingOpts) => void;
   onStop: () => void;
   onCancel?: () => void;
+  /** Exit passive wake word mode. */
+  onExitPassive?: () => void;
   /** Stop TTS playback when tapped during speaking. */
   onTtsStop?: () => void;
   /** Extra classes for the outer wrapper (e.g. to control height from a grid parent). */
@@ -88,6 +92,7 @@ export default function VoiceMicButton({
   isPreparing,
   isRecording,
   isListening = false,
+  isPassive = false,
   isTranscribing,
   error,
   audioLevel = 0,
@@ -97,6 +102,7 @@ export default function VoiceMicButton({
   onStart,
   onStop,
   onCancel,
+  onExitPassive,
   onTtsStop,
   className: wrapperClassName,
   buttonClassName,
@@ -126,6 +132,8 @@ export default function VoiceMicButton({
       // ignore the tap so the user doesn't accidentally cancel the transcript.
       const inGracePeriod = Date.now() - transcribingAtRef.current < TRANSCRIBING_GRACE_MS;
       pressIntentRef.current = onCancel && !inGracePeriod ? "cancel" : "none";
+    } else if (isPassive) {
+      pressIntentRef.current = "stop"; // Will call onExitPassive
     } else if (isMicActive) {
       pressIntentRef.current = "stop";
     } else {
@@ -134,7 +142,7 @@ export default function VoiceMicButton({
       pressIntentRef.current = "start";
       onStart({ vadEnabled: true });
     }
-  }, [isPreparing, isMicActive, isTranscribing, isTtsSpeaking, onStart, onCancel, onTtsStop]);
+  }, [isPreparing, isMicActive, isPassive, isTranscribing, isTtsSpeaking, onStart, onCancel, onTtsStop]);
 
   const handlePointerUp = useCallback(() => {
     if (isPreparing) return;
@@ -142,19 +150,20 @@ export default function VoiceMicButton({
     pressIntentRef.current = "none";
     if (intent === "cancel") {
       onCancel?.();
+    } else if (intent === "stop" && isPassive) {
+      onExitPassive?.();
     } else if (intent === "stop") {
-      // In persistent (listening) mode, any tap stops — no push-to-talk distinction.
       onStop();
     } else if (intent === "start" && !isListening && Date.now() - pressStartRef.current >= LONG_PRESS_MS) {
       // Long press release -- push-to-talk: stop recording (one-shot only)
       onStop();
     }
     // Short press on "start" -- tap-to-toggle: keep recording
-  }, [isPreparing, isListening, onStop, onCancel]);
+  }, [isPreparing, isPassive, isListening, onStop, onCancel, onExitPassive]);
 
   if (!supported) return null;
 
-  const isIdle = !isMicActive && !isTranscribing && !isPreparing;
+  const isIdle = !isMicActive && !isPassive && !isTranscribing && !isPreparing;
   const hasError = error !== null && isIdle && !isTtsSpeaking;
   const showTtsSpeaking = isTtsSpeaking && isIdle;
 
@@ -171,8 +180,10 @@ export default function VoiceMicButton({
           buttonClassName,
           isPreparing
             ? "border-yellow-500/50 bg-yellow-500/10 text-yellow-400"
-            : isListening
-              ? "border-cyan-500 bg-cyan-500/20 text-cyan-400"
+            : isPassive
+              ? "border-indigo-500/30 bg-indigo-500/5 text-indigo-400"
+              : isListening
+                ? "border-cyan-500 bg-cyan-500/20 text-cyan-400"
               : isRecording
                 ? "border-red-500 bg-red-500/20 text-red-400"
                 : isTranscribing
@@ -186,8 +197,10 @@ export default function VoiceMicButton({
         title={
           isPreparing
             ? "Preparing..."
-            : isListening
-              ? "Listening... tap to stop"
+            : isPassive
+              ? "Listening for wake word... tap to stop"
+              : isListening
+                ? "Listening... tap to stop"
               : isRecording
                 ? "Recording... tap to stop"
                 : isTranscribing
@@ -211,6 +224,8 @@ export default function VoiceMicButton({
         )}
         {isPreparing ? (
           <Mic className="h-3.5 w-3.5 animate-pulse relative" />
+        ) : isPassive ? (
+          <Mic className="h-3.5 w-3.5 animate-[breathe_3s_ease-in-out_infinite] relative opacity-60" />
         ) : isListening ? (
           <Mic className="h-3.5 w-3.5 animate-pulse relative" />
         ) : isTranscribing ? (

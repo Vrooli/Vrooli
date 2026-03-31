@@ -1,0 +1,16 @@
+{
+  "created": "2026-03-30T20:13:39Z",
+  "description": "The Executions tab in swarm-manager shows no results even though executions have been run recently. Likely a data fetching, filtering, or rendering issue preventing completed executions from appearing.",
+  "kind": "fix",
+  "name": "fix-executions-tab-not-displaying-recent-executions-in-swarm-manager",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [
+    "swarm-manager",
+    "executions",
+    "ui",
+    "data-display"
+  ],
+  "title": "Fix executions tab not displaying recent executions in swarm-manager",
+  "updated": "2026-03-30T20:13:39Z"
+}

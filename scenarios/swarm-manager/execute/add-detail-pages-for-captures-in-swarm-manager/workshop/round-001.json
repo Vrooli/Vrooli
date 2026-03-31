@@ -1,0 +1,126 @@
+{
+  "round": 1,
+  "generated_at": "2026-03-30T19:15:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 2,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Detail page content layout",
+      "context": "The capture detail page needs to display raw text, attachments, classification results, and metadata. The question is how to organize these sections — especially for captures with long text or many classification suggestions.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Single scrollable page with stacked sections",
+          "rationale": "Simplest approach, consistent with BacklogDetailsPage. Sections stack vertically: text → attachments → classification → metadata. Straightforward to implement and naturally responsive.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Tabbed layout within the detail page",
+          "rationale": "Tabs for Overview, Attachments, Classification. Useful if captures become complex, but adds navigation overhead for what is currently simple data."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own layout approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Attachment viewing experience",
+      "context": "Captures can include image attachments. CaptureAttachmentPreview currently shows thumbnails. The detail page should show larger images, but the interaction model matters for usability.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Inline full-width images with click-to-lightbox",
+          "rationale": "Show images at full container width in the detail page. Clicking an image opens a lightbox/modal for full-resolution viewing. Good balance of context and detail.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Thumbnail grid with lightbox on click",
+          "rationale": "Similar to current sidebar thumbnails but larger. Keeps the page compact when there are many attachments, but requires extra click to see detail."
+        },
+        {
+          "key": "C",
+          "label": "Full-size images displayed inline (no lightbox)",
+          "rationale": "Simplest implementation — just render images at natural size. May cause long scroll for captures with many images."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Classification triage actions on detail page",
+      "context": "CaptureCard already implements inline triage (accept, edit, dismiss) for classification items. The detail page could either reuse these same inline actions or offer an enhanced triage experience.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Extract shared triage component from CaptureCard, reuse on detail page",
+          "rationale": "DRY approach — pull triage action UI into a shared component used by both CaptureCard and CaptureDetailsPage. Consistent behavior, single maintenance point. Recommended because duplication would be a maintenance burden.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Copy triage UI into detail page with enhanced layout",
+          "rationale": "Allows the detail page to have a more spacious triage layout (e.g., side-by-side comparison of suggestions) without constrained by sidebar width. Risks divergence over time."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Click target for opening capture detail",
+      "context": "CaptureCard in the sidebar has inline triage buttons. We need to make captures clickable to open the detail page without conflicting with those buttons. The click target design matters for usability.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Card background click opens detail; triage buttons use stopPropagation",
+          "rationale": "Clicking anywhere on the card opens detail, except for triage action buttons which stop event propagation. Standard pattern used across many card-based UIs. Simple to implement.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Explicit 'View details' link/button on each card",
+          "rationale": "Adds a clear affordance for navigation without overloading the card click. Safer against accidental navigation but adds visual clutter."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The existing API already supports GET /api/v1/captures/{id}, so no backend changes are needed. The capture store (capture-store.ts) fetches and caches captures, and the detail page can read directly from the store — no new data fetching logic required."
+    }
+  ],
+  "plan_updates": "Created initial plan scaffold with all 13 mandatory sections. Defined 4-phase implementation strategy: store/routing infrastructure → detail page component → click-through navigation → polish/mobile. Documented current architecture, data model, and existing API endpoints."
+}

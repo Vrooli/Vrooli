@@ -36,6 +36,8 @@ export interface VadRefs {
   /** Whether segment-boundary was already emitted for the current silence gap.
    *  Reset when speech resumes. */
   segmentBoundaryEmitted: boolean;
+  /** When true, disables the no-speech timeout (passive mode waits indefinitely). */
+  passiveMode: boolean;
 }
 
 export function createVadRefs(): VadRefs {
@@ -51,6 +53,19 @@ export function createVadRefs(): VadRefs {
     lastFloorUpdateTime: 0,
     segmentSilenceMs: 0,
     segmentBoundaryEmitted: false,
+    passiveMode: false,
+  };
+}
+
+/** Create VAD refs configured for passive wake word listening.
+ *  Disables no-speech timeout and uses shorter segment silence for quick detection. */
+export const VAD_PASSIVE_SEGMENT_SILENCE_MS = 800;
+
+export function createPassiveVadRefs(): VadRefs {
+  return {
+    ...createVadRefs(),
+    segmentSilenceMs: VAD_PASSIVE_SEGMENT_SILENCE_MS,
+    passiveMode: true,
   };
 }
 
@@ -140,7 +155,7 @@ export function vadTick(vad: VadRefs, rms: number, now: number, silenceTimeoutMs
       vad.state = "speechDetected";
       return null;
     }
-    if (now - vad.recordingStart > VAD_NO_SPEECH_TIMEOUT_MS) {
+    if (!vad.passiveMode && now - vad.recordingStart > VAD_NO_SPEECH_TIMEOUT_MS) {
       return "no-speech";
     }
     return null;

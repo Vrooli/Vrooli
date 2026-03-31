@@ -16,7 +16,7 @@ export function FloatingActionButton({
   ...props
 }: FloatingActionButtonProps) {
   const mergedStyle: CSSProperties = {
-    bottom: "calc(5rem + env(safe-area-inset-bottom))",
+    bottom: "calc(3rem + env(safe-area-inset-bottom))",
     ...style,
   };
 

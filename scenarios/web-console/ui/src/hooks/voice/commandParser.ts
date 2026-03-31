@@ -1,14 +1,16 @@
 // DOC: docs/internal/SEAMS.md#voice-command-parser-seam
 //
-// Voice Command Parser — detects and parses voice commands from segment-final text.
+// Voice Command Parser — detects and parses voice commands from transcribed text.
 //
 // All command detection logic is centralized here. The parser:
-// 1. Strips the configurable prefix from the text
-// 2. Fuzzy-matches the remainder against known command patterns
-// 3. Extracts numeric arguments (e.g., "tab 3" → number: 3)
+// 1. Fuzzy-matches the input text against known command patterns
+// 2. Extracts numeric arguments (e.g., "tab 3" → number: 3)
 //
 // Command detection runs ONLY on segment-final text (never on partials)
 // to ensure we're parsing the highest-quality transcription.
+//
+// Wake word detection happens at the audio level (see wakeword/ module).
+// This parser only handles the text-based command identification step.
 
 import { VOICE_COMMANDS, type VoiceCommand } from "./commands";
 
@@ -79,47 +81,51 @@ function extractNumber(text: string): number | null {
 
 /**
  * Strip punctuation that Whisper commonly inserts between words (commas,
- * periods, etc.) so that "Hey, do new tab." normalizes to "hey do new tab"
- * and matches the prefix "hey do".
+ * periods, etc.) so that "new tab." normalizes to "new tab"
+ * and matches command patterns.
  */
 function stripPunctuation(s: string): string {
   return s.replace(/[.,;:!?'"]/g, "").replace(/\s+/g, " ").trim();
 }
 
 /**
- * Parse a segment-final transcript for a voice command.
- *
- * @param text - The segment-final transcription text
- * @param prefix - The command prefix to detect (e.g., "hey do")
- * @returns Parsed command with confidence, or null if no command detected
+ * Maximum allowed edit distance for a pattern, scaled by pattern length.
+ * Short patterns (≤ 5 chars) allow 1 edit; longer patterns allow 2.
  */
-export function parseCommand(text: string, prefix: string): ParsedCommand | null {
-  if (!text || !prefix) return null;
+function maxEditDistance(pattern: string): number {
+  return pattern.length <= 5 ? 1 : 2;
+}
+
+/**
+ * Parse transcribed text for a voice command (no prefix needed).
+ *
+ * This function matches the full input text against known command patterns
+ * using fuzzy Levenshtein matching. Wake word detection happens at the
+ * audio level before this function is called.
+ *
+ * @param text - The transcribed text to check for commands.
+ * @returns Parsed command with confidence, or null if no command detected.
+ */
+export function parseCommandDirect(text: string): ParsedCommand | null {
+  if (!text) return null;
 
   const normalizedText = stripPunctuation(text.toLowerCase());
-  const normalizedPrefix = stripPunctuation(prefix.toLowerCase());
-
-  // Check if text starts with the prefix
-  if (!normalizedText.startsWith(normalizedPrefix)) return null;
-
-  // Strip prefix and trim
-  const remainder = normalizedText.slice(normalizedPrefix.length).trim();
-  if (!remainder) return null;
+  if (!normalizedText) return null;
 
   let bestMatch: { command: VoiceCommand; distance: number; pattern: string; patternLen: number; args: Record<string, unknown> } | null = null;
 
   for (const command of VOICE_COMMANDS) {
     for (const pattern of command.patterns) {
-      const remainderWords = remainder.split(/\s+/);
+      const textWords = normalizedText.split(/\s+/);
       const patternWords = pattern.split(/\s+/);
 
-      // Try matching the pattern as a prefix of the remainder (for commands with arguments)
-      let textToMatch = remainder;
+      // Try matching the pattern as a prefix of the text (for commands with arguments)
+      let textToMatch = normalizedText;
       let trailingText = "";
 
-      if (remainderWords.length > patternWords.length) {
-        const candidateMatch = remainderWords.slice(0, patternWords.length).join(" ");
-        trailingText = remainderWords.slice(patternWords.length).join(" ");
+      if (textWords.length > patternWords.length) {
+        const candidateMatch = textWords.slice(0, patternWords.length).join(" ");
+        trailingText = textWords.slice(patternWords.length).join(" ");
         const prefixDist = levenshtein(candidateMatch, pattern);
         if (prefixDist <= maxEditDistance(pattern)) {
           textToMatch = candidateMatch;
@@ -164,23 +170,4 @@ export function parseCommand(text: string, prefix: string): ParsedCommand | null
     rawText: text,
     args: bestMatch.args,
   };
-}
-
-/**
- * Maximum allowed edit distance for a pattern, scaled by pattern length.
- * Short patterns (≤ 5 chars) allow 1 edit; longer patterns allow 2.
- */
-function maxEditDistance(pattern: string): number {
-  return pattern.length <= 5 ? 1 : 2;
-}
-
-/**
- * Check if a partial transcript contains the command prefix.
- * Used as a hint to temporarily reduce the segment silence threshold.
- * This is intentionally loose — false positives are acceptable since
- * actual command detection only runs on segment finals.
- */
-export function partialContainsPrefix(partial: string, prefix: string): boolean {
-  if (!partial || !prefix) return false;
-  return stripPunctuation(partial.toLowerCase()).includes(stripPunctuation(prefix.toLowerCase()));
 }

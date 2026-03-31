@@ -93,6 +93,9 @@ type Server struct {
 	voiceConfigMu                 sync.RWMutex
 	voiceConfig                   VoiceStreamConfig
 	voiceConfigPath               string
+	wakeWordTemplateMu            sync.RWMutex
+	wakeWordTemplate              *WakeWordTemplate
+	wakeWordTemplatePath          string
 	speakerVerificationConfigMu   sync.RWMutex
 	speakerVerificationConfig     SpeakerVerificationConfig
 	speakerVerificationConfigPath string
@@ -159,6 +162,14 @@ func NewServer(db *sql.DB) *Server {
 	}
 	log.Printf("voice-config: loaded: flush=%dms delta=%d overlap=%d",
 		vc.FlushIntervalMs, vc.MinDeltaBytes, vc.OverlapBytes)
+
+	wwPath := resolveWakeWordTemplatePath()
+	wwTmpl, err := loadWakeWordTemplate(wwPath)
+	if err != nil {
+		log.Printf("wakeword: load failed (starting unconfigured): %v", err)
+	} else if wwTmpl != nil {
+		log.Printf("wakeword: loaded template: label=%q samples=%d", wwTmpl.Label, len(wwTmpl.Samples))
+	}
 
 	speakerVerificationPath := resolveSpeakerVerificationConfigPath()
 	speakerVerificationCfg, err := loadSpeakerVerificationConfig(speakerVerificationPath)
@@ -236,6 +247,8 @@ func NewServer(db *sql.DB) *Server {
 		workspace:                     NewSQLWorkspaceStore(db),
 		voiceConfig:                   vc,
 		voiceConfigPath:               vcPath,
+		wakeWordTemplate:              wwTmpl,
+		wakeWordTemplatePath:          wwPath,
 		speakerVerificationConfig:     speakerVerificationCfg,
 		speakerVerificationConfigPath: speakerVerificationPath,
 		ttsConfig:                     ttsCfg,
@@ -413,6 +426,9 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/voice/stream", s.handleVoiceStreamWS).Methods("GET")
 	s.router.HandleFunc("/api/v1/voice/config", s.handleGetVoiceConfig).Methods("GET")
 	s.router.HandleFunc("/api/v1/voice/config", s.handleUpdateVoiceConfig).Methods("PUT")
+	s.router.HandleFunc("/api/v1/voice/wakeword", s.handleGetWakeWordConfig).Methods("GET")
+	s.router.HandleFunc("/api/v1/voice/wakeword", s.handleUpdateWakeWordTemplate).Methods("PUT")
+	s.router.HandleFunc("/api/v1/voice/wakeword", s.handleDeleteWakeWordTemplate).Methods("DELETE")
 	s.router.HandleFunc("/api/v1/voice/speaker/config", s.handleGetSpeakerVerificationConfig).Methods("GET")
 	s.router.HandleFunc("/api/v1/voice/speaker/config", s.handleUpdateSpeakerVerificationConfig).Methods("PUT")
 	s.router.HandleFunc("/api/v1/voice/speaker/status", s.handleGetSpeakerVerificationStatus).Methods("GET")

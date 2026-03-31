@@ -23,7 +23,10 @@ import { createVadRefs, vadTick } from "./voice/vad";
 import { VoiceStreamProvider } from "./voice/VoiceStreamProvider";
 import { WhisperProvider } from "./voice/WhisperProvider";
 import { WebSpeechProvider } from "./voice/WebSpeechProvider";
-import { parseCommand, partialContainsPrefix } from "./voice/commandParser";
+import { parseCommandDirect } from "./voice/commandParser";
+import { createWakeWordEngine, PassiveListener } from "./voice/wakeword";
+import { getWakeWordConfig } from "../lib/api";
+import type { WakeWordEngine, WakeWordTemplate } from "./voice/wakeword";
 import {
   CAP_CHECK_FAIL_THRESHOLD,
   WHISPER_FAILED_SENTINEL,
@@ -45,9 +48,6 @@ export { createAudioFilterChain } from "./voice/audioUtils";
 export type { VadState, VadRefs, VadAction } from "./voice/vad";
 export { VAD_DEFAULT_SILENCE_TIMEOUT_MS, VAD_DEFAULT_SEGMENT_SILENCE_MS, createVadRefs, computeSlidingNoiseFloor, vadTick } from "./voice/vad";
 
-/** Reduced segment silence threshold when a command prefix is detected in partials. */
-const ADAPTIVE_COMMAND_SILENCE_MS = 700;
-
 const INITIAL_STATE: VoiceInputState = {
   supported: false,
   backend: "none",
@@ -62,6 +62,7 @@ const INITIAL_STATE: VoiceInputState = {
   speakerNotice: null,
   speakerVerificationEnabled: false,
   speakerProfileConfigured: false,
+  wakeWordConfigured: false,
 };
 
 export interface UseVoiceInputCallbacks {
@@ -76,7 +77,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
   const voiceLanguage = useWorkspaceStore((s) => s.voiceLanguage);
   const vadSilenceTimeoutMs = useWorkspaceStore((s) => s.vadSilenceTimeoutMs);
   const persistentMode = useWorkspaceStore((s) => s.persistentMode);
-  const commandPrefix = useWorkspaceStore((s) => s.commandPrefix);
+  const wakeWordEnabled = useWorkspaceStore((s) => s.wakeWordEnabled);
   const segmentSilenceMs = useWorkspaceStore((s) => s.segmentSilenceMs);
   const [state, setState] = useState<VoiceInputState>(INITIAL_STATE);
 
@@ -85,7 +86,8 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
   const isListening = state.voiceState === "listening";
   const isTranscribing = state.voiceState === "transcribing";
   const isPreparing = state.voiceState === "preparing";
-  /** True when mic is active in either mode. */
+  const isPassive = state.voiceState === "passive";
+  /** True when mic is active in either mode (excludes passive). */
   const isActive = isRecording || isListening;
 
   const providerRef = useRef<TranscriptionProvider | null>(null);
@@ -98,13 +100,15 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
   // Keep refs in sync with reactive store values so non-React code (RAF tick, callbacks) sees latest
   const persistentModeRef = useRef(persistentMode);
   persistentModeRef.current = persistentMode;
-  const commandPrefixRef = useRef(commandPrefix);
-  commandPrefixRef.current = commandPrefix;
+  const wakeWordEnabledRef = useRef(wakeWordEnabled);
+  wakeWordEnabledRef.current = wakeWordEnabled;
   const segmentSilenceMsRef = useRef(segmentSilenceMs);
   segmentSilenceMsRef.current = segmentSilenceMs;
-  /** Original segment silence threshold (restored after adaptive shortening). */
-  const baseSegmentSilenceMsRef = useRef(segmentSilenceMs);
-  baseSegmentSilenceMsRef.current = segmentSilenceMs;
+
+  // Wake word engine and template refs
+  const wakeWordEngineRef = useRef<WakeWordEngine | null>(null);
+  const wakeWordTemplateRef = useRef<WakeWordTemplate | null>(null);
+  const passiveListenerRef = useRef<PassiveListener | null>(null);
 
   // Segment tracking for persistent mode
   const segmentsRef = useRef<VoiceSegment[]>([]);
@@ -144,14 +148,29 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
   useEffect(() => {
     if (!voiceEnabled || hydratedRef.current) return;
     hydratedRef.current = true;
+
+    // Hydrate voice stream config
     getVoiceStreamConfig()
       .then((cfg) => {
         const store = useWorkspaceStore.getState();
         if (cfg.persistentMode !== store.persistentMode) store.setPersistentMode(cfg.persistentMode);
-        if (cfg.commandPrefix && cfg.commandPrefix !== store.commandPrefix) store.setCommandPrefix(cfg.commandPrefix);
+        if (cfg.wakeWordEnabled !== store.wakeWordEnabled) store.setWakeWordEnabled(cfg.wakeWordEnabled);
         if (cfg.segmentSilenceMs && cfg.segmentSilenceMs !== store.segmentSilenceMs) store.setSegmentSilenceMs(cfg.segmentSilenceMs);
       })
       .catch(() => { /* Use store defaults */ });
+
+    // Load wake word template and initialize engine
+    getWakeWordConfig()
+      .then((cfg) => {
+        if (cfg.configured && cfg.template) {
+          wakeWordTemplateRef.current = cfg.template;
+          if (!wakeWordEngineRef.current) {
+            wakeWordEngineRef.current = createWakeWordEngine();
+          }
+          setState((s) => s.wakeWordConfigured ? s : { ...s, wakeWordConfigured: true });
+        }
+      })
+      .catch(() => { /* No wake word configured */ });
   }, [voiceEnabled]);
 
   // Sync voice mode state from reactive store value
@@ -164,13 +183,10 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
 
   /** Handle a segment-final transcript in persistent mode. */
   const handleSegmentFinal = useCallback((text: string, segmentIndex: number) => {
-    // Restore adaptive silence threshold
-    vadRef.current.segmentSilenceMs = baseSegmentSilenceMsRef.current;
-
     if (!text.trim()) return;
 
-    // Check for command prefix
-    const parsed = parseCommand(text, commandPrefixRef.current);
+    // Check for command match (text-based, no prefix needed — wake word detected at audio level)
+    const parsed = parseCommandDirect(text);
     if (parsed) {
       console.info("[voice] Command detected: %s (confidence=%.2f)", parsed.command.id, parsed.confidence);
       const suggestion: CommandSuggestion = {
@@ -606,13 +622,6 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       if (provider.onPartial !== undefined) {
         provider.onPartial = (text) => {
           setState((s) => ({ ...s, partialTranscript: text }));
-          // Adaptive silence threshold: if the partial contains the command prefix,
-          // temporarily reduce the segment silence threshold so commands resolve faster.
-          if (persistentModeRef.current && vadRef.current.segmentSilenceMs > 0) {
-            if (partialContainsPrefix(text, commandPrefixRef.current)) {
-              vadRef.current.segmentSilenceMs = ADAPTIVE_COMMAND_SILENCE_MS;
-            }
-          }
         };
       }
 
@@ -769,6 +778,59 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
   // Keep the ref in sync so the tick loop can call stopRecording
   stopRecordingRef.current = stopRecording;
 
+  // ── Passive wake word listening ──
+
+  /** Enter passive listening mode (VAD + MFCC/DTW, no backend streaming). */
+  const enterPassiveMode = useCallback(async () => {
+    if (!wakeWordEngineRef.current || !wakeWordTemplateRef.current) {
+      console.warn("[voice] Cannot enter passive mode: no wake word configured");
+      return;
+    }
+    if (passiveListenerRef.current) {
+      passiveListenerRef.current.dispose();
+      passiveListenerRef.current = null;
+    }
+
+    const listener = new PassiveListener({
+      engine: wakeWordEngineRef.current,
+      template: wakeWordTemplateRef.current,
+      audioContext: audioCtxRef.current ?? undefined,
+      onWakeWordDetected: (stream: MediaStream) => {
+        console.info("[voice] Wake word detected — activating mic");
+        // Transition from passive to active recording.
+        // The PassiveListener has stopped its loop but kept the stream alive.
+        setState((s) => ({ ...s, voiceState: "preparing" }));
+        passiveListenerRef.current = null;
+
+        // Save the AudioContext from the listener for reuse
+        if (listener.getAudioContext()) {
+          audioCtxRef.current = listener.getAudioContext();
+        }
+
+        // Start recording using the existing mic stream
+        startRecording({ vadEnabled: true });
+      },
+      onError: (error: string) => {
+        console.error("[voice] Passive listener error:", error);
+        setState((s) => ({ ...s, voiceState: "idle", error }));
+        passiveListenerRef.current = null;
+      },
+    });
+
+    passiveListenerRef.current = listener;
+    setState((s) => ({ ...s, voiceState: "passive", error: null }));
+    await listener.start();
+  }, [startRecording]);
+
+  /** Exit passive listening mode and return to idle. */
+  const exitPassiveMode = useCallback(() => {
+    if (passiveListenerRef.current) {
+      passiveListenerRef.current.dispose();
+      passiveListenerRef.current = null;
+    }
+    setState((s) => s.voiceState === "passive" ? { ...s, voiceState: "idle" } : s);
+  }, []);
+
   return {
     ...state,
     // Derived booleans for UI components
@@ -776,10 +838,13 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     isListening,
     isTranscribing,
     isPreparing,
+    isPassive,
     isActive,
     startRecording,
     stopRecording,
     cancelTranscription,
     dismissCommandSuggestion,
+    enterPassiveMode,
+    exitPassiveMode,
   };
 }

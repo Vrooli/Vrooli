@@ -31,8 +31,11 @@ func TestDefaultVoiceStreamConfig_PersistentModeDefaults(t *testing.T) {
 	if cfg.PersistentMode {
 		t.Error("PersistentMode should default to false")
 	}
-	if cfg.CommandPrefix != "hey do" {
-		t.Errorf("CommandPrefix = %q, want 'hey do'", cfg.CommandPrefix)
+	if cfg.WakeWordEnabled {
+		t.Error("WakeWordEnabled should default to false")
+	}
+	if cfg.WakeWordThreshold != 0.65 {
+		t.Errorf("WakeWordThreshold = %f, want 0.65", cfg.WakeWordThreshold)
 	}
 	if cfg.SegmentSilenceMs != 1500 {
 		t.Errorf("SegmentSilenceMs = %d, want 1500", cfg.SegmentSilenceMs)
@@ -72,11 +75,12 @@ func TestVoiceStreamConfig_Validate(t *testing.T) {
 		{"segment_above_max", func(c *VoiceStreamConfig) { c.SegmentSilenceMs = 3001 }, "segmentSilenceMs"},
 		{"segment_zero_allowed", func(c *VoiceStreamConfig) { c.SegmentSilenceMs = 0 }, ""},
 
-		// CommandPrefix
-		{"prefix_too_long", func(c *VoiceStreamConfig) {
-			c.CommandPrefix = strings.Repeat("x", 51)
-		}, "commandPrefix"},
-		{"prefix_empty_ok", func(c *VoiceStreamConfig) { c.CommandPrefix = "" }, ""},
+		// WakeWordThreshold bounds
+		{"wakeword_threshold_at_min", func(c *VoiceStreamConfig) { c.WakeWordThreshold = 0.1 }, ""},
+		{"wakeword_threshold_at_max", func(c *VoiceStreamConfig) { c.WakeWordThreshold = 0.95 }, ""},
+		{"wakeword_threshold_below_min", func(c *VoiceStreamConfig) { c.WakeWordThreshold = 0.05 }, "wakeWordThreshold"},
+		{"wakeword_threshold_above_max", func(c *VoiceStreamConfig) { c.WakeWordThreshold = 0.96 }, "wakeWordThreshold"},
+		{"wakeword_threshold_zero_allowed", func(c *VoiceStreamConfig) { c.WakeWordThreshold = 0 }, ""},
 	}
 
 	for _, tc := range tests {
@@ -144,19 +148,24 @@ func TestVoiceStreamConfig_PatchApply(t *testing.T) {
 
 	t.Run("persistent_mode_patch", func(t *testing.T) {
 		boolVal := true
-		prefix := "run"
+		wwEnabled := true
+		wwThreshold := 0.8
 		segMs := 2000
 		patch := VoiceStreamConfigPatch{
-			PersistentMode:   &boolVal,
-			CommandPrefix:    &prefix,
-			SegmentSilenceMs: &segMs,
+			PersistentMode:    &boolVal,
+			WakeWordEnabled:   &wwEnabled,
+			WakeWordThreshold: &wwThreshold,
+			SegmentSilenceMs:  &segMs,
 		}
 		result := patch.Apply(base)
 		if !result.PersistentMode {
 			t.Error("PersistentMode should be true")
 		}
-		if result.CommandPrefix != "run" {
-			t.Errorf("CommandPrefix = %q, want 'run'", result.CommandPrefix)
+		if !result.WakeWordEnabled {
+			t.Error("WakeWordEnabled should be true")
+		}
+		if result.WakeWordThreshold != 0.8 {
+			t.Errorf("WakeWordThreshold = %f, want 0.8", result.WakeWordThreshold)
 		}
 		if result.SegmentSilenceMs != 2000 {
 			t.Errorf("SegmentSilenceMs = %d, want 2000", result.SegmentSilenceMs)
@@ -173,12 +182,13 @@ func TestVoiceConfig_FileRoundTrip(t *testing.T) {
 	path := filepath.Join(dir, "voice-config.json")
 
 	cfg := VoiceStreamConfig{
-		FlushIntervalMs:  200,
-		MinDeltaBytes:    8192,
-		OverlapBytes:     1024,
-		PersistentMode:   true,
-		CommandPrefix:    "run",
-		SegmentSilenceMs: 2000,
+		FlushIntervalMs:   200,
+		MinDeltaBytes:     8192,
+		OverlapBytes:      1024,
+		PersistentMode:    true,
+		WakeWordEnabled:   true,
+		WakeWordThreshold: 0.75,
+		SegmentSilenceMs:  2000,
 	}
 
 	if err := saveVoiceConfig(path, cfg); err != nil {
@@ -338,7 +348,7 @@ func TestHandleUpdateVoiceConfig_InvalidJSON(t *testing.T) {
 func TestHandleUpdateVoiceConfig_PersistentMode(t *testing.T) {
 	srv := voiceConfigTestServer(t)
 
-	body := `{"persistentMode": true, "commandPrefix": "run", "segmentSilenceMs": 2000}`
+	body := `{"persistentMode": true, "wakeWordEnabled": true, "wakeWordThreshold": 0.7, "segmentSilenceMs": 2000}`
 	req := httptest.NewRequest("PUT", "/api/v1/voice/config", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -355,8 +365,11 @@ func TestHandleUpdateVoiceConfig_PersistentMode(t *testing.T) {
 	if !cfg.PersistentMode {
 		t.Error("PersistentMode should be true")
 	}
-	if cfg.CommandPrefix != "run" {
-		t.Errorf("CommandPrefix = %q, want 'run'", cfg.CommandPrefix)
+	if !cfg.WakeWordEnabled {
+		t.Error("WakeWordEnabled should be true")
+	}
+	if cfg.WakeWordThreshold != 0.7 {
+		t.Errorf("WakeWordThreshold = %f, want 0.7", cfg.WakeWordThreshold)
 	}
 	if cfg.SegmentSilenceMs != 2000 {
 		t.Errorf("SegmentSilenceMs = %d, want 2000", cfg.SegmentSilenceMs)

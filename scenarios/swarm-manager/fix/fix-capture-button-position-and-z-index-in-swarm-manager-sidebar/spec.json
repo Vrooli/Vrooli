@@ -1,0 +1,17 @@
+{
+  "created": "2026-03-30T19:02:20Z",
+  "description": "The capture button appears too high on the page and remains visible when the sidebar is open. The sidebar z-index should be higher than the capture button so it covers it when open.",
+  "kind": "fix",
+  "name": "fix-capture-button-position-and-z-index-in-swarm-manager-sidebar",
+  "priority": 4,
+  "status": "archived",
+  "tags": [
+    "swarm-manager",
+    "ui",
+    "z-index",
+    "sidebar",
+    "capture-button"
+  ],
+  "title": "Fix capture button position and z-index in swarm-manager sidebar",
+  "updated": "2026-03-30T20:01:29Z"
+}

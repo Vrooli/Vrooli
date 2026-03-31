@@ -52,8 +52,10 @@ interface WorkspaceState {
   voiceLanguage: string;
   /** Persistent voice mode — mic stays active until tapped again. */
   persistentMode: boolean;
-  /** Prefix keyword for voice commands (e.g., "hey do"). */
-  commandPrefix: string;
+  /** Whether audio-level wake word detection is enabled. */
+  wakeWordEnabled: boolean;
+  /** Similarity threshold for wake word matching (0.1-0.95). */
+  wakeWordThreshold: number;
   /** Silence duration (ms) that triggers a segment boundary in persistent mode. */
   segmentSilenceMs: number;
   ttsVoice: string;
@@ -102,7 +104,8 @@ interface WorkspaceActions {
   setVadSilenceTimeoutMs: (ms: number) => void;
   setVoiceLanguage: (lang: string) => void;
   setPersistentMode: (enabled: boolean) => void;
-  setCommandPrefix: (prefix: string) => void;
+  setWakeWordEnabled: (enabled: boolean) => void;
+  setWakeWordThreshold: (threshold: number) => void;
   setSegmentSilenceMs: (ms: number) => void;
   setTtsVoice: (voice: string) => void;
   setTtsRate: (rate: number) => void;
@@ -152,7 +155,8 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       vadSilenceTimeoutMs: 2000,
       voiceLanguage: "en-US",
       persistentMode: false,
-      commandPrefix: "hey do",
+      wakeWordEnabled: false,
+      wakeWordThreshold: 0.65,
       segmentSilenceMs: 1500,
       ttsVoice: "",
       ttsRate: 1.0,
@@ -263,7 +267,8 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       setVadSilenceTimeoutMs: (ms) => set({ vadSilenceTimeoutMs: ms }),
       setVoiceLanguage: (lang) => set({ voiceLanguage: lang }),
       setPersistentMode: (enabled) => set({ persistentMode: enabled }),
-      setCommandPrefix: (prefix) => set({ commandPrefix: prefix }),
+      setWakeWordEnabled: (enabled) => set({ wakeWordEnabled: enabled }),
+      setWakeWordThreshold: (threshold) => set({ wakeWordThreshold: threshold }),
       setSegmentSilenceMs: (ms) => set({ segmentSilenceMs: ms }),
       setTtsVoice: (voice) => set({ ttsVoice: voice }),
       setTtsRate: (rate) => set({ ttsRate: rate }),
@@ -359,7 +364,10 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         }
         if (version < 10) {
           state.persistentMode ??= false;
-          state.commandPrefix ??= "hey do";
+          // v12: Replace commandPrefix with wake word settings
+          delete (state as Record<string, unknown>).commandPrefix;
+          state.wakeWordEnabled ??= false;
+          state.wakeWordThreshold ??= 0.65;
           state.segmentSilenceMs ??= 1500;
         }
         if (version < 11) {
@@ -379,7 +387,8 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         vadSilenceTimeoutMs: state.vadSilenceTimeoutMs,
         voiceLanguage: state.voiceLanguage,
         persistentMode: state.persistentMode,
-        commandPrefix: state.commandPrefix,
+        wakeWordEnabled: state.wakeWordEnabled,
+        wakeWordThreshold: state.wakeWordThreshold,
         segmentSilenceMs: state.segmentSilenceMs,
         ttsVoice: state.ttsVoice,
         ttsRate: state.ttsRate,

@@ -43,9 +43,13 @@ type VoiceStreamConfig struct {
 	// instead of recording stop.
 	PersistentMode bool `json:"persistentMode"`
 
-	// CommandPrefix is the keyword prefix that identifies a voice command
-	// (e.g., "hey do new tab"). Case-insensitive.
-	CommandPrefix string `json:"commandPrefix"`
+	// WakeWordEnabled indicates whether audio-level wake word detection is active.
+	// When true, the client runs passive listening with MFCC+DTW matching.
+	WakeWordEnabled bool `json:"wakeWordEnabled"`
+
+	// WakeWordThreshold is the similarity threshold for wake word matching (0.1-0.95).
+	// Lower = more permissive (may false-activate), higher = stricter (may miss).
+	WakeWordThreshold float64 `json:"wakeWordThreshold"`
 
 	// SegmentSilenceMs is the silence duration (ms) that triggers a segment
 	// boundary in persistent mode. Must be less than the VAD auto-stop
@@ -57,12 +61,13 @@ type VoiceStreamConfig struct {
 // hardcoded values. These are known to work well on a local Whisper instance.
 func DefaultVoiceStreamConfig() VoiceStreamConfig {
 	return VoiceStreamConfig{
-		FlushIntervalMs:  500,
-		MinDeltaBytes:    4096,
-		OverlapBytes:     2048,
-		PersistentMode:   false,
-		CommandPrefix:    "hey do",
-		SegmentSilenceMs: 1500,
+		FlushIntervalMs:   500,
+		MinDeltaBytes:     4096,
+		OverlapBytes:      2048,
+		PersistentMode:    false,
+		WakeWordEnabled:   false,
+		WakeWordThreshold: 0.65,
+		SegmentSilenceMs:  1500,
 	}
 }
 
@@ -81,8 +86,8 @@ func (c VoiceStreamConfig) Validate() error {
 	if c.SegmentSilenceMs != 0 && (c.SegmentSilenceMs < 800 || c.SegmentSilenceMs > 3000) {
 		return fmt.Errorf("segmentSilenceMs must be between 800 and 3000, got %d", c.SegmentSilenceMs)
 	}
-	if c.CommandPrefix != "" && len(c.CommandPrefix) > 50 {
-		return fmt.Errorf("commandPrefix must be at most 50 characters, got %d", len(c.CommandPrefix))
+	if c.WakeWordThreshold != 0 && (c.WakeWordThreshold < 0.1 || c.WakeWordThreshold > 0.95) {
+		return fmt.Errorf("wakeWordThreshold must be between 0.1 and 0.95, got %f", c.WakeWordThreshold)
 	}
 	return nil
 }
@@ -90,12 +95,13 @@ func (c VoiceStreamConfig) Validate() error {
 // VoiceStreamConfigPatch is the partial update type for voice config. Pointer
 // fields allow distinguishing "not provided" from "set to zero value".
 type VoiceStreamConfigPatch struct {
-	FlushIntervalMs  *int    `json:"flushIntervalMs,omitempty"`
-	MinDeltaBytes    *int    `json:"minDeltaBytes,omitempty"`
-	OverlapBytes     *int    `json:"overlapBytes,omitempty"`
-	PersistentMode   *bool   `json:"persistentMode,omitempty"`
-	CommandPrefix    *string `json:"commandPrefix,omitempty"`
-	SegmentSilenceMs *int    `json:"segmentSilenceMs,omitempty"`
+	FlushIntervalMs   *int     `json:"flushIntervalMs,omitempty"`
+	MinDeltaBytes     *int     `json:"minDeltaBytes,omitempty"`
+	OverlapBytes      *int     `json:"overlapBytes,omitempty"`
+	PersistentMode    *bool    `json:"persistentMode,omitempty"`
+	WakeWordEnabled   *bool    `json:"wakeWordEnabled,omitempty"`
+	WakeWordThreshold *float64 `json:"wakeWordThreshold,omitempty"`
+	SegmentSilenceMs  *int     `json:"segmentSilenceMs,omitempty"`
 }
 
 // Apply merges non-nil patch fields into base, returning the updated config.
@@ -112,8 +118,11 @@ func (p VoiceStreamConfigPatch) Apply(base VoiceStreamConfig) VoiceStreamConfig 
 	if p.PersistentMode != nil {
 		base.PersistentMode = *p.PersistentMode
 	}
-	if p.CommandPrefix != nil {
-		base.CommandPrefix = *p.CommandPrefix
+	if p.WakeWordEnabled != nil {
+		base.WakeWordEnabled = *p.WakeWordEnabled
+	}
+	if p.WakeWordThreshold != nil {
+		base.WakeWordThreshold = *p.WakeWordThreshold
 	}
 	if p.SegmentSilenceMs != nil {
 		base.SegmentSilenceMs = *p.SegmentSilenceMs

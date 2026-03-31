@@ -164,11 +164,25 @@ Last updated: 2026-03-17
 
 | Component | Production | Test |
 |-----------|-----------|------|
-| `parseCommand()` | Matches segment-final text against command vocabulary | Direct function calls with controlled input strings |
+| `parseCommandDirect()` | Matches transcribed text against command vocabulary (no prefix required) | Direct function calls with controlled input strings |
 | `levenshtein()` | Fuzzy matching for Whisper misrecognitions | Direct function calls with known edit distances |
-| `partialContainsPrefix()` | Hint for adaptive silence threshold | Direct boolean assertions |
 
-**Benefits**: Command detection is a pure function with no UI or provider dependencies. All matching logic (prefix stripping, fuzzy matching, number extraction) can be tested with simple string inputs.
+**Benefits**: Command detection is a pure function with no UI or provider dependencies. All matching logic (fuzzy matching, number extraction) can be tested with simple string inputs. Wake word detection handles activation separately (see Wake Word Engine seam below).
+
+### Wake Word Engine Seam (UI)
+**Files**: `ui/src/hooks/voice/wakeword/types.ts`, `ui/src/hooks/voice/wakeword/engine.ts`, `ui/src/hooks/voice/wakeword/passiveListener.ts`
+**Purpose**: Isolate audio feature extraction and comparison behind a strategy interface so the MFCC+DTW implementation can be swapped for a neural embedding model later.
+
+| Component | Production | Test |
+|-----------|-----------|------|
+| `WakeWordEngine` interface | Strategy abstraction for feature extraction + comparison | Allows mock engines in integration tests |
+| `MfccDtwEngine` | Extracts 13-coefficient MFCCs, compares via DTW with Sakoe-Chiba band | Direct unit tests with synthetic audio signals |
+| `createWakeWordEngine()` | Factory — single point of change for swapping implementations | Tests call factory to verify wiring |
+| `PassiveListener` | VAD + ring buffer + MFCC/DTW loop running in RAF tick | Unit-testable via mocked engine and VAD refs |
+| `extractMfcc()` | Pure-JS MFCC extraction (FFT, mel filterbank, DCT) | Tested with known-frequency sine waves |
+| `dtwDistance()` | DTW with Sakoe-Chiba band constraint | Tested with identical, shifted, and unrelated sequences |
+
+**Benefits**: All wake word detection runs client-side (no audio leaves the browser during passive mode). The `WakeWordEngine` interface is the replacement seam — swapping to neural embeddings requires only a new class implementing the same interface and updating `createWakeWordEngine()`.
 
 ### Voice Segment Boundary Seam (API)
 **File**: `api/voice_stream_ws.go`

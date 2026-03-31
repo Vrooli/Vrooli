@@ -1,0 +1,16 @@
+{
+  "created": "2026-03-30T19:01:08Z",
+  "description": "Captures in the swarm-manager UI are not clickable and lack detail pages. They should have proper detail/view pages similar to other entities like backlog items and initiatives, allowing users to click through and see full capture information.",
+  "kind": "execute",
+  "name": "add-detail-pages-for-captures-in-swarm-manager",
+  "priority": 5,
+  "status": "backlog",
+  "tags": [
+    "swarm-manager",
+    "captures",
+    "ui",
+    "detail-pages"
+  ],
+  "title": "Add detail pages for captures in swarm-manager",
+  "updated": "2026-03-30T19:01:08Z"
+}

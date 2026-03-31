@@ -23,8 +23,10 @@ export type VoiceBackend = "whisper" | "web-speech" | "none";
 
 /** Explicit state machine replacing the old isRecording/isTranscribing boolean combo.
  *  "listening" is the persistent voice mode equivalent of "recording" — the mic
- *  stays active until the user taps it again. */
-export type VoiceState = "idle" | "preparing" | "recording" | "listening" | "transcribing";
+ *  stays active until the user taps it again.
+ *  "passive" is the wake word listening state — mic is open but only VAD + local
+ *  MFCC/DTW matching runs. No audio streams to the backend. */
+export type VoiceState = "idle" | "preparing" | "passive" | "recording" | "listening" | "transcribing";
 
 /** The voice input mode — one-shot records a single utterance, persistent
  *  stays active with segment-boundary detection until manually stopped. */
@@ -53,6 +55,8 @@ export interface VoiceInputState {
   segments: VoiceSegment[];
   /** Current command suggestion awaiting user confirmation, or null. */
   commandSuggestion: CommandSuggestion | null;
+  /** Whether a wake word template is configured and detection is available. */
+  wakeWordConfigured: boolean;
   /** Ephemeral speaker-verification notice shown during persistent mode. */
   speakerNotice: string | null;
   /** Whether speaker verification is enabled and configured for the current session. */

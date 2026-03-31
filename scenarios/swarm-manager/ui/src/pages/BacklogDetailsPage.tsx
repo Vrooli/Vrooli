@@ -69,6 +69,7 @@ import { FileUpload } from "../components/ui/file-upload";
 import { TagList } from "../components/ui/tag-list";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { BacklogFormDialog } from "../components/backlog/backlog-form-dialog";
+import { AcceptanceGlobDialog } from "../components/backlog/acceptance-glob-dialog";
 import { BacklogAgentDialog } from "../components/backlog/backlog-agent-dialog";
 import { WorkshopPanel } from "../components/backlog/workshop-panel";
 import { ReadinessDetailsPanel } from "../components/backlog/readiness-details-panel";
@@ -284,6 +285,7 @@ export function BacklogDetailsPage() {
   const [descOverflows, setDescOverflows] = useState(false);
   const [allowExpanded, setAllowExpanded] = useState(false);
   const [denyExpanded, setDenyExpanded] = useState(false);
+  const [showGlobDialog, setShowGlobDialog] = useState(false);
 
   const [execSectionOpen, setExecSectionOpen] = useState(false);
   const [expandedExecIds, setExpandedExecIds] = useState<Set<string>>(new Set());
@@ -521,6 +523,22 @@ export function BacklogDetailsPage() {
       queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name] });
       upsertItem(updatedItem);
       setShowEdit(false);
+    },
+  });
+
+  const acceptanceGlobMutation = useMutation({
+    mutationFn: (values: { acceptanceAllow: string[]; acceptanceDeny: string[] }) => {
+      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
+      return backlogService.update(backlogKind, name, {
+        acceptanceAllow: values.acceptanceAllow,
+        acceptanceDeny: values.acceptanceDeny,
+      });
+    },
+    onSuccess: (updatedItem) => {
+      if (!backlogKind || !name) return;
+      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name] });
+      upsertItem(updatedItem);
+      setShowGlobDialog(false);
     },
   });
 
@@ -1549,65 +1567,85 @@ export function BacklogDetailsPage() {
         <DependencyChipList label="Depends on" items={depRelations.parents} icon={ArrowUpRight} />
         <DependencyChipList label="Depended on by" items={depRelations.children} icon={ArrowRightLeft} />
         <div className="space-y-2 border-t border-slate-800 pt-3">
-          <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
-            <FolderOpen className="h-3.5 w-3.5" />
-            Acceptance Allow
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
+              <FolderOpen className="h-3.5 w-3.5" />
+              Acceptance Globs
+            </div>
+            {!isLocked && (
+              <button
+                type="button"
+                onClick={() => setShowGlobDialog(true)}
+                className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
+                aria-label="Edit acceptance globs"
+                data-testid="edit-acceptance-globs-btn"
+              >
+                <Edit className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
-          {item.acceptanceAllow && item.acceptanceAllow.length > 0 ? (
+          {(!item.acceptanceAllow || item.acceptanceAllow.length === 0) &&
+           (!item.acceptanceDeny || item.acceptanceDeny.length === 0) ? (
+            <button
+              type="button"
+              onClick={() => !isLocked && setShowGlobDialog(true)}
+              disabled={isLocked}
+              className="text-xs italic text-slate-500 hover:text-blue-400 transition-colors disabled:cursor-not-allowed disabled:hover:text-slate-500"
+              data-testid="acceptance-globs-empty-state"
+            >
+              No patterns set — click to add
+            </button>
+          ) : (
             <>
-              <div className="flex flex-wrap gap-1.5">
-                {(allowExpanded ? item.acceptanceAllow : item.acceptanceAllow.slice(0, 3)).map((glob) => (
-                  <code
-                    key={glob}
-                    className="inline-block rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300 font-mono"
-                  >
-                    {glob}
-                  </code>
-                ))}
-              </div>
-              {item.acceptanceAllow.length > 3 && (
-                <button
-                  type="button"
-                  onClick={() => setAllowExpanded(!allowExpanded)}
-                  className="mt-1 text-xs font-medium text-blue-400 hover:text-blue-300"
-                >
-                  {allowExpanded ? "Show less" : `Show more\u2026 (${item.acceptanceAllow.length - 3} more)`}
-                </button>
+              {item.acceptanceAllow && item.acceptanceAllow.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-[11px] font-medium text-slate-500">Allow</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(allowExpanded ? item.acceptanceAllow : item.acceptanceAllow.slice(0, 3)).map((glob) => (
+                      <code
+                        key={glob}
+                        className="inline-block rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300 font-mono"
+                      >
+                        {glob}
+                      </code>
+                    ))}
+                  </div>
+                  {item.acceptanceAllow.length > 3 && (
+                    <button
+                      type="button"
+                      onClick={() => setAllowExpanded(!allowExpanded)}
+                      className="mt-1 text-xs font-medium text-blue-400 hover:text-blue-300"
+                    >
+                      {allowExpanded ? "Show less" : `Show more\u2026 (${item.acceptanceAllow.length - 3} more)`}
+                    </button>
+                  )}
+                </div>
+              )}
+              {item.acceptanceDeny && item.acceptanceDeny.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-[11px] font-medium text-slate-500">Deny</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(denyExpanded ? item.acceptanceDeny : item.acceptanceDeny.slice(0, 3)).map((glob) => (
+                      <code
+                        key={glob}
+                        className="inline-block rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300 font-mono"
+                      >
+                        {glob}
+                      </code>
+                    ))}
+                  </div>
+                  {item.acceptanceDeny.length > 3 && (
+                    <button
+                      type="button"
+                      onClick={() => setDenyExpanded(!denyExpanded)}
+                      className="mt-1 text-xs font-medium text-blue-400 hover:text-blue-300"
+                    >
+                      {denyExpanded ? "Show less" : `Show more\u2026 (${item.acceptanceDeny.length - 3} more)`}
+                    </button>
+                  )}
+                </div>
               )}
             </>
-          ) : (
-            <p className="text-xs italic text-slate-500">Not set</p>
-          )}
-        </div>
-        <div className="space-y-2">
-          <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
-            <X className="h-3.5 w-3.5" />
-            Acceptance Deny
-          </div>
-          {item.acceptanceDeny && item.acceptanceDeny.length > 0 ? (
-            <>
-              <div className="flex flex-wrap gap-1.5">
-                {(denyExpanded ? item.acceptanceDeny : item.acceptanceDeny.slice(0, 3)).map((glob) => (
-                  <code
-                    key={glob}
-                    className="inline-block rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300 font-mono"
-                  >
-                    {glob}
-                  </code>
-                ))}
-              </div>
-              {item.acceptanceDeny.length > 3 && (
-                <button
-                  type="button"
-                  onClick={() => setDenyExpanded(!denyExpanded)}
-                  className="mt-1 text-xs font-medium text-blue-400 hover:text-blue-300"
-                >
-                  {denyExpanded ? "Show less" : `Show more\u2026 (${item.acceptanceDeny.length - 3} more)`}
-                </button>
-              )}
-            </>
-          ) : (
-            <p className="text-xs italic text-slate-500">Not set</p>
           )}
         </div>
         <div className="grid grid-cols-2 gap-3 border-t border-slate-800 pt-3">
@@ -2625,6 +2663,22 @@ export function BacklogDetailsPage() {
               tags: values.tags,
             })
           }
+        />
+      )}
+
+      {item && (
+        <AcceptanceGlobDialog
+          isOpen={showGlobDialog}
+          onClose={() => {
+            setShowGlobDialog(false);
+            acceptanceGlobMutation.reset();
+          }}
+          initialAllow={item.acceptanceAllow ?? []}
+          initialDeny={item.acceptanceDeny ?? []}
+          onSave={(allow, deny) =>
+            acceptanceGlobMutation.mutate({ acceptanceAllow: allow, acceptanceDeny: deny })
+          }
+          isSubmitting={acceptanceGlobMutation.isPending}
         />
       )}
 

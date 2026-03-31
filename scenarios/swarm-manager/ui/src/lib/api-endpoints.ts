@@ -31,6 +31,7 @@ export const API_ENDPOINTS = {
   backlogArchiveReview: (kind: string, name: string) => `/backlog/${kind}/${name}/archive/review`,
   backlogExport: "/backlog/export",
   backlogImport: "/backlog/import",
+  backlogValidateGlobs: "/backlog/validate-globs",
   backlogSummary: "/backlog/summary",
   backlogFeedbackSummary: "/backlog/feedback-summary",
   backlogMaturitySummary: "/backlog/maturity-summary",

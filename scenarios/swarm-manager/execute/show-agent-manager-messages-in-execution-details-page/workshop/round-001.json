@@ -1,0 +1,139 @@
+{
+  "round": 1,
+  "generated_at": "2026-03-30T22:15:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 2,
+    "scope_defined": 2,
+    "approach_solid": 1,
+    "testable": 1,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Data fetching route for agent-manager events",
+      "context": "The swarm-manager UI needs to fetch run events from agent-manager. There are two approaches: proxy through swarm-manager's own API (which already has basic agent-manager integration via /agent-manager/runs/{id}), or call agent-manager directly. Per project feedback, client-side URL computation for cross-scenario routing is prohibited.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Proxy through swarm-manager API",
+          "rationale": "Add a new endpoint like GET /api/v1/agent-manager/runs/{id}/events on swarm-manager API that proxies to agent-manager. Consistent with existing /agent-manager/runs/{id} pattern. UI only talks to its own backend. Recommended because it follows established patterns and avoids cross-origin issues.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Direct call to agent-manager with backend-provided URL",
+          "rationale": "Have swarm-manager API return the agent-manager base URL in its status/config response, then the UI calls agent-manager directly. Reduces proxy overhead but adds cross-origin complexity and a second API dependency in the UI."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Which event types to display",
+      "context": "Agent-manager produces 8+ event types: message, tool_call, tool_result, log, status, metric, artifact, error, compaction. Showing everything could be noisy. The prompt-manager reference shows a curated events view.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Core conversation events only (message, tool_call, tool_result)",
+          "rationale": "Cleanest UX — focuses on the actual agent conversation. Tool calls show what the agent did. Minimal noise."
+        },
+        {
+          "key": "B",
+          "label": "Conversation + status + error events",
+          "rationale": "Adds status transitions and errors for debugging context without the noise of metrics/logs. Recommended as a good balance of signal and completeness.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "All event types with filtering controls",
+          "rationale": "Show everything with toggle filters per event type. Most flexible but most complex to build and potentially overwhelming."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Tab layout approach for execution details",
+      "context": "The current ExecutionDetailsPage renders all sections in a single scrollable view (status card, post-run checks, prompt trace). Adding a Messages section requires restructuring to tabs or keeping the linear layout with a new section.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Radix Tabs with Overview + Messages",
+          "rationale": "Clean separation. Overview tab contains current content. Messages tab is dedicated to conversation. Follows the prompt-manager RunEditorPanel pattern (Info/Events/Investigation tabs). Recommended because it matches existing UI patterns in the codebase.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Collapsible section at the bottom",
+          "rationale": "Add an expandable 'Agent Messages' section below existing content. Simpler change, no layout restructuring, but could make the page very long."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Pagination strategy for large event streams",
+      "context": "Agent runs can produce hundreds or thousands of events. The agent-manager API supports sequence-based cursor pagination (after_sequence + limit). The UI needs a loading strategy.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Fetch all events on tab mount",
+          "rationale": "Simplest implementation. Fine for small-medium runs (<200 events). Could be slow for large runs."
+        },
+        {
+          "key": "B",
+          "label": "Paginated with 'Load more' button",
+          "rationale": "Fetch initial page (e.g., 50 events), show 'Load more' at the bottom. User controls when to fetch more. Simple UX, predictable performance. Recommended for simplicity.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Infinite scroll with intersection observer",
+          "rationale": "Automatically loads next page as user scrolls near the bottom. Smoother UX but more complex to implement correctly with event ordering."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The ExecutionRecord already has a `runId` field that links to the agent-manager run. The swarm-manager CLI also has basic agent-manager integration in `cmd_agent_manager.go` with types in `types.go`, though it currently only supports status, get-run, and stop-run — no event fetching. The proxy endpoint would need to be added to the swarm-manager API."
+    }
+  ],
+  "plan_updates": "Created initial plan scaffold with all 12 mandatory sections. Populated problem statement, scope, current technical context (key files and API details), target end state, 4-phase implementation strategy, risks, and definition of done. Testing plan and contract decisions marked TBD pending workshop decisions."
+}

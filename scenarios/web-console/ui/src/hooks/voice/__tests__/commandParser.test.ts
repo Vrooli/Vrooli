@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseCommand, levenshtein, partialContainsPrefix } from "../commandParser";
+import { parseCommandDirect, levenshtein } from "../commandParser";
 
 // --- levenshtein ---
 
@@ -38,82 +38,66 @@ describe("levenshtein", () => {
   });
 });
 
-// --- parseCommand ---
+// --- parseCommandDirect ---
 
-describe("parseCommand", () => {
-  const PREFIX = "hey do";
-
+describe("parseCommandDirect", () => {
   it("returns null for empty text", () => {
-    expect(parseCommand("", PREFIX)).toBeNull();
+    expect(parseCommandDirect("")).toBeNull();
   });
 
-  it("returns null for empty prefix", () => {
-    expect(parseCommand("hey do new tab", "")).toBeNull();
-  });
-
-  it("returns null when text does not start with prefix", () => {
-    expect(parseCommand("please new tab", PREFIX)).toBeNull();
-  });
-
-  it("returns null when only the prefix is spoken", () => {
-    expect(parseCommand("hey do", PREFIX)).toBeNull();
+  it("returns null for whitespace-only text", () => {
+    expect(parseCommandDirect("   ")).toBeNull();
   });
 
   // ── Exact matches ──
 
   it("detects 'new tab' command with exact match", () => {
-    const result = parseCommand("hey do new tab", PREFIX);
+    const result = parseCommandDirect("new tab");
     expect(result).not.toBeNull();
     expect(result?.command.id).toBe("new-tab");
     expect(result?.confidence).toBe(1);
   });
 
   it("detects 'close tab' command", () => {
-    const result = parseCommand("hey do close tab", PREFIX);
+    const result = parseCommandDirect("close tab");
     expect(result).not.toBeNull();
     expect(result?.command.id).toBe("close-tab");
   });
 
   it("detects 'enter' command", () => {
-    const result = parseCommand("hey do enter", PREFIX);
+    const result = parseCommandDirect("enter");
     expect(result).not.toBeNull();
     expect(result?.command.id).toBe("send-enter");
   });
 
   it("detects 'cancel' command", () => {
-    const result = parseCommand("hey do cancel", PREFIX);
+    const result = parseCommandDirect("cancel");
     expect(result).not.toBeNull();
     expect(result?.command.id).toBe("cancel");
   });
 
   it("detects 'clear' command", () => {
-    const result = parseCommand("hey do clear", PREFIX);
+    const result = parseCommandDirect("clear");
     expect(result).not.toBeNull();
     expect(result?.command.id).toBe("clear");
   });
 
   it("detects 'scroll up' command", () => {
-    const result = parseCommand("hey do scroll up", PREFIX);
+    const result = parseCommandDirect("scroll up");
     expect(result).not.toBeNull();
     expect(result?.command.id).toBe("scroll-up");
   });
 
   it("detects 'stop listening' command", () => {
-    const result = parseCommand("hey do stop listening", PREFIX);
+    const result = parseCommandDirect("stop listening");
     expect(result).not.toBeNull();
     expect(result?.command.id).toBe("stop-listening");
   });
 
   // ── Case insensitivity ──
 
-  it("is case insensitive for prefix", () => {
-    const result = parseCommand("Hey Do new tab", PREFIX);
-    expect(result).not.toBeNull();
-    expect(result?.command.id).toBe("new-tab");
-  });
-
-  it("is case insensitive for command", () => {
-    const result = parseCommand("hey do New Tab", PREFIX);
+  it("is case insensitive", () => {
+    const result = parseCommandDirect("New Tab");
     expect(result).not.toBeNull();
     expect(result?.command.id).toBe("new-tab");
   });
@@ -121,7 +105,7 @@ describe("parseCommand", () => {
   // ── Fuzzy matching ──
 
   it("matches Whisper misrecognition 'knew tab' as 'new tab'", () => {
-    const result = parseCommand("hey do knew tab", PREFIX);
+    const result = parseCommandDirect("knew tab");
     expect(result).not.toBeNull();
     expect(result?.command.id).toBe("new-tab");
     expect(result?.confidence ?? 0).toBeGreaterThan(0.5);
@@ -129,34 +113,39 @@ describe("parseCommand", () => {
   });
 
   it("matches 'cleer' as 'clear' (1 edit)", () => {
-    const result = parseCommand("hey do cleer", PREFIX);
+    const result = parseCommandDirect("cleer");
     expect(result).not.toBeNull();
     expect(result?.command.id).toBe("clear");
   });
 
   it("rejects gibberish with too many edits", () => {
-    const result = parseCommand("hey do xyzzy", PREFIX);
+    const result = parseCommandDirect("xyzzy");
     expect(result).toBeNull();
+  });
+
+  it("rejects normal speech that is not a command", () => {
+    expect(parseCommandDirect("please open the settings page")).toBeNull();
+    expect(parseCommandDirect("what is the weather today")).toBeNull();
   });
 
   // ── Number extraction ──
 
   it("extracts numeric digit argument from 'tab 3'", () => {
-    const result = parseCommand("hey do tab 3", PREFIX);
+    const result = parseCommandDirect("tab 3");
     expect(result).not.toBeNull();
     expect(result?.command.id).toBe("switch-tab");
     expect(result?.args.number).toBe(3);
   });
 
   it("extracts number word argument from 'tab three'", () => {
-    const result = parseCommand("hey do tab three", PREFIX);
+    const result = parseCommandDirect("tab three");
     expect(result).not.toBeNull();
     expect(result?.command.id).toBe("switch-tab");
     expect(result?.args.number).toBe(3);
   });
 
   it("extracts ordinal argument from 'switch tab second'", () => {
-    const result = parseCommand("hey do switch tab second", PREFIX);
+    const result = parseCommandDirect("switch tab second");
     expect(result).not.toBeNull();
     expect(result?.command.id).toBe("switch-tab");
     expect(result?.args.number).toBe(2);
@@ -165,95 +154,61 @@ describe("parseCommand", () => {
   // ── Alternative patterns ──
 
   it("detects 'add tab' as new-tab", () => {
-    const result = parseCommand("hey do add tab", PREFIX);
+    const result = parseCommandDirect("add tab");
     expect(result).not.toBeNull();
     expect(result?.command.id).toBe("new-tab");
   });
 
   it("detects 'open tab' as new-tab", () => {
-    const result = parseCommand("hey do open tab", PREFIX);
+    const result = parseCommandDirect("open tab");
     expect(result).not.toBeNull();
     expect(result?.command.id).toBe("new-tab");
   });
 
   it("detects 'interrupt' as cancel", () => {
-    const result = parseCommand("hey do interrupt", PREFIX);
+    const result = parseCommandDirect("interrupt");
     expect(result).not.toBeNull();
     expect(result?.command.id).toBe("cancel");
   });
 
   it("detects 'mic off' as stop-listening", () => {
-    const result = parseCommand("hey do mic off", PREFIX);
+    const result = parseCommandDirect("mic off");
     expect(result).not.toBeNull();
     expect(result?.command.id).toBe("stop-listening");
   });
 
   // ── Whisper punctuation handling ──
 
-  it("detects command when Whisper inserts comma in prefix: 'Hey, do new tab'", () => {
-    const result = parseCommand("Hey, do new tab", PREFIX);
+  it("detects command when Whisper inserts period: 'new tab.'", () => {
+    const result = parseCommandDirect("new tab.");
     expect(result).not.toBeNull();
     expect(result?.command.id).toBe("new-tab");
   });
 
-  it("detects command when Whisper inserts period in prefix: 'Hey. Do new tab.'", () => {
-    const result = parseCommand("Hey. Do new tab.", PREFIX);
-    expect(result).not.toBeNull();
-    expect(result?.command.id).toBe("new-tab");
-  });
-
-  it("detects command with trailing punctuation: 'hey do clear screen!'", () => {
-    const result = parseCommand("hey do clear screen!", PREFIX);
+  it("detects command with trailing punctuation: 'clear screen!'", () => {
+    const result = parseCommandDirect("clear screen!");
     expect(result).not.toBeNull();
     expect(result?.command.id).toBe("clear");
   });
 
-  it("detects 'stop listening' with Whisper punctuation", () => {
-    const result = parseCommand("Hey, do stop listening.", PREFIX);
-    expect(result).not.toBeNull();
-    expect(result?.command.id).toBe("stop-listening");
-  });
-
-  it("extracts tab number with Whisper punctuation: 'Hey, do tab 3.'", () => {
-    const result = parseCommand("Hey, do tab 3.", PREFIX);
+  it("extracts tab number with Whisper punctuation: 'tab 3.'", () => {
+    const result = parseCommandDirect("tab 3.");
     expect(result).not.toBeNull();
     expect(result?.command.id).toBe("switch-tab");
     expect(result?.args.number).toBe(3);
   });
 
-  // ── Different prefix ──
+  // ── Longer patterns shadow shorter ones ──
 
-  it("works with custom prefix", () => {
-    const result = parseCommand("run clear", "run");
+  it("prefers 'stop listening' over 'stop' when full match", () => {
+    const result = parseCommandDirect("stop listening");
+    expect(result).not.toBeNull();
+    expect(result?.command.id).toBe("stop-listening");
+  });
+
+  it("prefers 'clear screen' over 'clear' when full match", () => {
+    const result = parseCommandDirect("clear screen");
     expect(result).not.toBeNull();
     expect(result?.command.id).toBe("clear");
-  });
-});
-
-// --- partialContainsPrefix ---
-
-describe("partialContainsPrefix", () => {
-  it("returns true when partial contains prefix", () => {
-    expect(partialContainsPrefix("I said hey do something", "hey do")).toBe(true);
-  });
-
-  it("is case insensitive", () => {
-    expect(partialContainsPrefix("Hey Do something", "hey do")).toBe(true);
-  });
-
-  it("returns false when prefix not present", () => {
-    expect(partialContainsPrefix("hello world", "hey do")).toBe(false);
-  });
-
-  it("returns false for empty partial", () => {
-    expect(partialContainsPrefix("", "hey do")).toBe(false);
-  });
-
-  it("returns false for empty prefix", () => {
-    expect(partialContainsPrefix("hey do something", "")).toBe(false);
-  });
-
-  it("matches when Whisper inserts comma in prefix", () => {
-    expect(partialContainsPrefix("Hey, do something", "hey do")).toBe(true);
   });
 });

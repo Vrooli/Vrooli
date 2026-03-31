@@ -68,6 +68,7 @@ The `download_artifacts` table stores provenance metadata (platform, version, SH
 - scenario-to-desktop's deploy stage passes `BuildProvenance.GitCommitHash` to the LPBS commit endpoint
 - Existing artifacts without a commit hash continue to work (column is nullable)
 - The field is queryable for traceability (e.g., "which artifact was built from commit X?")
+- `git_commit_hash` is included in all artifact JSON responses (lightweight, serves traceability purpose)
 
 ## 7. Implementation Strategy
 
@@ -76,22 +77,30 @@ The `download_artifacts` table stores provenance metadata (platform, version, SH
 1. **Migration**: Add `ALTER TABLE download_artifacts ADD COLUMN IF NOT EXISTS git_commit_hash TEXT;` to `main.go` DDL block
 2. **Struct**: Add `GitCommitHash string` field to `DownloadArtifact` with `json:"git_commit_hash"` and `db:"git_commit_hash"` tags
 3. **Request**: Add `GitCommitHash string` field to `CommitArtifactRequest` with `json:"git_commit_hash"`
-4. **Scan targets**: Add `&a.GitCommitHash` to `artifactScanTargets` `scanDest()` slice, add `"git_commit_hash"` to column list
-5. **Service**: Update `CommitArtifact` INSERT query to include `git_commit_hash` column, using `normalizeOptionalString()` for the value
+4. **Scan targets**: Add `&a.GitCommitHash` to `artifactScanTargets` `scanDest()` slice, add `"git_commit_hash"` to column list — **must match SQL SELECT column order exactly** (highest-risk step)
+5. **Service**: Update `CommitArtifact` INSERT query to include `git_commit_hash` column, using `normalizeOptionalString()` for the value; include in ON CONFLICT UPDATE SET as well
 6. **Tests**: Add test case for committing an artifact with `git_commit_hash` set, verify it round-trips through GET
 
 ### Phase 2: scenario-to-desktop Caller (scenarios/scenario-to-desktop/api/)
 
-1. **proxyCommit**: Add `"git_commit_hash": req.GitCommitHash` (or provenance field) to the commit request map in `lpbs_client.go`
-2. **UploadRequest or deploy flow**: Ensure `GitCommitHash` is threaded from `StageInput.Provenance` to the `proxyCommit` call
-3. **Tests**: Update any existing deploy/commit tests to verify the field is passed
+1. **UploadRequest**: Add `GitCommitHash string` field to the `UploadRequest` struct (confirmed: this is the natural carrier for artifact metadata)
+2. **Deploy stage**: Populate `UploadRequest.GitCommitHash` from `StageInput.Provenance.GitCommitHash` (confirmed: StageInput already carries Provenance, populated by the orchestrator for every stage)
+3. **proxyCommit**: Add `"git_commit_hash": req.GitCommitHash` to the commit request map in `lpbs_client.go`
+4. **Tests**: Update any existing deploy/commit tests to verify the field is passed
 
 ## 8. Contract Decisions
 
-- **Column type**: `TEXT` (not `CHAR(40)`) — accommodates both SHA-1 (40 chars) and future SHA-256 (64 chars) git hashes
-- **Nullability**: Nullable (no NOT NULL) — existing artifacts and non-git-sourced artifacts won't have this field
-- **API field name**: `git_commit_hash` (matches BuildProvenance JSON tag and existing metadata key convention)
-- **No index initially** — can be added later if query-by-hash becomes a hot path
+Confirmed via workshop round-001:
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Column type | `TEXT` (not `CHAR(40)`) | Accommodates both SHA-1 (40 chars) and future SHA-256 (64 chars) git hashes |
+| Nullability | Nullable (no NOT NULL) | Existing artifacts and non-git-sourced artifacts won't have this field |
+| API field name | `git_commit_hash` | Matches BuildProvenance JSON tag and existing metadata key convention |
+| No index initially | Deferred | Can be added later if query-by-hash becomes a hot path |
+| Provenance threading | Via `StageInput.Provenance` | Already populated by orchestrator for every stage; minimal change (d1) |
+| Response inclusion | All artifact responses | Lightweight field; whole purpose is traceability (d2) |
+| Carrier struct | `UploadRequest.GitCommitHash` | Natural carrier for artifact metadata flowing into upload pipeline (d3) |
 
 ## 9. Testing Plan
 
@@ -113,7 +122,7 @@ The `download_artifacts` table stores provenance metadata (platform, version, SH
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
 | Column addition fails on existing DB | Low | Medium | `IF NOT EXISTS` guards the ALTER |
-| Scan target ordering mismatch | Medium | High | Must match column order exactly in SQL SELECT and scanDest slice |
+| Scan target ordering mismatch | Medium | High | Must match column order exactly in SQL SELECT and scanDest slice; test covers round-trip |
 | Provenance nil in deploy stage | Low | Low | Provenance is captured at orchestrator start; nil-check before accessing |
 
 ## 12. Non-goals / Prohibited Patterns
@@ -128,6 +137,7 @@ The `download_artifacts` table stores provenance metadata (platform, version, SH
 
 - `download_artifacts` table has `git_commit_hash TEXT` column
 - LPBS commit endpoint accepts and persists `git_commit_hash`
-- scenario-to-desktop passes `BuildProvenance.GitCommitHash` in commit request
+- `git_commit_hash` appears in all artifact JSON responses
+- scenario-to-desktop passes `BuildProvenance.GitCommitHash` via `UploadRequest` to `proxyCommit`
 - All existing tests pass; new test covers the round-trip
 - Code formatted with `gofumpt`

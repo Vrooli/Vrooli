@@ -1,0 +1,131 @@
+{
+  "round": 3,
+  "generated_at": "2026-03-30T23:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 3,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 2,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Validate-globs API: phasing strategy",
+      "context": "The plan includes a new POST /backlog/validate-globs API endpoint for path-existence checking. This requires Go backend work (new handler, doublestar dependency, tests). The UI feature (modal + client-side validation) is independently useful without it. Should we phase the API work or ship it all together?",
+      "options": [
+        {
+          "key": "A",
+          "label": "Ship UI first (Phase 1+3+4), add API validation later",
+          "rationale": "Unblocks the core UX immediately. Client-side syntax validation covers the most common errors. Path checking is a nice-to-have enhancement. Recommended because it delivers user value faster and reduces the initial scope.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Ship all phases together",
+          "rationale": "Complete feature in one go. Users get full validation from day one. Larger scope but no follow-up needed."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Describe your preferred phasing"
+        }
+      ],
+      "selected": "B"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Testing approach: vitest component tests or Playwright E2E?",
+      "context": "The plan lists component tests for AcceptanceGlobDialog and integration tests for BacklogDetailsPage. The existing codebase has both vitest component tests (e.g., backlog-card.test.tsx, plan-panel.test.tsx) and Playwright E2E tests. Component tests are faster and more focused; E2E tests catch real browser interactions but are slower. The locked-state and PATCH integration are best validated with component-level mocks.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Vitest component tests only",
+          "rationale": "Matches existing test patterns in the codebase. Fast, focused, mock the API layer. Covers all acceptance criteria without browser overhead. Recommended because the feature is a UI component with well-defined inputs/outputs.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Vitest component tests + one Playwright E2E smoke test",
+          "rationale": "Component tests for logic, plus one E2E test that opens the modal, types patterns, and saves. Catches real rendering issues but adds maintenance burden."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Describe your preferred testing approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Empty state UX: what to show when no patterns are set",
+      "context": "Currently, when acceptance_allow or acceptance_deny is empty, the detail page shows nothing for that section. The modal needs to handle opening with empty arrays gracefully. Should we also add a visual prompt on the detail page to encourage setting patterns?",
+      "options": [
+        {
+          "key": "A",
+          "label": "Empty textarea in modal, no detail page change",
+          "rationale": "Simplest approach. Modal opens with empty textarea, user types patterns. Detail page stays as-is (no chips shown when empty). Recommended — keeps scope minimal and the edit button already signals editability.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Add 'No patterns set — click to add' placeholder on detail page",
+          "rationale": "More discoverable — users see an explicit prompt. But adds detail page layout changes beyond the edit button."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Describe your preferred empty state"
+        }
+      ],
+      "selected": "B"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Textarea placeholder text and helper copy",
+      "context": "Each textarea in the modal needs placeholder/helper text to guide users on the expected format. This is especially important since glob syntax isn't universally known.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Placeholder in textarea + helper text below label",
+          "rationale": "Textarea placeholder shows example: 'scenarios/my-app/ui/**\\nsrc/components/*.tsx'. Helper text below the label: 'One glob pattern per line. Relative to project root.' Recommended — provides format guidance without overwhelming.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Placeholder only, no helper text",
+          "rationale": "Cleaner modal. Users who don't know glob syntax can look it up. Less hand-holding."
+        },
+        {
+          "key": "C",
+          "label": "Collapsible 'Glob syntax help' section in modal",
+          "rationale": "Full reference with examples (**, *, {a,b}, etc.). Most informative but takes space and most users won't need it."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Describe your preferred approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The CLI `backlog update` 405 error persists — attempted to auto-set acceptance_allow via CLI and got HTTP 405. The acceptance_allow globs are defined in the plan but could not be saved to spec.json via CLI. This does not block UI development since acceptance_allow is a plan-level constraint, not a runtime dependency."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Codebase exploration confirmed: BacklogFormDialog already has acceptance_allow/acceptance_deny as comma-separated inputs (lines 360-398 of backlog-form-dialog.tsx). The new AcceptanceGlobDialog will NOT modify BacklogFormDialog — both will coexist. The form dialog handles item creation (simpler patterns expected), while the new modal handles editing on the details page (where patterns may be longer/more complex)."
+    }
+  ],
+  "plan_updates": "Fully detailed all 4 phases of the approach with specific function signatures, component props, validation logic, and test cases. Incorporated all 9 resolved decisions from rounds 1-2 into the plan body. Expanded testing strategy with specific test case descriptions for each layer (unit, component, integration, API). Added acceptance scope globs. Refined risk table with validate-globs phasing risk and mitigation."
+}
