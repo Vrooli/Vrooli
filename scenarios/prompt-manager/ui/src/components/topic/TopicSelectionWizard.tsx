@@ -19,6 +19,7 @@ import { copyAsyncToClipboard } from '@/lib/clipboard'
 import { toast } from '@/hooks/use-toast'
 import type { Topic } from '@/lib/schemas/topic.schema'
 import type { CombineFormat } from '@/stores/combineStore'
+import { getSavedFormat, saveFormat } from '@/lib/formatPreference'
 
 interface TopicSelectionWizardProps {
   onClose: () => void
@@ -52,7 +53,11 @@ export function TopicSelectionWizard({ onClose, className }: TopicSelectionWizar
   const [selectedTopicIds, setSelectedTopicIds] = useState<Set<string>>(new Set())
   const [deselectedSkillIds, setDeselectedSkillIds] = useState<Set<string>>(new Set())
   const [complexity, setComplexity] = useState<Complexity>('standard')
-  const [format, setFormat] = useState<CombineFormat>('xml')
+  const [format, setFormatState] = useState<CombineFormat>(getSavedFormat)
+  const setFormat = useCallback((f: CombineFormat) => {
+    saveFormat(f)
+    setFormatState(f)
+  }, [])
 
   // Drilldown state
   const [drilldownBreadcrumbs, setDrilldownBreadcrumbs] = useState<Array<{ id: string; name: string }>>([])

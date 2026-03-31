@@ -221,9 +221,9 @@ describe('SearchResultsList', () => {
 
       const buttons = container.querySelectorAll('button')
       // First button (In Budget) should not have opacity-50
-      expect(buttons[0]!.className).not.toContain('opacity-50')
+      expect(buttons[0]?.className).not.toContain('opacity-50')
       // Second button (Over Budget) should have opacity-50
-      expect(buttons[1]!.className).toContain('opacity-50')
+      expect(buttons[1]?.className).toContain('opacity-50')
     })
   })
 })

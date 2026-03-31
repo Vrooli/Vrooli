@@ -7,6 +7,7 @@
  */
 
 import { create } from 'zustand'
+import { getSavedFormat, saveFormat } from '@/lib/formatPreference'
 
 export type CombineFormat = 'xml' | 'markdown' | 'json' | 'cli'
 export type CombineMode = 'skill-combine' | 'ai-select'
@@ -56,7 +57,7 @@ const INITIAL_STATE = {
   mode: 'skill-combine' as CombineMode,
   entityType: 'skills' as CombineEntityType,
   selectedIds: new Set<string>(),
-  format: 'xml' as CombineFormat,
+  format: getSavedFormat() as CombineFormat,
   isCopying: false,
   contentCharsMap: new Map<string, number>(),
   budgetChars: null as number | null,
@@ -150,6 +151,7 @@ export const useCombineStore = create<CombineStore>((set, get) => ({
   },
 
   setFormat: (format) => {
+    saveFormat(format)
     set({ format })
   },
 

@@ -105,7 +105,8 @@ describe('DiscoverControls', () => {
       expect(inputs).toHaveLength(4)
 
       // Change minor to 5000
-      fireEvent.change(inputs[0]!, { target: { value: '5000' } })
+      const minorInput = inputs[0] as HTMLElement
+      fireEvent.change(minorInput, { target: { value: '5000' } })
 
       // Save
       fireEvent.click(screen.getByText('Save'))
@@ -126,7 +127,7 @@ describe('DiscoverControls', () => {
 
       // Change a value
       const inputs = screen.getAllByRole('spinbutton')
-      fireEvent.change(inputs[0]!, { target: { value: '999' } })
+      fireEvent.change(inputs[0] as HTMLElement, { target: { value: '999' } })
 
       // Cancel
       fireEvent.click(screen.getByText('Cancel'))
@@ -146,7 +147,7 @@ describe('DiscoverControls', () => {
 
       // Set minor higher than moderate (invalid)
       const inputs = screen.getAllByRole('spinbutton')
-      fireEvent.change(inputs[0]!, { target: { value: '9000' } })
+      fireEvent.change(inputs[0] as HTMLElement, { target: { value: '9000' } })
 
       // Validation message should show
       expect(screen.getByText('Values must be ascending')).toBeDefined()
@@ -195,7 +196,7 @@ describe('DiscoverControls', () => {
 
       // Find the include drafts toggle (second switch - first is topic context)
       const switches = screen.getAllByRole('switch')
-      const draftsToggle = switches[switches.length - 1]!
+      const draftsToggle = switches[switches.length - 1] as HTMLElement
       fireEvent.click(draftsToggle)
 
       fireEvent.click(screen.getByText('Save'))

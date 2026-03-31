@@ -12,6 +12,7 @@ import { copyAsyncToClipboard } from '@/lib/clipboard'
 import type { Skill } from '@/types'
 import type { DisplayFormat } from '@/types/world'
 import { displaySkills, generatePreview, validateForDisplay } from '@/services/skillDisplayService'
+import { getSavedFormat, saveFormat } from '@/lib/formatPreference'
 
 interface DisplayPanelProps {
   selectedSkills: Skill[]
@@ -27,7 +28,11 @@ const FORMAT_OPTIONS: Array<{ value: DisplayFormat; label: string; icon: React.R
 ]
 
 export function DisplayPanel({ selectedSkills, onClear, onDisplay }: DisplayPanelProps) {
-  const [format, setFormat] = useState<DisplayFormat>('xml')
+  const [format, setFormatRaw] = useState<DisplayFormat>(getSavedFormat)
+  const setFormat = (f: DisplayFormat) => {
+    saveFormat(f)
+    setFormatRaw(f)
+  }
   const [copied, setCopied] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
 

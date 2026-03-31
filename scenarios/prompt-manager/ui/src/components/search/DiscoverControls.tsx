@@ -217,7 +217,7 @@ function DiscoverSettingsDialog({
     budgetDraft.architectural > budgetDraft.major
 
   const toggleMode = (mode: string) => {
-    const modes = filterDraft.excludeModes ?? []
+    const modes = filterDraft.excludeModes
     onFilterChange({
       ...filterDraft,
       excludeModes: modes.includes(mode) ? modes.filter((m) => m !== mode) : [...modes, mode],
@@ -225,7 +225,7 @@ function DiscoverSettingsDialog({
   }
 
   const toggleTag = (tag: string) => {
-    const tags = filterDraft.excludeTags ?? []
+    const tags = filterDraft.excludeTags
     onFilterChange({
       ...filterDraft,
       excludeTags: tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag],
@@ -243,7 +243,7 @@ function DiscoverSettingsDialog({
               <span className="text-xs text-slate-400 w-24">{tier.label}</span>
               <input
                 type="number"
-                value={budgetDraft[tier.value as keyof BudgetConfig]}
+                value={budgetDraft[tier.value]}
                 onChange={(e) => onBudgetChange({ ...budgetDraft, [tier.value]: Number(e.target.value) || 0 })}
                 className="h-7 w-28 px-2 text-xs rounded border border-white/10 bg-slate-800 text-white focus:outline-none focus:ring-1 focus:ring-primary"
                 min={1}
@@ -289,7 +289,7 @@ function DiscoverSettingsDialog({
               <span className="text-xs text-slate-400">Exclude modes</span>
               <div className="flex flex-wrap gap-1.5">
                 {availableModes.map((mode) => {
-                  const isExcluded = (filterDraft.excludeModes ?? []).includes(mode)
+                  const isExcluded = filterDraft.excludeModes.includes(mode)
                   return (
                     <button
                       key={mode}
@@ -316,7 +316,7 @@ function DiscoverSettingsDialog({
               <span className="text-xs text-slate-400">Exclude tags</span>
               <div className="flex flex-wrap gap-1.5">
                 {availableTags.map((tag) => {
-                  const isExcluded = (filterDraft.excludeTags ?? []).includes(tag)
+                  const isExcluded = filterDraft.excludeTags.includes(tag)
                   return (
                     <button
                       key={tag}
@@ -342,7 +342,7 @@ function DiscoverSettingsDialog({
             <span className="text-xs text-slate-400">Exclude skill IDs (comma-separated)</span>
             <input
               type="text"
-              value={(filterDraft.excludeIds ?? []).join(', ')}
+              value={filterDraft.excludeIds.join(', ')}
               onChange={(e) => {
                 const ids = e.target.value
                   .split(',')

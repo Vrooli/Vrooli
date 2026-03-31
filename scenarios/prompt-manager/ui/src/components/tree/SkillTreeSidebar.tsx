@@ -629,7 +629,7 @@ export function SkillTreeSidebar({
         onEnterSelectMode?.(entityType)
 
         // Auto-select discover results when entering selection mode on skills tab
-        if (activeTab === 'skills' && useDiscover && discoverResults?.results?.length) {
+        if (activeTab === 'skills' && useDiscover && discoverResults?.results.length) {
           const results = discoverResults.results
           const budget = discoverResults.budgetChars
 
@@ -924,7 +924,7 @@ export function SkillTreeSidebar({
 
   // Sync discover results contentChars into combineStore so budget gauge works in selection mode
   useEffect(() => {
-    if (!discoverResults?.results?.length) return
+    if (!discoverResults?.results.length) return
     const entries: Array<[string, number]> = discoverResults.results.map((r) => [r.id, r.contentChars])
     // selectMultiple with empty ids array just populates the contentCharsMap
     useCombineStore.getState().selectMultiple([], entries)
