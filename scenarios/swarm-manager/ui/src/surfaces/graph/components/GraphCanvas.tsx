@@ -324,10 +324,17 @@ export const GraphCanvas = memo(function GraphCanvas() {
     }
   }, [focusNodeId, highlightState.mode, processedNodes, selectedNodeId, selectNode, setHighlightState, styledEdges]);
 
-  // Reset the focus-restored flag when the target node changes, so the
-  // effect can fire again for a new selection/focus.
+  // Reset the focus-restored flag when the target node changes TO A NEW
+  // VALUE, so the effect can fire again for a new selection/focus.
+  // Do NOT reset when clearing (→ null), otherwise the restoration effect
+  // re-selects via focusNodeId immediately after the user deselects.
+  const prevFocusTarget = useRef<string | null>(focusNodeId ?? selectedNodeId);
   useEffect(() => {
-    focusRestoredRef.current = false;
+    const current = focusNodeId ?? selectedNodeId;
+    if (current !== null && current !== prevFocusTarget.current) {
+      focusRestoredRef.current = false;
+    }
+    prevFocusTarget.current = current;
   }, [focusNodeId, selectedNodeId]);
 
   const handleNodeClick: NodeMouseHandler = useCallback(

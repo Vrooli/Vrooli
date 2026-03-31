@@ -10,6 +10,7 @@
  */
 
 import { useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ExternalLink } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { FloatingPanel } from "../../../components/ui/floating-panel";
@@ -141,6 +142,7 @@ function EntityMeta({ data }: { data: GraphNodeData }) {
 const INSPECTOR_POSITION = { x: window.innerWidth - 380, y: window.innerHeight - 300 };
 
 export function NodeInspectorPanel() {
+  const [, setSearchParams] = useSearchParams();
   const selectedNodeId = useGraphUIStore((s) => s.selectedNodeId);
   const selectNode = useGraphUIStore((s) => s.selectNode);
   const setHighlightState = useGraphUIStore((s) => s.setHighlightState);
@@ -167,6 +169,14 @@ export function NodeInspectorPanel() {
   const handleClose = () => {
     selectNode(null);
     setHighlightState({ highlighted: new Set<string>(), mode: "normal" });
+    // Clear URL synchronously to prevent the focus-restoration effect
+    // in GraphCanvas from re-selecting via the stale ?select= param.
+    setSearchParams((prev) => {
+      if (!prev.has("select")) return prev;
+      const next = new URLSearchParams(prev);
+      next.delete("select");
+      return next;
+    });
   };
 
   const handleOpenDetails = () => {
