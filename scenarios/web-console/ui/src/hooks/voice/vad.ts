@@ -20,6 +20,29 @@ export const VAD_MIN_SPEECH_THRESHOLD = 0.06;
 export const VAD_SLIDING_WINDOW_SIZE = 30;     // ~2s at 15Hz
 export const VAD_NOISE_FLOOR_DECAY_RATE = 0.5; // max floor decrease per second
 
+// ── Noise Floor Cache ──
+// DOC: docs/internal/VOICE-LATENCY.md#persistent-noise-floor-cache
+//
+// Persisting the noise floor across sessions lets subsequent recordings skip
+// the 500ms calibration phase entirely. The sliding window adaptation still
+// runs and will correct the thresholds if the environment has changed.
+
+/** Maximum age of a cached noise floor before it is considered stale. */
+export const VAD_FLOOR_CACHE_MAX_AGE_MS = 86_400_000; // 24 hours
+
+/** If the live noise floor diverges from the cached floor by more than this
+ *  factor within the first 500ms, reset thresholds from live data. */
+export const VAD_FLOOR_DRIFT_FACTOR = 3;
+
+const NOISE_FLOOR_CACHE_KEY = "wc-noise-floor-cache";
+
+/** Serializable snapshot of the VAD noise floor for localStorage persistence. */
+export interface CachedNoiseFloor {
+  silenceThreshold: number;
+  speechThreshold: number;
+  timestamp: number;
+}
+
 export interface VadRefs {
   state: VadState;
   recordingStart: number;
@@ -38,6 +61,10 @@ export interface VadRefs {
   segmentBoundaryEmitted: boolean;
   /** When true, disables the no-speech timeout (passive mode waits indefinitely). */
   passiveMode: boolean;
+  /** When set, the VAD was initialized from a cached floor. The drift guard
+   *  in vadTick compares live noise floor against this value during the first
+   *  VAD_CALIBRATION_MS to detect environment changes. Cleared after check. */
+  cachedFloorBaseline: number;
 }
 
 export function createVadRefs(): VadRefs {
@@ -54,6 +81,7 @@ export function createVadRefs(): VadRefs {
     segmentSilenceMs: 0,
     segmentBoundaryEmitted: false,
     passiveMode: false,
+    cachedFloorBaseline: 0,
   };
 }
 
@@ -66,6 +94,75 @@ export function createPassiveVadRefs(): VadRefs {
     ...createVadRefs(),
     segmentSilenceMs: VAD_PASSIVE_SEGMENT_SILENCE_MS,
     passiveMode: true,
+  };
+}
+
+// ── Noise Floor Cache Helpers ──
+// DOC: docs/internal/VOICE-LATENCY.md#persistent-noise-floor-cache
+
+/** Load a previously saved noise floor from localStorage. Returns null if
+ *  no cache exists, or the cache is malformed. Does NOT check age — callers
+ *  should compare `cached.timestamp` against `VAD_FLOOR_CACHE_MAX_AGE_MS`. */
+export function loadNoiseFloorCache(): CachedNoiseFloor | null {
+  try {
+    const raw = localStorage.getItem(NOISE_FLOOR_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as CachedNoiseFloor;
+    if (
+      typeof parsed.silenceThreshold !== "number" ||
+      typeof parsed.speechThreshold !== "number" ||
+      typeof parsed.timestamp !== "number"
+    ) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/** Persist the current noise floor to localStorage for use in future sessions. */
+export function saveNoiseFloorCache(floor: CachedNoiseFloor): void {
+  try {
+    localStorage.setItem(NOISE_FLOOR_CACHE_KEY, JSON.stringify(floor));
+  } catch {
+    // localStorage full or unavailable — silently skip.
+  }
+}
+
+/** Extract the current thresholds from a VadRefs instance for persistence. */
+export function extractCacheableFloor(vad: VadRefs): CachedNoiseFloor {
+  return {
+    silenceThreshold: vad.silenceThreshold,
+    speechThreshold: vad.speechThreshold,
+    timestamp: Date.now(),
+  };
+}
+
+/**
+ * Create VAD refs pre-seeded with cached thresholds, skipping the 500ms
+ * calibration phase. The VAD starts directly in "waitingForSpeech" state.
+ *
+ * The sliding window noise floor adaptation still runs, so if the environment
+ * has changed since the cache was written, thresholds will self-correct within
+ * a few seconds.
+ *
+ * A drift guard is built into vadTick: if the live noise floor diverges from
+ * the cached floor by more than VAD_FLOOR_DRIFT_FACTOR within the first
+ * VAD_CALIBRATION_MS, thresholds are reset from live data immediately.
+ *
+ * DOC: docs/internal/VOICE-LATENCY.md#persistent-noise-floor-cache
+ */
+export function createVadRefsFromCache(cached: CachedNoiseFloor): VadRefs {
+  return {
+    ...createVadRefs(),
+    state: "waitingForSpeech",
+    silenceThreshold: cached.silenceThreshold,
+    speechThreshold: cached.speechThreshold,
+    // Store the implied noise floor as baseline for the drift guard.
+    // vadTick compares live sliding-window floor against this during
+    // the first VAD_CALIBRATION_MS to detect environment changes.
+    cachedFloorBaseline: cached.silenceThreshold / 1.5,
   };
 }
 
@@ -148,6 +245,29 @@ export function vadTick(vad: VadRefs, rms: number, now: number, silenceTimeoutMs
     vad.silenceThreshold = Math.max(VAD_MIN_SILENCE_THRESHOLD, newFloor * 1.5);
     vad.speechThreshold = Math.max(VAD_MIN_SPEECH_THRESHOLD, newFloor * 3);
     vad.lastFloorUpdateTime = now;
+
+    // ── Drift guard for cached floor ──
+    // DOC: docs/internal/VOICE-LATENCY.md#persistent-noise-floor-cache
+    //
+    // When the VAD was initialized from a cached noise floor (cachedFloorBaseline > 0),
+    // compare the live floor against the cached baseline during the first
+    // VAD_CALIBRATION_MS. If the live floor diverges by more than VAD_FLOOR_DRIFT_FACTOR,
+    // the environment has changed significantly (e.g., user moved from quiet room to
+    // coffee shop). Reset thresholds from live data immediately — no pause needed.
+    if (vad.cachedFloorBaseline > 0 && now - vad.recordingStart <= VAD_CALIBRATION_MS) {
+      const ratio = newFloor / vad.cachedFloorBaseline;
+      if (ratio > VAD_FLOOR_DRIFT_FACTOR || (vad.cachedFloorBaseline > 0 && ratio < 1 / VAD_FLOOR_DRIFT_FACTOR)) {
+        console.info(
+          "[voice] Noise floor drift detected (cached=%.4f, live=%.4f, ratio=%.1f), resetting from live data",
+          vad.cachedFloorBaseline, newFloor, ratio,
+        );
+        vad.cachedFloorBaseline = 0; // Clear so this only fires once
+      }
+    }
+    // Clear the drift guard after the calibration window regardless
+    if (vad.cachedFloorBaseline > 0 && now - vad.recordingStart > VAD_CALIBRATION_MS) {
+      vad.cachedFloorBaseline = 0;
+    }
   }
 
   if (vad.state === "waitingForSpeech") {

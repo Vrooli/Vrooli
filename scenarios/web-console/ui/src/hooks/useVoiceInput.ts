@@ -15,11 +15,13 @@
 // and the provider is initializing.
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { fetchCapabilities, fetchCapabilitiesLiveness, getVoiceStreamConfig } from "../lib/api";
+import { fetchCapabilities, getCapabilitiesLivenessSnapshot, refreshCapabilitiesLiveness, getVoiceStreamConfig } from "../lib/api";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { createAudioFilterChain } from "./voice/audioUtils";
 import { playRecordingStartCue, playRecordingStopCue } from "./voice/audioCues";
-import { createVadRefs, vadTick } from "./voice/vad";
+import { createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, vadTick, VAD_FLOOR_CACHE_MAX_AGE_MS } from "./voice/vad";
+import { getSharedAudioContext, ensureAudioContextOnGesture } from "./voice/sharedAudioContext";
+import { acquireStream as acquireMicStream, releaseStream as releaseMicStream, getStream as getMicStream, isStreamAlive as isMicStreamAlive, installVisibilityHandler } from "./voice/micReadiness";
 import { VoiceStreamProvider } from "./voice/VoiceStreamProvider";
 import { WhisperProvider } from "./voice/WhisperProvider";
 import { WebSpeechProvider } from "./voice/WebSpeechProvider";
@@ -45,8 +47,9 @@ import type {
 export type { TranscriptionProvider, VoiceBackend, VoiceState, VoiceMode, VoiceInputState, VoiceSegment, CommandSuggestion, StartRecordingOpts } from "./voice/types";
 export { WHISPER_FAILED_SENTINEL, CAP_CHECK_FAIL_THRESHOLD, AUDIO_BITRATE, STREAM_CHUNK_INTERVAL_MS, computeFinalTimeout } from "./voice/types";
 export { createAudioFilterChain } from "./voice/audioUtils";
-export type { VadState, VadRefs, VadAction } from "./voice/vad";
-export { VAD_DEFAULT_SILENCE_TIMEOUT_MS, VAD_DEFAULT_SEGMENT_SILENCE_MS, createVadRefs, computeSlidingNoiseFloor, vadTick } from "./voice/vad";
+export type { VadState, VadRefs, VadAction, CachedNoiseFloor } from "./voice/vad";
+export { VAD_DEFAULT_SILENCE_TIMEOUT_MS, VAD_DEFAULT_SEGMENT_SILENCE_MS, VAD_FLOOR_CACHE_MAX_AGE_MS, createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, computeSlidingNoiseFloor, vadTick } from "./voice/vad";
+export { getSharedAudioContext, ensureAudioContextOnGesture, closeSharedAudioContext } from "./voice/sharedAudioContext";
 
 const INITIAL_STATE: VoiceInputState = {
   supported: false,
@@ -79,6 +82,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
   const persistentMode = useWorkspaceStore((s) => s.persistentMode);
   const wakeWordEnabled = useWorkspaceStore((s) => s.wakeWordEnabled);
   const segmentSilenceMs = useWorkspaceStore((s) => s.segmentSilenceMs);
+  const lowLatencyVoice = useWorkspaceStore((s) => s.lowLatencyVoice);
   const [state, setState] = useState<VoiceInputState>(INITIAL_STATE);
 
   // Derived booleans for backward compatibility with UI components
@@ -104,6 +108,8 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
   wakeWordEnabledRef.current = wakeWordEnabled;
   const segmentSilenceMsRef = useRef(segmentSilenceMs);
   segmentSilenceMsRef.current = segmentSilenceMs;
+  const lowLatencyVoiceRef = useRef(lowLatencyVoice);
+  lowLatencyVoiceRef.current = lowLatencyVoice;
 
   // Wake word engine and template refs
   const wakeWordEngineRef = useRef<WakeWordEngine | null>(null);
@@ -135,6 +141,11 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
   const noAudioTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Guards against concurrent startRecording calls during async startup. */
   const startingRef = useRef(false);
+  /** Cleanup function for the Page Visibility handler (low-latency mode). */
+  const visibilityCleanupRef = useRef<(() => void) | null>(null);
+  /** Ref for isActive so non-React callbacks can read it. */
+  const isActiveRef = useRef(false);
+  isActiveRef.current = isRecording || isListening;
   /** When true, stopRecording was called during startup -- recording should abort after start completes. */
   const stopRequestedRef = useRef(false);
 
@@ -181,6 +192,44 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     });
   }, [persistentMode]);
 
+  // ── Low-latency voice lifecycle ──
+  // DOC: docs/internal/VOICE-LATENCY.md#visibility-based-mic-lifecycle
+  //
+  // When low-latency voice is enabled, install a Page Visibility handler that
+  // releases the mic on tab hidden and re-acquires on visible. Also pre-warm
+  // the mic stream immediately.
+  useEffect(() => {
+    if (!voiceEnabled) return;
+
+    if (lowLatencyVoice) {
+      // Pre-warm the mic stream
+      acquireMicStream().catch((err) => {
+        console.warn("[voice] Low-latency: initial mic pre-warm failed:", err);
+      });
+
+      // Install visibility handler
+      const cleanup = installVisibilityHandler({
+        isRecordingActive: () => isActiveRef.current,
+        isLowLatencyEnabled: () => lowLatencyVoiceRef.current,
+      });
+      visibilityCleanupRef.current = cleanup;
+
+      return () => {
+        cleanup();
+        visibilityCleanupRef.current = null;
+        // Release the pre-warmed stream when low-latency is turned off
+        releaseMicStream();
+      };
+    } else {
+      // Low-latency was turned off — clean up any leftover state
+      if (visibilityCleanupRef.current) {
+        visibilityCleanupRef.current();
+        visibilityCleanupRef.current = null;
+      }
+      releaseMicStream();
+    }
+  }, [voiceEnabled, lowLatencyVoice]);
+
   /** Handle a segment-final transcript in persistent mode. */
   const handleSegmentFinal = useCallback((text: string, segmentIndex: number) => {
     if (!text.trim()) return;
@@ -220,11 +269,12 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
 
   const startLevelMonitor = useCallback(async (stream: MediaStream) => {
     try {
-      let ctx = audioCtxRef.current;
-      if (!ctx) {
-        ctx = new AudioContext();
-        audioCtxRef.current = ctx;
-      }
+      // Use the shared AudioContext singleton. It was pre-created on the first
+      // user gesture by ensureAudioContextOnGesture(), so it should already be
+      // in "running" state. We still check for "suspended" as a safety net.
+      // DOC: docs/internal/VOICE-LATENCY.md#pre-create-audiocontext-on-first-gesture
+      const ctx = getSharedAudioContext();
+      audioCtxRef.current = ctx;
       if (ctx.state === "suspended") {
         await ctx.resume().catch(() => {});
       }
@@ -348,13 +398,15 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     setState((s) => (s.audioLevel === 0 ? s : { ...s, audioLevel: 0 }));
   }, []);
 
-  const lastCapCheckRef = useRef(0);
   const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const capCheckFailCountRef = useRef(0);
   const speakerNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Optimistic mount: show the mic button immediately and check Whisper in
   // the background. The user can start speaking before the check resolves.
+  //
+  // DOC: docs/internal/VOICE-LATENCY.md#background-capability-check
+  // DOC: docs/internal/VOICE-LATENCY.md#pre-create-audiocontext-on-first-gesture
   useEffect(() => {
     if (!voiceEnabled) {
       setState((s) => ({ ...s, supported: false, backend: "none" }));
@@ -363,9 +415,15 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
 
     // Show button immediately -- optimistic default assumes Whisper.
     setState((s) => ({ ...s, supported: true, backend: "whisper" }));
-    lastCapCheckRef.current = Date.now();
+
+    // Pre-create AudioContext on the first user gesture anywhere in the app.
+    // This eliminates ~20-50ms from the recording start path by ensuring the
+    // context is already in "running" state when the mic button is pressed.
+    ensureAudioContextOnGesture();
 
     let cancelled = false;
+    let bgRefreshInterval: ReturnType<typeof setInterval> | null = null;
+
     (async () => {
       try {
         const mountCapStart = Date.now();
@@ -377,6 +435,25 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
           streamingAvailableRef.current = whisper.features?.includes("voice-streaming") ?? false;
           capCheckResolvedRef.current = true;
           console.info("[voice] Backend confirmed: whisper, streaming=%s", streamingAvailableRef.current);
+
+          // Seed the synchronous snapshot so startRecording() never blocks.
+          // The mount check used fetchCapabilities (full check), but we also
+          // need the liveness cache populated for the snapshot getter.
+          refreshCapabilitiesLiveness().catch(() => {});
+
+          // Pre-connect the WebSocket so it's ready when the user presses
+          // the mic button, eliminating 10-100ms of connection latency.
+          // DOC: docs/internal/VOICE-LATENCY.md#websocket-pre-connection
+          if (streamingAvailableRef.current) {
+            if (!providerRef.current) {
+              providerRef.current = new VoiceStreamProvider();
+            }
+            if (providerRef.current instanceof VoiceStreamProvider) {
+              const lang = voiceLanguage === "auto" ? "" : (voiceLanguage.split("-")[0] ?? "en");
+              providerRef.current.preConnect(lang);
+            }
+          }
+
           return;
         }
       } catch (err) {
@@ -400,12 +477,21 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
         : { ...s, supported: false, backend: "none" });
     })();
 
+    // Background capability refresh — keeps the synchronous snapshot warm
+    // so startRecording() never needs to await a network call. Runs every 25s
+    // (inside the server-side 30s cache TTL) to ensure freshness.
+    bgRefreshInterval = setInterval(() => {
+      refreshCapabilitiesLiveness().catch(() => {});
+    }, 25_000);
+
     return () => {
       cancelled = true;
+      if (bgRefreshInterval) clearInterval(bgRefreshInterval);
       providerRef.current?.dispose();
       providerRef.current = null;
-      audioCtxRef.current?.close().catch(() => {});
-      audioCtxRef.current = null;
+      // Do NOT close the shared AudioContext here — it is app-lifetime and
+      // managed by sharedAudioContext.ts. Individual audio nodes are disconnected
+      // by stopLevelMonitor() which is called before unmount.
       if (noAudioTimerRef.current) {
         clearTimeout(noAudioTimerRef.current);
         noAudioTimerRef.current = null;
@@ -437,67 +523,45 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     }
 
     try {
-      // Pre-recording capability check (debounced to every 10s)
-      const isWhisperOrFallback = state.backend === "whisper" || state.backend === "web-speech";
-      if (isWhisperOrFallback && Date.now() - lastCapCheckRef.current > 10_000) {
-        lastCapCheckRef.current = Date.now();
-        try {
-          const capCheckStart = Date.now();
-          const caps = await fetchCapabilitiesLiveness();
-          console.info("[voice] Pre-record liveness check took %dms", Date.now() - capCheckStart);
-          const whisper = caps.capabilities.find((c) => c.id === "whisper-stt");
-          if (whisper?.status !== "available") {
-            capCheckFailCountRef.current++;
-            console.warn(`[voice] Whisper unavailable (attempt ${capCheckFailCountRef.current}/${CAP_CHECK_FAIL_THRESHOLD})`);
-            if (capCheckFailCountRef.current >= CAP_CHECK_FAIL_THRESHOLD && state.backend === "whisper") {
-              const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
-              if (Ctor) {
-                providerRef.current?.dispose();
-                providerRef.current = null;
-                setState((s) => ({
-                  ...s,
-                  backend: "web-speech",
-                  fallbackNotice: "Whisper unavailable \u2014 using browser speech recognition",
-                }));
-                if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
-                fallbackTimerRef.current = setTimeout(() => {
-                  setState((s) => (s.fallbackNotice ? { ...s, fallbackNotice: null } : s));
-                }, 5000);
-              }
-            }
-          } else {
-            console.info("[voice] Capability check: Whisper available");
-            capCheckFailCountRef.current = 0;
-            if (state.backend === "web-speech") {
+      // ── Synchronous capability check ──
+      // DOC: docs/internal/VOICE-LATENCY.md#background-capability-check
+      //
+      // Instead of blocking on a network request, read the synchronous snapshot
+      // populated by the background refresh interval (25s cycle). This eliminates
+      // 50-500ms from the recording start path.
+      //
+      // If the snapshot is null (very first activation before mount check resolved),
+      // we fall through to the optimistic Whisper assumption (already set in the
+      // mount effect). The background refresh will populate the snapshot shortly.
+      const capSnapshot = getCapabilitiesLivenessSnapshot();
+      if (capSnapshot) {
+        const whisper = capSnapshot.capabilities.find((c) => c.id === "whisper-stt");
+        if (whisper?.status !== "available") {
+          capCheckFailCountRef.current++;
+          if (capCheckFailCountRef.current >= CAP_CHECK_FAIL_THRESHOLD && state.backend === "whisper") {
+            const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+            if (Ctor) {
               providerRef.current?.dispose();
               providerRef.current = null;
-              streamingAvailableRef.current = whisper.features?.includes("voice-streaming") ?? false;
               setState((s) => ({
                 ...s,
-                backend: "whisper",
-                fallbackNotice: null,
+                backend: "web-speech",
+                fallbackNotice: "Whisper unavailable \u2014 using browser speech recognition",
               }));
+              if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+              fallbackTimerRef.current = setTimeout(() => {
+                setState((s) => (s.fallbackNotice ? { ...s, fallbackNotice: null } : s));
+              }, 5000);
             }
           }
-        } catch (err) {
-          console.warn("[voice] Capabilities check failed:", err);
-        }
-      }
-
-      // If the mount-time check hasn't resolved yet, wait for a quick
-      // capability check before creating the provider so we get the right one.
-      if (!capCheckResolvedRef.current && backendRef.current === "whisper") {
-        try {
-          const mountFallbackStart = Date.now();
-          const caps = await fetchCapabilitiesLiveness();
-          console.info("[voice] Mount-fallback liveness check took %dms", Date.now() - mountFallbackStart);
-          const whisper = caps.capabilities.find((c) => c.id === "whisper-stt");
-          if (whisper?.status === "available") {
-            streamingAvailableRef.current = whisper.features?.includes("voice-streaming") ?? false;
+        } else {
+          capCheckFailCountRef.current = 0;
+          streamingAvailableRef.current = whisper.features?.includes("voice-streaming") ?? false;
+          if (state.backend === "web-speech") {
+            providerRef.current?.dispose();
+            providerRef.current = null;
+            setState((s) => ({ ...s, backend: "whisper", fallbackNotice: null }));
           }
-          capCheckResolvedRef.current = true;
-        } catch {
-          capCheckResolvedRef.current = true;
         }
       }
 
@@ -565,6 +629,17 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       provider.onResult = (text) => {
         console.info("[voice] Transcript:", text.length, "chars");
         if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
+
+        // Persist the current noise floor so the next recording session can
+        // skip the 500ms calibration phase.
+        // DOC: docs/internal/VOICE-LATENCY.md#persistent-noise-floor-cache
+        if (vadActiveRef.current && vadRef.current.state !== "idle") {
+          const floor = extractCacheableFloor(vadRef.current);
+          saveNoiseFloorCache(floor);
+          console.info("[voice] Noise floor cache: saved (floor=%.4f, speech=%.4f, silence=%.4f)",
+            floor.silenceThreshold / 1.5, floor.speechThreshold, floor.silenceThreshold);
+        }
+
         vadActiveRef.current = false;
         vadRef.current.state = "idle";
         stopLevelMonitor();
@@ -581,6 +656,20 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
         // after the last segment boundary). Deliver it if non-empty.
         if (text) {
           onTranscriptRef.current(text);
+        }
+
+        // ── Low-latency: release-then-reacquire cycle ──
+        // DOC: docs/internal/VOICE-LATENCY.md#audio-ducking-deep-dive
+        //
+        // Release the mic immediately to stop audio ducking on mobile. Then
+        // re-acquire after 500ms so the stream is warm for the next recording.
+        if (lowLatencyVoiceRef.current) {
+          releaseMicStream();
+          setTimeout(() => {
+            if (lowLatencyVoiceRef.current) {
+              acquireMicStream().catch(() => {});
+            }
+          }, 500);
         }
       };
       provider.onError = (error) => {
@@ -625,8 +714,25 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
         };
       }
 
+      // ── Stream injection (low-latency mode) ──
+      // DOC: docs/internal/VOICE-LATENCY.md#stream-injection-vs-stream-acquisition
+      //
+      // If low-latency voice is enabled and a pre-warmed stream exists, inject
+      // it into the provider to skip the getUserMedia call (~50-300ms).
+      // Also tell VoiceStreamProvider to retain the stream after recording
+      // so it can be re-used for subsequent sessions.
+      let preWarmedStream: MediaStream | undefined;
+      if (lowLatencyVoiceRef.current && isMicStreamAlive()) {
+        preWarmedStream = getMicStream() ?? undefined;
+        if (provider instanceof VoiceStreamProvider) {
+          provider.retainStream = true;
+        }
+      } else if (provider instanceof VoiceStreamProvider) {
+        provider.retainStream = false;
+      }
+
       const providerStartTime = Date.now();
-      await provider.start();
+      await provider.start(preWarmedStream);
       console.info("[voice] Provider.start() took %dms (includes getUserMedia)", Date.now() - providerStartTime);
 
       // If start() failed (e.g. permission denied), onError already set state.
@@ -634,10 +740,29 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       const stream = provider.getStream();
       if (stream) {
         // Arm VAD
+        // DOC: docs/internal/VOICE-LATENCY.md#persistent-noise-floor-cache
         if (opts?.vadEnabled || isPersistent) {
           vadActiveRef.current = true;
-          vadRef.current = createVadRefs();
-          vadRef.current.state = "calibrating";
+
+          // Try to seed from cached noise floor to skip the 500ms calibration.
+          // The sliding window adaptation still runs and will self-correct if
+          // the environment has changed. A drift guard in vadTick detects gross
+          // mismatches (>3x divergence) and resets from live data immediately.
+          const cached = loadNoiseFloorCache();
+          const cacheAge = cached ? Date.now() - cached.timestamp : Infinity;
+          if (cached && cacheAge < VAD_FLOOR_CACHE_MAX_AGE_MS) {
+            vadRef.current = createVadRefsFromCache(cached);
+            console.info("[voice] Noise floor cache: loaded (age=%ds, floor=%.4f)",
+              Math.round(cacheAge / 1000), cached.silenceThreshold / 1.5);
+          } else {
+            vadRef.current = createVadRefs();
+            vadRef.current.state = "calibrating";
+            if (cached) {
+              console.info("[voice] Noise floor cache: expired (age=%ds), will recalibrate",
+                Math.round(cacheAge / 1000));
+            }
+          }
+
           vadRef.current.recordingStart = Date.now();
           // Enable segment boundary detection in persistent mode
           if (isPersistent) {

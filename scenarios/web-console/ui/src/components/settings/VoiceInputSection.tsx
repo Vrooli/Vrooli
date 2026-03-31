@@ -42,6 +42,7 @@ import {
   type AudioFeatures,
   type WakeWordTemplate,
 } from "../../hooks/voice/wakeword";
+import { useWakeWordTest } from "../../hooks/voice/wakeword/useWakeWordTest";
 import { formatShortcutFromEvent } from "../../lib/shortcutParser";
 import { Button } from "../ui/button";
 import { SettingsCard, SettingsRow, SettingsSectionIntro, SettingsToggle } from "./primitives";
@@ -97,6 +98,15 @@ export default function VoiceInputSection() {
   const wwStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wwEngineRef = useRef(createWakeWordEngine());
   const wwPlaybackRef = useRef<HTMLAudioElement | null>(null);
+
+  // Live wake word test hook
+  const wwTestSamples = wwSamplesRef.current.filter((s): s is AudioFeatures => s !== null);
+  const wakeWordTest = useWakeWordTest({
+    engine: wwEngineRef.current,
+    samples: wwTestSamples,
+    threshold: useWorkspaceStore.getState().wakeWordThreshold,
+    disabled: wwRecordingIdx !== null,
+  });
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const enrollmentChunksRef = useRef<Blob[]>([]);
@@ -880,6 +890,111 @@ export default function VoiceInputSection() {
                     </div>
                   </div>
 
+                  {/* Live wake word test */}
+                  <div className="rounded-xl border border-wc-default bg-wc-surface-base/60 p-3 space-y-3">
+                    <div className="flex items-center gap-2 text-sm font-medium text-wc-text-secondary">
+                      <Play className="h-4 w-4" />
+                      Test live detection
+                    </div>
+                    <p className="text-[11px] text-wc-text-muted">
+                      Hold the button and speak your wake word to see if it triggers. Adjust the sensitivity slider above to tune results.
+                    </p>
+
+                    {wwTestSamples.length === 0 ? (
+                      <p className="text-[11px] text-wc-text-faint italic">Record and save samples above to enable live testing.</p>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-3">
+                          <Button
+                            data-testid="wake-word-live-test"
+                            variant="outline"
+                            size="sm"
+                            className={`h-10 px-4 text-xs select-none ${wakeWordTest.state.status === "recording" ? "border-wc-accent text-wc-accent animate-pulse" : ""}`}
+                            disabled={wwRecordingIdx !== null || wakeWordTest.state.status === "comparing"}
+                            onMouseDown={() => wakeWordTest.startRecording()}
+                            onMouseUp={() => wakeWordTest.stopRecording()}
+                            onMouseLeave={() => { if (wakeWordTest.state.status === "recording") wakeWordTest.stopRecording(); }}
+                            onTouchStart={(e) => { e.preventDefault(); wakeWordTest.startRecording(); }}
+                            onTouchEnd={(e) => { e.preventDefault(); wakeWordTest.stopRecording(); }}
+                          >
+                            <Mic className="mr-1.5 h-3.5 w-3.5" />
+                            {wakeWordTest.state.status === "idle" || wakeWordTest.state.status === "result"
+                              ? "Hold to Test"
+                              : wakeWordTest.state.status === "recording"
+                                ? `Recording... ${wakeWordTest.state.recordingSeconds}s`
+                                : "Comparing..."}
+                          </Button>
+                          {wakeWordTest.state.history.length > 0 && (
+                            <button
+                              data-testid="wake-word-clear-history"
+                              className="text-[10px] text-wc-text-faint hover:text-wc-text-muted underline"
+                              onClick={() => wakeWordTest.clearHistory()}
+                            >
+                              Clear history
+                            </button>
+                          )}
+                        </div>
+
+                        {wakeWordTest.state.error && (
+                          <div className="flex items-center gap-2 text-xs text-wc-error-detail">
+                            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                            {wakeWordTest.state.error}
+                          </div>
+                        )}
+
+                        {wakeWordTest.state.currentResult && (
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className={wakeWordTest.state.currentResult.isMatch ? "text-green-500 font-medium" : "text-red-500 font-medium"}>
+                                {wakeWordTest.state.currentResult.isMatch ? "Match" : "Reject"}
+                              </span>
+                              <span className="text-wc-text-muted">
+                                Score: {wakeWordTest.state.currentResult.score.toFixed(3)}
+                              </span>
+                            </div>
+                            <div className="relative h-3 w-full rounded-full bg-wc-surface-overlay overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${wakeWordTest.state.currentResult.isMatch ? "bg-green-500/70" : "bg-red-500/70"}`}
+                                style={{ width: `${Math.min(wakeWordTest.state.currentResult.score * 100, 100)}%` }}
+                              />
+                              <div
+                                className="absolute top-0 h-full w-0.5 bg-wc-text-secondary"
+                                style={{ left: `${useWorkspaceStore.getState().wakeWordThreshold * 100}%` }}
+                                title={`Threshold: ${useWorkspaceStore.getState().wakeWordThreshold.toFixed(2)}`}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {wakeWordTest.state.history.length > 1 && (
+                          <div className="space-y-1">
+                            <div className="text-[10px] text-wc-text-faint font-medium">Recent attempts</div>
+                            <div className="max-h-32 overflow-y-auto space-y-1">
+                              {wakeWordTest.state.history.map((attempt, i) => (
+                                <div key={attempt.timestamp} className={`flex items-center gap-2 text-[10px] ${i === 0 ? "opacity-100" : "opacity-70"}`}>
+                                  <span className={`w-9 font-medium ${attempt.isMatch ? "text-green-500" : "text-red-500"}`}>
+                                    {attempt.isMatch ? "Pass" : "Fail"}
+                                  </span>
+                                  <div className="relative h-1.5 flex-1 rounded-full bg-wc-surface-overlay overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full ${attempt.isMatch ? "bg-green-500/60" : "bg-red-500/60"}`}
+                                      style={{ width: `${Math.min(attempt.score * 100, 100)}%` }}
+                                    />
+                                    <div
+                                      className="absolute top-0 h-full w-px bg-wc-text-faint"
+                                      style={{ left: `${useWorkspaceStore.getState().wakeWordThreshold * 100}%` }}
+                                    />
+                                  </div>
+                                  <span className="w-10 text-right text-wc-text-faint">{attempt.score.toFixed(2)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
                   <SettingsRow
                     label="Segment silence"
                     hint="How long a pause triggers segment retranscription."
@@ -927,6 +1042,30 @@ export default function VoiceInputSection() {
               Voice config not available. Start the voice streaming backend to configure persistent mode.
             </div>
           )}
+        </SettingsCard>
+      )}
+
+      {voiceEnabled && (
+        <SettingsCard className="space-y-4">
+          <SettingsSectionIntro
+            eyebrow="Performance"
+            title="Low-latency voice"
+            description="Reduce the delay between tapping the mic button and recording start. Useful for hands-free and persistent mode workflows."
+          />
+          <SettingsRow
+            label="Enable low-latency voice"
+            hint="Pre-warms the microphone so recording starts instantly. Your OS will show a microphone indicator even when not recording. The mic is automatically released when you switch tabs."
+            control={(
+              <SettingsToggle
+                testId="low-latency-voice-toggle"
+                checked={useWorkspaceStore.getState().lowLatencyVoice}
+                onClick={() => {
+                  const store = useWorkspaceStore.getState();
+                  store.setLowLatencyVoice(!store.lowLatencyVoice);
+                }}
+              />
+            )}
+          />
         </SettingsCard>
       )}
 

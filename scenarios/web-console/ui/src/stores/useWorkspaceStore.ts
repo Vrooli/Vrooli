@@ -78,6 +78,11 @@ interface WorkspaceState {
   tabContextMenu: TabContextMenuState | null;
   /** Keep the device screen awake to support hands-free voice interaction. */
   keepScreenAwake: boolean;
+  /** Pre-warm the microphone for near-instant recording start. Shows the OS
+   *  microphone indicator even when not actively recording. The mic is released
+   *  automatically when the tab is hidden (app switch, tab switch).
+   *  DOC: docs/internal/VOICE-LATENCY.md#low-latency-voice-mode */
+  lowLatencyVoice: boolean;
 }
 
 interface WorkspaceActions {
@@ -131,6 +136,7 @@ interface WorkspaceActions {
   applyAppearanceToAll: (sessionId: string) => void;
   setTabContextMenu: (menu: TabContextMenuState | null) => void;
   setKeepScreenAwake: (enabled: boolean) => void;
+  setLowLatencyVoice: (enabled: boolean) => void;
 }
 
 export type WorkspaceStore = WorkspaceState & WorkspaceActions;
@@ -174,6 +180,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       groups: [],
       tabContextMenu: null,
       keepScreenAwake: true,
+      lowLatencyVoice: false,
 
       addRecentCombo: (comboId) =>
         set((state) => {
@@ -319,10 +326,11 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         }),
       setTabContextMenu: (menu) => set({ tabContextMenu: menu }),
       setKeepScreenAwake: (enabled) => set({ keepScreenAwake: enabled }),
+      setLowLatencyVoice: (enabled) => set({ lowLatencyVoice: enabled }),
     }),
     {
       name: "wc-workspace",
-      version: 11,
+      version: 12,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 1) {
@@ -373,6 +381,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         if (version < 11) {
           state.keepScreenAwake ??= true;
         }
+        if (version < 12) {
+          state.lowLatencyVoice ??= false;
+        }
         return state as unknown as WorkspaceState & WorkspaceActions;
       },
       partialize: (state) => ({
@@ -403,6 +414,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         plusButtonBehavior: state.plusButtonBehavior,
         recentCombos: state.recentCombos,
         keepScreenAwake: state.keepScreenAwake,
+        lowLatencyVoice: state.lowLatencyVoice,
       }),
     },
   ),

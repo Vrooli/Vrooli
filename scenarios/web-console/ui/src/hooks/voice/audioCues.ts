@@ -17,22 +17,22 @@
 // No external dependencies or audio files needed. The tones are designed to
 // be gentle and unobtrusive — a soft two-note chime, not a harsh beep.
 
-/** Shared AudioContext for cue playback — reused to avoid hitting the
- *  browser's AudioContext limit (typically 6–8 per page). */
-let cueCtx: AudioContext | null = null;
+// Uses the shared AudioContext singleton to avoid creating a separate context
+// for cue playback. This keeps the total AudioContext count at 1 instead of 2,
+// leaving more headroom under the browser's 6-8 context limit.
+// DOC: docs/internal/VOICE-LATENCY.md#pre-create-audiocontext-on-first-gesture
+import { getSharedAudioContext } from "./sharedAudioContext";
 
 async function getCueContext(): Promise<AudioContext> {
-  if (!cueCtx || cueCtx.state === "closed") {
-    cueCtx = new AudioContext();
-  }
+  const ctx = getSharedAudioContext();
   // Resume if suspended (browsers suspend until user gesture).
   // We must await this — scheduling oscillators on a suspended context
   // means they fire against a frozen currentTime and are already in the
   // past when playback finally starts, so they never produce sound.
-  if (cueCtx.state === "suspended") {
-    await cueCtx.resume();
+  if (ctx.state === "suspended") {
+    await ctx.resume();
   }
-  return cueCtx;
+  return ctx;
 }
 
 /**

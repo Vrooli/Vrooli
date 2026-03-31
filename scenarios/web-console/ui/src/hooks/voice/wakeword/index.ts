@@ -19,3 +19,5 @@ export { dtwDistance, distanceToScore } from "./dtw";
 export { MfccDtwEngine, createWakeWordEngine, applyCms } from "./engine";
 export { PassiveListener } from "./passiveListener";
 export type { PassiveListenerOpts } from "./passiveListener";
+export { useWakeWordTest } from "./useWakeWordTest";
+export type { TestAttempt, TestStatus, WakeWordTestState, UseWakeWordTestOpts, UseWakeWordTestReturn } from "./useWakeWordTest";

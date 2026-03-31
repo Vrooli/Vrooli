@@ -541,9 +541,45 @@ export function fetchCapabilitiesLivenessCached(): Promise<CapabilitiesResponse>
   return promise;
 }
 
+/**
+ * Synchronous snapshot of the most recent capabilities liveness result.
+ * Returns null if no check has completed yet.
+ *
+ * Used by startRecording() to avoid blocking the mic activation hot path
+ * on a network request. The background refresh (fetchCapabilitiesLivenessCached
+ * on a 25s interval) keeps this warm.
+ *
+ * DOC: docs/internal/VOICE-LATENCY.md#background-capability-check
+ */
+export function getCapabilitiesLivenessSnapshot(): CapabilitiesResponse | null {
+  if (!_capCache) return null;
+  // Return null if the cache is stale (older than TTL). The background
+  // refresh should prevent this, but this guards against edge cases.
+  if (Date.now() - _capCache.at >= CAP_CACHE_TTL) return null;
+  // The promise may still be in-flight (not yet resolved). We return null
+  // in that case since we can't synchronously extract the resolved value.
+  // However, the snapshot is populated after the first successful resolve.
+  return _capSnapshot;
+}
+
+/** Resolved snapshot of the last successful liveness check. Updated after
+ *  each successful fetchCapabilitiesLivenessCached() call. */
+let _capSnapshot: CapabilitiesResponse | null = null;
+
+/**
+ * Refresh the capabilities liveness cache and update the synchronous snapshot.
+ * Designed to be called on an interval to keep the snapshot warm.
+ */
+export async function refreshCapabilitiesLiveness(): Promise<CapabilitiesResponse> {
+  const result = await fetchCapabilitiesLivenessCached();
+  _capSnapshot = result;
+  return result;
+}
+
 /** Reset the capabilities liveness cache. Exported for tests. */
 export function _resetCapabilitiesCache(): void {
   _capCache = null;
+  _capSnapshot = null;
 }
 
 export async function uploadFile(sessionId: string, file: File | Blob, filename?: string): Promise<string> {

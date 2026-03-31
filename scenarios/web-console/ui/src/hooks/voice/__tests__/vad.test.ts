@@ -1,11 +1,20 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   createVadRefs,
   vadTick,
   computeSlidingNoiseFloor,
   VAD_DEFAULT_SILENCE_TIMEOUT_MS,
   VAD_DEFAULT_SEGMENT_SILENCE_MS,
+  createVadRefsFromCache,
+  extractCacheableFloor,
+  loadNoiseFloorCache,
+  saveNoiseFloorCache,
+  VAD_FLOOR_CACHE_MAX_AGE_MS,
+  VAD_FLOOR_DRIFT_FACTOR,
+  VAD_CALIBRATION_MS,
+  VAD_SLIDING_WINDOW_SIZE,
   type VadRefs,
+  type CachedNoiseFloor,
 } from "../vad";
 
 // --- computeSlidingNoiseFloor ---
@@ -375,5 +384,96 @@ describe("VAD constants", () => {
     expect(VAD_DEFAULT_SILENCE_TIMEOUT_MS).toBe(2000);
     expect(VAD_DEFAULT_SEGMENT_SILENCE_MS).toBe(1500);
     expect(VAD_DEFAULT_SEGMENT_SILENCE_MS).toBeLessThan(VAD_DEFAULT_SILENCE_TIMEOUT_MS);
+  });
+});
+
+// --- Noise floor cache ---
+
+describe("noise floor cache", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("createVadRefsFromCache starts in waitingForSpeech", () => {
+    const cached: CachedNoiseFloor = { silenceThreshold: 0.03, speechThreshold: 0.09, timestamp: Date.now() };
+    const vad = createVadRefsFromCache(cached);
+    expect(vad.state).toBe("waitingForSpeech");
+  });
+
+  it("createVadRefsFromCache uses cached thresholds", () => {
+    const cached: CachedNoiseFloor = { silenceThreshold: 0.04, speechThreshold: 0.12, timestamp: Date.now() };
+    const vad = createVadRefsFromCache(cached);
+    expect(vad.silenceThreshold).toBe(0.04);
+    expect(vad.speechThreshold).toBe(0.12);
+  });
+
+  it("extractCacheableFloor round-trips correctly", () => {
+    const vad = createVadRefs();
+    vad.silenceThreshold = 0.05;
+    vad.speechThreshold = 0.15;
+
+    const cached = extractCacheableFloor(vad);
+    expect(cached.silenceThreshold).toBe(0.05);
+    expect(cached.speechThreshold).toBe(0.15);
+    expect(cached.timestamp).toBeGreaterThan(0);
+
+    const restored = createVadRefsFromCache(cached);
+    expect(restored.silenceThreshold).toBe(vad.silenceThreshold);
+    expect(restored.speechThreshold).toBe(vad.speechThreshold);
+  });
+
+  it("drift guard resets thresholds when live floor diverges >3x", () => {
+    // Create from cache with a low noise floor
+    const cached: CachedNoiseFloor = { silenceThreshold: 0.02, speechThreshold: 0.06, timestamp: Date.now() };
+    const vad = createVadRefsFromCache(cached);
+    vad.recordingStart = 0;
+
+    // The cachedFloorBaseline is silenceThreshold / 1.5
+    const baseline = cached.silenceThreshold / 1.5;
+    expect(vad.cachedFloorBaseline).toBeCloseTo(baseline);
+
+    // Feed high RMS samples to fill the sliding window (simulating a noisy environment)
+    // We need VAD_SLIDING_WINDOW_SIZE samples to trigger floor recomputation
+    const highRms = baseline * (VAD_FLOOR_DRIFT_FACTOR + 1); // well above drift threshold
+    for (let i = 0; i < VAD_SLIDING_WINDOW_SIZE; i++) {
+      vadTick(vad, highRms, i * 66); // within VAD_CALIBRATION_MS
+    }
+
+    // After drift detection, cachedFloorBaseline should be cleared
+    expect(vad.cachedFloorBaseline).toBe(0);
+  });
+
+  it("drift guard clears after VAD_CALIBRATION_MS", () => {
+    const cached: CachedNoiseFloor = { silenceThreshold: 0.03, speechThreshold: 0.09, timestamp: Date.now() };
+    const vad = createVadRefsFromCache(cached);
+    vad.recordingStart = 0;
+
+    expect(vad.cachedFloorBaseline).toBeGreaterThan(0);
+
+    // Feed enough samples to fill the sliding window, but at times past VAD_CALIBRATION_MS
+    // First, fill the window with low samples within the calibration window
+    for (let i = 0; i < VAD_SLIDING_WINDOW_SIZE; i++) {
+      vadTick(vad, 0.02, i * 10);
+    }
+
+    // Now tick past the calibration window — the baseline should be cleared
+    vadTick(vad, 0.02, VAD_CALIBRATION_MS + 100);
+    expect(vad.cachedFloorBaseline).toBe(0);
+  });
+
+  it("loadNoiseFloorCache returns null when no cache exists", () => {
+    localStorage.clear();
+    expect(loadNoiseFloorCache()).toBeNull();
+  });
+
+  it("saveNoiseFloorCache and loadNoiseFloorCache round-trip", () => {
+    const floor: CachedNoiseFloor = { silenceThreshold: 0.04, speechThreshold: 0.12, timestamp: Date.now() };
+    saveNoiseFloorCache(floor);
+
+    const loaded = loadNoiseFloorCache();
+    expect(loaded).not.toBeNull();
+    expect(loaded!.silenceThreshold).toBe(floor.silenceThreshold);
+    expect(loaded!.speechThreshold).toBe(floor.speechThreshold);
+    expect(loaded!.timestamp).toBe(floor.timestamp);
   });
 });

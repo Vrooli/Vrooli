@@ -23,16 +23,24 @@ export class WhisperProvider implements TranscriptionProvider {
   private micAcquireTime = 0;
   private recordingStartTime = 0;
 
-  async start(): Promise<void> {
-    const micStart = Date.now();
-    try {
-      this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch {
-      this.onError?.("Microphone access denied");
-      return;
+  // DOC: docs/internal/VOICE-LATENCY.md#stream-injection-vs-stream-acquisition
+  async start(preWarmedStream?: MediaStream): Promise<void> {
+    // Accept a pre-warmed stream (low-latency mode) or acquire a fresh one.
+    if (preWarmedStream && preWarmedStream.getTracks().every((t) => t.readyState === "live")) {
+      this.stream = preWarmedStream;
+      this.micAcquireTime = 0;
+      console.info("[voice] WhisperHTTP: using pre-warmed stream");
+    } else {
+      const micStart = Date.now();
+      try {
+        this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch {
+        this.onError?.("Microphone access denied");
+        return;
+      }
+      this.micAcquireTime = Date.now() - micStart;
+      console.info("[voice] WhisperHTTP: getUserMedia took %dms", this.micAcquireTime);
     }
-    this.micAcquireTime = Date.now() - micStart;
-    console.info("[voice] WhisperHTTP: getUserMedia took %dms", this.micAcquireTime);
     this.chunks = [];
     this.recordingStartTime = Date.now();
     this.mediaRecorder = new MediaRecorder(this.stream, {

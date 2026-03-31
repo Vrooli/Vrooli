@@ -82,7 +82,12 @@ export interface StartRecordingOpts {
 }
 
 export interface TranscriptionProvider {
-  start(): void | Promise<void>;
+  /**
+   * Start recording. Accepts an optional pre-warmed MediaStream to skip
+   * getUserMedia when low-latency voice mode is enabled.
+   * DOC: docs/internal/VOICE-LATENCY.md#stream-injection-vs-stream-acquisition
+   */
+  start(preWarmedStream?: MediaStream): void | Promise<void>;
   stop(): void;
   dispose(): void;
   getStream(): MediaStream | null;

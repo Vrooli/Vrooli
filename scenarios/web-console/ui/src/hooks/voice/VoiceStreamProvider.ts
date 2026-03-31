@@ -34,8 +34,18 @@ export class VoiceStreamProvider implements TranscriptionProvider {
   private totalBytesSent = 0;
   private static readonly MAX_RECONNECTS = 2;
   private static readonly RECONNECT_DELAYS = [1_000, 3_000];
+  /** Timeout for pre-connected WebSocket — closed if start() isn't called. */
+  private static readonly PRE_CONNECT_TIMEOUT_MS = 30_000;
   private firstPartialLogged = false;
+  private preConnectTimer: ReturnType<typeof setTimeout> | null = null;
+  /** True when the current WS was opened via preConnect() and hasn't been
+   *  consumed by start() yet. Prevents start() from closing a pre-connected WS. */
+  private isPreConnectedWs = false;
   language = "en";
+  /** When true, stop() does not call track.stop() — the stream is retained
+   *  for re-use by the mic readiness module (low-latency voice mode).
+   *  DOC: docs/internal/VOICE-LATENCY.md#audio-ducking-deep-dive */
+  retainStream = false;
   onResult: ((text: string) => void) | null = null;
   onError: ((error: string) => void) | null = null;
   onPartial: ((text: string) => void) | null = null;
@@ -193,9 +203,70 @@ export class VoiceStreamProvider implements TranscriptionProvider {
       });
   }
 
-  async start(): Promise<void> {
-    // Clean up stale state from previous recording session
-    if (this.ws) {
+  /**
+   * Pre-connect the WebSocket so it's already open when start() is called,
+   * eliminating 10-100ms of connection latency from the recording start path.
+   *
+   * The pre-connected WebSocket has a timeout — if start() is not called within
+   * PRE_CONNECT_TIMEOUT_MS, the connection is closed to free server resources.
+   *
+   * No-op if a WebSocket is already open or connecting.
+   *
+   * DOC: docs/internal/VOICE-LATENCY.md#websocket-pre-connection
+   */
+  preConnect(language: string): void {
+    // Don't pre-connect if we already have an open/connecting WebSocket
+    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
+
+    this.language = language;
+    this.wsUrl = buildVoiceStreamWsUrl(this.language);
+
+    const wsConnStart = Date.now();
+    this.ws = new WebSocket(this.wsUrl);
+    this.isPreConnectedWs = true;
+    this.ws.onopen = () => {
+      console.info("[voice] WebSocket pre-connected in %dms", Date.now() - wsConnStart);
+    };
+    this.ws.onerror = () => {
+      console.warn("[voice] WebSocket pre-connect failed, will connect on demand");
+      this.ws = null;
+    };
+    this.ws.onclose = () => {
+      // Only clear if this is still the pre-connected WS (not replaced by start())
+      if (this.ws?.readyState === WebSocket.CLOSED) {
+        this.ws = null;
+      }
+    };
+
+    // Set a timeout to close the pre-connected WS if start() isn't called.
+    // This prevents holding an idle connection on the server indefinitely.
+    if (this.preConnectTimer) clearTimeout(this.preConnectTimer);
+    this.preConnectTimer = setTimeout(() => {
+      if (this.ws && !this.mediaRecorder) {
+        // No recording started — close the idle pre-connection
+        this.ws.close();
+        this.ws = null;
+      }
+      this.preConnectTimer = null;
+    }, VoiceStreamProvider.PRE_CONNECT_TIMEOUT_MS);
+  }
+
+  // DOC: docs/internal/VOICE-LATENCY.md#stream-injection-vs-stream-acquisition
+  async start(preWarmedStream?: MediaStream): Promise<void> {
+    // Cancel pre-connect timeout since we're starting for real now
+    if (this.preConnectTimer) {
+      clearTimeout(this.preConnectTimer);
+      this.preConnectTimer = null;
+    }
+
+    // Clean up stale state from previous recording session, but preserve
+    // a pre-connected WebSocket (from preConnect()) for reuse.
+    const hasPreConnectedWs = this.isPreConnectedWs && this.ws &&
+      (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING);
+    this.isPreConnectedWs = false; // Consumed — next start() won't reuse
+    if (this.ws && !hasPreConnectedWs) {
       this.ws.onclose = null; // prevent reconnect/fallback logic from firing
       this.ws.close();
       this.ws = null;
@@ -205,14 +276,28 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     }
     this.mediaRecorder = null;
 
-    const micStart = Date.now();
-    try {
-      this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch {
-      this.onError?.("Microphone access denied");
-      return;
+    // ── Stream acquisition ──
+    // DOC: docs/internal/VOICE-LATENCY.md#stream-injection-vs-stream-acquisition
+    //
+    // Accept an optional pre-warmed stream (from micReadiness.ts when low-latency
+    // voice mode is enabled). Only call getUserMedia if no pre-warmed stream is
+    // available or if its tracks have ended (browser revoked access).
+    if (preWarmedStream && preWarmedStream.getTracks().every((t) => t.readyState === "live")) {
+      this.stream = preWarmedStream;
+      console.info("[voice] Low-latency: injecting pre-warmed stream into VoiceStreamProvider");
+    } else {
+      if (preWarmedStream) {
+        console.warn("[voice] Low-latency: pre-warmed stream tracks ended, provider will acquire fresh");
+      }
+      const micStart = Date.now();
+      try {
+        this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch {
+        this.onError?.("Microphone access denied");
+        return;
+      }
+      console.info("[voice] getUserMedia took %dms", Date.now() - micStart);
     }
-    console.info("[voice] getUserMedia took %dms", Date.now() - micStart);
 
     // Reset session state
     this.wsUrl = buildVoiceStreamWsUrl(this.language);
@@ -254,18 +339,31 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     };
     this.mediaRecorder.start(STREAM_CHUNK_INTERVAL_MS);
 
-    // Open WebSocket connection (audio is already being captured above)
-    const wsConnStart = Date.now();
-    this.ws = new WebSocket(this.wsUrl);
-    this.ws.onopen = () => {
-      console.info("[voice] WebSocket connected in %dms, flushing %d buffered chunks", Date.now() - wsConnStart, this.pendingChunks.length);
-      // Flush chunks that were buffered before the WebSocket connected
+    // ── WebSocket connection ──
+    // Reuse a pre-connected WebSocket if available (from preConnect()).
+    // Otherwise open a new one. Either way, install recording-session handlers.
+    if (hasPreConnectedWs && this.ws) {
+      console.info("[voice] Reusing pre-connected WebSocket");
+      // Flush any buffered chunks from the pre-connect phase
       for (const chunk of this.pendingChunks) {
-        if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(chunk);
+        if (this.ws.readyState === WebSocket.OPEN) this.ws.send(chunk);
       }
       this.pendingChunks = [];
-    };
-    this.setupWsHandlers(this.ws);
+      // Replace the lightweight pre-connect handlers with full recording handlers
+      this.setupWsHandlers(this.ws);
+    } else {
+      const wsConnStart = Date.now();
+      this.ws = new WebSocket(this.wsUrl);
+      this.ws.onopen = () => {
+        console.info("[voice] WebSocket connected in %dms, flushing %d buffered chunks", Date.now() - wsConnStart, this.pendingChunks.length);
+        // Flush chunks that were buffered before the WebSocket connected
+        for (const chunk of this.pendingChunks) {
+          if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(chunk);
+        }
+        this.pendingChunks = [];
+      };
+      this.setupWsHandlers(this.ws);
+    }
   }
 
   stop(): void {
@@ -276,21 +374,29 @@ export class VoiceStreamProvider implements TranscriptionProvider {
       recordingDuration, this.chunkCount, this.totalBytesSent);
 
     if (this.mediaRecorder?.state === "recording") {
-      // Defer mic release and "done" signal until after final data is flushed.
+      // Defer "done" signal until after final data is flushed.
       this.mediaRecorder.onstop = () => {
         if (this.ws?.readyState === WebSocket.OPEN) {
           this.ws.send(JSON.stringify({ type: "done" }));
         }
-        this.stream?.getTracks().forEach((t) => t.stop());
-        this.stream = null;
+        // When retainStream is true (low-latency mode), keep the stream alive
+        // for re-use in subsequent recordings. The mic readiness module manages
+        // the stream lifecycle instead.
+        // DOC: docs/internal/VOICE-LATENCY.md#audio-ducking-deep-dive
+        if (!this.retainStream) {
+          this.stream?.getTracks().forEach((t) => t.stop());
+          this.stream = null;
+        }
       };
       this.mediaRecorder.stop();
     } else {
       if (this.ws?.readyState === WebSocket.OPEN) {
         this.ws.send(JSON.stringify({ type: "done" }));
       }
-      this.stream?.getTracks().forEach((t) => t.stop());
-      this.stream = null;
+      if (!this.retainStream) {
+        this.stream?.getTracks().forEach((t) => t.stop());
+        this.stream = null;
+      }
     }
 
     if (!this.finalReceived) {
@@ -311,11 +417,17 @@ export class VoiceStreamProvider implements TranscriptionProvider {
       clearTimeout(this.finalTimeout);
       this.finalTimeout = null;
     }
+    if (this.preConnectTimer) {
+      clearTimeout(this.preConnectTimer);
+      this.preConnectTimer = null;
+    }
     if (this.mediaRecorder?.state === "recording") {
       this.mediaRecorder.stop();
     }
     this.ws?.close();
     this.ws = null;
+    // Always stop tracks on dispose, regardless of retainStream —
+    // dispose is a full cleanup, not a recording-end event.
     this.stream?.getTracks().forEach((t) => t.stop());
     this.stream = null;
     this.pendingChunks = [];

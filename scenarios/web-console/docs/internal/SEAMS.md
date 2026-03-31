@@ -247,6 +247,29 @@ Last updated: 2026-03-17
 
 **Benefits**: Voice input can be tested without real microphone access or Whisper server. Fallback chain (Whisper -> Web Speech -> disabled) is testable by controlling capability fetch responses. AudioContext reuse prevents browser context limit exhaustion. Each provider is independently testable in its own module. State machine prevents impossible state combinations.
 
+### Voice Latency — Stream Ownership Seam (UI)
+**Files**: `ui/src/hooks/voice/micReadiness.ts`, `ui/src/hooks/voice/sharedAudioContext.ts`
+**Purpose**: Decouple mic stream lifecycle from provider lifecycle, enabling pre-warmed streams for near-instant activation while maintaining testability.
+[DOC: docs/internal/VOICE-LATENCY.md]
+
+| Component | Production | Test |
+|-----------|-----------|------|
+| `micReadiness.acquireStream()` | Calls `getUserMedia`, caches result | Mock `getUserMedia`, verify single call |
+| `micReadiness.releaseStream()` | Stops all tracks, nulls stream | Verify `track.stop()` called |
+| `micReadiness.installVisibilityHandler()` | Listens for `visibilitychange`, releases/acquires mic | Dispatch synthetic events, verify behavior |
+| `sharedAudioContext.getSharedAudioContext()` | Returns singleton AudioContext | Mock constructor, assert single creation |
+| `sharedAudioContext.ensureAudioContextOnGesture()` | One-shot pointerdown/keydown listener | Simulate event, verify context created |
+| `VoiceStreamProvider.preConnect()` | Opens WebSocket early, 30s timeout | Mock WebSocket, verify reuse in `start()` |
+| `VoiceStreamProvider.start(preWarmedStream?)` | Uses injected stream or calls `getUserMedia` | Pass mock stream, verify no `getUserMedia` |
+| `VoiceStreamProvider.retainStream` | When true, `stop()` keeps tracks alive | Set flag, call stop, verify tracks not stopped |
+| `vad.createVadRefsFromCache(cached)` | Seeds thresholds from localStorage cache | Pure function, assert `waitingForSpeech` state |
+| `vad.extractCacheableFloor(vad)` | Extracts current thresholds for persistence | Pure function round-trip test |
+| `api.getCapabilitiesLivenessSnapshot()` | Synchronous read of cached capabilities | Verify no network call in `startRecording()` |
+
+**Key invariant**: Stream ownership transfers on injection. Before injection, micReadiness may release the stream (on visibility hidden). After injection, the provider uses the stream. On `dispose()`, the provider always stops tracks regardless of `retainStream`.
+
+**Key invariant**: Active recording is NEVER interrupted by visibility changes. The visibility handler checks `isRecordingActive()` and no-ops if true.
+
 ### Audio Transcoding Seam (API)
 **File**: `api/audio_transcode.go`
 **Purpose**: Decouple audio format conversion from transcription handlers for testable preprocessing.

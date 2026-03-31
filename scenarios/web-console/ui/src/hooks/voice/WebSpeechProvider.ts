@@ -72,20 +72,28 @@ export class WebSpeechProvider implements TranscriptionProvider {
     return this.micStream;
   }
 
-  async start(): Promise<void> {
+  // DOC: docs/internal/VOICE-LATENCY.md#stream-injection-vs-stream-acquisition
+  async start(preWarmedStream?: MediaStream): Promise<void> {
     const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
     if (!Ctor) {
       console.info("[voice] WebSpeech: API not available");
       this.onError?.("Web Speech API not available");
       return;
     }
-    // Acquire mic stream for audio level monitoring
-    try {
-      this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch {
-      console.info("[voice] WebSpeech: mic access denied");
-      this.onError?.("Microphone access denied");
-      return;
+    // Accept a pre-warmed stream (low-latency mode) or acquire a fresh one.
+    // The stream is used for audio level monitoring only — WebSpeech handles
+    // its own audio capture internally.
+    if (preWarmedStream && preWarmedStream.getTracks().every((t) => t.readyState === "live")) {
+      this.micStream = preWarmedStream;
+      console.info("[voice] WebSpeech: using pre-warmed stream for level monitoring");
+    } else {
+      try {
+        this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch {
+        console.info("[voice] WebSpeech: mic access denied");
+        this.onError?.("Microphone access denied");
+        return;
+      }
     }
     this.stopped = false;
     this.processedResultCount = 0;
