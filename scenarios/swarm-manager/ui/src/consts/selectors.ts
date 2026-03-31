@@ -168,7 +168,8 @@ export const literalSelectors = {
     // Experience architecture additions (Phase 29)
     breadcrumb: "backlog-details-breadcrumb",
     statusSelect: "backlog-details-status-select",
-    executionHistory: "backlog-details-execution-history",
+    activityTimeline: "backlog-details-activity-timeline",
+    timelineButton: "backlog-details-timeline-button",
     activeRunBanner: "backlog-details-active-run-banner",
     tabRow: "backlog-details-tab-row",
     tabInfo: "backlog-details-tab-info",

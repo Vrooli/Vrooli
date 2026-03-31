@@ -4,7 +4,7 @@
   "kind": "execute",
   "name": "show-running-agent-activities-in-swarm-manager-ops-tab",
   "priority": 5,
-  "status": "backlog",
+  "status": "completed",
   "tags": [
     "swarm-manager",
     "ops-tab",
@@ -12,5 +12,5 @@
     "agent-status"
   ],
   "title": "Show running agent activities in swarm-manager ops tab",
-  "updated": "2026-03-30T21:22:08Z"
+  "updated": "2026-03-31T13:37:03Z"
 }

@@ -2,13 +2,13 @@
   "round": 1,
   "generated_at": "2026-03-30T22:00:00Z",
   "mode": "workshop",
-  "pending_synthesis": false,
+  "pending_synthesis": true,
   "readiness": {
-    "problem_clarity": 3,
-    "scope_defined": 2,
     "approach_solid": 1,
-    "testable": 1,
-    "risk_awareness": 2
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 2,
+    "testable": 1
   },
   "items": [
     {
@@ -39,9 +39,8 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "__other__",
+      "freeform": "I’m confused because I thought tge ops tab was a lens to show a specific graph. So the activities would just be added to the graph? What’s this about a list?"
     },
     {
       "id": "d2",
@@ -71,9 +70,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d3",
@@ -103,9 +100,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d4",
@@ -135,9 +130,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "i1",

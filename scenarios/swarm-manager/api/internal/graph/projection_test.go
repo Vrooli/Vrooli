@@ -66,8 +66,23 @@ func (m *mockActivityLister) IsAvailable(_ context.Context) bool {
 	return m.available
 }
 
-func (m *mockActivityLister) List(_ context.Context, _ agentactivity.ListFilters) ([]agentactivity.Record, error) {
-	return m.records, m.err
+func (m *mockActivityLister) List(_ context.Context, filters agentactivity.ListFilters) ([]agentactivity.Record, error) {
+	if !filters.ActiveOnly {
+		return m.records, m.err
+	}
+	activeStatuses := map[agentactivity.Status]bool{
+		agentactivity.StatusPending:     true,
+		agentactivity.StatusStarting:    true,
+		agentactivity.StatusRunning:     true,
+		agentactivity.StatusNeedsReview: true,
+	}
+	var filtered []agentactivity.Record
+	for _, r := range m.records {
+		if activeStatuses[r.Status] {
+			filtered = append(filtered, r)
+		}
+	}
+	return filtered, m.err
 }
 
 func assertEdgeEndpointsPresent(t *testing.T, resp GraphResponse) {
@@ -301,7 +316,11 @@ func TestProjectOperations(t *testing.T) {
 		Execution: &mockExecutionLister{records: []execution.Record{
 			{ExecutionID: "exec-1", BacklogKind: "execute", BacklogName: "task-a", Status: execution.StatusRunning, Mode: "manual"},
 		}},
-		Activity: &mockActivityLister{available: true},
+		Activity: &mockActivityLister{available: true, records: []agentactivity.Record{
+			{ActivityID: "act-1", OwnerType: agentactivity.OwnerBacklog, OwnerKind: "execute", OwnerName: "task-a", ExecutionID: "exec-1", Status: agentactivity.StatusRunning, RunID: "run-1", InteractionType: agentactivity.InteractionSpawn},
+			{ActivityID: "act-terminal", OwnerType: agentactivity.OwnerBacklog, OwnerKind: "execute", OwnerName: "task-a", ExecutionID: "exec-1", Status: agentactivity.StatusComplete},
+			{ActivityID: "act-orphan", OwnerType: agentactivity.OwnerBacklog, OwnerKind: "execute", OwnerName: "no-such-item", Status: agentactivity.StatusRunning},
+		}},
 		Initiative: &mockInitiativeLister{inits: []InitiativeEntry{
 			{Name: "my-init", Title: "Init", Status: "active", Items: []string{"execute/task-a"}},
 		}},
@@ -328,11 +347,11 @@ func TestProjectOperations(t *testing.T) {
 	if nodeTypes["Scenario"] != 0 {
 		t.Errorf("expected 0 Scenario nodes, got %d", nodeTypes["Scenario"])
 	}
-	if nodeTypes["AgentActivity"] != 0 {
-		t.Errorf("expected 0 AgentActivity nodes, got %d", nodeTypes["AgentActivity"])
+	if nodeTypes["AgentActivity"] != 1 {
+		t.Errorf("expected 1 AgentActivity node (active + owned), got %d", nodeTypes["AgentActivity"])
 	}
-	if nodeTypes["Run"] != 0 {
-		t.Errorf("expected 0 Run nodes, got %d", nodeTypes["Run"])
+	if nodeTypes["Run"] != 1 {
+		t.Errorf("expected 1 Run node, got %d", nodeTypes["Run"])
 	}
 
 	edgeTypes := map[string]int{}
@@ -344,6 +363,15 @@ func TestProjectOperations(t *testing.T) {
 	}
 	if edgeTypes["member_of"] != 1 {
 		t.Errorf("expected 1 member_of edge, got %d", edgeTypes["member_of"])
+	}
+	if edgeTypes["activity_for"] != 1 {
+		t.Errorf("expected 1 activity_for edge, got %d", edgeTypes["activity_for"])
+	}
+	if edgeTypes["records_activity"] != 1 {
+		t.Errorf("expected 1 records_activity edge, got %d", edgeTypes["records_activity"])
+	}
+	if edgeTypes["spawned_run"] != 1 {
+		t.Errorf("expected 1 spawned_run edge, got %d", edgeTypes["spawned_run"])
 	}
 
 	if resp.Meta.AgentManagerAvailable == nil || !*resp.Meta.AgentManagerAvailable {

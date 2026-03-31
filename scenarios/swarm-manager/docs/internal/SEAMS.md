@@ -1554,3 +1554,12 @@ These are documented here for future consideration when test complexity demands 
 | Cycle detection contract | `backlog/batch_handler.go`, `batch_queue_handler.go` | Both batch-create and batch-queue use `depgraph.DetectCycle()` for informative error messages (cycle path included) before `TopologicalSort()`. | `TestBatchQueue_CycleDetection_ShowsPath` |
 | Error truncation boundary | `batch_handler.go`, `batch_queue_handler.go` | All handler-layer system error messages use `httputil.TruncateErrorMessage(err, 240)` to prevent information leakage. Validation errors (kind/name/title) are not truncated. | Consistent with `queue_ops.go` pattern |
 | Dependency helper locality | `backlog/queue_ops.go` | `appendDependencyBlockingReasons` consolidated into `queue_ops.go` (its only caller). Batch-queue uses separate `computeUnmetDependencies` for batch-context-aware dependency checking (tracks items queued within the batch). | `TestBatchQueue_PartialSuccess_DependencyChain` |
+
+### Activity Timeline Drawer (added 2026-03-31)
+
+| Boundary | Location | Behavior | Test |
+|----------|----------|----------|------|
+| Client-side timeline merge | `ui/src/hooks/useActivityTimeline.ts` | Pure `mergeTimeline()` function groups activities by `executionId`, attaches as children to parent executions, places orphan activities as standalone entries, and sorts newest-first. Two parallel `useQuery` calls (executions + activities) provide the data. | `useActivityTimeline.test.ts` |
+| Responsive drawer UI | `ui/src/components/ui/drawer.tsx` | Generic `Drawer` component renders as right-side slide-out (420px) on desktop and bottom-sheet (85vh) on mobile via `useIsMobile()`. Uses `createPortal`, `useModalBehavior` for Esc/scroll-lock, and backdrop click-outside dismiss. | `drawer.test.tsx` |
+| Timeline content rendering | `ui/src/components/detail/ActivityTimeline.tsx` | Renders unified chronological feed of executions (with nested activities) and standalone activities. Reuses `PostRunStatusBadge` for finalization display. Exposes `onViewExecution`, `onStopRun`, `onFollowUp` callbacks as action seams. | `ActivityTimeline.test.tsx` |
+| Header trigger | `ui/src/pages/BacklogDetailsPage.tsx` | History icon button in both mobile and desktop headers opens the drawer. Mobile subtitle is also clickable. Replaces the old `executionHistorySection` collapsible. | Manual + BacklogDetailsPage tests |

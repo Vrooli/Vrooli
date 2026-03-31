@@ -43,6 +43,7 @@ import {
   RefreshCw,
   Search,
   Sparkles,
+  History,
   Square,
   Tags,
   Target,
@@ -75,6 +76,9 @@ import { WorkshopPanel } from "../components/backlog/workshop-panel";
 import { ReadinessDetailsPanel } from "../components/backlog/readiness-details-panel";
 import { FollowUpDialog } from "../components/execution/follow-up-dialog";
 import { PostRunStatusBadge } from "../components/execution/post-run-status-badge";
+import { Drawer } from "../components/ui/drawer";
+import { ActivityTimeline } from "../components/detail/ActivityTimeline";
+import { useActivityTimeline } from "../hooks/useActivityTimeline";
 import { OperationalTargetsPanel } from "../components/backlog/operational-targets-panel";
 import { BulkActionToolbar } from "../components/backlog/bulk-action-toolbar";
 import { RequirementFormDialog } from "../components/backlog/requirement-form-dialog";
@@ -83,7 +87,6 @@ import { ModuleFormDialog } from "../components/backlog/module-form-dialog";
 import { RunBacklogModal } from "../components/backlog/run-backlog-modal";
 import {
   cn,
-  canFollowUpExecution,
   defaultQueryOptions,
   formatRelativeTime,
   getItemActions,
@@ -101,9 +104,7 @@ import {
   BACKLOG_KIND_LABELS,
   BACKLOG_KINDS,
   BACKLOG_STATUS_COLORS,
-  EXECUTION_STATUS_COLORS,
   formatBacklogStatus,
-  formatExecutionStatus,
 } from "../types";
 import type {
   ArchiveRequirement,
@@ -114,7 +115,6 @@ import type {
   BacklogKind,
   BacklogStatus,
   ExecutionRecord,
-  ExecutionStatus,
   ModuleFormValues,
   ResearchResponse,
   ReviewAction,
@@ -177,16 +177,6 @@ const collectMatchingFiles = (entries: BacklogFile[], query: string): BacklogFil
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-const formatDuration = (seconds?: number): string => {
-  if (!seconds || seconds <= 0) return "Unknown";
-  if (seconds < 60) return `${Math.round(seconds)}s`;
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = Math.round(seconds % 60);
-  if (minutes < 60) return `${minutes}m ${remainingSeconds}s`;
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return `${hours}h ${remainingMinutes}m`;
-};
 
 const getParentPath = (path: string): string => {
   const slashIndex = path.lastIndexOf("/");
@@ -287,8 +277,7 @@ export function BacklogDetailsPage() {
   const [denyExpanded, setDenyExpanded] = useState(false);
   const [showGlobDialog, setShowGlobDialog] = useState(false);
 
-  const [execSectionOpen, setExecSectionOpen] = useState(false);
-  const [expandedExecIds, setExpandedExecIds] = useState<Set<string>>(new Set());
+  const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [followUpTarget, setFollowUpTarget] = useState<ExecutionRecord | null>(null);
   const [selectedTargetIds, setSelectedTargetIds] = useState<Set<string>>(new Set());
   const [selectedRequirementIds, setSelectedRequirementIds] = useState<Set<string>>(new Set());
@@ -357,6 +346,9 @@ export function BacklogDetailsPage() {
     enabled: !!backlogKind && !!name,
     refetchInterval: 10_000,
   });
+
+  // Activity timeline (activities + executions merged) — fetches only when the drawer is open.
+  const timeline = useActivityTimeline({ backlogKind: backlogKind ?? undefined, backlogName: name, enabled: isTimelineOpen, agentRunIsActive });
 
   // Auto-open follow-up dialog when navigated with ?action=followup
   const actionParam = searchParams.get("action");
@@ -1255,13 +1247,8 @@ export function BacklogDetailsPage() {
     });
   }, []);
 
-  const toggleExecExpand = useCallback((id: string) => {
-    setExpandedExecIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const openTimeline = useCallback(() => {
+    setIsTimelineOpen(true);
   }, []);
 
   if (!backlogKind || !name) {
@@ -1905,170 +1892,6 @@ export function BacklogDetailsPage() {
     </div>
   ) : null;
 
-  const executionHistorySection = executionHistory && executionHistory.length > 0 ? (
-    <Card padding="sm" data-testid={selectors.backlogDetails.executionHistory}>
-      <button
-        type="button"
-        onClick={() => setExecSectionOpen(!execSectionOpen)}
-        className="flex w-full items-center gap-2 text-left"
-      >
-        {execSectionOpen ? (
-          <ChevronDown className="h-4 w-4 text-slate-400" />
-        ) : (
-          <ChevronRight className="h-4 w-4 text-slate-400" />
-        )}
-        <span className="flex-1 text-sm font-semibold text-slate-100">
-          Execution History
-        </span>
-        {!execSectionOpen && executionHistory[0] && (
-          <span className="flex items-center gap-1.5 text-xs text-slate-500">
-            <span
-              className={`inline-block h-1.5 w-1.5 rounded-full ${EXECUTION_STATUS_COLORS[executionHistory[0].status as ExecutionStatus] ?? "bg-slate-500"}`}
-            />
-            {formatExecutionStatus(executionHistory[0].status as ExecutionStatus)}
-            {executionHistory[0].operation && (
-              <span className="rounded bg-slate-700/60 px-1 py-0.5 text-[10px]">
-                {executionHistory[0].operation}
-              </span>
-            )}
-          </span>
-        )}
-        <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-400">
-          {executionHistory.length}
-        </span>
-      </button>
-      {execSectionOpen && (
-        <div className="mt-2 space-y-1.5">
-          {executionHistory.slice(0, 5).map((exec: ExecutionRecord) => {
-            const isExpanded = expandedExecIds.has(exec.executionId);
-            const isActiveExecRun = !!(exec.runId && latestAgentActivity && exec.runId === latestAgentActivity.runId && agentRunIsActive);
-            const duration = exec.startedAt && exec.finishedAt
-              ? (new Date(exec.finishedAt).getTime() - new Date(exec.startedAt).getTime()) / 1000
-              : undefined;
-            return (
-              <div key={exec.executionId} className="rounded-md bg-slate-800/40">
-                <button
-                  type="button"
-                  onClick={() => toggleExecExpand(exec.executionId)}
-                  className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left"
-                >
-                  {isExpanded ? (
-                    <ChevronDown className="h-3 w-3 shrink-0 text-slate-500" />
-                  ) : (
-                    <ChevronRight className="h-3 w-3 shrink-0 text-slate-500" />
-                  )}
-                  <span
-                    className={`inline-block h-2 w-2 shrink-0 rounded-full ${EXECUTION_STATUS_COLORS[exec.status as ExecutionStatus] ?? "bg-slate-500"}`}
-                  />
-                  <span className="text-xs font-medium text-slate-200">
-                    {formatExecutionStatus(exec.status as ExecutionStatus)}
-                  </span>
-                  {exec.operation && (
-                    <span className="rounded bg-slate-700/60 px-1 py-0.5 text-[10px] text-slate-400">
-                      {exec.operation}
-                    </span>
-                  )}
-                  <span className="ml-auto text-[10px] text-slate-500">
-                    {formatRelativeTime(exec.createdAt)}
-                  </span>
-                </button>
-                {isExpanded && (
-                  <div className="space-y-2 border-t border-slate-700/40 px-2.5 py-2">
-                    {exec.failureReason && (
-                      <p className="rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs text-red-200">
-                        {exec.failureReason}
-                      </p>
-                    )}
-                    {exec.finalization ? (
-                      <PostRunStatusBadge execution={exec} />
-                    ) : exec.status === "validating" ? (
-                      <PostRunStatusBadge
-                        execution={{
-                          ...exec,
-                          finalization: {
-                            eligible: true,
-                            status: "running",
-                            phase: "scope_detection",
-                            scopeSource: "none",
-                            warnings: [],
-                            affectedScenarios: [],
-                            aggregateClassification: "not_assessable",
-                            scenarios: [],
-                          },
-                        }}
-                      />
-                    ) : null}
-                    <div className="space-y-1 text-xs text-slate-400">
-                      {duration !== undefined && (
-                        <p>Duration: {formatDuration(duration)}</p>
-                      )}
-                      {exec.startedAt && (
-                        <p>Started: {formatRelativeTime(exec.startedAt)}</p>
-                      )}
-                      {exec.finishedAt && (
-                        <p>Finished: {formatRelativeTime(exec.finishedAt)}</p>
-                      )}
-                      <p className="font-mono text-[11px] text-slate-500">
-                        ID: {exec.executionId}
-                      </p>
-                      {exec.runId && (
-                        <p className="font-mono text-[11px] text-slate-500">
-                          Run: {exec.runId}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 px-2 text-xs"
-                        onClick={() => clearSelection()}
-                      >
-                        <ArrowUpRight className="mr-1 h-3 w-3" />
-                        View
-                      </Button>
-                      {isActiveExecRun && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 px-2 text-xs"
-                          onClick={() => void stopRun(latestAgentActivity?.runId ?? "")}
-                          disabled={latestAgentActivity?.isStopping}
-                        >
-                          <Square className="mr-1 h-3 w-3" />
-                          {latestAgentActivity?.isStopping ? "Stopping..." : "Stop"}
-                        </Button>
-                      )}
-                      {canFollowUpExecution(exec.status as ExecutionStatus) && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 px-2 text-xs"
-                          onClick={() => setFollowUpTarget(exec)}
-                        >
-                          Follow Up
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-          {executionHistory.length > 5 && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full border-transparent text-xs text-slate-400 hover:text-slate-200"
-              onClick={() => clearSelection()}
-            >
-              View all {executionHistory.length} executions
-            </Button>
-          )}
-        </div>
-      )}
-    </Card>
-  ) : null;
 
   const renderActionButtons = (closeOnAction = false) => {
     const runAction = (action: () => void) => {
@@ -2355,7 +2178,7 @@ export function BacklogDetailsPage() {
           )}
         </>
       )}
-      {executionHistorySection}
+
     </div>
   );
 
@@ -2398,9 +2221,17 @@ export function BacklogDetailsPage() {
                 <p className="truncate text-sm font-semibold text-slate-100" data-testid={selectors.backlogDetails.title}>
                   {item.title}
                 </p>
-                <p className="truncate text-xs text-slate-400">
-                  {BACKLOG_KIND_LABELS[item.kind]} · {formatBacklogStatus(item.status)}
-                </p>
+                <button
+                  type="button"
+                  onClick={openTimeline}
+                  className="flex items-center gap-1 truncate text-xs text-slate-400 hover:text-slate-200 transition-colors"
+                  data-testid={selectors.backlogDetails.timelineButton}
+                >
+                  <span className="underline decoration-slate-600 underline-offset-2">
+                    {BACKLOG_KIND_LABELS[item.kind]} · {formatBacklogStatus(item.status)}
+                  </span>
+                  <History className="h-3 w-3 shrink-0" />
+                </button>
               </div>
               {renderHeaderPrimaryAction("shrink-0")}
               <Button
@@ -2490,6 +2321,16 @@ export function BacklogDetailsPage() {
                   <span className="rounded-full bg-slate-700 px-3 py-1 text-xs text-slate-300 sm:text-sm">
                     Priority {item.priority}
                   </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 w-7 rounded-md border-transparent bg-transparent p-0 hover:bg-slate-800/70"
+                    onClick={openTimeline}
+                    aria-label="View activity timeline"
+                    data-testid={selectors.backlogDetails.timelineButton}
+                  >
+                    <History className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
                 <h1
                   className="text-xl font-bold text-slate-100 sm:text-2xl"
@@ -2606,7 +2447,7 @@ export function BacklogDetailsPage() {
                       />
                     </>
                   )}
-                  {executionHistorySection}
+            
                 </div>
               )}
               {activeTab === "prompt" && backlogKind && name && (
@@ -2873,6 +2714,25 @@ export function BacklogDetailsPage() {
           }}
         />
       )}
+
+      <Drawer
+        isOpen={isTimelineOpen}
+        onClose={() => setIsTimelineOpen(false)}
+        title="Activity Timeline"
+        description="Executions and agent activities for this backlog item"
+        testId={selectors.backlogDetails.activityTimeline}
+      >
+        <ActivityTimeline
+          entries={timeline.entries}
+          isLoading={timeline.isLoading}
+          error={timeline.error}
+          onViewExecution={() => { setIsTimelineOpen(false); clearSelection(); }}
+          onStopRun={(runId) => void stopRun(runId)}
+          onFollowUp={(exec) => { setIsTimelineOpen(false); setFollowUpTarget(exec); }}
+          latestAgentActivity={latestAgentActivity ?? undefined}
+          agentRunIsActive={agentRunIsActive}
+        />
+      </Drawer>
 
     </div>
   );

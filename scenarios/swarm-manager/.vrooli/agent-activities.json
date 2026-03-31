@@ -1192,5 +1192,96 @@
       "operation": "generator"
     },
     "updated_at": "2026-03-30T22:02:30Z"
+  },
+  {
+    "activity_id": "8ac54fee6d090c61",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "show-running-agent-activities-in-swarm-manager-ops-tab",
+    "owner_title": "Show running agent activities in swarm-manager ops tab",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "cac05ba3-92d8-4333-b707-40a79d6f7916",
+    "run_id": "985a244b-b713-4a1e-acca-f03abe41ea08",
+    "status": "complete",
+    "requested_at": "2026-03-31T13:15:04Z",
+    "started_at": "2026-03-31T13:15:05Z",
+    "finished_at": "2026-03-31T13:20:27Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "auto_triggered": "true",
+      "entrypoint": "backlog.workshop_auto_advance",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-03-31T13:25:06Z"
+  },
+  {
+    "activity_id": "83e0c4987c2333c2",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "show-running-agent-activities-in-swarm-manager-ops-tab",
+    "owner_title": "Show running agent activities in swarm-manager ops tab",
+    "purpose": "finalize",
+    "interaction_type": "spawn",
+    "task_id": "24d3500b-4b7b-4d7e-b794-6f03880825f7",
+    "run_id": "74101d7c-610c-4dca-87bc-5320eaa227c4",
+    "status": "complete",
+    "requested_at": "2026-03-31T13:25:57Z",
+    "started_at": "2026-03-31T13:25:57Z",
+    "finished_at": "2026-03-31T13:28:23Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "auto_triggered": "true",
+      "entrypoint": "backlog.workshop_auto_advance",
+      "mode": "finalize",
+      "skill_id": "swarm-manager-workshop-finalize"
+    },
+    "updated_at": "2026-03-31T13:34:55Z"
+  },
+  {
+    "activity_id": "f80275516e63d93a",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "show-running-agent-activities-in-swarm-manager-ops-tab",
+    "owner_title": "Show running agent activities in swarm-manager ops tab",
+    "execution_id": "b56d67c455588e6a",
+    "purpose": "process",
+    "interaction_type": "spawn",
+    "task_id": "106efdb6-0f35-4b31-ba65-d49023ab22d9",
+    "run_id": "34bc959b-84ec-4f77-aca2-f379ad7c1938",
+    "status": "complete",
+    "requested_at": "2026-03-31T13:35:06Z",
+    "started_at": "2026-03-31T13:35:06Z",
+    "finished_at": "2026-03-31T13:37:01Z",
+    "requested_by": "swarm-manager-ui",
+    "metadata": {
+      "entrypoint": "execution.start",
+      "mode": "yolo",
+      "operation": "generator"
+    },
+    "updated_at": "2026-03-31T13:38:40Z"
+  },
+  {
+    "activity_id": "512ca25da8bcc9d6",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "add-quick-glance-execution-result-component-to-swarm-manager",
+    "owner_title": "Add quick-glance execution result component to swarm-manager",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "230507f5-509f-4dd8-9060-4905813df787",
+    "run_id": "17432265-16c7-4fc8-9b5e-7f621bc90243",
+    "status": "complete",
+    "requested_at": "2026-03-31T13:58:18Z",
+    "started_at": "2026-03-31T13:58:19Z",
+    "finished_at": "2026-03-31T14:02:07Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-03-31T14:02:19Z"
   }
 ]

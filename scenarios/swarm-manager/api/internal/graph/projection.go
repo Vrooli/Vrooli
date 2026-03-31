@@ -880,9 +880,9 @@ func (p *ProjectionService) buildFlowForScenario(ctx context.Context, name strin
 }
 
 // buildOperations builds the operations lens projection.
-// The operations lens shows only actionable entities: backlog items that need
-// attention, their active executions, and initiatives (for grouping context).
-// Scenarios, agent activities, runs, and captures are excluded.
+// The operations lens shows actionable entities: backlog items that need
+// attention, their active executions, initiatives (for grouping context),
+// and active agent activities tied to those entities.
 func (p *ProjectionService) buildOperations(ctx context.Context, focusNodeID string) (GraphResponse, error) {
 	var nodes []Node
 	var edges []Edge
@@ -983,6 +983,35 @@ func (p *ProjectionService) buildOperations(ctx context.Context, focusNodeID str
 			Target: "initiative/" + item.Initiative,
 			Type:   "member_of",
 		})
+	}
+
+	// Load active agent activities whose owner is already in the graph.
+	if p.activity != nil {
+		allActivities, err := p.activity.List(ctx, agentactivity.ListFilters{ActiveOnly: true})
+		if err != nil {
+			log.Printf("[graph] operations: activity list error: %v", err)
+		} else {
+			// Build owner and execution ID sets from nodes already in the graph.
+			ownerNodeIDs := make(map[string]struct{}, len(nodes))
+			executionIDs := make(map[string]struct{})
+			for _, n := range nodes {
+				ownerNodeIDs[n.ID] = struct{}{}
+				if n.Type == "ExecutionRecord" {
+					executionIDs[n.ID[len("execution-record/"):]] = struct{}{}
+				}
+			}
+
+			// Filter to activities whose owner is in the graph.
+			var ownedActivities []agentactivity.Record
+			for _, a := range allActivities {
+				targetID := ownerNodeID(a)
+				if _, ok := ownerNodeIDs[targetID]; targetID != "" && ok {
+					ownedActivities = append(ownedActivities, a)
+				}
+			}
+
+			nodes, edges = addActivityNodesAndEdges(nodes, edges, ownedActivities, executionIDs, ownerNodeIDs)
+		}
 	}
 
 	resp := NewGraphResponse(LensOperations, nodes, edges)
