@@ -13,6 +13,7 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Lightbulb, Package, Zap, MessageSquare, Activity, Target } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { useGraphDataStore } from "../stores/graph-data-store";
+import { useGraphUIStore } from "../stores/graph-ui-store";
 import type { GraphEntityType, GraphNodeData } from "../types";
 import { ActionableBadge, StatusBadge } from "./StatusBadge";
 import { getShapeClasses, getShapeDimensions, needsContentCounterRotation, usesClipPath } from "../lib/entity-shapes";
@@ -33,9 +34,10 @@ const FIXED_SIZE_SHAPES = new Set<GraphEntityType>(["backlog", "initiative", "ex
 
 const DEFAULT_ENTITY: GraphEntityType = "backlog";
 
-function GraphNodeComponent({ data, selected }: NodeProps) {
+function GraphNodeComponent({ id, data }: NodeProps) {
   const nodeData = data as GraphNodeData;
   const lens = useGraphDataStore((s) => s.lens);
+  const isSelected = useGraphUIStore((s) => s.selectedNodeId === id);
   const entityType = nodeData.entityType ?? DEFAULT_ENTITY;
   const Icon = ENTITY_ICONS[entityType] ?? ENTITY_ICONS[DEFAULT_ENTITY];
   const shapeClass = getShapeClasses(entityType);
@@ -54,7 +56,7 @@ function GraphNodeComponent({ data, selected }: NodeProps) {
       <div
         className={cn(
           "relative",
-          selected && isClipped && "drop-shadow-[0_0_6px_rgba(34,211,238,0.6)]",
+          isSelected && isClipped && "drop-shadow-[0_0_8px_rgba(34,211,238,0.7)]",
           Boolean(nodeData.pulsing) && "graph-node-pulse",
         )}
         onAnimationEnd={(e) => {
@@ -65,13 +67,15 @@ function GraphNodeComponent({ data, selected }: NodeProps) {
       >
         <div
           className={cn(
-            "border-2",
             "flex items-center justify-center",
             shapeClass,
             statusColors.background,
-            statusColors.border,
+            // Border: thicker cyan when selected, normal status border otherwise
+            isSelected
+              ? "border-[3px] border-cyan-400"
+              : cn("border-2", statusColors.border),
             // Selection ring — only for non-clipped shapes (clip-path hides box-shadow/ring)
-            selected && !isClipped && "ring-2 ring-cyan-400/60 shadow-cyan-500/20",
+            isSelected && !isClipped && "ring-2 ring-cyan-400/50 shadow-lg shadow-cyan-500/30",
             // Sizing
             isFixedSize
               ? ""

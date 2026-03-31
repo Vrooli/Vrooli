@@ -54,3 +54,7 @@ export type {
 // Graph
 export { graphService, createGraphService } from "./graph-service";
 export type { IGraphService, GraphProjection, GraphProjectionMeta } from "./graph-service";
+
+// Stats
+export { statsService, createStatsService } from "./stats-service";
+export type { IStatsService } from "./stats-service";

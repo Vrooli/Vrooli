@@ -5,9 +5,9 @@
  * to a graph node. This is used by three entry points that all need the
  * same behavior:
  *
- * 1. **Node click** (when the entity has no detail page):
- *    User clicks a capture/agent-activity/agent-run node and sees the
- *    graph with that node highlighted and neighbors visible.
+ * 1. **Node click** (all entity types):
+ *    User clicks any node and sees the graph with that node highlighted
+ *    and neighbors visible. The NodeInspectorPanel shows entity info.
  *
  * 2. **Page refresh** (restoring selection from URL):
  *    The `select` URL param survives refresh, but the highlight state is

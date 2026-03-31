@@ -35,7 +35,7 @@ export function LensNav({
   onReturnToAtlas,
 }: LensNavProps) {
   return (
-    <div className="flex flex-col gap-1" data-testid="lens-nav">
+    <div className="flex w-fit flex-col gap-1" data-testid="lens-nav">
       <div
         className="flex items-center rounded-lg border border-slate-700/80 bg-slate-900/60 p-0.5"
         role="tablist"

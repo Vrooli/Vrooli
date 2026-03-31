@@ -37,7 +37,7 @@ export function SidebarHeader({
   };
 
   return (
-    <div className="flex shrink-0 items-center justify-between border-b border-slate-200/20 px-3 py-2">
+    <div className="flex h-10 shrink-0 items-center justify-between border-b border-slate-200/20 px-3">
       {/* Left: Home button + App title */}
       <div className="flex items-center gap-1.5">
         <button

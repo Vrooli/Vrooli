@@ -24,8 +24,6 @@ import {
 import "@xyflow/react/dist/style.css";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
-import { useDetailSelectionStore } from "../../../stores/detail-selection-store";
-import { parseNodeId } from "../lib/node-id-parser";
 import { applyDagreLayout } from "../lib/layout-utils";
 import { buildGraphPresentation } from "../lib/graph-presentation";
 import {
@@ -35,7 +33,6 @@ import {
   STRAIGHT_EDGE_THRESHOLD,
 } from "../lib/edge-styles";
 import { getStatusRgb } from "../lib/status-colors";
-import { hasDetailPage } from "../lib/detail-page-registry";
 import { computeVisualFocus, clearVisualFocus } from "../lib/visual-focus";
 import {
   getGraphNodeData,
@@ -91,11 +88,6 @@ export const GraphCanvas = memo(function GraphCanvas() {
 
   const selectedNodeId = useGraphUIStore((s) => s.selectedNodeId);
   const focusNodeId = useGraphDataStore((s) => s.focusNodeId);
-
-  const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
-  const selectScenario = useDetailSelectionStore((s) => s.selectScenario);
-  const selectExecution = useDetailSelectionStore((s) => s.selectExecution);
-  const selectInitiative = useDetailSelectionStore((s) => s.selectInitiative);
 
   const flowRef = useRef<ReactFlowInstance<GraphNode, GraphEdge> | null>(null);
 
@@ -340,57 +332,33 @@ export const GraphCanvas = memo(function GraphCanvas() {
 
   const handleNodeClick: NodeMouseHandler = useCallback(
     (_event, node) => {
-      // Cluster nodes toggle on single-click instead of opening inspector.
+      // Cluster nodes toggle expansion on click.
       if (node.type === "cluster") {
         toggleTopologyCluster(node.id);
 
-        // Cluster nodes backed by an initiative open its detail page.
+        // Cluster nodes backed by an initiative also get visual focus
+        // so the inspector panel can show initiative info.
         const data = getGraphNodeData(node as GraphNode);
         if ("isUnassigned" in data && !data.isUnassigned) {
-          const name = node.id.replace(/^initiative\//, "");
-          if (name) selectInitiative(name);
+          const focus = computeVisualFocus(node.id, processedNodes, styledEdges);
+          if (focus) {
+            selectNode(focus.selectedNodeId);
+            setHighlightState(focus.highlightState);
+          }
         }
         return;
       }
 
-      const parsed = parseNodeId(node.id);
-      const opensDetailPage = parsed !== null && hasDetailPage(parsed.entityType);
-
-      if (parsed && opensDetailPage) {
-        // Entity has a detail page: the overlay covers the entire graph,
-        // so dim/highlight would be invisible and leave stale state on close.
-        // Clear any existing visual focus before opening the detail page.
-        const cleared = clearVisualFocus();
-        selectNode(cleared.selectedNodeId);
-        setHighlightState(cleared.highlightState);
-
-        // Open the detail page.
-        switch (parsed.entityType) {
-          case "backlog":
-            if (parsed.kind && parsed.name) selectBacklog(parsed.kind, parsed.name);
-            break;
-          case "scenario":
-            if (parsed.name) selectScenario(parsed.name);
-            break;
-          case "execution":
-            selectExecution(parsed.identifier);
-            break;
-          case "initiative":
-            if (parsed.name) selectInitiative(parsed.name);
-            break;
-        }
-      } else {
-        // Entity has no detail page (capture, agent-activity, agent-run)
-        // or unrecognized node ID: apply visual focus so the user sees
-        // the node highlighted in the graph.
-        const focus = computeVisualFocus(node.id, processedNodes, styledEdges);
-        if (focus) {
-          selectNode(focus.selectedNodeId);
-          setHighlightState(focus.highlightState);
-        }
+      // All node clicks apply visual focus (BFS highlight/dim).
+      // The NodeInspectorPanel reads selectedNodeId from the store
+      // and shows entity info + navigation buttons.
+      const focus = computeVisualFocus(node.id, processedNodes, styledEdges);
+      if (focus) {
+        selectNode(focus.selectedNodeId);
+        setHighlightState(focus.highlightState);
       }
     },
-    [processedNodes, selectBacklog, selectExecution, selectInitiative, selectNode, selectScenario, setHighlightState, styledEdges, toggleTopologyCluster],
+    [processedNodes, selectNode, setHighlightState, styledEdges, toggleTopologyCluster],
   );
 
   const handlePaneClick = useCallback(() => {

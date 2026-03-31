@@ -14,13 +14,13 @@ describe("computeVisualFocus", () => {
   it("returns selectedNodeId and dim highlight for an existing node", () => {
     const result = computeVisualFocus(nodeA.id, nodes, edges);
     expect(result).not.toBeNull();
-    expect(result!.selectedNodeId).toBe(nodeA.id);
-    expect(result!.highlightState.mode).toBe("dim");
+    expect(result?.selectedNodeId).toBe(nodeA.id);
+    expect(result?.highlightState.mode).toBe("dim");
     // BFS neighborhood should include the start node and its neighbor
-    expect(result!.highlightState.highlighted).toContain(nodeA.id);
-    expect(result!.highlightState.highlighted).toContain(nodeB.id);
+    expect(result?.highlightState.highlighted).toContain(nodeA.id);
+    expect(result?.highlightState.highlighted).toContain(nodeB.id);
     // Non-neighbor should not be highlighted
-    expect(result!.highlightState.highlighted).not.toContain(nodeC.id);
+    expect(result?.highlightState.highlighted).not.toContain(nodeC.id);
   });
 
   it("returns null when the node does not exist in the graph", () => {
@@ -31,8 +31,8 @@ describe("computeVisualFocus", () => {
   it("includes only the start node when it has no edges", () => {
     const result = computeVisualFocus(nodeC.id, nodes, edges);
     expect(result).not.toBeNull();
-    expect(result!.highlightState.highlighted.size).toBe(1);
-    expect(result!.highlightState.highlighted).toContain(nodeC.id);
+    expect(result?.highlightState.highlighted.size).toBe(1);
+    expect(result?.highlightState.highlighted).toContain(nodeC.id);
   });
 });
 

@@ -2,8 +2,6 @@
  * Detail Page Registry
  *
  * Single source of truth for which graph entity types have detail pages.
- * This prevents drift between the node click handler (which decides whether
- * to dim/highlight) and the GraphWorkspace renderer (which renders overlays).
  *
  * HOW IT WORKS:
  * - `DetailEntityType` is the union of entity types that have detail pages.
@@ -14,11 +12,9 @@
  * - `hasDetailPage()` checks membership in the Set at runtime.
  *
  * WHY THIS EXISTS:
- * When a graph node is clicked for an entity WITH a detail page, the detail
- * overlay covers the entire graph. Applying dim/highlight is wasted work that
- * leaves stale visual state when the detail page closes. We only dim/highlight
- * for entity types WITHOUT detail pages (capture, agent-activity, agent-run),
- * where the user actually sees the graph with a focused node.
+ * The NodeInspectorPanel uses this to decide whether to show an "Open Details"
+ * button. Entity types with detail pages get the button; those without
+ * (capture, agent-activity, agent-run) only show lens navigation.
  */
 
 import type { DetailEntityType } from "../../../stores/detail-selection-store";
@@ -41,9 +37,8 @@ const DETAIL_ENTITY_TYPES: ReadonlySet<DetailEntityType> = new Set<DetailEntityT
 /**
  * Returns true if the given graph entity type has an associated detail page.
  *
- * Used by the node click handler to decide whether to apply dim/highlight
- * (only for entities without detail pages) or to open the detail overlay
- * (for entities with detail pages, where dimming would be invisible).
+ * Used by the NodeInspectorPanel to decide whether to show an "Open Details"
+ * button for the selected node.
  */
 export function hasDetailPage(entityType: GraphEntityType): boolean {
   // Cast is safe: we're checking if a GraphEntityType is in the DetailEntityType set.

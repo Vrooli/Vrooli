@@ -76,6 +76,7 @@ export const API_ENDPOINTS = {
   initiativeFileContent: (name: string, filePath: string) =>
     `/initiatives/${name}/files/${filePath}`,
   graph: "/graph",
+  stats: "/stats",
   health: "/health",
 } as const;
 

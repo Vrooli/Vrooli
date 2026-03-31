@@ -11,7 +11,7 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, HelpCircle, MessageSquarePlus, RefreshCw, Settings } from "lucide-react";
+import { AlertTriangle, BarChart3, HelpCircle, Menu, MessageSquarePlus, RefreshCw, Settings } from "lucide-react";
 import { defaultQueryOptions } from "../../../lib";
 import { applyTheme, watchSystemTheme } from "../../../lib/theme-utils";
 import { buildFeed } from "../../../lib/feed";
@@ -57,6 +57,8 @@ const InitiativeDetailsPage = lazy(() =>
 import { LensNav } from "./LensNav";
 import { Sidebar } from "./Sidebar";
 import { SettingsDrawer } from "./SettingsDrawer";
+import { StatsPanel } from "./StatsPanel";
+import { NodeInspectorPanel } from "./NodeInspectorPanel";
 import { GraphHelpPanel } from "./GraphHelpPanel";
 import { getGraphNodeLabel } from "../types";
 import type { GraphLens } from "../stores/graph-data-store";
@@ -108,6 +110,7 @@ class CanvasErrorBoundary extends Component<
 export function GraphWorkspace() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
+  const [showStatsPanel, setShowStatsPanel] = useState(false);
   const [showHelpPanel, setShowHelpPanel] = useState(false);
   const [showCapturePanel, setShowCapturePanel] = useState(false);
 
@@ -125,6 +128,7 @@ export function GraphWorkspace() {
   const stopRun = useAgentActivitiesStore((s) => s.stopRun);
   const refreshActivities = useAgentActivitiesStore((s) => s.refreshActivities);
   const sidebarCollapsed = useGraphUIStore((s) => s.sidebarCollapsed);
+  const toggleSidebar = useGraphUIStore((s) => s.toggleSidebar);
 
   const lens = useGraphDataStore((s) => s.lens);
   const fetchGraph = useGraphDataStore((s) => s.fetchGraph);
@@ -300,6 +304,21 @@ export function GraphWorkspace() {
     focusNodeId,
   });
 
+  // Sync store → URL when selection is cleared (e.g., by pane click in GraphCanvas).
+  const prevSelectedNodeId = useRef(selectedNodeId);
+  useEffect(() => {
+    const prev = prevSelectedNodeId.current;
+    prevSelectedNodeId.current = selectedNodeId;
+    if (prev !== null && selectedNodeId === null) {
+      setSearchParams((p) => {
+        if (!p.has("select")) return p;
+        const next = new URLSearchParams(p);
+        next.delete("select");
+        return next;
+      });
+    }
+  }, [selectedNodeId, setSearchParams]);
+
   const handleNodePulse = useCallback(
     (nodeId: string) => {
       setNodePulsing(nodeId, true);
@@ -349,12 +368,70 @@ export function GraphWorkspace() {
           <GraphCanvas />
         </CanvasErrorBoundary>
 
-        {/* HUD bar — single unified row at top */}
+        {/* HUD — two rows at top */}
         <div
-          className="pointer-events-auto absolute left-3 right-3 top-3 z-20 flex items-center justify-between gap-2"
+          className="pointer-events-auto absolute left-3 right-3 top-3 z-20 flex flex-col gap-1.5"
           data-testid="graph-hud"
         >
-          {/* Left: Lens navigation */}
+          {/* Row 1: Sidebar toggle + Settings/Help/Agents */}
+          <div className="flex h-10 items-center justify-between">
+            {/* Left: Sidebar toggle (only when collapsed) */}
+            {sidebarCollapsed ? (
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className="rounded-lg border border-slate-700/60 bg-slate-900/80 p-2 text-slate-400 transition-colors hover:bg-slate-800/80 hover:text-slate-200"
+                aria-label="Open sidebar"
+                data-testid="sidebar-toggle-open"
+              >
+                <Menu className="h-4 w-4" />
+              </button>
+            ) : (
+              <div />
+            )}
+
+            {/* Right: Stats + Settings + Help + Agents */}
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setShowStatsPanel((prev) => !prev)}
+                className="rounded-lg border border-slate-700/60 bg-slate-900/80 p-2 text-slate-400 transition-colors hover:bg-slate-800/80 hover:text-slate-200"
+                aria-label="Open stats"
+                data-testid="stats-button"
+              >
+                <BarChart3 className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowSettingsDrawer((prev) => !prev)}
+                className="rounded-lg border border-slate-700/60 bg-slate-900/80 p-2 text-slate-400 transition-colors hover:bg-slate-800/80 hover:text-slate-200"
+                aria-label="Open graph controls"
+                data-testid="settings-gear"
+              >
+                <Settings className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowHelpPanel((prev) => !prev)}
+                className="rounded-lg border border-slate-700/60 bg-slate-900/80 p-2 text-slate-400 transition-colors hover:bg-slate-800/80 hover:text-slate-200"
+                aria-label="Graph help"
+                data-testid="help-button"
+              >
+                <HelpCircle className="h-4 w-4" />
+              </button>
+              {/* Show HUD agents button on mobile always, desktop only when sidebar collapsed */}
+              <AgentsDropdown
+                activities={agentActivities}
+                onViewActivity={handleViewActivity}
+                onViewBacklog={handleViewBacklog}
+                onStopRun={(runId) => void stopRun(runId)}
+                variant="button"
+                className={sidebarCollapsed ? "" : "md:hidden"}
+              />
+            </div>
+          </div>
+
+          {/* Row 2: Lens navigation */}
           <LensNav
             activeLens={lens}
             focusNodeId={focusNodeId}
@@ -362,41 +439,11 @@ export function GraphWorkspace() {
             onLensChange={handleLensChange}
             onReturnToAtlas={handleReturnToAtlas}
           />
-
-          {/* Right: Settings + Help + Agents (agents hidden on desktop when sidebar open) */}
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setShowSettingsDrawer((prev) => !prev)}
-              className="rounded-lg border border-slate-700/60 bg-slate-900/80 p-2 text-slate-400 transition-colors hover:bg-slate-800/80 hover:text-slate-200"
-              aria-label="Open graph controls"
-              data-testid="settings-gear"
-            >
-              <Settings className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowHelpPanel((prev) => !prev)}
-              className="rounded-lg border border-slate-700/60 bg-slate-900/80 p-2 text-slate-400 transition-colors hover:bg-slate-800/80 hover:text-slate-200"
-              aria-label="Graph help"
-              data-testid="help-button"
-            >
-              <HelpCircle className="h-4 w-4" />
-            </button>
-            {/* Show HUD agents button on mobile always, desktop only when sidebar collapsed */}
-            <AgentsDropdown
-              activities={agentActivities}
-              onViewActivity={handleViewActivity}
-              onViewBacklog={handleViewBacklog}
-              onStopRun={(runId) => void stopRun(runId)}
-              variant="button"
-              className={sidebarCollapsed ? "" : "md:hidden"}
-            />
-          </div>
         </div>
 
         {/* Floating panels */}
 
+        <NodeInspectorPanel />
         <GraphHelpPanel isOpen={showHelpPanel} onClose={() => setShowHelpPanel(false)} />
 
         {/* Capture FAB — hidden when detail overlay is open */}
@@ -425,6 +472,7 @@ export function GraphWorkspace() {
         )}
       </div>
 
+      <StatsPanel isOpen={showStatsPanel} onClose={() => setShowStatsPanel(false)} />
       <SettingsDrawer isOpen={showSettingsDrawer} onClose={() => setShowSettingsDrawer(false)} />
     </div>
   );
