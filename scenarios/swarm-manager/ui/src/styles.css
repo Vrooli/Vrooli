@@ -78,6 +78,26 @@ body {
   }
 }
 
+/* ── Graph node performance ──────────────────────────────────────────
+   PERF: CSS containment on React Flow node wrappers.
+   - `contain: layout style paint` tells the browser each node is an
+     isolated rendering island. Layout/paint changes inside one node
+     cannot affect any other node, allowing the browser to skip
+     expensive cross-node invalidation during pan/zoom.
+   - `will-change: transform` promotes each node wrapper to its own
+     compositor layer, so opacity transitions (used for dim/highlight)
+     are GPU-composited without triggering repaint.
+   - `content-visibility: auto` allows the browser to skip rendering
+     of nodes outside the viewport entirely (works with React Flow's
+     onlyRenderVisibleElements but catches edge cases where nodes are
+     mounted but not yet visible).
+*/
+.react-flow__node {
+  contain: layout style paint;
+  will-change: transform;
+  content-visibility: auto;
+}
+
 /* Graph node shapes via clip-path */
 .clip-hexagon {
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);

@@ -395,8 +395,10 @@ describe("GraphCanvas", () => {
       expect(screen.getByTestId("rendered-node-ids").textContent).toContain("scenario/app");
     });
 
-    const nodeOpacities: Record<string, number> = JSON.parse(screen.getByTestId("node-opacities").textContent ?? "{}") as Record<string, number>;
-    expect(nodeOpacities["backlog-item/execute/task-a"]).toBe(1);
-    expect(nodeOpacities["scenario/app"]).toBe(1);
+    // In normal mode, nodes have no opacity override (undefined = browser default = fully visible).
+    // This is a performance optimization: we skip creating new style objects in normal mode.
+    const nodeOpacities: Record<string, number | undefined> = JSON.parse(screen.getByTestId("node-opacities").textContent ?? "{}") as Record<string, number | undefined>;
+    expect(nodeOpacities["backlog-item/execute/task-a"]).toBeUndefined();
+    expect(nodeOpacities["scenario/app"]).toBeUndefined();
   });
 });

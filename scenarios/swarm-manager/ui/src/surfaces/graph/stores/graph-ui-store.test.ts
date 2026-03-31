@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cloneGraphUIInitialState, useGraphUIStore } from "./graph-ui-store";
 
 function resetStore() {
@@ -7,7 +7,13 @@ function resetStore() {
 }
 
 describe("graphUIStore", () => {
-  beforeEach(resetStore);
+  beforeEach(() => {
+    vi.useFakeTimers();
+    resetStore();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   describe("node selection", () => {
     it("starts with no selection", () => {
@@ -73,7 +79,11 @@ describe("graphUIStore", () => {
       const viewport = { x: 100, y: 200, zoom: 1.2 };
       useGraphUIStore.getState().setViewportForLens("operations", viewport);
 
+      // Store state is updated synchronously.
       expect(useGraphUIStore.getState().viewportByLens.operations).toEqual(viewport);
+
+      // localStorage write is debounced — flush the timer.
+      vi.advanceTimersByTime(600);
       expect(window.localStorage.getItem("swarm-manager.graph.viewport.v2")).toBe(
         JSON.stringify({
           topology: null,

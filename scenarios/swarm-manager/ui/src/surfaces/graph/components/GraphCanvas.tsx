@@ -5,7 +5,7 @@
  * Dagre layout before rendering.
  */
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   Background,
   BackgroundVariant,
@@ -35,7 +35,8 @@ import {
   STRAIGHT_EDGE_THRESHOLD,
 } from "../lib/edge-styles";
 import { getStatusRgb } from "../lib/status-colors";
-import { bfsNeighborhood } from "../lib/bfs-selection";
+import { hasDetailPage } from "../lib/detail-page-registry";
+import { computeVisualFocus, clearVisualFocus } from "../lib/visual-focus";
 import {
   getGraphNodeData,
   type GraphEdge,
@@ -63,7 +64,11 @@ const baseEdgeOptions: DefaultEdgeOptions = {
   animated: false,
 };
 
-export function GraphCanvas() {
+// PERF: Memoized because GraphCanvas takes no props — it reads all state
+// from Zustand stores. Without memo, every GraphWorkspace re-render (e.g.,
+// from the 5-second activity polling) would cascade into GraphCanvas,
+// re-evaluating all its useMemo/useCallback hooks unnecessarily.
+export const GraphCanvas = memo(function GraphCanvas() {
   const storeNodes = useGraphDataStore((s) => s.nodes);
   const storeEdges = useGraphDataStore((s) => s.edges);
   const lens = useGraphDataStore((s) => s.lens);
@@ -77,7 +82,6 @@ export function GraphCanvas() {
   const layoutMode = useGraphUIStore((s) => s.layoutMode);
   const layoutDirection = useGraphUIStore((s) => s.layoutDirection);
   const highlightState = useGraphUIStore((s) => s.highlightState);
-  const storedViewport = useGraphUIStore((s) => s.viewportByLens[lens]);
   const fitViewNonce = useGraphUIStore((s) => s.fitViewNonce);
   const expandedTopologyClusters = useGraphUIStore((s) => s.expandedTopologyClusters);
   const selectNode = useGraphUIStore((s) => s.selectNode);
@@ -85,12 +89,22 @@ export function GraphCanvas() {
   const setViewportForLens = useGraphUIStore((s) => s.setViewportForLens);
   const toggleTopologyCluster = useGraphUIStore((s) => s.toggleTopologyCluster);
 
+  const selectedNodeId = useGraphUIStore((s) => s.selectedNodeId);
+  const focusNodeId = useGraphDataStore((s) => s.focusNodeId);
+
   const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
   const selectScenario = useDetailSelectionStore((s) => s.selectScenario);
   const selectExecution = useDetailSelectionStore((s) => s.selectExecution);
   const selectInitiative = useDetailSelectionStore((s) => s.selectInitiative);
 
   const flowRef = useRef<ReactFlowInstance<GraphNode, GraphEdge> | null>(null);
+
+  // Track whether the initial data load has completed for the current lens.
+  // Used to suppress autoFitOnChange during the first data arrival when a
+  // stored viewport exists (otherwise fitView overrides the restored viewport).
+  const initialLoadCompleteRef = useRef(false);
+  // Track which lens the initialLoadComplete flag is for, so lens switches reset it.
+  const initialLoadLensRef = useRef(lens);
 
   const { processedNodes, processedEdges, visibleEdgeTypes } = useMemo(() => {
     return buildGraphPresentation({
@@ -102,39 +116,48 @@ export function GraphCanvas() {
     });
   }, [expandedTopologyClusters, lens, settings, storeEdges, storeNodes]);
 
-  const styledEdges = useMemo<GraphEdge[]>(() => {
+  // PERF: Split edge styling into two layers:
+  // 1. Base styling (type-based colors, markers) — only changes when edges change.
+  // 2. Highlight overlay (opacity) — only changes when highlight state changes.
+  // This prevents recomputing base styles when only the highlight changes.
+  const baseStyledEdges = useMemo<GraphEdge[]>(() => {
     const useStraightEdges = processedEdges.length > STRAIGHT_EDGE_THRESHOLD;
-    return processedEdges.map((edge) => {
-      const baseStyle = getEdgeStyle(edge.type ?? undefined);
-      const marker = getEdgeMarker(edge.type ?? undefined);
-      let style = baseStyle;
+    return processedEdges.map((edge) => ({
+      ...edge,
+      data: {
+        ...(edge.data ?? {}),
+        relationshipType: edge.type,
+      },
+      type: useStraightEdges ? "straight" : undefined,
+      style: getEdgeStyle(edge.type ?? undefined),
+      markerEnd: getEdgeMarker(edge.type ?? undefined),
+    }));
+  }, [processedEdges]);
 
-      if (highlightState.mode !== "normal") {
-        const srcHighlighted = highlightState.highlighted.has(edge.source);
-        const tgtHighlighted = highlightState.highlighted.has(edge.target);
-        const bothHighlighted = srcHighlighted && tgtHighlighted;
-        if (highlightState.mode === "dim" && !bothHighlighted) {
-          style = { ...baseStyle, opacity: 0.15, transition: "opacity 0.2s ease" };
-        } else if (highlightState.mode === "hide" && !bothHighlighted) {
-          style = { ...baseStyle, opacity: 0, transition: "opacity 0.2s ease" };
-        } else {
-          style = { ...baseStyle, transition: "opacity 0.2s ease" };
-        }
+  // In normal mode (common during pan/zoom), skip the highlight pass entirely.
+  const styledEdges = useMemo<GraphEdge[]>(() => {
+    if (highlightState.mode === "normal") {
+      return baseStyledEdges;
+    }
+
+    return baseStyledEdges.map((edge) => {
+      const srcHighlighted = highlightState.highlighted.has(edge.source);
+      const tgtHighlighted = highlightState.highlighted.has(edge.target);
+      const bothHighlighted = srcHighlighted && tgtHighlighted;
+      if (highlightState.mode === "dim" && !bothHighlighted) {
+        return { ...edge, style: { ...edge.style, opacity: 0.15, transition: "opacity 0.2s ease" } };
       }
-
-      return {
-        ...edge,
-        data: {
-          ...(edge.data ?? {}),
-          relationshipType: edge.type,
-        },
-        type: useStraightEdges ? "straight" : undefined,
-        style,
-        markerEnd: marker,
-      };
+      if (highlightState.mode === "hide" && !bothHighlighted) {
+        return { ...edge, style: { ...edge.style, opacity: 0, transition: "opacity 0.2s ease" } };
+      }
+      return { ...edge, style: { ...edge.style, transition: "opacity 0.2s ease" } };
     });
-  }, [highlightState, processedEdges]);
+  }, [baseStyledEdges, highlightState]);
 
+  // PERF: Layout depends on processedEdges (connectivity only), NOT styledEdges.
+  // Dagre only needs source/target to compute positions. Using styledEdges here
+  // would cause a full Dagre re-layout on every highlight change (styledEdges
+  // get new object refs when highlight state changes), which is very expensive.
   const layoutedNodes = useMemo(() => {
     const topLevelNodes = processedNodes.filter((node) => !node.parentId);
     const childNodes = processedNodes.filter((node) => node.parentId);
@@ -144,7 +167,7 @@ export function GraphCanvas() {
     }
 
     const topLevelIds = new Set(topLevelNodes.map((node) => node.id));
-    const topLevelEdges = styledEdges.filter(
+    const topLevelEdges = processedEdges.filter(
       (edge) => topLevelIds.has(edge.source) && topLevelIds.has(edge.target),
     );
 
@@ -169,7 +192,7 @@ export function GraphCanvas() {
     const positionedChildren: typeof childNodes = [];
     for (const children of childrenByParent.values()) {
       const childIds = new Set(children.map((child) => child.id));
-      const intraEdges = styledEdges.filter(
+      const intraEdges = processedEdges.filter(
         (edge) => childIds.has(edge.source) && childIds.has(edge.target),
       );
       positionedChildren.push(
@@ -178,17 +201,18 @@ export function GraphCanvas() {
     }
 
     return [...positionedTopLevel, ...positionedChildren];
-  }, [layoutDirection, layoutMode, processedNodes, styledEdges]);
+  }, [layoutDirection, layoutMode, processedEdges, processedNodes]);
 
+  // PERF: In "normal" mode (no highlight active — the common case during
+  // pan/zoom), return layoutedNodes directly without creating new objects.
+  // This preserves referential identity so React Flow's internal diffing
+  // can skip re-rendering nodes that haven't changed.
   const styledNodes = useMemo(() => {
-    const transition = "opacity 0.2s ease";
     if (highlightState.mode === "normal") {
-      return layoutedNodes.map((node) => ({
-        ...node,
-        style: { ...node.style, opacity: 1, transition },
-      }));
+      return layoutedNodes;
     }
 
+    const transition = "opacity 0.2s ease";
     return layoutedNodes.map((node) => {
       const isHighlighted = highlightState.highlighted.has(node.id);
       if (highlightState.mode === "hide" && !isHighlighted) {
@@ -212,21 +236,48 @@ export function GraphCanvas() {
     setEdges(styledEdges);
   }, [setEdges, styledEdges]);
 
-  const autoFitFingerprint = useMemo(() => {
-    return JSON.stringify({
-      lens,
-      layoutMode,
-      layoutDirection,
-      groupingMode,
-      showSecondaryEdges: settings.showSecondaryEdges,
-      nodeIds: styledNodes.map((node) => node.id),
-      edgeIds: styledEdges.map((edge) => edge.id),
-    });
-  }, [groupingMode, lens, layoutDirection, layoutMode, settings.showSecondaryEdges, styledEdges, styledNodes]);
+  // Reset initial-load tracking when the lens changes.
+  if (lens !== initialLoadLensRef.current) {
+    initialLoadCompleteRef.current = false;
+    initialLoadLensRef.current = lens;
+  }
+
+  // PERF: Use a cheap fingerprint instead of JSON.stringify of all IDs.
+  // The fingerprint detects structural changes (nodes/edges added/removed,
+  // layout/lens changes) without serializing every ID on every render.
+  // We hash the sorted IDs into a single string using join, which is much
+  // cheaper than JSON.stringify of the full arrays.
+  const nodeFingerprint = useMemo(
+    () => processedNodes.map((n) => n.id).join("\0"),
+    [processedNodes],
+  );
+  const edgeFingerprint = useMemo(
+    () => processedEdges.map((e) => e.id).join("\0"),
+    [processedEdges],
+  );
+  const autoFitFingerprint = `${lens}|${layoutMode}|${layoutDirection}|${groupingMode}|${settings.showSecondaryEdges}|${nodeFingerprint}|${edgeFingerprint}`;
 
   useEffect(() => {
     if (!autoFitOnChange || !flowRef.current || styledNodes.length === 0) {
       return;
+    }
+
+    // On the first data arrival after mount or lens switch, skip fitView if
+    // a stored viewport exists. The stored viewport was already applied via
+    // ReactFlow's defaultViewport prop, and fitView would override it.
+    //
+    // IMPORTANT: We read the viewport from the store snapshot (getState)
+    // rather than using the reactive `storedViewport` selector, because
+    // every pan/zoom updates the stored viewport. If it were a dependency,
+    // this effect would re-fire on every interaction and call fitView,
+    // snapping the camera back.
+    if (!initialLoadCompleteRef.current) {
+      initialLoadCompleteRef.current = true;
+      const currentLens = useGraphDataStore.getState().lens;
+      const savedViewport = useGraphUIStore.getState().viewportByLens[currentLens];
+      if (savedViewport) {
+        return;
+      }
     }
 
     const raf = window.requestAnimationFrame(() => {
@@ -248,6 +299,45 @@ export function GraphCanvas() {
     return () => window.cancelAnimationFrame(raf);
   }, [fitViewNonce, styledNodes.length]);
 
+  // Restore visual focus when graph data arrives and a selection or focus node
+  // exists. This handles three scenarios:
+  // 1. Page refresh: selectedNodeId is restored from URL, but highlight state
+  //    is in-memory only and lost. Recompute BFS + dim when nodes arrive.
+  // 2. Lens drill: focusNodeId is set by drillToLens, but no visual focus
+  //    was applied. When the new lens's data loads, apply focus to that node.
+  // 3. Normal operation: if highlight is already applied (mode !== "normal"),
+  //    skip — the user already has the correct visual state.
+  const focusRestoredRef = useRef(false);
+  useEffect(() => {
+    // Only act when nodes are available and highlight isn't already applied.
+    if (processedNodes.length === 0 || highlightState.mode !== "normal") {
+      return;
+    }
+
+    // Prefer focusNodeId (from lens drill) over selectedNodeId (from URL restore).
+    const targetNodeId = focusNodeId ?? selectedNodeId;
+    if (!targetNodeId) {
+      focusRestoredRef.current = false;
+      return;
+    }
+
+    // Prevent re-triggering after we've already restored focus for this node.
+    if (focusRestoredRef.current) return;
+    focusRestoredRef.current = true;
+
+    const focus = computeVisualFocus(targetNodeId, processedNodes, styledEdges);
+    if (focus) {
+      selectNode(focus.selectedNodeId);
+      setHighlightState(focus.highlightState);
+    }
+  }, [focusNodeId, highlightState.mode, processedNodes, selectedNodeId, selectNode, setHighlightState, styledEdges]);
+
+  // Reset the focus-restored flag when the target node changes, so the
+  // effect can fire again for a new selection/focus.
+  useEffect(() => {
+    focusRestoredRef.current = false;
+  }, [focusNodeId, selectedNodeId]);
+
   const handleNodeClick: NodeMouseHandler = useCallback(
     (_event, node) => {
       // Cluster nodes toggle on single-click instead of opening inspector.
@@ -263,16 +353,18 @@ export function GraphCanvas() {
         return;
       }
 
-      const graphNode = node as GraphNode;
-      selectNode(node.id);
-      setHighlightState({
-        highlighted: bfsNeighborhood(graphNode.id, processedNodes, styledEdges),
-        mode: "dim",
-      });
-
-      // Open detail page for entity types that support it.
       const parsed = parseNodeId(node.id);
-      if (parsed) {
+      const opensDetailPage = parsed !== null && hasDetailPage(parsed.entityType);
+
+      if (parsed && opensDetailPage) {
+        // Entity has a detail page: the overlay covers the entire graph,
+        // so dim/highlight would be invisible and leave stale state on close.
+        // Clear any existing visual focus before opening the detail page.
+        const cleared = clearVisualFocus();
+        selectNode(cleared.selectedNodeId);
+        setHighlightState(cleared.highlightState);
+
+        // Open the detail page.
         switch (parsed.entityType) {
           case "backlog":
             if (parsed.kind && parsed.name) selectBacklog(parsed.kind, parsed.name);
@@ -286,7 +378,15 @@ export function GraphCanvas() {
           case "initiative":
             if (parsed.name) selectInitiative(parsed.name);
             break;
-          // capture, agent-activity, agent-run: no detail page — just select/highlight.
+        }
+      } else {
+        // Entity has no detail page (capture, agent-activity, agent-run)
+        // or unrecognized node ID: apply visual focus so the user sees
+        // the node highlighted in the graph.
+        const focus = computeVisualFocus(node.id, processedNodes, styledEdges);
+        if (focus) {
+          selectNode(focus.selectedNodeId);
+          setHighlightState(focus.highlightState);
         }
       }
     },
@@ -294,8 +394,9 @@ export function GraphCanvas() {
   );
 
   const handlePaneClick = useCallback(() => {
-    selectNode(null);
-    setHighlightState({ highlighted: new Set(), mode: "normal" });
+    const cleared = clearVisualFocus();
+    selectNode(cleared.selectedNodeId);
+    setHighlightState(cleared.highlightState);
   }, [selectNode, setHighlightState]);
 
   const handleMoveEnd = useCallback(
@@ -305,7 +406,14 @@ export function GraphCanvas() {
     [lens, setViewportForLens],
   );
 
-  const defaultViewport: Viewport = storedViewport ?? { x: 0, y: 0, zoom: 1 };
+  // PERF: Read the initial viewport once at mount time, not reactively.
+  // The storedViewport changes on every pan/zoom (via setViewportForLens),
+  // but defaultViewport is only used by React Flow on initial mount.
+  // Using a reactive selector would cause the entire component to re-render
+  // on every viewport change even though React Flow ignores the prop after mount.
+  const initialViewportRef = useRef(useGraphUIStore.getState().viewportByLens[lens]);
+  const defaultViewport: Viewport = initialViewportRef.current ?? { x: 0, y: 0, zoom: 1 };
+  const hasStoredViewport = initialViewportRef.current !== null;
   const showMiniMap = settings.showMiniMap;
   const showFilterSuggestion = processedEdges.length > FILTER_SUGGESTION_THRESHOLD;
 
@@ -325,7 +433,7 @@ export function GraphCanvas() {
           flowRef.current = instance as unknown as ReactFlowInstance<GraphNode, GraphEdge>;
         }}
         defaultViewport={defaultViewport}
-        fitView={!storedViewport}
+        fitView={!hasStoredViewport}
         fitViewOptions={{ padding: 0.2, maxZoom: 1.2 }}
         proOptions={{ hideAttribution: true }}
         minZoom={0.1}
@@ -408,4 +516,4 @@ export function GraphCanvas() {
       )}
     </div>
   );
-}
+});

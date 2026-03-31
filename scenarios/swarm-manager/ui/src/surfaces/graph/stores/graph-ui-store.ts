@@ -115,12 +115,20 @@ function loadViewportByLens(): ViewportByLens {
   }
 }
 
+// PERF: Debounce viewport persistence. onMoveEnd fires frequently during
+// pan/zoom gestures. Synchronous JSON.stringify + localStorage.setItem on
+// every call blocks the main thread. We batch writes with a 500ms debounce
+// so only the final viewport position is persisted.
+let viewportSaveTimer: ReturnType<typeof setTimeout> | null = null;
 function saveViewportByLens(viewportByLens: ViewportByLens): void {
-  try {
-    window.localStorage.setItem(VIEWPORT_STORAGE_KEY, JSON.stringify(viewportByLens));
-  } catch {
-    // Ignore persistence failures.
-  }
+  if (viewportSaveTimer) clearTimeout(viewportSaveTimer);
+  viewportSaveTimer = setTimeout(() => {
+    try {
+      window.localStorage.setItem(VIEWPORT_STORAGE_KEY, JSON.stringify(viewportByLens));
+    } catch {
+      // Ignore persistence failures.
+    }
+  }, 500);
 }
 
 function loadSidebarCollapsed(): boolean {
@@ -265,7 +273,19 @@ export const useGraphUIStore = create<GraphUIState>((set, get) => ({
       fitViewNonce: state.fitViewNonce + 1,
     })),
 
-  setViewportForLens: (lens, viewport) =>
+  setViewportForLens: (lens, viewport) => {
+    // PERF: Skip state update if viewport hasn't meaningfully changed.
+    // onMoveEnd fires frequently; each set() triggers Zustand notifications
+    // to all subscribers. We threshold to avoid unnecessary re-renders.
+    const current = get().viewportByLens[lens];
+    if (
+      current
+      && Math.abs(current.x - viewport.x) < 0.5
+      && Math.abs(current.y - viewport.y) < 0.5
+      && Math.abs(current.zoom - viewport.zoom) < 0.001
+    ) {
+      return;
+    }
     set((state) => {
       const viewportByLens = {
         ...state.viewportByLens,
@@ -273,7 +293,8 @@ export const useGraphUIStore = create<GraphUIState>((set, get) => ({
       };
       saveViewportByLens(viewportByLens);
       return { viewportByLens };
-    }),
+    });
+  },
 
   toggleSidebar: () =>
     set((state) => {

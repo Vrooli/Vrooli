@@ -104,13 +104,16 @@ export function useDetailNavigation(): DetailNavigation {
         next.set("lens", targetLens);
         next.set("focus", nodeId);
         next.set("returnLens", lens);
-        next.delete("select");
-        // Clear detail params only (preserve sidebar params).
+        // Clear detail params (preserve sidebar params).
         next.delete("detail");
         next.delete("kind");
         next.delete("name");
         next.delete("execId");
         next.delete("tab");
+        // Don't set "select" — the focus node will be visually focused via
+        // the GraphCanvas focus-restoration effect when graph data arrives.
+        // Keeping "select" out avoids stale selection when returning to atlas.
+        next.delete("select");
         return next;
       });
     },

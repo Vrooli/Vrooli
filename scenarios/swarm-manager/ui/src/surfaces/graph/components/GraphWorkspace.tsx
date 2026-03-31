@@ -20,6 +20,7 @@ import { useAgentActivitiesStore, useBacklogStore, useCaptureStore } from "../..
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
 import { buildActivityNodeId, parseNodeId } from "../lib/node-id-parser";
+import { clearVisualFocus } from "../lib/visual-focus";
 import { useDetailSelectionStore } from "../../../stores/detail-selection-store";
 import { useDetailUrlSync } from "../../../hooks/useDetailUrlSync";
 import { useDetailNavigation } from "../../../hooks/useDetailNavigation";
@@ -138,6 +139,7 @@ export function GraphWorkspace() {
   const setFocusNodeLabel = useGraphUIStore((s) => s.setFocusNodeLabel);
   const selectedNodeId = useGraphUIStore((s) => s.selectedNodeId);
   const selectNode = useGraphUIStore((s) => s.selectNode);
+  const setHighlightState = useGraphUIStore((s) => s.setHighlightState);
   const applyLayoutForLens = useGraphUIStore((s) => s.applyLayoutForLens);
 
   const detailSelection = useDetailSelectionStore((s) => s.selection);
@@ -280,13 +282,15 @@ export function GraphWorkspace() {
   );
 
   const handleDeselectNode = useCallback(() => {
-    selectNode(null);
+    const cleared = clearVisualFocus();
+    selectNode(cleared.selectedNodeId);
+    setHighlightState(cleared.highlightState);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.delete("select");
       return next;
     });
-  }, [selectNode, setSearchParams]);
+  }, [selectNode, setHighlightState, setSearchParams]);
 
   useGraphKeyboardShortcuts({
     onLensChange: handleLensChange,

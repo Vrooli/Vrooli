@@ -63,7 +63,7 @@ function GraphNodeComponent({ data, selected }: NodeProps) {
       >
         <div
           className={cn(
-            "border-2 shadow-md backdrop-blur-sm",
+            "border-2 backdrop-blur-sm",
             "flex items-center justify-center",
             shapeClass,
             statusColors.background,
