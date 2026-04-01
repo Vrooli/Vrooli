@@ -18,6 +18,7 @@ const (
 	EntityInitiative  EntityType = "initiative"
 	EntityExecution   EntityType = "execution"
 	EntityQueue       EntityType = "queue"
+	EntityCapture     EntityType = "capture"
 )
 
 // EventType identifies what happened to an entity.
@@ -64,6 +65,21 @@ const (
 // Decision/workshop events.
 const (
 	EventWorkshopRoundCompleted EventType = "decision.workshop_round_completed"
+)
+
+// Clarification events.
+const (
+	EventClarificationStarted  EventType = "backlog.clarification_started"
+	EventClarificationResolved EventType = "backlog.clarification_resolved"
+	EventClarificationAction   EventType = "backlog.clarification_action"
+)
+
+// View events (read-only analytics).
+const (
+	EventBacklogViewed    EventType = "backlog.viewed"
+	EventExecutionViewed  EventType = "execution.viewed"
+	EventInitiativeViewed EventType = "initiative.viewed"
+	EventCaptureViewed    EventType = "capture.viewed"
 )
 
 // Event represents a single state change recorded in the event log.
@@ -163,4 +179,31 @@ type InitiativeItemPayload struct {
 // WorkshopRoundPayload records workshop round completion.
 type WorkshopRoundPayload struct {
 	RoundNumber int `json:"round_number"`
+}
+
+// ClarificationStartedPayload records clarification initiation.
+type ClarificationStartedPayload struct {
+	RoundNumber int    `json:"round_number"`
+	ItemID      string `json:"item_id"`
+	HasMessage  bool   `json:"has_message"`
+}
+
+// ClarificationResolvedPayload records clarification completion.
+type ClarificationResolvedPayload struct {
+	RoundNumber  int    `json:"round_number"`
+	ItemID       string `json:"item_id"`
+	MessageCount int    `json:"message_count"`
+	ImpactLevel  string `json:"impact_level"`
+}
+
+// ClarificationActionPayload records which post-clarification action was taken.
+type ClarificationActionPayload struct {
+	RoundNumber int    `json:"round_number"`
+	ItemID      string `json:"item_id"`
+	Action      string `json:"action"`
+}
+
+// ViewPayload records a view event. Intentionally minimal.
+type ViewPayload struct {
+	Kind string `json:"kind,omitempty"`
 }

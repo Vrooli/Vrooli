@@ -1,94 +1,181 @@
 /**
- * Entity Shapes
+ * Entity Registry
  *
- * Maps each entity type to a distinct geometric shape for instant
- * visual differentiation in the graph view. Shape encodes ENTITY TYPE.
+ * Single source of truth for every entity type's visual identity in the graph.
+ * Shape encodes ENTITY TYPE; color encodes STATUS (handled in status-colors.ts).
+ *
+ * Adding a new entity type? Add one entry to ENTITY_REGISTRY. TypeScript
+ * enforces completeness (it's Record<GraphEntityType, EntityConfig>), so
+ * every downstream consumer — nodeTypes, filters, legends, layout — picks
+ * it up automatically. No other file needs a hand-maintained list.
+ *
+ * All shapes are wider-than-tall for label readability. Clip-path polygons
+ * are applied inline (no CSS classes needed).
  */
 
+import type { ElementType } from "react";
+import { Activity, Lightbulb, MessageSquare, Package, Target, Zap } from "lucide-react";
 import type { GraphEntityType } from "../types";
 
-export type NodeShape = "diamond" | "rectangle" | "hexagon" | "circle" | "pentagon" | "octagon" | "pill";
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export type NodeShape =
+  | "stretched-hexagon"
+  | "rounded-rectangle"
+  | "notched-rectangle"
+  | "stadium"
+  | "parallelogram"
+  | "trapezoid"
+  | "stretched-octagon";
 
 export interface ShapeDimensions {
   width: number;
   height: number;
 }
 
-export const ENTITY_SHAPE_MAP: Record<GraphEntityType, NodeShape> = {
-  backlog: "diamond",
-  scenario: "rectangle",
-  execution: "hexagon",
-  initiative: "circle",
-  capture: "pentagon",
-  "agent-run": "octagon",
-  "agent-activity": "pill",
+export interface EntityConfig {
+  /** Human-readable label for UI display (legend, settings, help panel). */
+  label: string;
+  /** Short label shown inside the node badge (e.g. "activity" not "agent-activity"). */
+  badgeLabel: string;
+  /** Shape identifier — must be unique per entity type. */
+  shape: NodeShape;
+  /** Tailwind class(es) for the shape container (border-radius, etc.).
+   *  Ignored when clipPath is set, but kept for non-clipped shapes. */
+  cssClass: string;
+  /** clip-path polygon() value (just the coordinates, without the wrapper).
+   *  null means the shape uses only CSS border-radius. */
+  clipPath: string | null;
+  /** Dimensions used by Dagre layout and inline node sizing. */
+  dimensions: ShapeDimensions;
+  /** Lucide icon component for this entity type. */
+  icon: ElementType;
+}
+
+// ---------------------------------------------------------------------------
+// Registry
+// ---------------------------------------------------------------------------
+
+export const ENTITY_REGISTRY: Record<GraphEntityType, EntityConfig> = {
+  backlog: {
+    label: "Backlog",
+    badgeLabel: "backlog",
+    shape: "stretched-hexagon",
+    cssClass: "",
+    clipPath: "5% 50%, 15% 0%, 85% 0%, 95% 50%, 85% 100%, 15% 100%",
+    dimensions: { width: 170, height: 76 },
+    icon: Lightbulb,
+  },
+  initiative: {
+    label: "Initiatives",
+    badgeLabel: "initiative",
+    shape: "rounded-rectangle",
+    cssClass: "rounded-lg",
+    clipPath: null,
+    dimensions: { width: 168, height: 76 },
+    icon: Target,
+  },
+  scenario: {
+    label: "Scenarios",
+    badgeLabel: "scenario",
+    shape: "notched-rectangle",
+    cssClass: "",
+    clipPath: "8% 0%, 92% 0%, 100% 12%, 100% 88%, 92% 100%, 8% 100%, 0% 88%, 0% 12%",
+    dimensions: { width: 164, height: 74 },
+    icon: Package,
+  },
+  capture: {
+    label: "Captures",
+    badgeLabel: "capture",
+    shape: "stadium",
+    cssClass: "rounded-full",
+    clipPath: null,
+    dimensions: { width: 166, height: 72 },
+    icon: MessageSquare,
+  },
+  execution: {
+    label: "Execution",
+    badgeLabel: "execution",
+    shape: "parallelogram",
+    cssClass: "",
+    clipPath: "12% 0%, 100% 0%, 88% 100%, 0% 100%",
+    dimensions: { width: 170, height: 74 },
+    icon: Zap,
+  },
+  "agent-run": {
+    label: "Runs",
+    badgeLabel: "run",
+    shape: "trapezoid",
+    cssClass: "",
+    clipPath: "8% 0%, 92% 0%, 100% 100%, 0% 100%",
+    dimensions: { width: 168, height: 76 },
+    icon: Activity,
+  },
+  "agent-activity": {
+    label: "Activities",
+    badgeLabel: "activity",
+    shape: "stretched-octagon",
+    cssClass: "",
+    clipPath: "10% 0%, 90% 0%, 100% 30%, 100% 70%, 90% 100%, 10% 100%, 0% 70%, 0% 30%",
+    dimensions: { width: 166, height: 74 },
+    icon: Activity,
+  },
 };
 
-/**
- * CSS classes that produce the shape. For shapes using clip-path,
- * the classes are defined in styles.css.
- *
- * Diamond: rotate the container 45deg, counter-rotate inner content.
- * Circle: border-radius 50%.
- * Hexagon/Pentagon/Octagon: clip-path polygons.
- * Pill: rounded-full on a rectangular aspect ratio.
- * Rectangle: standard rounded-lg.
- */
-const SHAPE_CLASSES: Record<NodeShape, string> = {
-  diamond: "rotate-45",
-  rectangle: "rounded-lg",
-  hexagon: "clip-hexagon",
-  circle: "rounded-full",
-  pentagon: "clip-pentagon",
-  octagon: "clip-octagon",
-  pill: "rounded-full",
-};
+// ---------------------------------------------------------------------------
+// Derived constants
+// ---------------------------------------------------------------------------
 
-/**
- * Default dimensions for each shape, used by Dagre layout.
- * Shapes that need equal width/height (diamond, circle, octagon) are square.
- * Rectangular shapes are wider than tall.
- */
-const SHAPE_DIMENSIONS: Record<NodeShape, ShapeDimensions> = {
-  diamond: { width: 130, height: 130 },
-  rectangle: { width: 160, height: 72 },
-  hexagon: { width: 160, height: 100 },
-  circle: { width: 130, height: 130 },
-  pentagon: { width: 150, height: 110 },
-  octagon: { width: 150, height: 110 },
-  pill: { width: 160, height: 60 },
-};
+/** All entity types, derived from the registry. */
+export const GRAPH_ENTITY_TYPES = Object.keys(ENTITY_REGISTRY) as GraphEntityType[];
 
-/** Get the CSS class(es) that produce the shape for an entity type. */
+/** Shape info for legends and help panels. */
+export const ENTITY_SHAPE_INFO = GRAPH_ENTITY_TYPES.map((et) => ({
+  entityType: et,
+  shape: ENTITY_REGISTRY[et].shape,
+  label: ENTITY_REGISTRY[et].label,
+  cssClass: ENTITY_REGISTRY[et].cssClass,
+  clipPath: ENTITY_REGISTRY[et].clipPath,
+}));
+
+// ---------------------------------------------------------------------------
+// Accessor functions
+// ---------------------------------------------------------------------------
+
+/** CSS class(es) for the shape container (border-radius). Empty for clip-path-only shapes. */
 export function getShapeClasses(entityType: GraphEntityType): string {
-  const shape = ENTITY_SHAPE_MAP[entityType] ?? "rectangle";
-  return SHAPE_CLASSES[shape];
+  return ENTITY_REGISTRY[entityType].cssClass;
 }
 
-/** Whether the shape requires inner content to be counter-rotated. */
-export function needsContentCounterRotation(entityType: GraphEntityType): boolean {
-  return ENTITY_SHAPE_MAP[entityType] === "diamond";
-}
-
-/** Get the default dimensions for an entity type's shape. */
+/** Dimensions for Dagre layout and inline node sizing. */
 export function getShapeDimensions(entityType: GraphEntityType): ShapeDimensions {
-  const shape = ENTITY_SHAPE_MAP[entityType] ?? "rectangle";
-  return SHAPE_DIMENSIONS[shape];
+  return ENTITY_REGISTRY[entityType].dimensions;
 }
 
-/** Whether the shape uses clip-path (affects shadow/ring behavior). */
+/** Whether the shape uses an inline clip-path (affects shadow/ring behavior). */
 export function usesClipPath(entityType: GraphEntityType): boolean {
-  const shape = ENTITY_SHAPE_MAP[entityType];
-  return shape === "hexagon" || shape === "pentagon" || shape === "octagon";
+  return ENTITY_REGISTRY[entityType].clipPath !== null;
 }
 
-/** All entity shapes with labels, for use in legends/help panels. */
-export const ENTITY_SHAPE_INFO: { entityType: GraphEntityType; shape: NodeShape; label: string; shapeClass: string }[] = [
-  { entityType: "backlog", shape: "diamond", label: "Backlog", shapeClass: SHAPE_CLASSES.diamond },
-  { entityType: "scenario", shape: "rectangle", label: "Scenario", shapeClass: SHAPE_CLASSES.rectangle },
-  { entityType: "execution", shape: "hexagon", label: "Execution", shapeClass: SHAPE_CLASSES.hexagon },
-  { entityType: "initiative", shape: "circle", label: "Initiative", shapeClass: SHAPE_CLASSES.circle },
-  { entityType: "capture", shape: "pentagon", label: "Capture", shapeClass: SHAPE_CLASSES.pentagon },
-  { entityType: "agent-run", shape: "octagon", label: "Agent Run", shapeClass: SHAPE_CLASSES.octagon },
-  { entityType: "agent-activity", shape: "pill", label: "Activity", shapeClass: SHAPE_CLASSES.pill },
-];
+/** Inline style object for clip-path, or undefined for non-clipped shapes. */
+export function getClipPathStyle(entityType: GraphEntityType): React.CSSProperties | undefined {
+  const cp = ENTITY_REGISTRY[entityType].clipPath;
+  return cp ? { clipPath: `polygon(${cp})` } : undefined;
+}
+
+/** Lucide icon component for an entity type. */
+export function getEntityIcon(entityType: GraphEntityType): ElementType {
+  return ENTITY_REGISTRY[entityType].icon;
+}
+
+/** Short label for the badge inside graph nodes. */
+export function getEntityBadgeLabel(entityType: GraphEntityType): string {
+  return ENTITY_REGISTRY[entityType].badgeLabel;
+}
+
+/** Human-readable label for UI display. */
+export function getEntityLabel(entityType: GraphEntityType): string {
+  return ENTITY_REGISTRY[entityType].label;
+}

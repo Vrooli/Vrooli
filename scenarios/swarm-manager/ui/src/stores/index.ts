@@ -16,4 +16,5 @@ export {
   type DetailEntityType,
   type DetailSelectionStore,
 } from "./detail-selection-store";
+export { useRecentlyViewedStore, type RecentlyViewedItem } from "./recently-viewed-store";
 export type { LoadStatus } from "./store-utils";

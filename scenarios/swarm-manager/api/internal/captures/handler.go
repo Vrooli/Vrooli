@@ -50,6 +50,11 @@ type EventDispatcher interface {
 	DispatchInvalidate(lenses ...string)
 }
 
+// EventLogger records view events for analytics.
+type EventLogger interface {
+	EmitCaptureViewed(captureID string)
+}
+
 // Handler provides HTTP handlers for capture operations.
 type Handler struct {
 	rootDir         string
@@ -57,6 +62,7 @@ type Handler struct {
 	promptClient    promptmanager.Client
 	backlogCreator  BacklogItemCreator
 	eventDispatcher EventDispatcher
+	eventLogger     EventLogger
 }
 
 // NewHandler creates a new captures handler.
@@ -75,6 +81,11 @@ func NewHandler(rootDir string, agentService AgentSpawner, promptClient promptma
 // SetBacklogCreator sets the backlog item creator for the create-item endpoint.
 func (h *Handler) SetBacklogCreator(creator BacklogItemCreator) {
 	h.backlogCreator = creator
+}
+
+// SetEventLogger injects an optional event logger for analytics tracking.
+func (h *Handler) SetEventLogger(l EventLogger) {
+	h.eventLogger = l
 }
 
 // SetEventDispatcher injects an optional graph invalidation dispatcher.
@@ -326,6 +337,9 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = httputil.JSON(w, map[string]any{"capture": cap})
+	if h.eventLogger != nil {
+		h.eventLogger.EmitCaptureViewed(id)
+	}
 }
 
 // Delete removes a capture and its folder.

@@ -11,7 +11,7 @@ import dagre from "dagre";
 import type { Node, Edge } from "@xyflow/react";
 import type { LayoutDirection, LayoutMode } from "../stores/graph-ui-store";
 import type { GraphEntityType } from "../types";
-import { getShapeDimensions } from "./entity-shapes";
+import { getShapeDimensions, GRAPH_ENTITY_TYPES } from "./entity-shapes";
 
 const DEFAULT_NODE_WIDTH = 140;
 const DEFAULT_NODE_HEIGHT = 80;
@@ -56,6 +56,22 @@ const GROUPED_LANE_ORDER: GraphEntityType[] = [
   "agent-run",
   "agent-activity",
 ];
+
+// Dev-mode exhaustiveness check: every entity type must appear in the lane
+// order exactly once. Catches missing entries at import time, not at runtime.
+if (import.meta.env.DEV) {
+  const laneSet = new Set(GROUPED_LANE_ORDER);
+  for (const et of GRAPH_ENTITY_TYPES) {
+    if (!laneSet.has(et)) {
+      throw new Error(`GROUPED_LANE_ORDER is missing entity type "${et}". Add it to layout-utils.ts.`);
+    }
+  }
+  if (GROUPED_LANE_ORDER.length !== GRAPH_ENTITY_TYPES.length) {
+    throw new Error(
+      `GROUPED_LANE_ORDER has ${GROUPED_LANE_ORDER.length} entries but GRAPH_ENTITY_TYPES has ${GRAPH_ENTITY_TYPES.length}. They must match.`,
+    );
+  }
+}
 
 /**
  * Resolve the entity type from a node's data for lane grouping.

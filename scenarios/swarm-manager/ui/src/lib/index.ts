@@ -70,6 +70,9 @@ export {
   findBacklogFileByPath,
 } from "./workshop-files";
 
+// Clarification utilities
+export { parseImpactFromContent } from "./clarification-utils";
+
 // Readiness computation
 export {
   READINESS_DIMENSIONS,

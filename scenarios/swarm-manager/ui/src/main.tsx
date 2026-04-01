@@ -1,3 +1,28 @@
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  Runtime polyfills for older embedded browsers               ║
+// ║                                                              ║
+// ║  Vite's build.target only transpiles syntax — it does NOT    ║
+// ║  polyfill missing runtime APIs. These polyfills fill gaps    ║
+// ║  for browsers like Google TV (Chromium <76).                 ║
+// ║                                                              ║
+// ║  MUST run before any imports that may use these APIs.        ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+if (typeof Promise.allSettled !== "function") {
+  Promise.allSettled = function allSettled<T extends readonly unknown[]>(
+    promises: T,
+  ): Promise<{ -readonly [K in keyof T]: PromiseSettledResult<Awaited<T[K]>> }> {
+    return Promise.all(
+      Array.from(promises).map((p) =>
+        Promise.resolve(p).then(
+          (value) => ({ status: "fulfilled" as const, value }),
+          (reason) => ({ status: "rejected" as const, reason }),
+        ),
+      ),
+    ) as never;
+  };
+}
+
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";

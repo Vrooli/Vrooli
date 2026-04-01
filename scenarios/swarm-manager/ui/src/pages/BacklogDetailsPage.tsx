@@ -70,6 +70,7 @@ import { BacklogFormDialog } from "../components/backlog/backlog-form-dialog";
 import { AcceptanceGlobDialog } from "../components/backlog/acceptance-glob-dialog";
 import { BacklogAgentDialog } from "../components/backlog/backlog-agent-dialog";
 import { WorkshopPanel } from "../components/backlog/workshop-panel";
+import { ClarificationPanel } from "../components/backlog/clarification-panel";
 import { ReadinessDetailsPanel } from "../components/backlog/readiness-details-panel";
 import { FollowUpDialog } from "../components/execution/follow-up-dialog";
 import { PostRunStatusBadge } from "../components/execution/post-run-status-badge";
@@ -2761,6 +2762,14 @@ export function BacklogDetailsPage() {
           agentManagerUiUrl={agentManagerUiUrl ?? undefined}
         />
       </Drawer>
+
+      <ClarificationPanel
+        onAction={(action) => {
+          if (action === "invalidate_round" || action === "remove_decision" || action === "update_decision") {
+            void refetchItem();
+          }
+        }}
+      />
 
     </div>
     </DetailPageLayout>

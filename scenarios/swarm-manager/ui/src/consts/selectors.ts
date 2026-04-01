@@ -70,6 +70,16 @@ export const literalSelectors = {
     title: "error-boundary-title",
     message: "error-boundary-message",
     refreshButton: "error-boundary-refresh",
+    showDetailsButton: "error-boundary-show-details",
+    diagnosticsPanel: "error-boundary-diagnostics",
+    copyButton: "error-boundary-copy",
+    copyConfirmation: "error-boundary-copy-confirmation",
+    errorName: "error-boundary-error-name",
+    errorMessage: "error-boundary-error-message",
+    componentStack: "error-boundary-component-stack",
+    timestamp: "error-boundary-timestamp",
+    userAgent: "error-boundary-user-agent",
+    errorCategory: "error-boundary-error-category",
   },
   // Not Found page selectors
   notFound: {

@@ -725,6 +725,9 @@ func main() {
 		if srv.queueHandler != nil {
 			srv.queueHandler.SetEventLogger(emitter)
 		}
+		if srv.capturesHandler != nil {
+			srv.capturesHandler.SetEventLogger(emitter)
+		}
 	}
 
 	// Register stats endpoint.

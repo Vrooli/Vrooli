@@ -147,6 +147,49 @@ func (e *Emitter) EmitWorkshopRoundCompleted(entityID string, roundNumber int) {
 	})
 }
 
+// --- View events ---
+
+func (e *Emitter) EmitBacklogViewed(entityID, kind string) {
+	e.emit(EntityBacklogItem, entityID, EventBacklogViewed, ViewPayload{Kind: kind})
+}
+
+func (e *Emitter) EmitExecutionViewed(execID string) {
+	e.emit(EntityExecution, execID, EventExecutionViewed, nil)
+}
+
+func (e *Emitter) EmitInitiativeViewed(name string) {
+	e.emit(EntityInitiative, name, EventInitiativeViewed, nil)
+}
+
+func (e *Emitter) EmitCaptureViewed(captureID string) {
+	e.emit(EntityCapture, captureID, EventCaptureViewed, nil)
+}
+
+func (e *Emitter) EmitClarificationStarted(entityID string, roundNumber int, itemID string, hasMessage bool) {
+	e.emit(EntityBacklogItem, entityID, EventClarificationStarted, ClarificationStartedPayload{
+		RoundNumber: roundNumber,
+		ItemID:      itemID,
+		HasMessage:  hasMessage,
+	})
+}
+
+func (e *Emitter) EmitClarificationResolved(entityID string, roundNumber int, itemID string, messageCount int, impactLevel string) {
+	e.emit(EntityBacklogItem, entityID, EventClarificationResolved, ClarificationResolvedPayload{
+		RoundNumber:  roundNumber,
+		ItemID:       itemID,
+		MessageCount: messageCount,
+		ImpactLevel:  impactLevel,
+	})
+}
+
+func (e *Emitter) EmitClarificationAction(entityID string, roundNumber int, itemID string, action string) {
+	e.emit(EntityBacklogItem, entityID, EventClarificationAction, ClarificationActionPayload{
+		RoundNumber: roundNumber,
+		ItemID:      itemID,
+		Action:      action,
+	})
+}
+
 // emit is the internal helper that marshals metadata and appends the event.
 func (e *Emitter) emit(entityType EntityType, entityID string, eventType EventType, payload any) {
 	var metadata json.RawMessage

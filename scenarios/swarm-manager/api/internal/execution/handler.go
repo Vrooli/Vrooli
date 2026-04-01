@@ -106,6 +106,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	if err := httputil.ProtoJSON(w, executionResponse(record)); err != nil {
 		httputil.InternalError(w, "[execution] get", "failed to encode response")
 	}
+	h.service.RecordView(executionID)
 }
 
 func (h *Handler) GetPromptTrace(w http.ResponseWriter, r *http.Request) {

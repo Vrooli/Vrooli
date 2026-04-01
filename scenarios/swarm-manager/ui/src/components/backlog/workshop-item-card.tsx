@@ -5,19 +5,41 @@ import { useState } from "react";
 import { Star, Trash2 } from "lucide-react";
 import { cn } from "../../lib";
 import { OTHER_KEY, filterAgentOther } from "../../lib/workshop-files";
-import type { WorkshopItem } from "../../types/domain";
+import { ClarifyButton } from "./clarify-button";
+import { useClarificationStore } from "../../stores/clarification-store";
+import type { BacklogKind, WorkshopItem } from "../../types/domain";
 
 interface WorkshopItemCardProps {
   item: WorkshopItem;
   disabled?: boolean;
   onUpdate?: (updated: WorkshopItem) => void;
   onDelete?: () => void;
+  backlogKind?: BacklogKind;
+  backlogName?: string;
+  roundNumber?: number;
 }
 
-export function WorkshopItemCard({ item, disabled, onUpdate, onDelete }: WorkshopItemCardProps) {
+export function WorkshopItemCard({ item, disabled, onUpdate, onDelete, backlogKind, backlogName, roundNumber }: WorkshopItemCardProps) {
   const [localSelected, setLocalSelected] = useState(item.selected ?? "");
   const [localFreeform, setLocalFreeform] = useState(item.freeform ?? "");
   const [localNotes, setLocalNotes] = useState(item.notes ?? "");
+
+  const clarificationStore = useClarificationStore();
+  const isClarifyActive = clarificationStore.isOpen && clarificationStore.target?.itemId === item.id;
+
+  const handleClarifyClick = () => {
+    if (isClarifyActive) {
+      clarificationStore.close();
+    } else if (backlogKind && backlogName && roundNumber) {
+      clarificationStore.open({
+        backlogKind,
+        backlogName,
+        roundNumber,
+        itemId: item.id,
+        itemTopic: item.topic || item.text || "",
+      });
+    }
+  };
 
   const handleSelect = (key: string) => {
     const newSelected = key === OTHER_KEY ? OTHER_KEY : key;
@@ -87,6 +109,13 @@ export function WorkshopItemCard({ item, disabled, onUpdate, onDelete }: Worksho
             D
           </span>
           <p className="flex-1 text-sm font-medium text-slate-200">{item.topic || item.text}</p>
+          {backlogKind && backlogName && roundNumber && (
+            <ClarifyButton
+              disabled={disabled}
+              isActive={isClarifyActive}
+              onClick={handleClarifyClick}
+            />
+          )}
           {onDelete && !disabled && (
             <button
               type="button"
@@ -170,7 +199,7 @@ export function WorkshopItemCard({ item, disabled, onUpdate, onDelete }: Worksho
 
             {isOther && (
               <textarea
-                className="w-full rounded-md border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:border-slate-500 focus:outline-none"
+                className="w-full rounded-md border border-slate-600 bg-slate-800 px-3 py-2 text-base text-slate-200 placeholder-slate-500 focus:border-slate-500 focus:outline-none"
                 placeholder="Describe your alternative..."
                 value={localFreeform}
                 onChange={(e) => handleFreeformChange(e.target.value)}
@@ -191,6 +220,14 @@ export function WorkshopItemCard({ item, disabled, onUpdate, onDelete }: Worksho
               disabled={disabled}
               rows={2}
             />
+          </div>
+        )}
+
+        {/* Context note from previous clarification */}
+        {item.context_note && (
+          <div className="ml-7 mt-1 rounded border border-cyan-500/15 bg-cyan-500/5 px-2 py-1">
+            <span className="text-[9px] font-medium text-cyan-400">Clarification note</span>
+            <p className="text-xs text-slate-400">{item.context_note}</p>
           </div>
         )}
       </div>

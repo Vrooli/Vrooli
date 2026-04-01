@@ -166,6 +166,7 @@ type EventLogger interface {
 	EmitExecutionCompleted(execID string, durationSecs float64, hadFixups bool)
 	EmitExecutionFailed(execID, reason string, durationSecs float64)
 	EmitExecutionCanceled(execID, reason string)
+	EmitExecutionViewed(execID string)
 }
 
 // Service owns execution lifecycle logic.
@@ -242,6 +243,13 @@ func (s *Service) SetEventDispatcher(d EventDispatcher) {
 // SetEventLogger injects an optional event logger for analytics tracking.
 func (s *Service) SetEventLogger(l EventLogger) {
 	s.eventLogger = l
+}
+
+// RecordView emits a view event for analytics.
+func (s *Service) RecordView(execID string) {
+	if s.eventLogger != nil {
+		s.eventLogger.EmitExecutionViewed(execID)
+	}
 }
 
 // dispatchStatusUpdate emits a node-update event for an execution record status change.

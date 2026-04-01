@@ -1,8 +1,11 @@
 /**
  * GraphNode - Custom node renderer for all entity types.
  *
- * Shape varies by entity type (diamond, rectangle, hexagon, circle, pentagon, octagon, pill).
+ * Shape varies by entity type (stretched-hexagon, stadium, parallelogram, etc.).
  * Color encodes STATUS via both fill and border for instant scannability.
+ *
+ * All visual identity metadata lives in the ENTITY_REGISTRY (lib/entity-shapes.ts).
+ * This component simply reads from it — no entity-type-keyed maps here.
  *
  * @see lib/entity-shapes.ts for shape mapping
  * @see lib/status-colors.ts for color mapping
@@ -10,7 +13,6 @@
 
 import { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { Lightbulb, Package, Zap, MessageSquare, Activity, Target } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { BACKLOG_KIND_ICONS } from "../../../types";
 import type { BacklogKind } from "../../../types";
@@ -18,21 +20,15 @@ import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
 import type { GraphEntityType, GraphNodeData } from "../types";
 import { ActionableBadge, StatusBadge } from "./StatusBadge";
-import { getShapeClasses, getShapeDimensions, needsContentCounterRotation, usesClipPath } from "../lib/entity-shapes";
+import {
+  getClipPathStyle,
+  getEntityBadgeLabel,
+  getEntityIcon,
+  getShapeClasses,
+  getShapeDimensions,
+  usesClipPath,
+} from "../lib/entity-shapes";
 import { getStatusColorClasses, isActionableBacklogStatus } from "../lib/status-colors";
-
-const ENTITY_ICONS: Record<GraphEntityType, React.ElementType> = {
-  backlog: Lightbulb,
-  scenario: Package,
-  execution: Zap,
-  "agent-activity": Activity,
-  capture: MessageSquare,
-  "agent-run": Activity,
-  initiative: Target,
-};
-
-/** Shapes that need fixed, equal-sided sizing. */
-const FIXED_SIZE_SHAPES = new Set<GraphEntityType>(["backlog", "initiative", "execution", "capture", "agent-run", "agent-activity"]);
 
 const DEFAULT_ENTITY: GraphEntityType = "backlog";
 
@@ -44,13 +40,12 @@ function GraphNodeComponent({ id, data }: NodeProps) {
   const backlogKindIcon = entityType === "backlog" && nodeData.kind
     ? BACKLOG_KIND_ICONS[nodeData.kind as BacklogKind]
     : undefined;
-  const Icon = backlogKindIcon ?? ENTITY_ICONS[entityType] ?? ENTITY_ICONS[DEFAULT_ENTITY];
+  const Icon = backlogKindIcon ?? getEntityIcon(entityType);
   const shapeClass = getShapeClasses(entityType);
   const statusColors = getStatusColorClasses(nodeData.status);
-  const counterRotate = needsContentCounterRotation(entityType);
   const isClipped = usesClipPath(entityType);
   const dims = getShapeDimensions(entityType);
-  const isFixedSize = FIXED_SIZE_SHAPES.has(entityType);
+  const clipStyle = getClipPathStyle(entityType);
 
   return (
     <>
@@ -81,27 +76,22 @@ function GraphNodeComponent({ id, data }: NodeProps) {
               : cn("border-2", statusColors.border),
             // Selection ring — only for non-clipped shapes (clip-path hides box-shadow/ring)
             isSelected && !isClipped && "ring-2 ring-cyan-400/50 shadow-lg shadow-cyan-500/30",
-            // Sizing
-            isFixedSize
-              ? ""
-              : "min-w-[120px] max-w-[180px] px-3 py-2",
           )}
-          style={isFixedSize ? { width: dims.width, height: dims.height } : undefined}
+          style={{ width: dims.width, height: dims.height, ...clipStyle }}
         >
-          <div className={cn(counterRotate && "-rotate-45", "flex flex-col items-center gap-0.5 w-full px-1")}>
+          <div className="flex flex-col items-center gap-0.5 w-full px-3">
             {/* Entity type badge with icon */}
             <div className="flex items-center gap-1">
               <Icon className={cn("h-3 w-3 shrink-0", statusColors.text)} />
               <span className={cn("text-[9px] font-medium uppercase tracking-wide", statusColors.text)}>
-                {entityType === "agent-activity" ? "activity" : entityType === "agent-run" ? "run" : entityType}
+                {getEntityBadgeLabel(entityType)}
               </span>
             </div>
 
             {/* Label */}
             <p className={cn(
-              "text-[10px] font-medium leading-tight text-center break-words",
+              "text-[10px] font-medium leading-tight text-center break-words line-clamp-2 max-w-[110px]",
               statusColors.text,
-              isFixedSize ? "line-clamp-2 max-w-[110px]" : "line-clamp-2",
             )}>
               {nodeData.label}
             </p>

@@ -109,6 +109,10 @@ func (a *App) registerSubcommandGroups() []cliapp.SubcommandGroup {
 				{Name: "batch-queue", NeedsAPI: true, Description: "Batch queue backlog items (--items kind/name,kind/name [--execute] [--force] [--mode MODE])", Run: a.cmdBacklogBatchQueue},
 				{Name: "export", NeedsAPI: true, Description: "Export backlog items to markdown for offline editing", Run: a.cmdBacklogExport},
 				{Name: "import", NeedsAPI: true, Description: "Import edited markdown back into the backlog (--file FILE)", Run: a.cmdBacklogImport},
+				{Name: "clarify", NeedsAPI: true, Description: "Start a decision clarification (--kind KIND --name NAME --round N --item ID [--message MSG])", Run: a.cmdBacklogClarify},
+				{Name: "clarify-get", NeedsAPI: true, Description: "Get a clarification thread (--kind KIND --name NAME --thread ID)", Run: a.cmdBacklogClarifyGet},
+				{Name: "clarify-continue", NeedsAPI: true, Description: "Continue a clarification thread (--kind KIND --name NAME --thread ID --message MSG)", Run: a.cmdBacklogClarifyContinue},
+				{Name: "clarify-action", NeedsAPI: true, Description: "Apply post-clarification action (--kind KIND --name NAME --thread ID --action ACTION)", Run: a.cmdBacklogClarifyAction},
 			},
 		},
 		{

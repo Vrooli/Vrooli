@@ -14,6 +14,12 @@ export default defineConfig({
   // ║  DO NOT change to '/' or remove this setting.                ║
   // ╚══════════════════════════════════════════════════════════════╝
   base: './',
+  // Targets Chrome 67 to support older embedded browsers (e.g. Google TV).
+  // Only transpiles syntax (optional chaining, class fields, etc.) — does NOT
+  // polyfill missing runtime APIs. See main.tsx for runtime polyfills.
+  build: {
+    target: 'chrome67',
+  },
   plugins: [react()],
   test: {
     globals: true,

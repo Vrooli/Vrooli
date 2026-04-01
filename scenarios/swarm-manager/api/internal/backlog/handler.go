@@ -40,6 +40,8 @@ import (
 type AgentSpawner interface {
 	IsEnabled() bool
 	SpawnBacklog(ctx context.Context, req agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error)
+	ContinueRun(ctx context.Context, runID string, message string) error
+	GetRunState(ctx context.Context, runID string) (agentmanager.RunState, error)
 }
 
 // Handler provides HTTP handlers for backlog operations.
@@ -71,6 +73,10 @@ type EventLogger interface {
 	EmitBacklogInitiativeChanged(entityID, from, to string)
 	EmitBacklogArchived(entityID string)
 	EmitWorkshopRoundCompleted(entityID string, roundNumber int)
+	EmitBacklogViewed(entityID, kind string)
+	EmitClarificationStarted(entityID string, roundNumber int, itemID string, hasMessage bool)
+	EmitClarificationResolved(entityID string, roundNumber int, itemID string, messageCount int, impactLevel string)
+	EmitClarificationAction(entityID string, roundNumber int, itemID string, action string)
 }
 
 // NewHandler creates a new backlog handler.
@@ -220,6 +226,10 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/research", h.Research).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/save", h.WorkshopSave).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/round", h.WorkshopDeleteRound).Methods("DELETE")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/clarification", h.CreateClarification).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/clarification/{threadId}", h.GetClarification).Methods("GET")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/clarification/{threadId}/continue", h.ContinueClarification).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/clarification/{threadId}/action", h.ClarificationAction).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/targets", h.GetArchiveTargets).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/targets", h.CreateTargetHandler).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/targets/{targetId}", h.UpdateTargetHandler).Methods("PUT")
@@ -304,6 +314,9 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	resp := &apipb.BacklogItemResponse{Item: backlogToProto(item)}
 	if err := httputil.ProtoJSON(w, resp); err != nil {
 		httputil.InternalError(w, "[backlog] get", "failed to encode response")
+	}
+	if h.eventLogger != nil {
+		h.eventLogger.EmitBacklogViewed(string(kind)+"/"+name, string(kind))
 	}
 }
 

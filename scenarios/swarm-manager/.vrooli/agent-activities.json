@@ -1328,5 +1328,27 @@
       "skill_id": "swarm-manager-workshop"
     },
     "updated_at": "2026-04-01T11:50:10Z"
+  },
+  {
+    "activity_id": "142fd25042e419c1",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "agent-manager-identity-tokens",
+    "owner_title": "Implement Identity Token Injection and Verification in Agent-Manager",
+    "purpose": "clarify",
+    "interaction_type": "spawn",
+    "task_id": "7c5218ee-588d-429f-ac0b-2213429a1569",
+    "run_id": "4751b906-d0c4-46f7-83e8-7dc8f7c3678a",
+    "status": "complete",
+    "requested_at": "2026-04-01T17:20:03Z",
+    "started_at": "2026-04-01T17:20:03Z",
+    "finished_at": "2026-04-01T17:20:31Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.clarification",
+      "item_id": "d1",
+      "round_number": "1"
+    },
+    "updated_at": "2026-04-01T17:20:35Z"
   }
 ]

@@ -42,7 +42,7 @@ import {
 import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
-import type { ArchiveRequirementRecord, ArchiveTargetFormValues, ArchiveTargetsResponse, BacklogItem, BacklogFile, BacklogKind, BacklogSummaryResponse, FeedbackSummaryResponse, MaturitySummaryResponse, ModuleFormValues, PendingQuestionsResponse, ResearchResponse, ReviewUpdate } from "../types";
+import type { ArchiveRequirementRecord, ArchiveTargetFormValues, ArchiveTargetsResponse, BacklogItem, BacklogFile, BacklogKind, BacklogSummaryResponse, ClarificationThread, FeedbackSummaryResponse, MaturitySummaryResponse, ModuleFormValues, PendingQuestionsResponse, ResearchResponse, ReviewUpdate } from "../types";
 
 /**
  * Response from queueing a backlog item for processing.
@@ -177,6 +177,33 @@ export interface IBacklogService {
     name: string,
     roundNumber: number,
   ): Promise<WorkshopDeleteRoundResponse>;
+  createClarification(
+    kind: BacklogKind,
+    name: string,
+    roundNumber: number,
+    itemId: string,
+    message?: string,
+    files?: File[],
+  ): Promise<{ thread: ClarificationThread }>;
+  getClarification(
+    kind: BacklogKind,
+    name: string,
+    threadId: string,
+  ): Promise<{ thread: ClarificationThread }>;
+  continueClarification(
+    kind: BacklogKind,
+    name: string,
+    threadId: string,
+    message: string,
+    files?: File[],
+  ): Promise<{ thread: ClarificationThread }>;
+  clarificationAction(
+    kind: BacklogKind,
+    name: string,
+    threadId: string,
+    action: string,
+    updatedItemJson?: string,
+  ): Promise<{ action: string; success: boolean; message: string; run_id?: string; task_id?: string }>;
 }
 
 export interface WorkshopDeleteRoundResponse {
@@ -538,6 +565,72 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
         deletedRound: data.deleted_round,
         remainingRounds: data.remaining_rounds,
       };
+    },
+
+    async createClarification(
+      kind: BacklogKind,
+      name: string,
+      roundNumber: number,
+      itemId: string,
+      message?: string,
+      files?: File[],
+    ): Promise<{ thread: ClarificationThread }> {
+      const formData = new FormData();
+      formData.append("round_number", String(roundNumber));
+      formData.append("item_id", itemId);
+      if (message) formData.append("message", message);
+      if (files) {
+        for (const file of files) {
+          formData.append("files", file);
+        }
+      }
+      return apiClient.post<{ thread: ClarificationThread }>(
+        `/backlog/${kind}/${name}/workshop/clarification`,
+        formData,
+      );
+    },
+
+    async getClarification(
+      kind: BacklogKind,
+      name: string,
+      threadId: string,
+    ): Promise<{ thread: ClarificationThread }> {
+      return apiClient.get<{ thread: ClarificationThread }>(
+        `/backlog/${kind}/${name}/workshop/clarification/${threadId}`,
+      );
+    },
+
+    async continueClarification(
+      kind: BacklogKind,
+      name: string,
+      threadId: string,
+      message: string,
+      files?: File[],
+    ): Promise<{ thread: ClarificationThread }> {
+      const formData = new FormData();
+      formData.append("message", message);
+      if (files) {
+        for (const file of files) {
+          formData.append("files", file);
+        }
+      }
+      return apiClient.post<{ thread: ClarificationThread }>(
+        `/backlog/${kind}/${name}/workshop/clarification/${threadId}/continue`,
+        formData,
+      );
+    },
+
+    async clarificationAction(
+      kind: BacklogKind,
+      name: string,
+      threadId: string,
+      action: string,
+      updatedItemJson?: string,
+    ): Promise<{ action: string; success: boolean; message: string; run_id?: string; task_id?: string }> {
+      return apiClient.post(
+        `/backlog/${kind}/${name}/workshop/clarification/${threadId}/action`,
+        { action, updated_item_json: updatedItemJson },
+      );
     },
   };
 }

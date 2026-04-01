@@ -8,6 +8,7 @@
 
 import { create } from "zustand";
 import { graphService, type GraphProjectionMeta } from "../../../services";
+import { GRAPH_ENTITY_TYPES } from "../lib/entity-shapes";
 import {
   ENTITY_STATUS_REGISTRY,
   getGraphNodeData,
@@ -89,15 +90,9 @@ const graphRequestSequence: Record<GraphLens, number> = {
 const graphAbortControllers = new Map<GraphLens, AbortController>();
 const graphInFlightRequests = new Map<GraphLens, Promise<void>>();
 
-const DEFAULT_ENTITY_FILTERS: Record<EntityType, boolean> = {
-  backlog: true,
-  scenario: true,
-  execution: true,
-  "agent-activity": true,
-  capture: true,
-  "agent-run": true,
-  initiative: true,
-};
+const DEFAULT_ENTITY_FILTERS: Record<EntityType, boolean> = Object.fromEntries(
+  GRAPH_ENTITY_TYPES.map((et) => [et, true]),
+) as Record<EntityType, boolean>;
 
 function cloneEntityFilters(): Record<EntityType, boolean> {
   return { ...DEFAULT_ENTITY_FILTERS };
@@ -143,16 +138,10 @@ function cloneSettingsByLens(
   };
 }
 
+const ENTITY_TYPE_SET: ReadonlySet<string> = new Set(GRAPH_ENTITY_TYPES);
+
 function isEntityType(value: unknown): value is EntityType {
-  return (
-    value === "backlog" ||
-    value === "scenario" ||
-    value === "execution" ||
-    value === "agent-activity" ||
-    value === "capture" ||
-    value === "agent-run" ||
-    value === "initiative"
-  );
+  return typeof value === "string" && ENTITY_TYPE_SET.has(value);
 }
 
 function loadPersistedSettings(): Record<GraphLens, GraphLensSettings> {

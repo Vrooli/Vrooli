@@ -25,6 +25,7 @@ type EventLogger interface {
 	EmitInitiativeItemRemoved(name, item string)
 	EmitInitiativeStatusChanged(name, from, to string)
 	EmitInitiativeArchived(name string)
+	EmitInitiativeViewed(name string)
 }
 
 // Service provides business logic for initiative operations.
@@ -51,6 +52,13 @@ func (s *Service) SetEventDispatcher(d EventDispatcher) {
 // SetEventLogger injects an optional event logger for analytics tracking.
 func (s *Service) SetEventLogger(l EventLogger) {
 	s.eventLogger = l
+}
+
+// RecordView emits a view event for analytics.
+func (s *Service) RecordView(name string) {
+	if s.eventLogger != nil {
+		s.eventLogger.EmitInitiativeViewed(name)
+	}
 }
 
 // InitDir returns the absolute path for an initiative's folder, delegating to

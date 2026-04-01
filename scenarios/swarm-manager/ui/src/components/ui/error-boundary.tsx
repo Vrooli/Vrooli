@@ -25,8 +25,9 @@
 import { Component, type ReactNode } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "./button";
+import { ErrorDiagnostics } from "./error-diagnostics";
 import { selectors } from "../../consts/selectors";
-import { generateUniqueId } from "../../lib/error-utils";
+import { categorizeError, generateUniqueId } from "../../lib/error-utils";
 
 interface ErrorBoundaryProps {
   /** Child components to render */
@@ -41,6 +42,12 @@ interface ErrorBoundaryState {
   hasError: boolean;
   /** Error ID for correlation with logs (not exposed to user) */
   errorId: string | null;
+  /** The caught error object for diagnostics display */
+  error: Error | null;
+  /** React component stack for diagnostics display */
+  componentStack: string | null;
+  /** ISO timestamp of when the error was caught */
+  timestamp: string | null;
 }
 
 /** Error ID prefix for app-level error boundary */
@@ -64,12 +71,18 @@ const ERROR_ID_PREFIX = "err";
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, errorId: null };
+    this.state = { hasError: false, errorId: null, error: null, componentStack: null, timestamp: null };
   }
 
-  static getDerivedStateFromError(): ErrorBoundaryState {
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     // Update state so the next render shows the fallback UI
-    return { hasError: true, errorId: generateUniqueId(ERROR_ID_PREFIX) };
+    return {
+      hasError: true,
+      errorId: generateUniqueId(ERROR_ID_PREFIX),
+      error,
+      componentStack: null,
+      timestamp: new Date().toISOString(),
+    };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
@@ -84,6 +97,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         timestamp: new Date().toISOString(),
       })
     );
+
+    // Capture component stack for on-screen diagnostics (commit phase)
+    this.setState({ componentStack: errorInfo.componentStack ?? null });
 
     // Call optional error callback (for external logging services)
     this.props.onError?.(error, errorInfo);
@@ -133,6 +149,16 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             <p className="mt-4 text-xs text-slate-600">
               Error ID: {this.state.errorId}
             </p>
+            {this.state.error && this.state.timestamp && (
+              <ErrorDiagnostics
+                error={this.state.error}
+                componentStack={this.state.componentStack}
+                errorId={this.state.errorId}
+                category={categorizeError(this.state.error)}
+                timestamp={this.state.timestamp}
+                className="max-w-lg mx-auto"
+              />
+            )}
           </div>
         </div>
       );

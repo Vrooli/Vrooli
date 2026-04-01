@@ -26,6 +26,7 @@ const (
 	PurposeFollowUp   Purpose = "followup"
 	PurposeSpecSync   Purpose = "spec_sync"
 	PurposeClassify   Purpose = "classify"
+	PurposeClarify    Purpose = "clarify"
 )
 
 type InteractionType string
@@ -111,7 +112,7 @@ func (s Spec) normalized() (Spec, error) {
 
 	switch s.Purpose {
 	case PurposeInitialize, PurposeWorkshop, PurposeFinalize, PurposeResearch, PurposeProcess,
-		PurposeFixup, PurposeFollowUp, PurposeSpecSync, PurposeClassify:
+		PurposeFixup, PurposeFollowUp, PurposeSpecSync, PurposeClassify, PurposeClarify:
 	default:
 		return Spec{}, fmt.Errorf("purpose is required")
 	}

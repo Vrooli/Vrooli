@@ -33,6 +33,7 @@ type Service interface {
 	GetRunState(ctx context.Context, runID string) (RunState, error)
 	GetRunDiff(ctx context.Context, runID string) (RunDiff, error)
 	StopRun(ctx context.Context, runID string) error
+	ContinueRun(ctx context.Context, runID string, message string) error
 }
 
 // AgentService implements the Service interface.

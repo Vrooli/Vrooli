@@ -185,7 +185,7 @@ export function createErrorLogEntry(
  * - Removes file paths
  * - Truncates long messages
  */
-function sanitizeErrorMessage(message: string): string {
+export function sanitizeErrorMessage(message: string): string {
   // Remove URLs
   let sanitized = message.replace(/https?:\/\/[^\s]+/gi, "[URL]");
   // Remove file paths (Unix and Windows)

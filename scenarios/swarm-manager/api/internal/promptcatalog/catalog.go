@@ -162,6 +162,23 @@ var entries = []Entry{
 		},
 	},
 	{
+		ID:           "backlog-clarify",
+		Title:        "Backlog Decision Clarification",
+		Group:        GroupBacklog,
+		UsageType:    UsageDirectRuntime,
+		SourceType:   SourceSkill,
+		Trigger:      "Decision clarification request",
+		SkillID:      "swarm-manager-workshop-clarify",
+		BacklogKinds: []string{"idea", "research", "fix", "execute", "chore"},
+		Modes:        []string{"clarify"},
+		Purpose:      "Clarify a workshop decision item and assess impact on the workshop round.",
+		OutputPaths:  []string{},
+		VariableKeys: []string{"CLARIFICATION_HISTORY", "DECISION_CONTEXT", "DECISION_OPTIONS", "DECISION_TOPIC", "ITEM_DESCRIPTION", "ITEM_KIND", "ITEM_NAME", "ITEM_TITLE", "USER_QUESTION", "WORKSHOP_HISTORY"},
+		ReferenceSkillIDs: []string{
+			"swarm-manager-backlog-tools",
+		},
+	},
+	{
 		ID:          "execution-process",
 		Title:       "Execution Process Prompt",
 		Group:       GroupExecution,

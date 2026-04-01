@@ -32,6 +32,7 @@ import {
   getEdgeStyle,
   STRAIGHT_EDGE_THRESHOLD,
 } from "../lib/edge-styles";
+import { GRAPH_ENTITY_TYPES } from "../lib/entity-shapes";
 import { getStatusRgb } from "../lib/status-colors";
 import { computeVisualFocus, clearVisualFocus } from "../lib/visual-focus";
 import {
@@ -41,17 +42,14 @@ import {
 } from "../types";
 import { ClusterNode } from "./ClusterNode";
 import { EdgeLegend } from "./EdgeLegend";
+import { FlowEmptyState } from "./FlowEmptyState";
 import { GraphNode as GraphNodeComponent } from "./GraphNode";
 
+/** Derived from ENTITY_REGISTRY — adding a new entity type automatically registers it here. */
 const nodeTypes: NodeTypes = {
-  backlog: GraphNodeComponent,
-  scenario: GraphNodeComponent,
-  execution: GraphNodeComponent,
-  capture: GraphNodeComponent,
-  "agent-run": GraphNodeComponent,
-  initiative: GraphNodeComponent,
+  ...Object.fromEntries(GRAPH_ENTITY_TYPES.map((t) => [t, GraphNodeComponent])),
   cluster: ClusterNode,
-};
+} as NodeTypes;
 
 const baseEdgeOptions: DefaultEdgeOptions = {
   style: {
@@ -472,13 +470,17 @@ export const GraphCanvas = memo(function GraphCanvas() {
       )}
 
       {!loading && !error && styledNodes.length === 0 && (
-        <div
-          className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-700/70 bg-slate-950/90 px-5 py-4 text-center shadow-lg"
-          data-testid="graph-empty"
-        >
-          <p className="text-sm font-medium text-slate-100">No nodes match the current graph controls.</p>
-          <p className="mt-1 text-xs text-slate-500">Try restoring entity or status visibility.</p>
-        </div>
+        lens === "flow" ? (
+          <FlowEmptyState hasFocusNode={!!focusNodeId} hint={meta?.hint} />
+        ) : (
+          <div
+            className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-700/70 bg-slate-950/90 px-5 py-4 text-center shadow-lg"
+            data-testid="graph-empty"
+          >
+            <p className="text-sm font-medium text-slate-100">No nodes match the current graph controls.</p>
+            <p className="mt-1 text-xs text-slate-500">Try restoring entity or status visibility.</p>
+          </div>
+        )
       )}
 
       {lens === "operations" && meta?.agentManagerAvailable === false && (

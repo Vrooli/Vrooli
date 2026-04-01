@@ -2,13 +2,12 @@
   "round": 1,
   "generated_at": "2026-03-31T12:00:00Z",
   "mode": "workshop",
-  "pending_synthesis": false,
   "readiness": {
-    "problem_clarity": 3,
-    "scope_defined": 3,
     "approach_solid": 2,
-    "testable": 2,
-    "risk_awareness": 2
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
   },
   "items": [
     {
@@ -39,9 +38,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "clarification_id": "b716ce1a-dc37-4cf1-b788-ed51f795cc31"
     },
     {
       "id": "d2",
@@ -51,7 +48,7 @@
       "options": [
         {
           "key": "A",
-          "label": "File-based: <data_dir>/identity-secret.key (0600 permissions)",
+          "label": "File-based: \u003cdata_dir\u003e/identity-secret.key (0600 permissions)",
           "rationale": "Simple, follows standard key storage patterns. Easy to back up or rotate manually. Keeps secrets out of the database. Recommended because it's the simplest approach and aligns with how other services handle signing keys.",
           "recommended": true
         },
@@ -65,10 +62,7 @@
           "label": "Other",
           "rationale": "Provide your own approach"
         }
-      ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      ]
     },
     {
       "id": "d3",
@@ -92,10 +86,7 @@
           "label": "Other",
           "rationale": "Provide your own approach"
         }
-      ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      ]
     },
     {
       "id": "d4",
@@ -105,7 +96,7 @@
       "options": [
         {
           "key": "A",
-          "label": "Derive from VROOLI_DATA env var (or default ~/.vrooli/data/), store at <data_dir>/identity-secret.key",
+          "label": "Derive from VROOLI_DATA env var (or default ~/.vrooli/data/), store at \u003cdata_dir\u003e/identity-secret.key",
           "rationale": "Aligns with existing data directory conventions. Simple. The secret lives near but separate from the SQLite DB. Recommended because VROOLI_DATA is the standard data root and avoids introducing new env vars.",
           "recommended": true
         },
@@ -119,10 +110,7 @@
           "label": "Other",
           "rationale": "Provide your own approach"
         }
-      ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      ]
     },
     {
       "id": "i1",

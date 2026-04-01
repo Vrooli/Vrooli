@@ -15,15 +15,14 @@ interface GraphHelpPanelProps {
   onClose: () => void;
 }
 
-function ShapePreview({ shapeClass, entityType }: { shapeClass: string; entityType: string }) {
-  const isDiamond = entityType === "backlog";
+function ShapePreview({ cssClass, clipPath }: { cssClass: string; clipPath: string | null }) {
   return (
     <div
       className={cn(
-        "w-6 h-6 border-2 border-slate-400/70 bg-slate-500/20 shrink-0",
-        shapeClass,
-        isDiamond && "w-5 h-5",
+        "w-8 h-4 border-2 border-slate-400/70 bg-slate-500/20 shrink-0",
+        cssClass,
       )}
+      style={clipPath ? { clipPath: `polygon(${clipPath})` } : undefined}
     />
   );
 }
@@ -60,7 +59,7 @@ export function GraphHelpPanel({ isOpen, onClose }: GraphHelpPanelProps) {
           <div className="grid grid-cols-2 gap-1.5">
             {ENTITY_SHAPE_INFO.map((info) => (
               <div key={info.entityType} className="flex items-center gap-2 rounded px-1.5 py-1">
-                <ShapePreview shapeClass={info.shapeClass} entityType={info.entityType} />
+                <ShapePreview cssClass={info.cssClass} clipPath={info.clipPath} />
                 <span className="text-[11px] text-slate-300">{info.label}</span>
               </div>
             ))}

@@ -19,6 +19,7 @@ import (
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/promptcatalog"
 	"swarm-manager/internal/prompttrace"
+	"swarm-manager/internal/workshop"
 )
 
 // parseResearchMode normalizes a raw mode string into a ResearchMode constant.
@@ -145,6 +146,17 @@ func buildVariableMap(item BacklogItem, itemFolder string) map[string]string {
 	vars["PLAN_DRAFT"] = LoadPlanContentByName(itemFolder, deliverable)
 	vars["WORKSHOP_HISTORY"] = BuildWorkshopHistory(rounds)
 	vars["ROUND_NUMBER"] = fmt.Sprintf("%03d", len(rounds)+1)
+
+	// Add distilled clarification context notes for future rounds.
+	clarifications, _ := workshop.LoadAllClarifications(itemFolder)
+	var clarNotes []string
+	for _, c := range clarifications {
+		if c.Status == "resolved" && c.LatestImpact != nil && c.LatestImpact.ContextNote != "" {
+			clarNotes = append(clarNotes, fmt.Sprintf("[Round %d, Item %s] %s",
+				c.RoundNumber, c.ItemID, c.LatestImpact.ContextNote))
+		}
+	}
+	vars["CLARIFICATION_NOTES"] = strings.Join(clarNotes, "\n")
 
 	return vars
 }

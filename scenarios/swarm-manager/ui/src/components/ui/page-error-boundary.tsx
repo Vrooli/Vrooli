@@ -21,7 +21,8 @@
 import { Component, type ReactNode } from "react";
 import { AlertTriangle, Home, RefreshCw } from "lucide-react";
 import { Button } from "./button";
-import { generateUniqueId } from "../../lib/error-utils";
+import { ErrorDiagnostics } from "./error-diagnostics";
+import { categorizeError, generateUniqueId } from "../../lib/error-utils";
 
 interface PageErrorBoundaryProps {
   /** Child components to render */
@@ -35,6 +36,9 @@ interface PageErrorBoundaryProps {
 interface PageErrorBoundaryState {
   hasError: boolean;
   errorId: string | null;
+  error: Error | null;
+  componentStack: string | null;
+  timestamp: string | null;
 }
 
 /** Error ID prefix for page-level error boundary */
@@ -54,11 +58,17 @@ const PAGE_ERROR_ID_PREFIX = "page_err";
 export class PageErrorBoundary extends Component<PageErrorBoundaryProps, PageErrorBoundaryState> {
   constructor(props: PageErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, errorId: null };
+    this.state = { hasError: false, errorId: null, error: null, componentStack: null, timestamp: null };
   }
 
-  static getDerivedStateFromError(): PageErrorBoundaryState {
-    return { hasError: true, errorId: generateUniqueId(PAGE_ERROR_ID_PREFIX) };
+  static getDerivedStateFromError(error: Error): PageErrorBoundaryState {
+    return {
+      hasError: true,
+      errorId: generateUniqueId(PAGE_ERROR_ID_PREFIX),
+      error,
+      componentStack: null,
+      timestamp: new Date().toISOString(),
+    };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
@@ -73,15 +83,18 @@ export class PageErrorBoundary extends Component<PageErrorBoundaryProps, PageErr
         timestamp: new Date().toISOString(),
       })
     );
+
+    // Capture component stack for on-screen diagnostics (commit phase)
+    this.setState({ componentStack: errorInfo.componentStack ?? null });
   }
 
   handleRetry = () => {
-    this.setState({ hasError: false, errorId: null });
+    this.setState({ hasError: false, errorId: null, error: null, componentStack: null, timestamp: null });
   };
 
   handleGoHome = () => {
     // Navigate to home and clear error state
-    this.setState({ hasError: false, errorId: null });
+    this.setState({ hasError: false, errorId: null, error: null, componentStack: null, timestamp: null });
     window.location.href = "/graph";
   };
 
@@ -117,6 +130,15 @@ export class PageErrorBoundary extends Component<PageErrorBoundaryProps, PageErr
             <p className="mt-4 text-xs text-slate-600">
               Error ID: {this.state.errorId}
             </p>
+            {this.state.error && this.state.timestamp && (
+              <ErrorDiagnostics
+                error={this.state.error}
+                componentStack={this.state.componentStack}
+                errorId={this.state.errorId}
+                category={categorizeError(this.state.error)}
+                timestamp={this.state.timestamp}
+              />
+            )}
           </div>
         </div>
       );

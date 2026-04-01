@@ -1,0 +1,16 @@
+{
+  "id": "b716ce1a-dc37-4cf1-b788-ed51f795cc31",
+  "round_number": 1,
+  "item_id": "d1",
+  "run_id": "4751b906-d0c4-46f7-83e8-7dc8f7c3678a",
+  "messages": [
+    {
+      "role": "user",
+      "content": "When you say the identity token must be invalidated what do you mean exactly are you saying that when a run completes will no longer be able to use the new agent manager end point to get information about that agent? If so, I don’t know if that’s correct that doesn’t seem right to me like I feel like you should still be able to get information about that agent unless you have a good reason could you just like clarify what what you mean here and if you if you think the current direction that the decision is implying is correct?",
+      "created_at": "2026-04-01T17:20:03Z"
+    }
+  ],
+  "status": "active",
+  "created_at": "2026-04-01T17:20:03Z",
+  "updated_at": "2026-04-01T17:20:03Z"
+}

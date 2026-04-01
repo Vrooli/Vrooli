@@ -51,10 +51,10 @@ func TestSkillUsageSummary(t *testing.T) {
 	if got := SkillUsageCount("swarm-manager-workshop"); got != 1 {
 		t.Fatalf("workshop direct usage count = %d, want 1", got)
 	}
-	if got := SkillUsageCount("swarm-manager-backlog-tools"); got != 5 {
-		t.Fatalf("backlog-tools reference count = %d, want 5", got)
+	if got := SkillUsageCount("swarm-manager-backlog-tools"); got != 6 {
+		t.Fatalf("backlog-tools reference count = %d, want 6", got)
 	}
-	if got := SkillImpactSummary("swarm-manager-backlog-tools"); got != "Referenced by 5 runtime prompt paths." {
+	if got := SkillImpactSummary("swarm-manager-backlog-tools"); got != "Referenced by 6 runtime prompt paths." {
 		t.Fatalf("unexpected backlog-tools summary: %q", got)
 	}
 	if got := SkillImpactSummary("spec-sync"); got != "Used directly by 1 runtime prompt path." {

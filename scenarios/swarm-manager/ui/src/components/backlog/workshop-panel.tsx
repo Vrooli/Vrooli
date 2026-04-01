@@ -83,8 +83,8 @@ interface WorkshopPanelProps {
 
 export function WorkshopPanel({
   rounds,
-  backlogKind: _backlogKind,
-  backlogName: _backlogName,
+  backlogKind,
+  backlogName,
   disabled,
   isSaving,
   isRunningWorkshop,
@@ -329,6 +329,9 @@ export function WorkshopPanel({
                     disabled={disabled}
                     onUpdate={(updated) => handleItemUpdate(round.round, updated)}
                     onDelete={() => handleItemDelete(round.round, item.id)}
+                    backlogKind={backlogKind}
+                    backlogName={backlogName}
+                    roundNumber={round.round}
                   />
                 ))}
               </div>

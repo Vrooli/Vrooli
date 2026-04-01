@@ -121,6 +121,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	if err := httputil.JSON(w, result); err != nil {
 		httputil.InternalError(w, "[initiatives] get", "failed to encode response")
 	}
+	h.service.RecordView(name)
 }
 
 // Update modifies an existing initiative.

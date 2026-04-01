@@ -5,10 +5,12 @@
  * FeedItemCard rendering and priority-based ordering.
  */
 
-import { Inbox } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, ChevronRight, Clock, Inbox } from "lucide-react";
 import { cn } from "../../../../lib/utils";
 import { formatRelativeTime } from "../../../../lib/format-utils";
-import { buildBacklogNodeId } from "../../lib/node-id-parser";
+import { useRecentlyViewedStore, type RecentlyViewedItem } from "../../../../stores/recently-viewed-store";
+import { buildBacklogNodeId, buildExecutionNodeId } from "../../lib/node-id-parser";
 import { matchesSearch } from "./useSidebarSearch";
 import type { FeedItem } from "../../../../lib/feed";
 
@@ -75,6 +77,88 @@ function FeedItemCard({ item, onClick }: { item: FeedItem; onClick: () => void }
   );
 }
 
+const entityTypeColors: Record<string, string> = {
+  backlog: "bg-blue-500/20 text-blue-300",
+  execution: "bg-cyan-500/20 text-cyan-300",
+  initiative: "bg-emerald-500/20 text-emerald-300",
+  scenario: "bg-purple-500/20 text-purple-300",
+};
+
+function recentItemToNodeId(item: RecentlyViewedItem): string {
+  switch (item.entityType) {
+    case "backlog":
+      return buildBacklogNodeId(item.kind!, item.name!);
+    case "execution":
+      return buildExecutionNodeId(item.identifier!);
+    case "initiative":
+      return `initiative/${item.name}`;
+    case "scenario":
+      return `scenario/${item.name}`;
+  }
+}
+
+const COLLAPSED_COUNT = 5;
+
+function RecentlyViewedSection({ onItemClick }: { onItemClick: (nodeId: string) => void }) {
+  const items = useRecentlyViewedStore((s) => s.items);
+  const [expanded, setExpanded] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+
+  if (items.length === 0) return null;
+
+  const visible = expanded ? items : items.slice(0, COLLAPSED_COUNT);
+  const hasMore = items.length > COLLAPSED_COUNT;
+
+  return (
+    <div className="mb-3">
+      <button
+        type="button"
+        onClick={() => setCollapsed(!collapsed)}
+        className="mb-1.5 flex w-full items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 hover:text-slate-300"
+      >
+        {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        <Clock className="h-3 w-3" />
+        Recently Viewed
+      </button>
+      {!collapsed && (
+        <div className="space-y-1">
+          {visible.map((item) => {
+            const nodeId = recentItemToNodeId(item);
+            const typeColor = entityTypeColors[item.entityType] ?? "bg-slate-700/60 text-slate-300";
+            return (
+              <button
+                key={nodeId}
+                type="button"
+                onClick={() => onItemClick(nodeId)}
+                className="w-full rounded-lg border border-slate-800/60 bg-slate-900/30 p-2 text-left transition-colors hover:border-slate-700/80 hover:bg-slate-800/60"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="line-clamp-1 text-[13px] font-medium leading-snug text-slate-100">
+                    {item.label}
+                  </p>
+                  <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium", typeColor)}>
+                    {item.entityType}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-[11px] text-slate-500">{formatRelativeTime(item.viewedAt)}</p>
+              </button>
+            );
+          })}
+          {hasMore && (
+            <button
+              type="button"
+              onClick={() => setExpanded(!expanded)}
+              className="w-full py-1 text-center text-[11px] text-slate-500 hover:text-slate-300"
+            >
+              {expanded ? "Show less" : `Show all (${items.length})`}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function getSearchableText(item: FeedItem): [string, string | undefined] {
   if (item.type === "capture") {
     return [item.capture.text, undefined];
@@ -101,6 +185,7 @@ export function ActivityTab({ feed, searchQuery, onItemClick }: ActivityTabProps
 
   return (
     <div className="space-y-1.5">
+      {!searchQuery && <RecentlyViewedSection onItemClick={onItemClick} />}
       {filtered.map((item, index) => {
         const nodeId =
           item.type === "capture"

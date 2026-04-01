@@ -165,3 +165,63 @@ func TestEmitNilPayload(t *testing.T) {
 		t.Errorf("expected nil metadata, got %s", e.Metadata)
 	}
 }
+
+func TestEmitClarificationStarted(t *testing.T) {
+	emitter, repo := setupEmitter(t)
+
+	emitter.EmitClarificationStarted("idea/my-item", 2, "d1", true)
+
+	e := lastEvent(t, repo)
+	if e.EntityType != eventlog.EntityBacklogItem {
+		t.Errorf("entity_type: got %q", e.EntityType)
+	}
+	if e.EventType != eventlog.EventClarificationStarted {
+		t.Errorf("event_type: got %q", e.EventType)
+	}
+
+	var p eventlog.ClarificationStartedPayload
+	if err := json.Unmarshal(e.Metadata, &p); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if p.RoundNumber != 2 || p.ItemID != "d1" || !p.HasMessage {
+		t.Errorf("payload: %+v", p)
+	}
+}
+
+func TestEmitClarificationResolved(t *testing.T) {
+	emitter, repo := setupEmitter(t)
+
+	emitter.EmitClarificationResolved("fix/bug-1", 1, "d3", 4, "decision")
+
+	e := lastEvent(t, repo)
+	if e.EventType != eventlog.EventClarificationResolved {
+		t.Errorf("event_type: got %q", e.EventType)
+	}
+
+	var p eventlog.ClarificationResolvedPayload
+	if err := json.Unmarshal(e.Metadata, &p); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if p.RoundNumber != 1 || p.ItemID != "d3" || p.MessageCount != 4 || p.ImpactLevel != "decision" {
+		t.Errorf("payload: %+v", p)
+	}
+}
+
+func TestEmitClarificationAction(t *testing.T) {
+	emitter, repo := setupEmitter(t)
+
+	emitter.EmitClarificationAction("chore/cleanup", 3, "d2", "invalidate_round")
+
+	e := lastEvent(t, repo)
+	if e.EventType != eventlog.EventClarificationAction {
+		t.Errorf("event_type: got %q", e.EventType)
+	}
+
+	var p eventlog.ClarificationActionPayload
+	if err := json.Unmarshal(e.Metadata, &p); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if p.RoundNumber != 3 || p.ItemID != "d2" || p.Action != "invalidate_round" {
+		t.Errorf("payload: %+v", p)
+	}
+}

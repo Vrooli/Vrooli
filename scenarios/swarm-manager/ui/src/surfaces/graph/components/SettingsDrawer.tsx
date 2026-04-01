@@ -4,26 +4,21 @@
 
 import { lazy, Suspense, useMemo, useState } from "react";
 import {
-  Activity,
   ChevronRight,
   Eye,
   FolderTree,
   LayoutGrid,
-  Lightbulb,
   Map as MapIcon,
   Maximize2,
-  MessageSquare,
-  Package,
   RefreshCw,
   RotateCcw,
   Rows3,
-  Target,
-  Zap,
 } from "lucide-react";
 import { FloatingPanel } from "../../../components/ui/floating-panel";
 import { cn } from "../../../lib/utils";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
+import { ENTITY_REGISTRY, GRAPH_ENTITY_TYPES } from "../lib/entity-shapes";
 import { ENTITY_STATUS_REGISTRY, getGraphNodeEntityType, getGraphNodeStatus } from "../types";
 import type { GraphEntityType } from "../types";
 import type { EntityType, GraphGroupingMode } from "../stores/graph-data-store";
@@ -43,15 +38,13 @@ interface SettingsDrawerProps {
   onClose: () => void;
 }
 
-const ENTITY_META: Array<{ type: EntityType; label: string; icon: React.ElementType }> = [
-  { type: "backlog", label: "Backlog", icon: Lightbulb },
-  { type: "scenario", label: "Scenarios", icon: Package },
-  { type: "execution", label: "Execution", icon: Zap },
-  { type: "agent-activity", label: "Activities", icon: Activity },
-  { type: "agent-run", label: "Runs", icon: Activity },
-  { type: "capture", label: "Captures", icon: MessageSquare },
-  { type: "initiative", label: "Initiatives", icon: Target },
-];
+/** Derived from ENTITY_REGISTRY — no hand-maintained list needed. */
+const ENTITY_META: Array<{ type: EntityType; label: string; icon: React.ElementType }> =
+  GRAPH_ENTITY_TYPES.map((et) => ({
+    type: et,
+    label: ENTITY_REGISTRY[et].label,
+    icon: ENTITY_REGISTRY[et].icon,
+  }));
 
 function GraphControlsContent() {
   const lens = useGraphDataStore((s) => s.lens);

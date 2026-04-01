@@ -16,8 +16,10 @@
 import { useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useDetailSelectionStore, type DetailSelection } from "../stores/detail-selection-store";
+import { useRecentlyViewedStore } from "../stores/recently-viewed-store";
 import { useGraphUIStore } from "../surfaces/graph/stores/graph-ui-store";
 import { useGraphDataStore, type GraphLens } from "../surfaces/graph/stores/graph-data-store";
+import { parseNodeId } from "../surfaces/graph/lib/node-id-parser";
 import { getGraphNodeLabel } from "../surfaces/graph/types";
 
 interface OpenDetailOptions {
@@ -77,8 +79,30 @@ export function useDetailNavigation(): DetailNavigation {
           if (selection.name) selectInitiative(selection.name, selection.tab);
           break;
       }
+
+      // Record recently viewed for the Activity tab section.
+      const node = nodes.find((n) => {
+        const parsed = parseNodeId(n.id);
+        if (!parsed) return false;
+        return (
+          parsed.entityType === selection.entityType &&
+          parsed.kind === selection.kind &&
+          parsed.name === selection.name &&
+          (parsed.identifier === selection.identifier || parsed.name === selection.identifier)
+        );
+      });
+      const label = node
+        ? getGraphNodeLabel(node)
+        : (selection.name ?? selection.identifier ?? "Unknown");
+      useRecentlyViewedStore.getState().recordView({
+        entityType: selection.entityType,
+        kind: selection.kind,
+        name: selection.name,
+        identifier: selection.identifier,
+        label,
+      });
     },
-    [saveSidebarState, setSidebarCollapsed, selectBacklog, selectScenario, selectExecution, selectInitiative],
+    [saveSidebarState, setSidebarCollapsed, selectBacklog, selectScenario, selectExecution, selectInitiative, nodes],
   );
 
   const closeDetail = useCallback(() => {
