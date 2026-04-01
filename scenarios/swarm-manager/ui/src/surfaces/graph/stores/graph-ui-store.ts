@@ -6,7 +6,7 @@
  */
 
 import { create } from "zustand";
-import type { Viewport } from "@xyflow/react";
+import type { ReactFlowInstance, Viewport } from "@xyflow/react";
 import type { GraphLens } from "./graph-data-store";
 
 export type LayoutMode = "hierarchical" | "compact" | "grouped";
@@ -175,6 +175,9 @@ export interface GraphUIState {
   expandedTopologyClusters: Set<string>;
   focusNodeLabel: string | null;
   sidebarWasOpenBeforeDetail: boolean;
+  /** Runtime-only ref to the React Flow instance. NOT persisted to localStorage.
+   *  Set by GraphCanvas on init; consumed by GraphNavControls for viewport manipulation. */
+  flowInstance: ReactFlowInstance | null;
   selectNode: (nodeId: string | null) => void;
   setHighlightState: (state: NodeHighlightState) => void;
   setLayoutMode: (mode: LayoutMode) => void;
@@ -193,6 +196,7 @@ export interface GraphUIState {
   setFocusNodeLabel: (label: string | null) => void;
   saveSidebarStateBeforeDetail: () => void;
   restoreSidebarStateAfterDetail: () => void;
+  setFlowInstance: (instance: ReactFlowInstance | null) => void;
 }
 
 const initialPrefs = typeof window !== "undefined" ? loadLayoutPreferences() : {};
@@ -213,6 +217,7 @@ export const graphUIInitialState = {
   sidebarWasOpenBeforeDetail: initialSidebarWasOpen,
   expandedTopologyClusters: new Set<string>(),
   focusNodeLabel: null as string | null,
+  flowInstance: null as ReactFlowInstance | null,
 };
 
 export const useGraphUIStore = create<GraphUIState>((set, get) => ({
@@ -340,6 +345,8 @@ export const useGraphUIStore = create<GraphUIState>((set, get) => ({
     saveSidebarWasOpenBeforeDetail(false);
     set({ sidebarWasOpenBeforeDetail: false });
   },
+
+  setFlowInstance: (instance) => set({ flowInstance: instance }),
 }));
 
 export function cloneGraphUIInitialState(): typeof graphUIInitialState {
@@ -357,5 +364,7 @@ export function cloneGraphUIInitialState(): typeof graphUIInitialState {
     },
     sidebarWasOpenBeforeDetail: graphUIInitialState.sidebarWasOpenBeforeDetail,
     expandedTopologyClusters: new Set(graphUIInitialState.expandedTopologyClusters),
+    // Runtime-only — always null in clones (tests, resets).
+    flowInstance: null,
   };
 }

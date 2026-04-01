@@ -30,6 +30,8 @@ export interface GraphLensSettings {
   showSecondaryEdges: boolean;
   autoFitOnChange: boolean;
   showMiniMap: boolean;
+  /** Show on-screen pan/zoom controls for TV and accessibility. */
+  showNavControls: boolean;
 }
 
 interface GraphLensSnapshot {
@@ -72,6 +74,7 @@ export interface GraphDataState {
   setGroupingMode: (mode: GraphGroupingMode) => void;
   setShowSecondaryEdges: (visible: boolean) => void;
   setShowMiniMap: (visible: boolean) => void;
+  setShowNavControls: (visible: boolean) => void;
   setAutoFitOnChange: (enabled: boolean) => void;
   resetLensSettings: (lens?: GraphLens) => void;
   setNodePulsing: (nodeId: string, pulsing: boolean) => void;
@@ -106,6 +109,7 @@ export function createDefaultLensSettings(lens: GraphLens): GraphLensSettings {
     showSecondaryEdges: true,
     autoFitOnChange: true,
     showMiniMap: false,
+    showNavControls: false,
   };
 }
 
@@ -125,6 +129,7 @@ function cloneLensSettings(settings: GraphLensSettings): GraphLensSettings {
     showSecondaryEdges: settings.showSecondaryEdges,
     autoFitOnChange: settings.autoFitOnChange,
     showMiniMap: settings.showMiniMap,
+    showNavControls: settings.showNavControls,
   };
 }
 
@@ -235,6 +240,10 @@ function loadPersistedSettings(): Record<GraphLens, GraphLensSettings> {
           typeof record.showMiniMap === "boolean"
             ? record.showMiniMap
             : defaults[lens].showMiniMap,
+        showNavControls:
+          typeof record.showNavControls === "boolean"
+            ? record.showNavControls
+            : defaults[lens].showNavControls,
       };
     }
 
@@ -623,6 +632,14 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
       updateLensSettings(state, state.lens, (settings) => ({
         ...settings,
         showMiniMap: visible,
+      })),
+    ),
+
+  setShowNavControls: (visible) =>
+    set((state) =>
+      updateLensSettings(state, state.lens, (settings) => ({
+        ...settings,
+        showNavControls: visible,
       })),
     ),
 

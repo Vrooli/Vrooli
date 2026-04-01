@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Eye,
   FolderTree,
+  Gamepad2,
   LayoutGrid,
   Map as MapIcon,
   Maximize2,
@@ -60,6 +61,7 @@ function GraphControlsContent() {
   const setGroupingMode = useGraphDataStore((s) => s.setGroupingMode);
   const setShowSecondaryEdges = useGraphDataStore((s) => s.setShowSecondaryEdges);
   const setShowMiniMap = useGraphDataStore((s) => s.setShowMiniMap);
+  const setShowNavControls = useGraphDataStore((s) => s.setShowNavControls);
   const setAutoFitOnChange = useGraphDataStore((s) => s.setAutoFitOnChange);
   const resetLensSettings = useGraphDataStore((s) => s.resetLensSettings);
 
@@ -291,6 +293,12 @@ function GraphControlsContent() {
             settings.showMiniMap,
             () => setShowMiniMap(!settings.showMiniMap),
             MapIcon,
+          )}
+          {renderToggleButton(
+            "Show Nav Controls",
+            settings.showNavControls,
+            () => setShowNavControls(!settings.showNavControls),
+            Gamepad2,
           )}
         </div>
       </section>

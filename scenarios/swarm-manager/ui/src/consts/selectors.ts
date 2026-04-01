@@ -331,6 +331,16 @@ export const literalSelectors = {
     versions: "prompts-versions",
     preview: "prompts-preview",
   },
+  graphNavControls: {
+    container: "graph-nav-controls",
+    panUp: "graph-nav-pan-up",
+    panDown: "graph-nav-pan-down",
+    panLeft: "graph-nav-pan-left",
+    panRight: "graph-nav-pan-right",
+    zoomIn: "graph-nav-zoom-in",
+    zoomOut: "graph-nav-zoom-out",
+    fitView: "graph-nav-fit-view",
+  },
 } as const;
 
 // =============================================================================

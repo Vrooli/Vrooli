@@ -34,6 +34,7 @@ import { PageLoadingState } from "../../../components/ui/loading-states";
 import { useCapturePolling } from "../../../hooks/useCapturePolling";
 
 import { GraphCanvas } from "./GraphCanvas";
+import { GraphNavControls } from "./GraphNavControls";
 import { CapturePanel } from "./CapturePanel";
 
 const BacklogDetailsPage = lazy(() =>
@@ -175,6 +176,8 @@ export function GraphWorkspace() {
   const selectNode = useGraphUIStore((s) => s.selectNode);
   const setHighlightState = useGraphUIStore((s) => s.setHighlightState);
   const applyLayoutForLens = useGraphUIStore((s) => s.applyLayoutForLens);
+
+  const showNavControls = useGraphDataStore((s) => s.settingsByLens[s.lens].showNavControls);
 
   const detailSelection = useDetailSelectionStore((s) => s.selection);
   const { openDetail } = useDetailNavigation();
@@ -469,6 +472,9 @@ export function GraphWorkspace() {
             onLensChange={handleLensChange}
             onReturnToAtlas={handleReturnToAtlas}
           />
+
+          {/* Row 3: On-screen pan/zoom for TV and accessibility (toggled via Settings) */}
+          {showNavControls && <GraphNavControls />}
         </div>
 
         {/* Floating panels */}

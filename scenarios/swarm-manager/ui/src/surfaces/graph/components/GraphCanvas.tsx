@@ -375,11 +375,14 @@ export const GraphCanvas = memo(function GraphCanvas() {
     [lens, setViewportForLens],
   );
 
+  const setFlowInstance = useGraphUIStore((s) => s.setFlowInstance);
+
   const handleInit = useCallback(
     (instance: ReactFlowInstance<GraphNode, GraphEdge>) => {
       flowRef.current = instance;
+      setFlowInstance(instance);
     },
-    [],
+    [setFlowInstance],
   );
 
   // PERF: Read the initial viewport once at mount time, not reactively.
