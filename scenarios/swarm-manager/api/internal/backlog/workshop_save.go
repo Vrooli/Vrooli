@@ -231,6 +231,7 @@ func (h *Handler) spawnWorkshopAsync(item BacklogItem, mode ResearchMode) (runID
 		ProjectRoot: ".",
 		CreatedBy:   "swarm-manager",
 		Purpose:     "research",
+		Environment: map[string]string{"VROOLI_SPAWN_SOURCE": string(item.Kind) + "/" + item.Name},
 	})
 	if err != nil {
 		return "", "", fmt.Errorf("spawn failed: %w", err)

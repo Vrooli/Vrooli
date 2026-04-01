@@ -52,6 +52,7 @@ type CreateBacklogRequest struct {
 	Effort          string   `json:"effort,omitempty"`
 	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
+	SpawnedFrom     string   `json:"spawned_from,omitempty"`
 }
 
 type UpdateBacklogRequest struct {

@@ -1375,6 +1375,14 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if len(protoReq.Environment) > 0 {
+		if err := validateCustomEnvironment(protoReq.Environment); err != nil {
+			writeSimpleError(w, r, "environment", err.Error())
+			return
+		}
+		req.Environment = protoReq.Environment
+	}
+
 	run, err := h.svc.CreateRun(r.Context(), req)
 	if err != nil {
 		writeError(w, r, err)
@@ -1384,6 +1392,25 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 	writeProtoJSON(w, http.StatusCreated, &apipb.CreateRunResponse{
 		Run: protoconv.RunToProto(run),
 	})
+}
+
+// validateCustomEnvironment validates that custom environment variables use
+// the VROOLI_ prefix and don't exceed size limits.
+func validateCustomEnvironment(env map[string]string) error {
+	if len(env) > 20 {
+		return fmt.Errorf("max 20 entries allowed, got %d", len(env))
+	}
+	totalSize := 0
+	for k, v := range env {
+		if !strings.HasPrefix(k, "VROOLI_") {
+			return fmt.Errorf("key %q must start with VROOLI_ prefix", k)
+		}
+		totalSize += len(k) + len(v)
+	}
+	if totalSize > 4096 {
+		return fmt.Errorf("total size %d exceeds 4096 byte limit", totalSize)
+	}
+	return nil
 }
 
 // CreateInvestigationRun creates a new investigation run for specified run IDs.

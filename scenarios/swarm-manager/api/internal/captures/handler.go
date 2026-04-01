@@ -578,6 +578,7 @@ func (h *Handler) spawnClassifyAgent(r *http.Request, cap *capture) (*agentmanag
 		ProjectRoot: ".",
 		CreatedBy:   "swarm-manager",
 		Purpose:     "classify",
+		Environment: map[string]string{"VROOLI_SPAWN_SOURCE": "capture/" + cap.ID},
 	})
 	if err != nil {
 		return nil, err

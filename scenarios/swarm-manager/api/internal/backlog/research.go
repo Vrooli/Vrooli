@@ -347,6 +347,7 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		ProjectRoot: projectRoot,
 		CreatedBy:   "swarm-manager",
 		Purpose:     "research",
+		Environment: map[string]string{"VROOLI_SPAWN_SOURCE": string(kind) + "/" + item.Name},
 	})
 	if err != nil {
 		if errors.Is(err, agentmanager.ErrNotAvailable) {

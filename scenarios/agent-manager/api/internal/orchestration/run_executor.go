@@ -130,6 +130,9 @@ type RunExecutor struct {
 
 	// Sandbox finalization state
 	sandboxFinalized bool
+
+	// Custom environment variables injected by API callers.
+	customEnv map[string]string
 }
 
 // NewRunExecutor creates a new executor for the given run.
@@ -218,6 +221,14 @@ func (e *RunExecutor) WithBroadcaster(b EventBroadcaster) *RunExecutor {
 // WithAttachments sets image attachments resolved from storage for the initial execution.
 func (e *RunExecutor) WithAttachments(attachments []runner.Attachment) *RunExecutor {
 	e.attachments = attachments
+	return e
+}
+
+// WithCustomEnvironment sets caller-provided environment variables that will
+// be merged into the agent process environment. Sandbox variables take
+// precedence on key conflicts.
+func (e *RunExecutor) WithCustomEnvironment(env map[string]string) *RunExecutor {
+	e.customEnv = env
 	return e
 }
 
@@ -866,7 +877,7 @@ func (e *RunExecutor) executeAgent(ctx context.Context, r runner.Runner) {
 		SystemPrompt:   e.systemPrompt,
 		EventSink:      eventSink,
 		Attachments:    e.attachments,
-		Environment:    e.SandboxEnvVars(),
+		Environment:    e.MergedEnvVars(),
 	}
 
 	// Execute
@@ -938,6 +949,28 @@ func (e *RunExecutor) SandboxEnvVars() map[string]string {
 		vars["VROOLI_SANDBOX_SCOPE"] = e.task.ScopePath
 	}
 	return vars
+}
+
+// MergedEnvVars returns custom env vars merged with sandbox env vars.
+// Sandbox vars take precedence on key conflicts to prevent callers from
+// overriding VROOLI_SANDBOX_MERGED or other system-managed variables.
+func (e *RunExecutor) MergedEnvVars() map[string]string {
+	sandbox := e.SandboxEnvVars()
+	if len(e.customEnv) == 0 {
+		return sandbox
+	}
+	merged := make(map[string]string, len(e.customEnv)+len(sandbox))
+	for k, v := range e.customEnv {
+		merged[k] = v
+	}
+	// Sandbox vars override custom vars for security.
+	for k, v := range sandbox {
+		merged[k] = v
+	}
+	if len(merged) == 0 {
+		return nil
+	}
+	return merged
 }
 
 func (e *RunExecutor) createEventSink() runner.EventSink {

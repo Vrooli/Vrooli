@@ -1863,6 +1863,99 @@ func TestUpdate_Acceptance(t *testing.T) {
 	}
 }
 
+func TestCreate_WithSpawnedFrom(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	payload := map[string]any{
+		"name":         "spawned-item",
+		"title":        "Spawned Item",
+		"kind":         "execute",
+		"spawned_from": "research/agent-identity-standard",
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("POST", "/api/v1/backlog", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+	testutil.AssertStatusCreated(t, w)
+
+	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
+	if resp.Item.SpawnedFrom != "research/agent-identity-standard" {
+		t.Errorf("expected spawned_from 'research/agent-identity-standard', got %q", resp.Item.SpawnedFrom)
+	}
+
+	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "execute", "spawned-item", "spec.json"))
+	if saved.SpawnedFrom != "research/agent-identity-standard" {
+		t.Errorf("expected saved spawned_from 'research/agent-identity-standard', got %q", saved.SpawnedFrom)
+	}
+}
+
+func TestList_FilterBySpawnedFrom(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	// Create two items, one with spawned_from
+	item1 := BacklogItem{
+		Name: "spawned-a", Title: "Spawned A", Status: StatusBacklog, Priority: 5,
+		Tags: []string{}, Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
+		SpawnedFrom: "research/my-research",
+	}
+	item2 := BacklogItem{
+		Name: "unrelated", Title: "Unrelated", Status: StatusBacklog, Priority: 5,
+		Tags: []string{}, Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindExecute, item1)
+	createTestItem(t, rootDir, KindExecute, item2)
+
+	req := httptest.NewRequest("GET", "/api/v1/backlog?spawned_from=research/my-research", nil)
+	w := httptest.NewRecorder()
+
+	h.List(w, req)
+	testutil.AssertStatusOK(t, w)
+
+	resp := testutil.DecodeJSON[backlogListResponse](t, w)
+	if len(resp.Items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(resp.Items))
+	}
+	if resp.Items[0].Name != "spawned-a" {
+		t.Errorf("expected 'spawned-a', got %q", resp.Items[0].Name)
+	}
+}
+
+func TestUpdate_SpawnedFrom(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	item := BacklogItem{
+		Name: "update-sf-test", Title: "Update SF Test", Status: StatusBacklog, Priority: 5,
+		Tags: []string{}, Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindExecute, item)
+
+	payload := map[string]any{
+		"spawned_from": "research/my-research",
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("PATCH", "/api/v1/backlog/execute/update-sf-test", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "execute", "name": "update-sf-test"})
+	w := httptest.NewRecorder()
+
+	h.Update(w, req)
+	testutil.AssertStatusOK(t, w)
+
+	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
+	if resp.Item.SpawnedFrom != "research/my-research" {
+		t.Errorf("expected spawned_from 'research/my-research', got %q", resp.Item.SpawnedFrom)
+	}
+
+	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "execute", "update-sf-test", "spec.json"))
+	if saved.SpawnedFrom != "research/my-research" {
+		t.Errorf("expected saved spawned_from 'research/my-research', got %q", saved.SpawnedFrom)
+	}
+}
+
 func TestWorkshopDeleteRound_Success(t *testing.T) {
 	h, rootDir := setupTestHandler(t)
 

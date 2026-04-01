@@ -128,6 +128,28 @@ func requireFlags(pairs ...string) error {
 	return nil
 }
 
+// injectJSONField adds a key-value pair to a JSON object if the key is not
+// already present. Returns the original payload on any error.
+func injectJSONField(payload json.RawMessage, key, value string) json.RawMessage {
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(payload, &m); err != nil {
+		return payload
+	}
+	if _, exists := m[key]; exists {
+		return payload
+	}
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return payload
+	}
+	m[key] = encoded
+	result, err := json.Marshal(m)
+	if err != nil {
+		return payload
+	}
+	return result
+}
+
 func parseJSONString(raw string) (json.RawMessage, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {

@@ -18,7 +18,7 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef, type MouseEvent, type PointerEvent } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   Archive,
   ArrowRightLeft,
@@ -30,6 +30,7 @@ import {
   FileText,
   Files,
   FolderOpen,
+  GitBranch,
   Info,
   Lock,
   Loader2,
@@ -308,6 +309,13 @@ export function BacklogDetailsPage() {
     () => item ? computeDependencyRelations(item, allBacklogItems) : { parents: [], children: [] },
     [item, allBacklogItems],
   );
+
+  const spawnRef = item ? `${item.kind}/${item.name}` : "";
+  const { data: spawnedItems } = useQuery({
+    queryKey: ["backlog", "spawned-from", spawnRef],
+    queryFn: () => backlogService.listBySpawnedFrom(spawnRef),
+    enabled: !!spawnRef,
+  });
 
   useEffect(() => {
     const desc = item?.description ?? "";
@@ -1597,6 +1605,39 @@ export function BacklogDetailsPage() {
             depStatusMutation.mutate({ kind: dep.kind, depName: dep.name, newStatus })
           }
         />
+        {item.spawnedFrom && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
+              <GitBranch className="h-3.5 w-3.5" />
+              Spawned from
+            </div>
+            <Link
+              to={`/backlog/${item.spawnedFrom}`}
+              className="inline-flex items-center rounded-full bg-violet-500/15 px-2.5 py-1 text-xs font-medium text-violet-400 transition-colors hover:bg-violet-500/25 hover:text-violet-300"
+            >
+              {item.spawnedFrom}
+            </Link>
+          </div>
+        )}
+        {spawnedItems && spawnedItems.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
+              <GitBranch className="h-3.5 w-3.5" />
+              Spawned items
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {spawnedItems.map((si) => (
+                <Link
+                  key={`${si.kind}/${si.name}`}
+                  to={`/backlog/${si.kind}/${si.name}`}
+                  className="inline-flex items-center rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-emerald-400 transition-colors hover:bg-emerald-500/25 hover:text-emerald-300"
+                >
+                  {si.title}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="space-y-2 border-t border-slate-800 pt-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">

@@ -395,6 +395,15 @@ export function RunsPage({
     }
   }, [runs, applyInvestigationRun]);
 
+  // Clear deselecting guard only after the router has actually processed
+  // the navigation (runId becomes undefined). This prevents the URL-sync
+  // effect from re-selecting the run due to a stale runId param.
+  useEffect(() => {
+    if (isDeselectingRef.current && !runId) {
+      isDeselectingRef.current = false;
+    }
+  }, [runId]);
+
   // Load run from URL params when component mounts or runId changes
   useEffect(() => {
     if (isDeselectingRef.current) return;
@@ -797,8 +806,6 @@ export function RunsPage({
           isDeselectingRef.current = true;
           setSelectedRun(null);
           navigate("/runs");
-          // Clear after React processes the navigation
-          requestAnimationFrame(() => { isDeselectingRef.current = false; });
         }}
         detailTitle={selectedRun ? getTaskTitle(selectedRun.taskId) : "Run Details"}
         detailHeaderLeft={selectedRun ? mobileHeaderLeft : undefined}

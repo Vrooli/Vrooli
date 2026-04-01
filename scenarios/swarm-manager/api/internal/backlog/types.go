@@ -62,6 +62,7 @@ type BacklogItem struct {
 	Effort          string        `json:"effort,omitempty"`
 	AcceptanceAllow []string      `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string      `json:"acceptance_deny,omitempty"`
+	SpawnedFrom     string        `json:"spawned_from,omitempty"`
 }
 
 // BacklogFile represents a file or directory within a backlog item folder.
@@ -186,6 +187,9 @@ func backlogToProto(item BacklogItem) *domainpb.BacklogItem {
 	}
 	if len(item.AcceptanceDeny) > 0 {
 		result.AcceptanceDeny = item.AcceptanceDeny
+	}
+	if strings.TrimSpace(item.SpawnedFrom) != "" {
+		result.SpawnedFrom = &item.SpawnedFrom
 	}
 	return result
 }

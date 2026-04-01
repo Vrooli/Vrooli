@@ -93,6 +93,7 @@ export interface WorkshopSaveResponse {
  */
 export interface IBacklogService {
   list(kinds?: BacklogKind[]): Promise<BacklogItem[]>;
+  listBySpawnedFrom(spawnedFrom: string): Promise<BacklogItem[]>;
   get(kind: BacklogKind, name: string): Promise<BacklogItem>;
   create(item: Omit<BacklogItem, "created" | "updated">): Promise<BacklogItem>;
   update(
@@ -249,6 +250,12 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
     async list(kinds?: BacklogKind[]): Promise<BacklogItem[]> {
       const query = kinds && kinds.length > 0 ? `?kinds=${kinds.join(",")}` : "";
       const data = await apiClient.get<unknown>(`${API_ENDPOINTS.backlog}${query}`);
+      const parsed = parseProtoResponse(listBacklogResponseSchema, data, "backlog list");
+      return parsed.items.map(mapProtoBacklogItem);
+    },
+
+    async listBySpawnedFrom(spawnedFrom: string): Promise<BacklogItem[]> {
+      const data = await apiClient.get<unknown>(`${API_ENDPOINTS.backlog}?spawned_from=${encodeURIComponent(spawnedFrom)}`);
       const parsed = parseProtoResponse(listBacklogResponseSchema, data, "backlog list");
       return parsed.items.map(mapProtoBacklogItem);
     },

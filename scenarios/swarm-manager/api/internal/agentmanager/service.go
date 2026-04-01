@@ -272,6 +272,7 @@ type BacklogSpawnRequest struct {
 	Purpose         string
 	AcceptanceAllow []string
 	AcceptanceDeny  []string
+	Environment     map[string]string
 }
 
 // RunResult returns agent-manager identifiers.
@@ -420,6 +421,9 @@ func (s *AgentService) SpawnBacklog(ctx context.Context, req BacklogSpawnRequest
 	}
 	if prompt := strings.TrimSpace(req.Prompt); prompt != "" {
 		runReq.Prompt = &prompt
+	}
+	if len(req.Environment) > 0 {
+		runReq.Environment = req.Environment
 	}
 	if len(req.AcceptanceAllow) > 0 || len(req.AcceptanceDeny) > 0 {
 		acceptance := &domainpb.SandboxAcceptanceConfig{

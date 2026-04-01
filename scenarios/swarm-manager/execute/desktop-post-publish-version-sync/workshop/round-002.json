@@ -1,0 +1,144 @@
+{
+  "round": 2,
+  "generated_at": "2026-03-31T12:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 2,
+    "testable": 2,
+    "risk_awareness": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Orchestrator integration point for version extraction",
+      "context": "The current orchestrator (DeployDesktop handler) runs: validate → build → package → desktop gen → installers → visual validation. It does NOT currently have a 'publish to LPBS' step — that happens through scenario-to-desktop's pipeline separately. For the pull approach to work, we need to decide where version extraction fits. Option A adds a new pipeline-triggering step to the existing orchestrator. Option B adds extraction to whatever code currently triggers the pipeline (which may be external/CLI). Option C adds a separate post-deploy reconciliation endpoint.",
+      "options": [
+        {
+          "key": "A",
+          "label": "New orchestrator step: trigger pipeline + extract version",
+          "rationale": "Add a Step 9 'Publish to LPBS' that triggers scenario-to-desktop's full pipeline (POST /api/v1/pipeline/run), polls for completion, and extracts DeployResult + Provenance from the final status. This makes the orchestrator the single entry point for the entire flow. Recommended because it keeps the workflow cohesive — build, package, AND publish in one orchestrator call.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Hook into existing pipeline trigger location",
+          "rationale": "Find wherever the pipeline is currently triggered (may be CLI, may be manual) and add version extraction there. Lighter touch but requires understanding the current publish trigger path, which may be ad-hoc."
+        },
+        {
+          "key": "C",
+          "label": "Separate reconciliation endpoint (POST /api/v1/profiles/{id}/sync-versions)",
+          "rationale": "Add a standalone endpoint that, when called, queries scenario-to-desktop for the latest pipeline status and extracts/persists version data. Can be called after any publish, regardless of how it was triggered. More flexible but adds a manual step."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Repository placement: separate package or extend deployments",
+      "context": "deployment-manager uses a repository-per-domain pattern: profiles.Repository (profiles package), ApprovalsRepository (deployments package). The new PublishedVersionsRepository needs a home. It's conceptually tied to deployments (a publish happens as part of a deploy) but could also be its own package for cleaner separation.",
+      "options": [
+        {
+          "key": "A",
+          "label": "In deployments package alongside ApprovalsRepository",
+          "rationale": "Published versions are a deployment concern. Keeps related code together. The orchestrator already lives in this package and would be the primary caller. Recommended for simplicity — no new package, no new import cycles.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "New published package (published.Repository)",
+          "rationale": "Cleaner domain separation. The query endpoint handler doesn't need to import the whole deployments package. But adds a new package for a single table/entity."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "DeployResult deserialization strategy from pipeline status",
+      "context": "scenario-to-desktop's pipeline Status stores stage results in Stages map[string]*StageResult, where StageResult.Details is interface{}. When the orchestrator receives this as JSON (via HTTP polling), Details will be a map[string]interface{} at the Go level. We need to convert this to a typed struct to extract ArtifactID and Platform. There are two common approaches.",
+      "options": [
+        {
+          "key": "A",
+          "label": "JSON round-trip: marshal Details to JSON, unmarshal to local DeployResult type",
+          "rationale": "Define a local DeployResult struct in deployment-manager mirroring the fields we care about (artifacts, update_url). Marshal the interface{} back to JSON bytes, then unmarshal into the typed struct. Standard Go pattern for dealing with interface{} from JSON. Recommended — simple, explicit, no coupling to scenario-to-desktop's Go types.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Type assertion with map traversal",
+          "rationale": "Manually walk the map[string]interface{} to extract fields. More error-prone and verbose but avoids the double serialization. Not recommended unless performance is critical (it isn't — this runs once per deploy)."
+        },
+        {
+          "key": "C",
+          "label": "Import scenario-to-desktop types directly",
+          "rationale": "Import pipeline.DeployResult from scenario-to-desktop. Strongest typing but creates a Go module dependency between scenarios, which violates the inter-scenario boundary. Not recommended."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Pipeline trigger configuration for LPBS publish",
+      "context": "If the orchestrator adds a 'publish to LPBS' step (d1 option A), it needs to know which pipeline stages to run and what config to pass. scenario-to-desktop's pipeline supports selective stage execution. The question is what pipeline config the orchestrator should send.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Run deploy stage only, passing pre-built artifact paths",
+          "rationale": "The orchestrator already builds and packages everything. Only the deploy (upload to LPBS) stage is needed. Pass the built installer paths as input artifacts to the pipeline run request. Minimizes redundant work. Recommended — the orchestrator already did the heavy lifting.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Run full pipeline from build through deploy",
+          "rationale": "Let scenario-to-desktop handle the entire flow end-to-end. Simpler config but duplicates work the orchestrator already did (build, package). Would require rethinking the orchestrator's role."
+        },
+        {
+          "key": "C",
+          "label": "Defer: don't add pipeline trigger yet, just add the version extraction + persist logic as a reusable function",
+          "rationale": "Implement the extraction and persist logic so it's ready, but don't wire the pipeline trigger in this item. The trigger can be added when the orchestrator's publish step is built (possibly a separate backlog item). This keeps this item focused on the data model and query side."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The orchestrator currently has no 'publish to LPBS' step. Steps go: validate → resolve deps → build → swap check → bundle manifest → desktop gen → runtime validate → build installers → visual validation. The actual LPBS publish happens through scenario-to-desktop's pipeline, which is triggered separately. Decision d1 determines whether we add publish as a new orchestrator step or handle version sync differently."
+    }
+  ],
+  "plan_updates": "Updated plan with all round 1 decisions incorporated: pull approach, full history schema (removed UNIQUE constraint, added index), non-fatal error handling, BuildProvenance.Version source. Added detailed technical context from codebase exploration including exact struct definitions, current orchestrator step flow, and Details deserialization challenge. Added File Change Manifest section. Refined testing plan with mock/stub strategy."
+}

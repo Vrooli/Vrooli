@@ -6,8 +6,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -1887,6 +1889,66 @@ func TestListRuns_OmitsHeavyFields(t *testing.T) {
 	}
 	// Just verifying the Get endpoint works — newly created runs may not have
 	// summary/resolvedConfig set yet, but the endpoint should return the full object.
+}
+
+// =============================================================================
+// CUSTOM ENVIRONMENT VALIDATION TESTS
+// =============================================================================
+
+func TestValidateCustomEnvironment_Valid(t *testing.T) {
+	env := map[string]string{
+		"VROOLI_SPAWN_SOURCE": "research/my-research",
+		"VROOLI_CUSTOM_VAR":   "value",
+	}
+	if err := validateCustomEnvironment(env); err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+}
+
+func TestValidateCustomEnvironment_InvalidPrefix(t *testing.T) {
+	env := map[string]string{
+		"PATH": "/usr/bin",
+	}
+	err := validateCustomEnvironment(env)
+	if err == nil {
+		t.Fatal("expected error for non-VROOLI_ prefix")
+	}
+	if !strings.Contains(err.Error(), "VROOLI_") {
+		t.Errorf("error should mention VROOLI_ prefix, got: %v", err)
+	}
+}
+
+func TestValidateCustomEnvironment_TooManyEntries(t *testing.T) {
+	env := make(map[string]string, 21)
+	for i := range 21 {
+		env[fmt.Sprintf("VROOLI_VAR_%d", i)] = "v"
+	}
+	err := validateCustomEnvironment(env)
+	if err == nil {
+		t.Fatal("expected error for >20 entries")
+	}
+	if !strings.Contains(err.Error(), "20") {
+		t.Errorf("error should mention limit, got: %v", err)
+	}
+}
+
+func TestValidateCustomEnvironment_TooLarge(t *testing.T) {
+	env := map[string]string{
+		"VROOLI_BIG": strings.Repeat("x", 5000),
+	}
+	err := validateCustomEnvironment(env)
+	if err == nil {
+		t.Fatal("expected error for oversized env")
+	}
+	if !strings.Contains(err.Error(), "4096") {
+		t.Errorf("error should mention size limit, got: %v", err)
+	}
+}
+
+func TestValidateCustomEnvironment_Empty(t *testing.T) {
+	if err := validateCustomEnvironment(map[string]string{}); err != nil {
+		t.Errorf("expected no error for empty map, got %v", err)
+	}
 }
 
 // Compile-time interface check

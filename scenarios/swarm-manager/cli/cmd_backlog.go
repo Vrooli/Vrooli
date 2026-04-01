@@ -182,6 +182,14 @@ func (a *App) cmdBacklogCreate(args []string) error {
 		return err
 	}
 
+	// Auto-detect spawn provenance from environment. The agent process
+	// inherits VROOLI_SPAWN_SOURCE from the parent (set by swarm-manager
+	// when spawning via agent-manager). Inject it into the create payload
+	// so the API can persist the link automatically.
+	if spawnSource := os.Getenv("VROOLI_SPAWN_SOURCE"); spawnSource != "" {
+		payload = injectJSONField(payload, "spawned_from", spawnSource)
+	}
+
 	var req CreateBacklogRequest
 	if err := decodeJSONStrict(payload, &req); err != nil {
 		return fmt.Errorf("invalid JSON: %w", err)

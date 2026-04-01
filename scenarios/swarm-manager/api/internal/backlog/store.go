@@ -212,6 +212,11 @@ func (s *FileStore) SaveItem(item BacklogItem) error {
 	} else {
 		delete(merged, "acceptance_deny")
 	}
+	if strings.TrimSpace(item.SpawnedFrom) != "" {
+		merged["spawned_from"] = item.SpawnedFrom
+	} else {
+		delete(merged, "spawned_from")
+	}
 
 	data, err := json.MarshalIndent(merged, "", "  ")
 	if err != nil {

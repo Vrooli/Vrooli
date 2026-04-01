@@ -255,6 +255,16 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 	items = filterByStatus(items, statusFilter)
 
+	if sf := r.URL.Query().Get("spawned_from"); sf != "" {
+		filtered := items[:0]
+		for _, item := range items {
+			if item.SpawnedFrom == sf {
+				filtered = append(filtered, item)
+			}
+		}
+		items = filtered
+	}
+
 	// Sort by priority (ascending) then by updated (descending)
 	sort.Slice(items, func(i, j int) bool {
 		if items[i].Priority != items[j].Priority {
@@ -376,6 +386,11 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	spawnedFrom := ""
+	if req.SpawnedFrom != nil {
+		spawnedFrom = strings.TrimSpace(*req.SpawnedFrom)
+	}
+
 	item := BacklogItem{
 		Name:            name,
 		Title:           req.Title,
@@ -391,6 +406,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		Effort:          effort,
 		AcceptanceAllow: req.AcceptanceAllow,
 		AcceptanceDeny:  req.AcceptanceDeny,
+		SpawnedFrom:     spawnedFrom,
 	}
 
 	itemDir := h.store.ItemDir(kind, name)

@@ -233,6 +233,10 @@ type CreateRunRequest struct {
 	// If provided and a run with this key already exists, the existing run is returned.
 	// Format suggestion: "run:{taskID}:{timestamp}" or caller-defined unique string.
 	IdempotencyKey string `json:"idempotencyKey,omitempty"`
+
+	// Environment passes custom VROOLI_-prefixed environment variables to the
+	// agent process. Merged with sandbox env vars; sandbox vars take precedence.
+	Environment map[string]string `json:"environment,omitempty"`
 }
 
 // ProfileRef identifies a profile by key with optional defaults.
@@ -1154,7 +1158,7 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 	}
 
 	// Start execution asynchronously
-	go o.executeRun(context.Background(), run, task, profile, userMessage, systemPrompt, existingSandboxWorkDir, imageAttachments)
+	go o.executeRun(context.Background(), run, task, profile, userMessage, systemPrompt, existingSandboxWorkDir, imageAttachments, req.Environment)
 
 	return o.attachRunActions(ctx, run), nil
 }
@@ -2009,7 +2013,7 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 
 // executeRun handles the actual agent execution (runs in background).
 // This delegates to RunExecutor for the actual work.
-func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *domain.Task, profile *domain.AgentProfile, prompt string, systemPrompt string, existingSandboxWorkDir string, attachments []runner.Attachment) {
+func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *domain.Task, profile *domain.AgentProfile, prompt string, systemPrompt string, existingSandboxWorkDir string, attachments []runner.Attachment, customEnv map[string]string) {
 	executor := NewRunExecutor(
 		o.runs,
 		o.runners,
@@ -2051,6 +2055,9 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 	}
 	if len(attachments) > 0 {
 		executor.WithAttachments(attachments)
+	}
+	if len(customEnv) > 0 {
+		executor.WithCustomEnvironment(customEnv)
 	}
 	executor.WithRecommendationQueueFilter(o.recommendationQueueFilter(ctx))
 	executor.Execute(ctx)

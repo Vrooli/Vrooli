@@ -1,0 +1,134 @@
+{
+  "round": 1,
+  "generated_at": "2026-03-31T12:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 2,
+    "testable": 2,
+    "risk_awareness": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Revocation tracking mechanism",
+      "context": "When a run completes, fails, or is cancelled, its identity token must be invalidated. The research identified two approaches but did not settle on one. The choice affects restart resilience and complexity.",
+      "options": [
+        {
+          "key": "A",
+          "label": "In-memory sync.Map of revoked run IDs",
+          "rationale": "Simplest implementation. O(1) lookup. No schema migration. Downside: revocation state lost on restart, but 24h TTL provides a natural ceiling — tokens expire anyway. Recommended because agent-manager is a single-process service and restarts are infrequent.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "DB column (identity_revoked_at) on runs table",
+          "rationale": "Survives restarts. Slightly more complex (schema migration + query). But runs table already tracks terminal status — verification could just check run.Status instead of a separate column, making this nearly free."
+        },
+        {
+          "key": "C",
+          "label": "Check run terminal status directly (no separate revocation store)",
+          "rationale": "Instead of tracking revocation separately, the verify endpoint queries the run's current status. If status is terminal (complete/failed/cancelled), the token is considered revoked. Zero additional storage, leverages existing data. Downside: couples verification to run repository."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Secret key storage location",
+      "context": "The HMAC secret must persist across restarts. Agent-manager uses SQLite for all persistence (default path: ~/.vrooli/data/sqlite/databases/agent-manager.db). The secret could live as a file alongside the DB or in a dedicated table.",
+      "options": [
+        {
+          "key": "A",
+          "label": "File-based: <data_dir>/identity-secret.key (0600 permissions)",
+          "rationale": "Simple, follows standard key storage patterns. Easy to back up or rotate manually. Keeps secrets out of the database. Recommended because it's the simplest approach and aligns with how other services handle signing keys.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "SQLite table: identity_config with a single row storing the key",
+          "rationale": "Co-located with other state. Backed up with DB backups automatically. But mixing secrets into the database is generally discouraged."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Identity package location and dependency direction",
+      "context": "Token generation/verification logic needs a home. It should be testable in isolation and usable from both the orchestration layer (for generation) and the handler layer (for verification).",
+      "options": [
+        {
+          "key": "A",
+          "label": "New internal/identity/ package (token.go + secret.go)",
+          "rationale": "Clean separation. No circular deps — both orchestration and handlers import it. Easy to unit test. Recommended because it follows the existing pattern of internal/ subpackages for distinct concerns.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Add to existing internal/domain/ package",
+          "rationale": "Keeps all domain concepts together. But domain/ is already large and identity is more of an infrastructure concern than a domain concept."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Data directory resolution for secret storage",
+      "context": "Agent-manager resolves its SQLite path through a precedence chain (AM_SQLITE_PATH → DATABASE_URL → SQLITE_DATABASE_PATH → VROOLI_DATA → default). The secret key needs a similar resolution. Should it derive from the same chain or use a simpler approach?",
+      "options": [
+        {
+          "key": "A",
+          "label": "Derive from VROOLI_DATA env var (or default ~/.vrooli/data/), store at <data_dir>/identity-secret.key",
+          "rationale": "Aligns with existing data directory conventions. Simple. The secret lives near but separate from the SQLite DB. Recommended because VROOLI_DATA is the standard data root and avoids introducing new env vars.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "New AM_IDENTITY_SECRET_PATH env var for explicit override",
+          "rationale": "Maximum flexibility. But adds another env var to manage and document — probably unnecessary for v1."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The research item (agent-identity-standard) already settled all major design decisions: HMAC-SHA256 format, server-side verification, REST endpoint, 24h TTL, fail-open model, and the exact claims schema. This execute item is a straightforward implementation — no architectural decisions remain open. The workshop decisions above are implementation-level choices about where to put things."
+    }
+  ],
+  "plan_updates": "Created initial plan.md scaffold with all 13 mandatory sections. Phases 1-6 defined. Testing plan, contract decisions, and definition of done populated from research conclusions. Phase 2 (revocation) left as TBD pending decision d1."
+}

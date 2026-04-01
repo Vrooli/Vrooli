@@ -17,11 +17,14 @@ export function DetailModal({ open, onClose, title, headerLeft, headerRight, chi
   const [isClosing, setIsClosing] = React.useState(false);
   const [shouldRender, setShouldRender] = React.useState(open);
   const closeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Use a ref for the close guard so rapid taps can't bypass it via stale closure
+  const isClosingRef = React.useRef(false);
 
   React.useEffect(() => {
     if (open) {
       setShouldRender(true);
       setIsClosing(false);
+      isClosingRef.current = false;
     } else {
       // When parent sets open=false directly, clean up
       if (closeTimerRef.current) {
@@ -30,6 +33,7 @@ export function DetailModal({ open, onClose, title, headerLeft, headerRight, chi
       }
       setShouldRender(false);
       setIsClosing(false);
+      isClosingRef.current = false;
     }
   }, [open]);
 
@@ -45,26 +49,28 @@ export function DetailModal({ open, onClose, title, headerLeft, headerRight, chi
   }, [open]);
 
   const handleClose = React.useCallback(() => {
-    if (isClosing) return; // Guard against double-close
+    if (isClosingRef.current) return; // Guard against double-close (ref avoids stale closure)
+    isClosingRef.current = true;
     setIsClosing(true);
     closeTimerRef.current = setTimeout(() => {
       closeTimerRef.current = null;
       setShouldRender(false);
       setIsClosing(false);
+      isClosingRef.current = false;
       onClose();
     }, 150);
-  }, [isClosing, onClose]);
+  }, [onClose]);
 
   // Escape key handler
   React.useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && open && !isClosing) {
+      if (e.key === "Escape" && open && !isClosingRef.current) {
         handleClose();
       }
     };
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
-  }, [open, isClosing, handleClose]);
+  }, [open, handleClose]);
 
   if (!shouldRender) return null;
 

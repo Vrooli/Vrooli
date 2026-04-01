@@ -1398,6 +1398,97 @@ func TestSandboxEnvVars_EmptyScopePath(t *testing.T) {
 }
 
 // =============================================================================
+// MERGED ENV VARS TESTS
+// =============================================================================
+
+func TestMergedEnvVars_CustomOnly(t *testing.T) {
+	f := newInPlaceFixtures()
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
+
+	executor := orchestration.NewRunExecutor(
+		repos.Runs, nil, nil, eventStore, f.run, f.task, f.profile, "test", "",
+	)
+	executor.WithCustomEnvironment(map[string]string{
+		"VROOLI_SPAWN_SOURCE": "research/my-research",
+	})
+
+	vars := executor.MergedEnvVars()
+	if vars == nil {
+		t.Fatal("expected non-nil env vars")
+	}
+	if got := vars["VROOLI_SPAWN_SOURCE"]; got != "research/my-research" {
+		t.Errorf("VROOLI_SPAWN_SOURCE = %q, want %q", got, "research/my-research")
+	}
+}
+
+func TestMergedEnvVars_SandboxOnly(t *testing.T) {
+	f := newTestFixtures()
+	f.run.RunMode = domain.RunModeSandboxed
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
+
+	executor := orchestration.NewRunExecutor(
+		repos.Runs, nil, nil, eventStore, f.run, f.task, f.profile, "test", "",
+	)
+	sandboxID := uuid.New()
+	executor.WithExistingSandbox(sandboxID, "/tmp/sandbox/merged")
+
+	vars := executor.MergedEnvVars()
+	if vars == nil {
+		t.Fatal("expected non-nil env vars")
+	}
+	if _, exists := vars["VROOLI_SANDBOX_ID"]; !exists {
+		t.Error("expected VROOLI_SANDBOX_ID")
+	}
+}
+
+func TestMergedEnvVars_SandboxOverridesCustom(t *testing.T) {
+	f := newTestFixtures()
+	f.run.RunMode = domain.RunModeSandboxed
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
+
+	executor := orchestration.NewRunExecutor(
+		repos.Runs, nil, nil, eventStore, f.run, f.task, f.profile, "test", "",
+	)
+	sandboxID := uuid.New()
+	executor.WithExistingSandbox(sandboxID, "/tmp/sandbox/merged")
+	executor.WithCustomEnvironment(map[string]string{
+		"VROOLI_SANDBOX_MERGED": "attacker-path",
+		"VROOLI_SPAWN_SOURCE":   "research/my-research",
+	})
+
+	vars := executor.MergedEnvVars()
+	if vars == nil {
+		t.Fatal("expected non-nil env vars")
+	}
+	// Sandbox var must win over custom var
+	if got := vars["VROOLI_SANDBOX_MERGED"]; got != "/tmp/sandbox/merged" {
+		t.Errorf("VROOLI_SANDBOX_MERGED = %q, want sandbox value %q", got, "/tmp/sandbox/merged")
+	}
+	// Custom var should still be present
+	if got := vars["VROOLI_SPAWN_SOURCE"]; got != "research/my-research" {
+		t.Errorf("VROOLI_SPAWN_SOURCE = %q, want %q", got, "research/my-research")
+	}
+}
+
+func TestMergedEnvVars_BothNil(t *testing.T) {
+	f := newInPlaceFixtures()
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
+
+	executor := orchestration.NewRunExecutor(
+		repos.Runs, nil, nil, eventStore, f.run, f.task, f.profile, "test", "",
+	)
+	// No custom env, no sandbox (in-place mode)
+	vars := executor.MergedEnvVars()
+	if vars != nil {
+		t.Errorf("expected nil env vars, got %v", vars)
+	}
+}
+
+// =============================================================================
 // BROADCAST ON COMPLETION TESTS (Bug 1 fix validation)
 // =============================================================================
 

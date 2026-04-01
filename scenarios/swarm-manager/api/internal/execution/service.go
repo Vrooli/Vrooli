@@ -476,6 +476,7 @@ func (s *Service) QueueSpecSyncArchive(ctx context.Context, ac ArchiveContext) (
 		ProjectRoot: ".",
 		CreatedBy:   "swarm-manager",
 		Purpose:     "spec-sync",
+		Environment: map[string]string{"VROOLI_SPAWN_SOURCE": record.BacklogKind + "/" + record.BacklogName},
 	})
 	if err != nil {
 		return Record{}, err
@@ -589,6 +590,7 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 		Purpose:         "process",
 		AcceptanceAllow: item.AcceptanceAllow,
 		AcceptanceDeny:  item.AcceptanceDeny,
+		Environment:     map[string]string{"VROOLI_SPAWN_SOURCE": item.Kind + "/" + item.Name},
 	})
 	if err != nil {
 		return Record{}, err
@@ -1039,6 +1041,7 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 		Purpose:         "fixup",
 		AcceptanceAllow: item.AcceptanceAllow,
 		AcceptanceDeny:  item.AcceptanceDeny,
+		Environment:     map[string]string{"VROOLI_SPAWN_SOURCE": item.Kind + "/" + item.Name},
 	})
 	if err != nil {
 		log.Printf("[execution] failed to spawn fixup run: %v", err)
@@ -1219,6 +1222,7 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 			Purpose:         req.FollowUpType,
 			AcceptanceAllow: item.AcceptanceAllow,
 			AcceptanceDeny:  item.AcceptanceDeny,
+			Environment:     map[string]string{"VROOLI_SPAWN_SOURCE": item.Kind + "/" + item.Name},
 		})
 		if spawnErr != nil {
 			return Record{}, fmt.Errorf("spawn follow-up failed: %w", spawnErr)

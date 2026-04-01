@@ -25,6 +25,7 @@ const (
 	updateFieldEffort          = "effort"
 	updateFieldAcceptanceAllow = "acceptance_allow"
 	updateFieldAcceptanceDeny  = "acceptance_deny"
+	updateFieldSpawnedFrom     = "spawned_from"
 )
 
 type backlogUpdateFieldSet map[string]struct{}
@@ -220,6 +221,9 @@ func applyUpdateBacklogPatch(item *BacklogItem, req *apipb.UpdateBacklogItemRequ
 	}
 	if fields.Has(updateFieldAcceptanceDeny) {
 		item.AcceptanceDeny = cloneStrings(req.AcceptanceDeny)
+	}
+	if fields.Has(updateFieldSpawnedFrom) {
+		item.SpawnedFrom = strings.TrimSpace(req.GetSpawnedFrom())
 	}
 }
 
