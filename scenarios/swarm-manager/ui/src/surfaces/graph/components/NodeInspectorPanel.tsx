@@ -11,8 +11,14 @@
 
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink } from "lucide-react";
 import { cn } from "../../../lib/utils";
+import { StatusBadge } from "../../../components/detail/StatusBadge";
+import { backlogService } from "../../../services";
+import { useBacklogStore } from "../../../stores";
+import type { BacklogKind, BacklogStatus } from "../../../types";
+import { LOCKED_STATUSES } from "../../../lib/backlog-queue-utils";
 import { FloatingPanel } from "../../../components/ui/floating-panel";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
@@ -156,6 +162,18 @@ export function NodeInspectorPanel() {
 
   const { drillToLens } = useDetailNavigation();
 
+  const queryClient = useQueryClient();
+  const fetchBacklog = useBacklogStore((s) => s.fetchBacklog);
+
+  const statusMutation = useMutation({
+    mutationFn: ({ kind, name: itemName, newStatus }: { kind: BacklogKind; name: string; newStatus: BacklogStatus }) =>
+      backlogService.update(kind, itemName, { status: newStatus }),
+    onSuccess: () => {
+      void fetchBacklog({ force: true });
+      void queryClient.invalidateQueries({ queryKey: ["backlog-list"] });
+    },
+  });
+
   const selectedNode = useMemo(() => {
     if (!selectedNodeId) return null;
     return nodes.find((n) => n.id === selectedNodeId) ?? null;
@@ -229,9 +247,20 @@ export function NodeInspectorPanel() {
             {entityType === "agent-activity" ? "activity" : entityType === "agent-run" ? "run" : entityType}
           </span>
           {nodeData.status && (
-            <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", statusColors.background, statusColors.text)}>
-              {nodeData.status.replace(/_/g, " ")}
-            </span>
+            entityType === "backlog" && !LOCKED_STATUSES.has(nodeData.status as BacklogStatus) ? (
+              <StatusBadge
+                status={nodeData.status}
+                onStatusChange={(newStatus) => {
+                  const d = nodeData as BacklogGraphNodeData;
+                  statusMutation.mutate({ kind: d.kind, name: d.name, newStatus });
+                }}
+                statusChangePending={statusMutation.isPending}
+              />
+            ) : (
+              <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", statusColors.background, statusColors.text)}>
+                {nodeData.status.replace(/_/g, " ")}
+              </span>
+            )
           )}
         </div>
 

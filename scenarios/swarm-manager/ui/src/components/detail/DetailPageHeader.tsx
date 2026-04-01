@@ -14,7 +14,7 @@
  */
 
 import { type ReactNode } from "react";
-import { ArrowLeft, Menu } from "lucide-react";
+import { ArrowLeft, Menu, type LucideIcon } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useIsMobile } from "../../hooks/useMediaQuery";
 import { useDetailNavigation } from "../../hooks/useDetailNavigation";
@@ -22,9 +22,12 @@ import { StatusBadge } from "./StatusBadge";
 import { LensBar } from "./LensBar";
 import type { LensOption } from "./lens-options";
 import type { GraphLens } from "../../surfaces/graph/stores/graph-data-store";
+import type { BacklogStatus } from "../../types";
 
 export interface DetailPageHeaderProps {
   entityType: string;
+  /** Optional icon rendered inside the entity type badge, replacing the text label. */
+  entityIcon?: LucideIcon;
   title: string;
   subtitle?: string;
   status?: string;
@@ -36,11 +39,16 @@ export interface DetailPageHeaderProps {
   actions?: ReactNode;
   /** Optional tab bar rendered below the LensBar (e.g., backlog tabs). */
   tabBar?: ReactNode;
+  /** When provided, the status badge becomes clickable for inline status changes. */
+  onStatusChange?: (newStatus: BacklogStatus) => void;
+  /** Whether a status change is in flight. */
+  statusChangePending?: boolean;
   className?: string;
 }
 
 export function DetailPageHeader({
   entityType,
+  entityIcon: EntityIcon,
   title,
   subtitle,
   status,
@@ -48,6 +56,8 @@ export function DetailPageHeader({
   lenses,
   actions,
   tabBar,
+  onStatusChange,
+  statusChangePending,
   className,
 }: DetailPageHeaderProps) {
   const isMobile = useIsMobile();
@@ -83,18 +93,31 @@ export function DetailPageHeader({
           )}
         </button>
 
-        <span className="rounded-full bg-slate-700/60 px-2 py-0.5 text-xs font-medium uppercase tracking-wider text-slate-400">
-          {entityType}
-        </span>
+        {EntityIcon ? (
+          <span className="rounded-full bg-slate-700/60 p-1.5" title={entityType}>
+            <EntityIcon className="h-4 w-4 text-slate-400" />
+          </span>
+        ) : (
+          <span className="rounded-full bg-slate-700/60 px-2 py-0.5 text-xs font-medium uppercase tracking-wider text-slate-400">
+            {entityType}
+          </span>
+        )}
 
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-lg font-semibold text-slate-100">{title}</h1>
-          {subtitle && (
+          {status ? (
+            <div className="mt-0.5">
+              <StatusBadge
+                status={status}
+                size="sm"
+                onStatusChange={onStatusChange}
+                statusChangePending={statusChangePending}
+              />
+            </div>
+          ) : subtitle ? (
             <p className="truncate text-sm text-slate-400">{subtitle}</p>
-          )}
+          ) : null}
         </div>
-
-        {status && <StatusBadge status={status} />}
 
         {actions && (
           <div className="flex items-center gap-2">

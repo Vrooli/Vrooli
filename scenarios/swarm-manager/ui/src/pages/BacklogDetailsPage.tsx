@@ -97,9 +97,11 @@ import type { ReadinessIndicatorData } from "../lib/maturity";
 import { backlogService, executionService } from "../services";
 import { selectors } from "../consts/selectors";
 import {
+  BACKLOG_KIND_ICONS,
   BACKLOG_KIND_LABELS,
   BACKLOG_KINDS,
   BACKLOG_STATUS_COLORS,
+  USER_SETTABLE_STATUSES,
   formatBacklogStatus,
 } from "../types";
 import type {
@@ -124,8 +126,6 @@ import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { useDetailNavigation } from "../hooks/useDetailNavigation";
 import { selectionToNodeId } from "../stores/detail-selection-store";
 
-/** Statuses that users can manually set via the status dropdown. "queued" and "in_progress" are execution-system-only. */
-const USER_SETTABLE_STATUSES: BacklogStatus[] = ["backlog", "researching", "ready", "failed", "completed", "archived"];
 
 const RECENT_FILES_LIMIT = 5;
 const DEFAULT_PREVIEW_FILE_PATH = "spec.json";
@@ -523,6 +523,28 @@ export function BacklogDetailsPage() {
       queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name] });
       upsertItem(updatedItem);
       setShowEdit(false);
+    },
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: (newStatus: BacklogStatus) => {
+      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
+      return backlogService.update(backlogKind, name, { status: newStatus });
+    },
+    onSuccess: (updatedItem) => {
+      if (!backlogKind || !name) return;
+      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name] });
+      upsertItem(updatedItem);
+    },
+  });
+
+  const depStatusMutation = useMutation({
+    mutationFn: ({ kind, depName, newStatus }: { kind: string; depName: string; newStatus: BacklogStatus }) =>
+      backlogService.update(kind as BacklogKind, depName, { status: newStatus }),
+    onSuccess: () => {
+      if (!backlogKind || !name) return;
+      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name] });
+      queryClient.invalidateQueries({ queryKey: ["backlog-list"] });
     },
   });
 
@@ -1559,8 +1581,22 @@ export function BacklogDetailsPage() {
             </button>
           </div>
         )}
-        <DependencyChipList label="Depends on" items={depRelations.parents} icon={ArrowUpRight} />
-        <DependencyChipList label="Depended on by" items={depRelations.children} icon={ArrowRightLeft} />
+        <DependencyChipList
+          label="Depends on"
+          items={depRelations.parents}
+          icon={ArrowUpRight}
+          onStatusChange={(dep, newStatus) =>
+            depStatusMutation.mutate({ kind: dep.kind, depName: dep.name, newStatus })
+          }
+        />
+        <DependencyChipList
+          label="Depended on by"
+          items={depRelations.children}
+          icon={ArrowRightLeft}
+          onStatusChange={(dep, newStatus) =>
+            depStatusMutation.mutate({ kind: dep.kind, depName: dep.name, newStatus })
+          }
+        />
         <div className="space-y-2 border-t border-slate-800 pt-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -2212,12 +2248,14 @@ export function BacklogDetailsPage() {
       header={
         <DetailPageHeader
           entityType={backlogKind ? BACKLOG_KIND_LABELS[backlogKind] : "backlog"}
+          entityIcon={backlogKind ? BACKLOG_KIND_ICONS[backlogKind] : undefined}
           title={item?.title ?? name ?? "Loading..."}
-          subtitle={item ? formatBacklogStatus(item.status) : undefined}
           status={item?.status}
           nodeId={nodeId}
           lenses={BACKLOG_LENSES}
           actions={item ? renderHeaderPrimaryAction("shrink-0") : undefined}
+          onStatusChange={!isLocked ? (newStatus) => statusMutation.mutate(newStatus) : undefined}
+          statusChangePending={statusMutation.isPending}
           tabBar={tabBar}
         />
       }

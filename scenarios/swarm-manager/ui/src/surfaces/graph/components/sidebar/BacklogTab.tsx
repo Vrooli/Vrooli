@@ -23,7 +23,7 @@ import type { RunBacklogTarget } from "../../../../components/backlog/run-backlo
 import type { StepperCompletionResult } from "../../../../components/backlog/inline-question-stepper";
 import type { ReadinessIndicatorData } from "../../../../lib/maturity";
 import type { AttentionReason, FeedbackItem, MaturityItem } from "../../../../lib/feed";
-import type { BacklogItem, BacklogKind, PendingQuestion } from "../../../../types";
+import type { BacklogItem, BacklogKind, BacklogStatus, PendingQuestion } from "../../../../types";
 import type { BacklogFilters, SortConfig } from "./types";
 
 const ACTIVE_REFRESH_MS = 6000;
@@ -175,6 +175,14 @@ export function BacklogTab({ searchQuery, filters, sort, onItemClick }: BacklogT
     },
   });
 
+  const statusMutation = useMutation({
+    mutationFn: ({ kind, name: itemName, newStatus }: { kind: BacklogKind; name: string; newStatus: BacklogStatus }) =>
+      backlogService.update(kind, itemName, { status: newStatus }),
+    onSuccess: () => {
+      void fetchBacklog({ force: true });
+    },
+  });
+
   const workshopMutation = useMutation({
     mutationFn: ({ kind, name: itemName, mode, prompt }: {
       kind: BacklogKind;
@@ -300,6 +308,14 @@ export function BacklogTab({ searchQuery, filters, sort, onItemClick }: BacklogT
                   workshopMutation.variables?.mode === "workshop"
                 }
                 workshopLabel={(readiness?.roundsCompleted ?? 0) > 0 ? "Next Round" : "Workshop"}
+                onStatusChange={(newStatus) =>
+                  statusMutation.mutate({ kind: item.kind as BacklogKind, name: item.name, newStatus })
+                }
+                statusChangePending={
+                  statusMutation.isPending &&
+                  statusMutation.variables?.kind === item.kind &&
+                  statusMutation.variables?.name === item.name
+                }
               />
             </button>
           );

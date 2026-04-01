@@ -12,6 +12,8 @@ import { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Lightbulb, Package, Zap, MessageSquare, Activity, Target } from "lucide-react";
 import { cn } from "../../../lib/utils";
+import { BACKLOG_KIND_ICONS } from "../../../types";
+import type { BacklogKind } from "../../../types";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
 import type { GraphEntityType, GraphNodeData } from "../types";
@@ -39,7 +41,10 @@ function GraphNodeComponent({ id, data }: NodeProps) {
   const lens = useGraphDataStore((s) => s.lens);
   const isSelected = useGraphUIStore((s) => s.selectedNodeId === id);
   const entityType = nodeData.entityType ?? DEFAULT_ENTITY;
-  const Icon = ENTITY_ICONS[entityType] ?? ENTITY_ICONS[DEFAULT_ENTITY];
+  const backlogKindIcon = entityType === "backlog" && nodeData.kind
+    ? BACKLOG_KIND_ICONS[nodeData.kind as BacklogKind]
+    : undefined;
+  const Icon = backlogKindIcon ?? ENTITY_ICONS[entityType] ?? ENTITY_ICONS[DEFAULT_ENTITY];
   const shapeClass = getShapeClasses(entityType);
   const statusColors = getStatusColorClasses(nodeData.status);
   const counterRotate = needsContentCounterRotation(entityType);
@@ -96,7 +101,7 @@ function GraphNodeComponent({ id, data }: NodeProps) {
             <p className={cn(
               "text-[10px] font-medium leading-tight text-center break-words",
               statusColors.text,
-              isFixedSize ? "line-clamp-2 max-w-[80px]" : "line-clamp-2",
+              isFixedSize ? "line-clamp-2 max-w-[110px]" : "line-clamp-2",
             )}>
               {nodeData.label}
             </p>

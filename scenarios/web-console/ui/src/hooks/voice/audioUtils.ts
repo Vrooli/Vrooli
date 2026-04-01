@@ -29,12 +29,23 @@ export function createAudioFilterChain(
 
   // Chain: source -> highpass -> lowpass -> destination
   //                                     +-> analyser (for level monitoring)
+  //                                     +-> silentGain(0) -> ctx.destination
   source.connect(highpass);
   highpass.connect(lowpass);
   lowpass.connect(destination);
   lowpass.connect(analyser);
 
-  return { analyser, filteredStream: destination.stream, nodes: [highpass, lowpass, destination, analyser] };
+  // Connect to ctx.destination via a silent gain node so Chrome's Web Audio
+  // renderer keeps processing this subgraph. Without a path to the primary
+  // destination, Chrome may stop rendering as a power-saving optimisation,
+  // causing the AnalyserNode to return stale/silent data. This is the same
+  // pattern used in createPassiveCapturePipeline.
+  const silentGain = ctx.createGain();
+  silentGain.gain.value = 0;
+  lowpass.connect(silentGain);
+  silentGain.connect(ctx.destination);
+
+  return { analyser, filteredStream: destination.stream, nodes: [highpass, lowpass, destination, analyser, silentGain] };
 }
 
 // ---------------------------------------------------------------------------

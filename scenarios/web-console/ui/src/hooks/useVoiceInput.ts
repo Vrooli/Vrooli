@@ -130,6 +130,13 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
   const lastTickRef = useRef(0);
   const audioLevelRef = useRef(0);
   const levelSyncRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** Guard against zombie RAF ticks. When stopLevelMonitor() is called from
+   *  inside the tick callback (e.g. VAD-triggered stop), the tick function
+   *  must not reschedule itself. Without this, requestAnimationFrame(tick)
+   *  at the end of tick() creates a zombie loop that competes with future
+   *  sessions for the shared lastTickRef throttle, starving real ticks and
+   *  feeding rms=0 into VAD. */
+  const levelMonitorActiveRef = useRef(false);
 
   // VAD refs
   const vadRef = useRef(createVadRefs());
@@ -308,6 +315,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
 
       const data = new Uint8Array(analyser.frequencyBinCount);
       lastTickRef.current = 0;
+      levelMonitorActiveRef.current = true;
 
       // Sync audioLevel ref -> React state at 10 Hz (100ms).
       levelSyncRef.current = setInterval(() => {
@@ -316,6 +324,11 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       }, 100);
 
       const tick = () => {
+        // Zombie guard: if stopLevelMonitor was called (e.g. VAD-triggered
+        // stop from within this tick), do NOT reschedule. Without this,
+        // zombie ticks accumulate and starve real level monitors.
+        if (!levelMonitorActiveRef.current) return;
+
         // Throttle to ~15 Hz -- audio analysis doesn't need 60 fps.
         const now = performance.now();
         if (now - lastTickRef.current < 66) {
@@ -396,6 +409,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
   }, []);
 
   const stopLevelMonitor = useCallback(() => {
+    levelMonitorActiveRef.current = false;
     cancelAnimationFrame(rafRef.current);
     rafRef.current = 0;
     lastTickRef.current = 0;

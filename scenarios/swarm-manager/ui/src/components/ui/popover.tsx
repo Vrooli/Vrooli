@@ -6,6 +6,7 @@
  */
 
 import { useRef, useEffect, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { cn } from '../../lib/utils'
 import { useModalBehavior } from '../../hooks/useModalBehavior'
 
@@ -71,7 +72,7 @@ export function Popover({
 
   if (!isOpen) return null
 
-  return (
+  return createPortal(
     <div
       ref={menuRef}
       className={cn(
@@ -84,6 +85,7 @@ export function Popover({
       data-testid={testId}
     >
       {children}
-    </div>
+    </div>,
+    document.body,
   )
 }

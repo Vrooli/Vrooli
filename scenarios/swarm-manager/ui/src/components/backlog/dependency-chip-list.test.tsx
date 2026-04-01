@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
 import { DependencyChipList } from "./dependency-chip-list";
@@ -16,10 +17,14 @@ function makeDep(overrides?: Partial<ResolvedDependency>): ResolvedDependency {
   };
 }
 
-function renderChips(items: ResolvedDependency[], label = "Depends on") {
+function renderChips(
+  items: ResolvedDependency[],
+  label = "Depends on",
+  onStatusChange?: (dep: ResolvedDependency, newStatus: BacklogStatus) => void,
+) {
   return render(
     <MemoryRouter>
-      <DependencyChipList label={label} items={items} icon={ArrowUpRight} />
+      <DependencyChipList label={label} items={items} icon={ArrowUpRight} onStatusChange={onStatusChange} />
     </MemoryRouter>,
   );
 }
@@ -63,5 +68,28 @@ describe("DependencyChipList", () => {
     renderChips([makeDep({ status: "in_progress" as BacklogStatus, title: "Working" })]);
     const chip = screen.getByText("Working");
     expect(chip).toHaveAttribute("title", "In progress");
+  });
+
+  it("does not render status dots when onStatusChange is not provided", () => {
+    renderChips([makeDep()]);
+    expect(screen.queryByTestId("dep-status-dot-idea-dep-item")).not.toBeInTheDocument();
+  });
+
+  it("renders status dots when onStatusChange is provided", () => {
+    renderChips([makeDep()], "Depends on", vi.fn());
+    expect(screen.getByTestId("dep-status-dot-idea-dep-item")).toBeInTheDocument();
+  });
+
+  it("opens popover on status dot click and calls onStatusChange", async () => {
+    const user = userEvent.setup();
+    const onStatusChange = vi.fn();
+    const dep = makeDep({ status: "ready" as BacklogStatus });
+    renderChips([dep], "Depends on", onStatusChange);
+
+    await user.click(screen.getByTestId("dep-status-dot-idea-dep-item"));
+    expect(screen.getByTestId("dep-status-popover-idea-dep-item")).toBeInTheDocument();
+
+    await user.click(screen.getByTestId("dep-status-option-backlog"));
+    expect(onStatusChange).toHaveBeenCalledWith(dep, "backlog");
   });
 });

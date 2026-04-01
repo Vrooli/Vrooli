@@ -12,8 +12,9 @@ import { Archive, ArrowRight, CheckSquare, Loader2, Lock, MessageSquare, Message
 import { Button } from "../ui/button";
 import { TagList } from "../ui/tag-list";
 import { formatRelativeTime } from "../../lib";
-import { BACKLOG_STATUS_COLORS, formatBacklogStatus, type BacklogKind } from "../../types";
-import type { BacklogItem, PendingQuestion } from "../../types";
+import { BACKLOG_KIND_ICONS, BACKLOG_STATUS_COLORS, formatBacklogStatus, type BacklogKind } from "../../types";
+import type { BacklogItem, BacklogStatus, PendingQuestion } from "../../types";
+import { StatusChipPopover } from "./status-chip-popover";
 import type { ItemActions } from "../../lib/backlog-queue-utils";
 import type { AttentionReason } from "../../lib/feed";
 import type { ReadinessIndicatorData } from "../../lib/maturity";
@@ -54,6 +55,10 @@ export interface BacklogCardProps {
   workshopLabel?: string;
   /** Human-readable label shown when an agent is running (e.g. "Running workshop…"). */
   runningLabel?: string;
+  /** Callback for inline status changes via the status chip popover. */
+  onStatusChange?: (newStatus: BacklogStatus) => void;
+  /** Whether a status change is in flight. */
+  statusChangePending?: boolean;
 }
 
 export function BacklogCard({
@@ -79,10 +84,13 @@ export function BacklogCard({
   workshopPending,
   workshopLabel = "Workshop",
   runningLabel = "Agent running…",
+  onStatusChange,
+  statusChangePending,
 }: BacklogCardProps) {
   const hasActiveStepper = itemActions.showDecisionStepper && (pendingQuestions?.length ?? 0) > 0 && !isStepperCompleted;
   const showBatchCheckbox = batchMode && (itemActions.canRun || itemActions.runDisabled || itemActions.canWorkshop || itemActions.workshopDisabled) && !itemActions.blocked;
   const deliverableLabel = item.kind === "research" ? "conclusion" : "plan";
+  const KindIcon = BACKLOG_KIND_ICONS[item.kind as BacklogKind];
   const hasPrimaryActionRow = (
     (itemActions.canFinalize || itemActions.finalizeDisabled || itemActions.canRun || itemActions.runDisabled || itemActions.canWorkshop || itemActions.workshopDisabled)
     && !itemActions.blocked
@@ -106,12 +114,23 @@ export function BacklogCard({
               }}
             />
           ) : null}
-          <span
-            className={`inline-block h-2 w-2 rounded-full ${BACKLOG_STATUS_COLORS[item.status] ?? "bg-slate-500"}`}
-          />
-          <span className="text-xs uppercase tracking-wider text-slate-400">
-            {formatBacklogStatus(item.status)}
-          </span>
+          {KindIcon && <KindIcon className="h-3.5 w-3.5 text-slate-400" />}
+          {onStatusChange && !itemActions.locked ? (
+            <StatusChipPopover
+              currentStatus={item.status}
+              onStatusChange={onStatusChange}
+              pending={statusChangePending}
+            />
+          ) : (
+            <>
+              <span
+                className={`inline-block h-2 w-2 rounded-full ${BACKLOG_STATUS_COLORS[item.status] ?? "bg-slate-500"}`}
+              />
+              <span className="text-xs uppercase tracking-wider text-slate-400">
+                {formatBacklogStatus(item.status)}
+              </span>
+            </>
+          )}
           <ScenarioBadge acceptanceAllow={item.acceptanceAllow} />
           <AgentRunningBadge backlogKind={item.kind as BacklogKind} backlogName={item.name} />
         </div>

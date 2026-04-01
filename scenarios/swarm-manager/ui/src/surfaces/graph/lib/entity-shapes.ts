@@ -50,13 +50,13 @@ const SHAPE_CLASSES: Record<NodeShape, string> = {
  * Rectangular shapes are wider than tall.
  */
 const SHAPE_DIMENSIONS: Record<NodeShape, ShapeDimensions> = {
-  diamond: { width: 100, height: 100 },
+  diamond: { width: 130, height: 130 },
   rectangle: { width: 160, height: 72 },
-  hexagon: { width: 120, height: 100 },
-  circle: { width: 100, height: 100 },
-  pentagon: { width: 110, height: 100 },
-  octagon: { width: 110, height: 110 },
-  pill: { width: 150, height: 60 },
+  hexagon: { width: 160, height: 100 },
+  circle: { width: 130, height: 130 },
+  pentagon: { width: 150, height: 110 },
+  octagon: { width: 150, height: 110 },
+  pill: { width: 160, height: 60 },
 };
 
 /** Get the CSS class(es) that produce the shape for an entity type. */

@@ -23,6 +23,8 @@ function createMockAudioContext() {
     createBiquadFilter: () => makeNode(`filter-${filterIdx++}`),
     createMediaStreamDestination: () => makeNode("destination"),
     createAnalyser: () => makeNode("analyser"),
+    createGain: () => ({ ...makeNode("silentGain"), gain: { value: 1 } }),
+    destination: makeNode("ctx.destination"),
   } as unknown as AudioContext;
 
   const source = makeNode("source") as unknown as MediaStreamAudioSourceNode;
@@ -62,6 +64,8 @@ describe("createAudioFilterChain", () => {
       { from: "filter-0", to: "filter-1" },
       { from: "filter-1", to: "destination" },
       { from: "filter-1", to: "analyser" },
+      { from: "filter-1", to: "silentGain" },
+      { from: "silentGain", to: "ctx.destination" },
     ]);
   });
 
@@ -81,9 +85,9 @@ describe("createAudioFilterChain", () => {
   it("returns nodes array for cleanup (regression: audio node leak)", () => {
     const { ctx, source } = createMockAudioContext();
     const result = createAudioFilterChain(ctx, source);
-    // Should return all created nodes (highpass, lowpass, destination, analyser)
+    // Should return all created nodes (highpass, lowpass, destination, analyser, silentGain)
     // so the caller can disconnect them when done.
     expect(result.nodes).toBeDefined();
-    expect(result.nodes).toHaveLength(4);
+    expect(result.nodes).toHaveLength(5);
   });
 });

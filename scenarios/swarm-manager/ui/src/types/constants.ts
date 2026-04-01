@@ -5,7 +5,7 @@
  * Presentation-layer code should import these rather than defining their own.
  */
 
-import { Circle, CheckCircle, AlertCircle, type LucideIcon } from "lucide-react";
+import { Bug, Circle, CheckCircle, AlertCircle, Lightbulb, Rocket, Search, Wrench, type LucideIcon } from "lucide-react";
 import { formatDisplayText } from "../lib";
 import type {
   AgentActivityStatus,
@@ -33,6 +33,14 @@ export const BACKLOG_KIND_LABELS: Record<BacklogKind, string> = {
   chore: "Chore",
 };
 
+export const BACKLOG_KIND_ICONS: Record<BacklogKind, LucideIcon> = {
+  idea: Lightbulb,
+  research: Search,
+  fix: Bug,
+  execute: Rocket,
+  chore: Wrench,
+};
+
 export const BACKLOG_STATUSES: BacklogStatus[] = [
   "backlog",
   "researching",
@@ -43,6 +51,9 @@ export const BACKLOG_STATUSES: BacklogStatus[] = [
   "failed",
   "archived",
 ];
+
+/** Statuses a user can manually set. Excludes queued/in_progress (managed by execution system). */
+export const USER_SETTABLE_STATUSES: BacklogStatus[] = ["backlog", "researching", "ready", "failed", "completed", "archived"];
 
 /**
  * Maps backlog status to tailwind background color classes
