@@ -1350,5 +1350,27 @@
       "round_number": "1"
     },
     "updated_at": "2026-04-01T17:20:35Z"
+  },
+  {
+    "activity_id": "878c5ee7a3fd3bdf",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "agent-manager-identity-tokens",
+    "owner_title": "Implement Identity Token Injection and Verification in Agent-Manager",
+    "purpose": "clarify",
+    "interaction_type": "spawn",
+    "task_id": "bec2639d-ec7d-43bd-b3b3-66d76b9a3517",
+    "run_id": "7b379643-2479-44e0-9bc2-7ff9776f02dd",
+    "status": "complete",
+    "requested_at": "2026-04-01T18:55:05Z",
+    "started_at": "2026-04-01T18:55:05Z",
+    "finished_at": "2026-04-01T18:55:23Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.clarification",
+      "item_id": "d1",
+      "round_number": "1"
+    },
+    "updated_at": "2026-04-01T18:55:24Z"
   }
 ]

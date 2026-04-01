@@ -293,6 +293,7 @@ type RunState struct {
 	FinishedAt string
 	ErrorMsg   string
 	SandboxID  string
+	Summary    string
 }
 
 // RunDiff captures the changed files for a sandboxed run.
@@ -481,6 +482,9 @@ func (s *AgentService) GetRunState(ctx context.Context, runID string) (RunState,
 	}
 	if run.EndedAt != nil {
 		state.FinishedAt = run.EndedAt.AsTime().UTC().Format(time.RFC3339)
+	}
+	if run.Summary != nil && run.Summary.Description != "" {
+		state.Summary = strings.TrimSpace(run.Summary.Description)
 	}
 	return state, nil
 }

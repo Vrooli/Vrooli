@@ -24,6 +24,8 @@ export function WorkshopItemCard({ item, disabled, onUpdate, onDelete, backlogKi
   const [localFreeform, setLocalFreeform] = useState(item.freeform ?? "");
   const [localNotes, setLocalNotes] = useState(item.notes ?? "");
 
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
   const clarificationStore = useClarificationStore();
   const isClarifyActive = clarificationStore.isOpen && clarificationStore.target?.itemId === item.id;
 
@@ -37,6 +39,7 @@ export function WorkshopItemCard({ item, disabled, onUpdate, onDelete, backlogKi
         roundNumber,
         itemId: item.id,
         itemTopic: item.topic || item.text || "",
+        clarificationId: item.clarification_id,
       });
     }
   };
@@ -72,14 +75,33 @@ export function WorkshopItemCard({ item, disabled, onUpdate, onDelete, backlogKi
           </span>
           <p className="flex-1 text-sm text-slate-300">{item.topic || item.text}</p>
           {onDelete && !disabled && (
-            <button
-              type="button"
-              onClick={onDelete}
-              className="shrink-0 rounded p-1 text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-              title="Delete item"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+            confirmDelete ? (
+              <span className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => { setConfirmDelete(false); onDelete(); }}
+                  className="rounded px-1.5 py-0.5 text-[10px] font-medium text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-colors"
+                >
+                  Delete
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(false)}
+                  className="rounded px-1.5 py-0.5 text-[10px] font-medium text-slate-400 hover:bg-slate-700 transition-colors"
+                >
+                  Cancel
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(true)}
+                className="shrink-0 rounded p-1 text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                title="Delete item"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )
           )}
         </div>
         {item.context && (
@@ -113,18 +135,38 @@ export function WorkshopItemCard({ item, disabled, onUpdate, onDelete, backlogKi
             <ClarifyButton
               disabled={disabled}
               isActive={isClarifyActive}
+              hasClarification={!!item.clarification_id}
               onClick={handleClarifyClick}
             />
           )}
           {onDelete && !disabled && (
-            <button
-              type="button"
-              onClick={onDelete}
-              className="shrink-0 rounded p-1 text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-              title="Delete item"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+            confirmDelete ? (
+              <span className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => { setConfirmDelete(false); onDelete(); }}
+                  className="rounded px-1.5 py-0.5 text-[10px] font-medium text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-colors"
+                >
+                  Delete
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(false)}
+                  className="rounded px-1.5 py-0.5 text-[10px] font-medium text-slate-400 hover:bg-slate-700 transition-colors"
+                >
+                  Cancel
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(true)}
+                className="shrink-0 rounded p-1 text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                title="Delete item"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )
           )}
         </div>
 

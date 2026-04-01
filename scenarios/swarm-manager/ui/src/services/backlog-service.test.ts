@@ -250,4 +250,29 @@ describe("Backlog Service", () => {
     });
 
   });
+
+  describe("getClarification", () => {
+    it("calls the correct endpoint with threadId", async () => {
+      const threadResponse = {
+        thread: {
+          id: "thread-1",
+          round_number: 1,
+          item_id: "d1",
+          run_id: "run-abc",
+          messages: [{ role: "user", content: "Why?", created_at: "2026-04-01T00:00:00Z" }],
+          status: "active",
+          created_at: "2026-04-01T00:00:00Z",
+          updated_at: "2026-04-01T00:00:00Z",
+        },
+      };
+      vi.mocked(mockApiClient.get).mockResolvedValue(threadResponse);
+
+      const result = await service.getClarification("idea", "test-item", "thread-1");
+
+      expect(mockApiClient.get).toHaveBeenCalledWith(
+        "/backlog/idea/test-item/workshop/clarification/thread-1",
+      );
+      expect(result.thread.id).toBe("thread-1");
+    });
+  });
 });

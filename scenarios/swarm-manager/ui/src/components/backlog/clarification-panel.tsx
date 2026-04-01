@@ -28,6 +28,7 @@ const POLL_INTERVAL_MS = 3000;
 const MAX_VISIBLE_LINES = 4;
 const LINE_HEIGHT_PX = 20;
 const MAX_TEXTAREA_HEIGHT = MAX_VISIBLE_LINES * LINE_HEIGHT_PX + 12;
+const STALENESS_THRESHOLD_MS = 90_000;
 const DRAFT_KEY = "swarm-clarification-draft";
 const DRAFT_DEBOUNCE_MS = 300;
 
@@ -42,7 +43,7 @@ interface ClarificationPanelProps {
 }
 
 export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
-  const { isOpen, target, thread, isCreating, close, setThread, setCreating } =
+  const { isOpen, target, thread, isCreating, isLoading, close, setThread, setCreating, setLoading } =
     useClarificationStore();
 
   const [text, setText] = useState(() => {
@@ -54,10 +55,12 @@ export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isActing, setIsActing] = useState(false);
+  const [isStale, setIsStale] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stalenessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { attachments, addFile, removeFile, clearAll, getFiles } = useAttachments();
 
@@ -103,6 +106,44 @@ export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
       return () => clearTimeout(timer);
     }
   }, [isOpen]);
+
+  // ---------------------------------------------------------------------------
+  // Fetch existing thread on panel reopen
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    const threadId = target?.clarificationId;
+    if (!isOpen || !threadId) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const resp = await backlogService.getClarification(
+          target.backlogKind,
+          target.backlogName,
+          threadId,
+        );
+        if (!cancelled) {
+          setThread(resp.thread);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          if (isApiError(err) && err.status === 404) {
+            // Thread was deleted (e.g. round invalidation) — show empty state.
+          } else {
+            setError(isApiError(err) ? err.userMessage : "Failed to load clarification thread.");
+          }
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [isOpen, target?.clarificationId, target?.backlogKind, target?.backlogName, setThread, setLoading]);
 
   // ---------------------------------------------------------------------------
   // Polling for agent responses
@@ -151,6 +192,22 @@ export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
   }, []);
+
+  // Staleness timeout — warn user when agent takes too long.
+  useEffect(() => {
+    if (isWaitingForAgent) {
+      setIsStale(false);
+      stalenessTimerRef.current = setTimeout(() => setIsStale(true), STALENESS_THRESHOLD_MS);
+      return () => {
+        if (stalenessTimerRef.current) clearTimeout(stalenessTimerRef.current);
+      };
+    }
+    setIsStale(false);
+    if (stalenessTimerRef.current) {
+      clearTimeout(stalenessTimerRef.current);
+      stalenessTimerRef.current = null;
+    }
+  }, [isWaitingForAgent]);
 
   // ---------------------------------------------------------------------------
   // Submission handlers
@@ -275,6 +332,7 @@ export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
   const handleClose = useCallback(() => {
     setText("");
     setError(null);
+    setIsStale(false);
     clearAll();
     try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
     close();
@@ -299,7 +357,8 @@ export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
   const canSubmit =
     (text.trim().length > 0 || attachments.length > 0) &&
     !isSubmitting &&
-    !isCreating;
+    !isCreating &&
+    !isLoading;
   const isTerminal =
     thread?.status === "resolved" || thread?.status === "dismissed";
 
@@ -322,7 +381,11 @@ export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
     >
       <div className="flex h-[50vh] max-h-[500px] flex-col">
         {/* Chat messages */}
-        {thread && thread.messages.length > 0 ? (
+        {isLoading ? (
+          <div className="flex flex-1 items-center justify-center px-4" data-testid="clarification-loading">
+            <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
+          </div>
+        ) : thread && thread.messages.length > 0 ? (
           <ClarificationMessages
             messages={thread.messages}
             isWaitingForAgent={isWaitingForAgent ?? false}
@@ -382,6 +445,15 @@ export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
           </div>
         )}
 
+        {/* Staleness warning */}
+        {isStale && (
+          <div className="mx-1 mb-1 rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2" data-testid="staleness-warning">
+            <p className="text-xs text-amber-300">
+              Agent is taking longer than expected. You can close this panel and come back later.
+            </p>
+          </div>
+        )}
+
         {/* Input area */}
         {!isTerminal && (
           <div className="border-t border-slate-700 px-1 pt-2 pb-1">
@@ -400,7 +472,7 @@ export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
                     ? "Ask a follow-up..."
                     : "What would you like to know about this decision?"
                 }
-                disabled={isSubmitting || isCreating || isWaitingForAgent}
+                disabled={isSubmitting || isCreating || isWaitingForAgent || isLoading}
                 rows={1}
                 style={{ maxHeight: MAX_TEXTAREA_HEIGHT }}
                 className="w-full resize-none bg-transparent text-base text-slate-200 placeholder-slate-500 outline-none disabled:opacity-50"
@@ -410,7 +482,7 @@ export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={isSubmitting || isCreating || isWaitingForAgent}
+                disabled={isSubmitting || isCreating || isWaitingForAgent || isLoading}
                 className="mb-0.5 shrink-0 rounded p-1 text-slate-500 transition-colors hover:bg-slate-700 hover:text-slate-300 disabled:opacity-50"
                 title="Attach image"
               >

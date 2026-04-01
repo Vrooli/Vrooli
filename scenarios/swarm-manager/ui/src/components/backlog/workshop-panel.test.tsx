@@ -189,6 +189,10 @@ describe("WorkshopPanel", () => {
     }
     await fireEvent.click(firstDeleteButton);
 
+    // Confirm the deletion.
+    const confirmButton = screen.getByText("Delete");
+    await fireEvent.click(confirmButton);
+
     expect(screen.queryByText("Question 1")).not.toBeInTheDocument();
     expect(screen.getByText("Question 2")).toBeInTheDocument();
   });
@@ -244,6 +248,10 @@ describe("WorkshopPanel", () => {
       throw new Error("Delete button not found");
     }
     await fireEvent.click(firstDeleteButton);
+
+    // Confirm the deletion.
+    const confirmButton = screen.getByText("Delete");
+    await fireEvent.click(confirmButton);
 
     // No manual save button — auto-save fires after debounce
     expect(screen.queryByText("Save Responses")).not.toBeInTheDocument();

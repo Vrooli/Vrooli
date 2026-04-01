@@ -275,11 +275,20 @@ func (h *Handler) GetClarification(w http.ResponseWriter, r *http.Request) {
 			// The agent should have written output that we can read from the run.
 			// For now, we rely on the agent writing to the thread file directly,
 			// or we synthesize a response from the run state.
-			if state.Status == "completed" || state.Status == "success" {
-				// Check if a new message was added (agent may write to thread file).
+			if state.Status == "complete" || state.Status == "completed" || state.Status == "success" {
+				// Check if the agent wrote directly to the thread file.
 				refreshed, _ := workshop.LoadClarificationByID(itemDir, threadID)
 				if refreshed != nil && len(refreshed.Messages) > len(thread.Messages) {
 					thread = refreshed
+				} else if state.Summary != "" {
+					// Agent didn't write to thread file — use the run summary as the response.
+					thread.Messages = append(thread.Messages, workshop.ClarificationMessage{
+						Role:      "assistant",
+						Content:   state.Summary,
+						CreatedAt: time.Now().UTC().Format(time.RFC3339),
+					})
+					thread.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+					_ = workshop.SaveClarification(itemDir, thread)
 				}
 			} else if state.Status == "failed" || state.Status == "error" {
 				// Agent failed — add an error message.
@@ -754,7 +763,7 @@ func lastAssistantMessage(thread *workshop.ClarificationThread) *workshop.Clarif
 // isTerminalStatus checks if a run status indicates completion.
 func isTerminalStatus(status string) bool {
 	switch strings.ToLower(status) {
-	case "completed", "success", "failed", "error", "cancelled", "canceled":
+	case "complete", "completed", "success", "failed", "error", "cancelled", "canceled":
 		return true
 	}
 	return false

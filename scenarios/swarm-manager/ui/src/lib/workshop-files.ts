@@ -160,6 +160,9 @@ function normalizeWorkshopItem(raw: Record<string, unknown>): WorkshopItem {
     item.options = raw.options.map(normalizeDecisionOption);
   }
 
+  if (raw.context_note) item.context_note = String(raw.context_note);
+  if (raw.clarification_id) item.clarification_id = String(raw.clarification_id);
+
   if (type === "decision") {
     item.selected = raw.selected === null || raw.selected === undefined
       ? null

@@ -11,36 +11,6 @@
   },
   "items": [
     {
-      "id": "d1",
-      "type": "decision",
-      "topic": "Revocation tracking mechanism",
-      "context": "When a run completes, fails, or is cancelled, its identity token must be invalidated. The research identified two approaches but did not settle on one. The choice affects restart resilience and complexity.",
-      "options": [
-        {
-          "key": "A",
-          "label": "In-memory sync.Map of revoked run IDs",
-          "rationale": "Simplest implementation. O(1) lookup. No schema migration. Downside: revocation state lost on restart, but 24h TTL provides a natural ceiling — tokens expire anyway. Recommended because agent-manager is a single-process service and restarts are infrequent.",
-          "recommended": true
-        },
-        {
-          "key": "B",
-          "label": "DB column (identity_revoked_at) on runs table",
-          "rationale": "Survives restarts. Slightly more complex (schema migration + query). But runs table already tracks terminal status — verification could just check run.Status instead of a separate column, making this nearly free."
-        },
-        {
-          "key": "C",
-          "label": "Check run terminal status directly (no separate revocation store)",
-          "rationale": "Instead of tracking revocation separately, the verify endpoint queries the run's current status. If status is terminal (complete/failed/cancelled), the token is considered revoked. Zero additional storage, leverages existing data. Downside: couples verification to run repository."
-        },
-        {
-          "key": "D",
-          "label": "Other",
-          "rationale": "Provide your own approach"
-        }
-      ],
-      "clarification_id": "b716ce1a-dc37-4cf1-b788-ed51f795cc31"
-    },
-    {
       "id": "d2",
       "type": "decision",
       "topic": "Secret key storage location",

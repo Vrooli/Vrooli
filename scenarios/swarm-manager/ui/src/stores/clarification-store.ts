@@ -14,6 +14,8 @@ interface ClarificationTarget {
   roundNumber: number;
   itemId: string;
   itemTopic: string;
+  /** Existing thread ID — when set, the panel fetches the thread on open. */
+  clarificationId?: string;
 }
 
 interface ClarificationStoreState {
@@ -29,6 +31,9 @@ interface ClarificationStoreState {
   /** True while the initial create-clarification request is in-flight. */
   isCreating: boolean;
 
+  /** True while fetching an existing thread on panel reopen. */
+  isLoading: boolean;
+
   /** Open the panel for a specific decision item. */
   open: (target: ClarificationTarget) => void;
 
@@ -40,6 +45,9 @@ interface ClarificationStoreState {
 
   /** Toggle the creating spinner. */
   setCreating: (creating: boolean) => void;
+
+  /** Toggle the loading state. */
+  setLoading: (loading: boolean) => void;
 }
 
 export const useClarificationStore = create<ClarificationStoreState>((set) => ({
@@ -47,14 +55,17 @@ export const useClarificationStore = create<ClarificationStoreState>((set) => ({
   target: null,
   thread: null,
   isCreating: false,
+  isLoading: false,
 
   open: (target) =>
-    set({ isOpen: true, target, thread: null, isCreating: false }),
+    set({ isOpen: true, target, thread: null, isCreating: false, isLoading: !!target.clarificationId }),
 
   close: () =>
-    set({ isOpen: false, target: null, thread: null, isCreating: false }),
+    set({ isOpen: false, target: null, thread: null, isCreating: false, isLoading: false }),
 
   setThread: (thread) => set({ thread }),
 
   setCreating: (creating) => set({ isCreating: creating }),
+
+  setLoading: (loading) => set({ isLoading: loading }),
 }));
