@@ -37,6 +37,12 @@ export const DEFAULT_SETTINGS: Settings = {
   reviewMaxWarnings: -1,
   reviewRequireScreenshots: true,
   reviewRequireTests: true,
+  maxConcurrentExecutions: 3,
+  maxQueueDepth: 50,
+  circuitBreakerThreshold: 3,
+  circuitBreakerCooldownMinutes: 60,
+  executionCostCapPerRun: 0,
+  costPerTurnEstimate: 0.10,
 };
 
 type SettingsPatch = Partial<Settings>;
@@ -64,6 +70,12 @@ function normalizeSettings(input?: SettingsPatch): Settings {
     reviewMaxWarnings: input.reviewMaxWarnings ?? DEFAULT_SETTINGS.reviewMaxWarnings,
     reviewRequireScreenshots: input.reviewRequireScreenshots ?? DEFAULT_SETTINGS.reviewRequireScreenshots,
     reviewRequireTests: input.reviewRequireTests ?? DEFAULT_SETTINGS.reviewRequireTests,
+    maxConcurrentExecutions: input.maxConcurrentExecutions ?? DEFAULT_SETTINGS.maxConcurrentExecutions,
+    maxQueueDepth: input.maxQueueDepth ?? DEFAULT_SETTINGS.maxQueueDepth,
+    circuitBreakerThreshold: input.circuitBreakerThreshold ?? DEFAULT_SETTINGS.circuitBreakerThreshold,
+    circuitBreakerCooldownMinutes: input.circuitBreakerCooldownMinutes ?? DEFAULT_SETTINGS.circuitBreakerCooldownMinutes,
+    executionCostCapPerRun: input.executionCostCapPerRun ?? DEFAULT_SETTINGS.executionCostCapPerRun,
+    costPerTurnEstimate: input.costPerTurnEstimate ?? DEFAULT_SETTINGS.costPerTurnEstimate,
   };
 }
 

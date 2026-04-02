@@ -25,10 +25,10 @@ import { filterSnoozed, snoozeKeyForBacklog, snoozeKeyForCapture, snoozeKeyForEx
 // ---------------------------------------------------------------------------
 
 export type ActionGroupId =
+  | "needs-workshop"
   | "ready-to-run"
   | "pending-decisions"
   | "needs-review"
-  | "failed"
   | "needs-classification";
 
 export interface ActionGroup {
@@ -62,10 +62,10 @@ export interface CrossItemQuestion {
 // ---------------------------------------------------------------------------
 
 const GROUP_LABELS: Record<ActionGroupId, string> = {
+  "needs-workshop": "Needs Workshop",
   "ready-to-run": "Ready to Run",
   "pending-decisions": "Pending Decisions",
   "needs-review": "Needs Review",
-  failed: "Failed",
   "needs-classification": "Needs Classification",
 };
 
@@ -100,17 +100,11 @@ export function groupActionItems(
   );
   for (const exec of nonSnoozedExecutions) {
     const key = snoozeKeyForExecution(exec.executionId);
-    if (exec.status === "needs_review" || exec.status === "needs_fixup") {
+    // All post-execution states that need human attention go to "needs-review":
+    // failed, needs_review, needs_fixup, and completed (not yet archived).
+    if (exec.status === "needs_review" || exec.status === "needs_fixup"
+      || exec.status === "failed" || exec.status === "completed") {
       groups.get("needs-review")?.push({
-        type: "execution",
-        key,
-        title: exec.backlogName || exec.executionId,
-        executionId: exec.executionId,
-        reasons: [],
-        primaryCta: null,
-      });
-    } else if (exec.status === "failed") {
-      groups.get("failed")?.push({
         type: "execution",
         key,
         title: exec.backlogName || exec.executionId,
@@ -181,19 +175,17 @@ export function groupActionItems(
 
     // Classify into groups
     if (actions.terminal) {
-      if (item.status === "failed") {
-        groups.get("failed")?.push(actionable);
-      }
-      // completed terminal items don't need attention
+      // All terminal items (completed, failed) need review before archiving
+      groups.get("needs-review")?.push(actionable);
       continue;
     }
 
     if (ctx.hasPendingDecisions) {
       groups.get("pending-decisions")?.push(actionable);
+    } else if (actions.primaryCta === "workshop" || actions.primaryCta === "finalize") {
+      groups.get("needs-workshop")?.push(actionable);
     } else if (actions.primaryCta === "run") {
       groups.get("ready-to-run")?.push(actionable);
-    } else if (actions.primaryCta === "workshop" || actions.primaryCta === "finalize") {
-      groups.get("pending-decisions")?.push(actionable);
     }
   }
 
@@ -210,17 +202,22 @@ export function groupActionItems(
 
 /**
  * Flatten per-item pending question lists into a single ordered queue.
- * Filters out questions belonging to snoozed items.
+ * Filters out questions belonging to snoozed items and items not in the
+ * active backlog (e.g., archived/deleted items with leftover workshop files).
  */
 export function aggregateCrossItemQuestions(
   pendingQuestionsItems: PendingQuestionsItem[],
   snoozedKeys: Set<string>,
+  activeItemKeys?: Set<string>,
 ): CrossItemQuestion[] {
   const result: CrossItemQuestion[] = [];
 
   for (const pqi of pendingQuestionsItems) {
     const itemKey = snoozeKeyForBacklog(pqi.kind, pqi.name);
     if (snoozedKeys.has(itemKey)) continue;
+
+    // Skip items that are not in the active backlog (archived/deleted)
+    if (activeItemKeys && !activeItemKeys.has(`${pqi.kind}/${pqi.name}`)) continue;
 
     for (const question of pqi.questions) {
       result.push({

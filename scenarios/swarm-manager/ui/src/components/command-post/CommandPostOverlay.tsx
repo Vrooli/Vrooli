@@ -8,6 +8,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
+import { selectors } from "../../consts/selectors";
+import { useBacklogStore, buildActiveBacklogKeys } from "../../stores/backlog-store";
 import type { DetailSelection } from "../../stores/detail-selection-store";
 import { useSnoozeStore, useSnoozedKeys } from "../../stores/snooze-store";
 import { aggregateCrossItemQuestions } from "../../lib/command-post-utils";
@@ -34,6 +36,8 @@ export function CommandPostOverlay({
   const [view, setView] = useState<ViewState>("summary");
   const snoozedKeys = useSnoozedKeys();
   const snooze = useSnoozeStore((s) => s.snooze);
+  const backlogItems = useBacklogStore((s) => s.items);
+  const activeItemKeys = useMemo(() => buildActiveBacklogKeys(backlogItems), [backlogItems]);
 
   const summaryQuery = useQuery({
     queryKey: ["backlog-summary"],
@@ -44,8 +48,8 @@ export function CommandPostOverlay({
 
   const questions = useMemo(() => {
     const pqi = summaryQuery.data?.pending_questions?.items ?? [];
-    return aggregateCrossItemQuestions(pqi, snoozedKeys);
-  }, [summaryQuery.data?.pending_questions, snoozedKeys]);
+    return aggregateCrossItemQuestions(pqi, snoozedKeys, activeItemKeys);
+  }, [summaryQuery.data?.pending_questions, snoozedKeys, activeItemKeys]);
 
   // Reset to summary when reopened
   useEffect(() => {
@@ -77,21 +81,26 @@ export function CommandPostOverlay({
   return (
     <div
       className="absolute inset-0 z-[60] overflow-y-auto bg-slate-950"
-      data-testid="command-post-overlay"
+      data-testid={selectors.commandPost.overlay}
     >
-      {/* Header */}
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-800 bg-slate-950/95 px-4 py-2.5 backdrop-blur-sm">
-        <h2 className="text-lg font-semibold text-slate-100">Command Post</h2>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
-          aria-label="Close Command Post"
-          data-testid="command-post-close"
+      {/* Header — hidden during decision-stream for maximum vertical space */}
+      {view === "summary" && (
+        <div
+          className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-800 bg-slate-950/95 px-4 py-2.5 backdrop-blur-sm"
+          data-testid={selectors.commandPost.overlayHeader}
         >
-          <X className="h-5 w-5" />
-        </button>
-      </div>
+          <h2 className="text-lg font-semibold text-slate-100">Command Post</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
+            aria-label="Close Command Post"
+            data-testid={selectors.commandPost.close}
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      )}
 
       {/* Content */}
       {view === "summary" ? (
@@ -107,7 +116,7 @@ export function CommandPostOverlay({
           />
         </div>
       ) : (
-        <div className="h-[calc(100%-2.75rem)]">
+        <div className="h-full">
           <DecisionStreamView
             questions={questions}
             onComplete={() => setView("summary")}

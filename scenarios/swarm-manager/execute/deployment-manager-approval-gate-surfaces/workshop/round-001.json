@@ -2,13 +2,13 @@
   "round": 1,
   "generated_at": "2026-04-01T12:00:00Z",
   "mode": "workshop",
-  "pending_synthesis": false,
+  "pending_synthesis": true,
   "readiness": {
-    "problem_clarity": 3,
-    "scope_defined": 3,
     "approach_solid": 2,
-    "testable": 2,
-    "risk_awareness": 2
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
   },
   "items": [
     {
@@ -39,15 +39,13 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d2",
       "type": "decision",
       "topic": "CLI subcommand nesting depth for platform commands",
-      "context": "The approval API has 7 endpoints. Six map naturally to `approvals <verb>`, but the two platform-config endpoints (set/get required platforms) could be nested as `approvals platforms set|get` or flattened as `approvals set-platforms|get-platforms`.",
+      "context": "The approval API has 7 endpoints. Six map naturally to `approvals \u003cverb\u003e`, but the two platform-config endpoints (set/get required platforms) could be nested as `approvals platforms set|get` or flattened as `approvals set-platforms|get-platforms`.",
       "options": [
         {
           "key": "A",
@@ -66,9 +64,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d3",
@@ -93,9 +89,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d4",
@@ -125,9 +119,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "i1",

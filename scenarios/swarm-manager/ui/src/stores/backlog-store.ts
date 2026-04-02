@@ -120,3 +120,12 @@ export const useBacklogStore = create<BacklogStoreState>((set, get) => ({
     });
   },
 }));
+
+// ---------------------------------------------------------------------------
+// Derived selectors
+// ---------------------------------------------------------------------------
+
+/** Build a `Set<"kind/name">` from backlog items. Reusable across any component. */
+export function buildActiveBacklogKeys(items: BacklogItem[]): Set<string> {
+  return new Set(items.map((i) => `${i.kind}/${i.name}`));
+}

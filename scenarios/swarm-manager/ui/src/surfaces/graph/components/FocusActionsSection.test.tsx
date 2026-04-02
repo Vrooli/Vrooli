@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactNode } from "react";
 import type { GraphNodeData, BacklogGraphNodeData, ExecutionGraphNodeData, CaptureGraphNodeData } from "../types";
 
 // ---------------------------------------------------------------------------
@@ -16,7 +15,7 @@ const mockGetBacklogSummary = vi.fn().mockResolvedValue({
 
 vi.mock("../../../services", () => ({
   backlogService: {
-    getBacklogSummary: () => mockGetBacklogSummary(),
+    getBacklogSummary: () => mockGetBacklogSummary() as unknown,
     update: vi.fn().mockResolvedValue({}),
   },
 }));

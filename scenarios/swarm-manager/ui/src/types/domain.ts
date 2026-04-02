@@ -635,7 +635,7 @@ export type ThemePreference = "dark" | "light" | "system";
  */
 export type Settings = Omit<
   ProtoMessage<ProtoSettings>,
-  "theme" | "defaultDelaySeconds" | "maxFixupAttempts" | "maxAutoRounds" | "agentMaxTurns" | "agentTimeoutSeconds" | "searchDebounceMs" | "toastDurationMs" | "reviewMaxBlockingViolations" | "reviewMaxWarnings"
+  "theme" | "defaultDelaySeconds" | "maxFixupAttempts" | "maxAutoRounds" | "agentMaxTurns" | "agentTimeoutSeconds" | "searchDebounceMs" | "toastDurationMs" | "reviewMaxBlockingViolations" | "reviewMaxWarnings" | "maxConcurrentExecutions" | "maxQueueDepth" | "circuitBreakerThreshold" | "circuitBreakerCooldownMinutes" | "executionCostCapPerRun" | "costPerTurnEstimate"
 > & {
   /** UI theme preference */
   theme: ThemePreference;
@@ -663,6 +663,13 @@ export type Settings = Omit<
   reviewMaxWarnings: number;
   reviewRequireScreenshots: boolean;
   reviewRequireTests: boolean;
+  /** Concurrency and governance */
+  maxConcurrentExecutions: number;
+  maxQueueDepth: number;
+  circuitBreakerThreshold: number;
+  circuitBreakerCooldownMinutes: number;
+  executionCostCapPerRun: number;
+  costPerTurnEstimate: number;
 };
 
 /**

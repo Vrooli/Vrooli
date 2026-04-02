@@ -22,6 +22,8 @@ export interface AgentsDropdownProps {
   onStopRun: (runId: string) => void;
   /** "button" = HUD-style, "badge" = compact sidebar pill. Default: "button". */
   variant?: "badge" | "button";
+  /** Max concurrent executions from governance settings. When set, shows N/M format. */
+  maxConcurrent?: number;
   className?: string;
 }
 
@@ -31,10 +33,12 @@ export function AgentsDropdown({
   onViewBacklog,
   onStopRun,
   variant = "button",
+  maxConcurrent,
   className,
 }: AgentsDropdownProps) {
   const [open, setOpen] = useState(false);
   const count = activities.length;
+  const countLabel = maxConcurrent != null ? `${count}/${maxConcurrent}` : `${count}`;
 
   const trigger =
     variant === "badge" ? (
@@ -51,7 +55,7 @@ export function AgentsDropdown({
         data-testid="agents-badge"
       >
         <Activity className={cn("h-3.5 w-3.5", count > 0 && "animate-pulse")} />
-        <span>{count}</span>
+        <span>{countLabel}</span>
       </button>
     ) : (
       <button
@@ -62,7 +66,7 @@ export function AgentsDropdown({
       >
         <Activity className="h-4 w-4 text-cyan-300" />
         <span className="rounded-full bg-cyan-500/20 px-1.5 py-0.5 text-xs text-cyan-200">
-          {count}
+          {countLabel}
         </span>
       </button>
     );

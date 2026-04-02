@@ -58,6 +58,14 @@ type Settings struct {
 	ReviewMaxWarnings           int     `json:"review_max_warnings"`
 	ReviewRequireScreenshots    bool    `json:"review_require_screenshots"`
 	ReviewRequireTests          bool    `json:"review_require_tests"`
+
+	// Concurrency and governance.
+	MaxConcurrentExecutions       int     `json:"max_concurrent_executions"`
+	MaxQueueDepth                 int     `json:"max_queue_depth"`
+	CircuitBreakerThreshold       int     `json:"circuit_breaker_threshold"`
+	CircuitBreakerCooldownMinutes int     `json:"circuit_breaker_cooldown_minutes"`
+	ExecutionCostCapPerRun        float64 `json:"execution_cost_cap_per_run"`
+	CostPerTurnEstimate           float64 `json:"cost_per_turn_estimate"`
 }
 
 // SettingsPatch allows partial updates.
@@ -87,6 +95,13 @@ type SettingsPatch struct {
 	ReviewMaxWarnings           *int     `json:"review_max_warnings,omitempty"`
 	ReviewRequireScreenshots    *bool    `json:"review_require_screenshots,omitempty"`
 	ReviewRequireTests          *bool    `json:"review_require_tests,omitempty"`
+
+	MaxConcurrentExecutions       *int     `json:"max_concurrent_executions,omitempty"`
+	MaxQueueDepth                 *int     `json:"max_queue_depth,omitempty"`
+	CircuitBreakerThreshold       *int     `json:"circuit_breaker_threshold,omitempty"`
+	CircuitBreakerCooldownMinutes *int     `json:"circuit_breaker_cooldown_minutes,omitempty"`
+	ExecutionCostCapPerRun        *float64 `json:"execution_cost_cap_per_run,omitempty"`
+	CostPerTurnEstimate           *float64 `json:"cost_per_turn_estimate,omitempty"`
 }
 
 // Store persists settings on disk.
@@ -136,6 +151,13 @@ func DefaultSettings() Settings {
 		ReviewMaxWarnings:           -1,
 		ReviewRequireScreenshots:    true,
 		ReviewRequireTests:          true,
+
+		MaxConcurrentExecutions:       3,
+		MaxQueueDepth:                 50,
+		CircuitBreakerThreshold:       3,
+		CircuitBreakerCooldownMinutes: 60,
+		ExecutionCostCapPerRun:        0,
+		CostPerTurnEstimate:           0.10,
 	}
 }
 
@@ -234,6 +256,16 @@ func normalizeSettings(settings Settings) Settings {
 	if settings.ReviewMaxWarnings < -1 {
 		settings.ReviewMaxWarnings = -1
 	}
+
+	// Concurrency and governance.
+	settings.MaxConcurrentExecutions = clampInt(settings.MaxConcurrentExecutions, 1, 20)
+	settings.MaxQueueDepth = clampInt(settings.MaxQueueDepth, 0, 100)
+	settings.CircuitBreakerThreshold = clampInt(settings.CircuitBreakerThreshold, 1, 10)
+	settings.CircuitBreakerCooldownMinutes = clampInt(settings.CircuitBreakerCooldownMinutes, 5, 1440)
+	if settings.ExecutionCostCapPerRun < 0 {
+		settings.ExecutionCostCapPerRun = 0
+	}
+	settings.CostPerTurnEstimate = clampFloat(settings.CostPerTurnEstimate, 0, 5)
 
 	return settings
 }
@@ -397,6 +429,24 @@ func applyPatch(current Settings, patch SettingsPatch) Settings {
 	if patch.ReviewRequireTests != nil {
 		current.ReviewRequireTests = *patch.ReviewRequireTests
 	}
+	if patch.MaxConcurrentExecutions != nil {
+		current.MaxConcurrentExecutions = *patch.MaxConcurrentExecutions
+	}
+	if patch.MaxQueueDepth != nil {
+		current.MaxQueueDepth = *patch.MaxQueueDepth
+	}
+	if patch.CircuitBreakerThreshold != nil {
+		current.CircuitBreakerThreshold = *patch.CircuitBreakerThreshold
+	}
+	if patch.CircuitBreakerCooldownMinutes != nil {
+		current.CircuitBreakerCooldownMinutes = *patch.CircuitBreakerCooldownMinutes
+	}
+	if patch.ExecutionCostCapPerRun != nil {
+		current.ExecutionCostCapPerRun = *patch.ExecutionCostCapPerRun
+	}
+	if patch.CostPerTurnEstimate != nil {
+		current.CostPerTurnEstimate = *patch.CostPerTurnEstimate
+	}
 	return current
 }
 
@@ -420,8 +470,14 @@ func settingsToProto(s Settings) *domainpb.Settings {
 		ReviewTestMinPassRate:       s.ReviewTestMinPassRate,
 		ReviewMaxBlockingViolations: int32(s.ReviewMaxBlockingViolations),
 		ReviewMaxWarnings:           int32(s.ReviewMaxWarnings),
-		ReviewRequireScreenshots:    s.ReviewRequireScreenshots,
-		ReviewRequireTests:          s.ReviewRequireTests,
+		ReviewRequireScreenshots:        s.ReviewRequireScreenshots,
+		ReviewRequireTests:              s.ReviewRequireTests,
+		MaxConcurrentExecutions:         int32(s.MaxConcurrentExecutions),
+		MaxQueueDepth:                   int32(s.MaxQueueDepth),
+		CircuitBreakerThreshold:         int32(s.CircuitBreakerThreshold),
+		CircuitBreakerCooldownMinutes:   int32(s.CircuitBreakerCooldownMinutes),
+		ExecutionCostCapPerRun:          s.ExecutionCostCapPerRun,
+		CostPerTurnEstimate:             s.CostPerTurnEstimate,
 	}
 }
 
@@ -509,6 +565,30 @@ func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
 		v := *req.ReviewRequireTests
 		patch.ReviewRequireTests = &v
 	}
+	if req.MaxConcurrentExecutions != nil {
+		v := int(*req.MaxConcurrentExecutions)
+		patch.MaxConcurrentExecutions = &v
+	}
+	if req.MaxQueueDepth != nil {
+		v := int(*req.MaxQueueDepth)
+		patch.MaxQueueDepth = &v
+	}
+	if req.CircuitBreakerThreshold != nil {
+		v := int(*req.CircuitBreakerThreshold)
+		patch.CircuitBreakerThreshold = &v
+	}
+	if req.CircuitBreakerCooldownMinutes != nil {
+		v := int(*req.CircuitBreakerCooldownMinutes)
+		patch.CircuitBreakerCooldownMinutes = &v
+	}
+	if req.ExecutionCostCapPerRun != nil {
+		v := *req.ExecutionCostCapPerRun
+		patch.ExecutionCostCapPerRun = &v
+	}
+	if req.CostPerTurnEstimate != nil {
+		v := *req.CostPerTurnEstimate
+		patch.CostPerTurnEstimate = &v
+	}
 	return patch
 }
 
@@ -535,5 +615,11 @@ func isEmptyUpdateSettingsRequest(req *apipb.UpdateSettingsRequest) bool {
 		req.ReviewMaxBlockingViolations == nil &&
 		req.ReviewMaxWarnings == nil &&
 		req.ReviewRequireScreenshots == nil &&
-		req.ReviewRequireTests == nil
+		req.ReviewRequireTests == nil &&
+		req.MaxConcurrentExecutions == nil &&
+		req.MaxQueueDepth == nil &&
+		req.CircuitBreakerThreshold == nil &&
+		req.CircuitBreakerCooldownMinutes == nil &&
+		req.ExecutionCostCapPerRun == nil &&
+		req.CostPerTurnEstimate == nil
 }

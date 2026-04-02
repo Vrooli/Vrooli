@@ -5,6 +5,7 @@
 import { CheckCircle2, Circle } from "lucide-react";
 import type { ReviewStatus } from "../../types";
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function getReviewStatus(item: { review_status?: ReviewStatus }): ReviewStatus {
   return item.review_status ?? "unreviewed";
 }
@@ -57,6 +58,7 @@ export function ReviewStatusIndicator({ reviewStatus }: { reviewStatus: ReviewSt
   return null;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function countAllRequirements(groups: { requirements: unknown[]; children: typeof groups }[]): unknown[] {
   const all: unknown[] = [];
   for (const g of groups) {

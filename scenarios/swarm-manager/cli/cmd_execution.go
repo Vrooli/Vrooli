@@ -425,6 +425,26 @@ func (a *App) cmdExecutionRetry(args []string) error {
 	return a.runExecutionMutation(args, "retry")
 }
 
+func (a *App) cmdCircuitBreakerReset(args []string) error {
+	fs := flag.NewFlagSet("execution circuit-breaker-reset", flag.ContinueOnError)
+	item := fs.String("item", "", "Item key (kind/name)")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlag("item", *item); err != nil {
+		return fmt.Errorf("usage: execution circuit-breaker-reset --item KIND/NAME\n\n%s", err)
+	}
+
+	payload := map[string]string{"item": strings.TrimSpace(*item)}
+	_, err := a.requestV1("POST", "/execution/circuit-breaker/reset", nil, payload)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Circuit breaker reset for %s\n", *item)
+	return nil
+}
+
 func (a *App) runExecutionMutation(args []string, action string) error {
 	fs := flag.NewFlagSet("execution "+action, flag.ContinueOnError)
 	id := fs.String("id", "", "Execution ID")

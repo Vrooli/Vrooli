@@ -102,10 +102,26 @@ describe("groupActionItems", () => {
     expect(getGroup(groups, "pending-decisions").count).toBe(1);
   });
 
-  it("classifies failed backlog items into failed group", () => {
+  it("classifies failed backlog items into needs-review group", () => {
     const item = makeBacklogItem({ status: "failed" });
     const groups = groupActionItems([item], [], [], EMPTY_FEEDBACK, EMPTY_MATURITY, NO_SNOOZED);
-    expect(getGroup(groups, "failed").count).toBe(1);
+    expect(getGroup(groups, "needs-review").count).toBe(1);
+  });
+
+  it("classifies completed backlog items into needs-review group", () => {
+    const item = makeBacklogItem({ status: "completed" });
+    const groups = groupActionItems([item], [], [], EMPTY_FEEDBACK, EMPTY_MATURITY, NO_SNOOZED);
+    expect(getGroup(groups, "needs-review").count).toBe(1);
+  });
+
+  it("classifies workshop-needing items into needs-workshop group", () => {
+    // An item with readinessReady=false → primaryCta = "workshop"
+    const item = makeBacklogItem({ status: "backlog" });
+    const maturityMap = new Map([
+      [`${item.kind}/${item.name}`, { kind: item.kind, name: item.name, ready: false, pendingItems: 1 }],
+    ]);
+    const groups = groupActionItems([item], [], [], EMPTY_FEEDBACK, maturityMap, NO_SNOOZED);
+    expect(getGroup(groups, "needs-workshop").count).toBe(1);
   });
 
   it("classifies needs_review executions into needs-review group", () => {
@@ -120,10 +136,16 @@ describe("groupActionItems", () => {
     expect(getGroup(groups, "needs-review").count).toBe(1);
   });
 
-  it("classifies failed executions into failed group", () => {
+  it("classifies failed executions into needs-review group", () => {
     const exec = makeExecution({ status: "failed" });
     const groups = groupActionItems([], [exec], [], EMPTY_FEEDBACK, EMPTY_MATURITY, NO_SNOOZED);
-    expect(getGroup(groups, "failed").count).toBe(1);
+    expect(getGroup(groups, "needs-review").count).toBe(1);
+  });
+
+  it("classifies completed executions into needs-review group", () => {
+    const exec = makeExecution({ status: "completed" });
+    const groups = groupActionItems([], [exec], [], EMPTY_FEEDBACK, EMPTY_MATURITY, NO_SNOOZED);
+    expect(getGroup(groups, "needs-review").count).toBe(1);
   });
 
   it("classifies classifying captures into needs-classification", () => {
@@ -222,6 +244,45 @@ describe("aggregateCrossItemQuestions", () => {
     const result = aggregateCrossItemQuestions(items, snoozed);
     expect(result).toHaveLength(1);
     expect(result[0]?.parentName).toBe("active-item");
+  });
+
+  it("filters out questions from items not in active backlog", () => {
+    const items: PendingQuestionsItem[] = [
+      {
+        kind: "idea",
+        name: "archived-item",
+        questions: [
+          { id: "q1", source: "workshop", item_kind: "idea", item_name: "archived-item" },
+        ],
+      },
+      {
+        kind: "fix",
+        name: "active-item",
+        questions: [
+          { id: "q2", source: "workshop", item_kind: "fix", item_name: "active-item" },
+        ],
+      },
+    ];
+
+    const activeKeys = new Set(["fix/active-item"]);
+    const result = aggregateCrossItemQuestions(items, NO_SNOOZED, activeKeys);
+    expect(result).toHaveLength(1);
+    expect(result[0]?.parentName).toBe("active-item");
+  });
+
+  it("includes all items when activeItemKeys is undefined", () => {
+    const items: PendingQuestionsItem[] = [
+      {
+        kind: "idea",
+        name: "any-item",
+        questions: [
+          { id: "q1", source: "workshop", item_kind: "idea", item_name: "any-item" },
+        ],
+      },
+    ];
+
+    const result = aggregateCrossItemQuestions(items, NO_SNOOZED, undefined);
+    expect(result).toHaveLength(1);
   });
 });
 

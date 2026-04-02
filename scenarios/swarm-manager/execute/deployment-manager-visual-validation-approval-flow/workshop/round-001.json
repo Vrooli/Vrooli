@@ -1,0 +1,144 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-02T16:30:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 2,
+    "scope_defined": 2,
+    "approach_solid": 1,
+    "testable": 1,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Bridging mechanism: where does validation→approval linkage live?",
+      "context": "The core question is how validation review outcomes get propagated to deployment approvals. Currently SubmitReview() in validation/handler.go only updates the visual_validations record. We need to also create/update a deployment_approval. There are two main approaches: embed the logic in the existing review handler (tight coupling, simpler) or create a dedicated bridging service/endpoint (looser coupling, more explicit).",
+      "options": [
+        {
+          "key": "A",
+          "label": "Extend SubmitReview handler to also create/update approval",
+          "rationale": "Simplest approach — when a validation is reviewed, the handler calls the approvals repository in the same transaction. The operator's workflow doesn't change, they just get automatic approval state. Recommended because it matches the natural user intent: reviewing validation IS the approval decision. Keeps the API surface minimal.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "New bridging endpoint: POST /api/v1/validations/{id}/promote-to-approval",
+          "rationale": "Explicit two-step flow where review and approval promotion are separate actions. More flexible (could review without approving), but adds friction to the operator workflow and another API call. Better if there are cases where validation review should NOT affect approval state."
+        },
+        {
+          "key": "C",
+          "label": "Event-driven: validation review emits event, approval service subscribes",
+          "rationale": "Most decoupled approach. Clean separation of concerns, extensible for future subscribers. But adds significant infrastructure complexity (event bus) for what is currently an in-process interaction between two Go packages. Over-engineered for the current scale."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Making validations commit-aware",
+      "context": "Deployment approvals are keyed by (profile_id, git_commit_hash, platform), but visual_validations currently have no git_commit_hash column. To link them, validations need to become commit-aware. The question is whether to require commit hash on all validations or make it optional.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Add git_commit_hash as required field on new validations",
+          "rationale": "Clean data model — every validation is traceable to a commit. But breaks any existing callers that don't provide it and prevents ad-hoc validations unrelated to a specific release."
+        },
+        {
+          "key": "B",
+          "label": "Add git_commit_hash as optional field; only bridge to approval when present",
+          "rationale": "Backwards-compatible. Existing validation flows keep working. When commit hash IS provided, the review→approval bridge activates. When absent, validation operates standalone as today. Recommended because it's non-breaking and the bridging only fires when there's enough context to create a meaningful approval.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "UI integration approach for the unified approval flow",
+      "context": "Currently VideoReviewPanel.tsx shows video evidence and a review form but nothing about deployment approval status. The approval API exists but has no UI at all (noted in codebase exploration). We need to surface the connected state.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Extend VideoReviewPanel with approval status badge and gate summary",
+          "rationale": "Minimal UI change — add an approval status indicator (pending/approved/rejected) and a link to the release gate status below the existing review form. Keeps one component, one view. Recommended because operators already use this panel for review, so showing the approval consequence inline gives immediate feedback.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "New dedicated ApprovalWorkflow page showing validations + approvals together",
+          "rationale": "Full-featured approval management page with validation evidence, per-platform approval grid, and release gate status. More powerful but significantly more UI work for a first iteration."
+        },
+        {
+          "key": "C",
+          "label": "Both: extend VideoReviewPanel now, build full approval page as follow-up",
+          "rationale": "Incremental approach — ship the inline enhancement first, plan the full page as a separate item. Good balance but splits the work across items."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Transaction boundary for the review→approval bridge",
+      "context": "When a validation review triggers an approval state change, both writes (validation record update + approval record create/update) should be atomic. If the approval write fails, the validation review should also roll back. The question is how to handle this given the current repository structure where ValidationRepository and ApprovalsRepository are separate types with separate DB connections.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Pass *sql.Tx through a shared transaction context",
+          "rationale": "Both repositories accept an optional *sql.Tx parameter (or use a context-carried transaction). The handler starts a transaction, passes it to both repository calls, and commits/rolls back. Recommended because it gives true atomicity with minimal structural change — just add a WithTx() method or accept *sql.Tx in the relevant repository methods.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Create a new bridging service that owns the transaction",
+          "rationale": "A new ApprovalBridgeService type that takes both repositories and manages the transaction internally. Cleaner separation but adds another layer. Better if the bridging logic grows complex."
+        },
+        {
+          "key": "C",
+          "label": "Best-effort: write validation first, then approval, compensate on failure",
+          "rationale": "Simpler code — no shared transaction needed. If approval write fails, log it and let the operator retry. Acceptable if we treat the approval as a derived projection that can be repaired, but risks inconsistent state."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The deployment_approvals table already has a `validation_id TEXT` column (in migration 003_add_deployment_approvals.sql) that is never populated by any code path today. This confirms the linkage was always intended — we're completing a partially-built design, not inventing a new one. The approval's Create() method in approvals_repository.go also already marks previous approvals as stale for the same (profile_id, git_commit_hash, platform) tuple, so the staleness logic is already handled."
+    }
+  ],
+  "plan_updates": "Created initial plan scaffold with all 13 mandatory sections. Filled: Purpose, Required Reading, Problem Statement, Scope, Current Technical Context (with key file inventory), Target End State, partial Implementation Strategy (4 phases), partial Contract Decisions, partial Testing Plan, Risks table (3 items), Non-goals, and Definition of Done (7 criteria). Left Implementation Strategy details, full Testing Plan, and Rollout Checklist as TBD pending workshop decisions."
+}

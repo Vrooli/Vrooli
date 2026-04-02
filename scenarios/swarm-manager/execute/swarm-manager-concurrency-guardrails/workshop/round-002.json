@@ -2,13 +2,13 @@
   "round": 2,
   "generated_at": "2026-03-30T18:30:00Z",
   "mode": "workshop",
-  "pending_synthesis": false,
+  "pending_synthesis": true,
   "readiness": {
-    "problem_clarity": 3,
-    "scope_defined": 3,
     "approach_solid": 2,
-    "testable": 2,
-    "risk_awareness": 2
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
   },
   "items": [
     {
@@ -34,9 +34,7 @@
           "rationale": "Provide your own range and default"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d2",
@@ -66,9 +64,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d3",
@@ -84,7 +80,7 @@
         },
         {
           "key": "B",
-          "label": "Explicit reset: dedicated 'swarm-manager execution circuit-breaker reset <kind/name>' CLI command and API endpoint",
+          "label": "Explicit reset: dedicated 'swarm-manager execution circuit-breaker reset \u003ckind/name\u003e' CLI command and API endpoint",
           "rationale": "Clearer intent. Separates 'reset the breaker' from 'queue for execution.' Useful if you want to inspect breaker state without retrying. But adds API surface for a relatively rare operation."
         },
         {
@@ -98,9 +94,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "B"
     },
     {
       "id": "d4",
@@ -130,9 +124,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "i1",

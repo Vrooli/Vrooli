@@ -209,7 +209,12 @@ describe("PlanPanel", () => {
     vi.mocked(backlogService.getFileContent).mockResolvedValue(mockPlanContent);
 
     const writeText = vi.fn().mockResolvedValue(undefined);
-    Object.assign(navigator, { clipboard: { writeText } });
+    const originalClipboard = navigator.clipboard;
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      writable: true,
+      configurable: true,
+    });
 
     renderWithProviders(
       <PlanPanel backlogKind="idea" backlogName="test-item" />,
@@ -223,6 +228,13 @@ describe("PlanPanel", () => {
 
     await waitFor(() => {
       expect(writeText).toHaveBeenCalledWith(mockPlanContent);
+    });
+
+    // Restore original clipboard
+    Object.defineProperty(navigator, "clipboard", {
+      value: originalClipboard,
+      writable: true,
+      configurable: true,
     });
   });
 

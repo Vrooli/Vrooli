@@ -1,0 +1,139 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-02T18:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 2,
+    "testable": 2,
+    "risk_awareness": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Automated testing strategy for CLI and UI",
+      "context": "The current plan lists 'manual verification' as a testing approach, but automated tests are strongly preferred. The CLI has an established test pattern using httptest.NewServer for HTTP mocking, os.Pipe for output capture, and table-driven tests (see cli/deployments/commands_test.go). The UI uses Vitest + React Testing Library with vi.mock('../lib/api') for API mocking (see ui/src/pages/Profiles.test.tsx). The question is what level of automated coverage to target given the 7 CLI commands and multiple UI components.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Full automated coverage: CLI unit tests for all 7 subcommands + UI component tests for Approvals page and ProfileDetail gate badge",
+          "rationale": "Follows existing test patterns in both cli/ and ui/. CLI tests mock the HTTP server and verify output format, flag parsing, and error handling for each subcommand. UI tests mock API functions and verify rendering, user interactions (approve/reject buttons), and error states. Matches the codebase's established testing depth. Recommended because it ensures regressions are caught automatically and aligns with the project preference for automated tests over manual checklists.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "CLI-only automated tests, UI manual verification",
+          "rationale": "CLI tests are straightforward with httptest mocking. UI component tests for approval workflows (inline actions, modal dialogs, filtering) are more complex to set up. Saves time but leaves UI regressions undetected."
+        },
+        {
+          "key": "C",
+          "label": "Minimal smoke tests only (CLI help output, UI renders without crash)",
+          "rationale": "Fastest to implement. Verifies nothing is obviously broken but doesn't catch logic bugs in flag parsing, output formatting, or UI state management."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "UI approval list data freshness strategy",
+      "context": "The Approvals page will show a list of pending/decided approvals that multiple operators may be acting on concurrently. The existing UI pages (Profiles, Deployments) use React Query with default stale/refetch behavior — no polling, data refreshes on window focus and navigation. Approvals have a time-sensitive workflow: an operator needs to see when new approvals are created and when others have decided on them.",
+      "options": [
+        {
+          "key": "A",
+          "label": "React Query defaults (refetch on focus/mount) + manual refresh button",
+          "rationale": "Consistent with existing pages. Adds a visible 'Refresh' button so operators can explicitly check for updates. Simple, predictable, no extra server load. Recommended because it matches the existing UI patterns and avoids introducing polling infrastructure that no other page uses.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Polling every 30 seconds via React Query refetchInterval",
+          "rationale": "Near-real-time updates without manual intervention. Adds modest server load (one GET every 30s per open tab). Easy to implement with React Query's refetchInterval option. But no other page in the UI uses polling, so this introduces a new pattern."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Gate status badge placement and detail level on ProfileDetail",
+      "context": "Round 1 decided that ProfileDetail gets a gate status badge and required-platforms config. The ProfileDetail page currently shows profile info, swaps, secrets, and settings in Card sections. The gate badge needs a commit hash to query — but ProfileDetail may not have a specific commit in context (it shows the profile, not a specific deployment). The question is what the badge shows and how users specify which commit to check.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Show gate status for the latest deployment's commit, with a commit selector dropdown",
+          "rationale": "Default to the most recent deployment's git_commit_hash (available from the profile's deployment history). Add a small dropdown to check other commits. This gives immediate value — operators see whether the latest build is release-ready — while allowing inspection of any commit. Recommended because it provides useful default behavior without requiring manual input.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Commit input field only (no default)",
+          "rationale": "Simple — operator pastes a commit hash and clicks 'Check Gate'. No dependency on deployment history. But requires knowing the commit hash upfront, which is inconvenient."
+        },
+        {
+          "key": "C",
+          "label": "Show a summary table of all commits with pending approvals (no single-commit focus)",
+          "rationale": "Overview-first approach. Shows all commits that have any approval activity for this profile. More information-dense but harder to parse at a glance."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Required platforms config UI component style",
+      "context": "The required-platforms config lets operators set which platforms (win, mac, linux) must be approved before the release gate opens. The API accepts a string array (PUT /profiles/{id}/required-platforms with {\"platforms\": [\"win\",\"mac\",\"linux\"]}). This is a small, infrequently-changed setting. It should be surfaced on ProfileDetail but shouldn't dominate the page.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Checkbox group in a collapsible Card section on ProfileDetail",
+          "rationale": "Three checkboxes (Windows, macOS, Linux) in a 'Required Platforms' card section. Simple, scannable, immediately editable. Save button submits the array. Recommended because the fixed set of platforms maps naturally to checkboxes, and a collapsible card keeps the page clean for profiles that don't use approval gating.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Tag/chip input with autocomplete",
+          "rationale": "More flexible if platform names change or expand. But overkill for 3 well-known values and introduces interaction complexity (typing, selecting, deleting chips)."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Discovered that the global CLI format system uses SetGlobalFormat/ResolveFormat in cmdutil, with a leading --json/--format flag consumed in app.go before dispatch. New approvals commands should follow this pattern rather than implementing their own format handling. The default global format is 'json', but commands should produce human-readable output by default and only switch to JSON when --json is passed."
+    }
+  ],
+  "plan_updates": "Incorporated all round 1 decisions (A across the board) into the plan as settled commitments. Added react-coherence to Required Reading. Refined testing plan section to emphasize automated tests. Added implementation details for gate badge on ProfileDetail and required-platforms config component."
+}

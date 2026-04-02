@@ -1210,5 +1210,218 @@
     },
     "created_at": "2026-04-02T03:17:33Z",
     "updated_at": "2026-04-02T03:35:40Z"
+  },
+  {
+    "execution_id": "99c7a1f3288d359a",
+    "backlog_kind": "execute",
+    "backlog_name": "desktop-post-publish-version-sync",
+    "previous_status": "backlog",
+    "task_id": "6cca67ca-82b9-4508-9769-0de862082626",
+    "run_id": "f1b3d365-f9fb-4347-af38-c3b217a25196",
+    "status": "needs_fixup",
+    "mode": "yolo",
+    "started_at": "2026-04-02T16:22:55Z",
+    "finished_at": "2026-04-02T16:38:28Z",
+    "started_by": "swarm-manager-ui",
+    "operation": "generator",
+    "prompt_trace": {
+      "purpose": "process",
+      "prompt": "\u003cexecution-context\u003e\nBacklog item: execute/desktop-post-publish-version-sync\nTitle: Add post-publish version sync from scenario-to-desktop to deployment-manager\nItem folder: /home/matthalloran8/Vrooli/scenarios/swarm-manager/execute/desktop-post-publish-version-sync\nRun type: process\n\u003c/execution-context\u003e\n\n\u003cimplementation-plan path=\"plan.md\"\u003e\n# Implementation Plan: Post-Publish Version Sync\n\n## 1. Purpose\n\nClose the feedback loop between scenario-to-desktop and deployment-manager so that after a desktop release is published to LPBS, deployment-manager automatically records what version was published for which platform under which profile. Today this information is lost once the pipeline completes.\n\n## Required Reading\n\n```bash\nprompt-manager skill read api-steer interoperability-steer deployment-coordinator\nprompt-manager skill read cli-steer seam-discovery-and-enforcement\n```\n\n## 2. Problem Statement\n\nWhen deployment-manager orchestrates a desktop release via `POST /api/v1/deploy-desktop`, it:\n1. Calls scenario-to-desktop `POST /api/v1/pipeline/run`\n2. Polls `GET /api/v1/pipeline/{id}` until completion\n3. Checks `Status.Stages[\"deploy\"].Details` for `DeployResult`\n\nBut after step 3, deployment-manager **does not persist** the published version, platform, or artifact IDs anywhere. The `deployments` table stores `status`, `artifacts` (JSONB), `message`, `logs`, and `error` — but `artifacts` is a generic JSONB array without structured version-per-platform semantics.\n\nThe `DeployResult` struct (in scenario-to-desktop) contains `[]DeployArtifactResult{ArtifactID, Platform}` plus `UpdateURL`. The pipeline `Status.Provenance` contains `BuildProvenance{Version, GitCommitHash, GitBranch, GitDirty, BuiltAt}`.\n\n## 3. Scope\n\n**In scope:**\n- `scenarios/deployment-manager/api/**` — new table, repository, endpoint, orchestrator integration\n- `scenarios/scenario-to-desktop/api/**` — only if changes needed to expose data (likely none with pull approach)\n\n**Out of scope:**\n- LPBS webhook (separate backlog item: `lpbs-publish-webhook`)\n- Rollback API (separate backlog item: `desktop-rollback-api`)\n- UI changes in either scenario\n- CLI changes in either scenario\n\n## 4. Current Technical Context\n\n### deployment-manager\n- **Schema**: `scenarios/deployment-manager/initialization/postgres/schema.sql`\n  - `profiles` table with JSONB fields for tiers, swaps, secrets, settings\n  - `deployments` table: `id, profile_id, status, started_at, completed_at, artifacts JSONB, message, logs, error`\n  - `deployment_approvals` table: per-platform release gating with git_commit_hash\n  - No dedicated table for published version tracking\n- **Orchestrator**: `scenarios/deployment-manager/api/deployments/orchestrator.go`\n  - Handles full desktop deploy workflow: validate → build → package → desktop gen → installers → visual validation\n  - Uses `DesktopPackagerClient` to communicate with scenario-to-desktop\n  - Currently does NOT have a \"publish to LPBS\" step — this plan adds it as Step 9\n  - Returns `DeployDesktopResponse` with Steps, BuildResults, Installers, etc.\n- **Desktop client**: `scenarios/deployment-manager/api/deployments/desktop_client.go`\n  - Has `QuickGenerate`, `WaitForBuild`, `RunSmokeTest` methods\n  - Can call `POST /api/v1/pipeline/run` and poll status\n- **Routes**: gorilla/mux in `server/routes.go`\n- **Repository pattern**: Interface + SQL implementation (e.g., `profiles.Repository` → `profiles.SQLRepository`)\n\n### scenario-to-desktop\n- **Deploy stage**: `pipeline/stage_deploy.go` — uploads artifacts to LPBS via `LPBSClient`, produces `DeployResult`\n- **Types**: `DeployResult{Artifacts []DeployArtifactResult, UpdateURL string}`\n- **DeployArtifactResult**: `{ArtifactID int64, Platform string}`\n- **BuildProvenance**: `{GitCommitHash, GitBranch string, GitDirty bool, BuiltAt time.Time, Version string}`\n- **Pipeline Status**: `Status.Stages[\"deploy\"].Details` contains `DeployResult` (as `interface{}`, needs JSON round-trip to deserialize)\n- **Status.Provenance**: Contains `BuildProvenance` at the pipeline level\n\n## 5. Decisions Made\n\n### Workshop Round 1\n\n| Decision | Selected | Rationale |\n|----------|----------|-----------|\n| Sync mechanism | **Pull** (orchestrator extracts from pipeline response) | Simplest, no new inter-service contract, deployment-manager owns its own data |\n| Version storage | **Full history** (append-only, query latest via window function) | Enables \"what was live at time T?\" queries and rollback audit trail |\n| Error handling | **Non-fatal** (log error, deploy still succeeds) | Publish is the real action; version record is convenience cache |\n| Version source | **BuildProvenance.Version** from pipeline Status | Already available in pipeline status response |\n\n### Workshop Round 2\n\n| Decision | Selected | Rationale |\n|----------|----------|-----------|\n| Orchestrator integration point | **New orchestrator step** (\"Publish to LPBS\") that triggers scenario-to-desktop pipeline, polls completion, extracts version | Makes orchestrator the single entry point for the entire deploy-through-publish flow |\n| Repository placement | **In `deployments` package** alongside `ApprovalsRepository` | Published versions are a deployment concern; orchestrator is primary caller; avoids new package |\n| DeployResult deserialization | **JSON round-trip** (marshal `Details` interface{} to JSON, unmarshal to local typed struct) | Standard Go pattern; no coupling to scenario-to-desktop's Go types |\n| Pipeline trigger config | **Deploy stage only**, passing pre-built artifact paths as input | Orchestrator already did build/package; only LPBS upload needed; minimizes redundant work |\n\n## 6. Implementation Strategy: Orchestrator-Side Pull\n\nThe orchestrator adds a new \"Publish to LPBS\" step (Step 9) after visual validation. This step triggers scenario-to-desktop's pipeline with deploy-stage-only config, polls for completion, then extracts and persists version data.\n\n### Phase 1: Schema + Repository (in `deployments` package)\n1. Add `published_versions` table to deployment-manager schema (append-only, no UNIQUE constraint)\n2. Add `PublishedVersion` type to `deployments` package\n3. Add `PublishedVersionsRepository` interface + SQL implementation in `deployments` package, alongside existing `ApprovalsRepository`\n4. Methods: `RecordPublish(ctx, record)`, `GetLatestByProfile(ctx, profileID)`, `GetHistory(ctx, profileID, platform, limit)`\n\n### Phase 2: Local DeployResult Type + Deserialization\n1. Define a local `DeployResult` struct in deployment-manager mirroring the fields we need: `Artifacts []DeployArtifactResult` and `UpdateURL`\n2. Define local `DeployArtifactResult` struct: `ArtifactID int64`, `Platform string`\n3. Define local `BuildProvenance` struct: `Version string`, `GitCommitHash string`\n4. Extraction helper: marshal `Status.Stages[\"deploy\"].Details` (interface{}) to JSON, unmarshal into local `DeployResult`; marshal `Status.Provenance` to JSON, unmarshal into local `BuildProvenance`\n\n### Phase 3: Orchestrator Integration (Step 9: Publish to LPBS)\n1. After visual validation (current final step), add Step 9 \"Publish to LPBS\":\n   - Trigger scenario-to-desktop pipeline via `POST /api/v1/pipeline/run` with deploy-stage-only config, passing pre-built installer artifact paths\n   - Poll `GET /api/v1/pipeline/{id}` until completion\n   - On success: extract `DeployResult` from `Status.Stages[\"deploy\"].Details` via JSON round-trip\n   - Extract `Version` and `GitCommitHash` from `Status.Provenance` via JSON round-trip\n   - For each `DeployArtifactResult`, call `RecordPublish` with profile ID, platform, version, git hash, artifact ID, deployment ID\n2. Non-fatal error handling: wrap persist in a recovery block — log errors but do not fail the deployment\n3. Update `DeployDesktopResponse` to optionally include published version info\n\n### Phase 4: Query Endpoint\n1. Add `GET /api/v1/profiles/{id}/published-versions` endpoint\n2. Handler in `deployments` package (or new handler file), registered in `server/routes.go`\n3. Returns latest published version per platform (using `DISTINCT ON` window pattern)\n4. Optional `?platform=` filter and `?history=true` for full ordered history with `?limit=` support\n\n## 7. Contract Details\n\n### New Table: `published_versions` (append-only history)\n\n```sql\nCREATE TABLE IF NOT EXISTS published_versions (\n    id SERIAL PRIMARY KEY,\n    profile_id VARCHAR(255) NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,\n    platform VARCHAR(50) NOT NULL,\n    version VARCHAR(100) NOT NULL,\n    git_commit_hash VARCHAR(64),\n    artifact_id BIGINT,\n    deployment_id VARCHAR(255) REFERENCES deployments(id),\n    published_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()\n);\n\nCREATE INDEX idx_published_versions_profile_platform\n    ON published_versions(profile_id, platform, published_at DESC);\n```\n\nNo UNIQUE constraint — each publish appends a new row. The index supports efficient \"latest per platform\" queries.\n\n### Latest-per-platform query pattern\n\n```sql\nSELECT DISTINCT ON (platform) *\nFROM published_versions\nWHERE profile_id = $1\nORDER BY platform, published_at DESC;\n```\n\n### Local DeployResult Types (in deployment-manager)\n\n```go\n// Local mirror of scenario-to-desktop's DeployResult — decoupled via JSON round-trip\ntype PipelineDeployResult struct {\n    Artifacts []PipelineDeployArtifact `json:\"artifacts\"`\n    UpdateURL string                   `json:\"update_url\"`\n}\n\ntype PipelineDeployArtifact struct {\n    ArtifactID int64  `json:\"artifact_id\"`\n    Platform   string `json:\"platform\"`\n}\n\ntype PipelineBuildProvenance struct {\n    Version       string `json:\"version\"`\n    GitCommitHash string `json:\"git_commit_hash\"`\n}\n```\n\n### New Endpoint: `GET /api/v1/profiles/{id}/published-versions`\n\n**Response (latest mode, default):**\n```json\n{\n  \"profile_id\": \"my-profile\",\n  \"versions\": [\n    {\n      \"platform\": \"windows\",\n      \"version\": \"1.2.3\",\n      \"git_commit_hash\": \"abc123...\",\n      \"artifact_id\": 42,\n      \"deployment_id\": \"deploy-xyz\",\n      \"published_at\": \"2026-03-30T12:00:00Z\"\n    }\n  ]\n}\n```\n\n**Response (history mode, `?history=true\u0026platform=windows\u0026limit=10`):**\n```json\n{\n  \"profile_id\": \"my-profile\",\n  \"versions\": [\n    {\n      \"platform\": \"windows\",\n      \"version\": \"1.2.3\",\n      \"git_commit_hash\": \"abc123...\",\n      \"artifact_id\": 42,\n      \"deployment_id\": \"deploy-xyz\",\n      \"published_at\": \"2026-03-30T12:00:00Z\"\n    },\n    {\n      \"platform\": \"windows\",\n      \"version\": \"1.2.2\",\n      \"git_commit_hash\": \"def456...\",\n      \"artifact_id\": 38,\n      \"deployment_id\": \"deploy-abc\",\n      \"published_at\": \"2026-03-28T10:00:00Z\"\n    }\n  ]\n}\n```\n\n### Repository Interface\n\n```go\ntype PublishedVersionsRepository interface {\n    RecordPublish(ctx context.Context, record *PublishedVersion) error\n    GetLatestByProfile(ctx context.Context, profileID string) ([]PublishedVersion, error)\n    GetHistory(ctx context.Context, profileID, platform string, limit int) ([]PublishedVersion, error)\n}\n```\n\n### Pipeline Trigger Config\n\nWhen the orchestrator triggers scenario-to-desktop's pipeline for the deploy stage only:\n- Set `stages: [\"deploy\"]` (or equivalent config field) to skip build/package stages\n- Pass pre-built installer paths as input artifacts in the pipeline run request\n- The exact request shape depends on scenario-to-desktop's `POST /api/v1/pipeline/run` contract\n\n## 8. Testing Plan\n\n### Unit Tests\n1. **Repository layer** (testcontainers): `RecordPublish` inserts correctly; `GetLatestByProfile` returns only latest per platform; `GetHistory` returns ordered history with limit; multiple publishes for same platform return correct latest\n2. **DeployResult deserialization**: Test JSON round-trip extraction from mock `interface{}` pipeline status details — verify correct parsing of artifacts array and provenance fields\n3. **Orchestrator extraction logic**: Test that version data is correctly extracted from a mock pipeline status response and passed to repository; test that each platform artifact produces a separate `RecordPublish` call\n4. **Non-fatal error handling**: Test that repository errors during persist are logged but don't propagate as deployment failures; orchestrator step reports success even when persist fails\n5. **Handler layer**: Test query endpoint with mocked repository — latest mode, history mode, platform filter, empty results\n\n### Integration Tests\n1. **End-to-end**: Deploy flow triggers pipeline → extracts version → persists → query endpoint returns it\n2. **Multiple publishes**: Second publish for same platform appears as latest; first still in history\n3. **Multi-platform**: Single deploy with Windows + Mac + Linux artifacts creates three records; latest endpoint returns all three\n4. **Failed deploy**: Pipeline failure means no version record is created\n\n### What to mock\n- Pipeline status response (for orchestrator unit tests) — provide realistic `interface{}` Details\n- Repository interface (for handler unit tests)\n- Pipeline client (for orchestrator unit tests — mock the trigger + poll)\n- Real DB via testcontainers (for repository + integration tests)\n\n## 9. Rollout/Validation Checklist\n\n- [ ] Schema migration runs cleanly on fresh and existing databases\n- [ ] Orchestrator Step 9 triggers deploy-stage-only pipeline with correct config\n- [ ] Orchestrator extracts DeployResult and BuildProvenance via JSON round-trip\n- [ ] Orchestrator persists one record per platform per deploy\n- [ ] GET endpoint returns correct published versions (latest per platform)\n- [ ] History mode returns full publish history with limit\n- [ ] Platform filter works correctly\n- [ ] Failed deploy does not create version records\n- [ ] Non-fatal: persist failure doesn't break deploy response\n- [ ] Existing deploy flow (steps 1-8) is not broken by new Step 9\n- [ ] `go build ./...` and `go test ./...` succeed for deployment-manager\n\n## 10. Risks + Mitigations\n\n| Risk | Likelihood | Impact | Mitigation |\n|------|-----------|--------|------------|\n| Schema migration fails on existing data | Low | Medium | Migration is additive (new table), no existing data affected |\n| Orchestrator error during version persist breaks deploy | Medium | High | Persist in a non-fatal path — log error but don't fail the deployment |\n| Version drift if deploy succeeds but persist fails | Low | Low | Can always re-derive from LPBS; this is a convenience cache |\n| Pipeline status `Details` field needs JSON round-trip | Low | Low | Well-understood Go pattern: marshal to JSON, unmarshal to typed struct; tested explicitly |\n| Append-only table grows unbounded | Low | Low | Typical publish frequency is very low; add retention policy later if needed |\n| Deploy-stage-only pipeline config may not be supported yet | Medium | Medium | Verify scenario-to-desktop supports selective stage execution before implementing; if not, add stage filtering as a prerequisite |\n| Pre-built artifact paths may not be in the format deploy stage expects | Low | Medium | Test with actual artifact paths from orchestrator build step; add path normalization if needed |\n\n## 11. Non-goals / Prohibited Patterns\n\n- Do NOT modify LPBS (separate scenario, separate backlog items)\n- Do NOT add UI for viewing published versions (can be a follow-up)\n- Do NOT implement full webhook system (separate backlog item)\n- Do NOT add backward-compatibility shims for the new table\n- Do NOT add UNIQUE constraints — this is intentionally append-only\n- Do NOT import scenario-to-desktop Go types directly — use local mirror structs with JSON round-trip\n\n## 12. Definition of Done\n\n- [ ] `published_versions` table exists in deployment-manager schema\n- [ ] `PublishedVersionsRepository` interface + SQL implementation in `deployments` package\n- [ ] Local `PipelineDeployResult` and `PipelineBuildProvenance` types for deserialization\n- [ ] Orchestrator Step 9 triggers deploy-stage-only pipeline and extracts version data\n- [ ] Version persisted per platform per deploy via `RecordPublish`\n- [ ] Non-fatal error handling: persist failure logged but deploy succeeds\n- [ ] `GET /api/v1/profiles/{id}/published-versions` returns current versions\n- [ ] History query support with `?history=true\u0026platform=X\u0026limit=N`\n- [ ] All tests pass (unit + integration)\n- [ ] `go build ./...` and `go test ./...` succeed for deployment-manager\n\n## 13. File Change Manifest\n\n| File | Action | Description |\n|------|--------|-------------|\n| `scenarios/deployment-manager/initialization/postgres/schema.sql` | Edit | Add `published_versions` table + index |\n| `scenarios/deployment-manager/api/deployments/published_versions.go` | Create | `PublishedVersion` type, `PublishedVersionsRepository` interface, SQL implementation |\n| `scenarios/deployment-manager/api/deployments/published_versions_test.go` | Create | Repository unit tests using testcontainers |\n| `scenarios/deployment-manager/api/deployments/pipeline_types.go` | Create | Local `PipelineDeployResult`, `PipelineDeployArtifact`, `PipelineBuildProvenance` mirror types + extraction helper |\n| `scenarios/deployment-manager/api/deployments/pipeline_types_test.go` | Create | JSON round-trip deserialization tests |\n| `scenarios/deployment-manager/api/deployments/orchestrator.go` | Edit | Add Step 9: trigger deploy-stage-only pipeline, extract version, persist via repository |\n| `scenarios/deployment-manager/api/deployments/orchestrator_test.go` | Edit/Create | Test version extraction + non-fatal error handling in Step 9 |\n| `scenarios/deployment-manager/api/server/routes.go` | Edit | Register `GET /api/v1/profiles/{id}/published-versions` |\n| `scenarios/deployment-manager/api/deployments/handlers.go` or new handler file | Edit/Create | Handler for published versions query endpoint |\n| `scenarios/deployment-manager/api/deployments/handlers_test.go` | Edit/Create | Handler unit tests with mocked repository |\n\n\u003c/implementation-plan\u003e\n",
+      "prompt_revision": "sha256:33e1a89c1ce65a82",
+      "used_fallback": false,
+      "captured_at": "2026-04-02T16:22:54Z"
+    },
+    "finalization": {
+      "eligible": true,
+      "status": "completed",
+      "phase": "completed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-04-02T16:31:09Z",
+      "completed_at": "2026-04-02T16:38:28Z",
+      "affected_scenarios": [
+        "deployment-manager",
+        "scenario-to-desktop"
+      ],
+      "aggregate_classification": "needs_work",
+      "aggregate_summary": "deployment-manager ready with notes; scenario-to-desktop needs follow-up: Scenario scenario-to-desktop readiness: red",
+      "scenarios": [
+        {
+          "scenario_name": "deployment-manager",
+          "restart": {
+            "status": "completed",
+            "attempts": 1,
+            "started_at": "2026-04-02T16:31:52Z",
+            "finished_at": "2026-04-02T16:32:19Z"
+          },
+          "health": {
+            "status": "completed",
+            "scenario_status": "running",
+            "health_status": "healthy",
+            "schema_valid": true,
+            "details": "scenario is healthy",
+            "checked_at": "2026-04-02T16:32:21Z"
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "fbbdd50b-47d2-47ef-bbd0-4805da3c37e6",
+            "result": {
+              "job_id": "fbbdd50b-47d2-47ef-bbd0-4805da3c37e6",
+              "classification": "ready_with_notes",
+              "dimensions": [
+                {
+                  "name": "codeQuality",
+                  "status": "red",
+                  "details": "0.0 score, 26 violations"
+                },
+                {
+                  "name": "tests",
+                  "status": "yellow",
+                  "details": "5/11 passed"
+                },
+                {
+                  "name": "standards",
+                  "status": "yellow",
+                  "details": "46 warnings"
+                },
+                {
+                  "name": "visual",
+                  "status": "red"
+                },
+                {
+                  "name": "provenance",
+                  "status": "green"
+                }
+              ],
+              "summary": "Scenario deployment-manager readiness: yellow",
+              "reviewed_at": "2026-04-02T16:33:26Z"
+            }
+          }
+        },
+        {
+          "scenario_name": "scenario-to-desktop",
+          "restart": {
+            "status": "completed",
+            "attempts": 1,
+            "started_at": "2026-04-02T16:32:21Z",
+            "finished_at": "2026-04-02T16:32:47Z"
+          },
+          "health": {
+            "status": "completed",
+            "scenario_status": "running",
+            "health_status": "healthy",
+            "schema_valid": true,
+            "details": "scenario is healthy",
+            "checked_at": "2026-04-02T16:32:51Z"
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "06664f06-4e00-44cc-b002-841c83ff54a2",
+            "result": {
+              "job_id": "06664f06-4e00-44cc-b002-841c83ff54a2",
+              "classification": "needs_work",
+              "dimensions": [
+                {
+                  "name": "standards",
+                  "status": "green"
+                },
+                {
+                  "name": "visual",
+                  "status": "red"
+                },
+                {
+                  "name": "provenance",
+                  "status": "green"
+                },
+                {
+                  "name": "codeQuality",
+                  "status": "red"
+                },
+                {
+                  "name": "tests",
+                  "status": "yellow"
+                }
+              ],
+              "summary": "Scenario scenario-to-desktop readiness: red",
+              "reviewed_at": "2026-04-02T16:38:28Z"
+            }
+          }
+        }
+      ]
+    },
+    "created_at": "2026-04-02T16:22:54Z",
+    "updated_at": "2026-04-02T16:38:28Z"
+  },
+  {
+    "execution_id": "e43db37cb7e23434",
+    "backlog_kind": "execute",
+    "backlog_name": "swarm-manager-concurrency-guardrails",
+    "previous_status": "backlog",
+    "task_id": "ea0d19fa-8e7f-41b3-98ad-08d626e6cb6c",
+    "run_id": "474bd3bd-dc0f-45de-b54e-1baf21238efc",
+    "status": "needs_fixup",
+    "mode": "yolo",
+    "started_at": "2026-04-02T16:38:10Z",
+    "finished_at": "2026-04-02T17:44:21Z",
+    "started_by": "swarm-manager-ui",
+    "operation": "generator",
+    "prompt_trace": {
+      "purpose": "process",
+      "prompt": "\u003cexecution-context\u003e\nBacklog item: execute/swarm-manager-concurrency-guardrails\nTitle: Add Concurrency Controls, Rate Limiting, and Cost Awareness to Swarm-Manager Executions\nItem folder: /home/matthalloran8/Vrooli/scenarios/swarm-manager/execute/swarm-manager-concurrency-guardrails\nRun type: process\n\u003c/execution-context\u003e\n\n\u003cimplementation-plan path=\"plan.md\"\u003e\n# Implementation Plan: Concurrency Controls, Rate Limiting, and Cost Awareness\n\n## 1. Purpose\n\nAdd execution governance to swarm-manager that prevents runaway agent spawning, enforces configurable concurrency limits, provides circuit-breaker protection for repeatedly failing items, and offers basic cost awareness before execution.\n\n## 2. Required Reading\n\n```bash\nprompt-manager skill read api-steer cli-steer test implementation-plan-authoring\n```\n\n**Key source files:**\n- `scenarios/swarm-manager/api/internal/settings/handler.go` — Settings struct, normalization, proto mapping, HTTP handlers\n- `scenarios/swarm-manager/api/internal/execution/service.go` — `QueueBacklog()`, `startLocked()`, `ProcessScheduledStarts()`, `refreshRunningLocked()`\n- `scenarios/swarm-manager/api/internal/execution/model.go` — Status/Mode types, Record struct, Policy struct\n- `scenarios/swarm-manager/api/internal/execution/handler.go` — HTTP handlers, `StartScheduler()`\n- `scenarios/swarm-manager/api/internal/overview/service.go` — `GetOverview()`, `OverviewResponse`\n- `packages/proto/schemas/swarm-manager/v1/domain/settings.proto` — Settings message\n- `packages/proto/schemas/swarm-manager/v1/api/settings.proto` — UpdateSettingsRequest\n- `scenarios/swarm-manager/ui/src/surfaces/graph/components/GraphWorkspace.tsx` — HUD bar layout\n- `scenarios/swarm-manager/cli/cmd_execution.go` — Execution CLI commands\n\n## 3. Problem Statement\n\nSwarm-manager has zero concurrency controls. In yolo mode, every ready backlog item can spawn an agent simultaneously, potentially:\n- Exhausting API credits (each agent uses Claude Code, which costs real money)\n- Overwhelming system resources (CPU, memory, file I/O)\n- Creating agent thrashing loops where a broken item keeps getting retried\n- Growing an unbounded queue when batch operations queue many items at once\n\nThe system needs configurable guardrails that are consistent with the existing settings architecture (proto → Go struct → normalization → HTTP API → UI).\n\n## 4. Scope\n\n### In Scope\n- 6 new settings: `maxConcurrentExecutions`, `maxQueueDepth`, `circuitBreakerThreshold`, `circuitBreakerCooldownMinutes`, `executionCostCapPerRun`, `costPerTurnEstimate`\n- Concurrency enforcement in execution service (gate `startLocked()`)\n- Queue depth enforcement in `QueueBacklog()`\n- Circuit breaker state tracking per backlog item (dedicated state file)\n- Explicit circuit breaker reset via dedicated API endpoint and CLI command\n- Governance status in overview endpoint\n- Settings UI additions (Execution tab)\n- Concurrency count badge in AgentsDropdown trigger ('N/M' format)\n- Circuit-broken visual indicators in sidebar/graph\n- CLI parity for new status visibility\n\n### Out of Scope\n- Hard cost kill (actual token metering) — only soft estimates\n- Per-agent rate limiting with automatic lockout (app-issue-tracker pattern) — future enhancement\n- Priority-based queue ordering — items start FIFO\n- Multi-server coordination — single server only\n\n## 5. Current Technical Context\n\n### Settings Pipeline\n1. **Proto** (`settings.proto`): Defines `Settings` message with buf.validate constraints. Currently 24 fields (field numbers 1-24, with 2-4 reserved).\n2. **Go struct** (`handler.go:Settings`): Mirrors proto with JSON tags. 24 fields covering execution defaults, workshop automation, agent behavior, UI preferences, and review thresholds. `normalizeSettings()` clamps values to valid ranges. `validateSettings()` checks enums.\n3. **Patch struct** (`handler.go:SettingsPatch`): All pointer-to-type fields for null-aware sparse updates.\n4. **Proto mapping**: `settingsToProto()` / `settingsPatchFromProto()` convert between Go and proto types.\n5. **HTTP**: `GET/PUT /api/v1/settings` with proto-JSON encoding.\n6. **API proto** (`api/settings.proto`): `UpdateSettingsRequest` with all optional fields.\n\n### Execution Service\n- `QueueBacklog()` (line ~238): Validates inputs, checks preflight, creates `Record` with `StatusPending`. In yolo mode, immediately calls `startLocked()` and rolls back on failure.\n- `startLocked()` (line ~461): Loads record, checks agent availability, builds prompt, spawns agent. Transitions to `StatusStarting`.\n- `ProcessScheduledStarts()` (line ~770): 2-second ticker, iterates records for `StatusScheduled`, calls `startLocked()` when due. Fire-and-forget (returns nil regardless).\n- `refreshRunningLocked()`: Polls agent-manager for status updates on running executions.\n- All methods operate under `s.mu.Lock()` (single mutex).\n\n### Key Integration Points\n- `startLocked()` is the choke point — all execution starts flow through it (yolo, manual, scheduled, retry, fixup).\n- `QueueBacklog()` is where queue depth enforcement should go.\n- `ProcessScheduledStarts()` is the existing poller that will be renamed to `ProcessPendingStarts()` and expanded to drain pending items after processing scheduled starts.\n- The overview service aggregates backlog items into `OverviewResponse` with items, initiatives, dependency graph, and summary. Has no execution awareness currently.\n\n### UI HUD Bar\n- Right section: Settings gear → Help button → AgentsDropdown (shows running activities)\n- AgentsDropdown already owns the \"running agents\" concept — confirmed as the integration point for concurrency count badge\n- StatusBadge.tsx: colored dots (cyan=running, gray=pending, amber=review, red=failed)\n\n## 6. Target End State\n\n### Settings\n| Setting | Type | Range | Default | Proto Field # |\n|---------|------|-------|---------|---------------|\n| `maxConcurrentExecutions` | int32 | 1-20 | 3 | 25 |\n| `maxQueueDepth` | int32 | 0-100 (0=unlimited) | 50 | 26 |\n| `circuitBreakerThreshold` | int32 | 1-10 | 3 | 27 |\n| `circuitBreakerCooldownMinutes` | int32 | 5-1440 | 60 | 28 |\n| `executionCostCapPerRun` | double | 0.0+ (0=unlimited) | 0.0 | 29 |\n| `costPerTurnEstimate` | double | 0.00-5.00 | 0.10 | 30 |\n\n### Enforcement Behavior\n\n**Concurrency**: `startLocked()` counts active executions where active = `StatusStarting` + `StatusRunning` only (tightest definition — slots open as soon as agent work finishes, even if pending review). If active count \u003e= `maxConcurrentExecutions`, returns a sentinel error. The caller handles gracefully — yolo mode leaves the item as pending, manual mode returns error to user.\n\n**Queue depth**: `QueueBacklog()` counts pending + scheduled records. Rejects with HTTP 409 and clear error when limit exceeded.\n\n**Circuit breaker**: Dedicated state file at `.vrooli/circuit-breaker.json`:\n```json\n{\n  \"items\": {\n    \"execute/broken-thing\": {\n      \"consecutive_failures\": 3,\n      \"last_failure\": \"2026-03-30T12:00:00Z\",\n      \"broken_at\": \"2026-03-30T12:00:00Z\"\n    }\n  }\n}\n```\nOn execution failure: increment counter. On threshold breach: set `broken_at`. On queue/retry of broken item: check cooldown, block if broken and cooldown not expired. On explicit reset (via dedicated API/CLI): clear the breaker entry for that item regardless of cooldown. On cooldown expiry: auto-reset (checked in poller).\n\n**Cost cap**: Before starting, estimate = `costPerTurnEstimate * agentMaxTurns`. With default values: $0.10 * 60 = $6.00. If `executionCostCapPerRun \u003e 0` and estimate \u003e cap: require `force: true` or return HTTP 409 with cost warning.\n\n### Governance Status\nExtend overview response with:\n```json\n{\n  \"governance\": {\n    \"active_executions\": 2,\n    \"max_concurrent\": 3,\n    \"queue_depth\": 5,\n    \"max_queue_depth\": 50,\n    \"circuit_broken_items\": [\"execute/broken-thing\"],\n    \"estimated_queued_cost\": 12.50\n  }\n}\n```\n\n## 7. Implementation Strategy\n\n### Phase 1: Settings Foundation\n1. Add 6 new fields to `settings.proto` (field numbers 25-30)\n2. Add fields to Go `Settings` struct, `SettingsPatch`, defaults, normalization, proto mapping\n3. Add fields to `api/settings.proto` `UpdateSettingsRequest`\n4. Regenerate proto\n5. Add settings UI controls to Execution tab\n\n### Phase 2: Concurrency Enforcement\n1. Add `countActiveExecutions()` helper to execution service — counts records with status `starting` or `running` only\n2. Gate `startLocked()` — if active count \u003e= `maxConcurrentExecutions`, return a sentinel error (e.g., `errAtCapacity`)\n3. Modify `QueueBacklog()` yolo path: on `errAtCapacity`, leave record as `StatusPending` instead of rolling back\n4. Rename `ProcessScheduledStarts()` to `ProcessPendingStarts()`. After the existing scheduled-start loop, add a second loop over pending records sorted by `CreatedAt`. Check concurrency limit before each start. Scheduled starts have priority over pending items.\n5. Add concurrency tests\n\n### Phase 3: Queue Depth Enforcement\n1. Add `countQueuedExecutions()` helper (counts pending + scheduled)\n2. Add queue depth check at top of `QueueBacklog()`, before record creation\n3. Return clear error: \"queue depth limit exceeded (N/M)\"\n4. Add queue depth tests\n\n### Phase 4: Circuit Breaker\n1. Add circuit breaker service managing `.vrooli/circuit-breaker.json` with atomic writes\n2. On execution failure: increment counter. On threshold breach: set `broken_at`.\n3. On `QueueBacklog()`: check circuit breaker state. Block if broken and cooldown not expired.\n4. Add explicit reset endpoint: `POST /api/v1/execution/circuit-breaker/reset` with `{\"item\": \"kind/name\"}`. Clears the breaker entry for that item regardless of cooldown.\n5. Add CLI command: `swarm-manager execution circuit-breaker-reset \u003ckind/name\u003e`.\n6. On cooldown expiry: auto-reset (checked in poller).\n7. Add circuit breaker tests\n\n### Phase 5: Cost Awareness\n1. `costPerTurnEstimate` setting: range 0.00-5.00 $/turn, default 0.10\n2. Before starting: estimate = `costPerTurnEstimate * agentMaxTurns`\n3. If `executionCostCapPerRun \u003e 0` and estimate \u003e cap: require `force: true` or return error\n4. Track estimated cost in governance status for queued items\n5. Add cost estimation tests\n\n### Phase 6: Status Visibility\n1. Extend `OverviewResponse` with `Governance` field\n2. Populate from execution service + circuit breaker state + settings\n3. Update CLI overview command to display governance info\n4. Add concurrency count badge to AgentsDropdown trigger — display 'N/M' format (e.g., '2/3') with colored indicator matching current status semantics\n5. Add circuit-broken visual indicator to sidebar items and graph nodes\n\n## 8. Contract Decisions\n\n### API Changes\n- `GET /api/v1/settings` — returns 6 new fields\n- `PUT /api/v1/settings` — accepts 6 new optional fields\n- `GET /api/v1/overview` — adds `governance` object to response\n- `POST /api/v1/execution` — returns HTTP 409 when queue depth exceeded, circuit-broken, or cost cap exceeded\n- `POST /api/v1/execution/circuit-breaker/reset` — new endpoint to explicitly reset circuit breaker for a specific item. Body: `{\"item\": \"kind/name\"}`. Returns 200 on success, 404 if item has no breaker state.\n\n### CLI Changes\n- `swarm-manager execution create` — shows governance errors clearly\n- `swarm-manager overview` — displays governance section\n- `swarm-manager execution circuit-breaker-reset \u003ckind/name\u003e` — new command to explicitly reset circuit breaker for an item\n\n### Error Codes\n- Queue depth exceeded: HTTP 409 Conflict with structured error\n- Circuit broken: HTTP 409 Conflict with structured error including cooldown remaining\n- Cost cap exceeded: HTTP 409 Conflict with message suggesting `--force`\n- At capacity (internal): sentinel error handled by caller, not returned to user\n\n## 9. Testing Plan\n\n### Unit Tests\n- Settings normalization for 6 new fields (clamping, defaults, edge cases)\n- `countActiveExecutions()` with various status combinations — verify only starting+running count\n- `countQueuedExecutions()` accuracy\n- Circuit breaker state transitions (increment, breach, cooldown, reset, atomic write/read)\n- Explicit circuit breaker reset clears entry regardless of cooldown\n- Cost estimation calculation (costPerTurnEstimate * agentMaxTurns vs cap) — default: $0.10 * 60 = $6.00\n- Concurrency gate in `startLocked()` — returns errAtCapacity when at limit\n- Queue depth gate in `QueueBacklog()` — rejects when at max depth\n- Yolo path at capacity: record stays pending, not rolled back\n\n### Integration Tests\n- Queue 4 items when maxConcurrent=3: verify 4th stays pending\n- Complete 1 execution: verify pending item auto-starts on next poll cycle (via renamed `ProcessPendingStarts()`)\n- Queue items to max depth: verify rejection with 409\n- Fail item N times (N=threshold): verify circuit breaker trips\n- Reset circuit-broken item via explicit reset endpoint: verify breaker clears and item can be re-queued\n- Wait for cooldown: verify auto-reset\n- Set cost cap below estimate: verify force required\n- Update settings mid-flight: verify enforcement changes immediately (new limit applies on next start attempt)\n\n## 10. Rollout / Validation Checklist\n\n- [ ] Proto compiles cleanly (`buf lint \u0026\u0026 buf generate`)\n- [ ] Go builds with no errors (`go build ./...`)\n- [ ] All existing tests pass (`go test ./... -timeout 300s`)\n- [ ] New tests pass for each phase\n- [ ] Settings UI renders new controls correctly\n- [ ] CLI displays governance info in overview\n- [ ] Circuit breaker reset CLI command works\n- [ ] Manual test: set maxConcurrent=1, queue 2 items, verify queuing behavior\n\n## 11. Risks + Mitigations\n\n| Risk | Impact | Mitigation |\n|------|--------|------------|\n| Mutex contention with concurrent slot counting | Medium | Already single-mutex design; counting is O(n) where n is small (max 20 active) |\n| Circuit breaker state file corruption | Low | Use atomic writes (write-to-temp + rename, existing pattern in codebase) |\n| Cost estimates wildly inaccurate | Low | Explicitly labeled as estimates, soft guardrail only, user-configurable per-turn rate ($0.10 default) |\n| Existing tests break from new defaults | Medium | New settings have safe defaults (3 concurrent, 50 queue, no cost cap) |\n| Poller frequency (2s) too slow for slot draining | Low | 2s is reasonable for backfill; event-driven drain is a future optimization |\n| Active=starting+running misses review backlog | Low | User chose tight definition. If review floods become an issue, can expand later without breaking changes |\n| Explicit reset adds API surface | Low | Clean separation of concerns worth the small surface area; rare operation but important for operator control |\n\n## 12. Non-goals / Prohibited Patterns\n\n- No hard token kill switches (can't know actual cost in advance)\n- No per-agent rate limiting (future enhancement)\n- No priority queue ordering\n- No backward compatibility shims — new fields with safe defaults\n- No new execution statuses — use existing pending/failed + circuit breaker state file\n- No implicit circuit breaker reset on queue — reset is an explicit, intentional action via dedicated endpoint/CLI\n\n## 13. Definition of Done\n\n- All 6 settings configurable via API, CLI, and UI (costPerTurnEstimate defaults to $0.10/turn)\n- Concurrency enforcement prevents exceeding maxConcurrentExecutions (active = starting + running)\n- Yolo mode at capacity leaves items pending; `ProcessPendingStarts()` drains them when slots open (scheduled first, then pending by CreatedAt)\n- Queue depth enforcement rejects when exceeded\n- Circuit breaker trips after threshold failures, auto-resets after cooldown\n- Explicit circuit breaker reset via `POST /api/v1/execution/circuit-breaker/reset` and `swarm-manager execution circuit-breaker-reset \u003ckind/name\u003e`\n- Cost cap provides soft warning before execution ($0.10/turn * maxTurns vs cap), overridable with force\n- Governance status visible in overview endpoint, CLI, and AgentsDropdown trigger ('N/M' badge)\n- All new code has unit tests\n- All existing tests continue to pass\n- Proto changes are clean and backward-compatible (new field numbers only)\n\n\u003c/implementation-plan\u003e\n",
+      "prompt_revision": "sha256:3fea3d674d7c0804",
+      "used_fallback": false,
+      "captured_at": "2026-04-02T16:38:10Z"
+    },
+    "finalization": {
+      "eligible": true,
+      "status": "completed",
+      "phase": "completed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-04-02T16:58:38Z",
+      "completed_at": "2026-04-02T17:44:21Z",
+      "warnings": [
+        {
+          "code": "restart_retry",
+          "scenario_name": "swarm-manager",
+          "message": "restart attempt 1 failed: vrooli scenario restart swarm-manager failed: exit status 1 (output: /home/matthalloran8/.local/bin/vrooli: line 44: /home/matthalloran8/Vrooli/scenarios/swarm-manager/scripts/lib/utils/log.sh: No such file or directory); retrying once",
+          "retryable": true,
+          "created_at": "2026-04-02T17:44:21Z"
+        },
+        {
+          "code": "review_skipped",
+          "scenario_name": "swarm-manager",
+          "message": "review skipped because restart/health checks did not pass",
+          "created_at": "2026-04-02T17:44:21Z"
+        }
+      ],
+      "affected_scenarios": [
+        "swarm-manager"
+      ],
+      "aggregate_classification": "needs_work",
+      "aggregate_summary": "swarm-manager restart failed; 2 warning(s)",
+      "scenarios": [
+        {
+          "scenario_name": "swarm-manager",
+          "restart": {
+            "status": "failed",
+            "attempts": 2,
+            "last_error": "vrooli scenario restart swarm-manager failed: exit status 1 (output: /home/matthalloran8/.local/bin/vrooli: line 44: /home/matthalloran8/Vrooli/scenarios/swarm-manager/scripts/lib/utils/log.sh: No such file or directory)",
+            "started_at": "2026-04-02T17:44:21Z",
+            "finished_at": "2026-04-02T17:44:21Z"
+          },
+          "health": {
+            "status": "failed",
+            "schema_valid": false,
+            "details": "restart command failed; health check skipped",
+            "checked_at": "2026-04-02T17:44:21Z"
+          },
+          "review": {
+            "status": "skipped",
+            "skip_reason": "restart/health checks did not pass"
+          }
+        }
+      ]
+    },
+    "created_at": "2026-04-02T16:38:10Z",
+    "updated_at": "2026-04-02T17:44:21Z"
   }
 ]

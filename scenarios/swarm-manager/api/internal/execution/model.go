@@ -142,6 +142,40 @@ type Policy struct {
 	AutoFixup        bool `json:"auto_fixup"`
 }
 
+// GovernanceSettings controls concurrency, queue depth, circuit breaker, and cost caps.
+type GovernanceSettings struct {
+	MaxConcurrentExecutions       int     `json:"max_concurrent_executions"`
+	MaxQueueDepth                 int     `json:"max_queue_depth"`
+	CircuitBreakerThreshold       int     `json:"circuit_breaker_threshold"`
+	CircuitBreakerCooldownMinutes int     `json:"circuit_breaker_cooldown_minutes"`
+	ExecutionCostCapPerRun        float64 `json:"execution_cost_cap_per_run"`
+	CostPerTurnEstimate           float64 `json:"cost_per_turn_estimate"`
+	AgentMaxTurns                 int     `json:"agent_max_turns"`
+}
+
+// DefaultGovernanceSettings returns safe defaults for governance settings.
+func DefaultGovernanceSettings() GovernanceSettings {
+	return GovernanceSettings{
+		MaxConcurrentExecutions:       3,
+		MaxQueueDepth:                 50,
+		CircuitBreakerThreshold:       3,
+		CircuitBreakerCooldownMinutes: 60,
+		ExecutionCostCapPerRun:        0,
+		CostPerTurnEstimate:           0.10,
+		AgentMaxTurns:                 60,
+	}
+}
+
+// GovernanceStatusResponse contains governance state for the overview endpoint.
+type GovernanceStatusResponse struct {
+	ActiveExecutions    int      `json:"active_executions"`
+	MaxConcurrent       int      `json:"max_concurrent"`
+	QueueDepth          int      `json:"queue_depth"`
+	MaxQueueDepth       int      `json:"max_queue_depth"`
+	CircuitBrokenItems  []string `json:"circuit_broken_items"`
+	EstimatedQueuedCost float64  `json:"estimated_queued_cost"`
+}
+
 // FollowUpRequest describes a user-initiated follow-up from a completed/failed execution.
 type FollowUpRequest struct {
 	ExecutionID  string `json:"execution_id"`

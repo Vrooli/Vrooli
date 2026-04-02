@@ -1,0 +1,31 @@
+{
+  "round": 3,
+  "generated_at": "2026-04-02T20:15:00Z",
+  "mode": "finalize",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "All 8 decisions from rounds 1-2 have been incorporated into the plan. Round 1: d1→A (circuit breaker state file), d2→A (costPerTurnEstimate setting), d3→A (yolo at capacity falls back to pending), d4→A (active = starting + running only). Round 2: d1→A (costPerTurnEstimate range 0.00-5.00, default $0.10), d2→A (AgentsDropdown N/M badge), d3→B (explicit circuit breaker reset endpoint/CLI), d4→A (extend ProcessScheduledStarts with second pass, rename to ProcessPendingStarts)."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Key plan changes from round 2 synthesis: (1) costPerTurnEstimate default resolved to $0.10/turn (was TBD), giving $6.00 estimate at default 60 turns. (2) Circuit breaker reset changed from implicit-on-queue to explicit endpoint POST /api/v1/execution/circuit-breaker/reset and CLI command swarm-manager execution circuit-breaker-reset. This adds one new endpoint and one new CLI command. (3) ProcessScheduledStarts() renamed to ProcessPendingStarts() with confirmed second-pass drain for pending items sorted by CreatedAt. (4) AgentsDropdown trigger confirmed as N/M badge location."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "No remaining gaps. All settings have concrete types, ranges, and defaults. All enforcement behaviors have clear rules. API contract is fully specified with one new endpoint (circuit breaker reset). CLI surface is defined. UI integration points are confirmed. The plan is ready for execution."
+    }
+  ],
+  "plan_updates": "Final synthesis pass incorporating all round 2 decisions: costPerTurnEstimate default set to $0.10 (was TBD); circuit breaker reset changed to explicit endpoint/CLI (was implicit on queue); ProcessScheduledStarts renamed to ProcessPendingStarts with confirmed second-pass drain; AgentsDropdown confirmed as concurrency badge location; non-goals updated to prohibit implicit reset; definition of done updated with explicit reset and ProcessPendingStarts references."
+}

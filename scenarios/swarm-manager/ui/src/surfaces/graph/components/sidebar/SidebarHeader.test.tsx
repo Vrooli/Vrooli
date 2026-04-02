@@ -16,6 +16,11 @@ vi.mock("../../../../components/agents/AgentsDropdown", () => ({
   AgentsDropdown: () => <div data-testid="agents-dropdown" />,
 }));
 
+// Mock useCommandPostBadgeCount to avoid QueryClientProvider dependency.
+vi.mock("../../../../hooks/useCommandPostBadgeCount", () => ({
+  useCommandPostBadgeCount: () => 0,
+}));
+
 beforeEach(() => {
   useDetailSelectionStore.setState({ selection: null });
   useGraphUIStore.setState({ sidebarCollapsed: false });

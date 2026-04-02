@@ -27,8 +27,12 @@ import (
 )
 
 var (
-	errNotFound       = errors.New("execution not found")
-	errSessionExpired = errors.New("agent session expired")
+	errNotFound        = errors.New("execution not found")
+	errSessionExpired  = errors.New("agent session expired")
+	errAtCapacity      = errors.New("concurrency limit reached")
+	errQueueFull       = errors.New("queue depth limit exceeded")
+	errCircuitBroken   = errors.New("circuit breaker tripped")
+	errCostCapExceeded = errors.New("estimated cost exceeds cap")
 )
 
 // DOC: docs/concepts/ARCHITECTURE.md#key-flows
@@ -67,6 +71,11 @@ type ReviewThresholdsProvider interface {
 	LoadReviewThresholds() (*ReviewThresholds, error)
 }
 
+// GovernanceProvider reads governance settings from the unified settings store.
+type GovernanceProvider interface {
+	LoadGovernance() (GovernanceSettings, error)
+}
+
 // defaultPolicyProvider returns hardcoded defaults when no provider is configured.
 type defaultPolicyProvider struct{}
 
@@ -76,6 +85,13 @@ func (d *defaultPolicyProvider) LoadPolicy() (Policy, error) {
 		MaxFixupAttempts: 2,
 		AutoFixup:        false,
 	}, nil
+}
+
+// defaultGovernanceProvider returns hardcoded defaults when no provider is configured.
+type defaultGovernanceProvider struct{}
+
+func (d *defaultGovernanceProvider) LoadGovernance() (GovernanceSettings, error) {
+	return DefaultGovernanceSettings(), nil
 }
 
 func executionActivityPurpose(runType string) agentactivity.Purpose {
@@ -144,6 +160,7 @@ type ServiceConfig struct {
 	RootDir                  string
 	StorePath                string
 	PolicyProvider           PolicyProvider
+	GovernanceProvider       GovernanceProvider
 	ReviewThresholdsProvider ReviewThresholdsProvider
 	AgentService             agentSpawner
 	ScenarioLifecycle        ScenarioLifecycle
@@ -174,6 +191,7 @@ type Service struct {
 	rootDir                  string
 	store                    Store
 	policyProvider           PolicyProvider
+	governanceProvider       GovernanceProvider
 	reviewThresholdsProvider ReviewThresholdsProvider
 	agentService             agentSpawner
 	promptClient             promptmanager.Client
@@ -187,6 +205,7 @@ type Service struct {
 	scenarioHealth           ScenarioHealthChecker
 	eventDispatcher          EventDispatcher
 	eventLogger              EventLogger
+	circuitBreaker           *CircuitBreaker
 	processingFinalizations  map[string]struct{}
 	mu                       sync.Mutex
 }
@@ -206,11 +225,16 @@ func NewService(cfg ServiceConfig) *Service {
 	if pp == nil {
 		pp = &defaultPolicyProvider{}
 	}
+	gp := cfg.GovernanceProvider
+	if gp == nil {
+		gp = &defaultGovernanceProvider{}
+	}
 	rtp := cfg.ReviewThresholdsProvider
 	service := &Service{
 		rootDir:                  rootDir,
 		store:                    NewStore(cfg.StorePath),
 		policyProvider:           pp,
+		governanceProvider:       gp,
 		reviewThresholdsProvider: rtp,
 		agentService:             cfg.AgentService,
 		promptClient:             pc,
@@ -218,6 +242,7 @@ func NewService(cfg ServiceConfig) *Service {
 		reviewClient:             cfg.ReviewClient,
 		scenarioLifecycle:        cfg.ScenarioLifecycle,
 		scenarioHealth:           cfg.ScenarioHealthChecker,
+		circuitBreaker:           NewCircuitBreaker(filepath.Join(rootDir, ".vrooli", "circuit-breaker.json")),
 		processingFinalizations:  map[string]struct{}{},
 	}
 	if inspector, ok := cfg.AgentService.(runInspector); ok {
@@ -307,6 +332,28 @@ func executionDuration(r Record) float64 {
 	return end.Sub(start).Seconds()
 }
 
+// countActiveExecutions counts records that are starting or running (under the mutex).
+func countActiveExecutions(records []Record) int {
+	count := 0
+	for _, r := range records {
+		if r.Status == StatusStarting || r.Status == StatusRunning {
+			count++
+		}
+	}
+	return count
+}
+
+// countQueuedExecutions counts records that are pending or scheduled.
+func countQueuedExecutions(records []Record) int {
+	count := 0
+	for _, r := range records {
+		if r.Status == StatusPending {
+			count++
+		}
+	}
+	return count
+}
+
 // QueueBacklog creates an execution record and optionally starts it.
 func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, error) {
 	s.mu.Lock()
@@ -343,9 +390,43 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 		return Record{}, fmt.Errorf("process preflight failed: %s", strings.Join(preflight.BlockingReasons, "; "))
 	}
 
+	// Load governance settings for enforcement checks.
+	gov, govErr := s.governanceProvider.LoadGovernance()
+	if govErr != nil {
+		return Record{}, govErr
+	}
+
+	// Circuit breaker check.
+	itemKey := strings.ToLower(strings.TrimSpace(req.BacklogKind)) + "/" + strings.TrimSpace(req.BacklogName)
+	if broken, remaining, cbErr := s.circuitBreaker.IsBroken(itemKey, gov.CircuitBreakerCooldownMinutes); cbErr != nil {
+		return Record{}, cbErr
+	} else if broken && !req.Force {
+		return Record{}, fmt.Errorf("%w: %s (cooldown remaining: %s)", errCircuitBroken, itemKey, remaining.Truncate(time.Second))
+	}
+
 	records, err := s.store.Load()
 	if err != nil {
 		return Record{}, err
+	}
+
+	// Queue depth enforcement.
+	if gov.MaxQueueDepth > 0 {
+		queued := countQueuedExecutions(records)
+		if queued >= gov.MaxQueueDepth {
+			return Record{}, fmt.Errorf("%w (%d/%d)", errQueueFull, queued, gov.MaxQueueDepth)
+		}
+	}
+
+	// Cost cap enforcement.
+	if gov.ExecutionCostCapPerRun > 0 && gov.CostPerTurnEstimate > 0 {
+		agentMaxTurns := gov.AgentMaxTurns
+		if agentMaxTurns <= 0 {
+			agentMaxTurns = 60
+		}
+		estimatedCost := gov.CostPerTurnEstimate * float64(agentMaxTurns)
+		if estimatedCost > gov.ExecutionCostCapPerRun && !req.Force {
+			return Record{}, fmt.Errorf("%w: estimated $%.2f exceeds cap $%.2f (use force to override)", errCostCapExceeded, estimatedCost, gov.ExecutionCostCapPerRun)
+		}
 	}
 
 	now := nowRFC3339()
@@ -383,6 +464,13 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 		started, startErr := s.startLocked(ctx, record.ExecutionID)
 		if startErr == nil {
 			return started, nil
+		}
+
+		// At capacity: leave as pending for the poller to drain later.
+		if errors.Is(startErr, errAtCapacity) {
+			log.Printf("[execution] at capacity (%s); leaving %s as pending", record.ExecutionID, itemKey)
+			s.dispatchStatusUpdate(record)
+			return record, nil
 		}
 
 		// Roll back queue side-effects when immediate start fails.
@@ -505,6 +593,50 @@ func (s *Service) QueueSpecSyncArchive(ctx context.Context, ac ArchiveContext) (
 	return record, nil
 }
 
+// ResetCircuitBreaker clears the circuit breaker for a specific item.
+func (s *Service) ResetCircuitBreaker(itemKey string) error {
+	return s.circuitBreaker.Reset(itemKey)
+}
+
+// GovernanceStatus returns the current governance state for the overview endpoint.
+func (s *Service) GovernanceStatus() (*GovernanceStatusResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	gov, err := s.governanceProvider.LoadGovernance()
+	if err != nil {
+		return nil, err
+	}
+
+	records, err := s.store.Load()
+	if err != nil {
+		return nil, err
+	}
+
+	brokenItems, _ := s.circuitBreaker.BrokenItems(gov.CircuitBreakerCooldownMinutes)
+	if brokenItems == nil {
+		brokenItems = []string{}
+	}
+
+	active := countActiveExecutions(records)
+	queued := countQueuedExecutions(records)
+
+	agentMaxTurns := gov.AgentMaxTurns
+	if agentMaxTurns <= 0 {
+		agentMaxTurns = 60
+	}
+	estimatedQueuedCost := float64(queued) * gov.CostPerTurnEstimate * float64(agentMaxTurns)
+
+	return &GovernanceStatusResponse{
+		ActiveExecutions:    active,
+		MaxConcurrent:       gov.MaxConcurrentExecutions,
+		QueueDepth:          queued,
+		MaxQueueDepth:       gov.MaxQueueDepth,
+		CircuitBrokenItems:  brokenItems,
+		EstimatedQueuedCost: estimatedQueuedCost,
+	}, nil
+}
+
 // Policy returns current execution policy from the unified settings store.
 func (s *Service) Policy(_ context.Context) (Policy, error) {
 	s.mu.Lock()
@@ -530,6 +662,14 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 	}
 	if record.Status == StatusCanceled {
 		return Record{}, fmt.Errorf("cannot start canceled execution")
+	}
+
+	// Concurrency gate.
+	if gov, govErr := s.governanceProvider.LoadGovernance(); govErr == nil {
+		active := countActiveExecutions(records)
+		if active >= gov.MaxConcurrentExecutions {
+			return Record{}, errAtCapacity
+		}
 	}
 
 	if s.agentService == nil || !s.agentService.IsEnabled() {
@@ -807,8 +947,8 @@ func (s *Service) List(ctx context.Context, filters ListFilters) ([]Record, erro
 	return filtered, nil
 }
 
-// ProcessActiveExecutions advances agent-manager-backed executions and drives
-// any in-progress post-run finalization work.
+// ProcessActiveExecutions advances agent-manager-backed executions, drains
+// pending items when capacity opens, and drives post-run finalization work.
 func (s *Service) ProcessActiveExecutions(ctx context.Context) error {
 	s.mu.Lock()
 	candidates, err := s.refreshRunningLocked(ctx)
@@ -819,7 +959,58 @@ func (s *Service) ProcessActiveExecutions(ctx context.Context) error {
 	for _, executionID := range candidates {
 		logFinalizationError(executionID, s.processFinalization(ctx, executionID))
 	}
+
+	// Drain pending items when capacity is available.
+	s.drainPendingLocked(ctx)
+
 	return nil
+}
+
+// drainPendingLocked starts pending executions when concurrency slots are available.
+func (s *Service) drainPendingLocked(ctx context.Context) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	gov, govErr := s.governanceProvider.LoadGovernance()
+	if govErr != nil {
+		return
+	}
+
+	records, err := s.store.Load()
+	if err != nil {
+		return
+	}
+
+	// Collect pending records sorted by creation time (oldest first).
+	var pending []Record
+	for _, r := range records {
+		if r.Status == StatusPending {
+			pending = append(pending, r)
+		}
+	}
+	sort.Slice(pending, func(i, j int) bool {
+		return pending[i].CreatedAt < pending[j].CreatedAt
+	})
+
+	for _, p := range pending {
+		active := countActiveExecutions(records)
+		if active >= gov.MaxConcurrentExecutions {
+			break
+		}
+		started, startErr := s.startLocked(ctx, p.ExecutionID)
+		if startErr != nil {
+			if errors.Is(startErr, errAtCapacity) {
+				break
+			}
+			log.Printf("[execution] drain: failed to start %s: %v", p.ExecutionID, startErr)
+			continue
+		}
+		// Refresh records to get updated state after start.
+		if updated, loadErr := s.store.Load(); loadErr == nil {
+			records = updated
+		}
+		_ = started
+	}
 }
 
 func (s *Service) refreshRunningLocked(ctx context.Context) ([]string, error) {
@@ -916,8 +1107,15 @@ func (s *Service) refreshRunningLocked(ctx context.Context) ([]string, error) {
 							}
 							_ = s.updateBacklogStatus(item, "completed")
 						}
+						// Clear circuit breaker on success.
+						_ = s.circuitBreaker.RecordSuccess(record.BacklogKind + "/" + record.BacklogName)
 					} else if nextStatus == StatusFailed {
 						_ = s.updateBacklogStatus(item, "failed")
+						// Record failure in circuit breaker.
+						cbKey := record.BacklogKind + "/" + record.BacklogName
+						if cbGov, cbGovErr := s.governanceProvider.LoadGovernance(); cbGovErr == nil {
+							_ = s.circuitBreaker.RecordFailure(cbKey, cbGov.CircuitBreakerThreshold)
+						}
 					} else if nextStatus == StatusCanceled {
 						_ = s.updateBacklogStatus(item, restoreBacklogStatus(*record))
 					}

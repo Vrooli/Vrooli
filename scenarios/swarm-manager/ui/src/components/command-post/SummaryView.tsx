@@ -4,6 +4,9 @@
  * Consumes stores directly, computes action groups via groupActionItems(),
  * and renders ActionGroupCards, a prioritized ActionFeedItem list,
  * snoozed section, and recent activity section.
+ *
+ * Cards act as filters: tapping a card body filters the "Needs Attention"
+ * feed to show only that group's items. Tapping again clears the filter.
  */
 
 import { useMemo, useState, useCallback } from "react";
@@ -46,6 +49,7 @@ export function SummaryView({
   const snoozedKeys = useSnoozedKeys();
 
   const [runModalTargets, setRunModalTargets] = useState<RunBacklogTarget[] | undefined>();
+  const [activeFilter, setActiveFilter] = useState<ActionGroupId | null>(null);
 
   const summaryQuery = useQuery({
     queryKey: ["backlog-summary"],
@@ -86,6 +90,13 @@ export function SummaryView({
   const allItems = useMemo(() => groups.flatMap((g) => g.items), [groups]);
   const totalCount = useMemo(() => groups.reduce((sum, g) => sum + g.count, 0), [groups]);
 
+  // Filter feed items when a card is active
+  const visibleItems = useMemo(() => {
+    if (!activeFilter) return allItems;
+    const activeGroup = groups.find((g) => g.id === activeFilter);
+    return activeGroup?.items ?? [];
+  }, [allItems, groups, activeFilter]);
+
   const snoozedEntries = useMemo(
     () => Array.from(snoozeEntries.values()),
     [snoozeEntries],
@@ -98,9 +109,22 @@ export function SummaryView({
     [snooze],
   );
 
+  const navigateToItem = useCallback(
+    (item: { type: string; kind?: string; name?: string; executionId?: string }) => {
+      if (item.type === "backlog" && item.kind && item.name) {
+        onNavigateToDetail({ entityType: "backlog", kind: item.kind, name: item.name });
+      } else if (item.type === "execution" && item.executionId) {
+        onNavigateToDetail({ entityType: "execution", identifier: item.executionId });
+      }
+      onClose();
+    },
+    [onNavigateToDetail, onClose],
+  );
+
   const handleBulkAction = useCallback(
     (group: ActionGroup) => {
       switch (group.id as ActionGroupId) {
+        case "needs-workshop":
         case "ready-to-run": {
           const targets: RunBacklogTarget[] = group.items
             .filter((i) => i.kind && i.name)
@@ -114,7 +138,6 @@ export function SummaryView({
           onEnterDecisionStream();
           break;
         case "needs-review":
-        case "failed":
         case "needs-classification": {
           const first = group.items[0];
           if (first) navigateToItem(first);
@@ -122,19 +145,14 @@ export function SummaryView({
         }
       }
     },
-    [onEnterDecisionStream], // eslint-disable-line react-hooks/exhaustive-deps
+    [onEnterDecisionStream, navigateToItem],
   );
 
-  const navigateToItem = useCallback(
-    (item: { type: string; kind?: string; name?: string; executionId?: string }) => {
-      if (item.type === "backlog" && item.kind && item.name) {
-        onNavigateToDetail({ entityType: "backlog", kind: item.kind, name: item.name });
-      } else if (item.type === "execution" && item.executionId) {
-        onNavigateToDetail({ entityType: "execution", identifier: item.executionId });
-      }
-      onClose();
+  const handleFilter = useCallback(
+    (groupId: ActionGroupId) => {
+      setActiveFilter((prev) => (prev === groupId ? null : groupId));
     },
-    [onNavigateToDetail, onClose],
+    [],
   );
 
   const handleRunItem = useCallback(
@@ -150,21 +168,36 @@ export function SummaryView({
 
   return (
     <div className="space-y-4" data-testid="command-post-summary">
-      {/* Action group cards */}
-      <div className="flex flex-wrap gap-3">
+      {/* Action group cards — 2-column grid, full width */}
+      <div className="grid grid-cols-2 gap-3">
         {groups.map((group) => (
           <ActionGroupCard
             key={group.id}
             group={group}
+            isActive={activeFilter === group.id}
             onBulkAction={() => handleBulkAction(group)}
+            onFilter={() => handleFilter(group.id)}
           />
         ))}
       </div>
 
-      {/* Prioritized feed */}
+      {/* Prioritized feed — filtered when a card is active */}
       <div className="space-y-2">
-        <h3 className="text-sm font-medium text-slate-400">Needs Attention</h3>
-        {allItems.map((item) => (
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-medium text-slate-400">
+            {activeFilter ? groups.find((g) => g.id === activeFilter)?.label ?? "Needs Attention" : "Needs Attention"}
+          </h3>
+          {activeFilter && (
+            <button
+              type="button"
+              onClick={() => setActiveFilter(null)}
+              className="rounded px-1.5 py-0.5 text-[10px] text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-300"
+            >
+              Clear filter
+            </button>
+          )}
+        </div>
+        {visibleItems.map((item) => (
           <ActionFeedItem
             key={item.key}
             item={item}
@@ -174,6 +207,9 @@ export function SummaryView({
             onEnterDecisionStream={onEnterDecisionStream}
           />
         ))}
+        {visibleItems.length === 0 && activeFilter && (
+          <p className="py-4 text-center text-xs text-slate-500">No items in this group</p>
+        )}
       </div>
 
       {/* Snoozed section */}

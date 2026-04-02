@@ -69,6 +69,7 @@ export function BacklogDetailProvider({
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useBacklogDetail(): BacklogDetailContextValue {
   const ctx = useContext(BacklogDetailCtx);
   if (!ctx) {

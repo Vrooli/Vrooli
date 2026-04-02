@@ -6,16 +6,16 @@
   "created": "2026-03-30T18:01:13Z",
   "description": "After scenario-to-desktop's deploy stage successfully publishes to LPBS, there is no callback to deployment-manager recording what version was published for which platform. Add a callback from scenario-to-desktop's deploy stage completion to a new deployment-manager endpoint that records the published version per platform per profile. This closes the feedback loop so deployment-manager knows the current live state.\n\nSource: research/desktop-release-control-plane-audit conclusion — Finding 9 gap #7.",
   "effort": "M",
+  "initiative": "desktop-release-governance",
   "kind": "execute",
   "name": "desktop-post-publish-version-sync",
   "priority": 1,
-  "status": "backlog",
+  "status": "failed",
   "tags": [
     "deployment-manager",
     "scenario-to-desktop",
     "version-sync"
   ],
   "title": "Add post-publish version sync from scenario-to-desktop to deployment-manager",
-  "updated": "2026-03-30T18:01:13Z",
-  "initiative": "desktop-release-governance"
+  "updated": "2026-04-02T16:38:28Z"
 }

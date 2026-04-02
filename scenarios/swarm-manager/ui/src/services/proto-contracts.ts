@@ -449,6 +449,12 @@ export function mapProtoSettings(protoSettings: Settings): SettingsDomain {
     reviewMaxWarnings: protoSettings.reviewMaxWarnings ?? -1,
     reviewRequireScreenshots: protoSettings.reviewRequireScreenshots ?? true,
     reviewRequireTests: protoSettings.reviewRequireTests ?? true,
+    maxConcurrentExecutions: protoSettings.maxConcurrentExecutions ?? 3,
+    maxQueueDepth: protoSettings.maxQueueDepth ?? 50,
+    circuitBreakerThreshold: protoSettings.circuitBreakerThreshold ?? 3,
+    circuitBreakerCooldownMinutes: protoSettings.circuitBreakerCooldownMinutes ?? 60,
+    executionCostCapPerRun: protoSettings.executionCostCapPerRun ?? 0,
+    costPerTurnEstimate: protoSettings.costPerTurnEstimate ?? 0.10,
   };
 }
 

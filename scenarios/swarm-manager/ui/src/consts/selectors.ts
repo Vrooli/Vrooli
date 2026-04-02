@@ -332,6 +332,28 @@ export const literalSelectors = {
     versions: "prompts-versions",
     preview: "prompts-preview",
   },
+  // Command Post selectors
+  commandPost: {
+    overlay: "command-post-overlay",
+    overlayHeader: "command-post-overlay-header",
+    close: "command-post-close",
+    summary: "command-post-summary",
+    decisionStream: {
+      container: "ds-container",
+      header: "ds-header",
+      backButton: "ds-back",
+      counter: "ds-counter",
+      contextToggle: "ds-context-toggle",
+      contextPanel: "ds-context-panel",
+      questionArea: "ds-question-area",
+      navBar: "ds-nav-bar",
+      navBack: "ds-nav-back",
+      navSkip: "ds-nav-skip",
+      navSnooze: "ds-nav-snooze",
+      navNext: "ds-nav-next",
+      progressBar: "ds-progress-bar",
+    },
+  },
   graphNavControls: {
     container: "graph-nav-controls",
     panUp: "graph-nav-pan-up",

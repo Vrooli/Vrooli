@@ -16,6 +16,17 @@ type OverviewResponse struct {
 	Initiatives     []OverviewInitiative `json:"initiatives"`
 	DependencyGraph OverviewDepGraph     `json:"dependency_graph"`
 	Summary         OverviewSummary      `json:"summary"`
+	Governance      *GovernanceStatus    `json:"governance,omitempty"`
+}
+
+// GovernanceStatus mirrors the API governance status.
+type GovernanceStatus struct {
+	ActiveExecutions    int      `json:"active_executions"`
+	MaxConcurrent       int      `json:"max_concurrent"`
+	QueueDepth          int      `json:"queue_depth"`
+	MaxQueueDepth       int      `json:"max_queue_depth"`
+	CircuitBrokenItems  []string `json:"circuit_broken_items"`
+	EstimatedQueuedCost float64  `json:"estimated_queued_cost"`
 }
 
 // OverviewInitiative pairs an initiative with its rollup status.
@@ -70,6 +81,21 @@ func (a *App) cmdOverview(args []string) error {
 func printOverviewMarkdown(resp OverviewResponse) {
 	fmt.Println("## Swarm Manager Overview")
 	fmt.Println()
+
+	// Governance section.
+	if resp.Governance != nil {
+		gov := resp.Governance
+		printSection("Governance")
+		fmt.Printf("  Executions: %d/%d active | Queue: %d/%d\n",
+			gov.ActiveExecutions, gov.MaxConcurrent, gov.QueueDepth, gov.MaxQueueDepth)
+		if gov.EstimatedQueuedCost > 0 {
+			fmt.Printf("  Estimated queued cost: $%.2f\n", gov.EstimatedQueuedCost)
+		}
+		if len(gov.CircuitBrokenItems) > 0 {
+			fmt.Printf("  Circuit-broken: %s\n", strings.Join(gov.CircuitBrokenItems, ", "))
+		}
+		fmt.Println()
+	}
 
 	// Summary section.
 	printSection("Summary")

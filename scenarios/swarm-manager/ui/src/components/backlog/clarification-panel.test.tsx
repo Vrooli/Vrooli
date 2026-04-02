@@ -47,10 +47,10 @@ const mockClarificationAction = vi.fn();
 
 vi.mock("../../services/backlog-service", () => ({
   backlogService: {
-    getClarification: (...args: unknown[]) => mockGetClarification(...args),
-    createClarification: (...args: unknown[]) => mockCreateClarification(...args),
-    continueClarification: (...args: unknown[]) => mockContinueClarification(...args),
-    clarificationAction: (...args: unknown[]) => mockClarificationAction(...args),
+    getClarification: (...args: unknown[]) => mockGetClarification(...args) as unknown,
+    createClarification: (...args: unknown[]) => mockCreateClarification(...args) as unknown,
+    continueClarification: (...args: unknown[]) => mockContinueClarification(...args) as unknown,
+    clarificationAction: (...args: unknown[]) => mockClarificationAction(...args) as unknown,
   },
 }));
 

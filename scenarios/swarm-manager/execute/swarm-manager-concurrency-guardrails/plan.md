@@ -38,9 +38,10 @@ The system needs configurable guardrails that are consistent with the existing s
 - Concurrency enforcement in execution service (gate `startLocked()`)
 - Queue depth enforcement in `QueueBacklog()`
 - Circuit breaker state tracking per backlog item (dedicated state file)
+- Explicit circuit breaker reset via dedicated API endpoint and CLI command
 - Governance status in overview endpoint
 - Settings UI additions (Execution tab)
-- Status indicators in graph workspace header
+- Concurrency count badge in AgentsDropdown trigger ('N/M' format)
 - Circuit-broken visual indicators in sidebar/graph
 - CLI parity for new status visibility
 
@@ -70,12 +71,12 @@ The system needs configurable guardrails that are consistent with the existing s
 ### Key Integration Points
 - `startLocked()` is the choke point — all execution starts flow through it (yolo, manual, scheduled, retry, fixup).
 - `QueueBacklog()` is where queue depth enforcement should go.
-- `ProcessScheduledStarts()` is the existing poller that will be expanded to drain pending items (workshop d3→A, d4 pending).
+- `ProcessScheduledStarts()` is the existing poller that will be renamed to `ProcessPendingStarts()` and expanded to drain pending items after processing scheduled starts.
 - The overview service aggregates backlog items into `OverviewResponse` with items, initiatives, dependency graph, and summary. Has no execution awareness currently.
 
 ### UI HUD Bar
 - Right section: Settings gear → Help button → AgentsDropdown (shows running activities)
-- AgentsDropdown already owns the "running agents" concept — natural place for concurrency badge
+- AgentsDropdown already owns the "running agents" concept — confirmed as the integration point for concurrency count badge
 - StatusBadge.tsx: colored dots (cyan=running, gray=pending, amber=review, red=failed)
 
 ## 6. Target End State
@@ -88,15 +89,15 @@ The system needs configurable guardrails that are consistent with the existing s
 | `circuitBreakerThreshold` | int32 | 1-10 | 3 | 27 |
 | `circuitBreakerCooldownMinutes` | int32 | 5-1440 | 60 | 28 |
 | `executionCostCapPerRun` | double | 0.0+ (0=unlimited) | 0.0 | 29 |
-| `costPerTurnEstimate` | double | 0.00-5.00 | TBD (pending d1) | 30 |
+| `costPerTurnEstimate` | double | 0.00-5.00 | 0.10 | 30 |
 
 ### Enforcement Behavior
 
-**Concurrency** (workshop d4→A): `startLocked()` counts active executions where active = `StatusStarting` + `StatusRunning` only. If active count >= `maxConcurrentExecutions`, returns a sentinel error. The caller handles gracefully — yolo mode leaves the item as pending (workshop d3→A), manual mode returns error to user.
+**Concurrency**: `startLocked()` counts active executions where active = `StatusStarting` + `StatusRunning` only (tightest definition — slots open as soon as agent work finishes, even if pending review). If active count >= `maxConcurrentExecutions`, returns a sentinel error. The caller handles gracefully — yolo mode leaves the item as pending, manual mode returns error to user.
 
 **Queue depth**: `QueueBacklog()` counts pending + scheduled records. Rejects with HTTP 409 and clear error when limit exceeded.
 
-**Circuit breaker** (workshop d1→A): Dedicated state file at `.vrooli/circuit-breaker.json`:
+**Circuit breaker**: Dedicated state file at `.vrooli/circuit-breaker.json`:
 ```json
 {
   "items": {
@@ -108,9 +109,9 @@ The system needs configurable guardrails that are consistent with the existing s
   }
 }
 ```
-On execution failure: increment counter. On threshold breach: set `broken_at`. On queue/retry of broken item: check cooldown. On manual queue with force: reset breaker (workshop d3 pending). On cooldown expiry: auto-reset (checked in poller).
+On execution failure: increment counter. On threshold breach: set `broken_at`. On queue/retry of broken item: check cooldown, block if broken and cooldown not expired. On explicit reset (via dedicated API/CLI): clear the breaker entry for that item regardless of cooldown. On cooldown expiry: auto-reset (checked in poller).
 
-**Cost cap** (workshop d2→A): Before starting, estimate = `costPerTurnEstimate * agentMaxTurns`. If `executionCostCapPerRun > 0` and estimate > cap, require `force: true` or return HTTP 409 with cost warning.
+**Cost cap**: Before starting, estimate = `costPerTurnEstimate * agentMaxTurns`. With default values: $0.10 * 60 = $6.00. If `executionCostCapPerRun > 0` and estimate > cap: require `force: true` or return HTTP 409 with cost warning.
 
 ### Governance Status
 Extend overview response with:
@@ -137,10 +138,10 @@ Extend overview response with:
 5. Add settings UI controls to Execution tab
 
 ### Phase 2: Concurrency Enforcement
-1. Add `countActiveExecutions()` helper to execution service — counts records with status `starting` or `running` (workshop d4→A: tightest definition)
+1. Add `countActiveExecutions()` helper to execution service — counts records with status `starting` or `running` only
 2. Gate `startLocked()` — if active count >= `maxConcurrentExecutions`, return a sentinel error (e.g., `errAtCapacity`)
-3. Modify `QueueBacklog()` yolo path: on `errAtCapacity`, leave record as `StatusPending` instead of rolling back (workshop d3→A)
-4. Expand `ProcessScheduledStarts()` to also check pending items when slots are available (workshop d4 pending — second pass after scheduled starts)
+3. Modify `QueueBacklog()` yolo path: on `errAtCapacity`, leave record as `StatusPending` instead of rolling back
+4. Rename `ProcessScheduledStarts()` to `ProcessPendingStarts()`. After the existing scheduled-start loop, add a second loop over pending records sorted by `CreatedAt`. Check concurrency limit before each start. Scheduled starts have priority over pending items.
 5. Add concurrency tests
 
 ### Phase 3: Queue Depth Enforcement
@@ -153,12 +154,13 @@ Extend overview response with:
 1. Add circuit breaker service managing `.vrooli/circuit-breaker.json` with atomic writes
 2. On execution failure: increment counter. On threshold breach: set `broken_at`.
 3. On `QueueBacklog()`: check circuit breaker state. Block if broken and cooldown not expired.
-4. On manual queue with force: reset circuit breaker for that item (workshop d3 pending).
-5. On cooldown expiry: auto-reset (checked in poller).
-6. Add circuit breaker tests
+4. Add explicit reset endpoint: `POST /api/v1/execution/circuit-breaker/reset` with `{"item": "kind/name"}`. Clears the breaker entry for that item regardless of cooldown.
+5. Add CLI command: `swarm-manager execution circuit-breaker-reset <kind/name>`.
+6. On cooldown expiry: auto-reset (checked in poller).
+7. Add circuit breaker tests
 
 ### Phase 5: Cost Awareness
-1. Add `costPerTurnEstimate` to settings (workshop d2→A) with range/default (d1 pending)
+1. `costPerTurnEstimate` setting: range 0.00-5.00 $/turn, default 0.10
 2. Before starting: estimate = `costPerTurnEstimate * agentMaxTurns`
 3. If `executionCostCapPerRun > 0` and estimate > cap: require `force: true` or return error
 4. Track estimated cost in governance status for queued items
@@ -168,7 +170,7 @@ Extend overview response with:
 1. Extend `OverviewResponse` with `Governance` field
 2. Populate from execution service + circuit breaker state + settings
 3. Update CLI overview command to display governance info
-4. Add concurrency count badge to AgentsDropdown trigger (workshop d2 pending — 'N/M' format)
+4. Add concurrency count badge to AgentsDropdown trigger — display 'N/M' format (e.g., '2/3') with colored indicator matching current status semantics
 5. Add circuit-broken visual indicator to sidebar items and graph nodes
 
 ## 8. Contract Decisions
@@ -178,12 +180,12 @@ Extend overview response with:
 - `PUT /api/v1/settings` — accepts 6 new optional fields
 - `GET /api/v1/overview` — adds `governance` object to response
 - `POST /api/v1/execution` — returns HTTP 409 when queue depth exceeded, circuit-broken, or cost cap exceeded
-- No new endpoints needed (governance status piggybacks on overview)
+- `POST /api/v1/execution/circuit-breaker/reset` — new endpoint to explicitly reset circuit breaker for a specific item. Body: `{"item": "kind/name"}`. Returns 200 on success, 404 if item has no breaker state.
 
 ### CLI Changes
 - `swarm-manager execution create` — shows governance errors clearly
 - `swarm-manager overview` — displays governance section
-- No new CLI commands needed (circuit breaker reset is implicit on manual queue — workshop d3 pending)
+- `swarm-manager execution circuit-breaker-reset <kind/name>` — new command to explicitly reset circuit breaker for an item
 
 ### Error Codes
 - Queue depth exceeded: HTTP 409 Conflict with structured error
@@ -198,17 +200,18 @@ Extend overview response with:
 - `countActiveExecutions()` with various status combinations — verify only starting+running count
 - `countQueuedExecutions()` accuracy
 - Circuit breaker state transitions (increment, breach, cooldown, reset, atomic write/read)
-- Cost estimation calculation (costPerTurnEstimate * agentMaxTurns vs cap)
+- Explicit circuit breaker reset clears entry regardless of cooldown
+- Cost estimation calculation (costPerTurnEstimate * agentMaxTurns vs cap) — default: $0.10 * 60 = $6.00
 - Concurrency gate in `startLocked()` — returns errAtCapacity when at limit
 - Queue depth gate in `QueueBacklog()` — rejects when at max depth
 - Yolo path at capacity: record stays pending, not rolled back
 
 ### Integration Tests
 - Queue 4 items when maxConcurrent=3: verify 4th stays pending
-- Complete 1 execution: verify pending item auto-starts on next poll cycle
+- Complete 1 execution: verify pending item auto-starts on next poll cycle (via renamed `ProcessPendingStarts()`)
 - Queue items to max depth: verify rejection with 409
 - Fail item N times (N=threshold): verify circuit breaker trips
-- Queue circuit-broken item with force: verify breaker resets and execution proceeds
+- Reset circuit-broken item via explicit reset endpoint: verify breaker clears and item can be re-queued
 - Wait for cooldown: verify auto-reset
 - Set cost cap below estimate: verify force required
 - Update settings mid-flight: verify enforcement changes immediately (new limit applies on next start attempt)
@@ -221,6 +224,7 @@ Extend overview response with:
 - [ ] New tests pass for each phase
 - [ ] Settings UI renders new controls correctly
 - [ ] CLI displays governance info in overview
+- [ ] Circuit breaker reset CLI command works
 - [ ] Manual test: set maxConcurrent=1, queue 2 items, verify queuing behavior
 
 ## 11. Risks + Mitigations
@@ -229,10 +233,11 @@ Extend overview response with:
 |------|--------|------------|
 | Mutex contention with concurrent slot counting | Medium | Already single-mutex design; counting is O(n) where n is small (max 20 active) |
 | Circuit breaker state file corruption | Low | Use atomic writes (write-to-temp + rename, existing pattern in codebase) |
-| Cost estimates wildly inaccurate | Low | Explicitly labeled as estimates, soft guardrail only, user-configurable per-turn rate |
+| Cost estimates wildly inaccurate | Low | Explicitly labeled as estimates, soft guardrail only, user-configurable per-turn rate ($0.10 default) |
 | Existing tests break from new defaults | Medium | New settings have safe defaults (3 concurrent, 50 queue, no cost cap) |
 | Poller frequency (2s) too slow for slot draining | Low | 2s is reasonable for backfill; event-driven drain is a future optimization |
-| Active=starting+running misses review backlog | Low | User chose tight definition (d4→A). If review floods become an issue, can expand later without breaking changes |
+| Active=starting+running misses review backlog | Low | User chose tight definition. If review floods become an issue, can expand later without breaking changes |
+| Explicit reset adds API surface | Low | Clean separation of concerns worth the small surface area; rare operation but important for operator control |
 
 ## 12. Non-goals / Prohibited Patterns
 
@@ -240,19 +245,19 @@ Extend overview response with:
 - No per-agent rate limiting (future enhancement)
 - No priority queue ordering
 - No backward compatibility shims — new fields with safe defaults
-- No new HTTP endpoints for governance (extend overview)
 - No new execution statuses — use existing pending/failed + circuit breaker state file
+- No implicit circuit breaker reset on queue — reset is an explicit, intentional action via dedicated endpoint/CLI
 
 ## 13. Definition of Done
 
-- All 6 settings configurable via API, CLI, and UI
+- All 6 settings configurable via API, CLI, and UI (costPerTurnEstimate defaults to $0.10/turn)
 - Concurrency enforcement prevents exceeding maxConcurrentExecutions (active = starting + running)
-- Yolo mode at capacity leaves items pending; poller drains them when slots open
+- Yolo mode at capacity leaves items pending; `ProcessPendingStarts()` drains them when slots open (scheduled first, then pending by CreatedAt)
 - Queue depth enforcement rejects when exceeded
 - Circuit breaker trips after threshold failures, auto-resets after cooldown
-- Manual queue of circuit-broken item resets the breaker (pending d3 confirmation)
-- Cost cap provides soft warning before execution, overridable with force
-- Governance status visible in overview endpoint, CLI, and AgentsDropdown (pending d2 confirmation)
+- Explicit circuit breaker reset via `POST /api/v1/execution/circuit-breaker/reset` and `swarm-manager execution circuit-breaker-reset <kind/name>`
+- Cost cap provides soft warning before execution ($0.10/turn * maxTurns vs cap), overridable with force
+- Governance status visible in overview endpoint, CLI, and AgentsDropdown trigger ('N/M' badge)
 - All new code has unit tests
 - All existing tests continue to pass
 - Proto changes are clean and backward-compatible (new field numbers only)

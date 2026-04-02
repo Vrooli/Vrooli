@@ -37,13 +37,34 @@
       "topic": "Review trigger frequency",
       "context": "Full GCT reviews take up to 5 minutes. Auto Steer iterations can be as short as a few minutes. Triggering a full review after every iteration could double cycle time. We need to decide how often to trigger reviews.",
       "options": [
-        {"key": "A", "label": "Review after every iteration", "rationale": "Maximum visibility into health trends, but doubles iteration time and may bottleneck on one-review-at-a-time constraint", "recommended": false},
-        {"key": "B", "label": "Review only at phase boundaries", "rationale": "Minimal overhead — only runs when Auto Steer transitions phases. Misses intra-phase regressions but keeps iteration speed high", "recommended": false},
-        {"key": "C", "label": "Lightweight per-iteration + full at phase boundaries", "rationale": "Run a fast subset (e.g., tidiness only) per iteration for trend data, and a full 5-dimension review at phase boundaries. Balances visibility with speed", "recommended": true},
-        {"key": "D", "label": "Configurable frequency (every N iterations)", "rationale": "Let the Auto Steer profile specify review frequency. Most flexible but adds configuration complexity", "recommended": false},
-        {"key": "E", "label": "Other", "rationale": "Provide your own approach"}
+        {
+          "key": "A",
+          "label": "Review after every iteration",
+          "rationale": "Maximum visibility into health trends, but doubles iteration time and may bottleneck on one-review-at-a-time constraint"
+        },
+        {
+          "key": "B",
+          "label": "Review only at phase boundaries",
+          "rationale": "Minimal overhead — only runs when Auto Steer transitions phases. Misses intra-phase regressions but keeps iteration speed high"
+        },
+        {
+          "key": "C",
+          "label": "Lightweight per-iteration + full at phase boundaries",
+          "rationale": "Run a fast subset (e.g., tidiness only) per iteration for trend data, and a full 5-dimension review at phase boundaries. Balances visibility with speed",
+          "recommended": true
+        },
+        {
+          "key": "D",
+          "label": "Configurable frequency (every N iterations)",
+          "rationale": "Let the Auto Steer profile specify review frequency. Most flexible but adds configuration complexity"
+        },
+        {
+          "key": "E",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
       ],
-      "selected": null,
+      "selected": "C",
       "freeform": null,
       "notes": null
     },
@@ -53,12 +74,29 @@
       "topic": "Snapshot storage strategy",
       "context": "Ecosystem-manager uses dual storage: file-based JSON (metadata.json per execution) and PostgreSQL (profile_execution_state, profile_executions). We need to decide where per-loop health snapshots live.",
       "options": [
-        {"key": "A", "label": "Enrich existing ExecutionHistory with review fields", "rationale": "Adds ReviewResult fields to the existing metadata.json and profile_executions tables. Simple, co-located with other execution data. Downside: bloats existing records, harder to query trends independently", "recommended": false},
-        {"key": "B", "label": "New dedicated snapshot table + JSON files", "rationale": "A separate 'loop_health_snapshots' table with foreign key to task/execution. Clean separation, easy trend queries, supports standalone regression detection. Slightly more schema to maintain", "recommended": true},
-        {"key": "C", "label": "Extend MetricsSnapshot with review dimensions", "rationale": "Add GCT dimensions to the existing MetricsSnapshot struct used by Auto Steer. Tight integration with phase stop conditions but couples review availability to metrics collection", "recommended": false},
-        {"key": "D", "label": "Other", "rationale": "Provide your own approach"}
+        {
+          "key": "A",
+          "label": "Enrich existing ExecutionHistory with review fields",
+          "rationale": "Adds ReviewResult fields to the existing metadata.json and profile_executions tables. Simple, co-located with other execution data. Downside: bloats existing records, harder to query trends independently"
+        },
+        {
+          "key": "B",
+          "label": "New dedicated snapshot table + JSON files",
+          "rationale": "A separate 'loop_health_snapshots' table with foreign key to task/execution. Clean separation, easy trend queries, supports standalone regression detection. Slightly more schema to maintain",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Extend MetricsSnapshot with review dimensions",
+          "rationale": "Add GCT dimensions to the existing MetricsSnapshot struct used by Auto Steer. Tight integration with phase stop conditions but couples review availability to metrics collection"
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
       ],
-      "selected": null,
+      "selected": "B",
       "freeform": null,
       "notes": null
     },
@@ -68,12 +106,29 @@
       "topic": "Review client ownership",
       "context": "Swarm-manager has a working HTTPReviewClient in its execution package. Ecosystem-manager needs similar functionality. Should it reuse the same code or have its own?",
       "options": [
-        {"key": "A", "label": "Copy and adapt swarm-manager's review_client.go", "rationale": "Fast to implement. Ecosystem-manager gets its own copy tailored to per-loop needs (e.g., different polling intervals, lightweight check support). Some code duplication", "recommended": false},
-        {"key": "B", "label": "Extract shared review client to api-core library", "rationale": "Both swarm-manager and ecosystem-manager import from a shared library. DRY but adds cross-scenario dependency and coordination cost", "recommended": true},
-        {"key": "C", "label": "Ecosystem-manager calls swarm-manager's review endpoint instead of GCT directly", "rationale": "Swarm-manager proxies the review. Avoids duplication but adds an intermediary hop and coupling between scenarios", "recommended": false},
-        {"key": "D", "label": "Other", "rationale": "Provide your own approach"}
+        {
+          "key": "A",
+          "label": "Copy and adapt swarm-manager's review_client.go",
+          "rationale": "Fast to implement. Ecosystem-manager gets its own copy tailored to per-loop needs (e.g., different polling intervals, lightweight check support). Some code duplication"
+        },
+        {
+          "key": "B",
+          "label": "Extract shared review client to api-core library",
+          "rationale": "Both swarm-manager and ecosystem-manager import from a shared library. DRY but adds cross-scenario dependency and coordination cost",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Ecosystem-manager calls swarm-manager's review endpoint instead of GCT directly",
+          "rationale": "Swarm-manager proxies the review. Avoids duplication but adds an intermediary hop and coupling between scenarios"
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
       "notes": null
     }

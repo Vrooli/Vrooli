@@ -1551,5 +1551,165 @@
       "skill_id": "swarm-manager-workshop-research"
     },
     "updated_at": "2026-04-02T04:12:56Z"
+  },
+  {
+    "activity_id": "97018a2f1e538da0",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "desktop-post-publish-version-sync",
+    "owner_title": "Add post-publish version sync from scenario-to-desktop to deployment-manager",
+    "purpose": "finalize",
+    "interaction_type": "spawn",
+    "task_id": "08af09a9-e3c7-4fce-a48a-1cf4ed25d0d3",
+    "run_id": "3e6e4451-30cc-48d8-9e56-ee8fba8cd7e7",
+    "status": "complete",
+    "requested_at": "2026-04-02T15:28:03Z",
+    "started_at": "2026-04-02T15:28:03Z",
+    "finished_at": "2026-04-02T15:30:26Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "auto_triggered": "true",
+      "entrypoint": "backlog.workshop_auto_advance",
+      "mode": "finalize",
+      "skill_id": "swarm-manager-workshop-finalize"
+    },
+    "updated_at": "2026-04-02T15:35:10Z"
+  },
+  {
+    "activity_id": "5c5c067d088b7e08",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "deployment-manager-approval-gate-surfaces",
+    "owner_title": "Expose Approval Gate Controls In Deployment Manager",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "666b9f02-000f-4d82-9552-9ed1577c1e3e",
+    "run_id": "243d7572-ac76-416a-ab14-12ad0b6ba347",
+    "status": "complete",
+    "requested_at": "2026-04-02T16:05:55Z",
+    "started_at": "2026-04-02T16:05:55Z",
+    "finished_at": "2026-04-02T16:10:39Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "auto_triggered": "true",
+      "entrypoint": "backlog.workshop_auto_advance",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-02T16:12:16Z"
+  },
+  {
+    "activity_id": "0ed1d6fb9e04733f",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "deployment-manager-visual-validation-approval-flow",
+    "owner_title": "Turn Visual Validation Into A Real Approval Flow",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "fee209d8-f80b-4be1-9aa6-20c7a0ed2383",
+    "run_id": "4e567325-a967-4fd3-89ea-5b191d983127",
+    "status": "complete",
+    "requested_at": "2026-04-02T16:06:35Z",
+    "started_at": "2026-04-02T16:06:35Z",
+    "finished_at": "2026-04-02T16:10:55Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-02T16:12:16Z"
+  },
+  {
+    "activity_id": "165dd549cc924e91",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "release-record-contract-and-history-model",
+    "owner_title": "Define The Release Record And History Model",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "40f52f76-be9e-491a-95bf-f1a824ac8d81",
+    "run_id": "7824b7bf-4486-42ed-89c2-0b23d13f3dbc",
+    "status": "complete",
+    "requested_at": "2026-04-02T16:08:23Z",
+    "started_at": "2026-04-02T16:08:24Z",
+    "finished_at": "2026-04-02T16:12:29Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "auto_triggered": "true",
+      "entrypoint": "backlog.workshop_auto_advance",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop-research"
+    },
+    "updated_at": "2026-04-02T16:14:19Z"
+  },
+  {
+    "activity_id": "2450ad06afc374bd",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "swarm-manager-concurrency-guardrails",
+    "owner_title": "Add Concurrency Controls, Rate Limiting, and Cost Awareness to Swarm-Manager Executions",
+    "purpose": "finalize",
+    "interaction_type": "spawn",
+    "task_id": "8e0cc8c3-f45c-4317-883d-fcbd9e1297d4",
+    "run_id": "d8568fb3-0b5c-4c9e-b8bb-3eac7d60d219",
+    "status": "complete",
+    "requested_at": "2026-04-02T16:10:03Z",
+    "started_at": "2026-04-02T16:10:03Z",
+    "finished_at": "2026-04-02T16:12:45Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "auto_triggered": "true",
+      "entrypoint": "backlog.workshop_auto_advance",
+      "mode": "finalize",
+      "skill_id": "swarm-manager-workshop-finalize"
+    },
+    "updated_at": "2026-04-02T16:14:20Z"
+  },
+  {
+    "activity_id": "2452a88d18126df1",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "desktop-post-publish-version-sync",
+    "owner_title": "Add post-publish version sync from scenario-to-desktop to deployment-manager",
+    "execution_id": "99c7a1f3288d359a",
+    "purpose": "process",
+    "interaction_type": "spawn",
+    "task_id": "6cca67ca-82b9-4508-9769-0de862082626",
+    "run_id": "f1b3d365-f9fb-4347-af38-c3b217a25196",
+    "status": "complete",
+    "requested_at": "2026-04-02T16:22:54Z",
+    "started_at": "2026-04-02T16:22:55Z",
+    "finished_at": "2026-04-02T16:31:08Z",
+    "requested_by": "swarm-manager-ui",
+    "metadata": {
+      "entrypoint": "execution.start",
+      "mode": "yolo",
+      "operation": "generator"
+    },
+    "updated_at": "2026-04-02T16:32:26Z"
+  },
+  {
+    "activity_id": "361b7ed4ffbb6494",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "swarm-manager-concurrency-guardrails",
+    "owner_title": "Add Concurrency Controls, Rate Limiting, and Cost Awareness to Swarm-Manager Executions",
+    "execution_id": "e43db37cb7e23434",
+    "purpose": "process",
+    "interaction_type": "spawn",
+    "task_id": "ea0d19fa-8e7f-41b3-98ad-08d626e6cb6c",
+    "run_id": "474bd3bd-dc0f-45de-b54e-1baf21238efc",
+    "status": "complete",
+    "requested_at": "2026-04-02T16:38:10Z",
+    "started_at": "2026-04-02T16:38:10Z",
+    "finished_at": "2026-04-02T16:58:37Z",
+    "requested_by": "swarm-manager-ui",
+    "metadata": {
+      "entrypoint": "execution.start",
+      "mode": "yolo",
+      "operation": "generator"
+    },
+    "updated_at": "2026-04-02T17:59:42Z"
   }
 ]

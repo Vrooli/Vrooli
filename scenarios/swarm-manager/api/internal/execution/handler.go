@@ -2,6 +2,7 @@ package execution
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
@@ -45,6 +46,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/execution/{execution_id}/retry", h.Retry).Methods("POST")
 	r.HandleFunc("/api/v1/execution/{execution_id}/follow-up", h.FollowUp).Methods("POST")
 	r.HandleFunc("/api/v1/execution/{execution_id}/trigger-review", h.TriggerReview).Methods("POST")
+	r.HandleFunc("/api/v1/execution/circuit-breaker/reset", h.ResetCircuitBreaker).Methods("POST")
 	r.HandleFunc("/api/v1/gct/status", h.GCTStatus).Methods("GET")
 }
 
@@ -168,6 +170,8 @@ func (h *Handler) mapCreateError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, errNotFound):
 		httputil.NotFound(w, "[execution] create", "backlog item not found")
+	case errors.Is(err, errQueueFull), errors.Is(err, errCircuitBroken), errors.Is(err, errCostCapExceeded):
+		httputil.Conflict(w, "[execution] create", err.Error())
 	case errors.Is(err, agentmanager.ErrNotAvailable):
 		httputil.ServiceUnavailable(w, "[execution] create", "agent-manager is not available")
 	case errors.Is(err, agentmanager.ErrRequestFailed):
@@ -177,6 +181,31 @@ func (h *Handler) mapCreateError(w http.ResponseWriter, err error) {
 	default:
 		httputil.InternalError(w, "[execution] create", "failed to create execution: "+summarizeCreateError(err))
 	}
+}
+
+// ResetCircuitBreaker clears the circuit breaker for a specific item.
+func (h *Handler) ResetCircuitBreaker(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Item string `json:"item"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		httputil.BadRequest(w, "[execution] circuit-breaker-reset", "invalid request body")
+		return
+	}
+	if strings.TrimSpace(body.Item) == "" {
+		httputil.BadRequest(w, "[execution] circuit-breaker-reset", "item is required")
+		return
+	}
+	if err := h.service.ResetCircuitBreaker(body.Item); err != nil {
+		if errors.Is(err, errNotFound) {
+			httputil.NotFound(w, "[execution] circuit-breaker-reset", "no circuit breaker state for item")
+			return
+		}
+		httputil.InternalError(w, "[execution] circuit-breaker-reset", "failed to reset circuit breaker")
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(`{"ok":true}`))
 }
 
 func isCreateBadRequestError(err error) bool {

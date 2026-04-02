@@ -167,6 +167,27 @@ func (a *settingsPolicyAdapter) LoadPolicy() (execution.Policy, error) {
 	}, nil
 }
 
+// settingsGovernanceAdapter bridges settings.Store to execution.GovernanceProvider.
+type settingsGovernanceAdapter struct {
+	store *settings.Store
+}
+
+func (a *settingsGovernanceAdapter) LoadGovernance() (execution.GovernanceSettings, error) {
+	s, err := a.store.Load()
+	if err != nil {
+		return execution.GovernanceSettings{}, err
+	}
+	return execution.GovernanceSettings{
+		MaxConcurrentExecutions:       s.MaxConcurrentExecutions,
+		MaxQueueDepth:                 s.MaxQueueDepth,
+		CircuitBreakerThreshold:       s.CircuitBreakerThreshold,
+		CircuitBreakerCooldownMinutes: s.CircuitBreakerCooldownMinutes,
+		ExecutionCostCapPerRun:        s.ExecutionCostCapPerRun,
+		CostPerTurnEstimate:           s.CostPerTurnEstimate,
+		AgentMaxTurns:                 s.AgentMaxTurns,
+	}, nil
+}
+
 // settingsReviewThresholdsAdapter bridges settings.Store to execution.ReviewThresholdsProvider.
 type settingsReviewThresholdsAdapter struct {
 	store *settings.Store
@@ -223,12 +244,15 @@ func (s *Server) setupRoutes() {
 	s.registerAgentActivityRoutes(scenarioRoot)
 	backlogHandler := s.registerBacklogRoutes(scenarioRoot)
 	initService := s.registerInitiativeRoutes(scenarioRoot, backlogHandler)
-	s.registerOverviewRoutes(backlogHandler, initService)
+	overviewSvc := s.registerOverviewRoutes(backlogHandler, initService)
 	s.registerCapturesRoutes(scenarioRoot, backlogHandler)
 	s.registerScenarioRoutes(scenariosDir)
 	s.registerAgentManagerRoutes()
 	s.registerQueueRoutes(scenarioRoot)
-	s.registerExecutionRoutes(scenarioRoot)
+	execSvc := s.registerExecutionRoutes(scenarioRoot)
+	if execSvc != nil {
+		overviewSvc.SetGovernanceProvider(execSvc)
+	}
 	s.registerGraphRoutes(scenarioRoot)
 	s.registerPromptRoutes(scenarioRoot)
 }
@@ -250,6 +274,7 @@ func (s *Server) registerBacklogRoutes(scenarioRoot string) *backlog.Handler {
 	// [REQ:REQ-P0-002] Backlog management
 	backlogHandler := backlog.NewHandlerWithClients(scenarioRoot, s.requireTrackedAgentService(), nil)
 	backlogHandler.SetPolicyProvider(&settingsPolicyAdapter{store: s.settingsStore})
+	backlogHandler.SetGovernanceProvider(&settingsGovernanceAdapter{store: s.settingsStore})
 	backlogHandler.RegisterRoutes(s.router)
 	s.backlogHandler = backlogHandler
 	return backlogHandler
@@ -332,11 +357,12 @@ func (a *initiativeAssignerAdapter) AddItems(name string, items []string) error 
 	return a.service.AddItems(name, items)
 }
 
-func (s *Server) registerOverviewRoutes(backlogHandler *backlog.Handler, initService *initiatives.Service) {
+func (s *Server) registerOverviewRoutes(backlogHandler *backlog.Handler, initService *initiatives.Service) *overview.Service {
 	// Overview aggregation endpoint for situational awareness.
 	overviewSvc := overview.NewService(backlogHandler.Store(), initService)
 	overviewHandler := overview.NewHandler(overviewSvc)
 	overviewHandler.RegisterRoutes(s.router)
+	return overviewSvc
 }
 
 func (s *Server) registerCapturesRoutes(scenarioRoot string, backlogHandler *backlog.Handler) {
@@ -388,7 +414,7 @@ func (s *Server) registerQueueRoutes(scenarioRoot string) {
 	s.queueHandler.RegisterRoutes(s.router)
 }
 
-func (s *Server) registerExecutionRoutes(scenarioRoot string) {
+func (s *Server) registerExecutionRoutes(scenarioRoot string) *execution.Service {
 	// Create archiver from scenarios handler for post-spec-sync archive
 	var archiver execution.Archiver
 	if s.scenariosHandler != nil {
@@ -400,6 +426,7 @@ func (s *Server) registerExecutionRoutes(scenarioRoot string) {
 		RootDir:                  scenarioRoot,
 		StorePath:                filepath.Join(scenarioRoot, ".vrooli", "execution-runs.json"),
 		PolicyProvider:           &settingsPolicyAdapter{store: s.settingsStore},
+		GovernanceProvider:       &settingsGovernanceAdapter{store: s.settingsStore},
 		ReviewThresholdsProvider: &settingsReviewThresholdsAdapter{store: s.settingsStore},
 		AgentService:             s.requireTrackedAgentService(),
 		ScenarioLifecycle:        scenarios.NewCLILifecycle(),
@@ -418,6 +445,7 @@ func (s *Server) registerExecutionRoutes(scenarioRoot string) {
 	if s.backlogHandler != nil {
 		s.backlogHandler.SetExecutionQueuer(s.executionSvc)
 	}
+	return s.executionSvc
 }
 
 // captureAdapter bridges captures.Handler filesystem logic to graph.CaptureLister.

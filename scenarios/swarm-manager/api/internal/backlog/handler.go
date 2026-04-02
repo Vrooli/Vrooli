@@ -53,6 +53,7 @@ type Handler struct {
 	initiativeAssigner InitiativeAssigner
 	executionQueuer    ExecutionQueuer
 	policyProvider     execution.PolicyProvider
+	governanceProvider execution.GovernanceProvider
 	eventDispatcher    EventDispatcher
 	eventLogger        EventLogger
 }
@@ -119,6 +120,11 @@ func (h *Handler) Store() Store {
 // SetPolicyProvider injects a policy provider for execution service creation.
 func (h *Handler) SetPolicyProvider(pp execution.PolicyProvider) {
 	h.policyProvider = pp
+}
+
+// SetGovernanceProvider injects a governance provider for execution service creation.
+func (h *Handler) SetGovernanceProvider(gp execution.GovernanceProvider) {
+	h.governanceProvider = gp
 }
 
 // SetEventDispatcher injects an optional graph invalidation dispatcher.

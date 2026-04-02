@@ -45,7 +45,7 @@ The `DeployResult` struct (in scenario-to-desktop) contains `[]DeployArtifactRes
 - **Orchestrator**: `scenarios/deployment-manager/api/deployments/orchestrator.go`
   - Handles full desktop deploy workflow: validate → build → package → desktop gen → installers → visual validation
   - Uses `DesktopPackagerClient` to communicate with scenario-to-desktop
-  - Does NOT currently have a "publish to LPBS" step — the deploy stage runs through scenario-to-desktop's pipeline separately
+  - Currently does NOT have a "publish to LPBS" step — this plan adds it as Step 9
   - Returns `DeployDesktopResponse` with Steps, BuildResults, Installers, etc.
 - **Desktop client**: `scenarios/deployment-manager/api/deployments/desktop_client.go`
   - Has `QuickGenerate`, `WaitForBuild`, `RunSmokeTest` methods
@@ -61,7 +61,9 @@ The `DeployResult` struct (in scenario-to-desktop) contains `[]DeployArtifactRes
 - **Pipeline Status**: `Status.Stages["deploy"].Details` contains `DeployResult` (as `interface{}`, needs JSON round-trip to deserialize)
 - **Status.Provenance**: Contains `BuildProvenance` at the pipeline level
 
-## 5. Decisions Made (Workshop Round 1)
+## 5. Decisions Made
+
+### Workshop Round 1
 
 | Decision | Selected | Rationale |
 |----------|----------|-----------|
@@ -70,26 +72,46 @@ The `DeployResult` struct (in scenario-to-desktop) contains `[]DeployArtifactRes
 | Error handling | **Non-fatal** (log error, deploy still succeeds) | Publish is the real action; version record is convenience cache |
 | Version source | **BuildProvenance.Version** from pipeline Status | Already available in pipeline status response |
 
+### Workshop Round 2
+
+| Decision | Selected | Rationale |
+|----------|----------|-----------|
+| Orchestrator integration point | **New orchestrator step** ("Publish to LPBS") that triggers scenario-to-desktop pipeline, polls completion, extracts version | Makes orchestrator the single entry point for the entire deploy-through-publish flow |
+| Repository placement | **In `deployments` package** alongside `ApprovalsRepository` | Published versions are a deployment concern; orchestrator is primary caller; avoids new package |
+| DeployResult deserialization | **JSON round-trip** (marshal `Details` interface{} to JSON, unmarshal to local typed struct) | Standard Go pattern; no coupling to scenario-to-desktop's Go types |
+| Pipeline trigger config | **Deploy stage only**, passing pre-built artifact paths as input | Orchestrator already did build/package; only LPBS upload needed; minimizes redundant work |
+
 ## 6. Implementation Strategy: Orchestrator-Side Pull
 
-Since the orchestrator already (or will) poll pipeline status which includes `DeployResult` and `BuildProvenance`, the version persist happens entirely within deployment-manager:
+The orchestrator adds a new "Publish to LPBS" step (Step 9) after visual validation. This step triggers scenario-to-desktop's pipeline with deploy-stage-only config, polls for completion, then extracts and persists version data.
 
-### Phase 1: Schema + Repository
+### Phase 1: Schema + Repository (in `deployments` package)
 1. Add `published_versions` table to deployment-manager schema (append-only, no UNIQUE constraint)
-2. Create `PublishedVersionsRepository` interface + SQL implementation
-3. Methods: `RecordPublish(ctx, record)`, `GetLatestByProfile(ctx, profileID)`, `GetHistory(ctx, profileID, platform, limit)`
+2. Add `PublishedVersion` type to `deployments` package
+3. Add `PublishedVersionsRepository` interface + SQL implementation in `deployments` package, alongside existing `ApprovalsRepository`
+4. Methods: `RecordPublish(ctx, record)`, `GetLatestByProfile(ctx, profileID)`, `GetHistory(ctx, profileID, platform, limit)`
 
-### Phase 2: Orchestrator Integration
-1. After observing successful deploy stage completion in pipeline status, extract:
-   - `Version` and `GitCommitHash` from `Status.Provenance`
-   - `ArtifactID` and `Platform` from each entry in `DeployResult.Artifacts`
-2. Call `RecordPublish` for each platform artifact
-3. Log errors but do not fail the deployment
+### Phase 2: Local DeployResult Type + Deserialization
+1. Define a local `DeployResult` struct in deployment-manager mirroring the fields we need: `Artifacts []DeployArtifactResult` and `UpdateURL`
+2. Define local `DeployArtifactResult` struct: `ArtifactID int64`, `Platform string`
+3. Define local `BuildProvenance` struct: `Version string`, `GitCommitHash string`
+4. Extraction helper: marshal `Status.Stages["deploy"].Details` (interface{}) to JSON, unmarshal into local `DeployResult`; marshal `Status.Provenance` to JSON, unmarshal into local `BuildProvenance`
 
-### Phase 3: Query Endpoint
+### Phase 3: Orchestrator Integration (Step 9: Publish to LPBS)
+1. After visual validation (current final step), add Step 9 "Publish to LPBS":
+   - Trigger scenario-to-desktop pipeline via `POST /api/v1/pipeline/run` with deploy-stage-only config, passing pre-built installer artifact paths
+   - Poll `GET /api/v1/pipeline/{id}` until completion
+   - On success: extract `DeployResult` from `Status.Stages["deploy"].Details` via JSON round-trip
+   - Extract `Version` and `GitCommitHash` from `Status.Provenance` via JSON round-trip
+   - For each `DeployArtifactResult`, call `RecordPublish` with profile ID, platform, version, git hash, artifact ID, deployment ID
+2. Non-fatal error handling: wrap persist in a recovery block — log errors but do not fail the deployment
+3. Update `DeployDesktopResponse` to optionally include published version info
+
+### Phase 4: Query Endpoint
 1. Add `GET /api/v1/profiles/{id}/published-versions` endpoint
-2. Returns latest published version per platform (using window function over history)
-3. Optional `?platform=` filter and `?history=true` for full history
+2. Handler in `deployments` package (or new handler file), registered in `server/routes.go`
+3. Returns latest published version per platform (using `DISTINCT ON` window pattern)
+4. Optional `?platform=` filter and `?history=true` for full ordered history with `?limit=` support
 
 ## 7. Contract Details
 
@@ -122,6 +144,26 @@ WHERE profile_id = $1
 ORDER BY platform, published_at DESC;
 ```
 
+### Local DeployResult Types (in deployment-manager)
+
+```go
+// Local mirror of scenario-to-desktop's DeployResult — decoupled via JSON round-trip
+type PipelineDeployResult struct {
+    Artifacts []PipelineDeployArtifact `json:"artifacts"`
+    UpdateURL string                   `json:"update_url"`
+}
+
+type PipelineDeployArtifact struct {
+    ArtifactID int64  `json:"artifact_id"`
+    Platform   string `json:"platform"`
+}
+
+type PipelineBuildProvenance struct {
+    Version       string `json:"version"`
+    GitCommitHash string `json:"git_commit_hash"`
+}
+```
+
 ### New Endpoint: `GET /api/v1/profiles/{id}/published-versions`
 
 **Response (latest mode, default):**
@@ -141,6 +183,31 @@ ORDER BY platform, published_at DESC;
 }
 ```
 
+**Response (history mode, `?history=true&platform=windows&limit=10`):**
+```json
+{
+  "profile_id": "my-profile",
+  "versions": [
+    {
+      "platform": "windows",
+      "version": "1.2.3",
+      "git_commit_hash": "abc123...",
+      "artifact_id": 42,
+      "deployment_id": "deploy-xyz",
+      "published_at": "2026-03-30T12:00:00Z"
+    },
+    {
+      "platform": "windows",
+      "version": "1.2.2",
+      "git_commit_hash": "def456...",
+      "artifact_id": 38,
+      "deployment_id": "deploy-abc",
+      "published_at": "2026-03-28T10:00:00Z"
+    }
+  ]
+}
+```
+
 ### Repository Interface
 
 ```go
@@ -151,32 +218,46 @@ type PublishedVersionsRepository interface {
 }
 ```
 
+### Pipeline Trigger Config
+
+When the orchestrator triggers scenario-to-desktop's pipeline for the deploy stage only:
+- Set `stages: ["deploy"]` (or equivalent config field) to skip build/package stages
+- Pass pre-built installer paths as input artifacts in the pipeline run request
+- The exact request shape depends on scenario-to-desktop's `POST /api/v1/pipeline/run` contract
+
 ## 8. Testing Plan
 
 ### Unit Tests
-1. **Repository layer**: Test `RecordPublish` inserts correctly, `GetLatestByProfile` returns only latest per platform, `GetHistory` returns ordered history with limit
-2. **Orchestrator extraction**: Test that version data is correctly extracted from a mock pipeline status response and passed to repository
-3. **Non-fatal error handling**: Test that repository errors during persist don't propagate as deployment failures
+1. **Repository layer** (testcontainers): `RecordPublish` inserts correctly; `GetLatestByProfile` returns only latest per platform; `GetHistory` returns ordered history with limit; multiple publishes for same platform return correct latest
+2. **DeployResult deserialization**: Test JSON round-trip extraction from mock `interface{}` pipeline status details — verify correct parsing of artifacts array and provenance fields
+3. **Orchestrator extraction logic**: Test that version data is correctly extracted from a mock pipeline status response and passed to repository; test that each platform artifact produces a separate `RecordPublish` call
+4. **Non-fatal error handling**: Test that repository errors during persist are logged but don't propagate as deployment failures; orchestrator step reports success even when persist fails
+5. **Handler layer**: Test query endpoint with mocked repository — latest mode, history mode, platform filter, empty results
 
 ### Integration Tests
-1. **End-to-end**: Deploy flow records version → query endpoint returns it
-2. **Multiple publishes**: Second publish for same platform appears as latest, first is still in history
-3. **Failed deploy**: Verify no version record is created
+1. **End-to-end**: Deploy flow triggers pipeline → extracts version → persists → query endpoint returns it
+2. **Multiple publishes**: Second publish for same platform appears as latest; first still in history
+3. **Multi-platform**: Single deploy with Windows + Mac + Linux artifacts creates three records; latest endpoint returns all three
+4. **Failed deploy**: Pipeline failure means no version record is created
 
 ### What to mock
-- Pipeline status response (for orchestrator unit tests)
+- Pipeline status response (for orchestrator unit tests) — provide realistic `interface{}` Details
 - Repository interface (for handler unit tests)
+- Pipeline client (for orchestrator unit tests — mock the trigger + poll)
 - Real DB via testcontainers (for repository + integration tests)
 
 ## 9. Rollout/Validation Checklist
 
 - [ ] Schema migration runs cleanly on fresh and existing databases
-- [ ] Orchestrator persists version after successful deploy
+- [ ] Orchestrator Step 9 triggers deploy-stage-only pipeline with correct config
+- [ ] Orchestrator extracts DeployResult and BuildProvenance via JSON round-trip
+- [ ] Orchestrator persists one record per platform per deploy
 - [ ] GET endpoint returns correct published versions (latest per platform)
-- [ ] History mode returns full publish history
-- [ ] Failed deploy does not update published versions
+- [ ] History mode returns full publish history with limit
+- [ ] Platform filter works correctly
+- [ ] Failed deploy does not create version records
 - [ ] Non-fatal: persist failure doesn't break deploy response
-- [ ] Existing deploy flow is not broken
+- [ ] Existing deploy flow (steps 1-8) is not broken by new Step 9
 - [ ] `go build ./...` and `go test ./...` succeed for deployment-manager
 
 ## 10. Risks + Mitigations
@@ -186,8 +267,10 @@ type PublishedVersionsRepository interface {
 | Schema migration fails on existing data | Low | Medium | Migration is additive (new table), no existing data affected |
 | Orchestrator error during version persist breaks deploy | Medium | High | Persist in a non-fatal path — log error but don't fail the deployment |
 | Version drift if deploy succeeds but persist fails | Low | Low | Can always re-derive from LPBS; this is a convenience cache |
-| Pipeline status `Details` field needs JSON round-trip | Low | Low | Well-understood Go pattern: marshal to JSON, unmarshal to typed struct |
+| Pipeline status `Details` field needs JSON round-trip | Low | Low | Well-understood Go pattern: marshal to JSON, unmarshal to typed struct; tested explicitly |
 | Append-only table grows unbounded | Low | Low | Typical publish frequency is very low; add retention policy later if needed |
+| Deploy-stage-only pipeline config may not be supported yet | Medium | Medium | Verify scenario-to-desktop supports selective stage execution before implementing; if not, add stage filtering as a prerequisite |
+| Pre-built artifact paths may not be in the format deploy stage expects | Low | Medium | Test with actual artifact paths from orchestrator build step; add path normalization if needed |
 
 ## 11. Non-goals / Prohibited Patterns
 
@@ -196,16 +279,19 @@ type PublishedVersionsRepository interface {
 - Do NOT implement full webhook system (separate backlog item)
 - Do NOT add backward-compatibility shims for the new table
 - Do NOT add UNIQUE constraints — this is intentionally append-only
+- Do NOT import scenario-to-desktop Go types directly — use local mirror structs with JSON round-trip
 
 ## 12. Definition of Done
 
 - [ ] `published_versions` table exists in deployment-manager schema
-- [ ] `PublishedVersionsRepository` interface + SQL implementation
-- [ ] Orchestrator persists version per platform after successful deploy
+- [ ] `PublishedVersionsRepository` interface + SQL implementation in `deployments` package
+- [ ] Local `PipelineDeployResult` and `PipelineBuildProvenance` types for deserialization
+- [ ] Orchestrator Step 9 triggers deploy-stage-only pipeline and extracts version data
+- [ ] Version persisted per platform per deploy via `RecordPublish`
+- [ ] Non-fatal error handling: persist failure logged but deploy succeeds
 - [ ] `GET /api/v1/profiles/{id}/published-versions` returns current versions
-- [ ] History query support with `?history=true&platform=X`
-- [ ] Non-fatal error handling verified
-- [ ] All tests pass
+- [ ] History query support with `?history=true&platform=X&limit=N`
+- [ ] All tests pass (unit + integration)
 - [ ] `go build ./...` and `go test ./...` succeed for deployment-manager
 
 ## 13. File Change Manifest
@@ -213,9 +299,12 @@ type PublishedVersionsRepository interface {
 | File | Action | Description |
 |------|--------|-------------|
 | `scenarios/deployment-manager/initialization/postgres/schema.sql` | Edit | Add `published_versions` table + index |
-| `scenarios/deployment-manager/api/deployments/published_versions.go` | Create | `PublishedVersion` type + `PublishedVersionsRepository` interface + SQL impl |
+| `scenarios/deployment-manager/api/deployments/published_versions.go` | Create | `PublishedVersion` type, `PublishedVersionsRepository` interface, SQL implementation |
 | `scenarios/deployment-manager/api/deployments/published_versions_test.go` | Create | Repository unit tests using testcontainers |
-| `scenarios/deployment-manager/api/deployments/orchestrator.go` | Edit | Add version extraction + persist after deploy stage completion |
-| `scenarios/deployment-manager/api/deployments/orchestrator_test.go` | Edit/Create | Test version extraction logic |
+| `scenarios/deployment-manager/api/deployments/pipeline_types.go` | Create | Local `PipelineDeployResult`, `PipelineDeployArtifact`, `PipelineBuildProvenance` mirror types + extraction helper |
+| `scenarios/deployment-manager/api/deployments/pipeline_types_test.go` | Create | JSON round-trip deserialization tests |
+| `scenarios/deployment-manager/api/deployments/orchestrator.go` | Edit | Add Step 9: trigger deploy-stage-only pipeline, extract version, persist via repository |
+| `scenarios/deployment-manager/api/deployments/orchestrator_test.go` | Edit/Create | Test version extraction + non-fatal error handling in Step 9 |
 | `scenarios/deployment-manager/api/server/routes.go` | Edit | Register `GET /api/v1/profiles/{id}/published-versions` |
-| `scenarios/deployment-manager/api/deployments/handlers.go` or new handler file | Edit/Create | Handler for published versions endpoint |
+| `scenarios/deployment-manager/api/deployments/handlers.go` or new handler file | Edit/Create | Handler for published versions query endpoint |
+| `scenarios/deployment-manager/api/deployments/handlers_test.go` | Edit/Create | Handler unit tests with mocked repository |

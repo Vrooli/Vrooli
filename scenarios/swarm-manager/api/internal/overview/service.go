@@ -10,6 +10,7 @@ import (
 
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/depgraph"
+	"swarm-manager/internal/execution"
 	"swarm-manager/internal/initiatives"
 )
 
@@ -23,10 +24,16 @@ type InitiativeLister interface {
 	List() ([]initiatives.InitiativeWithRollup, error)
 }
 
+// GovernanceProvider returns governance status from the execution service.
+type GovernanceProvider interface {
+	GovernanceStatus() (*execution.GovernanceStatusResponse, error)
+}
+
 // Service assembles overview data from backlog and initiative sources.
 type Service struct {
 	backlog     BacklogLister
 	initiatives InitiativeLister
+	governance  GovernanceProvider
 }
 
 // NewService creates an overview Service backed by the given data sources.
@@ -37,12 +44,18 @@ func NewService(bl BacklogLister, il InitiativeLister) *Service {
 	}
 }
 
+// SetGovernanceProvider injects a governance provider for overview responses.
+func (s *Service) SetGovernanceProvider(gp GovernanceProvider) {
+	s.governance = gp
+}
+
 // OverviewResponse is the top-level payload returned by GetOverview.
 type OverviewResponse struct {
-	Items           []backlog.BacklogItem              `json:"items"`
-	Initiatives     []initiatives.InitiativeWithRollup `json:"initiatives"`
-	DependencyGraph DependencyGraph                    `json:"dependency_graph"`
-	Summary         OverviewSummary                    `json:"summary"`
+	Items           []backlog.BacklogItem                   `json:"items"`
+	Initiatives     []initiatives.InitiativeWithRollup      `json:"initiatives"`
+	DependencyGraph DependencyGraph                         `json:"dependency_graph"`
+	Summary         OverviewSummary                         `json:"summary"`
+	Governance      *execution.GovernanceStatusResponse      `json:"governance,omitempty"`
 }
 
 // DependencyGraph captures the edges and reachability status of backlog items.
@@ -81,12 +94,20 @@ func (s *Service) GetOverview() (*OverviewResponse, error) {
 	// Build summary statistics.
 	summary := buildSummary(items, inits)
 
-	return &OverviewResponse{
+	resp := &OverviewResponse{
 		Items:           items,
 		Initiatives:     inits,
 		DependencyGraph: depGraph,
 		Summary:         summary,
-	}, nil
+	}
+
+	if s.governance != nil {
+		if govStatus, govErr := s.governance.GovernanceStatus(); govErr == nil {
+			resp.Governance = govStatus
+		}
+	}
+
+	return resp, nil
 }
 
 // itemKey returns the canonical "kind/name" identifier for a backlog item.

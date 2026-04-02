@@ -161,6 +161,7 @@ func (a *App) registerSubcommandGroups() []cliapp.SubcommandGroup {
 				{Name: "start", NeedsAPI: true, Description: "Start an execution (--id ID)", Run: a.cmdExecutionStart},
 				{Name: "cancel", NeedsAPI: true, Description: "Cancel an execution (--id ID)", Run: a.cmdExecutionCancel},
 				{Name: "retry", NeedsAPI: true, Description: "Retry a failed execution (--id ID)", Run: a.cmdExecutionRetry},
+				{Name: "circuit-breaker-reset", NeedsAPI: true, Description: "Reset circuit breaker for an item (--item KIND/NAME)", Run: a.cmdCircuitBreakerReset},
 			},
 		},
 		{
