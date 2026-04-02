@@ -9,7 +9,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class CreateBacklogItemRequest(_message.Message):
-    __slots__ = ("name", "title", "description", "priority", "tags", "kind", "depends_on", "initiative", "effort", "acceptance_allow", "acceptance_deny")
+    __slots__ = ("name", "title", "description", "priority", "tags", "kind", "depends_on", "initiative", "effort", "acceptance_allow", "acceptance_deny", "spawned_from")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -21,6 +21,7 @@ class CreateBacklogItemRequest(_message.Message):
     EFFORT_FIELD_NUMBER: _ClassVar[int]
     ACCEPTANCE_ALLOW_FIELD_NUMBER: _ClassVar[int]
     ACCEPTANCE_DENY_FIELD_NUMBER: _ClassVar[int]
+    SPAWNED_FROM_FIELD_NUMBER: _ClassVar[int]
     name: str
     title: str
     description: str
@@ -32,10 +33,11 @@ class CreateBacklogItemRequest(_message.Message):
     effort: str
     acceptance_allow: _containers.RepeatedScalarFieldContainer[str]
     acceptance_deny: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., kind: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ...) -> None: ...
+    spawned_from: str
+    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., kind: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ...) -> None: ...
 
 class UpdateBacklogItemRequest(_message.Message):
-    __slots__ = ("title", "description", "status", "priority", "tags", "depends_on", "initiative", "effort", "acceptance_allow", "acceptance_deny")
+    __slots__ = ("title", "description", "status", "priority", "tags", "depends_on", "initiative", "effort", "acceptance_allow", "acceptance_deny", "spawned_from")
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -46,6 +48,7 @@ class UpdateBacklogItemRequest(_message.Message):
     EFFORT_FIELD_NUMBER: _ClassVar[int]
     ACCEPTANCE_ALLOW_FIELD_NUMBER: _ClassVar[int]
     ACCEPTANCE_DENY_FIELD_NUMBER: _ClassVar[int]
+    SPAWNED_FROM_FIELD_NUMBER: _ClassVar[int]
     title: str
     description: str
     status: str
@@ -56,7 +59,8 @@ class UpdateBacklogItemRequest(_message.Message):
     effort: str
     acceptance_allow: _containers.RepeatedScalarFieldContainer[str]
     acceptance_deny: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ...) -> None: ...
+    spawned_from: str
+    def __init__(self, title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ...) -> None: ...
 
 class ListBacklogItemsResponse(_message.Message):
     __slots__ = ("items",)
@@ -101,20 +105,18 @@ class BacklogFileOperationResponse(_message.Message):
     def __init__(self, file: _Optional[_Union[_backlog_pb2.BacklogFile, _Mapping]] = ..., deleted_path: _Optional[str] = ...) -> None: ...
 
 class QueueBacklogItemRequest(_message.Message):
-    __slots__ = ("operation", "mode", "delay_seconds", "started_by", "confirm", "force")
+    __slots__ = ("operation", "mode", "started_by", "confirm", "force")
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     MODE_FIELD_NUMBER: _ClassVar[int]
-    DELAY_SECONDS_FIELD_NUMBER: _ClassVar[int]
     STARTED_BY_FIELD_NUMBER: _ClassVar[int]
     CONFIRM_FIELD_NUMBER: _ClassVar[int]
     FORCE_FIELD_NUMBER: _ClassVar[int]
     operation: str
     mode: str
-    delay_seconds: int
     started_by: str
     confirm: bool
     force: bool
-    def __init__(self, operation: _Optional[str] = ..., mode: _Optional[str] = ..., delay_seconds: _Optional[int] = ..., started_by: _Optional[str] = ..., confirm: _Optional[bool] = ..., force: _Optional[bool] = ...) -> None: ...
+    def __init__(self, operation: _Optional[str] = ..., mode: _Optional[str] = ..., started_by: _Optional[str] = ..., confirm: _Optional[bool] = ..., force: _Optional[bool] = ...) -> None: ...
 
 class QueueBacklogItemResponse(_message.Message):
     __slots__ = ("item", "task_id", "run_id", "base_url", "created", "dry_run", "queued", "message", "blocking_reasons", "unanswered_questions", "pending_suggestions")
@@ -261,3 +263,63 @@ class WorkshopDeleteRoundResponse(_message.Message):
     deleted_round: int
     remaining_rounds: int
     def __init__(self, deleted_round: _Optional[int] = ..., remaining_rounds: _Optional[int] = ...) -> None: ...
+
+class CreateClarificationRequest(_message.Message):
+    __slots__ = ("round_number", "item_id", "message", "attachment_ids")
+    ROUND_NUMBER_FIELD_NUMBER: _ClassVar[int]
+    ITEM_ID_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    ATTACHMENT_IDS_FIELD_NUMBER: _ClassVar[int]
+    round_number: int
+    item_id: str
+    message: str
+    attachment_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, round_number: _Optional[int] = ..., item_id: _Optional[str] = ..., message: _Optional[str] = ..., attachment_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class CreateClarificationResponse(_message.Message):
+    __slots__ = ("thread",)
+    THREAD_FIELD_NUMBER: _ClassVar[int]
+    thread: _backlog_pb2.ClarificationThread
+    def __init__(self, thread: _Optional[_Union[_backlog_pb2.ClarificationThread, _Mapping]] = ...) -> None: ...
+
+class ContinueClarificationRequest(_message.Message):
+    __slots__ = ("message", "attachment_ids")
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    ATTACHMENT_IDS_FIELD_NUMBER: _ClassVar[int]
+    message: str
+    attachment_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, message: _Optional[str] = ..., attachment_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ContinueClarificationResponse(_message.Message):
+    __slots__ = ("thread",)
+    THREAD_FIELD_NUMBER: _ClassVar[int]
+    thread: _backlog_pb2.ClarificationThread
+    def __init__(self, thread: _Optional[_Union[_backlog_pb2.ClarificationThread, _Mapping]] = ...) -> None: ...
+
+class GetClarificationResponse(_message.Message):
+    __slots__ = ("thread",)
+    THREAD_FIELD_NUMBER: _ClassVar[int]
+    thread: _backlog_pb2.ClarificationThread
+    def __init__(self, thread: _Optional[_Union[_backlog_pb2.ClarificationThread, _Mapping]] = ...) -> None: ...
+
+class ClarificationActionRequest(_message.Message):
+    __slots__ = ("action", "updated_item_json")
+    ACTION_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_ITEM_JSON_FIELD_NUMBER: _ClassVar[int]
+    action: str
+    updated_item_json: str
+    def __init__(self, action: _Optional[str] = ..., updated_item_json: _Optional[str] = ...) -> None: ...
+
+class ClarificationActionResponse(_message.Message):
+    __slots__ = ("action", "success", "message", "run_id", "task_id")
+    ACTION_FIELD_NUMBER: _ClassVar[int]
+    SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    action: str
+    success: bool
+    message: str
+    run_id: str
+    task_id: str
+    def __init__(self, action: _Optional[str] = ..., success: _Optional[bool] = ..., message: _Optional[str] = ..., run_id: _Optional[str] = ..., task_id: _Optional[str] = ...) -> None: ...

@@ -32,7 +32,6 @@ type ExecutionRecord struct {
 	RunId         *string                `protobuf:"bytes,5,opt,name=run_id,json=runId,proto3,oneof" json:"run_id,omitempty"`
 	Status        string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
 	Mode          string                 `protobuf:"bytes,7,opt,name=mode,proto3" json:"mode,omitempty"`
-	ScheduledAt   *string                `protobuf:"bytes,8,opt,name=scheduled_at,json=scheduledAt,proto3,oneof" json:"scheduled_at,omitempty"`
 	StartedAt     *string                `protobuf:"bytes,9,opt,name=started_at,json=startedAt,proto3,oneof" json:"started_at,omitempty"`
 	FinishedAt    *string                `protobuf:"bytes,10,opt,name=finished_at,json=finishedAt,proto3,oneof" json:"finished_at,omitempty"`
 	FailureReason *string                `protobuf:"bytes,11,opt,name=failure_reason,json=failureReason,proto3,oneof" json:"failure_reason,omitempty"`
@@ -127,13 +126,6 @@ func (x *ExecutionRecord) GetStatus() string {
 func (x *ExecutionRecord) GetMode() string {
 	if x != nil {
 		return x.Mode
-	}
-	return ""
-}
-
-func (x *ExecutionRecord) GetScheduledAt() string {
-	if x != nil && x.ScheduledAt != nil {
-		return *x.ScheduledAt
 	}
 	return ""
 }
@@ -955,9 +947,8 @@ func (x *ScenarioReview) GetResult() *ReviewResult {
 
 // ExecutionPolicy controls default mode, delay, and auto-fixup behavior.
 type ExecutionPolicy struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	DefaultMode         string                 `protobuf:"bytes,1,opt,name=default_mode,json=defaultMode,proto3" json:"default_mode,omitempty"`
-	DefaultDelaySeconds int64                  `protobuf:"varint,2,opt,name=default_delay_seconds,json=defaultDelaySeconds,proto3" json:"default_delay_seconds,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	DefaultMode string                 `protobuf:"bytes,1,opt,name=default_mode,json=defaultMode,proto3" json:"default_mode,omitempty"`
 	// When true, automatically re-runs execution when review finds issues.
 	AutoFixup bool `protobuf:"varint,3,opt,name=auto_fixup,json=autoFixup,proto3" json:"auto_fixup,omitempty"`
 	// Maximum number of automatic fixup attempts (0-5).
@@ -1003,13 +994,6 @@ func (x *ExecutionPolicy) GetDefaultMode() string {
 	return ""
 }
 
-func (x *ExecutionPolicy) GetDefaultDelaySeconds() int64 {
-	if x != nil {
-		return x.DefaultDelaySeconds
-	}
-	return 0
-}
-
 func (x *ExecutionPolicy) GetAutoFixup() bool {
 	if x != nil {
 		return x.AutoFixup
@@ -1028,39 +1012,36 @@ var File_swarm_manager_v1_domain_execution_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\n" +
-	"'swarm-manager/v1/domain/execution.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\x9e\t\n" +
+	"'swarm-manager/v1/domain/execution.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xd4\b\n" +
 	"\x0fExecutionRecord\x12*\n" +
 	"\fexecution_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vexecutionId\x12X\n" +
 	"\fbacklog_kind\x18\x02 \x01(\tB5\xbaH2r0R\x04ideaR\x03fixR\aexecuteR\bresearchR\x05choreR\tspec-syncR\vbacklogKind\x12*\n" +
 	"\fbacklog_name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vbacklogName\x12\x1c\n" +
 	"\atask_id\x18\x04 \x01(\tH\x00R\x06taskId\x88\x01\x01\x12\x1a\n" +
-	"\x06run_id\x18\x05 \x01(\tH\x01R\x05runId\x88\x01\x01\x12\x88\x01\n" +
-	"\x06status\x18\x06 \x01(\tBp\xbaHmrkR\apendingR\tscheduledR\bstartingR\arunningR\fneeds_reviewR\n" +
-	"validatingR\vneeds_fixupR\tcompletedR\x06failedR\bcanceledR\x06status\x122\n" +
-	"\x04mode\x18\a \x01(\tB\x1e\xbaH\x1br\x19R\x06manualR\tscheduledR\x04yoloR\x04mode\x12&\n" +
-	"\fscheduled_at\x18\b \x01(\tH\x02R\vscheduledAt\x88\x01\x01\x12\"\n" +
+	"\x06run_id\x18\x05 \x01(\tH\x01R\x05runId\x88\x01\x01\x12}\n" +
+	"\x06status\x18\x06 \x01(\tBe\xbaHbr`R\apendingR\bstartingR\arunningR\fneeds_reviewR\n" +
+	"validatingR\vneeds_fixupR\tcompletedR\x06failedR\bcanceledR\x06status\x12'\n" +
+	"\x04mode\x18\a \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\x04mode\x12\"\n" +
 	"\n" +
-	"started_at\x18\t \x01(\tH\x03R\tstartedAt\x88\x01\x01\x12$\n" +
+	"started_at\x18\t \x01(\tH\x02R\tstartedAt\x88\x01\x01\x12$\n" +
 	"\vfinished_at\x18\n" +
-	" \x01(\tH\x04R\n" +
+	" \x01(\tH\x03R\n" +
 	"finishedAt\x88\x01\x01\x12*\n" +
-	"\x0efailure_reason\x18\v \x01(\tH\x05R\rfailureReason\x88\x01\x01\x12\"\n" +
+	"\x0efailure_reason\x18\v \x01(\tH\x04R\rfailureReason\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"started_by\x18\f \x01(\tH\x06R\tstartedBy\x88\x01\x01\x12!\n" +
-	"\toperation\x18\r \x01(\tH\aR\toperation\x88\x01\x01\x12&\n" +
+	"started_by\x18\f \x01(\tH\x05R\tstartedBy\x88\x01\x01\x12!\n" +
+	"\toperation\x18\r \x01(\tH\x06R\toperation\x88\x01\x01\x12&\n" +
 	"\n" +
 	"created_at\x18\x0e \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tcreatedAt\x12&\n" +
 	"\n" +
 	"updated_at\x18\x0f \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tupdatedAt\x12N\n" +
-	"\x0farchive_context\x18\x10 \x01(\v2 .swarm_manager.v1.ArchiveContextH\bR\x0earchiveContext\x88\x01\x01\x123\n" +
-	"\x13parent_execution_id\x18\x11 \x01(\tH\tR\x11parentExecutionId\x88\x01\x01\x12#\n" +
+	"\x0farchive_context\x18\x10 \x01(\v2 .swarm_manager.v1.ArchiveContextH\aR\x0earchiveContext\x88\x01\x01\x123\n" +
+	"\x13parent_execution_id\x18\x11 \x01(\tH\bR\x11parentExecutionId\x88\x01\x01\x12#\n" +
 	"\rfixup_attempt\x18\x12 \x01(\x05R\ffixupAttempt\x12G\n" +
-	"\ffinalization\x18\x17 \x01(\v2\x1e.swarm_manager.v1.FinalizationH\n" +
-	"R\ffinalization\x88\x01\x01B\n" +
+	"\ffinalization\x18\x17 \x01(\v2\x1e.swarm_manager.v1.FinalizationH\tR\ffinalization\x88\x01\x01B\n" +
 	"\n" +
 	"\b_task_idB\t\n" +
-	"\a_run_idB\x0f\n" +
-	"\r_scheduled_atB\r\n" +
+	"\a_run_idB\r\n" +
 	"\v_started_atB\x0e\n" +
 	"\f_finished_atB\x11\n" +
 	"\x0f_failure_reasonB\r\n" +
@@ -1069,7 +1050,7 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"_operationB\x12\n" +
 	"\x10_archive_contextB\x16\n" +
 	"\x14_parent_execution_idB\x0f\n" +
-	"\r_finalizationJ\x04\b\x13\x10\x17\"\x99\x02\n" +
+	"\r_finalizationJ\x04\b\b\x10\tJ\x04\b\x13\x10\x17\"\x99\x02\n" +
 	"\x0eArchiveContext\x12,\n" +
 	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x12,\n" +
 	"\rscenario_path\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioPath\x12-\n" +
@@ -1160,13 +1141,12 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\x06result\x18\x04 \x01(\v2\x1e.swarm_manager.v1.ReviewResultH\x02R\x06result\x88\x01\x01B\t\n" +
 	"\a_job_idB\x0e\n" +
 	"\f_skip_reasonB\t\n" +
-	"\a_result\"\xe9\x01\n" +
-	"\x0fExecutionPolicy\x12A\n" +
-	"\fdefault_mode\x18\x01 \x01(\tB\x1e\xbaH\x1br\x19R\x06manualR\tscheduledR\x04yoloR\vdefaultMode\x12;\n" +
-	"\x15default_delay_seconds\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\x13defaultDelaySeconds\x12\x1d\n" +
+	"\a_result\"\xa7\x01\n" +
+	"\x0fExecutionPolicy\x126\n" +
+	"\fdefault_mode\x18\x01 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\vdefaultMode\x12\x1d\n" +
 	"\n" +
 	"auto_fixup\x18\x03 \x01(\bR\tautoFixup\x127\n" +
-	"\x12max_fixup_attempts\x18\x04 \x01(\x05B\t\xbaH\x06\x1a\x04\x18\x05(\x00R\x10maxFixupAttemptsBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
+	"\x12max_fixup_attempts\x18\x04 \x01(\x05B\t\xbaH\x06\x1a\x04\x18\x05(\x00R\x10maxFixupAttemptsJ\x04\b\x02\x10\x03BOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
 
 var (
 	file_swarm_manager_v1_domain_execution_proto_rawDescOnce sync.Once

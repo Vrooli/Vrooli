@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useResizablePanel } from "../hooks/useResizablePanel";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Editor from "@monaco-editor/react";
 import { Code, Eye, List } from "lucide-react";
@@ -86,7 +87,6 @@ const defaultSimulationPayload = (): SimulationPayload => ({
 });
 
 const splitLines = (value: string) => value.replace(/\r\n/g, "\n").split("\n");
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const joinParts = (parts?: string[]) => (parts && parts.length > 0 ? parts.join(", ") : "-");
 const formatUsageLabel = (value: string) => value.replace(/_/g, " ");
 
@@ -117,8 +117,14 @@ export function PromptsPage() {
   const [content, setContent] = useState("");
   const [comparisonVersion, setComparisonVersion] = useState<PromptSkillVersion | null>(null);
   const [markdownView, setMarkdownView] = useState<"raw" | "rendered">("raw");
-  const [skillsPanelWidth, setSkillsPanelWidth] = useState(320);
-  const [isResizing, setIsResizing] = useState(false);
+  const { size: skillsPanelWidth, isResizing, resizeHandleProps: skillsResizeHandleProps } = useResizablePanel({
+    containerRef: workspaceRef,
+    minSize: MIN_SKILLS_PANEL_WIDTH,
+    maxSize: MAX_SKILLS_PANEL_WIDTH,
+    defaultSize: 320,
+    adjacentMinSize: MIN_EDITOR_WIDTH,
+    handleWidth: RESIZE_HANDLE_WIDTH,
+  });
   const [showSimulationModal, setShowSimulationModal] = useState(false);
   const [showMobileSkills, setShowMobileSkills] = useState(false);
   const [simulationPayload, setSimulationPayload] = useState<SimulationPayload>(defaultSimulationPayload());
@@ -268,47 +274,6 @@ export function PromptsPage() {
     }
   };
 
-  const handleResizeStart = useCallback((event: PointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0) return;
-    event.preventDefault();
-    setIsResizing(true);
-  }, []);
-
-  useEffect(() => {
-    if (!isResizing) return;
-
-    const handlePointerMove = (event: globalThis.PointerEvent) => {
-      if (!workspaceRef.current) return;
-      const bounds = workspaceRef.current.getBoundingClientRect();
-      const maxWidth = Math.max(
-        MIN_SKILLS_PANEL_WIDTH,
-        Math.min(
-          MAX_SKILLS_PANEL_WIDTH,
-          bounds.width - MIN_EDITOR_WIDTH - RESIZE_HANDLE_WIDTH
-        )
-      );
-      const nextWidth = clamp(event.clientX - bounds.left, MIN_SKILLS_PANEL_WIDTH, maxWidth);
-      setSkillsPanelWidth(nextWidth);
-    };
-
-    const handlePointerUp = () => {
-      setIsResizing(false);
-    };
-
-    const previousCursor = document.body.style.cursor;
-    const previousUserSelect = document.body.style.userSelect;
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerUp);
-
-    return () => {
-      document.body.style.cursor = previousCursor;
-      document.body.style.userSelect = previousUserSelect;
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
-    };
-  }, [isResizing]);
 
   useEffect(() => {
     if (!canSimulateSelectedSkill) return;
@@ -530,12 +495,7 @@ export function PromptsPage() {
               </div>
               <div
                 className="hidden lg:flex w-2 items-center justify-center border-x border-white/10 bg-slate-900/40 cursor-col-resize"
-                onPointerDown={handleResizeStart}
-                role="separator"
-                aria-orientation="vertical"
-                aria-valuenow={Math.round(skillsPanelWidth)}
-                aria-valuemin={MIN_SKILLS_PANEL_WIDTH}
-                aria-valuemax={MAX_SKILLS_PANEL_WIDTH}
+                {...skillsResizeHandleProps}
               >
                 <div className="h-10 w-1 rounded-full bg-slate-700/80" />
               </div>

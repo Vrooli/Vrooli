@@ -64,6 +64,9 @@ message CreateBacklogItemRequest {
 
   // Glob patterns for file paths that must NOT be modified.
   repeated string acceptance_deny = 14;
+
+  // Origin reference in "kind/name" format, tracking which item spawned this one.
+  optional string spawned_from = 15;
 }
 
 // UpdateBacklogItemRequest defines the payload for updating a backlog item.
@@ -117,6 +120,9 @@ message UpdateBacklogItemRequest {
 
   // Glob patterns for file paths that must NOT be modified.
   repeated string acceptance_deny = 12;
+
+  // Origin reference in "kind/name" format. Set to empty string to clear.
+  optional string spawned_from = 13;
 }
 
 // ListBacklogItemsResponse returns all backlog items.
@@ -366,4 +372,80 @@ message WorkshopDeleteRoundResponse {
 
   // Total rounds remaining after deletion.
   int32 remaining_rounds = 2;
+}
+
+// =============================================================================
+// CLARIFICATION API
+// =============================================================================
+
+// CreateClarificationRequest starts a new clarification thread for a decision.
+message CreateClarificationRequest {
+  // Workshop round number containing the decision.
+  int32 round_number = 1 [(buf.validate.field).int32.gte = 1];
+
+  // Decision item ID within the round.
+  string item_id = 2 [(buf.validate.field).string.min_len = 1];
+
+  // User's clarification question. Empty triggers a generic "explain this decision" prompt.
+  string message = 3;
+
+  // Optional attachment IDs (uploaded via agent-manager).
+  repeated string attachment_ids = 4;
+}
+
+// CreateClarificationResponse returns the newly created thread.
+message CreateClarificationResponse {
+  ClarificationThread thread = 1;
+}
+
+// ContinueClarificationRequest sends a follow-up message in an existing thread.
+message ContinueClarificationRequest {
+  // Follow-up message text.
+  string message = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Optional attachment IDs.
+  repeated string attachment_ids = 2;
+}
+
+// ContinueClarificationResponse returns the updated thread.
+message ContinueClarificationResponse {
+  ClarificationThread thread = 1;
+}
+
+// GetClarificationResponse returns an existing clarification thread.
+message GetClarificationResponse {
+  ClarificationThread thread = 1;
+}
+
+// ClarificationActionRequest applies a post-clarification action.
+message ClarificationActionRequest {
+  // Action to apply.
+  // @constraint one of: got_it, update_decision, remove_decision, invalidate_round
+  string action = 1 [(buf.validate.field).string = { in: [
+    "got_it",
+    "update_decision",
+    "remove_decision",
+    "invalidate_round"
+  ] }];
+
+  // For update_decision: JSON-encoded updated item (topic, context, options).
+  optional string updated_item_json = 2;
+}
+
+// ClarificationActionResponse reports the result of a clarification action.
+message ClarificationActionResponse {
+  // The action that was applied.
+  string action = 1;
+
+  // Whether the action succeeded.
+  bool success = 2;
+
+  // Human-readable result message.
+  string message = 3;
+
+  // Agent-manager run ID (set when invalidate_round spawns a new agent).
+  optional string run_id = 4;
+
+  // Agent-manager task ID (set when invalidate_round spawns a new agent).
+  optional string task_id = 5;
 }

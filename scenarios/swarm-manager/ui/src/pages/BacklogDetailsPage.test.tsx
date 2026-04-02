@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, waitFor, fireEvent, within, cleanup } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { BacklogDetailsPage } from "./BacklogDetailsPage";
-import { useBacklogStore, useDetailSelectionStore } from "../stores";
+import { useBacklogStore, useDetailSelectionStore, useAgentActivitiesStore, useBacklogDetailUIStore } from "../stores";
 
 // jsdom doesn't provide matchMedia (needed by useIsMobile in DetailPageLayout).
 beforeAll(() => {
@@ -42,6 +42,84 @@ vi.mock("../config", () => ({
   },
 }));
 
+// Mock useStorePolling to prevent real setInterval timers from firing in tests.
+// Without this, each test starts a 6-second polling loop that calls unmocked
+// services and accumulates memory until the worker OOMs after ~4 tests.
+vi.mock("../hooks/useStorePolling", () => ({
+  useStorePolling: vi.fn(),
+}));
+
+// Some hooks import services directly by file path (not through the barrel).
+// We must mock those paths separately or the real service makes HTTP requests
+// that hang until timeout, causing the test to appear stuck.
+vi.mock("../services/execution-service", () => ({
+  executionService: {
+    list: vi.fn().mockResolvedValue([]),
+    get: vi.fn(),
+    create: vi.fn(),
+    start: vi.fn(),
+    cancel: vi.fn(),
+    retry: vi.fn(),
+    followUp: vi.fn(),
+    triggerReview: vi.fn(),
+  },
+  createExecutionService: vi.fn(),
+}));
+
+vi.mock("../services/agent-activity-service", () => ({
+  agentActivityService: {
+    list: vi.fn().mockResolvedValue([]),
+    get: vi.fn(),
+    stopRun: vi.fn(),
+  },
+  createAgentActivityService: vi.fn(),
+}));
+
+// ClarificationPanel and InlineQuestionStepper import backlogService by file
+// path, bypassing the barrel mock above.
+vi.mock("../services/backlog-service", () => ({
+  backlogService: {
+    get: vi.fn(),
+    getFiles: vi.fn(),
+    getFileContent: vi.fn().mockResolvedValue(""),
+    saveFileContent: vi.fn(),
+    getClarification: vi.fn(),
+    createClarification: vi.fn(),
+    continueClarification: vi.fn(),
+    clarificationAction: vi.fn(),
+    workshopSave: vi.fn(),
+    batchReview: vi.fn(),
+  },
+  createBacklogService: vi.fn(),
+}));
+
+// Safety net: mock the API client at the transport level so that ANY service
+// that slipped through the per-file mocks above can't make real HTTP requests.
+vi.mock("../lib/api-client", () => {
+  const noopClient = {
+    get: vi.fn().mockResolvedValue({}),
+    post: vi.fn().mockResolvedValue({}),
+    put: vi.fn().mockResolvedValue({}),
+    patch: vi.fn().mockResolvedValue({}),
+    delete: vi.fn().mockResolvedValue({}),
+  };
+  return {
+    defaultApiClient: noopClient,
+    createApiClient: vi.fn(() => noopClient),
+    ApiClient: vi.fn(() => noopClient),
+    ApiError: class ApiError extends Error {
+      status: number;
+      userMessage: string;
+      constructor(status: number, message: string) {
+        super(message);
+        this.status = status;
+        this.userMessage = message;
+      }
+    },
+    isApiError: vi.fn(() => false),
+  };
+});
+
 vi.mock("../services", () => ({
   backlogService: {
     list: vi.fn(),
@@ -60,10 +138,38 @@ vi.mock("../services", () => ({
     queue: vi.fn(),
     research: vi.fn(),
     convert: vi.fn(),
+    listBySpawnedFrom: vi.fn(),
+    getMaturitySummary: vi.fn(),
+    getArchiveTargets: vi.fn(),
+    workshopSave: vi.fn(),
+    workshopDeleteRound: vi.fn(),
+    updateModuleRequirements: vi.fn(),
+    createModule: vi.fn(),
+    updateModuleMeta: vi.fn(),
+    deleteModule: vi.fn(),
+    createArchiveTarget: vi.fn(),
+    updateArchiveTarget: vi.fn(),
+    deleteArchiveTarget: vi.fn(),
+    batchReview: vi.fn(),
+  },
+  executionService: {
+    list: vi.fn(),
+    get: vi.fn(),
+    create: vi.fn(),
+    start: vi.fn(),
+    cancel: vi.fn(),
+    retry: vi.fn(),
+    followUp: vi.fn(),
+    triggerReview: vi.fn(),
+  },
+  agentActivityService: {
+    list: vi.fn(),
+    get: vi.fn(),
+    stopRun: vi.fn(),
   },
 }));
 
-import { backlogService } from "../services";
+import { backlogService, executionService } from "../services";
 
 describe("BacklogDetailsPage", () => {
   let queryClient: QueryClient;
@@ -99,7 +205,25 @@ describe("BacklogDetailsPage", () => {
     });
     vi.clearAllMocks();
     useBacklogStore.getState().reset();
+    useBacklogDetailUIStore.getState().reset();
     vi.mocked(backlogService.getFileContent).mockResolvedValue("Spec content");
+    // Provide default resolved values for queries that BacklogDetailsPage fires
+    // via useBacklogDetailData. Without these, vi.fn() returns undefined which
+    // React Query treats as an error, causing repeated retries and stderr noise.
+    vi.mocked(backlogService.listBySpawnedFrom).mockResolvedValue([]);
+    vi.mocked(backlogService.getMaturitySummary).mockResolvedValue({ items: [] });
+    vi.mocked(backlogService.getArchiveTargets).mockResolvedValue({ targets: [], requirements: [], has_archive: false });
+    vi.mocked(executionService.list).mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    cleanup();
+    queryClient.clear();
+    useBacklogStore.getState().reset();
+    useDetailSelectionStore.getState().clearSelection();
+    useAgentActivitiesStore.setState({ activities: [], isRefreshing: false });
+    useBacklogDetailUIStore.getState().reset();
+    vi.clearAllTimers();
   });
 
   const renderPage = (kind = "idea", name = "test-idea", tab?: string) => {

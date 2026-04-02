@@ -573,6 +573,11 @@ message CreateRunRequest {
   // Reuse an existing sandbox for this run (sandboxed mode only).
   // @format uuid
   optional string existing_sandbox_id = 10;
+
+  // Custom environment variables injected into the agent process.
+  // Keys must start with "VROOLI_" prefix. Merged with sandbox env vars;
+  // sandbox variables take precedence on conflict.
+  map<string, string> environment = 11;
 }
 
 // DeleteRunRequest identifies a run to delete.

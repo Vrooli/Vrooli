@@ -11,6 +11,7 @@ import { Loader2, MessageSquarePlus, Paperclip, SendHorizontal } from "lucide-re
 import { captureService } from "../../services/capture-service";
 import { useCaptureStore } from "../../stores/capture-store";
 import { useCaptureAttachments } from "../../hooks/useCaptureAttachments";
+import { useAutoResizeTextarea } from "../../hooks/useAutoResizeTextarea";
 import { CaptureAttachmentPreview } from "./capture-attachment-preview";
 import { selectors } from "../../consts/selectors";
 
@@ -65,12 +66,7 @@ export function QuickCaptureInput({ onOpenForm }: QuickCaptureInputProps) {
   const { attachments, addFile, removeFile, clearAll, getFiles } = useCaptureAttachments();
 
   // Auto-resize textarea based on content.
-  useEffect(() => {
-    const el = inputRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT)}px`;
-  }, [text]);
+  useAutoResizeTextarea(inputRef, text, { maxHeight: MAX_TEXTAREA_HEIGHT });
 
   const canSubmit = (text.trim() || attachments.length > 0) && !isSubmitting;
 

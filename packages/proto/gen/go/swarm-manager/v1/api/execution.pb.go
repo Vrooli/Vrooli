@@ -160,7 +160,6 @@ type CreateExecutionRequest struct {
 	BacklogKind   string                 `protobuf:"bytes,1,opt,name=backlog_kind,json=backlogKind,proto3" json:"backlog_kind,omitempty"`
 	BacklogName   string                 `protobuf:"bytes,2,opt,name=backlog_name,json=backlogName,proto3" json:"backlog_name,omitempty"`
 	Mode          string                 `protobuf:"bytes,3,opt,name=mode,proto3" json:"mode,omitempty"`
-	DelaySeconds  *int64                 `protobuf:"varint,4,opt,name=delay_seconds,json=delaySeconds,proto3,oneof" json:"delay_seconds,omitempty"`
 	StartedBy     *string                `protobuf:"bytes,5,opt,name=started_by,json=startedBy,proto3,oneof" json:"started_by,omitempty"`
 	Operation     *string                `protobuf:"bytes,6,opt,name=operation,proto3,oneof" json:"operation,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -216,13 +215,6 @@ func (x *CreateExecutionRequest) GetMode() string {
 		return x.Mode
 	}
 	return ""
-}
-
-func (x *CreateExecutionRequest) GetDelaySeconds() int64 {
-	if x != nil && x.DelaySeconds != nil {
-		return *x.DelaySeconds
-	}
-	return 0
 }
 
 func (x *CreateExecutionRequest) GetStartedBy() string {
@@ -321,19 +313,17 @@ const file_swarm_manager_v1_api_execution_proto_rawDesc = "" +
 	"\x11ExecutionResponse\x12?\n" +
 	"\texecution\x18\x01 \x01(\v2!.swarm_manager.v1.ExecutionRecordR\texecution\"T\n" +
 	"\x17ExecutionPolicyResponse\x129\n" +
-	"\x06policy\x18\x01 \x01(\v2!.swarm_manager.v1.ExecutionPolicyR\x06policy\"\xcd\x02\n" +
+	"\x06policy\x18\x01 \x01(\v2!.swarm_manager.v1.ExecutionPolicyR\x06policy\"\x83\x02\n" +
 	"\x16CreateExecutionRequest\x12*\n" +
 	"\fbacklog_kind\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vbacklogKind\x12*\n" +
-	"\fbacklog_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vbacklogName\x122\n" +
-	"\x04mode\x18\x03 \x01(\tB\x1e\xbaH\x1br\x19R\x06manualR\tscheduledR\x04yoloR\x04mode\x121\n" +
-	"\rdelay_seconds\x18\x04 \x01(\x03B\a\xbaH\x04\"\x02(\x00H\x00R\fdelaySeconds\x88\x01\x01\x12\"\n" +
+	"\fbacklog_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vbacklogName\x12'\n" +
+	"\x04mode\x18\x03 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\x04mode\x12\"\n" +
 	"\n" +
-	"started_by\x18\x05 \x01(\tH\x01R\tstartedBy\x88\x01\x01\x12!\n" +
-	"\toperation\x18\x06 \x01(\tH\x02R\toperation\x88\x01\x01B\x10\n" +
-	"\x0e_delay_secondsB\r\n" +
+	"started_by\x18\x05 \x01(\tH\x00R\tstartedBy\x88\x01\x01\x12!\n" +
+	"\toperation\x18\x06 \x01(\tH\x01R\toperation\x88\x01\x01B\r\n" +
 	"\v_started_byB\f\n" +
 	"\n" +
-	"_operation\"\xe8\x01\n" +
+	"_operationJ\x04\b\x04\x10\x05\"\xe8\x01\n" +
 	"\x18FollowUpExecutionRequest\x12*\n" +
 	"\fexecution_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vexecutionId\x12D\n" +
 	"\x0efollow_up_type\x18\x02 \x01(\tB\x1e\xbaH\x1br\x19R\x05fixupR\bfollowupR\x06customR\ffollowUpType\x12\x1d\n" +

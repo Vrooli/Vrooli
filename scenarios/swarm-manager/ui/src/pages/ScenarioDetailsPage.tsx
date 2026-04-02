@@ -55,6 +55,7 @@ import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { SCENARIO_LENSES } from "../components/detail/lens-options";
 import { selectionToNodeId } from "../stores/detail-selection-store";
 import { useDetailNavigation } from "../hooks/useDetailNavigation";
+import { useStorePolling } from "../hooks/useStorePolling";
 import { useScenariosStore } from "../stores";
 
 const ARCHIVE_PRESET_OPTIONS: { value: PreserveFilesPreset; label: string; description: string }[] = [
@@ -316,9 +317,11 @@ export function ScenarioDetailsPage() {
   });
 
   // Spec-sync polling effect
-  useEffect(() => {
-    if (specSyncPhase !== "syncing" || !specSyncExecutionId) return;
-    const interval = setInterval(async () => {
+  useStorePolling({
+    enabled: specSyncPhase === "syncing" && !!specSyncExecutionId,
+    intervalMs: 3000,
+    pollFn: async () => {
+      if (!specSyncExecutionId) return;
       try {
         const execution = await executionService.get(specSyncExecutionId);
         if (execution.status === "completed") {
@@ -337,9 +340,8 @@ export function ScenarioDetailsPage() {
       } catch {
         // Transient error, keep polling
       }
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [specSyncPhase, specSyncExecutionId, name, removeScenario, closeDetail]);
+    },
+  });
 
   // Delete handlers
   const handleDeleteClick = () => {

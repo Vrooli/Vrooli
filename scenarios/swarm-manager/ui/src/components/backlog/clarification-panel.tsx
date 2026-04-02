@@ -12,6 +12,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useAutoResizeTextarea } from "../../hooks/useAutoResizeTextarea";
 import { AlertCircle, Loader2, Paperclip, SendHorizontal } from "lucide-react";
 import { FloatingPanel } from "../ui/floating-panel";
 import { CaptureAttachmentPreview } from "../capture/capture-attachment-preview";
@@ -19,6 +20,7 @@ import { ClarificationMessages } from "./clarification-messages";
 import { ClarificationActionButtons } from "./clarification-action-buttons";
 import { useClarificationStore } from "../../stores/clarification-store";
 import { useAttachments } from "../../hooks/useAttachments";
+import { useStorePolling } from "../../hooks/useStorePolling";
 import { parseImpactFromContent } from "../../lib/clarification-utils";
 import { isApiError } from "../../lib/api-client";
 import { backlogService } from "../../services/backlog-service";
@@ -59,7 +61,6 @@ export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stalenessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { attachments, addFile, removeFile, clearAll, getFiles } = useAttachments();
@@ -84,12 +85,7 @@ export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
   }, [text]);
 
   // Auto-resize textarea.
-  useEffect(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT)}px`;
-  }, [text]);
+  useAutoResizeTextarea(textareaRef, text, { maxHeight: MAX_TEXTAREA_HEIGHT });
 
   // Focus textarea and re-measure size when panel opens (textarea may have
   // hydrated text from localStorage that wasn't measured before mounting).
@@ -173,25 +169,11 @@ export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
     }
   }, [target, thread, setThread]);
 
-  useEffect(() => {
-    if (isWaitingForAgent) {
-      pollingRef.current = setInterval(pollForResponse, POLL_INTERVAL_MS);
-      return () => {
-        if (pollingRef.current) clearInterval(pollingRef.current);
-      };
-    }
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current);
-      pollingRef.current = null;
-    }
-  }, [isWaitingForAgent, pollForResponse]);
-
-  // Clean up polling on unmount / panel close.
-  useEffect(() => {
-    return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current);
-    };
-  }, []);
+  useStorePolling({
+    enabled: isWaitingForAgent,
+    intervalMs: POLL_INTERVAL_MS,
+    pollFn: pollForResponse,
+  });
 
   // Staleness timeout — warn user when agent takes too long.
   useEffect(() => {

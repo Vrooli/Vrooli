@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/domain/backlog.proto.
  */
 export const file_swarm_manager_v1_domain_backlog: GenFile = /*@__PURE__*/
-  fileDesc("CiVzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9iYWNrbG9nLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIo0ECgtCYWNrbG9nSXRlbRIVCgRuYW1lGAEgASgJQge6SARyAhABEhYKBXRpdGxlGAIgASgJQge6SARyAhABEhMKC2Rlc2NyaXB0aW9uGAMgASgJEmQKBnN0YXR1cxgEIAEoCUJUukhRck9SB2JhY2tsb2dSC3Jlc2VhcmNoaW5nUgVyZWFkeVIGcXVldWVkUgtpbl9wcm9ncmVzc1IJY29tcGxldGVkUgZmYWlsZWRSCGFyY2hpdmVkEhsKCHByaW9yaXR5GAUgASgFQgm6SAYaBBgKKAESFgoEdGFncxgGIAMoCUIIukgFkgECGAESGAoHY3JlYXRlZBgHIAEoCUIHukgEcgIQARIYCgd1cGRhdGVkGAggASgJQge6SARyAhABEjgKBGtpbmQYCSABKAlCKrpIJ3IlUgRpZGVhUghyZXNlYXJjaFIDZml4UgdleGVjdXRlUgVjaG9yZRISCgpkZXBlbmRzX29uGAsgAygJEhcKCmluaXRpYXRpdmUYDCABKAlIAIgBARIrCgZlZmZvcnQYDSABKAlCFrpIE3IRUgJYU1IBU1IBTVIBTFICWExIAYgBARIYChBhY2NlcHRhbmNlX2FsbG93GA8gAygJEhcKD2FjY2VwdGFuY2VfZGVueRgQIAMoCUINCgtfaW5pdGlhdGl2ZUIJCgdfZWZmb3J0SgQIChALSgQIDhAPIrcBCgtCYWNrbG9nRmlsZRIVCgRuYW1lGAEgASgJQge6SARyAhABEhUKBHBhdGgYAiABKAlCB7pIBHICEAESJAoEdHlwZRgDIAEoCUIWukgTchFSBGZpbGVSCWRpcmVjdG9yeRIaCgRzaXplGAQgASgDQge6SAQiAigASACIAQESLwoIY2hpbGRyZW4YBSADKAsyHS5zd2FybV9tYW5hZ2VyLnYxLkJhY2tsb2dGaWxlQgcKBV9zaXplQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM", [file_buf_validate_validate]);
+  fileDesc("CiVzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9iYWNrbG9nLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIrkECgtCYWNrbG9nSXRlbRIVCgRuYW1lGAEgASgJQge6SARyAhABEhYKBXRpdGxlGAIgASgJQge6SARyAhABEhMKC2Rlc2NyaXB0aW9uGAMgASgJEmQKBnN0YXR1cxgEIAEoCUJUukhRck9SB2JhY2tsb2dSC3Jlc2VhcmNoaW5nUgVyZWFkeVIGcXVldWVkUgtpbl9wcm9ncmVzc1IJY29tcGxldGVkUgZmYWlsZWRSCGFyY2hpdmVkEhsKCHByaW9yaXR5GAUgASgFQgm6SAYaBBgKKAESFgoEdGFncxgGIAMoCUIIukgFkgECGAESGAoHY3JlYXRlZBgHIAEoCUIHukgEcgIQARIYCgd1cGRhdGVkGAggASgJQge6SARyAhABEjgKBGtpbmQYCSABKAlCKrpIJ3IlUgRpZGVhUghyZXNlYXJjaFIDZml4UgdleGVjdXRlUgVjaG9yZRISCgpkZXBlbmRzX29uGAsgAygJEhcKCmluaXRpYXRpdmUYDCABKAlIAIgBARIrCgZlZmZvcnQYDSABKAlCFrpIE3IRUgJYU1IBU1IBTVIBTFICWExIAYgBARIYChBhY2NlcHRhbmNlX2FsbG93GA8gAygJEhcKD2FjY2VwdGFuY2VfZGVueRgQIAMoCRIZCgxzcGF3bmVkX2Zyb20YESABKAlIAogBAUINCgtfaW5pdGlhdGl2ZUIJCgdfZWZmb3J0Qg8KDV9zcGF3bmVkX2Zyb21KBAgKEAtKBAgOEA8itwEKC0JhY2tsb2dGaWxlEhUKBG5hbWUYASABKAlCB7pIBHICEAESFQoEcGF0aBgCIAEoCUIHukgEcgIQARIkCgR0eXBlGAMgASgJQha6SBNyEVIEZmlsZVIJZGlyZWN0b3J5EhoKBHNpemUYBCABKANCB7pIBCICKABIAIgBARIvCghjaGlsZHJlbhgFIAMoCzIdLnN3YXJtX21hbmFnZXIudjEuQmFja2xvZ0ZpbGVCBwoFX3NpemUiggEKFENsYXJpZmljYXRpb25NZXNzYWdlEiQKBHJvbGUYASABKAlCFrpIE3IRUgR1c2VyUglhc3Npc3RhbnQSDwoHY29udGVudBgCIAEoCRIbCgpjcmVhdGVkX2F0GAMgASgJQge6SARyAhABEhYKDmF0dGFjaG1lbnRfaWRzGAQgAygJIoUBChNDbGFyaWZpY2F0aW9uSW1wYWN0EisKBWxldmVsGAEgASgJQhy6SBlyF1IEbm9uZVIIZGVjaXNpb25SBXJvdW5kEhEKCXJlYXNvbmluZxgCIAEoCRIUCgxjb250ZXh0X25vdGUYAyABKAkSGAoQc3VnZ2VzdGVkX3VwZGF0ZRgEIAEoCSLwAgoTQ2xhcmlmaWNhdGlvblRocmVhZBITCgJpZBgBIAEoCUIHukgEcgIQARIdCgxyb3VuZF9udW1iZXIYAiABKAVCB7pIBBoCKAESGAoHaXRlbV9pZBgDIAEoCUIHukgEcgIQARIOCgZydW5faWQYBCABKAkSOAoIbWVzc2FnZXMYBSADKAsyJi5zd2FybV9tYW5hZ2VyLnYxLkNsYXJpZmljYXRpb25NZXNzYWdlEkEKDWxhdGVzdF9pbXBhY3QYBiABKAsyJS5zd2FybV9tYW5hZ2VyLnYxLkNsYXJpZmljYXRpb25JbXBhY3RIAIgBARIyCgZzdGF0dXMYByABKAlCIrpIH3IdUgZhY3RpdmVSCHJlc29sdmVkUglkaXNtaXNzZWQSGwoKY3JlYXRlZF9hdBgIIAEoCUIHukgEcgIQARIbCgp1cGRhdGVkX2F0GAkgASgJQge6SARyAhABQhAKDl9sYXRlc3RfaW1wYWN0Qk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM", [file_buf_validate_validate]);
 
 /**
  * BacklogItem represents a tracked unit of work for the swarm.
@@ -122,6 +122,13 @@ export type BacklogItem = Message<"swarm_manager.v1.BacklogItem"> & {
    * @generated from field: repeated string acceptance_deny = 16;
    */
   acceptanceDeny: string[];
+
+  /**
+   * Origin reference in "kind/name" format, tracking which item spawned this one.
+   *
+   * @generated from field: optional string spawned_from = 17;
+   */
+  spawnedFrom?: string;
 };
 
 /**
@@ -180,4 +187,172 @@ export type BacklogFile = Message<"swarm_manager.v1.BacklogFile"> & {
  */
 export const BacklogFileSchema: GenMessage<BacklogFile> = /*@__PURE__*/
   messageDesc(file_swarm_manager_v1_domain_backlog, 1);
+
+/**
+ * ClarificationMessage is a single turn in a clarification conversation.
+ *
+ * @generated from message swarm_manager.v1.ClarificationMessage
+ */
+export type ClarificationMessage = Message<"swarm_manager.v1.ClarificationMessage"> & {
+  /**
+   * Who sent this message.
+   * @constraint one of: user, assistant
+   *
+   * @generated from field: string role = 1;
+   */
+  role: string;
+
+  /**
+   * Message content (markdown text).
+   *
+   * @generated from field: string content = 2;
+   */
+  content: string;
+
+  /**
+   * RFC3339 timestamp.
+   * @format rfc3339
+   *
+   * @generated from field: string created_at = 3;
+   */
+  createdAt: string;
+
+  /**
+   * Optional attachment IDs (uploaded via agent-manager).
+   *
+   * @generated from field: repeated string attachment_ids = 4;
+   */
+  attachmentIds: string[];
+};
+
+/**
+ * Describes the message swarm_manager.v1.ClarificationMessage.
+ * Use `create(ClarificationMessageSchema)` to create a new message.
+ */
+export const ClarificationMessageSchema: GenMessage<ClarificationMessage> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_domain_backlog, 2);
+
+/**
+ * ClarificationImpact is the structured impact assessment parsed from an
+ * assistant's clarification response.
+ *
+ * @generated from message swarm_manager.v1.ClarificationImpact
+ */
+export type ClarificationImpact = Message<"swarm_manager.v1.ClarificationImpact"> & {
+  /**
+   * Impact level of the clarification on the workshop.
+   * @constraint one of: none, decision, round
+   *
+   * @generated from field: string level = 1;
+   */
+  level: string;
+
+  /**
+   * Why this impact level was chosen.
+   *
+   * @generated from field: string reasoning = 2;
+   */
+  reasoning: string;
+
+  /**
+   * Distilled learning about the user's intent, carried forward to future rounds.
+   *
+   * @generated from field: string context_note = 3;
+   */
+  contextNote: string;
+
+  /**
+   * Suggested rewrite of the decision item (topic/context/options) if applicable.
+   *
+   * @generated from field: string suggested_update = 4;
+   */
+  suggestedUpdate: string;
+};
+
+/**
+ * Describes the message swarm_manager.v1.ClarificationImpact.
+ * Use `create(ClarificationImpactSchema)` to create a new message.
+ */
+export const ClarificationImpactSchema: GenMessage<ClarificationImpact> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_domain_backlog, 3);
+
+/**
+ * ClarificationThread stores the full conversation for a single decision item.
+ *
+ * @generated from message swarm_manager.v1.ClarificationThread
+ */
+export type ClarificationThread = Message<"swarm_manager.v1.ClarificationThread"> & {
+  /**
+   * Unique thread identifier.
+   *
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * Workshop round this clarification belongs to.
+   *
+   * @generated from field: int32 round_number = 2;
+   */
+  roundNumber: number;
+
+  /**
+   * Decision item ID within the round.
+   *
+   * @generated from field: string item_id = 3;
+   */
+  itemId: string;
+
+  /**
+   * Agent-manager run ID for continue-run support.
+   *
+   * @generated from field: string run_id = 4;
+   */
+  runId: string;
+
+  /**
+   * Ordered conversation messages.
+   *
+   * @generated from field: repeated swarm_manager.v1.ClarificationMessage messages = 5;
+   */
+  messages: ClarificationMessage[];
+
+  /**
+   * Parsed impact from the latest assistant response (nil if unparseable).
+   *
+   * @generated from field: optional swarm_manager.v1.ClarificationImpact latest_impact = 6;
+   */
+  latestImpact?: ClarificationImpact;
+
+  /**
+   * Thread lifecycle state.
+   * @constraint one of: active, resolved, dismissed
+   *
+   * @generated from field: string status = 7;
+   */
+  status: string;
+
+  /**
+   * RFC3339 timestamp of thread creation.
+   * @format rfc3339
+   *
+   * @generated from field: string created_at = 8;
+   */
+  createdAt: string;
+
+  /**
+   * RFC3339 timestamp of last update.
+   * @format rfc3339
+   *
+   * @generated from field: string updated_at = 9;
+   */
+  updatedAt: string;
+};
+
+/**
+ * Describes the message swarm_manager.v1.ClarificationThread.
+ * Use `create(ClarificationThreadSchema)` to create a new message.
+ */
+export const ClarificationThreadSchema: GenMessage<ClarificationThread> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_domain_backlog, 4);
 

@@ -8,7 +8,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class ExecutionRecord(_message.Message):
-    __slots__ = ("execution_id", "backlog_kind", "backlog_name", "task_id", "run_id", "status", "mode", "scheduled_at", "started_at", "finished_at", "failure_reason", "started_by", "operation", "created_at", "updated_at", "archive_context", "parent_execution_id", "fixup_attempt", "finalization")
+    __slots__ = ("execution_id", "backlog_kind", "backlog_name", "task_id", "run_id", "status", "mode", "started_at", "finished_at", "failure_reason", "started_by", "operation", "created_at", "updated_at", "archive_context", "parent_execution_id", "fixup_attempt", "finalization")
     EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
     BACKLOG_KIND_FIELD_NUMBER: _ClassVar[int]
     BACKLOG_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -16,7 +16,6 @@ class ExecutionRecord(_message.Message):
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     MODE_FIELD_NUMBER: _ClassVar[int]
-    SCHEDULED_AT_FIELD_NUMBER: _ClassVar[int]
     STARTED_AT_FIELD_NUMBER: _ClassVar[int]
     FINISHED_AT_FIELD_NUMBER: _ClassVar[int]
     FAILURE_REASON_FIELD_NUMBER: _ClassVar[int]
@@ -35,7 +34,6 @@ class ExecutionRecord(_message.Message):
     run_id: str
     status: str
     mode: str
-    scheduled_at: str
     started_at: str
     finished_at: str
     failure_reason: str
@@ -47,7 +45,7 @@ class ExecutionRecord(_message.Message):
     parent_execution_id: str
     fixup_attempt: int
     finalization: Finalization
-    def __init__(self, execution_id: _Optional[str] = ..., backlog_kind: _Optional[str] = ..., backlog_name: _Optional[str] = ..., task_id: _Optional[str] = ..., run_id: _Optional[str] = ..., status: _Optional[str] = ..., mode: _Optional[str] = ..., scheduled_at: _Optional[str] = ..., started_at: _Optional[str] = ..., finished_at: _Optional[str] = ..., failure_reason: _Optional[str] = ..., started_by: _Optional[str] = ..., operation: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., archive_context: _Optional[_Union[ArchiveContext, _Mapping]] = ..., parent_execution_id: _Optional[str] = ..., fixup_attempt: _Optional[int] = ..., finalization: _Optional[_Union[Finalization, _Mapping]] = ...) -> None: ...
+    def __init__(self, execution_id: _Optional[str] = ..., backlog_kind: _Optional[str] = ..., backlog_name: _Optional[str] = ..., task_id: _Optional[str] = ..., run_id: _Optional[str] = ..., status: _Optional[str] = ..., mode: _Optional[str] = ..., started_at: _Optional[str] = ..., finished_at: _Optional[str] = ..., failure_reason: _Optional[str] = ..., started_by: _Optional[str] = ..., operation: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., archive_context: _Optional[_Union[ArchiveContext, _Mapping]] = ..., parent_execution_id: _Optional[str] = ..., fixup_attempt: _Optional[int] = ..., finalization: _Optional[_Union[Finalization, _Mapping]] = ...) -> None: ...
 
 class ArchiveContext(_message.Message):
     __slots__ = ("scenario_name", "scenario_path", "preset_or_custom", "preserve_paths", "preserve_preset")
@@ -186,13 +184,11 @@ class ScenarioReview(_message.Message):
     def __init__(self, status: _Optional[str] = ..., job_id: _Optional[str] = ..., skip_reason: _Optional[str] = ..., result: _Optional[_Union[ReviewResult, _Mapping]] = ...) -> None: ...
 
 class ExecutionPolicy(_message.Message):
-    __slots__ = ("default_mode", "default_delay_seconds", "auto_fixup", "max_fixup_attempts")
+    __slots__ = ("default_mode", "auto_fixup", "max_fixup_attempts")
     DEFAULT_MODE_FIELD_NUMBER: _ClassVar[int]
-    DEFAULT_DELAY_SECONDS_FIELD_NUMBER: _ClassVar[int]
     AUTO_FIXUP_FIELD_NUMBER: _ClassVar[int]
     MAX_FIXUP_ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
     default_mode: str
-    default_delay_seconds: int
     auto_fixup: bool
     max_fixup_attempts: int
-    def __init__(self, default_mode: _Optional[str] = ..., default_delay_seconds: _Optional[int] = ..., auto_fixup: _Optional[bool] = ..., max_fixup_attempts: _Optional[int] = ...) -> None: ...
+    def __init__(self, default_mode: _Optional[str] = ..., auto_fixup: _Optional[bool] = ..., max_fixup_attempts: _Optional[int] = ...) -> None: ...

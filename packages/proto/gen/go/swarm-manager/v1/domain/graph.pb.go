@@ -1148,14 +1148,14 @@ const file_swarm_manager_v1_domain_graph_proto_rawDesc = "" +
 	"classifiedR\x06failedR\x06status\"u\n" +
 	"\x15GraphScenarioNodeData\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12?\n" +
-	"\x06status\x18\x02 \x01(\tB'\xbaH$r\"R\arunningR\astoppedR\x05errorR\aunknownR\x06status\"\xb0\x03\n" +
+	"\x06status\x18\x02 \x01(\tB'\xbaH$r\"R\arunningR\astoppedR\x05errorR\aunknownR\x06status\"\x99\x03\n" +
 	"\x16GraphExecutionNodeData\x12*\n" +
 	"\fexecution_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vexecutionId\x12X\n" +
 	"\fbacklog_kind\x18\x02 \x01(\tB5\xbaH2r0R\x04ideaR\bresearchR\x03fixR\aexecuteR\x05choreR\tspec-syncR\vbacklogKind\x12*\n" +
-	"\fbacklog_name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vbacklogName\x12\x88\x01\n" +
-	"\x06status\x18\x04 \x01(\tBp\xbaHmrkR\apendingR\tscheduledR\bstartingR\arunningR\fneeds_reviewR\n" +
-	"validatingR\vneeds_fixupR\tcompletedR\x06failedR\bcanceledR\x06status\x122\n" +
-	"\x04mode\x18\x05 \x01(\tB\x1e\xbaH\x1br\x19R\x06manualR\tscheduledR\x04yoloR\x04mode\x12\x1a\n" +
+	"\fbacklog_name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vbacklogName\x12}\n" +
+	"\x06status\x18\x04 \x01(\tBe\xbaHbr`R\apendingR\bstartingR\arunningR\fneeds_reviewR\n" +
+	"validatingR\vneeds_fixupR\tcompletedR\x06failedR\bcanceledR\x06status\x12'\n" +
+	"\x04mode\x18\x05 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\x04mode\x12\x1a\n" +
 	"\x06run_id\x18\x06 \x01(\tH\x00R\x05runId\x88\x01\x01B\t\n" +
 	"\a_run_id\"\xff\x05\n" +
 	"\x1aGraphAgentActivityNodeData\x12(\n" +

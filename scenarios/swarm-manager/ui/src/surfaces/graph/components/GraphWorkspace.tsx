@@ -32,6 +32,7 @@ import { useGraphWebSocket } from "../hooks/useGraphWebSocket";
 import { FloatingActionButton } from "../../../components/ui/floating-action-button";
 import { PageLoadingState } from "../../../components/ui/loading-states";
 import { useCapturePolling } from "../../../hooks/useCapturePolling";
+import { useStorePolling } from "../../../hooks/useStorePolling";
 
 import { GraphCanvas } from "./GraphCanvas";
 import { GraphNavControls } from "./GraphNavControls";
@@ -205,11 +206,12 @@ export function GraphWorkspace() {
     void fetchCaptures();
   }, [fetchBacklog, fetchCaptures]);
 
-  useEffect(() => {
-    void refreshActivities(true);
-    const timer = window.setInterval(() => void refreshActivities(true), 5000);
-    return () => window.clearInterval(timer);
-  }, [refreshActivities]);
+  useStorePolling({
+    enabled: true,
+    intervalMs: 5000,
+    pollFn: () => void refreshActivities(true),
+    immediate: true,
+  });
 
   useEffect(() => {
     setLens(urlLens);

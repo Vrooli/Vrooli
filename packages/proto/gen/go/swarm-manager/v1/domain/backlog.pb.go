@@ -59,8 +59,10 @@ type BacklogItem struct {
 	// Glob patterns for file paths that must NOT be modified (e.g., ["api/internal/auth/**"]).
 	// Used as sandbox acceptance denylist.
 	AcceptanceDeny []string `protobuf:"bytes,16,rep,name=acceptance_deny,json=acceptanceDeny,proto3" json:"acceptance_deny,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Origin reference in "kind/name" format, tracking which item spawned this one.
+	SpawnedFrom   *string `protobuf:"bytes,17,opt,name=spawned_from,json=spawnedFrom,proto3,oneof" json:"spawned_from,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *BacklogItem) Reset() {
@@ -191,6 +193,13 @@ func (x *BacklogItem) GetAcceptanceDeny() []string {
 	return nil
 }
 
+func (x *BacklogItem) GetSpawnedFrom() string {
+	if x != nil && x.SpawnedFrom != nil {
+		return *x.SpawnedFrom
+	}
+	return ""
+}
+
 // BacklogFile represents a file or directory within a backlog item folder.
 type BacklogFile struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -274,11 +283,282 @@ func (x *BacklogFile) GetChildren() []*BacklogFile {
 	return nil
 }
 
+// ClarificationMessage is a single turn in a clarification conversation.
+type ClarificationMessage struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Who sent this message.
+	// @constraint one of: user, assistant
+	Role string `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
+	// Message content (markdown text).
+	Content string `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+	// RFC3339 timestamp.
+	// @format rfc3339
+	CreatedAt string `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// Optional attachment IDs (uploaded via agent-manager).
+	AttachmentIds []string `protobuf:"bytes,4,rep,name=attachment_ids,json=attachmentIds,proto3" json:"attachment_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ClarificationMessage) Reset() {
+	*x = ClarificationMessage{}
+	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClarificationMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClarificationMessage) ProtoMessage() {}
+
+func (x *ClarificationMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClarificationMessage.ProtoReflect.Descriptor instead.
+func (*ClarificationMessage) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_backlog_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ClarificationMessage) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *ClarificationMessage) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+func (x *ClarificationMessage) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *ClarificationMessage) GetAttachmentIds() []string {
+	if x != nil {
+		return x.AttachmentIds
+	}
+	return nil
+}
+
+// ClarificationImpact is the structured impact assessment parsed from an
+// assistant's clarification response.
+type ClarificationImpact struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Impact level of the clarification on the workshop.
+	// @constraint one of: none, decision, round
+	Level string `protobuf:"bytes,1,opt,name=level,proto3" json:"level,omitempty"`
+	// Why this impact level was chosen.
+	Reasoning string `protobuf:"bytes,2,opt,name=reasoning,proto3" json:"reasoning,omitempty"`
+	// Distilled learning about the user's intent, carried forward to future rounds.
+	ContextNote string `protobuf:"bytes,3,opt,name=context_note,json=contextNote,proto3" json:"context_note,omitempty"`
+	// Suggested rewrite of the decision item (topic/context/options) if applicable.
+	SuggestedUpdate string `protobuf:"bytes,4,opt,name=suggested_update,json=suggestedUpdate,proto3" json:"suggested_update,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ClarificationImpact) Reset() {
+	*x = ClarificationImpact{}
+	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClarificationImpact) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClarificationImpact) ProtoMessage() {}
+
+func (x *ClarificationImpact) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClarificationImpact.ProtoReflect.Descriptor instead.
+func (*ClarificationImpact) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_backlog_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ClarificationImpact) GetLevel() string {
+	if x != nil {
+		return x.Level
+	}
+	return ""
+}
+
+func (x *ClarificationImpact) GetReasoning() string {
+	if x != nil {
+		return x.Reasoning
+	}
+	return ""
+}
+
+func (x *ClarificationImpact) GetContextNote() string {
+	if x != nil {
+		return x.ContextNote
+	}
+	return ""
+}
+
+func (x *ClarificationImpact) GetSuggestedUpdate() string {
+	if x != nil {
+		return x.SuggestedUpdate
+	}
+	return ""
+}
+
+// ClarificationThread stores the full conversation for a single decision item.
+type ClarificationThread struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unique thread identifier.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Workshop round this clarification belongs to.
+	RoundNumber int32 `protobuf:"varint,2,opt,name=round_number,json=roundNumber,proto3" json:"round_number,omitempty"`
+	// Decision item ID within the round.
+	ItemId string `protobuf:"bytes,3,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
+	// Agent-manager run ID for continue-run support.
+	RunId string `protobuf:"bytes,4,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	// Ordered conversation messages.
+	Messages []*ClarificationMessage `protobuf:"bytes,5,rep,name=messages,proto3" json:"messages,omitempty"`
+	// Parsed impact from the latest assistant response (nil if unparseable).
+	LatestImpact *ClarificationImpact `protobuf:"bytes,6,opt,name=latest_impact,json=latestImpact,proto3,oneof" json:"latest_impact,omitempty"`
+	// Thread lifecycle state.
+	// @constraint one of: active, resolved, dismissed
+	Status string `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
+	// RFC3339 timestamp of thread creation.
+	// @format rfc3339
+	CreatedAt string `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// RFC3339 timestamp of last update.
+	// @format rfc3339
+	UpdatedAt     string `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ClarificationThread) Reset() {
+	*x = ClarificationThread{}
+	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClarificationThread) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClarificationThread) ProtoMessage() {}
+
+func (x *ClarificationThread) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClarificationThread.ProtoReflect.Descriptor instead.
+func (*ClarificationThread) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_backlog_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ClarificationThread) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ClarificationThread) GetRoundNumber() int32 {
+	if x != nil {
+		return x.RoundNumber
+	}
+	return 0
+}
+
+func (x *ClarificationThread) GetItemId() string {
+	if x != nil {
+		return x.ItemId
+	}
+	return ""
+}
+
+func (x *ClarificationThread) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *ClarificationThread) GetMessages() []*ClarificationMessage {
+	if x != nil {
+		return x.Messages
+	}
+	return nil
+}
+
+func (x *ClarificationThread) GetLatestImpact() *ClarificationImpact {
+	if x != nil {
+		return x.LatestImpact
+	}
+	return nil
+}
+
+func (x *ClarificationThread) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ClarificationThread) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *ClarificationThread) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
 var File_swarm_manager_v1_domain_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\n" +
-	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\x97\x05\n" +
+	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xd0\x05\n" +
 	"\vBacklogItem\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
@@ -297,9 +577,11 @@ const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"initiative\x88\x01\x01\x123\n" +
 	"\x06effort\x18\r \x01(\tB\x16\xbaH\x13r\x11R\x02XSR\x01SR\x01MR\x01LR\x02XLH\x01R\x06effort\x88\x01\x01\x12)\n" +
 	"\x10acceptance_allow\x18\x0f \x03(\tR\x0facceptanceAllow\x12'\n" +
-	"\x0facceptance_deny\x18\x10 \x03(\tR\x0eacceptanceDenyB\r\n" +
+	"\x0facceptance_deny\x18\x10 \x03(\tR\x0eacceptanceDeny\x12&\n" +
+	"\fspawned_from\x18\x11 \x01(\tH\x02R\vspawnedFrom\x88\x01\x01B\r\n" +
 	"\v_initiativeB\t\n" +
-	"\a_effortJ\x04\b\n" +
+	"\a_effortB\x0f\n" +
+	"\r_spawned_fromJ\x04\b\n" +
 	"\x10\vJ\x04\b\x0e\x10\x0f\"\xd9\x01\n" +
 	"\vBacklogFile\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1b\n" +
@@ -307,7 +589,31 @@ const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\x04type\x18\x03 \x01(\tB\x16\xbaH\x13r\x11R\x04fileR\tdirectoryR\x04type\x12 \n" +
 	"\x04size\x18\x04 \x01(\x03B\a\xbaH\x04\"\x02(\x00H\x00R\x04size\x88\x01\x01\x129\n" +
 	"\bchildren\x18\x05 \x03(\v2\x1d.swarm_manager.v1.BacklogFileR\bchildrenB\a\n" +
-	"\x05_sizeBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
+	"\x05_size\"\xab\x01\n" +
+	"\x14ClarificationMessage\x12*\n" +
+	"\x04role\x18\x01 \x01(\tB\x16\xbaH\x13r\x11R\x04userR\tassistantR\x04role\x12\x18\n" +
+	"\acontent\x18\x02 \x01(\tR\acontent\x12&\n" +
+	"\n" +
+	"created_at\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tcreatedAt\x12%\n" +
+	"\x0eattachment_ids\x18\x04 \x03(\tR\rattachmentIds\"\xb5\x01\n" +
+	"\x13ClarificationImpact\x122\n" +
+	"\x05level\x18\x01 \x01(\tB\x1c\xbaH\x19r\x17R\x04noneR\bdecisionR\x05roundR\x05level\x12\x1c\n" +
+	"\treasoning\x18\x02 \x01(\tR\treasoning\x12!\n" +
+	"\fcontext_note\x18\x03 \x01(\tR\vcontextNote\x12)\n" +
+	"\x10suggested_update\x18\x04 \x01(\tR\x0fsuggestedUpdate\"\xc6\x03\n" +
+	"\x13ClarificationThread\x12\x17\n" +
+	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12*\n" +
+	"\fround_number\x18\x02 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01R\vroundNumber\x12 \n" +
+	"\aitem_id\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06itemId\x12\x15\n" +
+	"\x06run_id\x18\x04 \x01(\tR\x05runId\x12B\n" +
+	"\bmessages\x18\x05 \x03(\v2&.swarm_manager.v1.ClarificationMessageR\bmessages\x12O\n" +
+	"\rlatest_impact\x18\x06 \x01(\v2%.swarm_manager.v1.ClarificationImpactH\x00R\flatestImpact\x88\x01\x01\x12:\n" +
+	"\x06status\x18\a \x01(\tB\"\xbaH\x1fr\x1dR\x06activeR\bresolvedR\tdismissedR\x06status\x12&\n" +
+	"\n" +
+	"created_at\x18\b \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tcreatedAt\x12&\n" +
+	"\n" +
+	"updated_at\x18\t \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tupdatedAtB\x10\n" +
+	"\x0e_latest_impactBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
 
 var (
 	file_swarm_manager_v1_domain_backlog_proto_rawDescOnce sync.Once
@@ -321,18 +627,23 @@ func file_swarm_manager_v1_domain_backlog_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_domain_backlog_proto_rawDescData
 }
 
-var file_swarm_manager_v1_domain_backlog_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_swarm_manager_v1_domain_backlog_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_swarm_manager_v1_domain_backlog_proto_goTypes = []any{
-	(*BacklogItem)(nil), // 0: swarm_manager.v1.BacklogItem
-	(*BacklogFile)(nil), // 1: swarm_manager.v1.BacklogFile
+	(*BacklogItem)(nil),          // 0: swarm_manager.v1.BacklogItem
+	(*BacklogFile)(nil),          // 1: swarm_manager.v1.BacklogFile
+	(*ClarificationMessage)(nil), // 2: swarm_manager.v1.ClarificationMessage
+	(*ClarificationImpact)(nil),  // 3: swarm_manager.v1.ClarificationImpact
+	(*ClarificationThread)(nil),  // 4: swarm_manager.v1.ClarificationThread
 }
 var file_swarm_manager_v1_domain_backlog_proto_depIdxs = []int32{
 	1, // 0: swarm_manager.v1.BacklogFile.children:type_name -> swarm_manager.v1.BacklogFile
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	2, // 1: swarm_manager.v1.ClarificationThread.messages:type_name -> swarm_manager.v1.ClarificationMessage
+	3, // 2: swarm_manager.v1.ClarificationThread.latest_impact:type_name -> swarm_manager.v1.ClarificationImpact
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_domain_backlog_proto_init() }
@@ -342,13 +653,14 @@ func file_swarm_manager_v1_domain_backlog_proto_init() {
 	}
 	file_swarm_manager_v1_domain_backlog_proto_msgTypes[0].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_backlog_proto_msgTypes[1].OneofWrappers = []any{}
+	file_swarm_manager_v1_domain_backlog_proto_msgTypes[4].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_domain_backlog_proto_rawDesc), len(file_swarm_manager_v1_domain_backlog_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

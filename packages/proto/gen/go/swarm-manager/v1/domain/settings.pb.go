@@ -28,10 +28,9 @@ type Settings struct {
 	// UI theme preference.
 	Theme string `protobuf:"bytes,1,opt,name=theme,proto3" json:"theme,omitempty"`
 	// Execution defaults (absorbed from ExecutionPolicy).
-	DefaultMode         string `protobuf:"bytes,5,opt,name=default_mode,json=defaultMode,proto3" json:"default_mode,omitempty"`
-	DefaultDelaySeconds int64  `protobuf:"varint,6,opt,name=default_delay_seconds,json=defaultDelaySeconds,proto3" json:"default_delay_seconds,omitempty"`
-	AutoFixup           bool   `protobuf:"varint,7,opt,name=auto_fixup,json=autoFixup,proto3" json:"auto_fixup,omitempty"`
-	MaxFixupAttempts    int32  `protobuf:"varint,8,opt,name=max_fixup_attempts,json=maxFixupAttempts,proto3" json:"max_fixup_attempts,omitempty"`
+	DefaultMode      string `protobuf:"bytes,5,opt,name=default_mode,json=defaultMode,proto3" json:"default_mode,omitempty"`
+	AutoFixup        bool   `protobuf:"varint,7,opt,name=auto_fixup,json=autoFixup,proto3" json:"auto_fixup,omitempty"`
+	MaxFixupAttempts int32  `protobuf:"varint,8,opt,name=max_fixup_attempts,json=maxFixupAttempts,proto3" json:"max_fixup_attempts,omitempty"`
 	// Workshop settings.
 	MaxAutoRounds          int32 `protobuf:"varint,9,opt,name=max_auto_rounds,json=maxAutoRounds,proto3" json:"max_auto_rounds,omitempty"`
 	AutoInitializeWorkshop bool  `protobuf:"varint,16,opt,name=auto_initialize_workshop,json=autoInitializeWorkshop,proto3" json:"auto_initialize_workshop,omitempty"`
@@ -98,13 +97,6 @@ func (x *Settings) GetDefaultMode() string {
 		return x.DefaultMode
 	}
 	return ""
-}
-
-func (x *Settings) GetDefaultDelaySeconds() int64 {
-	if x != nil {
-		return x.DefaultDelaySeconds
-	}
-	return 0
 }
 
 func (x *Settings) GetAutoFixup() bool {
@@ -237,12 +229,10 @@ var File_swarm_manager_v1_domain_settings_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\n" +
-	"&swarm-manager/v1/domain/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\x89\n" +
-	"\n" +
+	"&swarm-manager/v1/domain/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xc7\t\n" +
 	"\bSettings\x120\n" +
-	"\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04darkR\x05lightR\x06systemR\x05theme\x12A\n" +
-	"\fdefault_mode\x18\x05 \x01(\tB\x1e\xbaH\x1br\x19R\x06manualR\tscheduledR\x04yoloR\vdefaultMode\x12;\n" +
-	"\x15default_delay_seconds\x18\x06 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\x13defaultDelaySeconds\x12\x1d\n" +
+	"\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04darkR\x05lightR\x06systemR\x05theme\x126\n" +
+	"\fdefault_mode\x18\x05 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\vdefaultMode\x12\x1d\n" +
 	"\n" +
 	"auto_fixup\x18\a \x01(\bR\tautoFixup\x127\n" +
 	"\x12max_fixup_attempts\x18\b \x01(\x05B\t\xbaH\x06\x1a\x04\x18\x05(\x00R\x10maxFixupAttempts\x121\n" +
@@ -265,7 +255,7 @@ const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\x1ereview_max_blocking_violations\x18\x15 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x1breviewMaxBlockingViolations\x12@\n" +
 	"\x13review_max_warnings\x18\x16 \x01(\x05B\x10\xbaH\r\x1a\v(\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01R\x11reviewMaxWarnings\x12<\n" +
 	"\x1areview_require_screenshots\x18\x17 \x01(\bR\x18reviewRequireScreenshots\x120\n" +
-	"\x14review_require_tests\x18\x18 \x01(\bR\x12reviewRequireTestsJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05BOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
+	"\x14review_require_tests\x18\x18 \x01(\bR\x12reviewRequireTestsJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
 
 var (
 	file_swarm_manager_v1_domain_settings_proto_rawDescOnce sync.Once

@@ -17,4 +17,5 @@ export {
   type DetailSelectionStore,
 } from "./detail-selection-store";
 export { useRecentlyViewedStore, type RecentlyViewedItem } from "./recently-viewed-store";
+export { useBacklogDetailUIStore } from "./backlog-detail-ui-store";
 export type { LoadStatus } from "./store-utils";

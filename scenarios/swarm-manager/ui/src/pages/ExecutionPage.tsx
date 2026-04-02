@@ -25,6 +25,7 @@ import {
 } from "../lib";
 import { executionService, promptService } from "../services";
 import { gctService } from "../services/gct-service";
+import { useStorePolling } from "../hooks/useStorePolling";
 import { useExecutionStore } from "../stores";
 import {
   EXECUTION_MODES,
@@ -123,21 +124,20 @@ export function ExecutionPage() {
     return () => { cancelled = true; };
   }, []);
 
-  useEffect(() => {
-    void fetchExecutions();
-    const interval = window.setInterval(() => {
-      void fetchExecutions({ force: true });
-    }, AUTO_REFRESH_MS);
-    return () => window.clearInterval(interval);
-  }, [fetchExecutions]);
+  useStorePolling({
+    enabled: true,
+    intervalMs: AUTO_REFRESH_MS,
+    pollFn: () => void fetchExecutions({ force: true }),
+    immediate: true,
+  });
 
   // Poll GCT availability every 30 seconds.
-  useEffect(() => {
-    const poll = () => void gctService.getStatus().then((s) => setGctAvailable(s.available));
-    poll();
-    const interval = window.setInterval(poll, 30_000);
-    return () => window.clearInterval(interval);
-  }, []);
+  useStorePolling({
+    enabled: true,
+    intervalMs: 30_000,
+    pollFn: () => void gctService.getStatus().then((s) => setGctAvailable(s.available)),
+    immediate: true,
+  });
 
 
   const activeTabConfig = EXECUTION_TAB_CONFIG.find((tab) => tab.id === activeTab) ?? EXECUTION_TAB_CONFIG[0];
