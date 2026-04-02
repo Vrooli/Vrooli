@@ -316,6 +316,49 @@ func (a *App) cmdBacklogDelete(args []string) error {
 	return nil
 }
 
+func (a *App) cmdBacklogWorkshopReset(args []string) error {
+	fs := flag.NewFlagSet("backlog workshop-reset", flag.ContinueOnError)
+	kindFlag := fs.String("kind", "", "Backlog item kind")
+	nameFlag := fs.String("name", "", "Backlog item name")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlags("kind", *kindFlag, "name", *nameFlag); err != nil {
+		return fmt.Errorf("usage: backlog workshop-reset --kind KIND --name NAME [--json]\n\n%s", err)
+	}
+	kind := strings.TrimSpace(*kindFlag)
+	name := strings.TrimSpace(*nameFlag)
+
+	body, err := a.requestV1("POST", "/backlog/"+kind+"/"+name+"/workshop/reset", nil, nil)
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+
+	type workshopResetResponse struct {
+		DeletedRounds  int  `json:"deleted_rounds"`
+		StatusReverted bool `json:"status_reverted"`
+	}
+	resp, err := decodeResponse[workshopResetResponse](body)
+	if err != nil {
+		return err
+	}
+
+	printSection("Result")
+	fmt.Printf("  Reset workshop for %s/%s\n", kind, name)
+	fmt.Printf("  Deleted rounds: %d\n", resp.DeletedRounds)
+	if resp.StatusReverted {
+		fmt.Println("  Status reverted from \"ready\" to \"backlog\"")
+	}
+	printCommandListSection("Next Steps", []string{
+		cliCommand("backlog", "get", "--kind", kind, "--name", name),
+	})
+	return nil
+}
+
 func (a *App) cmdBacklogFiles(args []string) error {
 	fs := flag.NewFlagSet("backlog files", flag.ContinueOnError)
 	kindFlag := fs.String("kind", "", "Backlog item kind")

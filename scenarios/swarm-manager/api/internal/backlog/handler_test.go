@@ -1231,6 +1231,7 @@ func (m *mockAgentService) SpawnBacklog(_ context.Context, req agentmanager.Back
 func (m *mockAgentService) ContinueRun(_ context.Context, _ string, _ string) error {
 	return nil
 }
+
 func (m *mockAgentService) SpawnResearch(_ context.Context, _ agentmanager.ResearchSpawnRequest) (agentmanager.RunResult, error) {
 	return agentmanager.RunResult{}, nil
 }
@@ -2098,4 +2099,215 @@ func TestWorkshopDeleteRound_LockedConflict(t *testing.T) {
 
 	h.WorkshopDeleteRound(w, req)
 	testutil.AssertStatus(t, w, http.StatusConflict)
+}
+
+// ---------------------------------------------------------------------------
+// WorkshopReset
+// ---------------------------------------------------------------------------
+
+func TestWorkshopReset_Success(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	item := BacklogItem{
+		Name: "ws-reset-ok", Title: "WS Reset OK",
+		Status: StatusBacklog, Priority: 3,
+		Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+
+	itemDir := filepath.Join(rootDir, "ideas", "ws-reset-ok")
+	workshopDir := filepath.Join(itemDir, "workshop")
+	if err := os.MkdirAll(workshopDir, 0o755); err != nil {
+		t.Fatalf("mkdir workshop: %v", err)
+	}
+	for i := 1; i <= 2; i++ {
+		content := fmt.Sprintf(`{"round":%d,"generated_at":"2026-01-01T00:00:00Z","readiness":{},"items":[]}`, i)
+		testutil.WriteFile(t, filepath.Join(workshopDir, fmt.Sprintf("round-%03d.json", i)), content)
+	}
+	// Create plan.md at item root.
+	testutil.WriteFile(t, filepath.Join(itemDir, "plan.md"), "# Plan")
+
+	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/ws-reset-ok/workshop/reset", nil)
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "ws-reset-ok"})
+	w := httptest.NewRecorder()
+
+	h.WorkshopReset(w, req)
+	testutil.AssertStatusOK(t, w)
+
+	// Workshop dir should be gone.
+	testutil.AssertFileNotExists(t, workshopDir)
+	// plan.md should be gone.
+	testutil.AssertFileNotExists(t, filepath.Join(itemDir, "plan.md"))
+	// spec.json should survive.
+	testutil.AssertFileExists(t, filepath.Join(itemDir, "spec.json"))
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if resp["deleted_rounds"] != float64(2) {
+		t.Errorf("expected deleted_rounds=2, got %v", resp["deleted_rounds"])
+	}
+	// status_reverted is omitted when false (proto JSON default value behavior).
+	if _, ok := resp["status_reverted"]; ok {
+		t.Errorf("expected status_reverted to be absent (false), got %v", resp["status_reverted"])
+	}
+}
+
+func TestWorkshopReset_RevertsReadyStatus(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	item := BacklogItem{
+		Name: "ws-reset-ready", Title: "WS Reset Ready",
+		Status: StatusReady, Priority: 3,
+		Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+
+	itemDir := filepath.Join(rootDir, "ideas", "ws-reset-ready")
+	workshopDir := filepath.Join(itemDir, "workshop")
+	if err := os.MkdirAll(workshopDir, 0o755); err != nil {
+		t.Fatalf("mkdir workshop: %v", err)
+	}
+	testutil.WriteFile(t, filepath.Join(workshopDir, "round-001.json"),
+		`{"round":1,"generated_at":"2026-01-01T00:00:00Z","readiness":{},"items":[]}`)
+
+	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/ws-reset-ready/workshop/reset", nil)
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "ws-reset-ready"})
+	w := httptest.NewRecorder()
+
+	h.WorkshopReset(w, req)
+	testutil.AssertStatusOK(t, w)
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if resp["status_reverted"] != true {
+		t.Errorf("expected status_reverted=true, got %v", resp["status_reverted"])
+	}
+
+	// Reload item and check status was reverted.
+	reloaded, err := h.store.LoadItem(KindIdea, "ws-reset-ready")
+	if err != nil {
+		t.Fatalf("reload item: %v", err)
+	}
+	if reloaded.Status != StatusBacklog {
+		t.Errorf("expected status=backlog, got %s", reloaded.Status)
+	}
+}
+
+func TestWorkshopReset_NoStatusChangeWhenNotReady(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	item := BacklogItem{
+		Name: "ws-reset-inprog", Title: "WS Reset InProg",
+		Status: StatusInProgress, Priority: 3,
+		Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+
+	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/ws-reset-inprog/workshop/reset", nil)
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "ws-reset-inprog"})
+	w := httptest.NewRecorder()
+
+	h.WorkshopReset(w, req)
+	testutil.AssertStatusOK(t, w)
+
+	reloaded, err := h.store.LoadItem(KindIdea, "ws-reset-inprog")
+	if err != nil {
+		t.Fatalf("reload item: %v", err)
+	}
+	if reloaded.Status != StatusInProgress {
+		t.Errorf("expected status=in_progress, got %s", reloaded.Status)
+	}
+}
+
+func TestWorkshopReset_409WhenLocked(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	item := BacklogItem{
+		Name: "ws-reset-lock", Title: "WS Reset Lock",
+		Status: StatusBacklog, Priority: 3,
+		Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+
+	itemDir := filepath.Join(rootDir, "ideas", "ws-reset-lock")
+	testutil.WriteFile(t, filepath.Join(itemDir, ".workshop-lock"), time.Now().UTC().Format(time.RFC3339))
+
+	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/ws-reset-lock/workshop/reset", nil)
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "ws-reset-lock"})
+	w := httptest.NewRecorder()
+
+	h.WorkshopReset(w, req)
+	testutil.AssertStatus(t, w, http.StatusConflict)
+}
+
+func TestWorkshopReset_404WhenItemMissing(t *testing.T) {
+	h, _ := setupTestHandler(t)
+
+	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/nonexistent/workshop/reset", nil)
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "nonexistent"})
+	w := httptest.NewRecorder()
+
+	h.WorkshopReset(w, req)
+	testutil.AssertStatus(t, w, http.StatusNotFound)
+}
+
+func TestWorkshopReset_NoopWhenEmpty(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	item := BacklogItem{
+		Name: "ws-reset-empty", Title: "WS Reset Empty",
+		Status: StatusBacklog, Priority: 3,
+		Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+
+	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/ws-reset-empty/workshop/reset", nil)
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "ws-reset-empty"})
+	w := httptest.NewRecorder()
+
+	h.WorkshopReset(w, req)
+	testutil.AssertStatusOK(t, w)
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	// deleted_rounds is omitted when 0 (proto JSON default value behavior).
+	if _, ok := resp["deleted_rounds"]; ok {
+		t.Errorf("expected deleted_rounds to be absent (0), got %v", resp["deleted_rounds"])
+	}
+}
+
+func TestWorkshopReset_ResearchDeletesConclusion(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	item := BacklogItem{
+		Name: "ws-reset-research", Title: "WS Reset Research",
+		Status: StatusBacklog, Priority: 3,
+		Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindResearch, item)
+
+	itemDir := filepath.Join(rootDir, "research", "ws-reset-research")
+	workshopDir := filepath.Join(itemDir, "workshop")
+	if err := os.MkdirAll(workshopDir, 0o755); err != nil {
+		t.Fatalf("mkdir workshop: %v", err)
+	}
+	testutil.WriteFile(t, filepath.Join(workshopDir, "round-001.json"),
+		`{"round":1,"generated_at":"2026-01-01T00:00:00Z","readiness":{},"items":[]}`)
+	testutil.WriteFile(t, filepath.Join(itemDir, "conclusion.md"), "# Conclusion")
+
+	req := httptest.NewRequest("POST", "/api/v1/backlog/research/ws-reset-research/workshop/reset", nil)
+	req = mux.SetURLVars(req, map[string]string{"kind": "research", "name": "ws-reset-research"})
+	w := httptest.NewRecorder()
+
+	h.WorkshopReset(w, req)
+	testutil.AssertStatusOK(t, w)
+
+	testutil.AssertFileNotExists(t, filepath.Join(itemDir, "conclusion.md"))
+	testutil.AssertFileNotExists(t, workshopDir)
 }

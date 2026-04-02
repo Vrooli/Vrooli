@@ -177,6 +177,10 @@ export interface IBacklogService {
     name: string,
     roundNumber: number,
   ): Promise<WorkshopDeleteRoundResponse>;
+  workshopReset(
+    kind: BacklogKind,
+    name: string,
+  ): Promise<WorkshopResetResponse>;
   createClarification(
     kind: BacklogKind,
     name: string,
@@ -209,6 +213,11 @@ export interface IBacklogService {
 export interface WorkshopDeleteRoundResponse {
   deletedRound: number;
   remainingRounds: number;
+}
+
+export interface WorkshopResetResponse {
+  deletedRounds: number;
+  statusReverted: boolean;
 }
 
 export interface ImportBacklogResponse {
@@ -564,6 +573,20 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
       return {
         deletedRound: data.deleted_round,
         remainingRounds: data.remaining_rounds,
+      };
+    },
+
+    async workshopReset(
+      kind: BacklogKind,
+      name: string,
+    ): Promise<WorkshopResetResponse> {
+      const data = await apiClient.post<{
+        deleted_rounds?: number;
+        status_reverted?: boolean;
+      }>(API_ENDPOINTS.backlogWorkshopReset(kind, name), {});
+      return {
+        deletedRounds: data.deleted_rounds ?? 0,
+        statusReverted: data.status_reverted ?? false,
       };
     },
 

@@ -344,6 +344,8 @@ export function BacklogDetailsPage() {
         title: item.title, description: item.description,
         status: newStatus, priority: item.priority, tags: item.tags,
       })}
+      onResetWorkshop={uiStore.openWorkshopReset}
+      hasWorkshopRounds={(workshopRounds?.length ?? 0) > 0}
       onDelete={uiStore.openDelete}
     />
   ) : undefined;
@@ -447,6 +449,8 @@ export function BacklogDetailsPage() {
                   primaryAction={<HeaderPrimaryAction onFinalizeWorkshop={handlers.handleFinalizeWorkshop} onRunWorkshop={handlers.handleRunWorkshop} />}
                   onEdit={uiStore.openEdit}
                   onDelete={uiStore.openDelete}
+                  onResetWorkshop={uiStore.openWorkshopReset}
+                  hasWorkshopRounds={(workshopRounds?.length ?? 0) > 0}
                   onOpenAgentDialog={uiStore.openAgent}
                   onOpenTimeline={uiStore.openTimeline}
                   onStatusChange={(newStatus) => handlers.handleUpdateItem({

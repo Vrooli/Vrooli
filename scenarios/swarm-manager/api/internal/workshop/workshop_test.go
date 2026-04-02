@@ -450,3 +450,106 @@ func TestBuildHistory_ValidRounds(t *testing.T) {
 		t.Errorf("unexpected round numbers: %d, %d", parsed[0].RoundNum, parsed[1].RoundNum)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// ResetWorkshop
+// ---------------------------------------------------------------------------
+
+func TestResetWorkshop_HappyPath(t *testing.T) {
+	itemDir := t.TempDir()
+	workshopDir := filepath.Join(itemDir, "workshop")
+	clarDir := filepath.Join(workshopDir, "clarifications")
+	attachDir := filepath.Join(workshopDir, "attachments")
+
+	// Create 3 rounds.
+	for i := 1; i <= 3; i++ {
+		writeRoundFile(t, workshopDir, RoundFilename(i), marshalRound(t, Round{RoundNum: i}))
+	}
+	// Create clarification and attachment dirs with files.
+	if err := os.MkdirAll(clarDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(clarDir, "round-001-item-d1.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(attachDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(attachDir, "file.png"), []byte("img"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Create deliverable at item root.
+	if err := os.WriteFile(filepath.Join(itemDir, "plan.md"), []byte("# Plan"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Create spec.json (should survive).
+	if err := os.WriteFile(filepath.Join(itemDir, "spec.json"), []byte(`{"name":"test"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	deleted, err := ResetWorkshop(itemDir, "plan.md")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if deleted != 3 {
+		t.Errorf("expected 3 deleted rounds, got %d", deleted)
+	}
+	// Workshop dir should be gone.
+	if _, err := os.Stat(workshopDir); !os.IsNotExist(err) {
+		t.Error("expected workshop dir to be removed")
+	}
+	// Deliverable should be gone.
+	if _, err := os.Stat(filepath.Join(itemDir, "plan.md")); !os.IsNotExist(err) {
+		t.Error("expected plan.md to be removed")
+	}
+	// spec.json should still exist.
+	if _, err := os.Stat(filepath.Join(itemDir, "spec.json")); err != nil {
+		t.Error("expected spec.json to survive reset")
+	}
+}
+
+func TestResetWorkshop_NoWorkshopDir(t *testing.T) {
+	itemDir := t.TempDir()
+
+	deleted, err := ResetWorkshop(itemDir, "plan.md")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if deleted != 0 {
+		t.Errorf("expected 0 deleted rounds, got %d", deleted)
+	}
+}
+
+func TestResetWorkshop_PartialData(t *testing.T) {
+	itemDir := t.TempDir()
+	workshopDir := filepath.Join(itemDir, "workshop")
+
+	// Only rounds, no clarifications/attachments/deliverable.
+	writeRoundFile(t, workshopDir, RoundFilename(1), marshalRound(t, Round{RoundNum: 1}))
+
+	deleted, err := ResetWorkshop(itemDir, "conclusion.md")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if deleted != 1 {
+		t.Errorf("expected 1 deleted round, got %d", deleted)
+	}
+	if _, err := os.Stat(workshopDir); !os.IsNotExist(err) {
+		t.Error("expected workshop dir to be removed")
+	}
+}
+
+func TestResetWorkshop_EmptyDeliverableFile(t *testing.T) {
+	itemDir := t.TempDir()
+	workshopDir := filepath.Join(itemDir, "workshop")
+	writeRoundFile(t, workshopDir, RoundFilename(1), marshalRound(t, Round{RoundNum: 1}))
+
+	// Empty deliverable name should still work (no file to remove).
+	deleted, err := ResetWorkshop(itemDir, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if deleted != 1 {
+		t.Errorf("expected 1 deleted round, got %d", deleted)
+	}
+}

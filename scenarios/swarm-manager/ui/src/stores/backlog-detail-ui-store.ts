@@ -31,6 +31,7 @@ interface BacklogDetailUIState {
   // Simple open/close dialogs
   showEdit: boolean;
   showDelete: boolean;
+  showWorkshopReset: boolean;
   showAgentDialog: boolean;
   showRunModal: boolean;
   showGlobDialog: boolean;
@@ -55,6 +56,8 @@ interface BacklogDetailUIState {
   closeEdit: () => void;
   openDelete: () => void;
   closeDelete: () => void;
+  openWorkshopReset: () => void;
+  closeWorkshopReset: () => void;
   openAgent: () => void;
   closeAgent: () => void;
   openRunModal: () => void;
@@ -90,6 +93,7 @@ interface BacklogDetailUIState {
 const INITIAL_STATE = {
   showEdit: false,
   showDelete: false,
+  showWorkshopReset: false,
   showAgentDialog: false,
   showRunModal: false,
   showGlobDialog: false,
@@ -112,6 +116,8 @@ export const useBacklogDetailUIStore = create<BacklogDetailUIState>((set) => ({
   closeEdit: () => set({ showEdit: false }),
   openDelete: () => set({ showDelete: true }),
   closeDelete: () => set({ showDelete: false }),
+  openWorkshopReset: () => set({ showWorkshopReset: true }),
+  closeWorkshopReset: () => set({ showWorkshopReset: false }),
   openAgent: () => set({ showAgentDialog: true }),
   closeAgent: () => set({ showAgentDialog: false }),
   openRunModal: () => set({ showRunModal: true }),

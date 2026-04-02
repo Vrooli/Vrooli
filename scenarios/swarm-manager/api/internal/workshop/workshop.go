@@ -35,16 +35,16 @@ type Round struct {
 // Item is a single decision or info item within a workshop round.
 type Item struct {
 	ID              string   `json:"id"`
-	Type            string   `json:"type"`                          // "decision" | "info"
-	Topic           string   `json:"topic,omitempty"`               // decision: what's being decided
-	Text            string   `json:"text,omitempty"`                // info: the informational text
-	Context         string   `json:"context,omitempty"`             // background/rationale
-	Options         []Option `json:"options,omitempty"`             // decision: lettered choices
-	Selected        *string  `json:"selected,omitempty"`            // decision: chosen option key (e.g. "A")
-	Freeform        *string  `json:"freeform,omitempty"`            // decision: free-text if "Other" selected
-	Notes           *string  `json:"notes,omitempty"`               // decision: optional additional context
-	ContextNote     *string  `json:"context_note,omitempty"`        // distilled from clarification
-	ClarificationID *string  `json:"clarification_id,omitempty"`    // thread ID for full conversation access
+	Type            string   `json:"type"`                       // "decision" | "info"
+	Topic           string   `json:"topic,omitempty"`            // decision: what's being decided
+	Text            string   `json:"text,omitempty"`             // info: the informational text
+	Context         string   `json:"context,omitempty"`          // background/rationale
+	Options         []Option `json:"options,omitempty"`          // decision: lettered choices
+	Selected        *string  `json:"selected,omitempty"`         // decision: chosen option key (e.g. "A")
+	Freeform        *string  `json:"freeform,omitempty"`         // decision: free-text if "Other" selected
+	Notes           *string  `json:"notes,omitempty"`            // decision: optional additional context
+	ContextNote     *string  `json:"context_note,omitempty"`     // distilled from clarification
+	ClarificationID *string  `json:"clarification_id,omitempty"` // thread ID for full conversation access
 }
 
 // Option is a single lettered choice within a decision item.
@@ -331,4 +331,27 @@ func DeleteRoundAndRenumber(itemDir string, roundNum int) (remaining int, err er
 	}
 
 	return len(rounds) - 1, nil
+}
+
+// ResetWorkshop removes all workshop data from an item directory:
+// the workshop/ directory (rounds, clarifications, attachments) and
+// the deliverable file (plan.md or conclusion.md).
+// Returns the number of rounds that existed before deletion.
+func ResetWorkshop(itemDir string, deliverableFile string) (deletedRounds int, err error) {
+	rounds, err := LoadRounds(itemDir)
+	if err != nil {
+		return 0, fmt.Errorf("load rounds: %w", err)
+	}
+
+	workshopDir := filepath.Join(itemDir, "workshop")
+	if err := os.RemoveAll(workshopDir); err != nil {
+		return 0, fmt.Errorf("remove workshop dir: %w", err)
+	}
+
+	// Remove deliverable file at item root (ignore if absent).
+	if deliverableFile != "" {
+		_ = os.Remove(filepath.Join(itemDir, deliverableFile))
+	}
+
+	return len(rounds), nil
 }

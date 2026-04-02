@@ -149,6 +149,12 @@ export function useBacklogHandlers(opts: UseBacklogHandlersOptions) {
     }
   }, [_mutations.workshopDeleteRound]);
 
+  const handleWorkshopResetConfirm = useCallback(() => {
+    _mutations.workshopReset.mutate(undefined, {
+      onSuccess: () => { useBacklogDetailUIStore.getState().closeWorkshopReset(); },
+    });
+  }, [_mutations.workshopReset]);
+
   const startWorkshopMode = useCallback((mode: "workshop" | "finalize", prompt: string) => {
     if (!backlogKind || !name) return;
     handleAgentSubmit({ mode, prompt });
@@ -383,6 +389,7 @@ export function useBacklogHandlers(opts: UseBacklogHandlersOptions) {
     handleAgentSubmit,
     handleSaveRound,
     handleDeleteWorkshopRound,
+    handleWorkshopResetConfirm,
     handleRunWorkshop,
     handleFinalizeWorkshop,
     handleFileSelect,

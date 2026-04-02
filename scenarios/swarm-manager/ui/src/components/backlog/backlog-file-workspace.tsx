@@ -16,7 +16,7 @@ import { ErrorBoundary } from "../ui/error-boundary";
 import { ErrorState } from "../ui/error-state";
 import { FilePreview } from "../ui/file-preview";
 import { Button } from "../ui/button";
-import { Dialog } from "../ui/dialog";
+import { BottomSheet } from "../ui/bottom-sheet";
 import { cn } from "../../lib";
 import { selectors } from "../../consts/selectors";
 import type { BacklogFile, BacklogKind } from "../../types";
@@ -127,9 +127,12 @@ export function BacklogFileWorkspace({
           )}
         </div>
       )}
-      {selectedFile && (
-        <span className={cn("text-xs text-slate-500", isProtectedSelectedFile && "text-amber-300")}>
-          {isProtectedSelectedFile ? "Protected file" : ""}
+      {selectedFile && isProtectedSelectedFile && (
+        <span
+          className="text-xs text-amber-300"
+          title="This file is essential and cannot be renamed, moved, or deleted"
+        >
+          Protected file
         </span>
       )}
     </>
@@ -152,7 +155,7 @@ export function BacklogFileWorkspace({
   };
 
   return (
-    <div className="flex-1 min-h-0">
+    <div className="h-[calc(100dvh-6rem)] lg:h-auto lg:flex-1">
       <div className="h-full overflow-hidden lg:rounded-xl lg:border lg:border-white/10 lg:bg-slate-900/30">
         <div
           ref={workspaceRef}
@@ -192,8 +195,8 @@ export function BacklogFileWorkspace({
                   compactHeader
                   stickyHeader
                   headerActions={fileHeaderActions}
-                  className="flex-1 min-h-0 border-0 rounded-none bg-transparent"
-                  contentClassName="flex-1 max-h-none min-h-0"
+                  className="flex-1 border-0 rounded-none bg-transparent"
+                  contentClassName="flex-1 max-h-none"
                   data-testid={selectors.backlogDetails.filePreview}
                 />
               </ErrorBoundary>
@@ -212,16 +215,13 @@ export function BacklogFileWorkspace({
         </div>
       </div>
 
-      <Dialog
+      <BottomSheet
         isOpen={showFilesSheet}
         onClose={() => setShowFilesSheet(false)}
         title="Files"
-        maxWidth="max-w-md"
       >
-        <div className="max-h-[60vh] overflow-y-auto -mx-2">
-          <BacklogFileBrowser {...fileBrowserProps} />
-        </div>
-      </Dialog>
+        <BacklogFileBrowser {...fileBrowserProps} />
+      </BottomSheet>
     </div>
   );
 }

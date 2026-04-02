@@ -1,188 +1,195 @@
-# Implementation Plan: Identity Token Injection and Verification
+# Implementation Plan: Identity Token Injection and Verification in Agent-Manager
 
 ## 1. Purpose
 
-Implement cryptographic identity tokens in agent-manager so that every agent run carries a verifiable proof of identity. Other scenarios (e.g., swarm-manager) can call back to agent-manager to verify who is making mutations, enabling trust-based attribution across the Vrooli ecosystem.
+Implement cryptographic identity tokens in agent-manager so that spawned agents can prove their identity to consuming scenarios. This replaces unverified `CreatedBy` string attribution with HMAC-SHA256 signed tokens injected via `VROOLI_AGENT_IDENTITY_TOKEN` and verified through a REST endpoint.
 
 ## 2. Required Reading
 
 ```bash
-prompt-manager skill read api-steer seam-discovery-and-enforcement interoperability-steer
+prompt-manager skill read implementation-plan-authoring api-steer test seam-discovery-and-enforcement
 ```
 
-- **Research conclusions**: `swarm-manager backlog file-get --kind research --name agent-identity-standard --path conclusion.md`
-- **Existing env injection**: `scenarios/agent-manager/api/internal/adapters/runner/env_utils.go`
-- **Run executor**: `scenarios/agent-manager/api/internal/orchestration/run_executor.go`
-- **Domain types**: `scenarios/agent-manager/api/internal/domain/types.go`
-- **DB schema**: `scenarios/agent-manager/api/internal/database/schema.sql`
-- **HTTP handlers**: `scenarios/agent-manager/api/internal/handlers/handlers.go`
-- **Route registration**: `scenarios/agent-manager/api/main.go` (setupRoutes)
+- **Research conclusion**: `swarm-manager backlog file-get --kind research --name agent-identity-standard --path conclusion.md`
+- **Codebase entry points**:
+  - `scenarios/agent-manager/api/internal/orchestration/run_executor.go` — `SandboxEnvVars()` pattern to mirror
+  - `scenarios/agent-manager/api/internal/adapters/runner/env_utils.go` — `sanitizedBaseEnv()`, `appendEnvMap()`
+  - `scenarios/agent-manager/api/internal/handlers/handlers.go` — route registration
+  - `scenarios/agent-manager/api/internal/domain/types.go` — Run domain model
+  - `scenarios/agent-manager/api/internal/database/schema.sql` — SQLite schema
 
 ## 3. Problem Statement
 
-Agent-manager creates and orchestrates agent runs but currently has no mechanism for those agents to cryptographically prove their identity to other services. The `CreatedBy` field exists but is a plain string with no verification. Other scenarios receiving requests from agents have no way to confirm which run/task/profile originated the request.
+Agent-manager spawns agent runs (sandboxed and in-place) that interact with other scenarios. Currently, there is no way for a consuming scenario to verify that a request actually came from a specific agent run. The `CreatedBy` field is a free-form string anyone can spoof. This blocks swarm-manager's need for reliable provenance tracking on backlog mutations and execution attribution.
 
 ## 4. Scope
 
-**In scope:**
-- HMAC-SHA256 token generation at run creation time
-- Secret key management (generate-on-first-startup, file-based persistence)
-- `VROOLI_AGENT_IDENTITY_TOKEN` env var injection for all runs
+### In Scope
+- HMAC-SHA256 token generation and signing within agent-manager
+- Server-side HMAC secret management (generate on first startup, persist)
+- `IdentityEnvVars()` method on RunExecutor for env var injection
 - `POST /api/v1/identity/verify` REST endpoint
-- Token revocation on run completion/cancellation/failure
+- Token revocation tracking on run cancellation/completion
 - Unit and integration tests
 
-**Out of scope:**
-- CLI-core consumer library (separate item: `cli-core-identity-consumer`)
-- Swarm-manager adoption (separate item: `swarm-manager-identity-adoption`)
-- Secret rotation strategy (deferred — single-key is sufficient for v1)
-- Multi-tenant / multi-server scenarios
-- Token refresh mechanism (24h TTL is sufficient)
+### Out of Scope
+- Consumer interface in `packages/cli-core` (separate backlog item: `execute/cli-core-identity-consumer`)
+- Swarm-manager adoption (separate backlog item: `execute/swarm-manager-identity-adoption`)
+- Secret rotation mechanism (future work)
+- Rate limiting on verification endpoint (future work)
+- Multi-tenant identity scoping (future work)
 
 ## 5. Current Technical Context
 
 ### Key Files
 | File | Role |
 |------|------|
-| `internal/orchestration/run_executor.go` | Run lifecycle; `SandboxEnvVars()` pattern to mirror |
-| `internal/adapters/runner/env_utils.go` | `sanitizedBaseEnv()`, `appendEnvMap()` — env injection plumbing |
-| `internal/domain/types.go` | Run, Task, AgentProfile domain structs |
-| `internal/database/schema.sql` | SQLite schema — runs table |
-| `internal/database/repository_run.go` | Run CRUD operations |
-| `internal/handlers/handlers.go` | HTTP handler registration |
-| `main.go` | Route registration in `setupRoutes()` |
+| `internal/orchestration/run_executor.go` | RunExecutor with `SandboxEnvVars()` pattern (line 934) |
+| `internal/adapters/runner/env_utils.go` | `sanitizedBaseEnv()`, `appendEnvMap()` |
+| `internal/handlers/handlers.go` | Route registration via `RegisterRoutes()` (line 96) |
+| `internal/domain/types.go` | Run, Task, AgentProfile domain types |
+| `internal/database/schema.sql` | SQLite schema definitions |
+| `internal/database/connection.go` | SQLite path resolution (line 73-105) |
+| `internal/repository/interface.go` | Repository interfaces |
 
-### Existing Patterns to Follow
-- **SandboxEnvVars()**: Returns `map[string]string` of env vars; called during env assembly. `IdentityEnvVars()` should mirror this pattern.
-- **appendEnvMap()**: Merges extra env vars into the base env slice.
-- **Handler factory**: Handlers are methods on a `Handler` struct; routes registered in `setupRoutes()`.
-- **Error responses**: Use `domain.ErrorResponse` with code, message, userMessage, recovery, retryable fields.
+### Existing Patterns
+- **Env var injection**: `SandboxEnvVars()` returns `map[string]string`, flows through `ExecuteRequest.Environment` → `buildEnv()` → `cmd.Env`
+- **Route registration**: `RegisterRoutes(r *mux.Router)` with gorilla/mux
+- **Handler pattern**: Thin HTTP handlers that delegate to orchestration service
+- **Test infrastructure**: SQLite-backed repos with seeded entities, `testFixtures` struct, mock sandbox/runner providers
+- **Data persistence**: SQLite DB at configurable path (env vars: `AM_SQLITE_PATH` → `DATABASE_URL` → `SQLITE_DATABASE_PATH` → `VROOLI_DATA`)
 
 ## 6. Target End State
 
-1. Every run (sandboxed or in-place) receives `VROOLI_AGENT_IDENTITY_TOKEN` in its environment
-2. Token contains claims: `run_id`, `task_id`, `profile_key`, `scope_path`, `iat`, `exp`, `meta`
-3. Any service can verify a token via `POST /api/v1/identity/verify` and receive the decoded claims
-4. Tokens are automatically revoked when runs reach terminal status (complete, failed, cancelled)
-5. Runs created before this feature continue working (no token = anonymous)
+After implementation:
+1. Every agent run (sandboxed and in-place) receives `VROOLI_AGENT_IDENTITY_TOKEN` in its environment
+2. Agent-manager persists an HMAC signing secret in its data directory
+3. `POST /api/v1/identity/verify` accepts a token, validates signature + expiry + revocation, returns verified claims
+4. Tokens are automatically revoked when runs complete or are cancelled
+5. All existing runs continue working without tokens (backward compatible)
+6. Comprehensive test coverage for token lifecycle
 
 ## 7. Implementation Strategy
 
-### Phase 1: Token Infrastructure (New Package)
-Create `internal/identity/` package:
-- `token.go` — Claims struct, `Generate(claims, secret) → token string`, `Verify(token, secret) → claims, error`
-- `secret.go` — `LoadOrCreateSecret(dataDir) → []byte` — reads from `<dataDir>/identity-secret.key`, generates 32-byte random key if missing
-- Wire format: `base64url(json_claims).base64url(hmac_sha256(claims_bytes, secret))`
+### Phase 1: Signing Infrastructure
+1. Create `internal/identity/` package with:
+   - `secret.go` — HMAC secret generation, loading, and persistence
+   - `token.go` — Token generation (claims → signed token string) and verification (token string → claims)
+   - `claims.go` — Claims struct definition
+2. Secret stored as a file in agent-manager's data directory (alongside SQLite DB)
+3. Secret generated on first startup using `crypto/rand` (32 bytes)
 
-### Phase 2: Revocation Tracking
-<!-- TBD — depends on decision d1 (in-memory vs DB column) -->
+### Phase 2: Token Generation & Injection
+1. Add `IdentityEnvVars()` method to RunExecutor (mirrors `SandboxEnvVars()`)
+2. Generate token when run transitions to starting phase
+3. Claims populated from Run + Task + AgentProfile domain objects:
+   - `run_id`: Run.ID
+   - `task_id`: Run.TaskID
+   - `profile_key`: AgentProfile.ProfileKey
+   - `scope_path`: Task.ScopePath
+   - `iat`: current time
+   - `exp`: current time + 86400 (24h default TTL)
+   - `meta`: empty map (extensible)
+4. Inject `VROOLI_AGENT_IDENTITY_TOKEN` via existing env pipeline
 
-### Phase 3: Token Injection
-- Add `IdentityEnvVars()` method on `RunExecutor` returning `map[string]string{"VROOLI_AGENT_IDENTITY_TOKEN": token}`
-- Generate token during `Execute()` after run is created and has an ID
-- Call in the same env assembly flow where `SandboxEnvVars()` is called
-- Token generated with claims populated from `run`, `task`, and `profile`
+### Phase 3: Revocation Tracking
+1. Add `identity_token_hash` and `identity_token_revoked` columns to runs table
+2. Store SHA-256 hash of token (not the token itself) for revocation lookups
+3. On run completion/cancellation, set `identity_token_revoked = true`
+4. Verification checks revocation status via run lookup
 
 ### Phase 4: Verification Endpoint
-- Add `POST /api/v1/identity/verify` route
-- Handler: accepts `{"token": "..."}`, calls `identity.Verify()`, checks revocation, returns claims or 401
-- New handler method on existing Handler struct (or new file `internal/handlers/identity.go`)
+1. Register `POST /api/v1/identity/verify` in `RegisterRoutes()`
+2. Handler accepts `{"token": "..."}` JSON body
+3. Verification steps: parse token → validate HMAC signature → check expiry → check revocation
+4. Returns 200 with full claims JSON on success, 401 on failure
+5. No authentication middleware required (the token IS the authentication)
 
-### Phase 5: Revocation Integration
-- On run terminal status transitions (complete/failed/cancelled), mark token as revoked
-- Verification endpoint checks revocation before returning success
-
-### Phase 6: Tests
-- Unit tests for `internal/identity/` (generate, verify, expired, tampered, revocation)
-- Integration test: create run → extract env var → verify token → complete run → verify revoked
+### Phase 5: Tests
+1. Unit tests for `internal/identity/` package (token generation, signing, verification, expiry, tampering)
+2. Unit tests for `IdentityEnvVars()` method
+3. Integration tests for verification endpoint (valid token, expired token, revoked token, malformed token)
+4. Integration test for full flow: create run → extract env var → verify token → complete run → verify revocation
 
 ## 8. Contract Decisions
 
-### Verification Endpoint
+### Wire Format
 ```
-POST /api/v1/identity/verify
-Content-Type: application/json
-
-Request:  {"token": "base64url.base64url"}
-Response (200): {"run_id": "...", "task_id": "...", "profile_key": "...", "scope_path": "...", "iat": 1234, "exp": 5678, "meta": {}}
-Response (401): {"code": "TOKEN_INVALID", "message": "...", ...}
+base64url(json_claims) + '.' + base64url(hmac_sha256(claims_bytes, secret))
 ```
 
-### Environment Variable
-```
-VROOLI_AGENT_IDENTITY_TOKEN=<base64url_claims>.<base64url_hmac>
-```
-
-### Claims Structure
+### Claims JSON
 ```json
 {
-  "run_id": "uuid",
-  "task_id": "uuid",
+  "run_id": "uuid-string",
+  "task_id": "uuid-string",
   "profile_key": "string",
   "scope_path": "string",
-  "iat": 1234567890,
-  "exp": 1234654290,
+  "iat": 1711734000,
+  "exp": 1711820400,
   "meta": {}
 }
 ```
 
+### Verification Endpoint
+- **Route**: `POST /api/v1/identity/verify`
+- **Request**: `{"token": "base64url.base64url"}`
+- **Success (200)**: `{"valid": true, "claims": { ...full claims... }}`
+- **Failure (401)**: `{"valid": false, "error": "token expired" | "token revoked" | "invalid signature" | "malformed token"}`
+
+### Env Var
+- Name: `VROOLI_AGENT_IDENTITY_TOKEN`
+- Injected: All runs (sandboxed and in-place)
+- Absent: Backward compatible — consumers treat as anonymous
+
 ## 9. Testing Plan
 
-### Unit Tests (`internal/identity/`)
-- Generate token → verify succeeds with correct claims
-- Tampered payload → verify fails
-- Tampered signature → verify fails
-- Expired token → verify fails
-- Empty/malformed token → verify fails
+| Test | Type | What It Validates |
+|------|------|-------------------|
+| Token round-trip | Unit | Generate → sign → verify returns original claims |
+| Expired token | Unit | Token with past `exp` is rejected |
+| Tampered token | Unit | Modified claims with original signature is rejected |
+| Tampered signature | Unit | Original claims with wrong signature is rejected |
+| Secret persistence | Unit | Secret survives load/save cycle |
+| IdentityEnvVars sandboxed | Unit | Sandboxed run gets token in env map |
+| IdentityEnvVars in-place | Unit | In-place run gets token in env map |
+| Verify endpoint valid | Integration | POST with valid token returns 200 + claims |
+| Verify endpoint expired | Integration | POST with expired token returns 401 |
+| Verify endpoint revoked | Integration | POST with revoked token returns 401 |
+| Verify endpoint malformed | Integration | POST with garbage returns 401 |
+| Full lifecycle | Integration | Create run → get token → verify → complete run → verify revoked |
 
-### Integration Tests
-- Create run → env contains `VROOLI_AGENT_IDENTITY_TOKEN`
-- Extract token from env → POST to verify endpoint → 200 with correct claims
-- Complete run → POST to verify endpoint → 401 (revoked)
-- Cancel run → POST to verify endpoint → 401 (revoked)
-- No token (legacy run) → system operates normally
-
-### Handler Tests
-- POST /api/v1/identity/verify with valid token → 200
-- POST /api/v1/identity/verify with invalid token → 401
-- POST /api/v1/identity/verify with missing body → 400
-- POST /api/v1/identity/verify with expired token → 401
-
-## 10. Rollout / Validation Checklist
+## 10. Rollout/Validation Checklist
 
 - [ ] `go build ./...` passes
-- [ ] `go test ./... -timeout 300s` passes
-- [ ] `gofumpt -l .` reports no formatting issues
+- [ ] `go test ./... -timeout 300s` passes (all existing + new tests)
+- [ ] `gofumpt -w .` applied to all new files
 - [ ] `golangci-lint run` passes
-- [ ] Identity secret file created on first startup
-- [ ] Token present in run env vars (verified via test)
-- [ ] Verification endpoint returns correct claims
-- [ ] Revocation works on run completion
+- [ ] Manual smoke test: start agent-manager, create a run, verify token appears in env, call verify endpoint
 
 ## 11. Risks + Mitigations
 
-| Risk | Likelihood | Impact | Mitigation |
-|------|-----------|--------|------------|
-| Secret file permissions too open | Medium | High | Set 0600 permissions on creation; document |
-| In-memory revocation lost on restart | Medium | Low | Acceptable for v1 — expired tokens (24h) provide a ceiling; DB column is alternative |
-| Token injection timing (run ID not yet available) | Low | Medium | Generate token after DB insert, before runner.Execute() |
-| Performance of verification endpoint under load | Low | Low | HMAC verification is fast (~microseconds); revocation check is O(1) lookup |
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| Secret file permissions too open | Token forgery | Set file permissions to 0600 on creation |
+| Secret lost on data dir wipe | All active tokens invalid | Acceptable — tokens are short-lived, runs restart cleanly |
+| Verification endpoint adds latency | Slower cross-scenario calls | Single DB lookup per verify, sub-ms for SQLite |
+| Token in env var visible to child processes | Token leakage | Acceptable — child processes are the agent itself; same trust boundary |
+| Schema migration on existing DBs | Startup failure | Use `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` pattern |
 
 ## 12. Non-goals / Prohibited Patterns
 
-- Do NOT distribute the HMAC secret to any consumer — verification is server-side only
-- Do NOT use JWT libraries — use Go stdlib `crypto/hmac` + `crypto/sha256` only
-- Do NOT add gRPC — REST only, consistent with existing API
-- Do NOT break backward compatibility — missing token = anonymous, not error
-- Do NOT add secret rotation in this item — single key is sufficient for v1
+- Do NOT add JWT library dependencies — use stdlib `crypto/hmac` + `crypto/sha256` only
+- Do NOT expose the HMAC secret via any API or env var
+- Do NOT add authentication middleware to the verify endpoint — the token is self-authenticating
+- Do NOT modify existing `SandboxEnvVars()` — add new `IdentityEnvVars()` alongside it
+- Do NOT break existing runs that lack identity tokens
 
 ## 13. Definition of Done
 
-- [ ] `internal/identity/` package exists with token generation and verification
-- [ ] HMAC secret auto-generated and persisted on first startup
-- [ ] `IdentityEnvVars()` injects `VROOLI_AGENT_IDENTITY_TOKEN` for all runs
-- [ ] `POST /api/v1/identity/verify` endpoint operational
-- [ ] Tokens revoked on run terminal status
-- [ ] All tests pass (unit + integration)
-- [ ] Code formatted with gofumpt, passes golangci-lint
-- [ ] Scenario restarts successfully with `vrooli scenario restart agent-manager`
+1. All runs (sandboxed and in-place) receive `VROOLI_AGENT_IDENTITY_TOKEN` in their environment
+2. `POST /api/v1/identity/verify` correctly validates tokens and returns claims
+3. Tokens are revoked when runs complete or are cancelled
+4. All tests in the testing plan pass
+5. `go build`, `go test`, `gofumpt`, `golangci-lint` all pass
+6. Backward compatible — existing runs without tokens continue working

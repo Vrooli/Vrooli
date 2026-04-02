@@ -374,6 +374,20 @@ message WorkshopDeleteRoundResponse {
   int32 remaining_rounds = 2;
 }
 
+// WorkshopResetRequest resets an entire workshop, deleting all rounds,
+// clarifications, attachments, and deliverables while preserving spec.json.
+// Kind and name come from the URL path.
+message WorkshopResetRequest {}
+
+// WorkshopResetResponse reports the result of resetting a workshop.
+message WorkshopResetResponse {
+  // Number of rounds that were deleted.
+  int32 deleted_rounds = 1;
+
+  // Whether the item status was reverted from "ready" to "backlog".
+  bool status_reverted = 2;
+}
+
 // =============================================================================
 // CLARIFICATION API
 // =============================================================================

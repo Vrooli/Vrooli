@@ -98,6 +98,7 @@ func (a *App) registerSubcommandGroups() []cliapp.SubcommandGroup {
 				{Name: "create", NeedsAPI: true, Description: "Create a backlog item (--data JSON)", Run: a.cmdBacklogCreate},
 				{Name: "update", NeedsAPI: true, Description: "Update a backlog item (--kind KIND --name NAME --data JSON)", Run: a.cmdBacklogUpdate},
 				{Name: "delete", NeedsAPI: true, Description: "Delete a backlog item (--kind KIND --name NAME)", Run: a.cmdBacklogDelete},
+				{Name: "workshop-reset", NeedsAPI: true, Description: "Reset all workshop data for a backlog item (--kind KIND --name NAME)", Run: a.cmdBacklogWorkshopReset},
 				{Name: "files", NeedsAPI: true, Description: "List backlog item files (--kind KIND --name NAME)", Run: a.cmdBacklogFiles},
 				{Name: "file-get", NeedsAPI: true, Description: "Get a file from a backlog item (--kind KIND --name NAME --path PATH)", Run: a.cmdBacklogFileGet},
 				{Name: "file-upload", NeedsAPI: true, Description: "Upload a file to a backlog item (--kind KIND --name NAME --path PATH --file FILE|--content CONTENT)", Run: a.cmdBacklogFileUpload},

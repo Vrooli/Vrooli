@@ -115,6 +115,17 @@ export function BacklogDialogs({
         }}
       />
 
+      <ConfirmDialog
+        isOpen={ui.showWorkshopReset}
+        onClose={() => { ui.closeWorkshopReset(); data.resetWorkshopResetMutation(); }}
+        onConfirm={handlers.handleWorkshopResetConfirm}
+        title="Reset Workshop"
+        description={`This will delete all workshop rounds, clarifications, attachments, and the ${data.deliverableLabel?.toLowerCase() ?? "deliverable"} for "${item?.title || name}". The item spec will be preserved.`}
+        confirmationText={item?.name}
+        confirmLabel="Reset Workshop"
+        isLoading={data.isResettingWorkshop}
+      />
+
       <RunBacklogModal
         isOpen={ui.showRunModal}
         onClose={ui.closeRunModal}

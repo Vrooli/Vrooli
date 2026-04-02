@@ -54,6 +54,10 @@ export interface FilePreviewProps {
   compactHeader?: boolean;
   /** Make header sticky within the preview */
   stickyHeader?: boolean;
+  /** Pre-fetched content string. When provided, skips the internal query. */
+  content?: string;
+  /** When true, disables editing (save/discard/diff). Defaults to false. */
+  readOnly?: boolean;
   /** data-testid attribute */
   "data-testid"?: string;
 }
@@ -209,6 +213,8 @@ export function FilePreview({
   headerActions,
   compactHeader = false,
   stickyHeader = false,
+  content: externalContent,
+  readOnly = false,
   "data-testid": testId,
 }: FilePreviewProps) {
   const queryClient = useQueryClient();
@@ -217,7 +223,7 @@ export function FilePreview({
   const editorTheme = isLight ? "vs" : "vs-dark";
   const fileType = getFileType(fileName);
   const isImage = fileType === "image";
-  const isEditable = fileType !== "image";
+  const isEditable = fileType !== "image" && !readOnly;
   const editorLanguage = useMemo(() => getMonacoLanguage(fileName), [fileName]);
   const contentQueryKey = useMemo(
     () => ["backlog", backlogKind, backlogName, "files", filePath, "content"],
@@ -244,17 +250,18 @@ export function FilePreview({
   }, [copied]);
 
   const {
-    data: content,
+    data: fetchedContent,
     isLoading,
     error,
     refetch,
   } = useQuery({
     queryKey: contentQueryKey,
     queryFn: () => backlogService.getFileContent(backlogKind, backlogName, filePath),
-    enabled: !isImage,
+    enabled: !isImage && externalContent === undefined,
     ...defaultQueryOptions,
     refetchOnWindowFocus: defaultQueryOptions.refetchOnWindowFocus && !isDirty,
   });
+  const content = externalContent ?? fetchedContent;
 
   useEffect(() => {
     if (typeof content !== "string") return;
@@ -541,7 +548,7 @@ export function FilePreview({
       {/* Content */}
       <div
         className={cn(
-          "relative flex-1 min-h-0 overflow-hidden",
+          "relative flex-1 min-h-[200px] sm:min-h-[300px] overflow-hidden",
           contentClassName
         )}
       >

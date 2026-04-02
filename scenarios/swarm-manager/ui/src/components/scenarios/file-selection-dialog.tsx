@@ -7,9 +7,9 @@
  */
 
 import { useState, useEffect, useMemo } from "react";
-import { Files, CheckSquare, Square } from "lucide-react";
+import { CheckSquare, Square } from "lucide-react";
 import { Button } from "../ui/button";
-import { Dialog } from "../ui/dialog";
+import { Drawer } from "../ui/drawer";
 import { FileTree } from "../ui/file-tree";
 import { PanelLoadingState } from "../ui/loading-states";
 import { Select } from "../ui/select";
@@ -223,32 +223,25 @@ export function FileSelectionDialog({
   };
 
   return (
-    <Dialog
+    <Drawer
       isOpen={isOpen}
-      onClose={onClose}
-      maxWidth="max-w-2xl"
-      isLoading={isLoading}
+      onClose={() => { if (!isLoading) onClose(); }}
+      title="Preserve Files"
+      description={`Select files to keep when archiving ${scenarioName}`}
       testId="file-selection-dialog"
-      titleId="file-selection-title"
-      className="flex flex-col max-h-[80vh] p-0"
+      footer={
+        <div className="flex justify-end gap-3">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button variant="default" onClick={handleConfirm} data-testid="confirm-selection-button">
+            Confirm Selection ({selectedPaths.size} files)
+          </Button>
+        </div>
+      }
     >
-      {/* Header */}
-      <div className="flex items-center gap-3 border-b border-white/10 px-6 py-4">
-        <div className="rounded-full bg-cyan-500/20 p-2">
-          <Files className="h-5 w-5 text-cyan-400" />
-        </div>
-        <div>
-          <h2 id="file-selection-title" className="text-lg font-semibold text-slate-100">
-            Preserve Files
-          </h2>
-          <p className="text-sm text-slate-400">
-            Select files to keep when archiving <span className="text-cyan-400">{scenarioName}</span>
-          </p>
-        </div>
-      </div>
-
       {/* Preset selector */}
-      <div className="border-b border-white/10 px-6 py-4">
+      <div className="border-b border-white/10 px-4 py-4">
         <label className="mb-2 block text-sm font-medium text-slate-300">Quick select preset</label>
         <Select
           value={selectedPreset}
@@ -270,7 +263,7 @@ export function FileSelectionDialog({
       </div>
 
       {/* File tree with checkboxes */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className="px-4 py-4">
         {/* Select all / Clear all buttons */}
         <div className="mb-3 flex items-center justify-between">
           <span className="text-sm text-slate-400">
@@ -315,16 +308,6 @@ export function FileSelectionDialog({
           />
         )}
       </div>
-
-      {/* Footer */}
-      <div className="flex justify-end gap-3 border-t border-white/10 px-6 py-4">
-        <Button variant="outline" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button variant="default" onClick={handleConfirm} data-testid="confirm-selection-button">
-          Confirm Selection ({selectedPaths.size} files)
-        </Button>
-      </div>
-    </Dialog>
+    </Drawer>
   );
 }

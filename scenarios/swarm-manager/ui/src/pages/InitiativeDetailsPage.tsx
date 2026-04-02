@@ -21,8 +21,8 @@ import { selectionToNodeId } from "../stores/detail-selection-store";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
 import { FileTree, type TreeFile } from "../components/ui/file-tree";
-import { defaultQueryOptions, formatRelativeTime, getFileExtension } from "../lib";
-import { renderMarkdown } from "../lib/render-markdown";
+import { FilePreview } from "../components/ui/file-preview";
+import { defaultQueryOptions, formatRelativeTime } from "../lib";
 import { initiativeService } from "../services";
 import { selectors } from "../consts/selectors";
 import { BACKLOG_STATUS_CHIP_COLORS } from "../types";
@@ -108,25 +108,21 @@ export function InitiativeDetailsPage() {
 
   // File selection state
   const [selectedFile, setSelectedFile] = useState<TreeFile | null>(null);
-  const [fileContent, setFileContent] = useState<string | null>(null);
-  const [isLoadingContent, setIsLoadingContent] = useState(false);
 
   const handleFileSelect = useCallback(
-    async (file: TreeFile) => {
-      if (!name || file.type === "directory") return;
+    (file: TreeFile) => {
+      if (file.type === "directory") return;
       setSelectedFile(file);
-      setIsLoadingContent(true);
-      try {
-        const content = await initiativeService.getFileContent(name, file.path);
-        setFileContent(content);
-      } catch {
-        setFileContent(null);
-      } finally {
-        setIsLoadingContent(false);
-      }
     },
-    [name],
+    [],
   );
+
+  const { data: fileContent } = useQuery({
+    queryKey: ["initiative", name, "files", selectedFile?.path, "content"],
+    queryFn: () => initiativeService.getFileContent(name!, selectedFile!.path),
+    enabled: !!name && !!selectedFile,
+    ...defaultQueryOptions,
+  });
 
   // Filter out initiative.json from the file tree for display
   const displayFiles = useMemo(() => {
@@ -329,41 +325,25 @@ export function InitiativeDetailsPage() {
               />
 
               {selectedFile && (
-                <div className="rounded-lg border border-slate-700/40 bg-slate-800/30 p-3">
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-xs font-medium text-slate-400 truncate">{selectedFile.path}</span>
+                <FilePreview
+                  backlogKind={"initiative" as any}
+                  backlogName={name!}
+                  filePath={selectedFile.path}
+                  fileName={selectedFile.name}
+                  content={fileContent ?? undefined}
+                  readOnly
+                  compactHeader
+                  className="rounded-lg border border-slate-700/40"
+                  headerActions={
                     <button
                       type="button"
-                      onClick={() => { setSelectedFile(null); setFileContent(null); }}
+                      onClick={() => setSelectedFile(null)}
                       className="text-xs text-slate-500 hover:text-slate-300"
                     >
                       Close
                     </button>
-                  </div>
-                  {isLoadingContent ? (
-                    <div className="py-8 text-center text-sm text-slate-500">Loading...</div>
-                  ) : fileContent !== null ? (
-                    (() => {
-                      const ext = getFileExtension(selectedFile.path);
-                      const isMarkdown = ext === "md" || ext === "markdown";
-                      if (isMarkdown) {
-                        return (
-                          <div
-                            className="prose prose-sm prose-invert max-w-none overflow-auto text-sm"
-                            dangerouslySetInnerHTML={{ __html: renderMarkdown(fileContent) }}
-                          />
-                        );
-                      }
-                      return (
-                        <pre className="max-h-96 overflow-auto rounded bg-slate-900/80 p-3 text-xs text-slate-300">
-                          <code>{fileContent}</code>
-                        </pre>
-                      );
-                    })()
-                  ) : (
-                    <div className="py-8 text-center text-sm text-slate-500">Unable to load file</div>
-                  )}
-                </div>
+                  }
+                />
               )}
             </div>
           </div>

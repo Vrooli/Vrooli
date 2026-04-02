@@ -102,7 +102,7 @@ describe("ErrorDiagnostics", () => {
       expect(writeText).toHaveBeenCalledTimes(1);
     });
 
-    const copiedText = writeText.mock.calls[0][0] as string;
+    const copiedText = writeText.mock.calls[0]![0] as string;
     expect(copiedText).toContain("TypeError");
     expect(copiedText).toContain("Cannot read properties of undefined");
     expect(copiedText).toContain("err_test123_abc456");

@@ -23,6 +23,7 @@ export const API_ENDPOINTS = {
   backlogResearch: (kind: string, name: string) => `/backlog/${kind}/${name}/research`,
   backlogWorkshopSave: (kind: string, name: string) => `/backlog/${kind}/${name}/workshop/save`,
   backlogWorkshopDeleteRound: (kind: string, name: string) => `/backlog/${kind}/${name}/workshop/round`,
+  backlogWorkshopReset: (kind: string, name: string) => `/backlog/${kind}/${name}/workshop/reset`,
   backlogArchiveTargets: (kind: string, name: string) => `/backlog/${kind}/${name}/archive/targets`,
   backlogArchiveTarget: (kind: string, name: string, targetId: string) => `/backlog/${kind}/${name}/archive/targets/${targetId}`,
   backlogArchiveRequirements: (kind: string, name: string) => `/backlog/${kind}/${name}/archive/requirements`,

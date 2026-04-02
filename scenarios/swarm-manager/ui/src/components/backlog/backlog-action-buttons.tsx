@@ -13,6 +13,7 @@ import {
   MessageSquare,
   MessageSquareText,
   Play,
+  RotateCcw,
   Sparkles,
   Trash2,
 } from "lucide-react";
@@ -34,6 +35,8 @@ export interface BacklogActionButtonsProps {
   onOpenAgentDialog: () => void;
   onArchive: () => void;
   onStatusChange: (newStatus: BacklogStatus) => void;
+  onResetWorkshop: () => void;
+  hasWorkshopRounds: boolean;
   onDelete: () => void;
 }
 
@@ -48,6 +51,8 @@ export function BacklogActionButtons({
   onOpenAgentDialog,
   onArchive,
   onStatusChange,
+  onResetWorkshop,
+  hasWorkshopRounds,
   onDelete,
 }: BacklogActionButtonsProps) {
   const {
@@ -148,6 +153,12 @@ export function BacklogActionButtons({
             ))}
           </Select>
         </div>
+      )}
+      {hasWorkshopRounds && !isLocked && (
+        <Button variant="outline" size="sm" className={destructiveRowButtonClass} onClick={onResetWorkshop}>
+          <RotateCcw className="mr-2 h-4 w-4" />
+          Reset Workshop
+        </Button>
       )}
       <Button variant="outline" size="sm" className={destructiveRowButtonClass} onClick={onDelete}>
         <Trash2 className="mr-2 h-4 w-4" />

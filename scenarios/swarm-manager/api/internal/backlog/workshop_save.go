@@ -328,3 +328,66 @@ func (h *Handler) WorkshopDeleteRound(w http.ResponseWriter, r *http.Request) {
 		httputil.InternalError(w, "[backlog] workshop-delete-round", "failed to encode response")
 	}
 }
+
+// WorkshopReset removes all workshop data (rounds, clarifications, attachments,
+// deliverable) for a backlog item while preserving its spec.
+func (h *Handler) WorkshopReset(w http.ResponseWriter, r *http.Request) {
+	kind, name, ok := h.parseKindAndName(w, r, "workshop-reset")
+	if !ok {
+		return
+	}
+
+	item, err := h.store.LoadItem(kind, name)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			httputil.NotFound(w, "[backlog] workshop-reset", "backlog item not found")
+			return
+		}
+		httputil.InternalError(w, "[backlog] workshop-reset", "failed to load backlog item")
+		return
+	}
+
+	itemDir := h.store.ItemDir(kind, name)
+
+	// Prevent reset while a workshop agent is running.
+	if isWorkshopLocked(itemDir) {
+		httputil.Conflict(w, "[backlog] workshop-reset", "workshop is currently being generated; try again after the agent finishes")
+		return
+	}
+
+	// Determine deliverable file based on kind.
+	deliverableFile := "plan.md"
+	if strings.EqualFold(string(kind), "research") {
+		deliverableFile = "conclusion.md"
+	}
+
+	deleted, err := workshop.ResetWorkshop(itemDir, deliverableFile)
+	if err != nil {
+		log.Printf("[backlog] workshop-reset: %v", err)
+		httputil.InternalError(w, "[backlog] workshop-reset", "failed to reset workshop")
+		return
+	}
+
+	// Auto-revert status from "ready" to "backlog" since readiness was
+	// determined by the workshop rounds that were just deleted.
+	statusReverted := false
+	if item.Status == StatusReady {
+		item.Status = StatusBacklog
+		if err := h.store.SaveItem(item); err != nil {
+			log.Printf("[backlog] workshop-reset: failed to revert status: %v", err)
+			httputil.InternalError(w, "[backlog] workshop-reset", "failed to revert status")
+			return
+		}
+		statusReverted = true
+	}
+
+	log.Printf("[backlog] workshop-reset: reset %s/%s (%d rounds deleted, status_reverted=%v)", kind, name, deleted, statusReverted)
+
+	resp := &apipb.WorkshopResetResponse{
+		DeletedRounds:  int32(deleted),
+		StatusReverted: statusReverted,
+	}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
+		httputil.InternalError(w, "[backlog] workshop-reset", "failed to encode response")
+	}
+}

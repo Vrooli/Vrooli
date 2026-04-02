@@ -264,6 +264,18 @@ class WorkshopDeleteRoundResponse(_message.Message):
     remaining_rounds: int
     def __init__(self, deleted_round: _Optional[int] = ..., remaining_rounds: _Optional[int] = ...) -> None: ...
 
+class WorkshopResetRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class WorkshopResetResponse(_message.Message):
+    __slots__ = ("deleted_rounds", "status_reverted")
+    DELETED_ROUNDS_FIELD_NUMBER: _ClassVar[int]
+    STATUS_REVERTED_FIELD_NUMBER: _ClassVar[int]
+    deleted_rounds: int
+    status_reverted: bool
+    def __init__(self, deleted_rounds: _Optional[int] = ..., status_reverted: _Optional[bool] = ...) -> None: ...
+
 class CreateClarificationRequest(_message.Message):
     __slots__ = ("round_number", "item_id", "message", "attachment_ids")
     ROUND_NUMBER_FIELD_NUMBER: _ClassVar[int]

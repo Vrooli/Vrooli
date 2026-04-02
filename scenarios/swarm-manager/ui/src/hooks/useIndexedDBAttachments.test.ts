@@ -112,8 +112,8 @@ describe("useIndexedDBAttachments", () => {
     });
 
     expect(result.current.attachments).toHaveLength(1);
-    expect(result.current.attachments[0].file.name).toBe("photo.png");
-    expect(result.current.attachments[0].previewUrl).toContain("data:image/png");
+    expect(result.current.attachments[0]!.file.name).toBe("photo.png");
+    expect(result.current.attachments[0]!.previewUrl).toContain("data:image/png");
   });
 
   it("rejects files whose type is not in allowedTypes", async () => {
@@ -154,7 +154,7 @@ describe("useIndexedDBAttachments", () => {
       await Promise.resolve();
     });
 
-    const id = result.current.attachments[0].id;
+    const id = result.current.attachments[0]!.id;
     act(() => {
       result.current.removeFile(id);
     });
@@ -194,6 +194,6 @@ describe("useIndexedDBAttachments", () => {
     const files = result.current.getFiles();
     expect(files).toHaveLength(1);
     expect(files[0]).toBeInstanceOf(File);
-    expect(files[0].name).toBe("x.png");
+    expect(files[0]!.name).toBe("x.png");
   });
 });

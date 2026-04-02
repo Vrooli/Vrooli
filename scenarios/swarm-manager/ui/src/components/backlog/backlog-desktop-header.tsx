@@ -8,7 +8,7 @@
  */
 
 import type { ReactNode } from "react";
-import { Edit, History, Sparkles, Trash2 } from "lucide-react";
+import { Edit, History, RotateCcw, Sparkles, Trash2 } from "lucide-react";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Select } from "../ui/select";
@@ -28,6 +28,8 @@ export interface BacklogDesktopHeaderProps {
   primaryAction: ReactNode;
   onEdit: () => void;
   onDelete: () => void;
+  onResetWorkshop: () => void;
+  hasWorkshopRounds: boolean;
   onOpenAgentDialog: () => void;
   onOpenTimeline: () => void;
   onStatusChange: (newStatus: BacklogStatus) => void;
@@ -39,6 +41,8 @@ export function BacklogDesktopHeader({
   primaryAction,
   onEdit,
   onDelete,
+  onResetWorkshop,
+  hasWorkshopRounds,
   onOpenAgentDialog,
   onOpenTimeline,
   onStatusChange,
@@ -118,6 +122,17 @@ export function BacklogDesktopHeader({
             <Edit className="mr-2 h-4 w-4" />
             Edit
           </Button>
+          {hasWorkshopRounds && !isLocked && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="hidden border-red-500/30 text-red-300 hover:bg-red-500/10 lg:inline-flex"
+              onClick={onResetWorkshop}
+            >
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Reset Workshop
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"

@@ -480,6 +480,23 @@ export function useBacklogDetailData({
     },
   });
 
+  const workshopResetMutation = useMutation({
+    mutationFn: async () => {
+      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
+      return backlogService.workshopReset(backlogKind, name);
+    },
+    onSuccess: () => {
+      if (!backlogKind || !name) return;
+      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name] });
+      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "files"] });
+      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "workshop-rounds"] });
+      queryClient.invalidateQueries({ queryKey: ["backlog-maturity-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
+      void refetchFiles();
+      void refetchWorkshopRounds();
+    },
+  });
+
   const fileActionMutation = useMutation({
     mutationFn: async ({ action, target, destinationPath }: { action: FileActionType; target: BacklogFile; destinationPath?: string }) => {
       if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
@@ -638,6 +655,8 @@ export function useBacklogDetailData({
 
     deleteWorkshopRound: (roundNumber: number) => workshopDeleteRoundMutation.mutate({ roundNumber }),
     isDeletingWorkshopRound: workshopDeleteRoundMutation.isPending,
+    isResettingWorkshop: workshopResetMutation.isPending,
+    resetWorkshopResetMutation: () => workshopResetMutation.reset(),
 
     fileAction: (args: { action: FileActionType; target: BacklogFile; destinationPath?: string }) =>
       fileActionMutation.mutate(args),
@@ -670,6 +689,7 @@ export function useBacklogDetailData({
       deleteTarget: deleteTargetMutation,
       batchReview: batchReviewMutation,
       workshopDeleteRound: workshopDeleteRoundMutation,
+      workshopReset: workshopResetMutation,
       fileAction: fileActionMutation,
     },
   } as const;
