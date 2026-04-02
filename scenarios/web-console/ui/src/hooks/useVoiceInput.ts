@@ -289,6 +289,10 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     onTranscriptRef.current(finalText);
   }, []);
 
+  /** Session counter for diagnostic logging — helps correlate log lines
+   *  across multiple recording sessions within the same component mount. */
+  const sessionCountRef = useRef(0);
+
   const startLevelMonitor = useCallback(async (stream: MediaStream) => {
     try {
       // Use the shared AudioContext singleton. It was pre-created on the first
@@ -297,9 +301,20 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       // DOC: docs/internal/VOICE-LATENCY.md#pre-create-audiocontext-on-first-gesture
       const ctx = getSharedAudioContext();
       audioCtxRef.current = ctx;
-      if (ctx.state === "suspended") {
+      if (ctx.state !== "running") {
+        // This resume is a safety net — the primary resume happens in
+        // startRecording (within the user gesture context). If we get here
+        // with a non-running context, the gesture-context resume failed or
+        // the browser suspended the context during provider.start().
+        console.warn("[voice] S%d AudioContext still %s in startLevelMonitor (gesture resume may have failed)",
+          sessionCountRef.current, ctx.state);
         await ctx.resume().catch(() => {});
       }
+
+      const sessionId = sessionCountRef.current;
+      const trackStates = stream.getTracks().map((t) => `${t.kind}:${t.readyState}`);
+      console.info("[voice] S%d startLevelMonitor: ctx.state=%s, stream.active=%s, tracks=[%s]",
+        sessionId, ctx.state, stream.active, trackStates.join(","));
 
       // Disconnect any lingering nodes from a previous session to prevent
       // zombie node accumulation in the AudioContext audio graph.
@@ -316,6 +331,8 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       const data = new Uint8Array(analyser.frequencyBinCount);
       lastTickRef.current = 0;
       levelMonitorActiveRef.current = true;
+      /** Counts non-throttled ticks in this session for early diagnostic logging. */
+      let tickCount = 0;
 
       // Sync audioLevel ref -> React state at 10 Hz (100ms).
       levelSyncRef.current = setInterval(() => {
@@ -346,6 +363,15 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
         const rms = Math.sqrt(sum / data.length);
         audioLevelRef.current = Math.min(1, rms * 4);
 
+        // Log first 5 non-throttled ticks + every 150th tick (~10s) for diagnostics
+        tickCount++;
+        if (tickCount <= 5 || tickCount % 150 === 0) {
+          const trackAlive = stream.getTracks().every((t) => t.readyState === "live");
+          console.info("[voice] S%d tick#%d: rms=%.4f, ctx.state=%s, trackAlive=%s, vadState=%s",
+            sessionId, tickCount, rms, ctx.state, trackAlive,
+            vadActiveRef.current ? vadRef.current.state : "inactive");
+        }
+
         // VAD check
         if (vadActiveRef.current) {
           const prevState = vadRef.current.state;
@@ -375,6 +401,10 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
                 silenceDuration, vadRef.current.segmentSilenceMs);
             }
           } else if (result === "stop") {
+            console.info("[voice] S%d VAD stop: silenceElapsed=%dms, timeout=%dms, rms=%.4f, speechThresh=%.4f, silenceThresh=%.4f",
+              sessionCountRef.current, Date.now() - vadRef.current.silenceStart,
+              vadSilenceTimeoutRef.current, rms,
+              vadRef.current.speechThreshold, vadRef.current.silenceThreshold);
             // In one-shot mode, stop recording as usual.
             if (!persistentModeRef.current) {
               stopRecordingRef.current?.();
@@ -393,6 +423,8 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
               vadRef.current.segmentBoundaryEmitted = false;
             }
           } else if (result === "no-speech") {
+            console.info("[voice] S%d VAD no-speech after %dms, rms=%.4f",
+              sessionCountRef.current, Date.now() - vadRef.current.recordingStart, rms);
             vadActiveRef.current = false;
             vadRef.current.state = "idle";
             stopRecordingRef.current?.();
@@ -403,8 +435,8 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
         rafRef.current = requestAnimationFrame(tick);
       };
       rafRef.current = requestAnimationFrame(tick);
-    } catch {
-      // AudioContext not available -- no level monitoring
+    } catch (err) {
+      console.error("[voice] S%d startLevelMonitor FAILED:", sessionCountRef.current, err);
     }
   }, []);
 
@@ -541,10 +573,35 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     if (state.voiceState !== "idle" || startingRef.current) return;
     startingRef.current = true;
     stopRequestedRef.current = false;
+    sessionCountRef.current++;
 
     // Show "preparing" state immediately for visual feedback
     const prepareStart = Date.now();
+    console.info("[voice] S%d startRecording: backend=%s, streaming=%s, vadEnabled=%s, persistent=%s",
+      sessionCountRef.current, backendRef.current, streamingAvailableRef.current,
+      opts?.vadEnabled, persistentModeRef.current);
     setState((s) => ({ ...s, voiceState: "preparing", error: null }));
+
+    // ── Resume AudioContext in user gesture context ──
+    // Mobile browsers (Chrome Android, Safari iOS) suspend the AudioContext for
+    // power saving between user gestures. ctx.resume() MUST be called synchronously
+    // within the user gesture call stack — after an `await`, the gesture context is
+    // lost and the browser silently refuses to resume. We call resume() here (before
+    // any async operations) rather than in startLevelMonitor (which runs after
+    // `await provider.start()`).
+    //
+    // Without this, the AnalyserNode returns stale silence data, causing:
+    //   - Volume indicator stuck at 0
+    //   - VAD sees rms=0 → premature stop or no-speech timeout
+    //
+    // This is safe to call on desktop too — it's a no-op when ctx.state is "running".
+    try {
+      const ctx = getSharedAudioContext();
+      if (ctx.state !== "running") {
+        console.info("[voice] S%d Resuming AudioContext (state=%s) in gesture context", sessionCountRef.current, ctx.state);
+        ctx.resume().catch(() => {});
+      }
+    } catch { /* AudioContext unavailable */ }
 
     // Determine the mode for this session
     const isPersistent = persistentModeRef.current;
@@ -660,23 +717,17 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       }
 
       provider.onResult = (text) => {
-        console.info("[voice] Transcript:", text.length, "chars");
+        console.info("[voice] S%d onResult: %d chars, vadActive=%s, vadState=%s",
+          sessionCountRef.current, text.length, vadActiveRef.current, vadRef.current.state);
         // Clear cue session — the stop cue already played in stopRecording().
         // If onResult fires without stopRecording() (e.g. server-side stop),
         // we still clear the guard to prevent a stale cue on next session.
         cueSessionActiveRef.current = false;
         if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
 
-        // Persist the current noise floor so the next recording session can
-        // skip the 500ms calibration phase.
-        // DOC: docs/internal/VOICE-LATENCY.md#persistent-noise-floor-cache
-        if (vadActiveRef.current && vadRef.current.state !== "idle") {
-          const floor = extractCacheableFloor(vadRef.current);
-          saveNoiseFloorCache(floor);
-          console.info("[voice] Noise floor cache: saved (floor=%.4f, speech=%.4f, silence=%.4f)",
-            floor.silenceThreshold / 1.5, floor.speechThreshold, floor.silenceThreshold);
-        }
-
+        // Noise floor is now saved in stopRecording() (before VAD state reset).
+        // Previously this guard was always false because stopRecording clears
+        // vadActiveRef before onResult fires.
         vadActiveRef.current = false;
         vadRef.current.state = "idle";
         stopLevelMonitor();
@@ -875,13 +926,18 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     // If start is in progress, signal it to abort after completing
     if (startingRef.current) {
       stopRequestedRef.current = true;
+      console.info("[voice] S%d stopRecording: deferred (start in progress)", sessionCountRef.current);
       return;
     }
 
     const provider = providerRef.current;
-    if (!provider || !isActive) return;
+    if (!provider || !isActive) {
+      console.warn("[voice] S%d stopRecording: no-op (provider=%s, isActive=%s)",
+        sessionCountRef.current, !!provider, isActive);
+      return;
+    }
 
-    console.info("[voice] %s stopped", isListening ? "Listening" : "Recording");
+    console.info("[voice] S%d %s stopped", sessionCountRef.current, isListening ? "Listening" : "Recording");
     // Only play the stop cue if a cue session is active (start cue was played).
     // This prevents the stop sound from firing during cleanup, error recovery,
     // or any other path that disposes the provider without a preceding start cue.
@@ -890,6 +946,20 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       playRecordingStopCue();
     }
     if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
+
+    // Persist the noise floor BEFORE resetting VAD state. Previously this
+    // lived in onResult, but stopRecording always clears vadActiveRef before
+    // onResult fires, so the save guard was always false — the cache was
+    // never written. Moving it here ensures the thresholds are captured
+    // while the VAD state is still valid.
+    // DOC: docs/internal/VOICE-LATENCY.md#persistent-noise-floor-cache
+    if (vadActiveRef.current && vadRef.current.state !== "idle") {
+      const floor = extractCacheableFloor(vadRef.current);
+      saveNoiseFloorCache(floor);
+      console.info("[voice] S%d Noise floor saved (speech=%.4f, silence=%.4f)",
+        sessionCountRef.current, floor.speechThreshold, floor.silenceThreshold);
+    }
+
     vadActiveRef.current = false;
     vadRef.current.state = "idle";
     stopLevelMonitor();

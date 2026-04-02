@@ -24,6 +24,14 @@
 
 let _sharedCtx: AudioContext | null = null;
 let _gestureInstalled = false;
+/** Keepalive oscillator that maintains an active audio path to ctx.destination.
+ *  Without this, Chrome's power-saving optimisation idles the audio rendering
+ *  thread between recording sessions, causing AnalyserNodes in subsequent
+ *  sessions to return stale/zero data (volume indicator stuck at 0, VAD sees
+ *  rms=0 → premature stop). A silent DC oscillator is the cheapest way to
+ *  keep the renderer alive (~zero CPU, no audible output). */
+let _keepaliveOsc: OscillatorNode | null = null;
+let _keepaliveGain: GainNode | null = null;
 
 /**
  * Get the shared AudioContext singleton, creating it if necessary.
@@ -35,8 +43,45 @@ let _gestureInstalled = false;
 export function getSharedAudioContext(): AudioContext {
   if (!_sharedCtx || _sharedCtx.state === "closed") {
     _sharedCtx = new AudioContext();
+    _installKeepalive(_sharedCtx);
   }
   return _sharedCtx;
+}
+
+/**
+ * Install a silent keepalive oscillator on the AudioContext. This ensures
+ * there is always an active audio path to ctx.destination, preventing Chrome
+ * from idling the audio rendering thread between recording sessions.
+ *
+ * Uses a DC oscillator (0 Hz, constant signal) routed through a zero-gain
+ * node — inaudible, negligible CPU cost, but keeps the renderer alive.
+ */
+function _installKeepalive(ctx: AudioContext): void {
+  // Clean up any prior keepalive (shouldn't happen, but be safe)
+  _teardownKeepalive();
+
+  try {
+    const osc = ctx.createOscillator();
+    osc.type = "square";
+    osc.frequency.value = 0; // DC — constant signal, no audible tone
+    const gain = ctx.createGain();
+    gain.gain.value = 0; // Silent
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    _keepaliveOsc = osc;
+    _keepaliveGain = gain;
+  } catch {
+    // AudioContext might not support oscillators in some test environments
+  }
+}
+
+function _teardownKeepalive(): void {
+  try { _keepaliveOsc?.stop(); } catch { /* already stopped */ }
+  try { _keepaliveOsc?.disconnect(); } catch { /* already disconnected */ }
+  try { _keepaliveGain?.disconnect(); } catch { /* already disconnected */ }
+  _keepaliveOsc = null;
+  _keepaliveGain = null;
 }
 
 /**
@@ -78,6 +123,7 @@ export function ensureAudioContextOnGesture(): void {
  * In production, the context is app-lifetime and should never be closed.
  */
 export function closeSharedAudioContext(): void {
+  _teardownKeepalive();
   if (_sharedCtx && _sharedCtx.state !== "closed") {
     _sharedCtx.close().catch(() => {});
   }
