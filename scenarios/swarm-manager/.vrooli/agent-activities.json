@@ -1416,5 +1416,51 @@
       "round_number": "1"
     },
     "updated_at": "2026-04-02T02:17:47Z"
+  },
+  {
+    "activity_id": "743be5939b196fff",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "agent-manager-identity-tokens",
+    "owner_title": "Implement Identity Token Injection and Verification in Agent-Manager",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "014c5b16-752e-478d-83ea-da13fcac508d",
+    "run_id": "71d2255c-79a4-4487-b7a8-d67839a9be13",
+    "status": "complete",
+    "requested_at": "2026-04-02T03:06:07Z",
+    "started_at": "2026-04-02T03:06:07Z",
+    "finished_at": "2026-04-02T03:10:59Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "auto_triggered": "true",
+      "entrypoint": "backlog.workshop_auto_advance",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-02T03:11:43Z"
+  },
+  {
+    "activity_id": "efe460b8720da633",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "agent-manager-identity-tokens",
+    "owner_title": "Implement Identity Token Injection and Verification in Agent-Manager",
+    "purpose": "finalize",
+    "interaction_type": "spawn",
+    "task_id": "53db7811-92a7-4e00-a9d7-3940cdcee0b5",
+    "run_id": "d8ebd269-f8d3-4de3-a6f9-bbb14ffcda2c",
+    "status": "complete",
+    "requested_at": "2026-04-02T03:12:07Z",
+    "started_at": "2026-04-02T03:12:07Z",
+    "finished_at": "2026-04-02T03:16:30Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "auto_triggered": "true",
+      "entrypoint": "backlog.workshop_auto_advance",
+      "mode": "finalize",
+      "skill_id": "swarm-manager-workshop-finalize"
+    },
+    "updated_at": "2026-04-02T03:17:01Z"
   }
 ]

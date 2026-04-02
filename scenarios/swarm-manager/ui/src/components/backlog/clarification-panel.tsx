@@ -13,11 +13,12 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useAutoResizeTextarea } from "../../hooks/useAutoResizeTextarea";
-import { AlertCircle, Loader2, Paperclip, SendHorizontal } from "lucide-react";
+import { AlertCircle, ChevronDown, ChevronUp, Loader2, Paperclip, SendHorizontal } from "lucide-react";
 import { FloatingPanel } from "../ui/floating-panel";
 import { CaptureAttachmentPreview } from "../capture/capture-attachment-preview";
 import { ClarificationMessages } from "./clarification-messages";
 import { ClarificationActionButtons } from "./clarification-action-buttons";
+import { UpdateDecisionPreview } from "./update-decision-preview";
 import { useClarificationStore } from "../../stores/clarification-store";
 import { useAttachments } from "../../hooks/useAttachments";
 import { useStorePolling } from "../../hooks/useStorePolling";
@@ -36,7 +37,7 @@ const DRAFT_DEBOUNCE_MS = 300;
 
 const INITIAL_POSITION = {
   x: Math.max(8, window.innerWidth - 520),
-  y: Math.max(8, window.innerHeight - 560),
+  y: Math.max(8, window.innerHeight * 0.15),
 };
 
 interface ClarificationPanelProps {
@@ -58,6 +59,8 @@ export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isActing, setIsActing] = useState(false);
   const [isStale, setIsStale] = useState(false);
+  const [showUpdatePreview, setShowUpdatePreview] = useState(false);
+  const [contextNoteCollapsed, setContextNoteCollapsed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -282,6 +285,13 @@ export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
   const handleAction = useCallback(
     async (action: string) => {
       if (!target || !thread) return;
+
+      // Intercept update_decision to show preview when we have the current item.
+      if (action === "update_decision" && target.currentItem) {
+        setShowUpdatePreview(true);
+        return;
+      }
+
       setIsActing(true);
       setError(null);
       try {
@@ -307,6 +317,30 @@ export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
     [target, thread, close, onAction],
   );
 
+  const handleConfirmUpdate = useCallback(async () => {
+    if (!target || !thread) return;
+    setIsActing(true);
+    setError(null);
+    try {
+      const suggestedUpdate = thread.latest_impact?.suggested_update;
+      await backlogService.clarificationAction(
+        target.backlogKind,
+        target.backlogName,
+        thread.id,
+        "update_decision",
+        suggestedUpdate,
+      );
+      close();
+      onAction?.("update_decision");
+    } catch (err) {
+      console.error("Clarification action failed:", err);
+      setError(isApiError(err) ? err.userMessage : "Action failed. Please try again.");
+      setShowUpdatePreview(false);
+    } finally {
+      setIsActing(false);
+    }
+  }, [target, thread, close, onAction]);
+
   // ---------------------------------------------------------------------------
   // Close handler — reset local state when panel closes.
   // ---------------------------------------------------------------------------
@@ -315,6 +349,7 @@ export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
     setText("");
     setError(null);
     setIsStale(false);
+    setShowUpdatePreview(false);
     clearAll();
     try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
     close();
@@ -361,7 +396,19 @@ export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
       className="max-w-lg"
       testId="clarification-panel"
     >
-      <div className="flex h-[50vh] max-h-[500px] flex-col">
+      <div className="flex h-[70vh] flex-col">
+        {/* Update decision preview */}
+        {showUpdatePreview && target?.currentItem && thread?.latest_impact ? (
+          <UpdateDecisionPreview
+            currentItem={target.currentItem}
+            suggestedUpdate={thread.latest_impact.suggested_update ?? "{}"}
+            contextNote={thread.latest_impact.context_note}
+            onConfirm={handleConfirmUpdate}
+            onCancel={() => setShowUpdatePreview(false)}
+            isApplying={isActing}
+          />
+        ) : (
+        <>
         {/* Chat messages */}
         {isLoading ? (
           <div className="flex flex-1 items-center justify-center px-4" data-testid="clarification-loading">
@@ -382,15 +429,28 @@ export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
           </div>
         )}
 
-        {/* Impact context note preview */}
+        {/* Impact context note preview (collapsible) */}
         {impact?.context_note && (
-          <div className="mx-1 mb-2 rounded-md border border-cyan-500/20 bg-cyan-500/5 px-3 py-2">
-            <span className="text-[10px] font-medium text-cyan-400">
-              Context note
-            </span>
-            <p className="mt-0.5 text-xs text-slate-400">
-              {impact.context_note}
-            </p>
+          <div className="mx-1 mb-2 rounded-md border border-cyan-500/20 bg-cyan-500/5">
+            <button
+              type="button"
+              onClick={() => setContextNoteCollapsed((prev) => !prev)}
+              className="flex w-full items-center gap-1 px-3 py-2 text-left"
+            >
+              <span className="text-[10px] font-medium text-cyan-400">
+                Context note
+              </span>
+              {contextNoteCollapsed ? (
+                <ChevronDown className="ml-auto h-3 w-3 text-cyan-400/60" />
+              ) : (
+                <ChevronUp className="ml-auto h-3 w-3 text-cyan-400/60" />
+              )}
+            </button>
+            {!contextNoteCollapsed && (
+              <p className="px-3 pb-2 text-xs text-slate-400">
+                {impact.context_note}
+              </p>
+            )}
           </div>
         )}
 
@@ -499,6 +559,8 @@ export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
               Ctrl+Enter to send
             </p>
           </div>
+        )}
+        </>
         )}
       </div>
     </FloatingPanel>

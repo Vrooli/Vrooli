@@ -40,6 +40,7 @@ export function WorkshopItemCard({ item, disabled, onUpdate, onDelete, backlogKi
         itemId: item.id,
         itemTopic: item.topic || item.text || "",
         clarificationId: item.clarification_id,
+        currentItem: item,
       });
     }
   };

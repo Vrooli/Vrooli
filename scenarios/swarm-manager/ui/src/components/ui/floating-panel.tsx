@@ -143,7 +143,7 @@ export function FloatingPanel({
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="p-4 max-h-[70vh] overflow-y-auto">
+        <div className="p-4 max-h-[85vh] overflow-y-auto">
           {children}
         </div>
       </div>
@@ -191,7 +191,7 @@ export function FloatingPanel({
           <X className="h-4 w-4" />
         </button>
       </div>
-      <div className="p-4 max-h-[70vh] overflow-y-auto">
+      <div className="p-4 max-h-[85vh] overflow-y-auto">
         {children}
       </div>
     </div>

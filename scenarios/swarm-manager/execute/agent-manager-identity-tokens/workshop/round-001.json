@@ -2,6 +2,7 @@
   "round": 1,
   "generated_at": "2026-04-01T12:00:00Z",
   "mode": "workshop",
+  "pending_synthesis": true,
   "readiness": {
     "approach_solid": 2,
     "problem_clarity": 3,
@@ -63,6 +64,7 @@
           "rationale": "Provide your own approach."
         }
       ],
+      "selected": "A",
       "clarification_id": "a3e98cb2-be9e-4c59-8049-f974b04408a6"
     },
     {
@@ -87,7 +89,8 @@
           "label": "Other",
           "rationale": "Provide your own approach."
         }
-      ]
+      ],
+      "selected": "A"
     },
     {
       "id": "d4",
@@ -111,7 +114,8 @@
           "label": "Other",
           "rationale": "Provide your own approach."
         }
-      ]
+      ],
+      "selected": "A"
     },
     {
       "id": "i1",

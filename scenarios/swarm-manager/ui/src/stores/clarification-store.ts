@@ -6,7 +6,7 @@
  */
 
 import { create } from "zustand";
-import type { BacklogKind, ClarificationThread } from "../types/domain";
+import type { BacklogKind, ClarificationThread, WorkshopItem } from "../types/domain";
 
 interface ClarificationTarget {
   backlogKind: BacklogKind;
@@ -16,6 +16,8 @@ interface ClarificationTarget {
   itemTopic: string;
   /** Existing thread ID — when set, the panel fetches the thread on open. */
   clarificationId?: string;
+  /** Full current item — used for update-decision preview. */
+  currentItem?: WorkshopItem;
 }
 
 interface ClarificationStoreState {
