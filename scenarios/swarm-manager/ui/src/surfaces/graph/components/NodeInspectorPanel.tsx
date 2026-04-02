@@ -13,6 +13,7 @@ import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, ExternalLink, Play } from "lucide-react";
+import { FocusActionsSection } from "./FocusActionsSection";
 import { cn } from "../../../lib/utils";
 import { StatusBadge } from "../../../components/detail/StatusBadge";
 import { API_ENDPOINTS } from "../../../lib/api-endpoints";
@@ -248,6 +249,7 @@ export function NodeInspectorPanel() {
   const showDetails = hasDetailPage(entityType);
   const lenses = getLensesForEntity(entityType).filter((l) => l.lens !== currentLens);
   const isReadyBacklog = entityType === "backlog" && nodeData.status === "ready";
+  const isFocusLens = currentLens === "focus";
 
   return (
     <FloatingPanel
@@ -285,8 +287,8 @@ export function NodeInspectorPanel() {
         {/* Entity-specific metadata */}
         <EntityMeta data={nodeData} />
 
-        {/* Attention chip + quick actions */}
-        {(attention?.needsAttention || isReadyBacklog) && (
+        {/* Attention chip + quick actions (suppressed in focus mode — FocusActionsSection handles it) */}
+        {!isFocusLens && (attention?.needsAttention || isReadyBacklog) && (
           <div className="flex flex-wrap items-center gap-1.5">
             {attention?.needsAttention && (
               <button
@@ -315,6 +317,11 @@ export function NodeInspectorPanel() {
               </button>
             )}
           </div>
+        )}
+
+        {/* Focus lens inline actions */}
+        {isFocusLens && selectedNodeId && (
+          <FocusActionsSection nodeData={nodeData} nodeId={selectedNodeId} />
         )}
 
         {/* Action buttons */}

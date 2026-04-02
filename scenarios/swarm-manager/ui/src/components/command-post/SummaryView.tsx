@@ -149,7 +149,7 @@ export function SummaryView({
   }
 
   return (
-    <div className="space-y-6" data-testid="command-post-summary">
+    <div className="space-y-4" data-testid="command-post-summary">
       {/* Action group cards */}
       <div className="flex flex-wrap gap-3">
         {groups.map((group) => (

@@ -27,9 +27,10 @@ interface SidebarProps {
   onSettingsOpen: () => void;
   onViewActivity: (activityId: string) => void;
   onViewBacklog: (nodeId: string) => void;
+  onOpenCommandPost?: () => void;
 }
 
-export function Sidebar({ feed, onItemClick, onSettingsOpen, onViewActivity, onViewBacklog }: SidebarProps) {
+export function Sidebar({ feed, onItemClick, onSettingsOpen, onViewActivity, onViewBacklog, onOpenCommandPost }: SidebarProps) {
   const sidebarCollapsed = useGraphUIStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useGraphUIStore((s) => s.toggleSidebar);
 
@@ -69,6 +70,7 @@ export function Sidebar({ feed, onItemClick, onSettingsOpen, onViewActivity, onV
           onCollapse={toggleSidebar}
           onViewActivity={onViewActivity}
           onViewBacklog={onViewBacklog}
+          onOpenCommandPost={onOpenCommandPost}
         />
 
         {/* Search */}

@@ -207,7 +207,7 @@ var File_swarm_manager_v1_domain_agent_activity_proto protoreflect.FileDescripto
 
 const file_swarm_manager_v1_domain_agent_activity_proto_rawDesc = "" +
 	"\n" +
-	",swarm-manager/v1/domain/agent_activity.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\x83\t\n" +
+	",swarm-manager/v1/domain/agent_activity.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\x8d\t\n" +
 	"\rAgentActivity\x12(\n" +
 	"\vactivity_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
 	"activityId\x12@\n" +
@@ -219,9 +219,9 @@ const file_swarm_manager_v1_domain_agent_activity_proto_rawDesc = "" +
 	"owner_name\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\townerName\x12$\n" +
 	"\vowner_title\x18\x05 \x01(\tH\x01R\n" +
 	"ownerTitle\x88\x01\x01\x12&\n" +
-	"\fexecution_id\x18\x06 \x01(\tH\x02R\vexecutionId\x88\x01\x01\x12x\n" +
-	"\apurpose\x18\a \x01(\tB^\xbaH[rYR\n" +
-	"initializeR\bworkshopR\bfinalizeR\bresearchR\aprocessR\x05fixupR\bfollowupR\tspec_syncR\bclassifyR\apurpose\x12A\n" +
+	"\fexecution_id\x18\x06 \x01(\tH\x02R\vexecutionId\x88\x01\x01\x12\x81\x01\n" +
+	"\apurpose\x18\a \x01(\tBg\xbaHdrbR\n" +
+	"initializeR\bworkshopR\bfinalizeR\bresearchR\aprocessR\x05fixupR\bfollowupR\tspec_syncR\bclassifyR\aclarifyR\apurpose\x12A\n" +
 	"\x10interaction_type\x18\b \x01(\tB\x16\xbaH\x13r\x11R\x05spawnR\bcontinueR\x0finteractionType\x12\x1c\n" +
 	"\atask_id\x18\t \x01(\tH\x03R\x06taskId\x88\x01\x01\x12\x1a\n" +
 	"\x06run_id\x18\n" +

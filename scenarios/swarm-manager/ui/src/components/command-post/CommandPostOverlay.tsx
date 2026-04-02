@@ -76,11 +76,11 @@ export function CommandPostOverlay({
 
   return (
     <div
-      className="absolute inset-0 z-40 overflow-y-auto bg-slate-950"
+      className="absolute inset-0 z-[60] overflow-y-auto bg-slate-950"
       data-testid="command-post-overlay"
     >
       {/* Header */}
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-800 bg-slate-950/95 px-6 py-4 backdrop-blur-sm">
+      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-800 bg-slate-950/95 px-4 py-2.5 backdrop-blur-sm">
         <h2 className="text-lg font-semibold text-slate-100">Command Post</h2>
         <button
           type="button"
@@ -94,8 +94,8 @@ export function CommandPostOverlay({
       </div>
 
       {/* Content */}
-      <div className="mx-auto max-w-4xl px-6 py-6">
-        {view === "summary" ? (
+      {view === "summary" ? (
+        <div className="mx-auto max-w-4xl px-4 py-3">
           <SummaryView
             onEnterDecisionStream={() => setView("decision-stream")}
             onNavigateToDetail={onNavigateToDetail}
@@ -105,15 +105,17 @@ export function CommandPostOverlay({
             }}
             onClose={onClose}
           />
-        ) : (
+        </div>
+      ) : (
+        <div className="h-[calc(100%-2.75rem)]">
           <DecisionStreamView
             questions={questions}
             onComplete={() => setView("summary")}
             onBack={() => setView("summary")}
             onSnoozeItem={(key) => snooze(key, Date.now() + 3_600_000)}
           />
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

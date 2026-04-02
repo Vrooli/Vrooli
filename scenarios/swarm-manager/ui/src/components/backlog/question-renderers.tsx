@@ -44,17 +44,17 @@ export function WorkshopQuestionView({ question, answer, disabled, onUpdate }: W
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       <div className="flex items-start gap-2">
         <span className="mt-0.5 shrink-0 rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
           D
         </span>
-        <p className="text-sm font-medium text-slate-200">{question.topic || question.text}</p>
+        <p className="text-sm font-medium leading-snug text-slate-200">{question.topic || question.text}</p>
       </div>
       {question.context && (
-        <p className="ml-7 text-[11px] text-slate-500">{question.context}</p>
+        <p className="text-[11px] leading-relaxed text-slate-500">{question.context}</p>
       )}
-      <div className="ml-7 space-y-1">
+      <div className="space-y-1">
         {options.map((opt) => (
           <button
             key={opt.key}
@@ -63,7 +63,7 @@ export function WorkshopQuestionView({ question, answer, disabled, onUpdate }: W
             disabled={disabled}
             onClick={() => handleSelect(opt.key)}
             className={cn(
-              "w-full rounded-md border px-2.5 py-1.5 text-left transition-colors",
+              "w-full rounded-md border px-2 py-1.5 text-left transition-colors",
               selected === opt.key
                 ? "border-emerald-500/40 bg-emerald-500/10"
                 : opt.recommended
@@ -90,7 +90,7 @@ export function WorkshopQuestionView({ question, answer, disabled, onUpdate }: W
               )}
             </div>
             {opt.rationale && (
-              <p className="mt-0.5 ml-5 text-[10px] text-slate-500">{opt.rationale}</p>
+              <p className="mt-0.5 pl-5 text-[10px] leading-snug text-slate-500">{opt.rationale}</p>
             )}
           </button>
         ))}
@@ -99,7 +99,7 @@ export function WorkshopQuestionView({ question, answer, disabled, onUpdate }: W
           disabled={disabled}
           onClick={() => handleSelect(OTHER_KEY)}
           className={cn(
-            "w-full rounded-md border px-2.5 py-1.5 text-left transition-colors",
+            "w-full rounded-md border px-2 py-1.5 text-left transition-colors",
             isOther
               ? "border-emerald-500/40 bg-emerald-500/10"
               : "border-slate-600 bg-slate-800/50 hover:border-slate-500",
@@ -118,7 +118,7 @@ export function WorkshopQuestionView({ question, answer, disabled, onUpdate }: W
         </button>
         {isOther && (
           <textarea
-            className="w-full rounded-md border border-slate-600 bg-slate-800 px-2.5 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-slate-500 focus:outline-none"
+            className="w-full rounded-md border border-slate-600 bg-slate-800 px-2 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-slate-500 focus:outline-none"
             placeholder="Describe your alternative..."
             value={freeform}
             onChange={(e) => onUpdate({ selected: OTHER_KEY, freeform: e.target.value })}
@@ -154,7 +154,7 @@ export function ReviewQuestionView({ question, answer, disabled, onUpdate }: Rev
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       <div className="flex items-start gap-2">
         <span className="mt-0.5 shrink-0 rounded bg-slate-700 px-1.5 py-0.5 text-[10px] font-medium text-slate-400">
           {question.review_type === "requirement" ? "Req" : "Target"}
@@ -171,15 +171,15 @@ export function ReviewQuestionView({ question, answer, disabled, onUpdate }: Rev
               </span>
             )}
           </div>
-          <p className="mt-0.5 text-sm font-medium text-slate-200">{question.title}</p>
+          <p className="mt-0.5 text-sm font-medium leading-snug text-slate-200">{question.title}</p>
         </div>
       </div>
       {question.description && (
-        <p className="ml-7 text-[11px] text-slate-400">{question.description}</p>
+        <p className="text-[11px] leading-relaxed text-slate-400">{question.description}</p>
       )}
 
       {/* Approve / Flag buttons */}
-      <div className="ml-7 flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5">
         <button
           type="button"
           data-testid={selectors.questionStepper.reviewApprove}
@@ -215,7 +215,7 @@ export function ReviewQuestionView({ question, answer, disabled, onUpdate }: Rev
       </div>
 
       {showComment && (
-        <div className="ml-7">
+        <div>
           <textarea
             className="w-full rounded-md border border-slate-600 bg-slate-800 px-2.5 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-slate-500 focus:outline-none"
             placeholder="Comment (optional)..."

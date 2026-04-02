@@ -58,7 +58,7 @@ describe("computeNodeAttention", () => {
 
   it("flags pending decisions from enrichment", () => {
     const enrichment: NodeEnrichment = { pendingDecisions: 2 };
-    const result = computeNodeAttention(makeBacklog("in_progress"), enrichment);
+    const result = computeNodeAttention(makeBacklog("backlog"), enrichment);
     expect(result.needsAttention).toBe(true);
     expect(result.reasons).toContain("pending-decisions");
   });
@@ -66,6 +66,45 @@ describe("computeNodeAttention", () => {
   it("does not flag queued backlog", () => {
     const result = computeNodeAttention(makeBacklog("queued"));
     expect(result.needsAttention).toBe(false);
+  });
+
+  it("does not flag in_progress backlog (locked)", () => {
+    const result = computeNodeAttention(makeBacklog("in_progress"));
+    expect(result.needsAttention).toBe(false);
+  });
+
+  it("flags pending synthesis as pending-decisions", () => {
+    const enrichment: NodeEnrichment = { pendingSynthesis: true };
+    const result = computeNodeAttention(makeBacklog("backlog"), enrichment);
+    expect(result.needsAttention).toBe(true);
+    expect(result.reasons).toContain("pending-decisions");
+  });
+
+  it("flags maturityReady=false as pending-decisions (needs workshop)", () => {
+    const enrichment: NodeEnrichment = { maturityReady: false };
+    const result = computeNodeAttention(makeBacklog("backlog"), enrichment);
+    expect(result.needsAttention).toBe(true);
+    expect(result.reasons).toContain("pending-decisions");
+  });
+
+  it("flags maturityReady=true as ready-to-run", () => {
+    const enrichment: NodeEnrichment = { maturityReady: true };
+    const result = computeNodeAttention(makeBacklog("backlog"), enrichment);
+    expect(result.needsAttention).toBe(true);
+    expect(result.reasons).toContain("ready-to-run");
+  });
+
+  it("flags researching status as pending-decisions", () => {
+    const result = computeNodeAttention(makeBacklog("researching"));
+    expect(result.needsAttention).toBe(true);
+    expect(result.reasons).toContain("pending-decisions");
+  });
+
+  it("pending decisions take priority over maturity", () => {
+    const enrichment: NodeEnrichment = { pendingDecisions: 3, maturityReady: true };
+    const result = computeNodeAttention(makeBacklog("backlog"), enrichment);
+    expect(result.reasons).toContain("pending-decisions");
+    expect(result.reasons).not.toContain("ready-to-run");
   });
 
   it("flags needs_review execution", () => {

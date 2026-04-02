@@ -372,7 +372,7 @@ export function DecisionStreamView({
   return (
     <div ref={containerRef} className="flex h-full flex-col">
       {/* Top bar */}
-      <div className="flex items-center justify-between border-b border-slate-700/50 px-4 py-2">
+      <div className="flex items-center justify-between border-b border-slate-700/50 px-3 py-1">
         <button
           type="button"
           onClick={onBack}
@@ -387,7 +387,7 @@ export function DecisionStreamView({
       </div>
 
       {/* Item context header */}
-      <div className="border-b border-slate-700/30 bg-slate-800/40 px-4 py-2">
+      <div className="border-b border-slate-700/30 bg-slate-800/40 px-3 py-1">
         <div className="flex items-center gap-2">
           <span className="shrink-0 rounded bg-slate-700 px-1.5 py-0.5 text-[10px] font-medium text-slate-400">
             {current.parentKind}
@@ -402,8 +402,8 @@ export function DecisionStreamView({
       </div>
 
       {/* Question content */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
-        <div className="mx-auto max-w-xl">
+      <div className="flex-1 overflow-y-auto px-3 py-2">
+        <div className="mx-auto max-w-2xl">
           {current.question.source === "workshop" ? (
             <WorkshopQuestionView
               question={current.question}
@@ -426,8 +426,8 @@ export function DecisionStreamView({
       </div>
 
       {/* Navigation row */}
-      <div className="border-t border-slate-700/50 px-4 py-2">
-        <div className="mx-auto flex max-w-xl items-center justify-between">
+      <div className="border-t border-slate-700/50 px-3 py-1.5">
+        <div className="mx-auto flex max-w-2xl items-center justify-between">
           <button
             type="button"
             disabled={isFirst}

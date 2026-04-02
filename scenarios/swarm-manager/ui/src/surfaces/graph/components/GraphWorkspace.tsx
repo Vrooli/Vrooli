@@ -402,6 +402,7 @@ export function GraphWorkspace() {
         onSettingsOpen={() => setShowSettingsDrawer(true)}
         onViewActivity={handleViewActivity}
         onViewBacklog={handleViewBacklog}
+        onOpenCommandPost={() => setShowCommandPost(true)}
       />
 
       {/* Main canvas area with HUD overlays */}

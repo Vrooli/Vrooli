@@ -134,6 +134,7 @@ const agentActivityPurposeSet = new Set<string>([
   "followup",
   "spec_sync",
   "classify",
+  "clarify",
 ]);
 const agentActivityInteractionTypeSet = new Set<string>(["spawn", "continue"]);
 const agentActivityOwnerTypeSet = new Set<string>(["backlog", "capture", "scenario"]);

@@ -78,17 +78,19 @@ export function ActionFeedItem({
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") onNavigate();
       }}
-      className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-700/40 bg-slate-900/40 p-3 transition-colors hover:bg-slate-800/60"
+      className="flex cursor-pointer flex-col gap-2 rounded-lg border border-slate-700/40 bg-slate-900/40 px-3 py-2.5 transition-colors hover:bg-slate-800/60"
       data-testid={`action-feed-item-${item.key}`}
     >
-      {/* Kind icon */}
-      {KindIcon && <KindIcon className="h-4 w-4 shrink-0 text-slate-400" />}
+      {/* Title row */}
+      <div className="flex items-start gap-2.5">
+        {KindIcon && <KindIcon className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />}
+        <p className="text-sm font-medium leading-snug text-slate-200">{item.title}</p>
+      </div>
 
-      {/* Content */}
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-slate-200">{item.title}</p>
-        {item.reasons.length > 0 && (
-          <div className="mt-1 flex flex-wrap gap-1">
+      {/* Badges + Actions row */}
+      <div className="flex items-center justify-between gap-2">
+        {item.reasons.length > 0 ? (
+          <div className="flex flex-wrap gap-1">
             {item.reasons.map((reason, i) => (
               <span
                 key={i}
@@ -98,27 +100,27 @@ export function ActionFeedItem({
               </span>
             ))}
           </div>
+        ) : (
+          <div />
         )}
-      </div>
-
-      {/* Actions */}
-      <div className="flex shrink-0 items-center gap-1">
-        {ctaConfig && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={(e) =>
-              handleCtaClick(e, item, { onRun, onFollowUp, onEnterDecisionStream, onNavigate })
-            }
-            data-testid={`action-feed-cta-${item.key}`}
-          >
-            <ctaConfig.icon className="mr-1 h-3.5 w-3.5" />
-            {ctaConfig.label}
-          </Button>
-        )}
-        <SnoozePopover itemKey={item.key} onSnooze={onSnooze}>
-          <Clock className="h-3.5 w-3.5" />
-        </SnoozePopover>
+        <div className="flex shrink-0 items-center gap-1">
+          {ctaConfig && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) =>
+                handleCtaClick(e, item, { onRun, onFollowUp, onEnterDecisionStream, onNavigate })
+              }
+              data-testid={`action-feed-cta-${item.key}`}
+            >
+              <ctaConfig.icon className="mr-1 h-3.5 w-3.5" />
+              {ctaConfig.label}
+            </Button>
+          )}
+          <SnoozePopover itemKey={item.key} onSnooze={onSnooze}>
+            <Clock className="h-3.5 w-3.5" />
+          </SnoozePopover>
+        </div>
       </div>
     </div>
   );

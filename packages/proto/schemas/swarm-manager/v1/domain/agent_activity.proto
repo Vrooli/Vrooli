@@ -23,7 +23,8 @@ message AgentActivity {
     "fixup",
     "followup",
     "spec_sync",
-    "classify"
+    "classify",
+    "clarify"
   ] }];
   string interaction_type = 8 [(buf.validate.field).string = { in: ["spawn", "continue"] }];
   optional string task_id = 9;

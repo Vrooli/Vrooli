@@ -12,12 +12,15 @@ import { useAgentActivitiesStore } from "../../../../stores";
 import { useDetailSelectionStore } from "../../../../stores/detail-selection-store";
 import { useGraphUIStore } from "../../stores/graph-ui-store";
 import { AgentsDropdown } from "../../../../components/agents/AgentsDropdown";
+import { CommandPostButton } from "../../../../components/command-post/CommandPostButton";
+import { useCommandPostBadgeCount } from "../../../../hooks/useCommandPostBadgeCount";
 
 export interface SidebarHeaderProps {
   onSettingsOpen: () => void;
   onCollapse: () => void;
   onViewActivity: (activityId: string) => void;
   onViewBacklog: (nodeId: string) => void;
+  onOpenCommandPost?: () => void;
 }
 
 export function SidebarHeader({
@@ -25,11 +28,13 @@ export function SidebarHeader({
   onCollapse,
   onViewActivity,
   onViewBacklog,
+  onOpenCommandPost,
 }: SidebarHeaderProps) {
   const activities = useAgentActivitiesStore((s) => s.activities);
   const stopRun = useAgentActivitiesStore((s) => s.stopRun);
   const clearSelection = useDetailSelectionStore((s) => s.clearSelection);
   const setSidebarCollapsed = useGraphUIStore((s) => s.setSidebarCollapsed);
+  const commandPostBadgeCount = useCommandPostBadgeCount();
 
   const handleGoHome = () => {
     clearSelection();
@@ -52,8 +57,15 @@ export function SidebarHeader({
         <span className="text-sm font-semibold text-slate-200">Swarm Manager</span>
       </div>
 
-      {/* Right: Agents badge + Settings + Collapse/Close */}
+      {/* Right: Command Post (mobile) + Agents badge + Settings + Collapse/Close */}
       <div className="flex items-center gap-1">
+        {onOpenCommandPost && (
+          <CommandPostButton
+            count={commandPostBadgeCount}
+            onClick={onOpenCommandPost}
+            className="md:hidden border-0 bg-transparent p-1.5"
+          />
+        )}
         <AgentsDropdown
           activities={activities}
           onViewActivity={onViewActivity}

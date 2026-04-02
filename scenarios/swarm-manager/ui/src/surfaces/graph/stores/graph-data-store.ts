@@ -7,9 +7,9 @@
  */
 
 import { create } from "zustand";
-import { graphService, type GraphProjectionMeta } from "../../../services";
+import { backlogService, graphService, type GraphProjectionMeta } from "../../../services";
 import { GRAPH_ENTITY_TYPES } from "../lib/entity-shapes";
-import { computeNodeAttention } from "../lib/attention";
+import { computeNodeAttention, type NodeEnrichment } from "../lib/attention";
 import { useSnoozeStore } from "../../../stores/snooze-store";
 import {
   ENTITY_STATUS_REGISTRY,
@@ -479,12 +479,43 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
 
       const freshTopo = get().graphsByLens.topology;
       const snoozedKeys = useSnoozeStore.getState().snoozedKeys();
+
+      // Fetch enrichment data (feedback + maturity) so we can detect pending
+      // decisions, workshop-needed, and maturity-ready states — matching the
+      // same conditions the Command Post uses.
+      const enrichmentMap = new Map<string, NodeEnrichment>();
+      try {
+        const summary = await backlogService.getBacklogSummary();
+        const feedbackByKey = new Map(
+          (summary.feedback?.items ?? []).map((f) => [`${f.kind}/${f.name}`, f]),
+        );
+        const maturityByKey = new Map(
+          (summary.maturity?.items ?? []).map((m) => [`${m.kind}/${m.name}`, m]),
+        );
+        for (const key of new Set([...feedbackByKey.keys(), ...maturityByKey.keys()])) {
+          const fb = feedbackByKey.get(key);
+          const mat = maturityByKey.get(key);
+          enrichmentMap.set(key, {
+            pendingDecisions: fb?.pending_decisions ?? 0,
+            maturityReady: mat ? (mat.ready ?? null) : null,
+            pendingSynthesis: mat?.pending_synthesis ?? false,
+          });
+        }
+      } catch {
+        // If summary fetch fails, fall back to status-only filtering.
+      }
+
       const filteredNodeIds = new Set<string>();
       const filteredNodes: GraphNode[] = [];
 
       for (const node of freshTopo.nodes) {
         const data = getGraphNodeData(node);
-        const result = computeNodeAttention(data, undefined, snoozedKeys);
+        // Build enrichment for backlog nodes from the summary data.
+        let enrichment: NodeEnrichment | undefined;
+        if (data.entityType === "backlog" && "kind" in data && "name" in data) {
+          enrichment = enrichmentMap.get(`${data.kind}/${data.name}`);
+        }
+        const result = computeNodeAttention(data, enrichment, snoozedKeys);
         if (result.needsAttention) {
           filteredNodeIds.add(node.id);
           filteredNodes.push({
