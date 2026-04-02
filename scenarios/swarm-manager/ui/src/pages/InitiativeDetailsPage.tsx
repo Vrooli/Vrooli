@@ -26,7 +26,7 @@ import { defaultQueryOptions, formatRelativeTime } from "../lib";
 import { initiativeService } from "../services";
 import { selectors } from "../consts/selectors";
 import { BACKLOG_STATUS_CHIP_COLORS } from "../types";
-import type { BacklogStatus } from "../types";
+import type { BacklogKind, BacklogStatus } from "../types";
 import { useBacklogStore, useDetailSelectionStore } from "../stores";
 
 /** Parse "kind/name" item ref into parts. */
@@ -119,7 +119,7 @@ export function InitiativeDetailsPage() {
 
   const { data: fileContent } = useQuery({
     queryKey: ["initiative", name, "files", selectedFile?.path, "content"],
-    queryFn: () => initiativeService.getFileContent(name!, selectedFile!.path),
+    queryFn: () => initiativeService.getFileContent(name ?? "", selectedFile?.path ?? ""),
     enabled: !!name && !!selectedFile,
     ...defaultQueryOptions,
   });
@@ -303,8 +303,8 @@ export function InitiativeDetailsPage() {
 
             {selectedFile && (
               <FilePreview
-                backlogKind={"initiative" as any}
-                backlogName={name!}
+                backlogKind={"initiative" as BacklogKind}
+                backlogName={name ?? ""}
                 filePath={selectedFile.path}
                 fileName={selectedFile.name}
                 content={fileContent ?? undefined}

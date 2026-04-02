@@ -57,7 +57,9 @@ function GraphNodeComponent({ id, data }: NodeProps) {
         className={cn(
           "relative",
           isSelected && isClipped && "drop-shadow-[0_0_8px_rgba(34,211,238,0.7)]",
-          Boolean(nodeData.pulsing) && "graph-node-pulse",
+          Boolean(nodeData.pulsing) && (nodeData.pulseMode === "persistent"
+            ? "graph-node-attention-pulse"
+            : "graph-node-pulse"),
         )}
         onAnimationEnd={(e) => {
           if (e.animationName === "graph-node-pulse") {

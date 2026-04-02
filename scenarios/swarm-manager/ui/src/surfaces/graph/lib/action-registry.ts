@@ -7,7 +7,6 @@
 
 import type { LucideIcon } from "lucide-react";
 import {
-  Square,
   RotateCcw,
   ListPlus,
   Eye,
@@ -26,7 +25,7 @@ import {
   Users,
 } from "lucide-react";
 import type { GraphLens, EntityType } from "../stores/graph-data-store";
-import { getGraphNodeData, getGraphNodeStatus, type GraphNode } from "../types";
+import { getGraphNodeStatus, type GraphNode } from "../types";
 import { parseNodeId } from "./node-id-parser";
 import { API_ENDPOINTS } from "../../../lib/api-endpoints";
 import { defaultApiClient } from "../../../lib/api-client";
@@ -188,68 +187,6 @@ function makeCancelExecutionAction(): InspectorAction {
       const parsed = parseNodeId(node.id);
       if (!parsed) throw new Error("Cannot determine execution identity");
       await defaultApiClient.post(API_ENDPOINTS.executionCancel(parsed.identifier), {});
-    },
-  };
-}
-
-function makeOpenActivityOwnerAction(): InspectorAction {
-  return {
-    id: "open-owner",
-    label: "Open Owner",
-    icon: Eye,
-    variant: "default",
-    async handler() { /* navigation handled by navigateTo */ },
-    navigateTo(node: GraphNode) {
-      const data = getGraphNodeData(node);
-      if (data.entityType !== "agent-activity") return null;
-      if (data.ownerType === "backlog" && data.ownerKind) {
-        return { entityType: "backlog", kind: data.ownerKind, name: data.ownerName };
-      }
-      if (data.ownerType === "scenario") {
-        return { entityType: "scenario", name: data.ownerName };
-      }
-      return null;
-    },
-  };
-}
-
-function makeViewRecordedExecutionAction(): InspectorAction {
-  return {
-    id: "view-recorded-execution",
-    label: "Execution",
-    icon: Eye,
-    variant: "default",
-    enabled(node: GraphNode) {
-      const data = getGraphNodeData(node);
-      return data.entityType === "agent-activity" && Boolean(data.executionId);
-    },
-    async handler() { /* navigation handled by navigateTo */ },
-    navigateTo(node: GraphNode) {
-      const data = getGraphNodeData(node);
-      if (data.entityType !== "agent-activity" || !data.executionId) {
-        return null;
-      }
-      return { entityType: "execution", identifier: data.executionId };
-    },
-  };
-}
-
-function makeStopActivityRunAction(): InspectorAction {
-  return {
-    id: "stop-activity-run",
-    label: "Stop",
-    icon: Square,
-    variant: "destructive",
-    enabled(node: GraphNode) {
-      const data = getGraphNodeData(node);
-      return data.entityType === "agent-activity" && Boolean(data.runId);
-    },
-    async handler(node: GraphNode) {
-      const data = getGraphNodeData(node);
-      if (data.entityType !== "agent-activity" || !data.runId) {
-        throw new Error("Cannot determine run identity");
-      }
-      await defaultApiClient.post(API_ENDPOINTS.agentManagerStopRun(data.runId), {});
     },
   };
 }
@@ -464,7 +401,7 @@ function makeScenarioEditMetadataAction(): InspectorAction {
 // ---------------------------------------------------------------------------
 
 export const actionRegistry: ActionRegistry = {
-  topology: {
+  focus: {
     capture: [
       makeCaptureClassifyAction(),
       makeCaptureCreateItemAction(),
@@ -488,23 +425,28 @@ export const actionRegistry: ActionRegistry = {
       makeScenarioEditMetadataAction(),
     ],
   },
-  flow: {
+  topology: {
+    capture: [
+      makeCaptureClassifyAction(),
+      makeCaptureCreateItemAction(),
+      makeCaptureDeleteAction(),
+    ],
     backlog: [
+      makeBacklogEditAction(),
       makeQueueAction(),
-      makeViewBacklogDetailsAction(),
+      makeBacklogWorkshopAction(),
+      makeBacklogAddDependencyAction(),
+      makeBacklogAssignInitiativeAction(),
+      makeBacklogViewFilesAction(),
     ],
-    "agent-activity": [
-      makeOpenActivityOwnerAction(),
-      makeViewRecordedExecutionAction(),
-      makeStopActivityRunAction(),
+    initiative: [
+      makeInitiativeEditAction(),
+      makeInitiativeManageMembersAction(),
+      makeInitiativeArchiveAction(),
     ],
-    execution: [
-      makeViewExecutionDetailsAction(),
-      makeViewPromptTraceAction(),
-      makeFollowUpAction(),
-      makeRetryAction(),
-      makeTriggerReviewAction(),
-      makeCancelExecutionAction(),
+    scenario: [
+      makeScenarioViewFilesAction(),
+      makeScenarioEditMetadataAction(),
     ],
   },
   operations: {

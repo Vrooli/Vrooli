@@ -3,8 +3,13 @@ import { renderHook, act } from "@testing-library/react";
 import { useBacklogHandlers, type UseBacklogHandlersOptions } from "./useBacklogHandlers";
 import { useBacklogDetailUIStore } from "../stores";
 
+// Shape matching the mock data so we can access _mutations without `any`
+interface MockMutation { mutate: ReturnType<typeof vi.fn>; isPending: boolean; isError: boolean; error: null; reset: ReturnType<typeof vi.fn> }
+interface MockMutations { update: MockMutation; acceptanceGlob: MockMutation; delete: MockMutation; agent: MockMutation; workshopSave: MockMutation; workshopDeleteRound: MockMutation; fileAction: MockMutation; updateReqs: MockMutation; createModule: MockMutation; updateModuleMeta: MockMutation; createTarget: MockMutation; updateTarget: MockMutation }
+interface MockData { _mutations: MockMutations; updateRequirements: ReturnType<typeof vi.fn>; [key: string]: unknown }
+
 // Minimal mock for _mutations
-const makeMockMutation = () => ({
+const makeMockMutation = (): MockMutation => ({
   mutate: vi.fn(),
   isPending: false,
   isError: false,
@@ -74,7 +79,7 @@ describe("useBacklogHandlers", () => {
       });
     });
 
-    expect((opts.data as any)._mutations.update.mutate).toHaveBeenCalledWith(
+    expect((opts.data as unknown as MockData)._mutations.update.mutate).toHaveBeenCalledWith(
       { title: "T", description: "D", status: "ready", priority: 1, tags: [] },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
@@ -88,7 +93,7 @@ describe("useBacklogHandlers", () => {
       result.current.handleDeleteConfirm();
     });
 
-    expect((opts.data as any)._mutations.delete.mutate).toHaveBeenCalled();
+    expect((opts.data as unknown as MockData)._mutations.delete.mutate).toHaveBeenCalled();
   });
 
   it("handleRunWorkshop calls agent mutation with workshop mode", () => {
@@ -99,7 +104,7 @@ describe("useBacklogHandlers", () => {
       result.current.handleRunWorkshop();
     });
 
-    expect((opts.data as any)._mutations.agent.mutate).toHaveBeenCalledWith(
+    expect((opts.data as unknown as MockData)._mutations.agent.mutate).toHaveBeenCalledWith(
       expect.objectContaining({ mode: "workshop" }),
       expect.any(Object),
     );
@@ -113,7 +118,7 @@ describe("useBacklogHandlers", () => {
       result.current.handleFinalizeWorkshop();
     });
 
-    expect((opts.data as any)._mutations.agent.mutate).toHaveBeenCalledWith(
+    expect((opts.data as unknown as MockData)._mutations.agent.mutate).toHaveBeenCalledWith(
       expect.objectContaining({ mode: "finalize" }),
       expect.any(Object),
     );
@@ -142,7 +147,7 @@ describe("useBacklogHandlers", () => {
       result.current.handleDeleteRequirement("mod1", "req1");
     });
 
-    expect((opts.data as any).updateRequirements).toHaveBeenCalledWith({
+    expect((opts.data as unknown as MockData).updateRequirements).toHaveBeenCalledWith({
       moduleId: "mod1",
       requirements: [],
     });

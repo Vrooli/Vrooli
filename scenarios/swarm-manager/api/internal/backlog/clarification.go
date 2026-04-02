@@ -232,9 +232,11 @@ func (h *Handler) CreateClarification(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[backlog] clarification-create: failed to link clarification to item: %v", err)
 	}
 
-	httputil.ProtoJSONWithStatus(w, http.StatusCreated, &apipb.CreateClarificationResponse{
+	if err := httputil.ProtoJSONWithStatus(w, http.StatusCreated, &apipb.CreateClarificationResponse{
 		Thread: clarificationThreadToProto(thread),
-	})
+	}); err != nil {
+		log.Printf("[backlog] clarification-create: failed to write response: %v", err)
+	}
 }
 
 // GetClarification returns an existing clarification thread, checking for
@@ -316,9 +318,11 @@ func (h *Handler) GetClarification(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	httputil.ProtoJSONWithStatus(w, http.StatusOK, &apipb.GetClarificationResponse{
+	if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, &apipb.GetClarificationResponse{
 		Thread: clarificationThreadToProto(thread),
-	})
+	}); err != nil {
+		log.Printf("[backlog] clarification-get: failed to write response: %v", err)
+	}
 }
 
 // ContinueClarification sends a follow-up message in an existing thread.
@@ -409,9 +413,11 @@ func (h *Handler) ContinueClarification(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	httputil.ProtoJSONWithStatus(w, http.StatusOK, &apipb.ContinueClarificationResponse{
+	if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, &apipb.ContinueClarificationResponse{
 		Thread: clarificationThreadToProto(thread),
-	})
+	}); err != nil {
+		log.Printf("[backlog] clarification-continue: failed to write response: %v", err)
+	}
 }
 
 // ClarificationAction applies a post-clarification action to the workshop.
@@ -604,7 +610,9 @@ func (h *Handler) ClarificationAction(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[backlog] clarification-action: save failed: %v", err)
 	}
 
-	httputil.ProtoJSONWithStatus(w, http.StatusOK, resp)
+	if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, resp); err != nil {
+		log.Printf("[backlog] clarification-action: failed to write response: %v", err)
+	}
 }
 
 // ---------------------------------------------------------------------------

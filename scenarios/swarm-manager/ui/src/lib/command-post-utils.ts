@@ -1,0 +1,245 @@
+/**
+ * Command Post Utilities
+ *
+ * Pure functions that aggregate actionable items across backlog, executions, and captures.
+ * Composes existing utilities — does NOT duplicate logic.
+ *
+ * DOC: docs/concepts/ARCHITECTURE.md#command-post
+ */
+
+import type {
+  BacklogItem,
+  BacklogKind,
+  Capture,
+  ExecutionRecord,
+  PendingQuestion,
+  PendingQuestionsItem,
+} from "../types";
+import { getAttentionReasons, type AttentionReason, type FeedbackItem, type MaturityItem } from "./feed";
+import { getItemActions, type ActionContext, type PrimaryCta } from "./backlog-queue-utils";
+
+import { filterSnoozed, snoozeKeyForBacklog, snoozeKeyForCapture, snoozeKeyForExecution } from "./snooze-utils";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export type ActionGroupId =
+  | "ready-to-run"
+  | "pending-decisions"
+  | "needs-review"
+  | "failed"
+  | "needs-classification";
+
+export interface ActionGroup {
+  id: ActionGroupId;
+  label: string;
+  count: number;
+  items: ActionableItem[];
+}
+
+export interface ActionableItem {
+  type: "backlog" | "execution" | "capture";
+  key: string; // snooze key
+  title: string;
+  kind?: BacklogKind;
+  name?: string;
+  executionId?: string;
+  captureId?: string;
+  reasons: AttentionReason[];
+  primaryCta: PrimaryCta;
+}
+
+export interface CrossItemQuestion {
+  question: PendingQuestion;
+  parentKind: BacklogKind;
+  parentName: string;
+  parentTitle: string;
+}
+
+// ---------------------------------------------------------------------------
+// Group labels
+// ---------------------------------------------------------------------------
+
+const GROUP_LABELS: Record<ActionGroupId, string> = {
+  "ready-to-run": "Ready to Run",
+  "pending-decisions": "Pending Decisions",
+  "needs-review": "Needs Review",
+  failed: "Failed",
+  "needs-classification": "Needs Classification",
+};
+
+// ---------------------------------------------------------------------------
+// groupActionItems
+// ---------------------------------------------------------------------------
+
+/**
+ * Classify non-snoozed items into action groups.
+ *
+ * Uses getAttentionReasons() and getItemActions() from existing libs
+ * to determine group membership and primary CTA.
+ */
+export function groupActionItems(
+  backlogItems: BacklogItem[],
+  executions: ExecutionRecord[],
+  captures: Capture[],
+  feedbackMap: Map<string, FeedbackItem>,
+  maturityMap: Map<string, MaturityItem>,
+  snoozedKeys: Set<string>,
+): ActionGroup[] {
+  const groups = new Map<ActionGroupId, ActionableItem[]>();
+  for (const id of Object.keys(GROUP_LABELS) as ActionGroupId[]) {
+    groups.set(id, []);
+  }
+
+  // --- Executions ---
+  const nonSnoozedExecutions = filterSnoozed(
+    executions,
+    (e) => snoozeKeyForExecution(e.executionId),
+    snoozedKeys,
+  );
+  for (const exec of nonSnoozedExecutions) {
+    const key = snoozeKeyForExecution(exec.executionId);
+    if (exec.status === "needs_review" || exec.status === "needs_fixup") {
+      groups.get("needs-review")?.push({
+        type: "execution",
+        key,
+        title: exec.backlogName || exec.executionId,
+        executionId: exec.executionId,
+        reasons: [],
+        primaryCta: null,
+      });
+    } else if (exec.status === "failed") {
+      groups.get("failed")?.push({
+        type: "execution",
+        key,
+        title: exec.backlogName || exec.executionId,
+        executionId: exec.executionId,
+        reasons: [],
+        primaryCta: null,
+      });
+    }
+  }
+
+  // --- Captures ---
+  const nonSnoozedCaptures = filterSnoozed(
+    captures,
+    (c) => snoozeKeyForCapture(c.id),
+    snoozedKeys,
+  );
+  for (const cap of nonSnoozedCaptures) {
+    if (cap.status === "classifying") {
+      groups.get("needs-classification")?.push({
+        type: "capture",
+        key: snoozeKeyForCapture(cap.id),
+        title: cap.text.slice(0, 80) || cap.id,
+        captureId: cap.id,
+        reasons: [],
+        primaryCta: null,
+      });
+    }
+  }
+
+  // --- Backlog items ---
+  const nonSnoozedBacklog = filterSnoozed(
+    backlogItems,
+    (i) => snoozeKeyForBacklog(i.kind, i.name),
+    snoozedKeys,
+  );
+  for (const item of nonSnoozedBacklog) {
+    const key = snoozeKeyForBacklog(item.kind, item.name);
+    const reasons = getAttentionReasons(item, feedbackMap, maturityMap);
+
+    // Build a minimal ActionContext to get the primary CTA
+    const maturityKey = `${item.kind}/${item.name}`;
+    const maturity = maturityMap.get(maturityKey);
+    const feedback = feedbackMap.get(maturityKey);
+
+    const ctx: ActionContext = {
+      item,
+      allItems: backlogItems,
+      readinessReady: maturity?.ready ?? null,
+      pendingSynthesis: false, // conservative default
+      agentRunning: false,
+      hasPendingDecisions: (feedback?.pendingDecisions ?? 0) > 0,
+      hasExecutionHistory: false,
+    };
+    const actions = getItemActions(ctx);
+
+    // Skip locked/terminal items with no attention reasons
+    if (actions.locked) continue;
+
+    const actionable: ActionableItem = {
+      type: "backlog",
+      key,
+      title: item.title || item.name,
+      kind: item.kind,
+      name: item.name,
+      reasons,
+      primaryCta: actions.primaryCta,
+    };
+
+    // Classify into groups
+    if (actions.terminal) {
+      if (item.status === "failed") {
+        groups.get("failed")?.push(actionable);
+      }
+      // completed terminal items don't need attention
+      continue;
+    }
+
+    if (ctx.hasPendingDecisions) {
+      groups.get("pending-decisions")?.push(actionable);
+    } else if (actions.primaryCta === "run") {
+      groups.get("ready-to-run")?.push(actionable);
+    } else if (actions.primaryCta === "workshop" || actions.primaryCta === "finalize") {
+      groups.get("pending-decisions")?.push(actionable);
+    }
+  }
+
+  // Build result array preserving group order
+  return (Object.keys(GROUP_LABELS) as ActionGroupId[]).map((id) => {
+    const items = groups.get(id) ?? [];
+    return { id, label: GROUP_LABELS[id], count: items.length, items };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// aggregateCrossItemQuestions
+// ---------------------------------------------------------------------------
+
+/**
+ * Flatten per-item pending question lists into a single ordered queue.
+ * Filters out questions belonging to snoozed items.
+ */
+export function aggregateCrossItemQuestions(
+  pendingQuestionsItems: PendingQuestionsItem[],
+  snoozedKeys: Set<string>,
+): CrossItemQuestion[] {
+  const result: CrossItemQuestion[] = [];
+
+  for (const pqi of pendingQuestionsItems) {
+    const itemKey = snoozeKeyForBacklog(pqi.kind, pqi.name);
+    if (snoozedKeys.has(itemKey)) continue;
+
+    for (const question of pqi.questions) {
+      result.push({
+        question,
+        parentKind: pqi.kind,
+        parentName: pqi.name,
+        parentTitle: question.title ?? pqi.name,
+      });
+    }
+  }
+
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// computeBadgeCount
+// ---------------------------------------------------------------------------
+
+/** Sum of all group item counts — used for the HUD badge. */
+export function computeBadgeCount(groups: ActionGroup[]): number {
+  return groups.reduce((sum, g) => sum + g.count, 0);
+}

@@ -108,7 +108,7 @@ export class PageErrorBoundary extends Component<PageErrorBoundaryProps, PageErr
 
       return (
         <div className="flex min-h-[50vh] items-center justify-center p-4">
-          <div className="max-w-md text-center">
+          <div className="w-full max-w-md overflow-hidden text-center">
             <AlertTriangle className="mx-auto h-12 w-12 text-amber-400" />
             <h2 className="mt-4 text-xl font-semibold text-slate-100">
               {pageName} encountered an error

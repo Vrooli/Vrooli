@@ -19,6 +19,7 @@ import {
   buildClusterHierarchy,
   UNASSIGNED_CLUSTER_ID,
 } from "./clustering-utils";
+import { computeNodeAttention } from "./attention";
 import { SECONDARY_EDGE_TYPES } from "./edge-styles";
 
 export interface GraphPresentationResult {
@@ -156,6 +157,24 @@ function buildInitiativeTopologyPresentation(
   };
 }
 
+function applyAttentionHighlighting(nodes: GraphNode[]): GraphNode[] {
+  return nodes.map((node) => {
+    const data = getGraphNodeData(node);
+    const result = computeNodeAttention(data);
+    if (result.needsAttention) {
+      return {
+        ...node,
+        data: {
+          ...data,
+          pulsing: true,
+          pulseMode: "persistent" as const,
+        },
+      };
+    }
+    return node;
+  });
+}
+
 export function buildGraphPresentation({
   lens,
   nodes,
@@ -164,8 +183,12 @@ export function buildGraphPresentation({
   expandedTopologyClusters,
   nodeCapLimit = DEFAULT_NODE_CAP_LIMIT,
 }: BuildGraphPresentationInput): GraphPresentationResult {
-  const filteredNodes = filterGraphNodes(nodes, settings);
+  let filteredNodes = filterGraphNodes(nodes, settings);
   const filteredEdges = filterGraphEdges(edges, filteredNodes, settings);
+
+  if (settings.highlightActionableNodes) {
+    filteredNodes = applyAttentionHighlighting(filteredNodes);
+  }
 
   const useInitiativeGrouping = lens === "topology" && settings.groupingMode === "initiative";
   if (!useInitiativeGrouping) {

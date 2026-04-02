@@ -42,7 +42,7 @@ import {
 } from "../types";
 import { ClusterNode } from "./ClusterNode";
 import { EdgeLegend } from "./EdgeLegend";
-import { FlowEmptyState } from "./FlowEmptyState";
+import { FocusEmptyState } from "./FocusEmptyState";
 import { GraphNode as GraphNodeComponent } from "./GraphNode";
 
 /** Derived from ENTITY_REGISTRY — adding a new entity type automatically registers it here. */
@@ -473,8 +473,8 @@ export const GraphCanvas = memo(function GraphCanvas() {
       )}
 
       {!loading && !error && styledNodes.length === 0 && (
-        lens === "flow" ? (
-          <FlowEmptyState hasFocusNode={!!focusNodeId} hint={meta?.hint} />
+        lens === "focus" ? (
+          <FocusEmptyState />
         ) : (
           <div
             className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-700/70 bg-slate-950/90 px-5 py-4 text-center shadow-lg"

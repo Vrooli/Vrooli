@@ -239,7 +239,7 @@ describe("useDetailNavigation", () => {
       const { result } = renderHook(() => useDetailNavigation(), { wrapper });
 
       act(() => {
-        result.current.drillToLens("node-1", "flow");
+        result.current.drillToLens("node-1", "operations");
       });
 
       expect(useDetailSelectionStore.getState().selection).toBeNull();

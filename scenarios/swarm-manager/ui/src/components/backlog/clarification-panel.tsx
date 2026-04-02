@@ -25,7 +25,7 @@ import { useStorePolling } from "../../hooks/useStorePolling";
 import { parseImpactFromContent } from "../../lib/clarification-utils";
 import { isApiError } from "../../lib/api-client";
 import { backlogService } from "../../services/backlog-service";
-import type { ClarificationThread } from "../../types/domain";
+
 
 const POLL_INTERVAL_MS = 3000;
 const MAX_VISIBLE_LINES = 4;

@@ -41,6 +41,9 @@ export function BacklogDetailProvider({
   value: BacklogDetailContextValue;
   children: ReactNode;
 }) {
+  // Memoize by value identity — callers should ensure stable references for
+  // unchanged sub-fields to avoid unnecessary re-renders.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const memoized = useMemo(() => value, [
     value.backlogKind,
     value.name,

@@ -28,12 +28,10 @@ import type {
   BacklogFile,
   BacklogKind,
   BacklogStatus,
-  ExecutionRecord,
   ModuleFormValues,
-  ResearchResponse,
   ReviewUpdate,
 } from "../types";
-import type { BacklogItem, MaturityItemSummary, WorkshopRound } from "../types/domain";
+import type { MaturityItemSummary, WorkshopRound } from "../types/domain";
 import { useBacklogStore } from "../stores";
 
 // ---------------------------------------------------------------------------

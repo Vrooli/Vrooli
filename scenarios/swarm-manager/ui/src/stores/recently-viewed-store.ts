@@ -35,8 +35,8 @@ function loadItems(): RecentlyViewedItem[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.slice(0, MAX_ITEMS) : [];
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as RecentlyViewedItem[]).slice(0, MAX_ITEMS) : [];
   } catch {
     return [];
   }

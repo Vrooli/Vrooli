@@ -13,11 +13,10 @@ import { DetailPageHeader, type DetailPageHeaderProps } from "./DetailPageHeader
 import { useDetailSelectionStore } from "../../stores/detail-selection-store";
 import { useGraphUIStore } from "../../surfaces/graph/stores/graph-ui-store";
 import type { LensOption } from "./lens-options";
-import { Network, History, Activity } from "lucide-react";
+import { Network, Activity } from "lucide-react";
 
 const testLenses: LensOption[] = [
   { lens: "topology", label: "View Topology", icon: Network, iconColorClass: "text-indigo-400" },
-  { lens: "flow", label: "View History", icon: History, iconColorClass: "text-cyan-400" },
   { lens: "operations", label: "View Operations", icon: Activity, iconColorClass: "text-amber-400" },
 ];
 
@@ -89,7 +88,6 @@ describe("DetailPageHeader", () => {
 
     expect(screen.getByTestId("lens-bar")).toBeInTheDocument();
     expect(screen.getByTestId("lens-bar-topology")).toBeInTheDocument();
-    expect(screen.getByTestId("lens-bar-flow")).toBeInTheDocument();
     expect(screen.getByTestId("lens-bar-operations")).toBeInTheDocument();
   });
 

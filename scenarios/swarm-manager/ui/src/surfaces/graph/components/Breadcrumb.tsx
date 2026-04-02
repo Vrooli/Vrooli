@@ -14,8 +14,6 @@ interface BreadcrumbProps {
 
 function lensDisplayName(lens: GraphLens): string {
   switch (lens) {
-    case "flow":
-      return "History";
     case "operations":
       return "Operations";
     default:
@@ -24,7 +22,7 @@ function lensDisplayName(lens: GraphLens): string {
 }
 
 export function Breadcrumb({ lens, focusNodeLabel, onNavigateHome }: BreadcrumbProps) {
-  if (lens === "topology") return null;
+  if (lens === "focus" || lens === "topology") return null;
 
   return (
     <nav

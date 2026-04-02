@@ -20,7 +20,7 @@ import {
   SCENARIO_STATUSES,
 } from "../../types/constants";
 
-export type GraphLens = "topology" | "flow" | "operations";
+export type GraphLens = "focus" | "topology" | "operations";
 
 export type GraphEntityType =
   | "backlog"
@@ -62,6 +62,7 @@ interface GraphBaseNodeData {
   status?: string;
   kind?: string;
   pulsing?: boolean;
+  pulseMode?: "oneshot" | "persistent";
   priority?: number;
 }
 

@@ -136,7 +136,7 @@ export function ErrorDiagnostics({
   const stackMaxHeight = compact ? "max-h-32" : "max-h-64";
 
   return (
-    <div className={cn("mt-4 w-full", className)}>
+    <div className={cn("mt-4 w-full min-w-0 overflow-hidden", className)}>
       {/* Toggle button */}
       <button
         type="button"
@@ -159,7 +159,7 @@ export function ErrorDiagnostics({
       {expanded && (
         <div
           className={cn(
-            "mt-2 rounded-lg border border-slate-700/50 bg-slate-950/80 text-left",
+            "mt-2 overflow-hidden rounded-lg border border-slate-700/50 bg-slate-950/80 text-left",
             padding,
           )}
           data-testid={selectors.errorBoundary.diagnosticsPanel}
@@ -203,7 +203,7 @@ export function ErrorDiagnostics({
               Error
             </span>
             <p
-              className={cn("mt-0.5 font-mono text-slate-300", textSize)}
+              className={cn("mt-0.5 break-all font-mono text-slate-300", textSize)}
               data-testid={selectors.errorBoundary.errorName}
             >
               {error.name}
@@ -216,7 +216,7 @@ export function ErrorDiagnostics({
               Message
             </span>
             <p
-              className={cn("mt-0.5 text-slate-300", textSize)}
+              className={cn("mt-0.5 break-words text-slate-300", textSize)}
               data-testid={selectors.errorBoundary.errorMessage}
             >
               {sanitizeErrorMessage(error.message)}

@@ -119,7 +119,7 @@ describe("getClipPathStyle", () => {
       const style = getClipPathStyle(et);
       if (ENTITY_REGISTRY[et].clipPath !== null) {
         expect(style).toBeDefined();
-        expect(style!.clipPath).toMatch(/^polygon\(.+\)$/);
+        expect(style?.clipPath).toMatch(/^polygon\(.+\)$/);
       } else {
         expect(style).toBeUndefined();
       }

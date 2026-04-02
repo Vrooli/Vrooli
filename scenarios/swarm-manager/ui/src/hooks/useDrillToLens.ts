@@ -13,11 +13,6 @@ import { useDetailNavigation } from "./useDetailNavigation";
 export function useDrillToLens() {
   const { drillToLens } = useDetailNavigation();
 
-  const drillToFlow = useCallback(
-    (nodeId: string) => drillToLens(nodeId, "flow"),
-    [drillToLens],
-  );
-
   const drillToOperations = useCallback(
     (nodeId: string) => drillToLens(nodeId, "operations"),
     [drillToLens],
@@ -28,5 +23,5 @@ export function useDrillToLens() {
     [drillToLens],
   );
 
-  return { drillToLens, drillToTopology, drillToFlow, drillToOperations };
+  return { drillToLens, drillToTopology, drillToOperations };
 }

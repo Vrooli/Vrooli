@@ -68,28 +68,6 @@ describe("getActionsForNode", () => {
     expect(getActionsForNode("topology", "agent-run")).toEqual([]);
   });
 
-  // Flow lens.
-  it("returns queue and view-details for flow/backlog", () => {
-    const actions = getActionsForNode("flow", "backlog");
-    expect(actions.map((a) => a.id)).toEqual(["queue", "view-backlog-details"]);
-  });
-
-  it("returns execution actions for flow/execution", () => {
-    const actions = getActionsForNode("flow", "execution");
-    expect(actions.map((a) => a.id)).toEqual([
-      "view-execution-details",
-      "view-prompt-trace",
-      "follow-up",
-      "retry",
-      "trigger-review",
-      "cancel",
-    ]);
-  });
-
-  it("returns empty for flow/scenario (not in flow registry)", () => {
-    expect(getActionsForNode("flow", "scenario")).toEqual([]);
-  });
-
   // Operations lens.
   it("returns backlog actions for operations/backlog", () => {
     const actions = getActionsForNode("operations", "backlog");
@@ -124,25 +102,25 @@ describe("getActionsForNode", () => {
 
 describe("action enabled predicates", () => {
   it("cancel is disabled for terminal executions", () => {
-    const cancel = getAction("flow", "execution", "cancel");
+    const cancel = getAction("operations", "execution", "cancel");
     const terminalNode = makeNode("execution/abc", "execution", "completed");
     expect(runEnabledPredicate(cancel, terminalNode)).toBe(false);
   });
 
   it("cancel is enabled for active executions", () => {
-    const cancel = getAction("flow", "execution", "cancel");
+    const cancel = getAction("operations", "execution", "cancel");
     const activeNode = makeNode("execution/abc", "execution", "in_progress");
     expect(runEnabledPredicate(cancel, activeNode)).toBe(true);
   });
 
   it("retry is enabled for terminal executions", () => {
-    const retry = getAction("flow", "execution", "retry");
+    const retry = getAction("operations", "execution", "retry");
     const terminalNode = makeNode("execution/abc", "execution", "failed");
     expect(runEnabledPredicate(retry, terminalNode)).toBe(true);
   });
 
   it("retry is disabled for active executions", () => {
-    const retry = getAction("flow", "execution", "retry");
+    const retry = getAction("operations", "execution", "retry");
     const activeNode = makeNode("execution/abc", "execution", "running");
     expect(runEnabledPredicate(retry, activeNode)).toBe(false);
   });
@@ -156,7 +134,7 @@ describe("action enabled predicates", () => {
 
 describe("action navigateTo", () => {
   it("view-backlog-details returns backlog DetailSelection", () => {
-    const viewDetails = getAction("flow", "backlog", "view-backlog-details");
+    const viewDetails = getAction("operations", "backlog", "view-backlog-details");
     const node = makeNode("execute/my-feature", "backlog", "ready", "execute");
     expect(runNavigateTo(viewDetails, node)).toEqual({ entityType: "backlog", kind: "execute", name: "my-feature" });
   });
@@ -168,13 +146,13 @@ describe("action navigateTo", () => {
   });
 
   it("view-execution-details returns execution DetailSelection", () => {
-    const viewDetails = getAction("flow", "execution", "view-execution-details");
+    const viewDetails = getAction("operations", "execution", "view-execution-details");
     const node = makeNode("execution/abc-123", "execution", "completed");
     expect(runNavigateTo(viewDetails, node)).toEqual({ entityType: "execution", identifier: "abc-123" });
   });
 
   it("view-prompt-trace returns execution DetailSelection", () => {
-    const viewTrace = getAction("flow", "execution", "view-prompt-trace");
+    const viewTrace = getAction("operations", "execution", "view-prompt-trace");
     const node = makeNode("execution/abc-123", "execution", "completed");
     expect(runNavigateTo(viewTrace, node)).toEqual({ entityType: "execution", identifier: "abc-123" });
   });

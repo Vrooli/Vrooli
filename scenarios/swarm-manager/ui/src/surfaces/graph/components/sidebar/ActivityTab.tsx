@@ -87,9 +87,9 @@ const entityTypeColors: Record<string, string> = {
 function recentItemToNodeId(item: RecentlyViewedItem): string {
   switch (item.entityType) {
     case "backlog":
-      return buildBacklogNodeId(item.kind!, item.name!);
+      return buildBacklogNodeId(item.kind ?? "feature", item.name ?? "");
     case "execution":
-      return buildExecutionNodeId(item.identifier!);
+      return buildExecutionNodeId(item.identifier ?? "");
     case "initiative":
       return `initiative/${item.name}`;
     case "scenario":

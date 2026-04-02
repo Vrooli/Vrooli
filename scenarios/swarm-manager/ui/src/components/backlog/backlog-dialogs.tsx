@@ -44,7 +44,7 @@ export function BacklogDialogs({
   agentDialogRequirementIds,
   upsertItem,
 }: BacklogDialogsProps) {
-  const { backlogKind, name, item, agentRunIsActive, latestAgentActivity } = useBacklogDetail();
+  const { backlogKind, name, item } = useBacklogDetail();
   const ui = useBacklogDetailUIStore();
 
   return (

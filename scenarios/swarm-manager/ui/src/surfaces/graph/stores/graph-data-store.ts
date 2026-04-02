@@ -9,6 +9,8 @@
 import { create } from "zustand";
 import { graphService, type GraphProjectionMeta } from "../../../services";
 import { GRAPH_ENTITY_TYPES } from "../lib/entity-shapes";
+import { computeNodeAttention } from "../lib/attention";
+import { useSnoozeStore } from "../../../stores/snooze-store";
 import {
   ENTITY_STATUS_REGISTRY,
   getGraphNodeData,
@@ -32,6 +34,8 @@ export interface GraphLensSettings {
   showMiniMap: boolean;
   /** Show on-screen pan/zoom controls for TV and accessibility. */
   showNavControls: boolean;
+  /** Pulse nodes that need attention (via computeNodeAttention). Not applicable to focus lens. */
+  highlightActionableNodes: boolean;
 }
 
 interface GraphLensSnapshot {
@@ -76,17 +80,18 @@ export interface GraphDataState {
   setShowMiniMap: (visible: boolean) => void;
   setShowNavControls: (visible: boolean) => void;
   setAutoFitOnChange: (enabled: boolean) => void;
+  setHighlightActionableNodes: (enabled: boolean) => void;
   resetLensSettings: (lens?: GraphLens) => void;
   setNodePulsing: (nodeId: string, pulsing: boolean) => void;
 }
 
-const GRAPH_SETTINGS_STORAGE_KEY = "swarm-manager.graph.settings.v4";
-const LEGACY_GRAPH_SETTINGS_STORAGE_KEYS = ["swarm-manager.graph.settings.v3", "swarm-manager.graph.settings.v2"];
+const GRAPH_SETTINGS_STORAGE_KEY = "swarm-manager.graph.settings.v5";
+const LEGACY_GRAPH_SETTINGS_STORAGE_KEYS = ["swarm-manager.graph.settings.v4", "swarm-manager.graph.settings.v3", "swarm-manager.graph.settings.v2"];
 const GRAPH_SNAPSHOT_STALE_MS = 30_000;
 
 const graphRequestSequence: Record<GraphLens, number> = {
+  focus: 0,
   topology: 0,
-  flow: 0,
   operations: 0,
 };
 
@@ -106,17 +111,18 @@ export function createDefaultLensSettings(lens: GraphLens): GraphLensSettings {
     entityFilters: cloneEntityFilters(),
     statusFilters: {},
     groupingMode: lens === "topology" ? "initiative" : "none",
-    showSecondaryEdges: true,
+    showSecondaryEdges: lens !== "focus",
     autoFitOnChange: true,
     showMiniMap: false,
     showNavControls: false,
+    highlightActionableNodes: lens !== "focus",
   };
 }
 
 function createDefaultSettingsByLens(): Record<GraphLens, GraphLensSettings> {
   return {
+    focus: createDefaultLensSettings("focus"),
     topology: createDefaultLensSettings("topology"),
-    flow: createDefaultLensSettings("flow"),
     operations: createDefaultLensSettings("operations"),
   };
 }
@@ -130,6 +136,7 @@ function cloneLensSettings(settings: GraphLensSettings): GraphLensSettings {
     autoFitOnChange: settings.autoFitOnChange,
     showMiniMap: settings.showMiniMap,
     showNavControls: settings.showNavControls,
+    highlightActionableNodes: settings.highlightActionableNodes,
   };
 }
 
@@ -137,8 +144,8 @@ function cloneSettingsByLens(
   settingsByLens: Record<GraphLens, GraphLensSettings>,
 ): Record<GraphLens, GraphLensSettings> {
   return {
+    focus: cloneLensSettings(settingsByLens.focus),
     topology: cloneLensSettings(settingsByLens.topology),
-    flow: cloneLensSettings(settingsByLens.flow),
     operations: cloneLensSettings(settingsByLens.operations),
   };
 }
@@ -173,7 +180,7 @@ function loadPersistedSettings(): Record<GraphLens, GraphLensSettings> {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     const next = createDefaultSettingsByLens();
 
-    for (const lens of ["topology", "flow", "operations"] as const) {
+    for (const lens of ["focus", "topology", "operations"] as const) {
       const lensValue = parsed[lens];
       if (typeof lensValue !== "object" || lensValue === null) {
         continue;
@@ -244,6 +251,10 @@ function loadPersistedSettings(): Record<GraphLens, GraphLensSettings> {
           typeof record.showNavControls === "boolean"
             ? record.showNavControls
             : defaults[lens].showNavControls,
+        highlightActionableNodes:
+          typeof record.highlightActionableNodes === "boolean"
+            ? record.highlightActionableNodes
+            : defaults[lens].highlightActionableNodes,
       };
     }
 
@@ -278,8 +289,8 @@ function createEmptyLensSnapshot(): GraphLensSnapshot {
 
 function createEmptyGraphsByLens(): Record<GraphLens, GraphLensSnapshot> {
   return {
+    focus: createEmptyLensSnapshot(),
     topology: createEmptyLensSnapshot(),
-    flow: createEmptyLensSnapshot(),
     operations: createEmptyLensSnapshot(),
   };
 }
@@ -299,8 +310,8 @@ function cloneGraphsByLens(
   graphsByLens: Record<GraphLens, GraphLensSnapshot>,
 ): Record<GraphLens, GraphLensSnapshot> {
   return {
+    focus: cloneLensSnapshot(graphsByLens.focus),
     topology: cloneLensSnapshot(graphsByLens.topology),
-    flow: cloneLensSnapshot(graphsByLens.flow),
     operations: cloneLensSnapshot(graphsByLens.operations),
   };
 }
@@ -412,8 +423,8 @@ export function resetGraphRequestState(): void {
   }
   graphAbortControllers.clear();
   graphInFlightRequests.clear();
+  graphRequestSequence.focus = 0;
   graphRequestSequence.topology = 0;
-  graphRequestSequence.flow = 0;
   graphRequestSequence.operations = 0;
 }
 
@@ -457,6 +468,53 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
 
   fetchGraph: async (lensArg, options) => {
     const lens = lensArg ?? get().lens;
+
+    // Focus lens: client-side filter from topology data.
+    if (lens === "focus") {
+      const topoSnapshot = get().graphsByLens.topology;
+      // Ensure topology data is fresh first.
+      if (!isSnapshotFresh(topoSnapshot, options?.force)) {
+        await get().fetchGraph("topology", options);
+      }
+
+      const freshTopo = get().graphsByLens.topology;
+      const snoozedKeys = useSnoozeStore.getState().snoozedKeys();
+      const filteredNodeIds = new Set<string>();
+      const filteredNodes: GraphNode[] = [];
+
+      for (const node of freshTopo.nodes) {
+        const data = getGraphNodeData(node);
+        const result = computeNodeAttention(data, undefined, snoozedKeys);
+        if (result.needsAttention) {
+          filteredNodeIds.add(node.id);
+          filteredNodes.push({
+            ...node,
+            data: {
+              ...data,
+              pulsing: true,
+              pulseMode: "persistent" as const,
+            },
+          });
+        }
+      }
+
+      const filteredEdges = freshTopo.edges.filter(
+        (edge) => filteredNodeIds.has(edge.source) && filteredNodeIds.has(edge.target),
+      );
+
+      set((state) =>
+        updateLensSnapshot(state, "focus", () => ({
+          nodes: filteredNodes,
+          edges: filteredEdges,
+          meta: freshTopo.meta,
+          loading: false,
+          error: null,
+          fetchedAtMs: Date.now(),
+        })),
+      );
+      return;
+    }
+
     const snapshot = get().graphsByLens[lens];
 
     if (isSnapshotFresh(snapshot, options?.force)) {
@@ -488,7 +546,7 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
     const requestPromise = graphService
       .getGraph(lens, {
         signal: controller.signal,
-        focusNodeId: (lens === "flow" || lens === "operations") ? (focusNodeId ?? undefined) : undefined,
+        focusNodeId: lens === "operations" ? (focusNodeId ?? undefined) : undefined,
       })
       .then((graph) => {
         if (graphRequestSequence[lens] !== requestId) {
@@ -648,6 +706,14 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
       updateLensSettings(state, state.lens, (settings) => ({
         ...settings,
         autoFitOnChange: enabled,
+      })),
+    ),
+
+  setHighlightActionableNodes: (enabled) =>
+    set((state) =>
+      updateLensSettings(state, state.lens, (settings) => ({
+        ...settings,
+        highlightActionableNodes: enabled,
       })),
     ),
 

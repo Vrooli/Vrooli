@@ -74,8 +74,8 @@ function saveLayoutDirection(direction: LayoutDirection): void {
 
 function createEmptyViewportByLens(): ViewportByLens {
   return {
+    focus: null,
     topology: null,
-    flow: null,
     operations: null,
   };
 }
@@ -100,11 +100,11 @@ function loadViewportByLens(): ViewportByLens {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     const next = createEmptyViewportByLens();
 
+    if (isViewport(parsed.focus)) {
+      next.focus = parsed.focus;
+    }
     if (isViewport(parsed.topology)) {
       next.topology = parsed.topology;
-    }
-    if (isViewport(parsed.flow)) {
-      next.flow = parsed.flow;
     }
     if (isViewport(parsed.operations)) {
       next.operations = parsed.operations;
@@ -359,8 +359,8 @@ export function cloneGraphUIInitialState(): typeof graphUIInitialState {
     },
     layoutPreferences: { ...graphUIInitialState.layoutPreferences },
     viewportByLens: {
+      focus: graphUIInitialState.viewportByLens.focus ? { ...graphUIInitialState.viewportByLens.focus } : null,
       topology: graphUIInitialState.viewportByLens.topology ? { ...graphUIInitialState.viewportByLens.topology } : null,
-      flow: graphUIInitialState.viewportByLens.flow ? { ...graphUIInitialState.viewportByLens.flow } : null,
       operations: graphUIInitialState.viewportByLens.operations ? { ...graphUIInitialState.viewportByLens.operations } : null,
     },
     sidebarWasOpenBeforeDetail: graphUIInitialState.sidebarWasOpenBeforeDetail,

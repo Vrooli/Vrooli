@@ -9,11 +9,13 @@ import { useCallback, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ListTodo } from "lucide-react";
 import { useAgentActivitiesStore, useBacklogStore } from "../../../../stores";
+import { useSnoozedKeys } from "../../../../stores/snooze-store";
 import { useDetailSelectionStore } from "../../../../stores/detail-selection-store";
 import { backlogService } from "../../../../services";
 import { getItemActions } from "../../../../lib";
 import { dependencyAwareSort } from "../../../../lib/dependency-sort";
 import { buildReadinessData } from "../../../../lib/maturity";
+import { filterSnoozed, snoozeKeyForBacklog } from "../../../../lib/snooze-utils";
 import { getAttentionReasons } from "../../../../lib/feed";
 import { buildBacklogNodeId } from "../../lib/node-id-parser";
 import { matchesSearch } from "./useSidebarSearch";
@@ -75,6 +77,7 @@ export function BacklogTab({ searchQuery, filters, sort, onItemClick }: BacklogT
   const agentActivities = useAgentActivitiesStore((s) => s.activities);
   const refreshActivities = useAgentActivitiesStore((s) => s.refreshActivities);
   const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
+  const snoozedKeys = useSnoozedKeys();
 
   const [runModalTarget, setRunModalTarget] = useState<RunBacklogTarget | undefined>();
   const [completedSteppers, setCompletedSteppers] = useState<Set<string>>(new Set());
@@ -222,13 +225,14 @@ export function BacklogTab({ searchQuery, filters, sort, onItemClick }: BacklogT
     }, 4000);
   }, [queryClient, refreshActivities]);
 
-  // ── Filter, search, sort ─────────────────────────────────────────────
+  // ── Filter, search, snooze, sort ─────────────────────────────────────
   let filtered = applyFilters(items, filters);
   if (searchQuery) {
     filtered = filtered.filter((item) =>
       matchesSearch(searchQuery, item.title, item.name, item.description, ...(item.tags ?? [])),
     );
   }
+  filtered = filterSnoozed(filtered, (item) => snoozeKeyForBacklog(item.kind, item.name), snoozedKeys);
   const sorted = applySort(filtered, sort, items);
 
   if (sorted.length === 0) {

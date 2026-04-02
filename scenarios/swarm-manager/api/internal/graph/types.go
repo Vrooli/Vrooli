@@ -11,14 +11,13 @@ type Lens string
 
 const (
 	LensTopology   Lens = "topology"
-	LensFlow       Lens = "flow"
 	LensOperations Lens = "operations"
 )
 
 // ValidateLens returns true if l is a known lens value.
 func ValidateLens(l Lens) bool {
 	switch l {
-	case LensTopology, LensFlow, LensOperations:
+	case LensTopology, LensOperations:
 		return true
 	default:
 		return false
@@ -27,7 +26,7 @@ func ValidateLens(l Lens) bool {
 
 // AllLenses returns the supported graph lenses in stable order.
 func AllLenses() []Lens {
-	return []Lens{LensTopology, LensFlow, LensOperations}
+	return []Lens{LensTopology, LensOperations}
 }
 
 // GraphBacklogNodeData describes a backlog item node payload.
@@ -198,7 +197,7 @@ type WSMessage struct {
 // ProjectionParams holds all parameters for a projection request.
 type ProjectionParams struct {
 	Lens        Lens
-	FocusNodeID string // Required for flow lens, optional for operations lens.
+	FocusNodeID string // Optional for operations lens.
 }
 
 // InvalidationPayload identifies which graph lenses should refresh.

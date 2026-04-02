@@ -37,6 +37,8 @@ import { useStorePolling } from "../../../hooks/useStorePolling";
 import { GraphCanvas } from "./GraphCanvas";
 import { GraphNavControls } from "./GraphNavControls";
 import { CapturePanel } from "./CapturePanel";
+import { CommandPostButton, CommandPostOverlay } from "../../../components/command-post";
+import { useCommandPostBadgeCount } from "../../../hooks/useCommandPostBadgeCount";
 
 const BacklogDetailsPage = lazy(() =>
   import("../../../pages/BacklogDetailsPage").then((m) => ({
@@ -69,7 +71,7 @@ import type { GraphLens } from "../stores/graph-data-store";
 import type { FeedbackItem, MaturityItem } from "../../../lib/feed";
 
 function isGraphLens(value: string | null): value is GraphLens {
-  return value === "topology" || value === "flow" || value === "operations";
+  return value === "focus" || value === "topology" || value === "operations";
 }
 
 /** Canvas error boundary prefix for correlation IDs */
@@ -111,7 +113,7 @@ class CanvasErrorBoundary extends Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-4 overflow-y-auto p-4 text-slate-400">
+        <div className="flex h-full w-full flex-col items-center justify-center gap-4 overflow-y-auto px-6 py-4 text-slate-400">
           <AlertTriangle className="h-10 w-10 text-amber-400" />
           <p className="text-sm">Graph canvas encountered an error.</p>
           <button
@@ -130,6 +132,7 @@ class CanvasErrorBoundary extends Component<
               category={categorizeError(this.state.error)}
               timestamp={this.state.timestamp}
               compact
+              className="max-w-full"
             />
           )}
         </div>
@@ -145,6 +148,9 @@ export function GraphWorkspace() {
   const [showStatsPanel, setShowStatsPanel] = useState(false);
   const [showHelpPanel, setShowHelpPanel] = useState(false);
   const [showCapturePanel, setShowCapturePanel] = useState(false);
+  const [showCommandPost, setShowCommandPost] = useState(false);
+
+  const commandPostBadgeCount = useCommandPostBadgeCount();
 
   const searchLens = searchParams.get("lens");
   const urlLens: GraphLens = isGraphLens(searchLens) ? searchLens : "topology";
@@ -336,6 +342,7 @@ export function GraphWorkspace() {
     onDeselectNode: handleDeselectNode,
     onSettingsToggle: () => setShowSettingsDrawer((prev) => !prev),
     onReturnToAtlas: handleReturnToAtlas,
+    onToggleCommandPost: () => setShowCommandPost((prev) => !prev),
     focusNodeId,
   });
 
@@ -425,8 +432,12 @@ export function GraphWorkspace() {
               <div />
             )}
 
-            {/* Right: Stats + Settings + Help + Agents */}
+            {/* Right: Command Post + Stats + Settings + Help + Agents */}
             <div className="flex items-center gap-1.5">
+              <CommandPostButton
+                count={commandPostBadgeCount}
+                onClick={() => setShowCommandPost((prev) => !prev)}
+              />
               <button
                 type="button"
                 onClick={() => setShowStatsPanel((prev) => !prev)}
@@ -469,7 +480,6 @@ export function GraphWorkspace() {
           {/* Row 2: Lens navigation */}
           <LensNav
             activeLens={lens}
-            focusNodeId={focusNodeId}
             focusNodeLabel={focusNodeLabel}
             onLensChange={handleLensChange}
             onReturnToAtlas={handleReturnToAtlas}
@@ -496,6 +506,20 @@ export function GraphWorkspace() {
         )}
 
         <CapturePanel isOpen={showCapturePanel} onClose={() => setShowCapturePanel(false)} />
+
+        {/* Command Post overlay */}
+        <CommandPostOverlay
+          isOpen={showCommandPost}
+          onClose={() => setShowCommandPost(false)}
+          onNavigateToDetail={(selection) => {
+            setShowCommandPost(false);
+            openDetail(selection, {});
+          }}
+          onSwitchLens={(lens) => {
+            setShowCommandPost(false);
+            handleLensChange(lens as GraphLens);
+          }}
+        />
 
         {/* Detail page overlay — full-page, covers graph when active */}
         {detailSelection && (

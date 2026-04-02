@@ -92,7 +92,7 @@ export function BacklogDetailsPage() {
     files, isLoadingFiles, filesError, refetchFiles,
     executionHistory, workshopRounds, readinessData, archiveTargets,
     depRelations, itemActions, targetScenarios,
-    deliverableLabel, deliverableLabelLower, workshopActionLabel,
+    deliverableLabel, workshopActionLabel,
     isWorkshopFinalized, isLocked, isTerminal, workshopBlockedDeps,
     deleteError, isUpdating, isRunningAgent, isSavingWorkshop,
     isBatchReviewing, isDeletingWorkshopRound, isFileActionPending,
@@ -169,13 +169,14 @@ export function BacklogDetailsPage() {
   }, [actionParam, executionHistory, uiStore.followUpTarget, setSearchParams, uiStore]);
 
   // Merged flagged items for the agent dialog
+  const { agentDialogTargetIds: getAgentDialogTargetIds, agentDialogRequirementIds: getAgentDialogRequirementIds } = data;
   const agentDialogTargetIds = useMemo(
-    () => data.agentDialogTargetIds(uiStore.selectedTargetIds),
-    [data.agentDialogTargetIds, uiStore.selectedTargetIds],
+    () => getAgentDialogTargetIds(uiStore.selectedTargetIds),
+    [getAgentDialogTargetIds, uiStore.selectedTargetIds],
   );
   const agentDialogRequirementIds = useMemo(
-    () => data.agentDialogRequirementIds(uiStore.selectedRequirementIds),
-    [data.agentDialogRequirementIds, uiStore.selectedRequirementIds],
+    () => getAgentDialogRequirementIds(uiStore.selectedRequirementIds),
+    [getAgentDialogRequirementIds, uiStore.selectedRequirementIds],
   );
 
   // Sync selected file from URL param / file tree

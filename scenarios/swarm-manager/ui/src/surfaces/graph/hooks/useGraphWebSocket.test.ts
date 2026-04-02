@@ -108,7 +108,7 @@ describe("useGraphWebSocket", () => {
 
   it("refreshes only when the current lens is invalidated", async () => {
     const fetchGraphSpy = resetStore();
-    renderHook(() => useGraphWebSocket({ enabled: true, lens: "flow" }));
+    renderHook(() => useGraphWebSocket({ enabled: true, lens: "operations" }));
     const ws = getFirstSocket();
 
     await vi.advanceTimersByTimeAsync(0);
@@ -127,13 +127,13 @@ describe("useGraphWebSocket", () => {
     act(() => {
       ws.simulateMessage({
         type: "invalidate",
-        data: { lenses: ["flow", "operations"] },
+        data: { lenses: ["topology", "operations"] },
         timestamp: Date.now(),
       });
     });
 
     await vi.advanceTimersByTimeAsync(150);
-    expect(fetchGraphSpy).toHaveBeenCalledWith("flow", { silent: true, force: true });
+    expect(fetchGraphSpy).toHaveBeenCalledWith("operations", { silent: true, force: true });
   });
 
   it("ignores heartbeat messages", async () => {

@@ -58,7 +58,6 @@ describe("graphDataStore", () => {
     const state = useGraphDataStore.getState();
     expect(state.lens).toBe("topology");
     expect(state.settingsByLens.topology.groupingMode).toBe("initiative");
-    expect(state.settingsByLens.flow.groupingMode).toBe("none");
     expect(state.settingsByLens.operations.groupingMode).toBe("none");
   });
 
@@ -165,9 +164,9 @@ describe("graphDataStore", () => {
 
     const { settingsByLens } = useGraphDataStore.getState();
     expect(settingsByLens.topology.entityFilters.capture).toBe(false);
-    expect(settingsByLens.flow.entityFilters.capture).toBe(true);
+    expect(settingsByLens.operations.entityFilters.capture).toBe(true);
 
-    const persisted = window.localStorage.getItem("swarm-manager.graph.settings.v4");
+    const persisted = window.localStorage.getItem("swarm-manager.graph.settings.v5");
     expect(persisted).toContain("\"capture\":false");
   });
 
@@ -213,7 +212,7 @@ describe("graphDataStore", () => {
     store.setEntityFilter("capture", false);
     store.setGroupingMode("none");
     store.setStatusVisibility("execution", "running", false);
-    store.setLens("flow");
+    store.setLens("operations");
     store.setEntityFilter("execution", false);
 
     useGraphDataStore.getState().setLens("topology");
@@ -223,7 +222,7 @@ describe("graphDataStore", () => {
     expect(state.settingsByLens.topology.entityFilters.capture).toBe(true);
     expect(state.settingsByLens.topology.groupingMode).toBe("initiative");
     expect(state.settingsByLens.topology.statusFilters).toEqual({});
-    expect(state.settingsByLens.flow.entityFilters.execution).toBe(false);
+    expect(state.settingsByLens.operations.entityFilters.execution).toBe(false);
   });
 
   it("fetches graph data through the graph service", async () => {
@@ -269,10 +268,10 @@ describe("graphDataStore", () => {
         },
       })
       .mockResolvedValueOnce({
-        nodes: [makeNode("flow/item", "backlog")],
+        nodes: [makeNode("operations/item", "backlog")],
         edges: [],
         meta: {
-          lens: "flow",
+          lens: "operations",
           nodeCount: 1,
           edgeCount: 0,
           generatedAt: "2026-03-28T00:01:00Z",
@@ -281,8 +280,8 @@ describe("graphDataStore", () => {
       });
 
     await useGraphDataStore.getState().fetchGraph("topology");
-    useGraphDataStore.getState().setLens("flow");
-    await useGraphDataStore.getState().fetchGraph("flow");
+    useGraphDataStore.getState().setLens("operations");
+    await useGraphDataStore.getState().fetchGraph("operations");
     useGraphDataStore.getState().setLens("topology");
 
     await useGraphDataStore.getState().fetchGraph("topology");
@@ -360,20 +359,20 @@ describe("graphDataStore", () => {
         },
       ],
       graphsByLens: {
-        topology: {
-          nodes: [
-            {
-              ...makeRunNode("run/abc", { label: "Run abc", pulsing: true }),
-            },
-          ],
+        focus: {
+          nodes: [],
           edges: [],
           meta: null,
           loading: false,
           error: null,
           fetchedAtMs: null,
         },
-        flow: {
-          nodes: [],
+        topology: {
+          nodes: [
+            {
+              ...makeRunNode("run/abc", { label: "Run abc", pulsing: true }),
+            },
+          ],
           edges: [],
           meta: null,
           loading: false,
@@ -444,16 +443,16 @@ describe("graphDataStore", () => {
         meta: { lens: "topology", nodeCount: 1, edgeCount: 0, generatedAt: "t1", agentManagerAvailable: null, focusNodeId: null, focusNodeType: null, hint: null },
       })
       .mockResolvedValueOnce({
-        nodes: [makeNode("execution/flow", "execution"), makeNode("backlog-item/execute/b", "backlog")],
+        nodes: [makeNode("execution/ops", "execution"), makeNode("backlog-item/execute/b", "backlog")],
         edges: [],
-        meta: { lens: "flow", nodeCount: 2, edgeCount: 0, generatedAt: "t2", agentManagerAvailable: null, focusNodeId: null, focusNodeType: null, hint: null },
+        meta: { lens: "operations", nodeCount: 2, edgeCount: 0, generatedAt: "t2", agentManagerAvailable: null, focusNodeId: null, focusNodeType: null, hint: null },
       });
 
     await useGraphDataStore.getState().fetchGraph("topology");
     expect(useGraphDataStore.getState().nodes).toHaveLength(1);
 
-    useGraphDataStore.getState().setLens("flow");
-    await useGraphDataStore.getState().fetchGraph("flow");
+    useGraphDataStore.getState().setLens("operations");
+    await useGraphDataStore.getState().fetchGraph("operations");
     expect(useGraphDataStore.getState().nodes).toHaveLength(2);
 
     // Switch back — topology snapshot should be preserved
@@ -465,7 +464,7 @@ describe("graphDataStore", () => {
   it("persists and restores settings including initiative status filters", () => {
     useGraphDataStore.getState().setStatusVisibility("initiative", "archived", false);
 
-    const persisted = window.localStorage.getItem("swarm-manager.graph.settings.v4");
+    const persisted = window.localStorage.getItem("swarm-manager.graph.settings.v5");
     expect(persisted).toBeTruthy();
 
     // Create new state from localStorage (simulating page reload)

@@ -27,8 +27,8 @@ function isInputElement(el: HTMLElement): boolean {
 }
 
 const LENS_MAP: Record<string, GraphLens> = {
-  "1": "topology",
-  "2": "flow",
+  "1": "focus",
+  "2": "topology",
   "3": "operations",
 };
 
@@ -37,6 +37,7 @@ interface GraphShortcutHandlers {
   onDeselectNode: () => void;
   onSettingsToggle: () => void;
   onReturnToAtlas: () => void;
+  onToggleCommandPost?: () => void;
   focusNodeId: string | null;
 }
 
@@ -70,12 +71,14 @@ export function useGraphKeyboardShortcuts(handlers: GraphShortcutHandlers): void
       if (!mod && event.key in LENS_MAP) {
         const nextLens = LENS_MAP[event.key];
         if (nextLens) {
-          // Flow lens requires a focus node to be set.
-          if (nextLens === "flow" && !handlers.focusNodeId) {
-            return;
-          }
           handlers.onLensChange(nextLens);
         }
+        return;
+      }
+
+      // P — Toggle Command Post
+      if (!mod && event.key.toLowerCase() === "p") {
+        handlers.onToggleCommandPost?.();
         return;
       }
 

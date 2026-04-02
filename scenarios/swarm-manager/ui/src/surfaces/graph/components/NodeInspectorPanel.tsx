@@ -12,9 +12,11 @@
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink } from "lucide-react";
+import { AlertCircle, ExternalLink, Play } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { StatusBadge } from "../../../components/detail/StatusBadge";
+import { API_ENDPOINTS } from "../../../lib/api-endpoints";
+import { defaultApiClient } from "../../../lib/api-client";
 import { backlogService } from "../../../services";
 import { useBacklogStore } from "../../../stores";
 import type { BacklogKind, BacklogStatus } from "../../../types";
@@ -24,6 +26,7 @@ import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
 import { useDetailSelectionStore } from "../../../stores/detail-selection-store";
 import { useDetailNavigation } from "../../../hooks/useDetailNavigation";
+import { computeNodeAttention, formatAttentionSummary } from "../lib/attention";
 import { hasDetailPage } from "../lib/detail-page-registry";
 import { parseNodeId } from "../lib/node-id-parser";
 import { getStatusColorClasses } from "../lib/status-colors";
@@ -223,6 +226,20 @@ export function NodeInspectorPanel() {
     drillToLens(selectedNodeId, lens);
   };
 
+  const queueMutation = useMutation({
+    mutationFn: ({ kind, name: itemName }: { kind: BacklogKind; name: string }) =>
+      defaultApiClient.post(API_ENDPOINTS.backlogQueue(kind, itemName), {}),
+    onSuccess: () => {
+      void fetchBacklog({ force: true });
+      void queryClient.invalidateQueries({ queryKey: ["backlog-list"] });
+    },
+  });
+
+  const attention = useMemo(() => {
+    if (!nodeData) return null;
+    return computeNodeAttention(nodeData);
+  }, [nodeData]);
+
   if (!selectedNode || !nodeData) return null;
 
   const label = getGraphNodeLabel(selectedNode);
@@ -230,6 +247,7 @@ export function NodeInspectorPanel() {
   const statusColors = getStatusColorClasses(nodeData.status);
   const showDetails = hasDetailPage(entityType);
   const lenses = getLensesForEntity(entityType).filter((l) => l.lens !== currentLens);
+  const isReadyBacklog = entityType === "backlog" && nodeData.status === "ready";
 
   return (
     <FloatingPanel
@@ -266,6 +284,38 @@ export function NodeInspectorPanel() {
 
         {/* Entity-specific metadata */}
         <EntityMeta data={nodeData} />
+
+        {/* Attention chip + quick actions */}
+        {(attention?.needsAttention || isReadyBacklog) && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {attention?.needsAttention && (
+              <button
+                type="button"
+                onClick={handleOpenDetails}
+                className="flex items-center gap-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 text-xs font-medium text-amber-200 transition-colors hover:bg-amber-500/25"
+                data-testid="inspector-attention-chip"
+              >
+                <AlertCircle className="h-3 w-3 text-amber-400" />
+                {formatAttentionSummary(attention.reasons)}
+              </button>
+            )}
+            {isReadyBacklog && (
+              <button
+                type="button"
+                onClick={() => {
+                  const d = nodeData as BacklogGraphNodeData;
+                  queueMutation.mutate({ kind: d.kind, name: d.name });
+                }}
+                disabled={queueMutation.isPending}
+                className="flex items-center gap-1.5 rounded-lg bg-emerald-600/80 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-600 disabled:opacity-50"
+                data-testid="inspector-run-button"
+              >
+                <Play className="h-3 w-3" />
+                {queueMutation.isPending ? "Queuing…" : "Run"}
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Action buttons */}
         {(showDetails || lenses.length > 0) && (

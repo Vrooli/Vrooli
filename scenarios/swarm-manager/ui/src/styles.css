@@ -170,3 +170,13 @@ body {
 .graph-node-pulse {
   animation: graph-node-pulse 2s ease-out;
 }
+
+/* Persistent attention pulse for focus lens nodes. */
+@keyframes graph-node-attention-pulse {
+  0%, 100% { filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.3)); }
+  50% { filter: drop-shadow(0 0 12px rgba(34, 211, 238, 0.6)); }
+}
+
+.graph-node-attention-pulse {
+  animation: graph-node-attention-pulse 2s ease-in-out infinite;
+}

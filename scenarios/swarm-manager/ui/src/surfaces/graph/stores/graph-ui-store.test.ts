@@ -86,8 +86,8 @@ describe("graphUIStore", () => {
       vi.advanceTimersByTime(600);
       expect(window.localStorage.getItem("swarm-manager.graph.viewport.v2")).toBe(
         JSON.stringify({
+          focus: null,
           topology: null,
-          flow: null,
           operations: viewport,
         }),
       );
@@ -95,14 +95,13 @@ describe("graphUIStore", () => {
 
     it("keeps lens viewports isolated from each other", () => {
       const topologyViewport = { x: 100, y: 200, zoom: 1.2 };
-      const flowViewport = { x: -50, y: 80, zoom: 0.75 };
+      const operationsViewport = { x: -50, y: 80, zoom: 0.75 };
 
       useGraphUIStore.getState().setViewportForLens("topology", topologyViewport);
-      useGraphUIStore.getState().setViewportForLens("flow", flowViewport);
+      useGraphUIStore.getState().setViewportForLens("operations", operationsViewport);
 
       expect(useGraphUIStore.getState().viewportByLens.topology).toEqual(topologyViewport);
-      expect(useGraphUIStore.getState().viewportByLens.flow).toEqual(flowViewport);
-      expect(useGraphUIStore.getState().viewportByLens.operations).toBeNull();
+      expect(useGraphUIStore.getState().viewportByLens.operations).toEqual(operationsViewport);
     });
   });
 

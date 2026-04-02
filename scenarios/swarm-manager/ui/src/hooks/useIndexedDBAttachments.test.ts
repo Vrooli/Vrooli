@@ -14,6 +14,7 @@ function createFakeIndexedDB() {
   function getStore(dbName: string, storeName: string): Map<string, unknown> {
     const key = `${dbName}/${storeName}`;
     if (!stores.has(key)) stores.set(key, new Map());
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- guaranteed by the line above
     return stores.get(key)!;
   }
 
@@ -112,8 +113,10 @@ describe("useIndexedDBAttachments", () => {
     });
 
     expect(result.current.attachments).toHaveLength(1);
-    expect(result.current.attachments[0]!.file.name).toBe("photo.png");
-    expect(result.current.attachments[0]!.previewUrl).toContain("data:image/png");
+    const first = result.current.attachments[0];
+    expect(first).toBeDefined();
+    expect(first?.file.name).toBe("photo.png");
+    expect(first?.previewUrl).toContain("data:image/png");
   });
 
   it("rejects files whose type is not in allowedTypes", async () => {
@@ -154,7 +157,9 @@ describe("useIndexedDBAttachments", () => {
       await Promise.resolve();
     });
 
-    const id = result.current.attachments[0]!.id;
+    const att = result.current.attachments[0];
+    expect(att).toBeDefined();
+    const id = att?.id ?? "";
     act(() => {
       result.current.removeFile(id);
     });
@@ -193,7 +198,8 @@ describe("useIndexedDBAttachments", () => {
 
     const files = result.current.getFiles();
     expect(files).toHaveLength(1);
-    expect(files[0]).toBeInstanceOf(File);
-    expect(files[0]!.name).toBe("x.png");
+    const f = files[0];
+    expect(f).toBeInstanceOf(File);
+    expect(f?.name).toBe("x.png");
   });
 });

@@ -211,8 +211,8 @@ describe("InitiativeDetailsPage", () => {
     await waitFor(() => {
       expect(screen.getByTestId("lens-bar")).toBeInTheDocument();
     });
+    expect(screen.getByTestId("lens-bar-focus")).toBeInTheDocument();
     expect(screen.getByTestId("lens-bar-topology")).toBeInTheDocument();
-    expect(screen.getByTestId("lens-bar-flow")).toBeInTheDocument();
     expect(screen.getByTestId("lens-bar-operations")).toBeInTheDocument();
   });
 

@@ -78,7 +78,7 @@ func (d *Dispatch) DispatchInvalidateWithFocus(focusNodeID string) {
 		return
 	}
 	d.broadcaster.BroadcastUpdate(WSInvalidate, InvalidationPayload{
-		Lenses:      []Lens{LensFlow, LensOperations},
+		Lenses:      []Lens{LensOperations},
 		FocusNodeID: focusNodeID,
 	})
 }

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { useBacklogDetailUIStore } from "./backlog-detail-ui-store";
+import type { ExecutionRecord, ArchiveRequirementRecord, ArchiveTarget } from "../types";
 
 describe("backlog-detail-ui-store", () => {
   beforeEach(() => {
@@ -44,7 +45,7 @@ describe("backlog-detail-ui-store", () => {
 
   it("sets and clears follow-up target", () => {
     const store = useBacklogDetailUIStore;
-    const exec = { id: "exec-1" } as any;
+    const exec = { id: "exec-1" } as unknown as ExecutionRecord;
     store.getState().setFollowUpTarget(exec);
     expect(store.getState().followUpTarget).toBe(exec);
     store.getState().setFollowUpTarget(null);
@@ -71,7 +72,7 @@ describe("backlog-detail-ui-store", () => {
 
   it("opens target dialog in edit mode", () => {
     const store = useBacklogDetailUIStore;
-    const target = { id: "t1", title: "Target 1" } as any;
+    const target = { id: "t1", title: "Target 1" } as unknown as ArchiveTarget;
     store.getState().openTargetEdit(target);
     expect(store.getState().targetDialog).toEqual({ isOpen: true, mode: "edit", editing: target });
   });
@@ -91,7 +92,7 @@ describe("backlog-detail-ui-store", () => {
 
   it("opens req dialog in edit mode", () => {
     const store = useBacklogDetailUIStore;
-    const data = { groupId: "mod1", req: { id: "r1" } as any };
+    const data = { groupId: "mod1", req: { id: "r1" } as unknown as ArchiveRequirementRecord };
     store.getState().openReqEdit(data);
     expect(store.getState().reqDialog).toEqual({ isOpen: true, mode: "edit", editing: data });
   });

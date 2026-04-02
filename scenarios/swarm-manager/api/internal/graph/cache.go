@@ -140,12 +140,11 @@ func (c *ProjectionCache) Invalidate(lenses ...Lens) {
 	}
 }
 
-// InvalidateFocus clears the cached flow projection for a specific focus node.
+// InvalidateFocus clears the cached operations projection for a specific focus node.
 func (c *ProjectionCache) InvalidateFocus(focusNodeID string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	delete(c.entries, cacheKey{Lens: LensFlow, FocusNodeID: focusNodeID})
 	delete(c.entries, cacheKey{Lens: LensOperations, FocusNodeID: focusNodeID})
 }
 

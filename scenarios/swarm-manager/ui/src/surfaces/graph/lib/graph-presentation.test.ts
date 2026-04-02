@@ -159,11 +159,11 @@ describe("buildGraphPresentation", () => {
   });
 
   it("uses flat presentation on non-topology lens regardless of groupingMode", () => {
-    const settings = createDefaultLensSettings("flow");
+    const settings = createDefaultLensSettings("operations");
     settings.groupingMode = "initiative";
 
     const result = buildGraphPresentation({
-      lens: "flow",
+      lens: "operations",
       nodes: [
         makeNode("backlog-item/execute/task-a", "backlog", { status: "in_progress" }),
         makeNode("execution/exec-1", "execution", { status: "running" }),

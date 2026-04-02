@@ -63,6 +63,7 @@ function GraphControlsContent() {
   const setShowMiniMap = useGraphDataStore((s) => s.setShowMiniMap);
   const setShowNavControls = useGraphDataStore((s) => s.setShowNavControls);
   const setAutoFitOnChange = useGraphDataStore((s) => s.setAutoFitOnChange);
+  const setHighlightActionableNodes = useGraphDataStore((s) => s.setHighlightActionableNodes);
   const resetLensSettings = useGraphDataStore((s) => s.resetLensSettings);
 
   const layoutMode = useGraphUIStore((s) => s.layoutMode);
@@ -299,6 +300,12 @@ function GraphControlsContent() {
             settings.showNavControls,
             () => setShowNavControls(!settings.showNavControls),
             Gamepad2,
+          )}
+          {lens !== "focus" && renderToggleButton(
+            "Highlight Actionable Nodes",
+            settings.highlightActionableNodes,
+            () => setHighlightActionableNodes(!settings.highlightActionableNodes),
+            Eye,
           )}
         </div>
       </section>

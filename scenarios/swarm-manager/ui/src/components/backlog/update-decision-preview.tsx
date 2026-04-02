@@ -73,7 +73,7 @@ export function UpdateDecisionPreview({
             {topicChanged && (
               <DiffSection label="Topic">
                 <OldValue>{currentItem.topic}</OldValue>
-                <NewValue>{parsed!.topic}</NewValue>
+                <NewValue>{parsed?.topic}</NewValue>
               </DiffSection>
             )}
 
@@ -81,7 +81,7 @@ export function UpdateDecisionPreview({
             {contextChanged && (
               <DiffSection label="Context">
                 <OldValue>{currentItem.context}</OldValue>
-                <NewValue>{parsed!.context}</NewValue>
+                <NewValue>{parsed?.context}</NewValue>
               </DiffSection>
             )}
 
@@ -90,7 +90,7 @@ export function UpdateDecisionPreview({
               <DiffSection label="Options">
                 <OptionsDiff
                   current={currentItem.options ?? []}
-                  proposed={parsed!.options!}
+                  proposed={parsed?.options ?? []}
                 />
               </DiffSection>
             )}
@@ -241,7 +241,8 @@ function optionsEqual(a?: DecisionOption[], b?: DecisionOption[]): boolean {
   if (!a || !b) return false;
   if (a.length !== b.length) return false;
   return a.every((opt, i) => {
-    const other = b[i]!;
+    const other = b[i];
+    if (!other) return false;
     return (
       opt.key === other.key &&
       opt.label === other.label &&

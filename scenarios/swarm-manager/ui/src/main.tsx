@@ -16,7 +16,7 @@ if (typeof Promise.allSettled !== "function") {
       Array.from(promises).map((p) =>
         Promise.resolve(p).then(
           (value) => ({ status: "fulfilled" as const, value }),
-          (reason) => ({ status: "rejected" as const, reason }),
+          (reason: unknown) => ({ status: "rejected" as const, reason }),
         ),
       ),
     ) as never;

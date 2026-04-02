@@ -19,21 +19,21 @@ describe("useAutoResizeTextarea", () => {
     const ref = makeTextareaRef(80);
     renderHook(() => useAutoResizeTextarea(ref, "hello"));
 
-    expect(ref.current!.style.height).toBe("80px");
+    expect(ref.current?.style.height).toBe("80px");
   });
 
   it("clamps height to maxHeight when scrollHeight exceeds it", () => {
     const ref = makeTextareaRef(500);
     renderHook(() => useAutoResizeTextarea(ref, "lots of text", { maxHeight: 200 }));
 
-    expect(ref.current!.style.height).toBe("200px");
+    expect(ref.current?.style.height).toBe("200px");
   });
 
   it("uses default maxHeight of 200 when not specified", () => {
     const ref = makeTextareaRef(300);
     renderHook(() => useAutoResizeTextarea(ref, "text"));
 
-    expect(ref.current!.style.height).toBe("200px");
+    expect(ref.current?.style.height).toBe("200px");
   });
 
   it("re-measures when value changes", () => {
@@ -43,13 +43,13 @@ describe("useAutoResizeTextarea", () => {
       { initialProps: { value: "short" } },
     );
 
-    expect(ref.current!.style.height).toBe("50px");
+    expect(ref.current?.style.height).toBe("50px");
 
     // Simulate the textarea growing
     (ref.current as { scrollHeight: number }).scrollHeight = 120;
     rerender({ value: "much longer text that wraps" });
 
-    expect(ref.current!.style.height).toBe("120px");
+    expect(ref.current?.style.height).toBe("120px");
   });
 
   it("resets height to auto before measuring", () => {
@@ -57,7 +57,8 @@ describe("useAutoResizeTextarea", () => {
     const heightValues: string[] = [];
 
     // Intercept style.height assignments
-    const el = ref.current!;
+    const el = ref.current;
+    if (!el) throw new Error("ref.current should not be null");
     let realHeight = "";
     Object.defineProperty(el.style, "height", {
       get: () => realHeight,
