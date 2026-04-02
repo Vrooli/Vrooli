@@ -11,10 +11,10 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Target, FolderOpen } from "lucide-react";
-import { Card } from "../components/ui/card";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { DetailActionButtons } from "../components/detail/DetailActionButtons";
+import { DetailSection } from "../components/detail/DetailSection";
 import { StatusBadge } from "../components/detail/StatusBadge";
 import { INITIATIVE_LENSES } from "../components/detail/lens-options";
 import { selectionToNodeId } from "../stores/detail-selection-store";
@@ -149,7 +149,7 @@ export function InitiativeDetailsPage() {
           />
         }
       >
-        <div className="mx-auto max-w-3xl">
+        <div className="md:mx-auto md:max-w-3xl">
           <ErrorState
             error={error as Error | undefined}
             title="Failed to load initiative"
@@ -174,26 +174,20 @@ export function InitiativeDetailsPage() {
         />
       }
     >
-      <div className="mx-auto max-w-3xl space-y-6" data-testid={selectors.initiativeDetails.page}>
-      {/* Metadata Card */}
-      <Card className="rounded-lg border-slate-700/60 bg-slate-900/45 p-5">
-        <div className="space-y-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <Target className="h-5 w-5 text-sky-400 shrink-0" />
-              <h1
-                className="text-xl font-semibold text-slate-100"
-                data-testid={selectors.initiativeDetails.title}
-              >
-                {initiative.title || initiative.name}
-              </h1>
-            </div>
-            <StatusBadge
-              status={initiative.status}
-              data-testid={selectors.initiativeDetails.status}
-            />
-          </div>
-
+      <div className="space-y-0 md:mx-auto md:max-w-3xl" data-testid={selectors.initiativeDetails.page}>
+      {/* Overview section */}
+      <DetailSection
+        title="Overview"
+        icon={Target}
+        hideDivider
+        action={
+          <StatusBadge
+            status={initiative.status}
+            data-testid={selectors.initiativeDetails.status}
+          />
+        }
+      >
+        <div className="space-y-3">
           {initiative.description && (
             <div data-testid={selectors.initiativeDetails.description}>
               <p
@@ -225,16 +219,12 @@ export function InitiativeDetailsPage() {
             </div>
           </div>
         </div>
-      </Card>
+      </DetailSection>
 
-      {/* Progress Rollup Card */}
+      {/* Progress Rollup */}
       {rollup && rollupTotal > 0 && (
-        <Card className="rounded-lg border-slate-700/60 bg-slate-900/45 p-5" data-testid={selectors.initiativeDetails.rollup}>
+        <DetailSection title="Progress" data-testid={selectors.initiativeDetails.rollup}>
           <div className="space-y-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
-              Progress
-            </h2>
-
             {/* Segmented progress bar */}
             <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-slate-800">
               {rollup.completed > 0 && (
@@ -276,78 +266,64 @@ export function InitiativeDetailsPage() {
               <span className="text-slate-500">{rollupTotal} total</span>
             </div>
           </div>
-        </Card>
+        </DetailSection>
       )}
 
-      {/* Member Items Card */}
+      {/* Member Items */}
       {resolvedItems.length > 0 && (
-        <Card className="rounded-lg border-slate-700/60 bg-slate-900/45 p-5" data-testid={selectors.initiativeDetails.itemsList}>
-          <div className="space-y-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
-              Items ({resolvedItems.length})
-            </h2>
-            <div className="flex flex-wrap gap-1.5">
-              {resolvedItems.map((item) => {
-                const chipColors = BACKLOG_STATUS_CHIP_COLORS[item.status] ?? "bg-slate-600/20 text-slate-300";
-                return (
-                  <button
-                    key={item.ref}
-                    type="button"
-                    onClick={() => selectBacklog(item.kind, item.name)}
-                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium transition-colors hover:brightness-125 ${chipColors}`}
-                  >
-                    {item.title}
-                  </button>
-                );
-              })}
-            </div>
+        <DetailSection title={`Items (${resolvedItems.length})`} data-testid={selectors.initiativeDetails.itemsList}>
+          <div className="flex flex-wrap gap-1.5">
+            {resolvedItems.map((item) => {
+              const chipColors = BACKLOG_STATUS_CHIP_COLORS[item.status] ?? "bg-slate-600/20 text-slate-300";
+              return (
+                <button
+                  key={item.ref}
+                  type="button"
+                  onClick={() => selectBacklog(item.kind, item.name)}
+                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium transition-colors hover:brightness-125 ${chipColors}`}
+                >
+                  {item.title}
+                </button>
+              );
+            })}
           </div>
-        </Card>
+        </DetailSection>
       )}
 
-      {/* Files Card */}
+      {/* Files */}
       {!isLoadingFiles && displayFiles.length > 0 && (
-        <Card className="rounded-lg border-slate-700/60 bg-slate-900/45 p-5" data-testid="initiative-files">
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <FolderOpen className="h-4 w-4 text-slate-400" />
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
-                Files ({displayFiles.length})
-              </h2>
-            </div>
+        <DetailSection title={`Files (${displayFiles.length})`} icon={FolderOpen} data-testid="initiative-files">
+          <div className={selectedFile ? "grid grid-cols-1 gap-4 lg:grid-cols-2" : ""}>
+            <FileTree
+              files={displayFiles}
+              onFileSelect={handleFileSelect}
+              selectedPath={selectedFile?.path}
+              className="rounded-lg border border-slate-700/40 bg-slate-800/30 p-2"
+            />
 
-            <div className={selectedFile ? "grid grid-cols-1 gap-4 lg:grid-cols-2" : ""}>
-              <FileTree
-                files={displayFiles}
-                onFileSelect={handleFileSelect}
-                selectedPath={selectedFile?.path}
-                className="rounded-lg border border-slate-700/40 bg-slate-800/30 p-2"
+            {selectedFile && (
+              <FilePreview
+                backlogKind={"initiative" as any}
+                backlogName={name!}
+                filePath={selectedFile.path}
+                fileName={selectedFile.name}
+                content={fileContent ?? undefined}
+                readOnly
+                compactHeader
+                className="rounded-lg border border-slate-700/40"
+                headerActions={
+                  <button
+                    type="button"
+                    onClick={() => setSelectedFile(null)}
+                    className="text-xs text-slate-500 hover:text-slate-300"
+                  >
+                    Close
+                  </button>
+                }
               />
-
-              {selectedFile && (
-                <FilePreview
-                  backlogKind={"initiative" as any}
-                  backlogName={name!}
-                  filePath={selectedFile.path}
-                  fileName={selectedFile.name}
-                  content={fileContent ?? undefined}
-                  readOnly
-                  compactHeader
-                  className="rounded-lg border border-slate-700/40"
-                  headerActions={
-                    <button
-                      type="button"
-                      onClick={() => setSelectedFile(null)}
-                      className="text-xs text-slate-500 hover:text-slate-300"
-                    >
-                      Close
-                    </button>
-                  }
-                />
-              )}
-            </div>
+            )}
           </div>
-        </Card>
+        </DetailSection>
       )}
       </div>
     </DetailPageLayout>

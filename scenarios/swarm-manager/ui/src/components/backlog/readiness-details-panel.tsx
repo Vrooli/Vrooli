@@ -31,7 +31,7 @@ export function ReadinessDetailsPanel({ data, kind, onRun }: ReadinessDetailsPan
   if (data.roundsCompleted === 0) return null;
 
   return (
-    <div className="space-y-3 rounded-lg border border-slate-700 bg-slate-800/50 p-4">
+    <div className="space-y-3 rounded-lg border border-slate-700 bg-slate-800/50 p-3 md:p-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-slate-200">{isResearch ? "Research Readiness" : "Workshop Readiness"}</h3>
         <span className="rounded bg-slate-700 px-2 py-0.5 text-xs text-slate-300">

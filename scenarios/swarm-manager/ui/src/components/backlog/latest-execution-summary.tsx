@@ -1,13 +1,12 @@
 /**
  * LatestExecutionSummary
  *
- * Persistent card at the top of the Output tab showing the most recent
+ * Persistent section at the top of the Output tab showing the most recent
  * execution's status. This component always renders — empty state, active
  * run, or completed/failed — providing a persistent execution indicator.
  */
 
 import { Square } from "lucide-react";
-import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { formatRelativeTime, canFollowUpExecution } from "../../lib";
 import { EXECUTION_STATUS_COLORS, formatExecutionStatus } from "../../types/constants";
@@ -40,7 +39,7 @@ export function LatestExecutionSummary({
   // Active run state — agent is currently running
   if (agentRunIsActive && latestAgentActivity) {
     return (
-      <Card padding="sm" className="rounded-lg border-cyan-500/30 bg-cyan-500/10" data-testid={testId}>
+      <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 p-3" data-testid={testId}>
         <div className="flex items-center gap-2">
           <span className="relative flex h-2 w-2 shrink-0">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
@@ -71,18 +70,18 @@ export function LatestExecutionSummary({
             </Button>
           </div>
         </div>
-      </Card>
+      </div>
     );
   }
 
   // Empty state — no executions yet
   if (!latestExecution) {
     return (
-      <Card padding="sm" className="rounded-lg border-slate-700/60 bg-slate-900/45" data-testid={testId}>
+      <div className="py-3" data-testid={testId}>
         <p className="text-sm text-slate-400">
           No executions yet. Queue or run the agent to see results here.
         </p>
-      </Card>
+      </div>
     );
   }
 
@@ -90,13 +89,8 @@ export function LatestExecutionSummary({
   const statusColor = EXECUTION_STATUS_COLORS[latestExecution.status as ExecutionStatus] ?? "bg-slate-500";
   const canFollowUp = canFollowUpExecution(latestExecution.status as ExecutionStatus);
 
-  const duration =
-    latestExecution.createdAt && latestExecution.finalization?.scenarios?.[0]?.restart?.finishedAt
-      ? undefined // Duration is complex to derive; timeline shows it
-      : undefined;
-
   return (
-    <Card padding="sm" className="rounded-lg border-slate-700/60 bg-slate-900/45" data-testid={testId}>
+    <div className="py-3" data-testid={testId}>
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${statusColor}`} />
@@ -129,6 +123,6 @@ export function LatestExecutionSummary({
           </div>
         )}
       </div>
-    </Card>
+    </div>
   );
 }

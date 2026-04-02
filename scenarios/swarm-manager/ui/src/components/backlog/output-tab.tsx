@@ -56,7 +56,7 @@ export function OutputTab({
   const latestExecution = executionHistory?.[0];
 
   return (
-    <div className="space-y-6" data-testid={selectors.backlogDetails.outputTab}>
+    <div className="space-y-0" data-testid={selectors.backlogDetails.outputTab}>
       <LatestExecutionSummary
         latestExecution={latestExecution}
         agentRunIsActive={agentRunIsActive}

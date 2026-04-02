@@ -11,7 +11,6 @@ import { Activity, CircleHelp, Files, Sparkles } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { PlanPanel } from "../components/backlog/plan-panel";
 import { useUrlState } from "../hooks/use-url-state";
-import { Card } from "../components/ui/card";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
 import { BacklogFileWorkspace } from "../components/backlog/backlog-file-workspace";
@@ -421,13 +420,11 @@ export function BacklogDetailsPage() {
               {/* Mobile tab content */}
               <div className="lg:hidden">
                 {activeTab === "info" && (
-                  <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3 pb-4">
+                  <div className="flex-1 space-y-0 overflow-y-auto pb-4">
                     {deleteError && (
-                      <Card padding="sm" className="space-y-2 rounded-lg border-slate-700/60 bg-slate-900/45">
-                        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-                          {deleteError}
-                        </div>
-                      </Card>
+                      <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                        {deleteError}
+                      </div>
                     )}
                     {detailsPanel}
                     <BacklogScenariosPanel targetScenarios={targetScenarios} onSelectScenario={selectScenario} />
@@ -440,7 +437,7 @@ export function BacklogDetailsPage() {
                 )}
                 {activeTab === "files" && fileWorkspaceElement}
                 {activeTab === "output" && (
-                  <div className="flex-1 space-y-6 overflow-y-auto px-3 py-3 pb-4">
+                  <div className="flex-1 space-y-0 overflow-y-auto pb-4">
                     <OutputTab
                       executionHistory={executionHistory}
                       timeline={timeline}
@@ -475,7 +472,7 @@ export function BacklogDetailsPage() {
                 />
                 <div>
                   {activeTab === "info" && (
-                    <div className="space-y-6 pt-6">
+                    <div className="space-y-0 pt-3">
                       {detailsPanel}
                       <BacklogScenariosPanel targetScenarios={targetScenarios} onSelectScenario={selectScenario} />
                       {notesPanel}
@@ -483,13 +480,11 @@ export function BacklogDetailsPage() {
                     </div>
                   )}
                   {activeTab === "prompt" && (
-                    <PlanPanel backlogKind={backlogKind as BacklogKind} backlogName={name} className="mt-6 min-h-[500px] rounded-lg border border-slate-800 bg-slate-900/50" />
+                    <PlanPanel backlogKind={backlogKind as BacklogKind} backlogName={name} className="mt-3 min-h-[500px] rounded-lg border border-slate-800 bg-slate-900/50" />
                   )}
-                  {activeTab === "files" && (
-                    <div className="pt-6">{fileWorkspaceElement}</div>
-                  )}
+                  {activeTab === "files" && fileWorkspaceElement}
                   {activeTab === "output" && (
-                    <div className="space-y-6 pt-6">
+                    <div className="space-y-0 pt-3">
                       <OutputTab
                         executionHistory={executionHistory}
                         timeline={timeline}

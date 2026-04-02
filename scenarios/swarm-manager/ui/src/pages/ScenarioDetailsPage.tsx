@@ -37,7 +37,6 @@ import {
 } from "lucide-react";
 import { BottomSheet } from "../components/ui/bottom-sheet";
 import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { ErrorState } from "../components/ui/error-state";
 import { InlineLoadingIndicator, PageLoadingState } from "../components/ui/loading-states";
@@ -52,6 +51,7 @@ import type { ScenarioFile, PreserveFilesPreset } from "../types";
 import { useDetailSelectionStore } from "../stores/detail-selection-store";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
+import { DetailSection } from "../components/detail/DetailSection";
 import { SCENARIO_LENSES } from "../components/detail/lens-options";
 import { selectionToNodeId } from "../stores/detail-selection-store";
 import { useDetailNavigation } from "../hooks/useDetailNavigation";
@@ -627,14 +627,14 @@ export function ScenarioDetailsPage() {
               </Button>
             </div>
 
-            <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3 pb-6">
+            <div className="flex-1 space-y-0 overflow-y-auto pb-6">
               {actionError && (
-                <Card padding="sm" className="rounded-lg border-red-500/30 bg-red-500/10">
-                  <p className="text-sm text-red-300">{actionError}</p>
-                </Card>
+                <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                  {actionError}
+                </div>
               )}
 
-              <Card className="rounded-lg border-slate-700/60 bg-slate-900/45">
+              <DetailSection title="Overview" hideDivider>
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <StatusIcon className={`h-4 w-4 ${SCENARIO_STATUS_COLORS[scenario.status]}`} />
@@ -664,17 +664,13 @@ export function ScenarioDetailsPage() {
                   )}
                   {scenario.tags.length > 0 && <TagList tags={scenario.tags} maxTags={10} />}
                 </div>
-              </Card>
+              </DetailSection>
 
-              <Card className="rounded-lg border-slate-700/60 bg-slate-900/45">
+              <DetailSection title="Scenario Settings" icon={Settings2}>
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Settings2 className="h-4 w-4 text-slate-400" />
-                    <h2 className="text-base font-semibold text-slate-100">Scenario Settings</h2>
-                    {updateMutation.isPending && (
-                      <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
-                    )}
-                  </div>
+                  {updateMutation.isPending && (
+                    <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
+                  )}
 
                   <div className="rounded-lg bg-slate-700/30 p-3">
                     <div className="space-y-1">
@@ -707,14 +703,10 @@ export function ScenarioDetailsPage() {
                     </div>
                   )}
                 </div>
-              </Card>
+              </DetailSection>
 
-              <Card className="rounded-lg border-slate-700/60 bg-slate-900/45" data-testid={selectors.scenarioDetails.cliHint}>
+              <DetailSection title="Quick Actions (CLI)" icon={Terminal} data-testid={selectors.scenarioDetails.cliHint}>
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Terminal className="h-4 w-4 text-slate-400" />
-                    <h2 className="text-base font-semibold text-slate-100">Quick Actions (CLI)</h2>
-                  </div>
                   <p className="text-sm text-slate-400">
                     Common operations for this scenario are also available via the command line.
                   </p>
@@ -745,15 +737,15 @@ export function ScenarioDetailsPage() {
                     </div>
                   </div>
                 </div>
-              </Card>
+              </DetailSection>
 
-              <Card className="rounded-lg border border-red-500/20 bg-slate-800/35">
+              <section className="mt-4 border-t border-slate-800 pt-4">
                 <button
                   type="button"
-                  className="flex w-full items-center justify-between px-3 py-2 text-left"
+                  className="flex w-full items-center justify-between pt-3 pb-2 text-left"
                   onClick={() => setMobileDangerExpanded((prev) => !prev)}
                 >
-                  <span className="flex items-center gap-2 text-sm font-medium text-red-300">
+                  <span className="flex items-center gap-2 text-base font-semibold text-red-300">
                     <Trash2 className="h-4 w-4" />
                     Danger Zone
                   </span>
@@ -763,9 +755,8 @@ export function ScenarioDetailsPage() {
                     <ChevronDown className="h-4 w-4 text-red-300" />
                   )}
                 </button>
-
                 {mobileDangerExpanded && (
-                  <div className="space-y-3 border-t border-red-500/20 px-3 py-3">
+                  <div className="space-y-3 pb-3">
                     <p className="text-sm text-slate-400">
                       Permanently remove this scenario from the catalog. This action cannot be undone.
                     </p>
@@ -795,13 +786,13 @@ export function ScenarioDetailsPage() {
                     )}
                   </div>
                 )}
-              </Card>
+              </section>
             </div>
           </div>
 
-          <div className="hidden space-y-6 lg:block">
+          <div className="hidden space-y-0 lg:block">
             {/* Scenario header */}
-            <Card data-testid={selectors.scenarioDetails.header}>
+            <DetailSection title="Overview" hideDivider data-testid={selectors.scenarioDetails.header}>
               <div className="flex items-start justify-between">
                 <div className="space-y-2">
                   <div className="flex items-center gap-3">
@@ -911,17 +902,13 @@ export function ScenarioDetailsPage() {
                   )}
                 </div>
               </div>
-            </Card>
+            </DetailSection>
 
             {/* Metadata management section */}
-            <Card data-testid={selectors.scenarioDetails.metadataSection}>
-              <div className="mb-4 flex items-center gap-2">
-                <Settings2 className="h-5 w-5 text-slate-400" />
-                <h2 className="text-lg font-medium text-slate-200">Scenario Settings</h2>
-                {updateMutation.isPending && (
-                  <Loader2 className="ml-2 h-4 w-4 animate-spin text-cyan-400" />
-                )}
-              </div>
+            <DetailSection title="Scenario Settings" icon={Settings2} data-testid={selectors.scenarioDetails.metadataSection}>
+              {updateMutation.isPending && (
+                <Loader2 className="mb-2 h-4 w-4 animate-spin text-cyan-400" />
+              )}
 
               <div className="space-y-4">
                 {/* Greenfield toggle */}
@@ -957,14 +944,10 @@ export function ScenarioDetailsPage() {
                   Failed to update settings. Please try again.
                 </div>
               )}
-            </Card>
+            </DetailSection>
 
             {/* CLI Quick Actions - Helps ops users access common operations (Phase 29 Iteration 5) */}
-            <Card data-testid={selectors.scenarioDetails.cliHint}>
-              <div className="mb-3 flex items-center gap-2">
-                <Terminal className="h-5 w-5 text-slate-400" />
-                <h2 className="text-lg font-medium text-slate-200">Quick Actions (CLI)</h2>
-              </div>
+            <DetailSection title="Quick Actions (CLI)" icon={Terminal} data-testid={selectors.scenarioDetails.cliHint}>
               <p className="mb-4 text-sm text-slate-400">
                 Common operations for this scenario are also available via the command line.
               </p>
@@ -994,16 +977,11 @@ export function ScenarioDetailsPage() {
                   </code>
                 </div>
               </div>
-            </Card>
+            </DetailSection>
 
             {/* Danger zone - Delete scenario */}
             {/* [REQ:REQ-P0-008] Scenario deletion with safeguards */}
-            <div className="rounded-xl border border-red-500/20 bg-slate-800/30 p-6">
-              <div className="mb-4 flex items-center gap-2">
-                <Trash2 className="h-5 w-5 text-red-400" />
-                <h2 className="text-lg font-medium text-red-400">Danger Zone</h2>
-              </div>
-
+            <DetailSection title="Danger Zone" className="text-red-300">
               <div className="flex items-center justify-between rounded-lg bg-slate-700/30 p-4">
                 <div className="space-y-1">
                   <span className="font-medium text-slate-200">Delete Scenario</span>
@@ -1038,7 +1016,7 @@ export function ScenarioDetailsPage() {
                   Failed to delete scenario. Please try again.
                 </div>
               )}
-            </div>
+            </DetailSection>
           </div>
 
           <BottomSheet

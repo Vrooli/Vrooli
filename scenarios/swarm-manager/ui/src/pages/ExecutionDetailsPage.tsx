@@ -21,9 +21,9 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
+import { DetailSection } from "../components/detail/DetailSection";
 import { StatusBadge } from "../components/detail/StatusBadge";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
@@ -102,7 +102,7 @@ export function ExecutionDetailsPage() {
           />
         }
       >
-        <div className="mx-auto max-w-3xl">
+        <div className="md:mx-auto md:max-w-3xl">
           <ErrorState
             error={execError as Error | undefined}
             message={`Could not load execution "${executionId}".`}
@@ -184,115 +184,120 @@ export function ExecutionDetailsPage() {
       mobileActions={allActions}
       mobileActionsTitle="Execution Actions"
     >
-      <div className="mx-auto max-w-3xl space-y-4">
-        {/* Status + metadata card */}
-        <Card className="space-y-3 p-4">
-          <div className="flex items-center justify-between">
-            <StatusBadge status={execution.status} />
-            <div className="flex items-center gap-1.5">
-              {execution.operation && (
-                <span className="rounded bg-slate-700/60 px-2 py-0.5 text-xs text-slate-400">{execution.operation}</span>
-              )}
-              <span className="rounded bg-slate-700/50 px-2 py-0.5 text-xs text-slate-400">
-                {formatExecutionMode(execution.mode)}
-              </span>
+      <div className="space-y-0 md:mx-auto md:max-w-3xl">
+        {/* Status + metadata */}
+        <DetailSection title="Status" hideDivider>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <StatusBadge status={execution.status} />
+              <div className="flex items-center gap-1.5">
+                {execution.operation && (
+                  <span className="rounded bg-slate-700/60 px-2 py-0.5 text-xs text-slate-400">{execution.operation}</span>
+                )}
+                <span className="rounded bg-slate-700/50 px-2 py-0.5 text-xs text-slate-400">
+                  {formatExecutionMode(execution.mode)}
+                </span>
+              </div>
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <p className="text-xs text-slate-500 uppercase tracking-wider">Backlog</p>
-              <button
-                type="button"
-                onClick={() => selectBacklog(execution.backlogKind, execution.backlogName)}
-                className="text-cyan-400 hover:text-cyan-300 text-sm text-left"
-              >
-                {execution.backlogKind}/{execution.backlogName}
-              </button>
-            </div>
-            {execution.startedBy && (
+            <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
-                <p className="text-xs text-slate-500 uppercase tracking-wider">Started by</p>
-                <p className="text-slate-200">{execution.startedBy}</p>
-              </div>
-            )}
-            <div>
-              <p className="text-xs text-slate-500 uppercase tracking-wider">Created</p>
-              <p className="text-slate-200">{formatRelativeTime(execution.createdAt)}</p>
-            </div>
-            {execution.updatedAt && (
-              <div>
-                <p className="text-xs text-slate-500 uppercase tracking-wider">Updated</p>
-                <p className="text-slate-200">{formatRelativeTime(execution.updatedAt)}</p>
-              </div>
-            )}
-            {execution.parentExecutionId && (
-              <div className="col-span-2">
-                <p className="text-xs text-slate-500 uppercase tracking-wider">Parent Execution</p>
+                <p className="text-xs text-slate-500 uppercase tracking-wider">Backlog</p>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (execution.parentExecutionId) {
-                      selectExecution(execution.parentExecutionId);
-                    }
-                  }}
-                  className="text-cyan-400 hover:text-cyan-300 text-sm"
+                  onClick={() => selectBacklog(execution.backlogKind, execution.backlogName)}
+                  className="text-cyan-400 hover:text-cyan-300 text-sm text-left"
                 >
-                  {execution.parentExecutionId}
+                  {execution.backlogKind}/{execution.backlogName}
                 </button>
+              </div>
+              {execution.startedBy && (
+                <div>
+                  <p className="text-xs text-slate-500 uppercase tracking-wider">Started by</p>
+                  <p className="text-slate-200">{execution.startedBy}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-xs text-slate-500 uppercase tracking-wider">Created</p>
+                <p className="text-slate-200">{formatRelativeTime(execution.createdAt)}</p>
+              </div>
+              {execution.updatedAt && (
+                <div>
+                  <p className="text-xs text-slate-500 uppercase tracking-wider">Updated</p>
+                  <p className="text-slate-200">{formatRelativeTime(execution.updatedAt)}</p>
+                </div>
+              )}
+              {execution.parentExecutionId && (
+                <div className="col-span-2">
+                  <p className="text-xs text-slate-500 uppercase tracking-wider">Parent Execution</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (execution.parentExecutionId) {
+                        selectExecution(execution.parentExecutionId);
+                      }
+                    }}
+                    className="text-cyan-400 hover:text-cyan-300 text-sm"
+                  >
+                    {execution.parentExecutionId}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {execution.failureReason && (
+              <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
+                <p className="text-xs text-red-400 font-medium uppercase tracking-wider mb-1">Failure Reason</p>
+                <p className="text-sm text-red-200 whitespace-pre-wrap">{execution.failureReason}</p>
+              </div>
+            )}
+
+            {(execution.finalization || execution.status === "validating") && (
+              <div className="space-y-2">
+                <p className="text-xs text-slate-500 uppercase tracking-wider">Post-Run Checks</p>
+                <PostRunStatusBadge
+                  execution={execution.finalization ? execution : {
+                    ...execution,
+                    finalization: {
+                      eligible: true,
+                      status: "running",
+                      phase: "scope_detection",
+                      scopeSource: "none",
+                      warnings: [],
+                      affectedScenarios: [],
+                      aggregateClassification: "not_assessable",
+                      scenarios: [],
+                    },
+                  }}
+                  onRunChecks={() => void doAction(() => executionService.triggerReview(execution.executionId))}
+                />
               </div>
             )}
           </div>
-
-          {execution.failureReason && (
-            <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
-              <p className="text-xs text-red-400 font-medium uppercase tracking-wider mb-1">Failure Reason</p>
-              <p className="text-sm text-red-200 whitespace-pre-wrap">{execution.failureReason}</p>
-            </div>
-          )}
-
-          {(execution.finalization || execution.status === "validating") && (
-            <div className="space-y-2">
-              <p className="text-xs text-slate-500 uppercase tracking-wider">Post-Run Checks</p>
-              <PostRunStatusBadge
-                execution={execution.finalization ? execution : {
-                  ...execution,
-                  finalization: {
-                    eligible: true,
-                    status: "running",
-                    phase: "scope_detection",
-                    scopeSource: "none",
-                    warnings: [],
-                    affectedScenarios: [],
-                    aggregateClassification: "not_assessable",
-                    scenarios: [],
-                  },
-                }}
-                onRunChecks={() => void doAction(() => executionService.triggerReview(execution.executionId))}
-              />
-            </div>
-          )}
-        </Card>
+        </DetailSection>
 
         {/* Secondary actions */}
-        {secondaryActions}
+        {secondaryActions && <div className="pt-3">{secondaryActions}</div>}
 
         {/* Registry actions */}
-        {nodeId && <DetailActionButtons entityType="execution" direction="row" />}
+        {nodeId && <div className="pt-3"><DetailActionButtons entityType="execution" direction="row" /></div>}
 
         {/* Prompt Trace */}
         {trace && (
-          <Card className="p-4">
-            <button
-              type="button"
-              className="flex w-full items-center justify-between text-sm font-medium text-slate-200"
-              onClick={() => setShowTrace((v) => !v)}
-            >
-              Prompt Trace
-              {showTrace ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </button>
+          <DetailSection
+            title="Prompt Trace"
+            action={
+              <button
+                type="button"
+                className="text-xs text-slate-400 hover:text-slate-200"
+                onClick={() => setShowTrace((v) => !v)}
+              >
+                {showTrace ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+            }
+          >
             {showTrace && (
-              <div className="mt-3 space-y-3">
+              <div className="space-y-3 pb-3">
                 <div>
                   <p className="text-xs text-slate-500 uppercase tracking-wider">Purpose</p>
                   <p className="text-sm text-slate-200">{trace.purpose}</p>
@@ -319,7 +324,7 @@ export function ExecutionDetailsPage() {
                 </div>
               </div>
             )}
-          </Card>
+          </DetailSection>
         )}
       </div>
     </DetailPageLayout>

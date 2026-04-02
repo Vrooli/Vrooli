@@ -19,8 +19,8 @@ import {
   Tags,
   Target,
 } from "lucide-react";
-import { Card } from "../ui/card";
 import { TagList } from "../ui/tag-list";
+import { DetailSection } from "../detail/DetailSection";
 import { DependencyChipList } from "./dependency-chip-list";
 import { formatRelativeTime } from "../../lib";
 import { selectors } from "../../consts/selectors";
@@ -59,12 +59,8 @@ export function BacklogDetailsPanel({
   }, [item.description]);
 
   return (
-    <Card padding="sm" className="rounded-lg border-slate-700/60 bg-slate-900/45">
-      <div className="space-y-4">
-        <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
-          <Info className="h-4 w-4 text-slate-400" />
-          <h2 className="text-base font-semibold text-slate-100">Details</h2>
-        </div>
+    <DetailSection title="Details" icon={Info} hideDivider>
+      <div className="space-y-3">
         <div className="relative">
           <p
             className={`text-sm leading-relaxed text-slate-300 ${descExpanded ? "" : "line-clamp-3"}`}
@@ -249,6 +245,6 @@ export function BacklogDetailsPanel({
           </div>
         </div>
       </div>
-    </Card>
+    </DetailSection>
   );
 }

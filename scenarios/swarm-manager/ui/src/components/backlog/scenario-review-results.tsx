@@ -7,9 +7,9 @@
  */
 
 import { CheckCircle2, FolderOpen, RefreshCw } from "lucide-react";
-import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { PostRunStatusBadge } from "../execution/post-run-status-badge";
+import { DetailSection } from "../detail/DetailSection";
 import { executionService } from "../../services";
 import type { ExecutionRecord } from "../../types";
 
@@ -102,12 +102,8 @@ export function ScenarioReviewResults({
   };
 
   return (
-    <Card padding="sm" className="rounded-lg border-slate-700/60 bg-slate-900/45">
+    <DetailSection title="Scenario Reviews" icon={FolderOpen}>
       <div className="space-y-3">
-        <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
-          <FolderOpen className="h-4 w-4 text-slate-400" />
-          <h2 className="text-base font-semibold text-slate-100">Scenario Reviews</h2>
-        </div>
         <div className="flex flex-wrap gap-1.5">
           {targetScenarios.map((scenarioName) => (
             <button
@@ -122,6 +118,6 @@ export function ScenarioReviewResults({
         </div>
         {renderPostRunStatus()}
       </div>
-    </Card>
+    </DetailSection>
   );
 }

@@ -9,7 +9,6 @@
 
 import { useState, useMemo } from "react";
 import { ChevronDown, ChevronRight, Target, FileCheck, Plus, Pencil, Trash2, ArrowUp, ArrowDown, ClipboardCheck } from "lucide-react";
-import { Card } from "../ui/card";
 import { ReviewCard } from "./review-card";
 import { ActionsMenu, type ActionsMenuItem } from "./actions-menu";
 import { getReviewStatus, ReviewSummary, ReviewProgressBar, StatusIcon, ReviewStatusIndicator, countAllRequirements } from "./review-indicators";
@@ -249,10 +248,9 @@ export function OperationalTargetsPanel({
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">Review failed: {reviewError}</div>
       )}
 
-      {/* Targets card */}
+      {/* Targets section */}
       {(hasTargets || editable) && (
-        <Card padding="sm" className="rounded-lg border-slate-700/60 bg-slate-900/45">
-          <div className="space-y-4">
+        <div className="space-y-4 mt-4 border-t border-slate-800 pt-4">
             <div className="flex items-center border-b border-slate-800 pb-2">
               <button type="button" onClick={() => setTargetsExpanded(!targetsExpanded)} className="flex flex-1 items-center gap-2 text-left">
                 {targetsExpanded ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronRight className="h-4 w-4 text-slate-400" />}
@@ -346,14 +344,12 @@ export function OperationalTargetsPanel({
                 })}
               </div>
             )}
-          </div>
-        </Card>
+        </div>
       )}
 
-      {/* Requirements card */}
+      {/* Requirements section */}
       {(hasRequirements || editable) && (
-        <Card padding="sm" className="rounded-lg border-slate-700/60 bg-slate-900/45">
-          <div className="space-y-3">
+        <div className="space-y-3 mt-4 border-t border-slate-800 pt-4">
             <div className="flex items-center border-b border-slate-800 pb-2">
               <button type="button" onClick={() => setRequirementsExpanded(!requirementsExpanded)} className="flex flex-1 items-center gap-2 text-left">
                 {requirementsExpanded ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronRight className="h-4 w-4 text-slate-400" />}
@@ -383,8 +379,7 @@ export function OperationalTargetsPanel({
                 ))}
               </div>
             )}
-          </div>
-        </Card>
+        </div>
       )}
     </div>
   );

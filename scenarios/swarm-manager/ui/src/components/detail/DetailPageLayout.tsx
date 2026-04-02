@@ -50,7 +50,7 @@ export function DetailPageLayout({
       </div>
 
       {/* Page body */}
-      <div className="flex-1 px-4 py-6 md:px-6">
+      <div className="flex-1 px-2 py-3 md:px-6 md:py-6">
         {children}
       </div>
 

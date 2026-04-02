@@ -56,7 +56,7 @@ export function BacklogNotesPanel({
   const blocked = !!itemActions?.blocked;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 mt-4 border-t border-slate-800 pt-4">
       {readinessData && !isTerminal && (
         <ReadinessDetailsPanel
           data={readinessData}

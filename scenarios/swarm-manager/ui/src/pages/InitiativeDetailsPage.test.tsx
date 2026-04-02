@@ -134,7 +134,8 @@ describe("InitiativeDetailsPage", () => {
     await waitFor(() => {
       expect(screen.getByTestId("initiative-details-page")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("initiative-details-title")).toHaveTextContent("Test Initiative");
+    // Title is shown in the DetailPageHeader
+    expect(screen.getByTestId("detail-page-header")).toHaveTextContent("Test Initiative");
     const badges = screen.getAllByTestId("status-badge");
     expect(badges.length).toBeGreaterThanOrEqual(1);
     expect(badges[0]).toHaveTextContent("active");
