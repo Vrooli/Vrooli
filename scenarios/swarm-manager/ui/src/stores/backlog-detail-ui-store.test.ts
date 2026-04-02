@@ -40,14 +40,6 @@ describe("backlog-detail-ui-store", () => {
     expect(store.getState().showRunModal).toBe(false);
   });
 
-  it("opens and closes timeline", () => {
-    const store = useBacklogDetailUIStore;
-    store.getState().openTimeline();
-    expect(store.getState().isTimelineOpen).toBe(true);
-    store.getState().closeTimeline();
-    expect(store.getState().isTimelineOpen).toBe(false);
-  });
-
   // --- Follow-up target ---
 
   it("sets and clears follow-up target", () => {

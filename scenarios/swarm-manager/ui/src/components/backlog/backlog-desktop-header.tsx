@@ -2,13 +2,13 @@
  * BacklogDesktopHeader
  *
  * Desktop-only header card for a backlog item showing status, priority,
- * timeline button, title, and action buttons.
+ * title, and action buttons.
  *
  * Reads shared state from BacklogDetailContext.
  */
 
 import type { ReactNode } from "react";
-import { Edit, History, RotateCcw, Sparkles, Trash2 } from "lucide-react";
+import { Edit, RotateCcw, Sparkles, Trash2 } from "lucide-react";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Select } from "../ui/select";
@@ -31,7 +31,6 @@ export interface BacklogDesktopHeaderProps {
   onResetWorkshop: () => void;
   hasWorkshopRounds: boolean;
   onOpenAgentDialog: () => void;
-  onOpenTimeline: () => void;
   onStatusChange: (newStatus: BacklogStatus) => void;
 }
 
@@ -44,7 +43,6 @@ export function BacklogDesktopHeader({
   onResetWorkshop,
   hasWorkshopRounds,
   onOpenAgentDialog,
-  onOpenTimeline,
   onStatusChange,
 }: BacklogDesktopHeaderProps) {
   const { isLocked, itemActions, agentLabel } = useBacklogDetail();
@@ -88,16 +86,6 @@ export function BacklogDesktopHeader({
             <span className="rounded-full bg-slate-700 px-3 py-1 text-xs text-slate-300 sm:text-sm">
               Priority {item.priority}
             </span>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 w-7 rounded-md border-transparent bg-transparent p-0 hover:bg-slate-800/70"
-              onClick={onOpenTimeline}
-              aria-label="View activity timeline"
-              data-testid={selectors.backlogDetails.timelineButton}
-            >
-              <History className="h-3.5 w-3.5" />
-            </Button>
           </div>
           <h1
             className="text-xl font-bold text-slate-100 sm:text-2xl"

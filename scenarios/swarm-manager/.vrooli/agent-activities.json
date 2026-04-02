@@ -1462,5 +1462,94 @@
       "skill_id": "swarm-manager-workshop-finalize"
     },
     "updated_at": "2026-04-02T03:17:01Z"
+  },
+  {
+    "activity_id": "d3679a3e53a22ac0",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "agent-manager-identity-tokens",
+    "owner_title": "Implement Identity Token Injection and Verification in Agent-Manager",
+    "execution_id": "6a8775c241dc39ff",
+    "purpose": "process",
+    "interaction_type": "spawn",
+    "task_id": "58db8915-389b-4eaf-943a-d253872f87ed",
+    "run_id": "98a2edfc-2d0e-4825-8fab-0a8842956028",
+    "status": "complete",
+    "requested_at": "2026-04-02T03:17:33Z",
+    "started_at": "2026-04-02T03:17:33Z",
+    "finished_at": "2026-04-02T03:33:14Z",
+    "requested_by": "swarm-manager-ui",
+    "metadata": {
+      "entrypoint": "execution.start",
+      "mode": "yolo",
+      "operation": "generator"
+    },
+    "updated_at": "2026-04-02T04:12:56Z"
+  },
+  {
+    "activity_id": "0d6d294dcf25ade6",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "ecosystem-loop-health-snapshot-contract",
+    "owner_title": "Define Per-Loop Health Snapshot Contract Using Git Control Tower Reviews",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "919c8674-78b4-4035-988c-2bca2b1e6529",
+    "run_id": "8a644b04-23d2-495b-b47f-8672d19fb35c",
+    "status": "complete",
+    "requested_at": "2026-04-02T03:23:10Z",
+    "started_at": "2026-04-02T03:23:10Z",
+    "finished_at": "2026-04-02T03:26:35Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop-research"
+    },
+    "updated_at": "2026-04-02T03:26:37Z"
+  },
+  {
+    "activity_id": "9c53a718a27a63d2",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "deployment-manager-approval-gate-surfaces",
+    "owner_title": "Expose Approval Gate Controls In Deployment Manager",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "1cc18777-ea5d-493d-872d-306b33d27aa5",
+    "run_id": "8a748c16-54e3-4640-9e85-298db6167c77",
+    "status": "complete",
+    "requested_at": "2026-04-02T03:26:19Z",
+    "started_at": "2026-04-02T03:26:19Z",
+    "finished_at": "2026-04-02T03:31:04Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-02T04:12:56Z"
+  },
+  {
+    "activity_id": "3ccb3fd4953a831a",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "release-record-contract-and-history-model",
+    "owner_title": "Define The Release Record And History Model",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "c7ea0f4f-f554-4f26-8289-321cb325deb7",
+    "run_id": "e8d0b41e-bc2c-409d-b2b6-3eb6fb1f2365",
+    "status": "complete",
+    "requested_at": "2026-04-02T03:27:09Z",
+    "started_at": "2026-04-02T03:27:09Z",
+    "finished_at": "2026-04-02T03:31:48Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop-research"
+    },
+    "updated_at": "2026-04-02T04:12:56Z"
   }
 ]

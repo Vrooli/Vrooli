@@ -14,16 +14,13 @@ import { ModuleFormDialog } from "./module-form-dialog";
 import { TargetFormDialog } from "./target-form-dialog";
 import { ClarificationPanel } from "./clarification-panel";
 import { ConfirmDialog } from "../ui/confirm-dialog";
-import { Drawer } from "../ui/drawer";
 import { FollowUpDialog } from "../execution/follow-up-dialog";
-import { ActivityTimeline } from "../detail/ActivityTimeline";
 import { findRequirementGroup } from "../../lib/archive-utils";
 import { selectors } from "../../consts/selectors";
 import { useBacklogDetail } from "../../contexts/BacklogDetailContext";
 import { useBacklogDetailUIStore } from "../../stores";
 import type { useBacklogDetailData } from "../../hooks/useBacklogDetailData";
 import type { useBacklogHandlers } from "../../hooks/useBacklogHandlers";
-import type { useActivityTimeline } from "../../hooks/useActivityTimeline";
 import type { BacklogFile, BacklogKind } from "../../types";
 import type { BacklogItem } from "../../types/domain";
 import type { ReadinessIndicatorData } from "../../lib/maturity";
@@ -35,11 +32,7 @@ export interface BacklogDialogsProps {
   readinessData: ReadinessIndicatorData | null;
   agentDialogTargetIds: Set<string>;
   agentDialogRequirementIds: Set<string>;
-  timeline: ReturnType<typeof useActivityTimeline>;
-  agentManagerUiUrl: string | null;
   upsertItem: (item: BacklogItem) => void;
-  closeDetail: () => void;
-  stopRun: (runId: string) => Promise<void>;
 }
 
 export function BacklogDialogs({
@@ -49,11 +42,7 @@ export function BacklogDialogs({
   readinessData,
   agentDialogTargetIds,
   agentDialogRequirementIds,
-  timeline,
-  agentManagerUiUrl,
   upsertItem,
-  closeDetail,
-  stopRun,
 }: BacklogDialogsProps) {
   const { backlogKind, name, item, agentRunIsActive, latestAgentActivity } = useBacklogDetail();
   const ui = useBacklogDetailUIStore();
@@ -201,26 +190,6 @@ export function BacklogDialogs({
           }}
         />
       )}
-
-      <Drawer
-        isOpen={ui.isTimelineOpen}
-        onClose={ui.closeTimeline}
-        title="Activity Timeline"
-        description="Executions and agent activities for this backlog item"
-        testId={selectors.backlogDetails.activityTimeline}
-      >
-        <ActivityTimeline
-          entries={timeline.entries}
-          isLoading={timeline.isLoading}
-          error={timeline.error}
-          onViewExecution={() => { ui.closeTimeline(); closeDetail(); }}
-          onStopRun={(runId) => void stopRun(runId)}
-          onFollowUp={(exec) => { ui.closeTimeline(); ui.setFollowUpTarget(exec); }}
-          latestAgentActivity={latestAgentActivity ?? undefined}
-          agentRunIsActive={agentRunIsActive}
-          agentManagerUiUrl={agentManagerUiUrl ?? undefined}
-        />
-      </Drawer>
 
       <ClarificationPanel
         onAction={(action) => {

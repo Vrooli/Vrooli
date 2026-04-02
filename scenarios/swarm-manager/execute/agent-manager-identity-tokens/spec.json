@@ -12,7 +12,7 @@
   "kind": "execute",
   "name": "agent-manager-identity-tokens",
   "priority": 2,
-  "status": "backlog",
+  "status": "completed",
   "tags": [
     "agent-manager",
     "identity",
@@ -21,5 +21,5 @@
     "implementation"
   ],
   "title": "Implement Identity Token Injection and Verification in Agent-Manager",
-  "updated": "2026-03-30T14:55:00Z"
+  "updated": "2026-04-02T03:35:40Z"
 }

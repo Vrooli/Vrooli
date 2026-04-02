@@ -1555,11 +1555,15 @@ These are documented here for future consideration when test complexity demands 
 | Error truncation boundary | `batch_handler.go`, `batch_queue_handler.go` | All handler-layer system error messages use `httputil.TruncateErrorMessage(err, 240)` to prevent information leakage. Validation errors (kind/name/title) are not truncated. | Consistent with `queue_ops.go` pattern |
 | Dependency helper locality | `backlog/queue_ops.go` | `appendDependencyBlockingReasons` consolidated into `queue_ops.go` (its only caller). Batch-queue uses separate `computeUnmetDependencies` for batch-context-aware dependency checking (tracks items queued within the batch). | `TestBatchQueue_PartialSuccess_DependencyChain` |
 
-### Activity Timeline Drawer (added 2026-03-31)
+### Output Tab Composition Seam (updated 2026-04-02)
+
+Replaced the Activity Timeline Drawer with an inline Output tab on the BacklogDetailsPage. The Output tab is the composition root for all execution output data.
 
 | Boundary | Location | Behavior | Test |
 |----------|----------|----------|------|
-| Client-side timeline merge | `ui/src/hooks/useActivityTimeline.ts` | Pure `mergeTimeline()` function groups activities by `executionId`, attaches as children to parent executions, places orphan activities as standalone entries, and sorts newest-first. Two parallel `useQuery` calls (executions + activities) provide the data. | `useActivityTimeline.test.ts` |
-| Responsive drawer UI | `ui/src/components/ui/drawer.tsx` | Generic `Drawer` component renders as right-side slide-out (420px) on desktop and bottom-sheet (85vh) on mobile via `useIsMobile()`. Uses `createPortal`, `useModalBehavior` for Esc/scroll-lock, and backdrop click-outside dismiss. | `drawer.test.tsx` |
-| Timeline content rendering | `ui/src/components/detail/ActivityTimeline.tsx` | Renders unified chronological feed of executions (with nested activities) and standalone activities. Reuses `PostRunStatusBadge` for finalization display. Exposes `onViewExecution`, `onStopRun`, `onFollowUp` callbacks as action seams. | `ActivityTimeline.test.tsx` |
+| Output tab composition root | `ui/src/components/backlog/output-tab.tsx` | Composes `LatestExecutionSummary`, `ScenarioReviewResults`, and `ActivityTimeline` into a single tab view. Receives all data via props — no internal hook calls. | `output-tab.test.tsx` |
+| Latest execution summary | `ui/src/components/backlog/latest-execution-summary.tsx` | Persistent card showing most recent execution status. Always renders (empty/active/completed states). Replaces the vanishing `BacklogActiveRunBanner`. | `latest-execution-summary.test.tsx` |
+| Scenario review results | `ui/src/components/backlog/scenario-review-results.tsx` | Displays target scenario chips and post-run review status (via `PostRunStatusBadge`). Extracted from `BacklogScenariosPanel` which now only shows scenario chips. | `scenario-review-results.test.tsx` |
+| Client-side timeline merge | `ui/src/hooks/useActivityTimeline.ts` | Pure `mergeTimeline()` function groups activities by `executionId`, attaches as children to parent executions, places orphan activities as standalone entries, and sorts newest-first. Two parallel `useQuery` calls (executions + activities) provide the data. Polling gated on `activeTab === "output"`. | `useActivityTimeline.test.ts` |
+| Timeline content rendering | `ui/src/components/detail/ActivityTimeline.tsx` | Renders unified chronological feed of executions (with nested activities) and standalone activities. Reuses `PostRunStatusBadge` for finalization display. Now rendered inline in Output tab instead of inside a Drawer. | `ActivityTimeline.test.tsx` |
 | Header trigger | `ui/src/pages/BacklogDetailsPage.tsx` | History icon button in both mobile and desktop headers opens the drawer. Mobile subtitle is also clickable. Replaces the old `executionHistorySection` collapsible. | Manual + BacklogDetailsPage tests |

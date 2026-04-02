@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { CircleHelp, Files, Sparkles } from "lucide-react";
+import { Activity, CircleHelp, Files, Sparkles } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { PlanPanel } from "../components/backlog/plan-panel";
 import { useUrlState } from "../hooks/use-url-state";
@@ -17,8 +17,8 @@ import { PageLoadingState } from "../components/ui/loading-states";
 import { BacklogFileWorkspace } from "../components/backlog/backlog-file-workspace";
 import { BacklogDetailsPanel } from "../components/backlog/backlog-details-panel";
 import { BacklogNotesPanel } from "../components/backlog/backlog-notes-panel";
-import { BacklogActiveRunBanner } from "../components/backlog/backlog-active-run-banner";
 import { BacklogActionButtons } from "../components/backlog/backlog-action-buttons";
+import { OutputTab } from "../components/backlog/output-tab";
 import { BacklogScenariosPanel } from "../components/backlog/backlog-scenarios-panel";
 import { BacklogDesktopHeader } from "../components/backlog/backlog-desktop-header";
 import { BacklogDialogs } from "../components/backlog/backlog-dialogs";
@@ -49,7 +49,7 @@ import { BacklogDetailProvider } from "../contexts/BacklogDetailContext";
 
 const DEFAULT_PREVIEW_FILE_PATH = "spec.json";
 const AGENT_RUN_REFRESH_MS = 6000;
-type DetailsTab = "info" | "prompt" | "files";
+type DetailsTab = "info" | "prompt" | "files" | "output";
 
 export function BacklogDetailsPage() {
   // --- Navigation / selection ---
@@ -101,7 +101,7 @@ export function BacklogDetailsPage() {
 
   // --- Local UI state (URL-synced or needs render) ---
   const [activeTab, setActiveTab] = useUrlState<DetailsTab>("tab", "info", {
-    validate: (v): v is DetailsTab => ["info", "prompt", "files"].includes(v),
+    validate: (v): v is DetailsTab => ["info", "prompt", "files", "output"].includes(v),
   });
   const [selectedFile, setSelectedFile] = useState<BacklogFile | null>(null);
   const [agentManagerUiUrl, setAgentManagerUiUrl] = useState<string | null>(null);
@@ -148,11 +148,11 @@ export function BacklogDetailsPage() {
     return () => { cancelled = true; };
   }, []);
 
-  // Activity timeline — fetches only when the drawer is open
+  // Activity timeline — fetches when the Output tab is active
   const timeline = useActivityTimeline({
     backlogKind: backlogKind ?? undefined,
     backlogName: name,
-    enabled: uiStore.isTimelineOpen,
+    enabled: activeTab === "output",
     agentRunIsActive,
   });
 
@@ -317,15 +317,6 @@ export function BacklogDetailsPage() {
     />
   );
 
-  const activeRunBanner = (
-    <BacklogActiveRunBanner
-      agentRunIsActive={agentRunIsActive}
-      latestAgentActivity={latestAgentActivity}
-      onStopRun={(runId) => void stopRun(runId)}
-      onOpenTimeline={() => closeDetail()}
-    />
-  );
-
   const mobileActionButtons = item && itemActions ? (
     <BacklogActionButtons
       item={item}
@@ -383,6 +374,16 @@ export function BacklogDetailsPage() {
             <Files className="h-4 w-4" />
             Files
           </TabsTrigger>
+          <TabsTrigger value="output" className="gap-2" data-testid={selectors.backlogDetails.tabOutput}>
+            <Activity className="h-4 w-4" />
+            Output
+            {agentRunIsActive && (
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500" />
+              </span>
+            )}
+          </TabsTrigger>
         </TabsList>
       </Tabs>
     </div>
@@ -428,9 +429,8 @@ export function BacklogDetailsPage() {
                         </div>
                       </Card>
                     )}
-                    {activeRunBanner}
                     {detailsPanel}
-                    <BacklogScenariosPanel targetScenarios={targetScenarios} executionHistory={executionHistory} onSelectScenario={selectScenario} />
+                    <BacklogScenariosPanel targetScenarios={targetScenarios} onSelectScenario={selectScenario} />
                     {notesPanel}
                     {operationalTargetsSection}
                   </div>
@@ -439,6 +439,22 @@ export function BacklogDetailsPage() {
                   <PlanPanel backlogKind={backlogKind as BacklogKind} backlogName={name} className="flex-1 overflow-y-auto" />
                 )}
                 {activeTab === "files" && fileWorkspaceElement}
+                {activeTab === "output" && (
+                  <div className="flex-1 space-y-6 overflow-y-auto px-3 py-3 pb-4">
+                    <OutputTab
+                      executionHistory={executionHistory}
+                      timeline={timeline}
+                      targetScenarios={targetScenarios}
+                      agentRunIsActive={agentRunIsActive}
+                      latestAgentActivity={latestAgentActivity}
+                      agentManagerUiUrl={agentManagerUiUrl}
+                      onStopRun={(runId) => void stopRun(runId)}
+                      onFollowUp={(exec) => uiStore.setFollowUpTarget(exec)}
+                      onViewExecution={() => closeDetail()}
+                      onSelectScenario={selectScenario}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Desktop content */}
@@ -452,7 +468,6 @@ export function BacklogDetailsPage() {
                   onResetWorkshop={uiStore.openWorkshopReset}
                   hasWorkshopRounds={(workshopRounds?.length ?? 0) > 0}
                   onOpenAgentDialog={uiStore.openAgent}
-                  onOpenTimeline={uiStore.openTimeline}
                   onStatusChange={(newStatus) => handlers.handleUpdateItem({
                     title: item.title, description: item.description,
                     status: newStatus, priority: item.priority, tags: item.tags,
@@ -461,9 +476,8 @@ export function BacklogDetailsPage() {
                 <div>
                   {activeTab === "info" && (
                     <div className="space-y-6 pt-6">
-                      {activeRunBanner}
                       {detailsPanel}
-                      <BacklogScenariosPanel targetScenarios={targetScenarios} executionHistory={executionHistory} onSelectScenario={selectScenario} />
+                      <BacklogScenariosPanel targetScenarios={targetScenarios} onSelectScenario={selectScenario} />
                       {notesPanel}
                       {operationalTargetsSection}
                     </div>
@@ -473,6 +487,22 @@ export function BacklogDetailsPage() {
                   )}
                   {activeTab === "files" && (
                     <div className="pt-6">{fileWorkspaceElement}</div>
+                  )}
+                  {activeTab === "output" && (
+                    <div className="space-y-6 pt-6">
+                      <OutputTab
+                        executionHistory={executionHistory}
+                        timeline={timeline}
+                        targetScenarios={targetScenarios}
+                        agentRunIsActive={agentRunIsActive}
+                        latestAgentActivity={latestAgentActivity}
+                        agentManagerUiUrl={agentManagerUiUrl}
+                        onStopRun={(runId) => void stopRun(runId)}
+                        onFollowUp={(exec) => uiStore.setFollowUpTarget(exec)}
+                        onViewExecution={() => closeDetail()}
+                        onSelectScenario={selectScenario}
+                      />
+                    </div>
                   )}
                 </div>
               </div>
@@ -486,11 +516,7 @@ export function BacklogDetailsPage() {
             readinessData={readinessData}
             agentDialogTargetIds={agentDialogTargetIds}
             agentDialogRequirementIds={agentDialogRequirementIds}
-            timeline={timeline}
-            agentManagerUiUrl={agentManagerUiUrl}
             upsertItem={upsertItem}
-            closeDetail={closeDetail}
-            stopRun={stopRun}
           />
         </div>
       </DetailPageLayout>

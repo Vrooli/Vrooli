@@ -10,12 +10,12 @@
   "kind": "fix",
   "name": "lpbs-artifact-git-commit-hash",
   "priority": 1,
-  "status": "completed",
+  "status": "archived",
   "tags": [
     "lpbs",
     "traceability",
     "database"
   ],
   "title": "Add git_commit_hash field to LPBS download_artifacts table",
-  "updated": "2026-04-01T01:37:55Z"
+  "updated": "2026-04-02T03:26:06Z"
 }

@@ -462,3 +462,43 @@ Introduced a theme-aware slate palette backed by CSS variables and removed manua
 Light mode now updates all slate-based UI components consistently, and editor/markdown views respond to theme changes without manual page-level overrides.
 
 *Last updated: 2026-02-04 (Phase 30: Theme Tokenization + Light Mode Coherence)*
+
+## Output Tab Consolidation (2026-04-02)
+
+### Problem
+Execution/activity data was scattered across three disconnected UI surfaces:
+- `BacklogActiveRunBanner` — vanished when agent finished (no completed execution indicator)
+- `BacklogScenariosPanel` on Info tab — mixed post-run review results with static metadata
+- `ActivityTimeline` in a hidden Drawer — not discoverable
+
+### Changes
+1. **New Output tab** (4th tab) consolidates all execution output:
+   - `LatestExecutionSummary` — persistent card, always visible (empty/active/completed states)
+   - `ScenarioReviewResults` — target scenario chips + post-run review status
+   - `ActivityTimeline` — inline, promoted from Drawer
+
+2. **Info tab simplified**:
+   - `BacklogScenariosPanel` now only shows scenario name chips (navigation), no review results
+   - Active run banner removed from Info tab
+
+3. **Deleted components**:
+   - `backlog-active-run-banner.tsx` — replaced by `LatestExecutionSummary`
+   - ActivityTimeline Drawer in `backlog-dialogs.tsx` — replaced by inline tab content
+   - History button in `backlog-desktop-header.tsx` — no longer needed
+
+4. **Store cleanup**:
+   - Removed `isTimelineOpen`, `openTimeline`, `closeTimeline` from `backlog-detail-ui-store`
+   - Timeline polling now gated on `activeTab === "output"` (URL state)
+
+5. **Tab badge**: Output tab shows pulsing cyan dot when agent is active (visible on all tabs)
+
+### Files Modified
+- `ui/src/pages/BacklogDetailsPage.tsx`
+- `ui/src/components/backlog/output-tab.tsx` (new)
+- `ui/src/components/backlog/latest-execution-summary.tsx` (new)
+- `ui/src/components/backlog/scenario-review-results.tsx` (new)
+- `ui/src/components/backlog/backlog-scenarios-panel.tsx` (simplified)
+- `ui/src/components/backlog/backlog-desktop-header.tsx` (simplified)
+- `ui/src/components/backlog/backlog-dialogs.tsx` (simplified)
+- `ui/src/stores/backlog-detail-ui-store.ts` (cleaned)
+- `ui/src/consts/selectors.ts` (updated)

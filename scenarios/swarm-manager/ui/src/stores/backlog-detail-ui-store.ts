@@ -35,8 +35,6 @@ interface BacklogDetailUIState {
   showAgentDialog: boolean;
   showRunModal: boolean;
   showGlobDialog: boolean;
-  isTimelineOpen: boolean;
-
   // Parameterised dialog state
   followUpTarget: ExecutionRecord | null;
   roundToDelete: number | null;
@@ -64,8 +62,6 @@ interface BacklogDetailUIState {
   closeRunModal: () => void;
   openGlob: () => void;
   closeGlob: () => void;
-  openTimeline: () => void;
-  closeTimeline: () => void;
   setFollowUpTarget: (target: ExecutionRecord | null) => void;
   setRoundToDelete: (round: number | null) => void;
 
@@ -97,7 +93,6 @@ const INITIAL_STATE = {
   showAgentDialog: false,
   showRunModal: false,
   showGlobDialog: false,
-  isTimelineOpen: false,
   followUpTarget: null,
   roundToDelete: null,
   reqDialog: closedDialog<{ groupId: string; req?: ArchiveRequirementRecord }>(),
@@ -124,9 +119,6 @@ export const useBacklogDetailUIStore = create<BacklogDetailUIState>((set) => ({
   closeRunModal: () => set({ showRunModal: false }),
   openGlob: () => set({ showGlobDialog: true }),
   closeGlob: () => set({ showGlobDialog: false }),
-  openTimeline: () => set({ isTimelineOpen: true }),
-  closeTimeline: () => set({ isTimelineOpen: false }),
-
   setFollowUpTarget: (target) => set({ followUpTarget: target }),
   setRoundToDelete: (round) => set({ roundToDelete: round }),
 
