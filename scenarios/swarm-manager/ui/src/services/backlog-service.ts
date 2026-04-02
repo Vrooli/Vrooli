@@ -42,6 +42,7 @@ import {
 import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
+import { buildQueryString } from "../lib/query-utils";
 import type { ArchiveRequirementRecord, ArchiveTargetFormValues, ArchiveTargetsResponse, BacklogItem, BacklogFile, BacklogKind, BacklogSummaryResponse, ClarificationThread, FeedbackSummaryResponse, MaturitySummaryResponse, ModuleFormValues, PendingQuestionsResponse, ResearchResponse, ReviewUpdate } from "../types";
 
 /**
@@ -284,7 +285,7 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
 
   return {
     async list(kinds?: BacklogKind[]): Promise<BacklogItem[]> {
-      const query = kinds && kinds.length > 0 ? `?kinds=${kinds.join(",")}` : "";
+      const query = buildQueryString({ kinds });
       const data = await apiClient.get<unknown>(`${API_ENDPOINTS.backlog}${query}`);
       const parsed = parseProtoResponse(listBacklogResponseSchema, data, "backlog list");
       return parsed.items.map(mapProtoBacklogItem);

@@ -22,6 +22,8 @@ function phaseLabel(phase?: FinalizationPhase | string): string {
       return "Waiting for health checks";
     case "reviewing":
       return "Running scenario reviews";
+    case "evidence_gathering":
+      return "Gathering evidence";
     default:
       return "Running post-run checks";
   }

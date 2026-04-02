@@ -74,6 +74,17 @@ const (
 	EventClarificationAction   EventType = "backlog.clarification_action"
 )
 
+// Review evidence events.
+const (
+	EventReviewStarted          EventType = "review.started"
+	EventReviewEvidenceAdded    EventType = "review.evidence_added"
+	EventReviewEvidenceVerified EventType = "review.evidence_verified"
+	EventReviewRequestCreated   EventType = "review.request_created"
+	EventReviewRequestFulfilled EventType = "review.request_fulfilled"
+	EventReviewRoundCompleted   EventType = "review.round_completed"
+	EventReviewFailed           EventType = "review.failed"
+)
+
 // View events (read-only analytics).
 const (
 	EventBacklogViewed    EventType = "backlog.viewed"
@@ -201,6 +212,49 @@ type ClarificationActionPayload struct {
 	RoundNumber int    `json:"round_number"`
 	ItemID      string `json:"item_id"`
 	Action      string `json:"action"`
+}
+
+// ReviewStartedPayload records review agent initiation.
+type ReviewStartedPayload struct {
+	ExecutionID string `json:"execution_id"`
+	RoundNumber int    `json:"round_number"`
+}
+
+// ReviewEvidencePayload records evidence item creation.
+type ReviewEvidencePayload struct {
+	ExecutionID  string `json:"execution_id"`
+	EvidenceID   string `json:"evidence_id"`
+	EvidenceType string `json:"evidence_type"`
+}
+
+// ReviewVerifiedPayload records evidence verification by a user.
+type ReviewVerifiedPayload struct {
+	ExecutionID string `json:"execution_id"`
+	EvidenceID  string `json:"evidence_id"`
+}
+
+// ReviewRequestPayload records an additional evidence request.
+type ReviewRequestPayload struct {
+	ExecutionID string `json:"execution_id"`
+	RequestID   string `json:"request_id"`
+	Description string `json:"description,omitempty"`
+	EvidenceID  string `json:"evidence_id,omitempty"`
+}
+
+// ReviewRoundCompletedPayload records review round completion with metrics.
+type ReviewRoundCompletedPayload struct {
+	ExecutionID    string  `json:"execution_id"`
+	RoundNumber    int     `json:"round_number"`
+	EvidenceCount  int     `json:"evidence_count"`
+	Classification string  `json:"classification"`
+	DurationSecs   float64 `json:"duration_seconds"`
+}
+
+// ReviewFailedPayload records review agent failure.
+type ReviewFailedPayload struct {
+	ExecutionID  string  `json:"execution_id"`
+	Reason       string  `json:"reason"`
+	DurationSecs float64 `json:"duration_seconds"`
 }
 
 // ViewPayload records a view event. Intentionally minimal.

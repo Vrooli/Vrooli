@@ -12,30 +12,27 @@ import (
 	"swarm-manager/internal/pathutil"
 )
 
+// FinalizationStatus represents the lifecycle state of a finalization step
+// (restart, health check, review, or the finalization as a whole).
+type FinalizationStatus string
+
 const (
-	finalizationHealthPollInterval = 5 * time.Second
-	finalizationHealthPollTimeout  = 2 * time.Minute
-	finalizationReviewPollInterval = 5 * time.Second
-	finalizationReviewPollTimeout  = 10 * time.Minute
-	finalizationMaxRestartAttempts = 2
+	FinalizationStatusPending   FinalizationStatus = "pending"
+	FinalizationStatusRunning   FinalizationStatus = "running"
+	FinalizationStatusCompleted FinalizationStatus = "completed"
+	FinalizationStatusSkipped   FinalizationStatus = "skipped"
+	FinalizationStatusFailed    FinalizationStatus = "failed"
 )
 
 const (
-	FinalizationStatusPending   = "pending"
-	FinalizationStatusRunning   = "running"
-	FinalizationStatusCompleted = "completed"
-	FinalizationStatusSkipped   = "skipped"
-	FinalizationStatusFailed    = "failed"
-)
-
-const (
-	FinalizationPhaseScopeDetection = "scope_detection"
-	FinalizationPhaseRestarting     = "restarting"
-	FinalizationPhaseHealthCheck    = "health_check"
-	FinalizationPhaseReviewing      = "reviewing"
-	FinalizationPhaseCompleted      = "completed"
-	FinalizationPhaseSkipped        = "skipped"
-	FinalizationPhaseFailed         = "failed"
+	FinalizationPhaseScopeDetection    = "scope_detection"
+	FinalizationPhaseRestarting        = "restarting"
+	FinalizationPhaseHealthCheck       = "health_check"
+	FinalizationPhaseReviewing         = "reviewing"
+	FinalizationPhaseEvidenceGathering = "evidence_gathering"
+	FinalizationPhaseCompleted         = "completed"
+	FinalizationPhaseSkipped           = "skipped"
+	FinalizationPhaseFailed            = "failed"
 )
 
 const (
@@ -56,6 +53,7 @@ const (
 	finalizationWarningHealthChecksMissing       = "health_checks_missing"
 	finalizationWarningReviewSkipped             = "review_skipped"
 	finalizationWarningFinalizationInfra         = "finalization_infrastructure"
+	finalizationWarningReviewAgentFailed         = "review_agent_failed"
 )
 
 // ScenarioLifecycle restarts affected scenarios after execution completion.
@@ -89,7 +87,7 @@ type ScenarioHealthSnapshot struct {
 // execution.
 type Finalization struct {
 	Eligible                bool                   `json:"eligible"`
-	Status                  string                 `json:"status,omitempty"`
+	Status                  FinalizationStatus     `json:"status,omitempty"`
 	Phase                   string                 `json:"phase,omitempty"`
 	ScopeSource             string                 `json:"scope_source,omitempty"`
 	SkipReason              string                 `json:"skip_reason,omitempty"`
@@ -124,29 +122,29 @@ type ScenarioFinalization struct {
 
 // RestartResult captures restart attempts for one scenario.
 type RestartResult struct {
-	Status     string `json:"status,omitempty"`
-	Attempts   int    `json:"attempts,omitempty"`
-	LastError  string `json:"last_error,omitempty"`
-	StartedAt  string `json:"started_at,omitempty"`
-	FinishedAt string `json:"finished_at,omitempty"`
+	Status     FinalizationStatus `json:"status,omitempty"`
+	Attempts   int                `json:"attempts,omitempty"`
+	LastError  string             `json:"last_error,omitempty"`
+	StartedAt  string             `json:"started_at,omitempty"`
+	FinishedAt string             `json:"finished_at,omitempty"`
 }
 
 // HealthCheckResult captures the structured health outcome for one scenario.
 type HealthCheckResult struct {
-	Status         string `json:"status,omitempty"`
-	ScenarioStatus string `json:"scenario_status,omitempty"`
-	HealthStatus   string `json:"health_status,omitempty"`
-	SchemaValid    bool   `json:"schema_valid"`
-	Details        string `json:"details,omitempty"`
-	CheckedAt      string `json:"checked_at,omitempty"`
+	Status         FinalizationStatus `json:"status,omitempty"`
+	ScenarioStatus string             `json:"scenario_status,omitempty"`
+	HealthStatus   string             `json:"health_status,omitempty"`
+	SchemaValid    bool               `json:"schema_valid"`
+	Details        string             `json:"details,omitempty"`
+	CheckedAt      string             `json:"checked_at,omitempty"`
 }
 
 // ScenarioReviewStep captures one scenario's review job and result.
 type ScenarioReviewStep struct {
-	Status     string        `json:"status,omitempty"`
-	JobID      string        `json:"job_id,omitempty"`
-	SkipReason string        `json:"skip_reason,omitempty"`
-	Result     *ReviewResult `json:"result,omitempty"`
+	Status     FinalizationStatus `json:"status,omitempty"`
+	JobID      string             `json:"job_id,omitempty"`
+	SkipReason string             `json:"skip_reason,omitempty"`
+	Result     *ReviewResult      `json:"result,omitempty"`
 }
 
 type finalizationScope struct {
@@ -229,6 +227,19 @@ func (s *Service) processFinalization(ctx context.Context, executionID string) e
 	for _, scenarioName := range scope.affectedScenarios {
 		if err := s.runScenarioReview(ctx, executionID, scenarioName, scope.sandboxID, item.AcceptanceAllow); err != nil {
 			return err
+		}
+	}
+
+	// Evidence gathering phase (optional, policy-gated). The review agent
+	// spawns asynchronously; its failure is non-fatal to finalization.
+	if s.isReviewAgentEnabled() {
+		if err := s.markFinalizationPhase(executionID, FinalizationPhaseEvidenceGathering); err != nil {
+			return err
+		}
+		if err := s.triggerReviewAgent(ctx, executionID, scope, item); err != nil {
+			s.appendFinalizationWarning(executionID, newFinalizationWarning(
+				finalizationWarningReviewAgentFailed, "", err.Error(), false,
+			))
 		}
 	}
 
@@ -319,7 +330,7 @@ func (s *Service) runScenarioRestartAndHealth(ctx context.Context, executionID s
 		return s.failFinalization(executionID, scenarioName, "scenario restart/health seams are not configured")
 	}
 
-	for attempt := 1; attempt <= finalizationMaxRestartAttempts; attempt++ {
+	for attempt := 1; attempt <= s.finalizationCfg.MaxRestartAttempts; attempt++ {
 		restartStartedAt := nowRFC3339()
 		if err := s.updateScenarioRestartState(executionID, scenarioName, RestartResult{
 			Status:    FinalizationStatusRunning,
@@ -342,7 +353,7 @@ func (s *Service) runScenarioRestartAndHealth(ctx context.Context, executionID s
 			if err := s.updateScenarioRestartState(executionID, scenarioName, restartResult); err != nil {
 				return err
 			}
-			if attempt < finalizationMaxRestartAttempts {
+			if attempt < s.finalizationCfg.MaxRestartAttempts {
 				if err := s.appendFinalizationWarning(executionID, newFinalizationWarning(
 					finalizationWarningRestartRetry,
 					scenarioName,
@@ -405,7 +416,7 @@ func (s *Service) runScenarioRestartAndHealth(ctx context.Context, executionID s
 		} else if strings.Contains(strings.ToLower(healthSnapshot.Details), "no health checks") {
 			warningCode = finalizationWarningHealthChecksMissing
 		}
-		if attempt < finalizationMaxRestartAttempts {
+		if attempt < s.finalizationCfg.MaxRestartAttempts {
 			if err := s.appendFinalizationWarning(executionID, newFinalizationWarning(
 				warningCode,
 				scenarioName,
@@ -424,7 +435,7 @@ func (s *Service) runScenarioRestartAndHealth(ctx context.Context, executionID s
 
 func (s *Service) waitForScenarioHealth(ctx context.Context, scenarioName string) (ScenarioHealthSnapshot, error) {
 	var last ScenarioHealthSnapshot
-	deadline := time.Now().Add(finalizationHealthPollTimeout)
+	deadline := time.Now().Add(s.finalizationCfg.HealthPollTimeout)
 	for {
 		snapshot, err := s.scenarioHealth.Check(ctx, scenarioName)
 		if err == nil {
@@ -454,7 +465,7 @@ func (s *Service) waitForScenarioHealth(ctx context.Context, scenarioName string
 			last.Details = ctx.Err().Error()
 			last.CheckedAt = nowRFC3339()
 			return last, ctx.Err()
-		case <-time.After(finalizationHealthPollInterval):
+		case <-time.After(s.finalizationCfg.HealthPollInterval):
 		}
 	}
 }
@@ -516,7 +527,7 @@ func (s *Service) runScenarioReview(ctx context.Context, executionID, scenarioNa
 		return err
 	}
 
-	deadline := time.Now().Add(finalizationReviewPollTimeout)
+	deadline := time.Now().Add(s.finalizationCfg.ReviewPollTimeout)
 	for {
 		result, done, pollErr := s.reviewClient.PollReview(ctx, jobID)
 		if pollErr != nil {
@@ -530,12 +541,12 @@ func (s *Service) runScenarioReview(ctx context.Context, executionID, scenarioNa
 			})
 		}
 		if time.Now().After(deadline) {
-			return s.failFinalization(executionID, scenarioName, fmt.Sprintf("review for %s timed out after %s", scenarioName, finalizationReviewPollTimeout))
+			return s.failFinalization(executionID, scenarioName, fmt.Sprintf("review for %s timed out after %s", scenarioName, s.finalizationCfg.ReviewPollTimeout))
 		}
 		select {
 		case <-ctx.Done():
 			return s.failFinalization(executionID, scenarioName, ctx.Err().Error())
-		case <-time.After(finalizationReviewPollInterval):
+		case <-time.After(s.finalizationCfg.ReviewPollInterval):
 		}
 	}
 }
@@ -574,11 +585,11 @@ func (s *Service) finishFinalization(executionID string) error {
 				record.Status = StatusNeedsFixup
 				record.FailureReason = ""
 			}
-			_ = s.updateBacklogStatus(item, "failed")
+			_ = s.updateBacklogStatus(item, backlogStatusFailed)
 		default:
 			record.Status = StatusCompleted
 			record.FailureReason = ""
-			_ = s.updateBacklogStatus(item, "completed")
+			_ = s.updateBacklogStatus(item, backlogStatusCompleted)
 		}
 	} else {
 		record.Status = StatusNeedsFixup
@@ -677,7 +688,7 @@ func (s *Service) completeFinalizationSkipped(executionID string, reason string)
 	record.FailureReason = ""
 	record.UpdatedAt = nowRFC3339()
 	if item, loadErr := s.loadBacklogItemByRecord(record); loadErr == nil {
-		_ = s.updateBacklogStatus(item, "completed")
+		_ = s.updateBacklogStatus(item, backlogStatusCompleted)
 	}
 	if err := s.store.Save(records); err != nil {
 		return err
@@ -715,7 +726,7 @@ func (s *Service) failFinalization(executionID, scenarioName, message string) er
 	record.FinishedAt = nowRFC3339()
 	record.UpdatedAt = nowRFC3339()
 	if item, loadErr := s.loadBacklogItemByRecord(record); loadErr == nil {
-		_ = s.updateBacklogStatus(item, "failed")
+		_ = s.updateBacklogStatus(item, backlogStatusFailed)
 	}
 	if err := s.store.Save(records); err != nil {
 		return err
@@ -1031,4 +1042,26 @@ func logFinalizationError(executionID string, err error) {
 		return
 	}
 	log.Printf("[execution] finalization error for %s: %v", executionID, err)
+}
+
+// isReviewAgentEnabled checks the execution policy for the review_agent_enabled flag.
+func (s *Service) isReviewAgentEnabled() bool {
+	policy, err := s.policyProvider.LoadPolicy()
+	if err != nil {
+		return false
+	}
+	return policy.ReviewAgentEnabled
+}
+
+// triggerReviewAgent spawns the review agent to gather evidence after finalization.
+// The agent runs asynchronously; this method returns after the spawn request is sent.
+func (s *Service) triggerReviewAgent(ctx context.Context, executionID string, scope finalizationScope, item backlogItem) error {
+	if s.reviewService == nil {
+		return fmt.Errorf("review service not configured")
+	}
+	return s.reviewService.StartReviewForExecution(ctx,
+		executionID, item.Kind, item.Name, item.Title,
+		s.itemDir(item.Kind, item.Name),
+		scope.affectedScenarios, scope.changedPathsByScenario,
+	)
 }

@@ -14,16 +14,14 @@ import {
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { PostRunStatusBadge } from "../execution/post-run-status-badge";
-import { cn, formatRelativeTime, canFollowUpExecution } from "../../lib";
+import { cn, formatRelativeTime, canFollowUpExecution, resolvePostRunExecution } from "../../lib";
 import {
   EXECUTION_STATUS_COLORS,
   formatExecutionStatus,
-} from "../../types/constants";
-import type {
-  AgentActivity,
-  AgentActivityPurpose,
-  ExecutionRecord,
-  ExecutionStatus,
+  type AgentActivity,
+  type AgentActivityPurpose,
+  type ExecutionRecord,
+  type ExecutionStatus,
 } from "../../types";
 import type { TimelineEntry } from "../../hooks/useActivityTimeline";
 import type { AgentActivityRecord } from "../../stores/agent-activities-store";
@@ -352,25 +350,11 @@ function ExecutionTimelineItem({
           )}
 
           {/* Post-run status */}
-          {exec.finalization ? (
-            <PostRunStatusBadge execution={exec} />
-          ) : exec.status === "validating" ? (
-            <PostRunStatusBadge
-              execution={{
-                ...exec,
-                finalization: {
-                  eligible: true,
-                  status: "running",
-                  phase: "scope_detection",
-                  scopeSource: "none",
-                  warnings: [],
-                  affectedScenarios: [],
-                  aggregateClassification: "not_assessable",
-                  scenarios: [],
-                },
-              }}
-            />
-          ) : null}
+          {(() => {
+            const resolved = resolvePostRunExecution(exec);
+            if (!resolved) return null;
+            return <PostRunStatusBadge execution={resolved} />;
+          })()}
 
           {/* Metadata */}
           <div className="space-y-1 text-xs text-slate-400">

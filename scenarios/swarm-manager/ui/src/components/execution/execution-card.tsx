@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ArrowUpRight, ChevronDown, ChevronUp, ExternalLink, Loader2, MessageSquare, RefreshCw } from "lucide-react";
 import { Button } from "../ui/button";
-import { cn, formatRelativeTime, canFollowUpExecution, canRunPostRunChecks } from "../../lib";
+import { cn, formatRelativeTime, canFollowUpExecution, canRunPostRunChecks, resolvePostRunExecution } from "../../lib";
 import {
   BACKLOG_KIND_LABELS,
   EXECUTION_STATUS_COLORS,
@@ -134,29 +134,17 @@ export function ExecutionCard({
       ) : null}
 
       {/* ── Zone 5: Post-run status ── */}
-      {item.finalization ? (
-        <PostRunStatusBadge
-          execution={item}
-          onOpenSandbox={onOpenReviewSandbox ? () => onOpenReviewSandbox(item.executionId) : undefined}
-          onRunChecks={onTriggerReview ? () => onTriggerReview(item.executionId) : undefined}
-        />
-      ) : item.status === "validating" ? (
-        <PostRunStatusBadge
-          execution={{
-            ...item,
-            finalization: {
-              eligible: true,
-              status: "running",
-              phase: "scope_detection",
-              scopeSource: "none",
-              warnings: [],
-              affectedScenarios: [],
-              aggregateClassification: "not_assessable",
-              scenarios: [],
-            },
-          }}
-        />
-      ) : null}
+      {(() => {
+        const resolved = resolvePostRunExecution(item);
+        if (!resolved) return null;
+        return (
+          <PostRunStatusBadge
+            execution={resolved}
+            onOpenSandbox={onOpenReviewSandbox ? () => onOpenReviewSandbox(item.executionId) : undefined}
+            onRunChecks={onTriggerReview ? () => onTriggerReview(item.executionId) : undefined}
+          />
+        );
+      })()}
 
       {/* Run post-run checks button for terminal executions without finalization */}
       {hasReviewTrigger && (

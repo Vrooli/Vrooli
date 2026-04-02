@@ -1,5 +1,37 @@
 import type { ExecutionRecord, Finalization, ReviewResult } from "../types";
 
+/**
+ * Synthetic finalization used when an execution is in "validating" status
+ * but the real finalization data hasn't arrived yet.
+ */
+const VALIDATING_PLACEHOLDER_FINALIZATION: Finalization = {
+  eligible: true,
+  status: "running",
+  phase: "scope_detection",
+  scopeSource: "none",
+  warnings: [],
+  affectedScenarios: [],
+  aggregateClassification: "not_assessable",
+  scenarios: [],
+};
+
+/**
+ * Returns an execution suitable for PostRunStatusBadge rendering:
+ * - If finalization data exists, returns execution as-is.
+ * - If status is "validating" but no finalization yet, returns execution
+ *   with a synthetic placeholder finalization.
+ * - Otherwise returns null (no post-run badge should be shown).
+ */
+export function resolvePostRunExecution(execution: ExecutionRecord): ExecutionRecord | null {
+  if (execution.finalization) {
+    return execution;
+  }
+  if (execution.status === "validating") {
+    return { ...execution, finalization: VALIDATING_PLACEHOLDER_FINALIZATION };
+  }
+  return null;
+}
+
 export function getExecutionReviewResults(execution: ExecutionRecord): ReviewResult[] {
   return execution.finalization?.scenarios.flatMap((scenario) => scenario.review.result ? [scenario.review.result] : []) ?? [];
 }

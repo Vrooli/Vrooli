@@ -19,8 +19,8 @@ import {
   BACKLOG_STATUS_COLORS,
   USER_SETTABLE_STATUSES,
   formatBacklogStatus,
-} from "../../types/constants";
-import type { BacklogStatus } from "../../types";
+  type BacklogStatus,
+} from "../../types";
 import { Popover } from "../ui/popover";
 
 interface DependencyChipListProps {

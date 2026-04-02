@@ -190,6 +190,64 @@ func (e *Emitter) EmitClarificationAction(entityID string, roundNumber int, item
 	})
 }
 
+// --- Review evidence events ---
+
+func (e *Emitter) EmitReviewStarted(executionID string, roundNumber int) {
+	e.emit(EntityExecution, executionID, EventReviewStarted, ReviewStartedPayload{
+		ExecutionID: executionID,
+		RoundNumber: roundNumber,
+	})
+}
+
+func (e *Emitter) EmitReviewEvidenceAdded(executionID, evidenceID, evidenceType string) {
+	e.emit(EntityExecution, executionID, EventReviewEvidenceAdded, ReviewEvidencePayload{
+		ExecutionID:  executionID,
+		EvidenceID:   evidenceID,
+		EvidenceType: evidenceType,
+	})
+}
+
+func (e *Emitter) EmitReviewEvidenceVerified(executionID, evidenceID string) {
+	e.emit(EntityExecution, executionID, EventReviewEvidenceVerified, ReviewVerifiedPayload{
+		ExecutionID: executionID,
+		EvidenceID:  evidenceID,
+	})
+}
+
+func (e *Emitter) EmitReviewRequestCreated(executionID, requestID, description string) {
+	e.emit(EntityExecution, executionID, EventReviewRequestCreated, ReviewRequestPayload{
+		ExecutionID: executionID,
+		RequestID:   requestID,
+		Description: description,
+	})
+}
+
+func (e *Emitter) EmitReviewRequestFulfilled(executionID, requestID, evidenceID string) {
+	e.emit(EntityExecution, executionID, EventReviewRequestFulfilled, ReviewRequestPayload{
+		ExecutionID: executionID,
+		RequestID:   requestID,
+		EvidenceID:  evidenceID,
+	})
+}
+
+func (e *Emitter) EmitReviewRoundCompleted(executionID string, roundNumber, evidenceCount int, classification string, durationSecs float64) {
+	e.emit(EntityExecution, executionID, EventReviewRoundCompleted, ReviewRoundCompletedPayload{
+		ExecutionID:    executionID,
+		RoundNumber:    roundNumber,
+		EvidenceCount:  evidenceCount,
+		Classification: classification,
+		DurationSecs:   durationSecs,
+	})
+}
+
+func (e *Emitter) EmitReviewFailed(executionID, reason string, durationSecs float64) {
+	e.emit(EntityExecution, executionID, EventReviewFailed, ReviewFailedPayload{
+		ExecutionID:  executionID,
+		Reason:       reason,
+		DurationSecs: durationSecs,
+	})
+}
+
 // emit is the internal helper that marshals metadata and appends the event.
 func (e *Emitter) emit(entityType EntityType, entityID string, eventType EventType, payload any) {
 	var metadata json.RawMessage

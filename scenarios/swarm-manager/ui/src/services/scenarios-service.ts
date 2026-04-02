@@ -37,6 +37,7 @@ import {
 import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
+import { buildQueryString } from "../lib/query-utils";
 import type {
   Scenario,
   ScenarioFile,
@@ -133,9 +134,8 @@ export function createScenariosService(
      */
     async delete(name: string, options: DeleteScenarioOptions = {}): Promise<DeleteScenarioResponse> {
       const { archive = false, preserveFiles } = options;
-      const endpoint = archive
-        ? `${API_ENDPOINTS.scenarioByName(name)}?archive=true`
-        : API_ENDPOINTS.scenarioByName(name);
+      const qs = buildQueryString({ archive: archive ? "true" : undefined });
+      const endpoint = `${API_ENDPOINTS.scenarioByName(name)}${qs}`;
 
       // Build request body if preserveFiles is specified
       let body: unknown = undefined;

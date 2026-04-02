@@ -51,8 +51,15 @@ type Settings struct {
 	ReviewMaxWarnings           int32   `protobuf:"varint,22,opt,name=review_max_warnings,json=reviewMaxWarnings,proto3" json:"review_max_warnings,omitempty"`
 	ReviewRequireScreenshots    bool    `protobuf:"varint,23,opt,name=review_require_screenshots,json=reviewRequireScreenshots,proto3" json:"review_require_screenshots,omitempty"`
 	ReviewRequireTests          bool    `protobuf:"varint,24,opt,name=review_require_tests,json=reviewRequireTests,proto3" json:"review_require_tests,omitempty"`
-	unknownFields               protoimpl.UnknownFields
-	sizeCache                   protoimpl.SizeCache
+	// Concurrency and governance settings.
+	MaxConcurrentExecutions       int32   `protobuf:"varint,25,opt,name=max_concurrent_executions,json=maxConcurrentExecutions,proto3" json:"max_concurrent_executions,omitempty"`
+	MaxQueueDepth                 int32   `protobuf:"varint,26,opt,name=max_queue_depth,json=maxQueueDepth,proto3" json:"max_queue_depth,omitempty"`
+	CircuitBreakerThreshold       int32   `protobuf:"varint,27,opt,name=circuit_breaker_threshold,json=circuitBreakerThreshold,proto3" json:"circuit_breaker_threshold,omitempty"`
+	CircuitBreakerCooldownMinutes int32   `protobuf:"varint,28,opt,name=circuit_breaker_cooldown_minutes,json=circuitBreakerCooldownMinutes,proto3" json:"circuit_breaker_cooldown_minutes,omitempty"`
+	ExecutionCostCapPerRun        float64 `protobuf:"fixed64,29,opt,name=execution_cost_cap_per_run,json=executionCostCapPerRun,proto3" json:"execution_cost_cap_per_run,omitempty"`
+	CostPerTurnEstimate           float64 `protobuf:"fixed64,30,opt,name=cost_per_turn_estimate,json=costPerTurnEstimate,proto3" json:"cost_per_turn_estimate,omitempty"`
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
 }
 
 func (x *Settings) Reset() {
@@ -225,11 +232,53 @@ func (x *Settings) GetReviewRequireTests() bool {
 	return false
 }
 
+func (x *Settings) GetMaxConcurrentExecutions() int32 {
+	if x != nil {
+		return x.MaxConcurrentExecutions
+	}
+	return 0
+}
+
+func (x *Settings) GetMaxQueueDepth() int32 {
+	if x != nil {
+		return x.MaxQueueDepth
+	}
+	return 0
+}
+
+func (x *Settings) GetCircuitBreakerThreshold() int32 {
+	if x != nil {
+		return x.CircuitBreakerThreshold
+	}
+	return 0
+}
+
+func (x *Settings) GetCircuitBreakerCooldownMinutes() int32 {
+	if x != nil {
+		return x.CircuitBreakerCooldownMinutes
+	}
+	return 0
+}
+
+func (x *Settings) GetExecutionCostCapPerRun() float64 {
+	if x != nil {
+		return x.ExecutionCostCapPerRun
+	}
+	return 0
+}
+
+func (x *Settings) GetCostPerTurnEstimate() float64 {
+	if x != nil {
+		return x.CostPerTurnEstimate
+	}
+	return 0
+}
+
 var File_swarm_manager_v1_domain_settings_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\n" +
-	"&swarm-manager/v1/domain/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xc7\t\n" +
+	"&swarm-manager/v1/domain/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xf7\f\n" +
 	"\bSettings\x120\n" +
 	"\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04darkR\x05lightR\x06systemR\x05theme\x126\n" +
 	"\fdefault_mode\x18\x05 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\vdefaultMode\x12\x1d\n" +
@@ -255,7 +304,15 @@ const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\x1ereview_max_blocking_violations\x18\x15 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x1breviewMaxBlockingViolations\x12@\n" +
 	"\x13review_max_warnings\x18\x16 \x01(\x05B\x10\xbaH\r\x1a\v(\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01R\x11reviewMaxWarnings\x12<\n" +
 	"\x1areview_require_screenshots\x18\x17 \x01(\bR\x18reviewRequireScreenshots\x120\n" +
-	"\x14review_require_tests\x18\x18 \x01(\bR\x12reviewRequireTestsJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
+	"\x14review_require_tests\x18\x18 \x01(\bR\x12reviewRequireTests\x12E\n" +
+	"\x19max_concurrent_executions\x18\x19 \x01(\x05B\t\xbaH\x06\x1a\x04\x18\x14(\x01R\x17maxConcurrentExecutions\x121\n" +
+	"\x0fmax_queue_depth\x18\x1a \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x00R\rmaxQueueDepth\x12E\n" +
+	"\x19circuit_breaker_threshold\x18\x1b \x01(\x05B\t\xbaH\x06\x1a\x04\x18\n" +
+	"(\x01R\x17circuitBreakerThreshold\x12S\n" +
+	" circuit_breaker_cooldown_minutes\x18\x1c \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\xa0\v(\x05R\x1dcircuitBreakerCooldownMinutes\x12J\n" +
+	"\x1aexecution_cost_cap_per_run\x18\x1d \x01(\x01B\x0e\xbaH\v\x12\t)\x00\x00\x00\x00\x00\x00\x00\x00R\x16executionCostCapPerRun\x12L\n" +
+	"\x16cost_per_turn_estimate\x18\x1e \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\x14@)\x00\x00\x00\x00\x00\x00\x00\x00R\x13costPerTurnEstimateJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
 
 var (
 	file_swarm_manager_v1_domain_settings_proto_rawDescOnce sync.Once

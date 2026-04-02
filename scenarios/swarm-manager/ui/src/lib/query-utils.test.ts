@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { defaultQueryOptions } from "./query-utils";
+import { buildQueryString, defaultQueryOptions } from "./query-utils";
 import { dataFetchingConfig } from "../config";
 
 /**
@@ -54,5 +54,59 @@ describe("defaultQueryOptions", () => {
         expect(defaultQueryOptions.retryDelay(i)).toBe(expected);
       }
     });
+  });
+});
+
+describe("buildQueryString", () => {
+  it("returns empty string for empty params", () => {
+    expect(buildQueryString({})).toBe("");
+  });
+
+  it("returns query string for a single param", () => {
+    expect(buildQueryString({ key: "value" })).toBe("?key=value");
+  });
+
+  it("returns query string for multiple params", () => {
+    const result = buildQueryString({ key1: "value1", key2: "value2" });
+    expect(result).toBe("?key1=value1&key2=value2");
+  });
+
+  it("joins array values with commas", () => {
+    const result = buildQueryString({ kinds: ["idea", "fix"] });
+    expect(result).toBe("?kinds=idea%2Cfix");
+  });
+
+  it("skips undefined values", () => {
+    const result = buildQueryString({ status: "active", mode: undefined });
+    expect(result).toBe("?status=active");
+  });
+
+  it("skips null values", () => {
+    const result = buildQueryString({ status: "active", mode: null });
+    expect(result).toBe("?status=active");
+  });
+
+  it("skips empty string values", () => {
+    const result = buildQueryString({ status: "active", mode: "" });
+    expect(result).toBe("?status=active");
+  });
+
+  it("skips empty arrays", () => {
+    const result = buildQueryString({ status: "active", tags: [] });
+    expect(result).toBe("?status=active");
+  });
+
+  it("stringifies boolean values", () => {
+    const result = buildQueryString({ active: true, archived: false });
+    expect(result).toBe("?active=true&archived=false");
+  });
+
+  it("stringifies number values", () => {
+    const result = buildQueryString({ limit: 10, offset: 0 });
+    expect(result).toBe("?limit=10&offset=0");
+  });
+
+  it("returns empty string when all values are skipped", () => {
+    expect(buildQueryString({ a: undefined, b: null, c: "" })).toBe("");
   });
 });

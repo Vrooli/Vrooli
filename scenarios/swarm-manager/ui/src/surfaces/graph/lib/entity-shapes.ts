@@ -14,7 +14,7 @@
  */
 
 import type { ElementType } from "react";
-import { Activity, Lightbulb, MessageSquare, Package, Target, Zap } from "lucide-react";
+import { ENTITY_TYPE_ICONS } from "../../../types/constants";
 import type { GraphEntityType } from "../types";
 
 // ---------------------------------------------------------------------------
@@ -66,7 +66,7 @@ export const ENTITY_REGISTRY: Record<GraphEntityType, EntityConfig> = {
     cssClass: "",
     clipPath: "5% 50%, 15% 0%, 85% 0%, 95% 50%, 85% 100%, 15% 100%",
     dimensions: { width: 170, height: 76 },
-    icon: Lightbulb,
+    icon: ENTITY_TYPE_ICONS.backlog,
   },
   initiative: {
     label: "Initiatives",
@@ -75,7 +75,7 @@ export const ENTITY_REGISTRY: Record<GraphEntityType, EntityConfig> = {
     cssClass: "rounded-lg",
     clipPath: null,
     dimensions: { width: 168, height: 76 },
-    icon: Target,
+    icon: ENTITY_TYPE_ICONS.initiative,
   },
   scenario: {
     label: "Scenarios",
@@ -84,7 +84,7 @@ export const ENTITY_REGISTRY: Record<GraphEntityType, EntityConfig> = {
     cssClass: "",
     clipPath: "8% 0%, 92% 0%, 100% 12%, 100% 88%, 92% 100%, 8% 100%, 0% 88%, 0% 12%",
     dimensions: { width: 164, height: 74 },
-    icon: Package,
+    icon: ENTITY_TYPE_ICONS.scenario,
   },
   capture: {
     label: "Captures",
@@ -93,7 +93,7 @@ export const ENTITY_REGISTRY: Record<GraphEntityType, EntityConfig> = {
     cssClass: "rounded-full",
     clipPath: null,
     dimensions: { width: 166, height: 72 },
-    icon: MessageSquare,
+    icon: ENTITY_TYPE_ICONS.capture,
   },
   execution: {
     label: "Execution",
@@ -102,7 +102,7 @@ export const ENTITY_REGISTRY: Record<GraphEntityType, EntityConfig> = {
     cssClass: "",
     clipPath: "12% 0%, 100% 0%, 88% 100%, 0% 100%",
     dimensions: { width: 170, height: 74 },
-    icon: Zap,
+    icon: ENTITY_TYPE_ICONS.execution,
   },
   "agent-run": {
     label: "Runs",
@@ -111,7 +111,7 @@ export const ENTITY_REGISTRY: Record<GraphEntityType, EntityConfig> = {
     cssClass: "",
     clipPath: "8% 0%, 92% 0%, 100% 100%, 0% 100%",
     dimensions: { width: 168, height: 76 },
-    icon: Activity,
+    icon: ENTITY_TYPE_ICONS["agent-run"],
   },
   "agent-activity": {
     label: "Activities",
@@ -120,7 +120,7 @@ export const ENTITY_REGISTRY: Record<GraphEntityType, EntityConfig> = {
     cssClass: "",
     clipPath: "10% 0%, 90% 0%, 100% 30%, 100% 70%, 90% 100%, 10% 100%, 0% 70%, 0% 30%",
     dimensions: { width: 166, height: 74 },
-    icon: Activity,
+    icon: ENTITY_TYPE_ICONS["agent-activity"],
   },
 };
 

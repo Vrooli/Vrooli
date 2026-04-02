@@ -300,7 +300,7 @@ describe("computeBadgeCount", () => {
       { id: "ready-to-run", label: "Ready", count: 3, items: [] },
       { id: "pending-decisions", label: "Pending", count: 2, items: [] },
       { id: "needs-review", label: "Review", count: 1, items: [] },
-      { id: "failed", label: "Failed", count: 0, items: [] },
+      { id: "needs-workshop", label: "Workshop", count: 0, items: [] },
       { id: "needs-classification", label: "Classify", count: 4, items: [] },
     ];
     expect(computeBadgeCount(groups)).toBe(10);

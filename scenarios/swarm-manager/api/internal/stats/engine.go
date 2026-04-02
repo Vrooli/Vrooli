@@ -122,6 +122,13 @@ type aggregateState struct {
 
 	// Workshop tracking.
 	workshopRounds map[string]int // entity_id → max round number
+
+	// Review evidence tracking.
+	reviewRoundsCompleted   int
+	reviewEvidenceCounts    []int
+	reviewEvidenceVerified  int
+	reviewRequestsCreated   int
+	reviewDurations         []float64 // in seconds
 }
 
 func newAggregateState() *aggregateState {
@@ -295,6 +302,21 @@ func (s *aggregateState) processEvent(e *eventlog.Event) {
 				s.workshopRounds[e.EntityID] = p.RoundNumber
 			}
 		}
+
+	// --- Review evidence ---
+	case eventlog.EventReviewRoundCompleted:
+		s.reviewRoundsCompleted++
+		var p eventlog.ReviewRoundCompletedPayload
+		if unmarshalMeta(e.Metadata, &p) {
+			s.reviewEvidenceCounts = append(s.reviewEvidenceCounts, p.EvidenceCount)
+			s.reviewDurations = append(s.reviewDurations, p.DurationSecs)
+		}
+
+	case eventlog.EventReviewEvidenceVerified:
+		s.reviewEvidenceVerified++
+
+	case eventlog.EventReviewRequestCreated:
+		s.reviewRequestsCreated++
 	}
 }
 
@@ -309,6 +331,50 @@ func (s *aggregateState) buildResponse() StatsResponse {
 		Blocking:    s.buildBlocking(),
 		Agent:       s.buildAgent(),
 		Dashboard:   s.buildDashboard(now),
+		Review:      s.buildReview(),
+	}
+}
+
+func (s *aggregateState) buildReview() ReviewStats {
+	var avgEvidence float64
+	if len(s.reviewEvidenceCounts) > 0 {
+		total := 0
+		for _, c := range s.reviewEvidenceCounts {
+			total += c
+		}
+		avgEvidence = float64(total) / float64(len(s.reviewEvidenceCounts))
+	}
+
+	totalEvidence := 0
+	for _, c := range s.reviewEvidenceCounts {
+		totalEvidence += c
+	}
+
+	var verificationRate float64
+	if totalEvidence > 0 {
+		verificationRate = float64(s.reviewEvidenceVerified) / float64(totalEvidence)
+	}
+
+	var requestMoreRate float64
+	if s.reviewRoundsCompleted > 0 {
+		requestMoreRate = float64(s.reviewRequestsCreated) / float64(s.reviewRoundsCompleted)
+	}
+
+	var avgDuration float64
+	if len(s.reviewDurations) > 0 {
+		total := 0.0
+		for _, d := range s.reviewDurations {
+			total += d
+		}
+		avgDuration = total / float64(len(s.reviewDurations))
+	}
+
+	return ReviewStats{
+		RoundsCompleted:         s.reviewRoundsCompleted,
+		AverageEvidencePerRound: avgEvidence,
+		VerificationRate:        verificationRate,
+		RequestMoreRate:         requestMoreRate,
+		AverageReviewDuration:   avgDuration,
 	}
 }
 

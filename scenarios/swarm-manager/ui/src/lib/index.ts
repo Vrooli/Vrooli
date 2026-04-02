@@ -100,6 +100,7 @@ export {
   canRunPostRunChecks,
   getExecutionReviewResults,
   hasActionableFinalizationIssues,
+  resolvePostRunExecution,
 } from "./finalization";
 
 // Scenario Utilities

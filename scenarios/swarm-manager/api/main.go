@@ -82,8 +82,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -111,6 +109,7 @@ import (
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/prompts"
 	"swarm-manager/internal/queue"
+	"swarm-manager/internal/review"
 	"swarm-manager/internal/scenarios"
 	"swarm-manager/internal/settings"
 	"swarm-manager/internal/stats"
@@ -128,6 +127,8 @@ type Server struct {
 	initiativeService *initiatives.Service
 	executionSvc      *execution.Service
 	executionHandler  *execution.Handler
+	reviewSvc         *review.Service
+	reviewHandler     *review.Handler
 	executionStopChan chan struct{}
 	graphBroker       *graph.Broker
 	queueHandler      *queue.Handler
@@ -135,77 +136,6 @@ type Server struct {
 	eventDB           *sql.DB
 	emitter           *eventlog.Emitter
 	statsEngine       *stats.Engine
-}
-
-// settingsAgentAdapter bridges settings.Store to agentmanager.SettingsReader.
-type settingsAgentAdapter struct {
-	store *settings.Store
-}
-
-func (a *settingsAgentAdapter) LoadAgentSettings() (maxTurns, timeoutSeconds int32, requiresApproval bool, err error) {
-	s, err := a.store.Load()
-	if err != nil {
-		return 0, 0, false, err
-	}
-	return int32(s.AgentMaxTurns), int32(s.AgentTimeoutSeconds), s.AgentRequiresApproval, nil
-}
-
-// settingsPolicyAdapter bridges settings.Store to execution.PolicyProvider.
-type settingsPolicyAdapter struct {
-	store *settings.Store
-}
-
-func (a *settingsPolicyAdapter) LoadPolicy() (execution.Policy, error) {
-	s, err := a.store.Load()
-	if err != nil {
-		return execution.Policy{}, err
-	}
-	return execution.Policy{
-		DefaultMode:      execution.Mode(s.DefaultMode),
-		AutoFixup:        s.AutoFixup,
-		MaxFixupAttempts: s.MaxFixupAttempts,
-	}, nil
-}
-
-// settingsGovernanceAdapter bridges settings.Store to execution.GovernanceProvider.
-type settingsGovernanceAdapter struct {
-	store *settings.Store
-}
-
-func (a *settingsGovernanceAdapter) LoadGovernance() (execution.GovernanceSettings, error) {
-	s, err := a.store.Load()
-	if err != nil {
-		return execution.GovernanceSettings{}, err
-	}
-	return execution.GovernanceSettings{
-		MaxConcurrentExecutions:       s.MaxConcurrentExecutions,
-		MaxQueueDepth:                 s.MaxQueueDepth,
-		CircuitBreakerThreshold:       s.CircuitBreakerThreshold,
-		CircuitBreakerCooldownMinutes: s.CircuitBreakerCooldownMinutes,
-		ExecutionCostCapPerRun:        s.ExecutionCostCapPerRun,
-		CostPerTurnEstimate:           s.CostPerTurnEstimate,
-		AgentMaxTurns:                 s.AgentMaxTurns,
-	}, nil
-}
-
-// settingsReviewThresholdsAdapter bridges settings.Store to execution.ReviewThresholdsProvider.
-type settingsReviewThresholdsAdapter struct {
-	store *settings.Store
-}
-
-func (a *settingsReviewThresholdsAdapter) LoadReviewThresholds() (*execution.ReviewThresholds, error) {
-	s, err := a.store.Load()
-	if err != nil {
-		return nil, err
-	}
-	return &execution.ReviewThresholds{
-		CodeQualityMinScore:   s.ReviewCodeQualityMinScore,
-		TestMinPassRate:       s.ReviewTestMinPassRate,
-		MaxBlockingViolations: s.ReviewMaxBlockingViolations,
-		MaxWarnings:           s.ReviewMaxWarnings,
-		RequireScreenshots:    s.ReviewRequireScreenshots,
-		RequireTests:          s.ReviewRequireTests,
-	}, nil
 }
 
 // NewServer initializes routes using the default scenario root resolved from
@@ -253,6 +183,7 @@ func (s *Server) setupRoutes() {
 	if execSvc != nil {
 		overviewSvc.SetGovernanceProvider(execSvc)
 	}
+	s.registerReviewRoutes(scenarioRoot, execSvc)
 	s.registerGraphRoutes(scenarioRoot)
 	s.registerPromptRoutes(scenarioRoot)
 }
@@ -273,8 +204,8 @@ func (s *Server) registerBacklogRoutes(scenarioRoot string) *backlog.Handler {
 	// Backlog endpoints
 	// [REQ:REQ-P0-002] Backlog management
 	backlogHandler := backlog.NewHandlerWithClients(scenarioRoot, s.requireTrackedAgentService(), nil)
-	backlogHandler.SetPolicyProvider(&settingsPolicyAdapter{store: s.settingsStore})
-	backlogHandler.SetGovernanceProvider(&settingsGovernanceAdapter{store: s.settingsStore})
+	backlogHandler.SetPolicyProvider(settings.NewPolicyAdapter(s.settingsStore))
+	backlogHandler.SetGovernanceProvider(settings.NewGovernanceAdapter(s.settingsStore))
 	backlogHandler.RegisterRoutes(s.router)
 	s.backlogHandler = backlogHandler
 	return backlogHandler
@@ -293,68 +224,8 @@ func (s *Server) registerInitiativeRoutes(scenarioRoot string, backlogHandler *b
 	s.initiativeService = initService
 
 	// Wire initiative assigner into backlog handler for batch operations.
-	backlogHandler.SetInitiativeAssigner(&initiativeAssignerAdapter{service: initService})
+	backlogHandler.SetInitiativeAssigner(initiatives.NewBacklogAssignerAdapter(initService))
 	return initService
-}
-
-// initiativeAssignerAdapter bridges the initiatives.Service to the
-// backlog.InitiativeAssigner interface, avoiding a direct import cycle.
-type initiativeAssignerAdapter struct {
-	service *initiatives.Service
-}
-
-func (a *initiativeAssignerAdapter) Get(name string) (*backlog.InitiativeSnapshot, error) {
-	result, err := a.service.Get(name)
-	if err != nil {
-		return nil, err
-	}
-	return &backlog.InitiativeSnapshot{
-		Name:        result.Initiative.Name,
-		Title:       result.Initiative.Title,
-		Description: result.Initiative.Description,
-		Status:      result.Initiative.Status,
-		Items:       append([]string(nil), result.Initiative.Items...),
-	}, nil
-}
-
-func (a *initiativeAssignerAdapter) Create(spec backlog.InitiativeSpec) error {
-	_, err := a.service.Create(initiatives.CreateRequest{
-		Name:        spec.Name,
-		Title:       spec.Title,
-		Description: spec.Description,
-		Status:      spec.Status,
-	})
-	return err
-}
-
-func (a *initiativeAssignerAdapter) Update(spec backlog.InitiativeSpec) error {
-	title := spec.Title
-	description := spec.Description
-	status := spec.Status
-	_, err := a.service.Update(spec.Name, initiatives.UpdateRequest{
-		Title:       &title,
-		Description: &description,
-		Status:      &status,
-	})
-	return err
-}
-
-func (a *initiativeAssignerAdapter) Replace(snapshot backlog.InitiativeSnapshot) error {
-	return a.service.Replace(initiatives.Initiative{
-		Name:        snapshot.Name,
-		Title:       snapshot.Title,
-		Description: snapshot.Description,
-		Status:      snapshot.Status,
-		Items:       append([]string(nil), snapshot.Items...),
-	})
-}
-
-func (a *initiativeAssignerAdapter) Delete(name string) error {
-	return a.service.Delete(name)
-}
-
-func (a *initiativeAssignerAdapter) AddItems(name string, items []string) error {
-	return a.service.AddItems(name, items)
 }
 
 func (s *Server) registerOverviewRoutes(backlogHandler *backlog.Handler, initService *initiatives.Service) *overview.Service {
@@ -368,7 +239,7 @@ func (s *Server) registerOverviewRoutes(backlogHandler *backlog.Handler, initSer
 func (s *Server) registerCapturesRoutes(scenarioRoot string, backlogHandler *backlog.Handler) {
 	// Captures endpoints for quick-capture unified feed
 	capturesHandler := captures.NewHandler(scenarioRoot, s.requireTrackedAgentService(), nil)
-	capturesHandler.SetBacklogCreator(&backlogItemCreatorAdapter{store: backlogHandler.Store()})
+	capturesHandler.SetBacklogCreator(captures.NewBacklogItemCreatorAdapter(backlogHandler.Store()))
 	capturesHandler.RegisterRoutes(s.router)
 	s.capturesHandler = capturesHandler
 }
@@ -389,7 +260,7 @@ func (s *Server) registerSettingsRoutes(scenarioRoot string) {
 
 	// Wire settings into agent service for runtime profile config resolution.
 	if s.agentSvc != nil {
-		s.agentSvc.SetSettingsReader(&settingsAgentAdapter{store: s.settingsStore})
+		s.agentSvc.SetSettingsReader(settings.NewAgentAdapter(s.settingsStore))
 	}
 }
 
@@ -425,9 +296,9 @@ func (s *Server) registerExecutionRoutes(scenarioRoot string) *execution.Service
 	cfg := execution.ServiceConfig{
 		RootDir:                  scenarioRoot,
 		StorePath:                filepath.Join(scenarioRoot, ".vrooli", "execution-runs.json"),
-		PolicyProvider:           &settingsPolicyAdapter{store: s.settingsStore},
-		GovernanceProvider:       &settingsGovernanceAdapter{store: s.settingsStore},
-		ReviewThresholdsProvider: &settingsReviewThresholdsAdapter{store: s.settingsStore},
+		PolicyProvider:           settings.NewPolicyAdapter(s.settingsStore),
+		GovernanceProvider:       settings.NewGovernanceAdapter(s.settingsStore),
+		ReviewThresholdsProvider: settings.NewReviewThresholdsAdapter(s.settingsStore),
 		AgentService:             s.requireTrackedAgentService(),
 		ScenarioLifecycle:        scenarios.NewCLILifecycle(),
 		ScenarioHealthChecker:    scenarios.NewCLIHealthChecker(20 * time.Second),
@@ -448,141 +319,21 @@ func (s *Server) registerExecutionRoutes(scenarioRoot string) *execution.Service
 	return s.executionSvc
 }
 
-// captureAdapter bridges captures.Handler filesystem logic to graph.CaptureLister.
-type captureAdapter struct {
-	rootDir string
-}
-
-func (a *captureAdapter) ListCaptures() ([]graph.CaptureEntry, error) {
-	capturesRoot := filepath.Join(a.rootDir, "captures")
-	entries, err := os.ReadDir(capturesRoot)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
+func (s *Server) registerReviewRoutes(scenarioRoot string, execSvc *execution.Service) {
+	backlogStore := backlog.NewFileStore(scenarioRoot)
+	cfg := review.ServiceConfig{
+		RootDir:      scenarioRoot,
+		AgentService: s.requireTrackedAgentService(),
+		ItemDirFn:    func(kind, name string) string { return backlogStore.ItemDir(backlog.BacklogKind(kind), name) },
 	}
+	s.reviewSvc = review.NewService(cfg)
+	s.reviewHandler = review.NewHandler(s.reviewSvc)
+	s.reviewHandler.RegisterRoutes(s.router)
 
-	var result []graph.CaptureEntry
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		capPath := filepath.Join(capturesRoot, entry.Name(), "capture.json")
-		data, err := os.ReadFile(capPath)
-		if err != nil {
-			continue
-		}
-		var raw struct {
-			ID     string `json:"id"`
-			Text   string `json:"text"`
-			Status string `json:"status"`
-		}
-		if err := json.Unmarshal(data, &raw); err != nil {
-			continue
-		}
-
-		ce := graph.CaptureEntry{
-			ID:     raw.ID,
-			Text:   raw.Text,
-			Status: raw.Status,
-		}
-
-		// Load classification if it exists.
-		classPath := filepath.Join(capturesRoot, entry.Name(), "classification.json")
-		classData, err := os.ReadFile(classPath)
-		if err == nil {
-			var cls struct {
-				Items []struct {
-					Kind  string `json:"kind"`
-					Title string `json:"title"`
-				} `json:"items"`
-			}
-			if json.Unmarshal(classData, &cls) == nil {
-				for _, item := range cls.Items {
-					ce.Items = append(ce.Items, graph.CaptureClassificationItem{
-						Kind:  item.Kind,
-						Title: item.Title,
-					})
-				}
-			}
-		}
-
-		result = append(result, ce)
+	// Wire review service into execution service for finalization integration.
+	if execSvc != nil {
+		execSvc.SetReviewService(s.reviewSvc)
 	}
-	return result, nil
-}
-
-// graphInitiativeAdapter bridges the initiatives store to graph.InitiativeLister.
-type graphInitiativeAdapter struct {
-	store *initiatives.Store
-}
-
-func (a *graphInitiativeAdapter) List() ([]graph.InitiativeEntry, error) {
-	items, err := a.store.LoadAll()
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]graph.InitiativeEntry, 0, len(items))
-	for _, item := range items {
-		result = append(result, graph.InitiativeEntry{
-			Name:   item.Name,
-			Title:  item.Title,
-			Status: item.Status,
-			Items:  append([]string(nil), item.Items...),
-		})
-	}
-	return result, nil
-}
-
-// executionAdapter bridges execution.Service to graph.ExecutionLister.
-type executionAdapter struct {
-	svc *execution.Service
-}
-
-func (a *executionAdapter) List(ctx context.Context, filters execution.ListFilters) ([]execution.Record, error) {
-	return a.svc.List(ctx, filters)
-}
-
-// backlogItemCreatorAdapter bridges backlog.Store to captures.BacklogItemCreator.
-type backlogItemCreatorAdapter struct {
-	store backlog.Store
-}
-
-func (a *backlogItemCreatorAdapter) ItemDir(kind, name string) string {
-	return a.store.ItemDir(backlog.BacklogKind(kind), name)
-}
-
-func (a *backlogItemCreatorAdapter) SaveItem(kind, name, title, description string, tags []string) error {
-	bk := backlog.BacklogKind(kind)
-	itemDir := a.store.ItemDir(bk, name)
-	if err := os.MkdirAll(filepath.Dir(itemDir), 0o755); err != nil {
-		return fmt.Errorf("create parent dir: %w", err)
-	}
-	if err := os.Mkdir(itemDir, 0o755); err != nil {
-		if os.IsExist(err) {
-			return fmt.Errorf("already exists")
-		}
-		return fmt.Errorf("create item dir: %w", err)
-	}
-	now := time.Now().UTC().Format(time.RFC3339)
-	item := backlog.BacklogItem{
-		Name:        name,
-		Title:       title,
-		Description: description,
-		Status:      backlog.StatusBacklog,
-		Priority:    5,
-		Tags:        tags,
-		Created:     now,
-		Updated:     now,
-		Kind:        bk,
-	}
-	if err := a.store.SaveItem(item); err != nil {
-		_ = os.RemoveAll(itemDir)
-		return fmt.Errorf("save item: %w", err)
-	}
-	return nil
 }
 
 func (s *Server) registerGraphRoutes(scenarioRoot string) {
@@ -592,8 +343,8 @@ func (s *Server) registerGraphRoutes(scenarioRoot string) {
 
 	projCfg := graph.ProjectionConfig{
 		Backlog:    s.backlogHandler.Store(),
-		Initiative: &graphInitiativeAdapter{store: s.initStore},
-		Capture:    &captureAdapter{rootDir: scenarioRoot},
+		Initiative: graph.NewInitiativeAdapter(s.initStore),
+		Capture:    graph.NewCaptureAdapter(scenarioRoot),
 		Scenario: graph.NewScenarioSourceAdapter(
 			scenarios.NewCLIProviderWithOptions(scenarios.CLIProviderOptions{
 				IncludePorts: false,
@@ -601,7 +352,7 @@ func (s *Server) registerGraphRoutes(scenarioRoot string) {
 		),
 	}
 	if s.executionSvc != nil {
-		projCfg.Execution = &executionAdapter{svc: s.executionSvc}
+		projCfg.Execution = graph.NewExecutionAdapter(s.executionSvc)
 	}
 	if s.agentActivitySvc != nil {
 		projCfg.Activity = s.agentActivitySvc
@@ -755,6 +506,9 @@ func main() {
 		}
 		if srv.capturesHandler != nil {
 			srv.capturesHandler.SetEventLogger(emitter)
+		}
+		if srv.reviewSvc != nil {
+			srv.reviewSvc.SetEventEmitter(emitter)
 		}
 	}
 

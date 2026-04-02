@@ -5,7 +5,7 @@
  * Presentation-layer code should import these rather than defining their own.
  */
 
-import { Bug, Circle, CheckCircle, AlertCircle, Lightbulb, Rocket, Search, Wrench, type LucideIcon } from "lucide-react";
+import { Activity, Bug, Circle, CheckCircle, AlertCircle, Cpu, Lightbulb, MessageSquare, Package, Rocket, Search, Target, Wrench, Zap, type LucideIcon } from "lucide-react";
 import { formatDisplayText } from "../lib";
 import type {
   AgentActivityStatus,
@@ -91,6 +91,51 @@ export const BACKLOG_STATUS_CHIP_COLORS: Record<BacklogStatus, string> = {
 export function formatBacklogStatus(status: BacklogStatus): string {
   return formatDisplayText(status);
 }
+
+// ============================================================================
+// Entity Type Display
+// ============================================================================
+
+/**
+ * Canonical entity type identifiers used across the UI.
+ * Must stay in sync with GraphEntityType in surfaces/graph/types.ts.
+ */
+export type EntityType =
+  | "backlog"
+  | "initiative"
+  | "scenario"
+  | "capture"
+  | "execution"
+  | "agent-run"
+  | "agent-activity";
+
+/**
+ * Single source of truth for entity type icons.
+ * Graph nodes, detail page headers, and any other entity-type-aware UI
+ * should import from here rather than defining their own icon mappings.
+ */
+export const ENTITY_TYPE_ICONS: Record<EntityType, LucideIcon> = {
+  backlog: Lightbulb,
+  initiative: Target,
+  scenario: Package,
+  capture: MessageSquare,
+  execution: Zap,
+  "agent-run": Activity,
+  "agent-activity": Cpu,
+};
+
+/**
+ * Human-readable labels for entity types.
+ */
+export const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
+  backlog: "Backlog",
+  initiative: "Initiative",
+  scenario: "Scenario",
+  capture: "Capture",
+  execution: "Execution",
+  "agent-run": "Run",
+  "agent-activity": "Activity",
+};
 
 // ============================================================================
 // Capture Status Display

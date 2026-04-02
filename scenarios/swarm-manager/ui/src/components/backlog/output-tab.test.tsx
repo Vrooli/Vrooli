@@ -33,10 +33,16 @@ const defaultProps: OutputTabProps = {
   agentRunIsActive: false,
   latestAgentActivity: null,
   agentManagerUiUrl: null,
+  reviewRounds: [],
+  isGatheringEvidence: false,
+  backlogKind: "execute",
+  backlogName: "test-item",
   onStopRun: vi.fn(),
   onFollowUp: vi.fn(),
   onViewExecution: vi.fn(),
   onSelectScenario: vi.fn(),
+  onVerifyEvidence: vi.fn(),
+  onRequestMoreEvidence: vi.fn(),
 };
 
 function renderWithProviders(props: OutputTabProps) {

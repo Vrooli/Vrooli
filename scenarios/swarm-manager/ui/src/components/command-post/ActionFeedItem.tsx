@@ -7,7 +7,7 @@
 
 import { Clock, Play, MessageCircle, Wrench, Sparkles, Eye } from "lucide-react";
 import { Button } from "../ui/button";
-import { BACKLOG_KIND_ICONS } from "../../types/constants";
+import { BACKLOG_KIND_ICONS } from "../../types";
 import { SnoozePopover } from "./SnoozePopover";
 import type { ActionableItem } from "../../lib/command-post-utils";
 import type { AttentionReason } from "../../lib/feed";

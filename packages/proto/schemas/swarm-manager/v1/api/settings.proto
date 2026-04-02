@@ -65,4 +65,12 @@ message UpdateSettingsRequest {
   optional int32 review_max_warnings = 22;
   optional bool review_require_screenshots = 23;
   optional bool review_require_tests = 24;
+
+  // Concurrency and governance settings.
+  optional int32 max_concurrent_executions = 25;
+  optional int32 max_queue_depth = 26;
+  optional int32 circuit_breaker_threshold = 27;
+  optional int32 circuit_breaker_cooldown_minutes = 28;
+  optional double execution_cost_cap_per_run = 29;
+  optional double cost_per_turn_estimate = 30;
 }

@@ -1,15 +1,4 @@
 import type { Edge as FlowEdge, Node as FlowNode } from "@xyflow/react";
-import type {
-  AgentActivityInteractionType,
-  AgentActivityPurpose,
-  AgentActivityStatus,
-  BacklogKind,
-  BacklogStatus,
-  CaptureStatus,
-  ExecutionBacklogKind,
-  ExecutionMode,
-  ExecutionStatus,
-} from "../../types";
 import {
   AGENT_ACTIVITY_STATUSES,
   AGENT_RUN_STATUSES,
@@ -18,7 +7,16 @@ import {
   EXECUTION_STATUSES,
   INITIATIVE_STATUSES,
   SCENARIO_STATUSES,
-} from "../../types/constants";
+  type AgentActivityInteractionType,
+  type AgentActivityPurpose,
+  type AgentActivityStatus,
+  type BacklogKind,
+  type BacklogStatus,
+  type CaptureStatus,
+  type ExecutionBacklogKind,
+  type ExecutionMode,
+  type ExecutionStatus,
+} from "../../types";
 
 export type GraphLens = "focus" | "topology" | "operations";
 

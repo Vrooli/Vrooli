@@ -2,6 +2,7 @@ import type { AgentActivity } from "../types";
 import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
+import { buildQueryString } from "../lib/query-utils";
 import {
   agentActivityResponseSchema,
   listAgentActivitiesResponseSchema,
@@ -27,26 +28,21 @@ export interface IAgentActivityService {
   stopRun(runId: string): Promise<void>;
 }
 
-function buildQuery(filters?: ListAgentActivitiesFilters): string {
-  if (!filters) return "";
-  const params = new URLSearchParams();
-  if (filters.ownerType) params.set("owner_type", filters.ownerType);
-  if (filters.ownerKind) params.set("owner_kind", filters.ownerKind);
-  if (filters.ownerName) params.set("owner_name", filters.ownerName);
-  if (filters.executionId) params.set("execution_id", filters.executionId);
-  if (filters.purpose) params.set("purpose", filters.purpose);
-  if (filters.status) params.set("status", filters.status);
-  if (filters.runId) params.set("run_id", filters.runId);
-  if (typeof filters.active === "boolean") params.set("active", String(filters.active));
-  const encoded = params.toString();
-  return encoded ? `?${encoded}` : "";
-}
-
 export function createAgentActivityService(apiClient: IApiClient = defaultApiClient): IAgentActivityService {
   return {
     async list(filters?: ListAgentActivitiesFilters): Promise<AgentActivity[]> {
+      const suffix = buildQueryString({
+        owner_type: filters?.ownerType,
+        owner_kind: filters?.ownerKind,
+        owner_name: filters?.ownerName,
+        execution_id: filters?.executionId,
+        purpose: filters?.purpose,
+        status: filters?.status,
+        run_id: filters?.runId,
+        active: filters?.active,
+      });
       const data = await apiClient.get<unknown>(
-        `${API_ENDPOINTS.agentActivities}${buildQuery(filters)}`
+        `${API_ENDPOINTS.agentActivities}${suffix}`
       );
       const parsed = parseProtoResponse(listAgentActivitiesResponseSchema, data, "agent activities");
       return parsed.items.map(mapProtoAgentActivity);

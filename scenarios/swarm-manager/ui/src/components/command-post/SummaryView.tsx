@@ -21,11 +21,15 @@ import type { FeedbackItem, MaturityItem } from "../../lib/feed";
 import type { DetailSelection } from "../../stores/detail-selection-store";
 import type { RunBacklogTarget } from "../backlog/run-backlog-modal";
 import { RunBacklogModal } from "../backlog/run-backlog-modal";
+import { ConfirmDialog } from "../ui/confirm-dialog";
 import { ActionGroupCard } from "./ActionGroupCard";
 import { ActionFeedItem } from "./ActionFeedItem";
 import { SnoozedSection } from "./SnoozedSection";
 import { RecentSection } from "./RecentSection";
 import { EmptyState } from "./EmptyState";
+
+/** Bulk actions spawning more than this many agents require confirmation. */
+const BULK_AGENT_CONFIRM_THRESHOLD = 3;
 
 interface SummaryViewProps {
   onEnterDecisionStream: () => void;
@@ -50,6 +54,7 @@ export function SummaryView({
 
   const [runModalTargets, setRunModalTargets] = useState<RunBacklogTarget[] | undefined>();
   const [activeFilter, setActiveFilter] = useState<ActionGroupId | null>(null);
+  const [pendingBulkAction, setPendingBulkAction] = useState<{ group: ActionGroup; targets: RunBacklogTarget[] } | null>(null);
 
   const summaryQuery = useQuery({
     queryKey: ["backlog-summary"],
@@ -121,6 +126,15 @@ export function SummaryView({
     [onNavigateToDetail, onClose],
   );
 
+  const executeBulkAgentAction = useCallback(
+    (targets: RunBacklogTarget[]) => {
+      if (targets.length > 0) {
+        setRunModalTargets(targets);
+      }
+    },
+    [],
+  );
+
   const handleBulkAction = useCallback(
     (group: ActionGroup) => {
       switch (group.id as ActionGroupId) {
@@ -129,8 +143,10 @@ export function SummaryView({
           const targets: RunBacklogTarget[] = group.items
             .filter((i) => i.kind && i.name)
             .map((i) => ({ kind: i.kind as RunBacklogTarget["kind"], name: i.name ?? "", title: i.title }));
-          if (targets.length > 0) {
-            setRunModalTargets(targets);
+          if (targets.length > BULK_AGENT_CONFIRM_THRESHOLD) {
+            setPendingBulkAction({ group, targets });
+          } else {
+            executeBulkAgentAction(targets);
           }
           break;
         }
@@ -145,7 +161,7 @@ export function SummaryView({
         }
       }
     },
-    [onEnterDecisionStream, navigateToItem],
+    [onEnterDecisionStream, navigateToItem, executeBulkAgentAction],
   );
 
   const handleFilter = useCallback(
@@ -220,6 +236,21 @@ export function SummaryView({
 
       {/* Recent activity */}
       <RecentSection />
+
+      {/* Bulk agent confirmation */}
+      <ConfirmDialog
+        isOpen={!!pendingBulkAction}
+        onClose={() => setPendingBulkAction(null)}
+        onConfirm={() => {
+          if (pendingBulkAction) {
+            executeBulkAgentAction(pendingBulkAction.targets);
+          }
+          setPendingBulkAction(null);
+        }}
+        title={`${pendingBulkAction?.group.label ?? "Bulk action"} (${pendingBulkAction?.targets.length ?? 0} items)`}
+        description={`This will spawn ${pendingBulkAction?.targets.length ?? 0} agent sessions. Are you sure you want to proceed?`}
+        confirmLabel="Proceed"
+      />
 
       {/* Run modal */}
       <RunBacklogModal

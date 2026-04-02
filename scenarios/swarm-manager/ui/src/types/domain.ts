@@ -709,7 +709,7 @@ export interface ReviewResult {
 
 export type FinalizationStatus = "pending" | "running" | "completed" | "skipped" | "failed";
 
-export type FinalizationPhase = "scope_detection" | "restarting" | "health_check" | "reviewing" | "completed" | "skipped" | "failed";
+export type FinalizationPhase = "scope_detection" | "restarting" | "health_check" | "reviewing" | "evidence_gathering" | "completed" | "skipped" | "failed";
 
 export type FinalizationScopeSource = "sandbox_diff" | "acceptance_allow" | "sandbox_diff_plus_acceptance_allow" | "none";
 

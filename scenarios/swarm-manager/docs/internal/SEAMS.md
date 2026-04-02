@@ -1567,3 +1567,23 @@ Replaced the Activity Timeline Drawer with an inline Output tab on the BacklogDe
 | Client-side timeline merge | `ui/src/hooks/useActivityTimeline.ts` | Pure `mergeTimeline()` function groups activities by `executionId`, attaches as children to parent executions, places orphan activities as standalone entries, and sorts newest-first. Two parallel `useQuery` calls (executions + activities) provide the data. Polling gated on `activeTab === "output"`. | `useActivityTimeline.test.ts` |
 | Timeline content rendering | `ui/src/components/detail/ActivityTimeline.tsx` | Renders unified chronological feed of executions (with nested activities) and standalone activities. Reuses `PostRunStatusBadge` for finalization display. Now rendered inline in Output tab instead of inside a Drawer. | `ActivityTimeline.test.tsx` |
 | Header trigger | `ui/src/pages/BacklogDetailsPage.tsx` | History icon button in both mobile and desktop headers opens the drawer. Mobile subtitle is also clickable. Replaces the old `executionHistorySection` collapsible. | Manual + BacklogDetailsPage tests |
+
+### Review Evidence Boundary (added 2026-04-02)
+
+Post-execution evidence gathering system. A review agent produces typed evidence (screenshots, API tests, CLI output) stored in `review/` within the backlog item directory. Triggered after finalization, policy-gated via `review_agent_enabled`, non-blocking and non-fatal to finalization.
+
+| Boundary | Location | Behavior | Test |
+|----------|----------|----------|------|
+| Review store (file I/O) | `api/internal/review/store.go` | `LoadRounds()`, `SaveRound()`, `LoadCapture()`, `SaveCapture()` — mirrors `workshop/workshop.go` pattern with `review/round-NNN.json` files and `review/captures/` directory. Path traversal protection on capture I/O. | `review/store_test.go` (14 tests) |
+| Review service | `api/internal/review/service.go` | `StartReviewForExecution()`, `VerifyEvidence()`, `RequestMoreEvidence()`, `ContinueRequest()`, `DismissRequest()`, `TriggerReviewAgent()` — orchestrates agent spawning, round management, and event emission. | `review/service_test.go` |
+| Review handler | `api/internal/review/handler.go` | 7 HTTP endpoints under `/api/v1/backlog/{kind}/{name}/review/` and `/api/v1/execution/{id}/trigger-review-agent`. Thin handlers delegating to service. | `review/handler_test.go` |
+| Finalization integration | `api/internal/execution/finalization.go` | `FinalizationPhaseEvidenceGathering` phase runs after GCT reviewing, before `finishFinalization()`. Policy-gated via `isReviewAgentEnabled()`. Failure produces warning, doesn't block finalization. | Finalization tests |
+| ReviewServiceIntegration interface | `api/internal/execution/service.go` | Interface with `StartReviewForExecution()` — injected via `SetReviewService()` to avoid import cycles between execution and review packages. | Execution service tests |
+| Evidence panel (UI) | `ui/src/components/backlog/evidence-panel.tsx` | Displays review rounds with typed evidence cards, verification checkboxes, and "Request More" button. Renders between ScenarioReviewResults and ActivityTimeline in Output tab. | — |
+| Evidence item card (UI) | `ui/src/components/backlog/evidence-item-card.tsx` | Type-specific rendering: screenshots (inline thumbnail), API tests (pass/fail list), CLI output (code block), recordings, config diffs. Verification checkbox toggle. | — |
+| Review Zustand store | `ui/src/stores/review-store.ts` | Minimal store for Request More panel open/close state. Round data lives in React Query cache. | — |
+| Review API service | `ui/src/services/review-service.ts` | Typed client for all review endpoints. Follows `backlog-service.ts` pattern. | — |
+| Event log events | `api/internal/eventlog/types.go` | 7 new events: `review.started`, `review.evidence_added`, `review.evidence_verified`, `review.request_created`, `review.request_fulfilled`, `review.round_completed`, `review.failed` | — |
+| Stats engine | `api/internal/stats/engine.go` | Processes review events to compute `ReviewStats`: rounds completed, avg evidence per round, verification rate, request-more rate, avg duration. | `stats/engine_test.go` |
+| CLI commands | `cli/cmd_review.go` | `review-list`, `review-verify`, `review-request`, `review-trigger` — thin API wrappers with human-friendly default output. | — |
+| Prompt skill | `prompt-manager/store/skills/packs/core/swarm-manager-review/` | `SKILL.md` instructs the review agent on evidence strategy, output schema, classification rules, and Request More mode. | — |

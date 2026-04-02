@@ -1,96 +1,112 @@
 /**
  * Execution Details Page
  *
- * Displays detailed information about a single execution record including:
- * - Execution metadata (status, mode, operation, timestamps)
- * - Prompt trace (if available)
- * - Action buttons (retry, cancel, follow-up, run post-run checks)
+ * Tabbed detail view for a single execution record. Tabs:
+ * - Overview: metadata, failure reason, post-run status, actions
+ * - Changes: sandbox changed files grouped by scenario
+ * - Review: post-run checks, scenario reviews, evidence
+ * - Prompt: prompt trace
+ *
+ * Data fetching is delegated to useExecutionDetailData.
+ * Tab state is URL-synced via useUrlState.
  *
  * DOC: docs/plans/navigation-header-unification-plan.md#phase-5
  */
 
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import {
-  ChevronDown,
-  ChevronUp,
+  CircleHelp,
   ClipboardCheck,
+  GitCompare,
   Loader2,
   RotateCcw,
+  Sparkles,
   XCircle,
-  RefreshCw,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
-import { DetailSection } from "../components/detail/DetailSection";
-import { StatusBadge } from "../components/detail/StatusBadge";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
-import { defaultQueryOptions, formatRelativeTime } from "../lib";
-import { executionService, promptService } from "../services";
-import {
-  formatExecutionMode,
-  type ExecutionRecord,
-} from "../types";
+import { FollowUpDialog } from "../components/execution/follow-up-dialog";
+import { ExecutionOverviewTab } from "../components/execution/execution-overview-tab";
+import { ExecutionChangesTab } from "../components/execution/execution-changes-tab";
+import { ExecutionReviewTab } from "../components/execution/execution-review-tab";
+import { ExecutionPromptTab } from "../components/execution/execution-prompt-tab";
+import { useExecutionDetailData } from "../hooks/useExecutionDetailData";
+import { useUrlState } from "../hooks/use-url-state";
 import { useDetailSelectionStore, selectionToNodeId } from "../stores/detail-selection-store";
-import { DetailActionButtons } from "../components/detail/DetailActionButtons";
+import { useReviewStore } from "../stores/review-store";
+import { reviewService } from "../services/review-service";
+import { EvidenceRequestPanel } from "../components/backlog/evidence-request-panel";
+import { useQueryClient } from "@tanstack/react-query";
 import { EXECUTION_LENSES } from "../components/detail/lens-options";
-import { PostRunStatusBadge } from "../components/execution/post-run-status-badge";
+import { selectors } from "../consts/selectors";
+import { ENTITY_TYPE_ICONS } from "../types/constants";
+import type { ExecutionRecord } from "../types";
+
+type ExecutionTab = "overview" | "changes" | "review" | "prompt";
 
 export function ExecutionDetailsPage() {
+  const queryClient = useQueryClient();
+
+  // --- Navigation / selection ---
   const selection = useDetailSelectionStore((s) => s.selection);
   const selectExecution = useDetailSelectionStore((s) => s.selectExecution);
   const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
+  const selectScenario = useDetailSelectionStore((s) => s.selectScenario);
   const executionId = selection?.identifier;
   const nodeId = selectionToNodeId(selection);
 
-  const [actionBusy, setActionBusy] = useState(false);
-  const [showTrace, setShowTrace] = useState(false);
+  // --- Tab state (URL-synced) ---
+  const [activeTab, setActiveTab] = useUrlState<ExecutionTab>("tab", "overview", {
+    validate: (v): v is ExecutionTab =>
+      ["overview", "changes", "review", "prompt"].includes(v),
+  });
 
+  // --- Data ---
+  const data = useExecutionDetailData({ executionId });
   const {
-    data: execution,
-    error: execError,
-    isLoading: execLoading,
-    refetch: refetchExec,
-  } = useQuery({
-    queryKey: ["execution", executionId],
-    queryFn: async () => {
-      if (!executionId) {
-        throw new Error("Missing execution ID");
-      }
-      return executionService.get(executionId);
-    },
-    enabled: !!executionId,
-    ...defaultQueryOptions,
-  });
+    execution,
+    trace,
+    isTraceLoading,
+    reviewRounds,
+    isGatheringEvidence,
+    targetScenarios,
+    isLoading,
+    error,
+    isActive,
+    isTerminal,
+    postRunBadgeExecution,
+    cancel,
+    retry,
+    triggerReview,
+    refetch,
+    actionBusy,
+  } = data;
 
-  const { data: trace } = useQuery({
-    queryKey: ["execution", executionId, "prompt-trace"],
-    queryFn: async () => {
-      if (!executionId) {
-        return null;
-      }
-      return promptService.getExecutionPromptTrace(executionId).catch(() => null);
-    },
-    enabled: !!executionId,
-    ...defaultQueryOptions,
-  });
+  // --- Agent manager URL ---
+  const [agentManagerUiUrl, setAgentManagerUiUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/embedded/${encodeURIComponent("agent-manager")}/external-url`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { url?: string } | null) => {
+        if (!cancelled && data?.url) {
+          setAgentManagerUiUrl(data.url);
+        }
+      })
+      .catch(() => { /* agent-manager not available */ });
+    return () => { cancelled = true; };
+  }, []);
 
-  const doAction = async (fn: () => Promise<ExecutionRecord>) => {
-    setActionBusy(true);
-    try {
-      await fn();
-      void refetchExec();
-    } catch {
-      // Error handled by refetch showing stale data
-    } finally {
-      setActionBusy(false);
-    }
-  };
+  // --- Follow-up dialog state ---
+  const [followUpTarget, setFollowUpTarget] = useState<ExecutionRecord | null>(null);
 
-  if (execLoading) return <PageLoadingState label="Loading execution..." />;
-  if (execError || !execution) {
+  // --- Loading / error states ---
+  if (isLoading) return <PageLoadingState label="Loading execution..." />;
+  if (error || !execution) {
     return (
       <DetailPageLayout
         header={
@@ -104,67 +120,103 @@ export function ExecutionDetailsPage() {
       >
         <div className="md:mx-auto md:max-w-3xl">
           <ErrorState
-            error={execError as Error | undefined}
+            error={error}
             message={`Could not load execution "${executionId}".`}
-            onRetry={() => refetchExec()}
+            onRetry={refetch}
           />
         </div>
       </DetailPageLayout>
     );
   }
 
-  const isActive = ["pending", "starting", "in_progress", "running", "needs_review", "validating", "needs_fixup"].includes(execution.status);
-  const isTerminal = ["completed", "failed", "canceled"].includes(execution.status);
-
+  // --- Header primary action ---
   const primaryAction = isActive ? (
     <Button
       variant="destructive"
       size="sm"
       disabled={actionBusy}
-      onClick={() => void doAction(() => executionService.cancel(execution.executionId))}
+      onClick={() => void cancel()}
     >
       {actionBusy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <XCircle className="mr-1 h-3.5 w-3.5" />}
       Cancel
     </Button>
-  ) : isTerminal ? (
+  ) : isTerminal && execution.status === "failed" ? (
     <Button
       variant="outline"
       size="sm"
       disabled={actionBusy}
-      onClick={() => void doAction(() => executionService.retry(execution.executionId))}
+      onClick={() => void retry()}
     >
       {actionBusy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="mr-1 h-3.5 w-3.5" />}
       Retry
     </Button>
   ) : null;
 
-  const secondaryActions = isTerminal ? (
-    <div className="flex flex-wrap gap-2">
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={actionBusy}
-        onClick={() => void doAction(() => executionService.followUp(execution.executionId, { followUpType: "followup", runMode: "new" }))}
-      >
-        {actionBusy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1 h-3.5 w-3.5" />}
-        Follow-up
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={actionBusy}
-        onClick={() => void doAction(() => executionService.triggerReview(execution.executionId))}
-      >
-        {actionBusy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <ClipboardCheck className="mr-1 h-3.5 w-3.5" />}
-        Run Post-Run Checks
-      </Button>
+  // --- Tab bar ---
+  const tabBar = (
+    <div
+      className="border-t border-slate-800/50"
+      data-testid={selectors.executionDetails.tabRow}
+    >
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ExecutionTab)}>
+        <TabsList className="w-full flex-nowrap justify-start gap-1 overflow-x-auto no-scrollbar rounded-none bg-transparent p-0 px-3">
+          <TabsTrigger
+            value="overview"
+            className="gap-2"
+            data-testid={selectors.executionDetails.tabOverview}
+          >
+            <CircleHelp className="h-4 w-4" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger
+            value="changes"
+            className="gap-2"
+            data-testid={selectors.executionDetails.tabChanges}
+          >
+            <GitCompare className="h-4 w-4" />
+            Changes
+          </TabsTrigger>
+          <TabsTrigger
+            value="review"
+            className="gap-2"
+            data-testid={selectors.executionDetails.tabReview}
+          >
+            <ClipboardCheck className="h-4 w-4" />
+            Review
+            {isGatheringEvidence && (
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500" />
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger
+            value="prompt"
+            className="gap-2"
+            data-testid={selectors.executionDetails.tabPrompt}
+          >
+            <Sparkles className="h-4 w-4" />
+            Prompt
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
     </div>
-  ) : null;
+  );
 
-  const allActions = (
+  // --- Mobile actions ---
+  const mobileActions = (
     <div className="flex flex-wrap gap-2">
       {primaryAction}
-      {secondaryActions}
+      {isTerminal && (
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={actionBusy}
+          onClick={() => setFollowUpTarget(execution)}
+        >
+          Follow-up
+        </Button>
+      )}
     </div>
   );
 
@@ -173,160 +225,92 @@ export function ExecutionDetailsPage() {
       header={
         <DetailPageHeader
           entityType="execution"
-          title="Execution Details"
-          subtitle={execution.executionId}
+          entityIcon={ENTITY_TYPE_ICONS.execution}
+          title={`${execution.backlogKind}/${execution.backlogName}`}
+          subtitle={execution.operation ?? undefined}
           status={execution.status}
           nodeId={nodeId}
           lenses={EXECUTION_LENSES}
           actions={primaryAction}
+          tabBar={tabBar}
         />
       }
-      mobileActions={allActions}
+      mobileActions={mobileActions}
       mobileActionsTitle="Execution Actions"
     >
       <div className="space-y-0 md:mx-auto md:max-w-3xl">
-        {/* Status + metadata */}
-        <DetailSection title="Status" hideDivider>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <StatusBadge status={execution.status} />
-              <div className="flex items-center gap-1.5">
-                {execution.operation && (
-                  <span className="rounded bg-slate-700/60 px-2 py-0.5 text-xs text-slate-400">{execution.operation}</span>
-                )}
-                <span className="rounded bg-slate-700/50 px-2 py-0.5 text-xs text-slate-400">
-                  {formatExecutionMode(execution.mode)}
-                </span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <p className="text-xs text-slate-500 uppercase tracking-wider">Backlog</p>
-                <button
-                  type="button"
-                  onClick={() => selectBacklog(execution.backlogKind, execution.backlogName)}
-                  className="text-cyan-400 hover:text-cyan-300 text-sm text-left"
-                >
-                  {execution.backlogKind}/{execution.backlogName}
-                </button>
-              </div>
-              {execution.startedBy && (
-                <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wider">Started by</p>
-                  <p className="text-slate-200">{execution.startedBy}</p>
-                </div>
-              )}
-              <div>
-                <p className="text-xs text-slate-500 uppercase tracking-wider">Created</p>
-                <p className="text-slate-200">{formatRelativeTime(execution.createdAt)}</p>
-              </div>
-              {execution.updatedAt && (
-                <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wider">Updated</p>
-                  <p className="text-slate-200">{formatRelativeTime(execution.updatedAt)}</p>
-                </div>
-              )}
-              {execution.parentExecutionId && (
-                <div className="col-span-2">
-                  <p className="text-xs text-slate-500 uppercase tracking-wider">Parent Execution</p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (execution.parentExecutionId) {
-                        selectExecution(execution.parentExecutionId);
-                      }
-                    }}
-                    className="text-cyan-400 hover:text-cyan-300 text-sm"
-                  >
-                    {execution.parentExecutionId}
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {execution.failureReason && (
-              <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
-                <p className="text-xs text-red-400 font-medium uppercase tracking-wider mb-1">Failure Reason</p>
-                <p className="text-sm text-red-200 whitespace-pre-wrap">{execution.failureReason}</p>
-              </div>
-            )}
-
-            {(execution.finalization || execution.status === "validating") && (
-              <div className="space-y-2">
-                <p className="text-xs text-slate-500 uppercase tracking-wider">Post-Run Checks</p>
-                <PostRunStatusBadge
-                  execution={execution.finalization ? execution : {
-                    ...execution,
-                    finalization: {
-                      eligible: true,
-                      status: "running",
-                      phase: "scope_detection",
-                      scopeSource: "none",
-                      warnings: [],
-                      affectedScenarios: [],
-                      aggregateClassification: "not_assessable",
-                      scenarios: [],
-                    },
-                  }}
-                  onRunChecks={() => void doAction(() => executionService.triggerReview(execution.executionId))}
-                />
-              </div>
-            )}
-          </div>
-        </DetailSection>
-
-        {/* Secondary actions */}
-        {secondaryActions && <div className="pt-3">{secondaryActions}</div>}
-
-        {/* Registry actions */}
-        {nodeId && <div className="pt-3"><DetailActionButtons entityType="execution" direction="row" /></div>}
-
-        {/* Prompt Trace */}
-        {trace && (
-          <DetailSection
-            title="Prompt Trace"
-            action={
-              <button
-                type="button"
-                className="text-xs text-slate-400 hover:text-slate-200"
-                onClick={() => setShowTrace((v) => !v)}
-              >
-                {showTrace ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </button>
-            }
-          >
-            {showTrace && (
-              <div className="space-y-3 pb-3">
-                <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wider">Purpose</p>
-                  <p className="text-sm text-slate-200">{trace.purpose}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wider">Prompt</p>
-                  <pre className="mt-1 max-h-96 overflow-auto rounded-lg bg-slate-800/60 p-3 text-xs text-slate-300 whitespace-pre-wrap">
-                    {trace.prompt}
-                  </pre>
-                </div>
-                {trace.prompt_revision && (
-                  <div>
-                    <p className="text-xs text-slate-500 uppercase tracking-wider">Revision</p>
-                    <pre className="mt-1 max-h-96 overflow-auto rounded-lg bg-slate-800/60 p-3 text-xs text-slate-300 whitespace-pre-wrap">
-                      {trace.prompt_revision}
-                    </pre>
-                  </div>
-                )}
-                <div className="flex items-center gap-4 text-xs text-slate-400">
-                  <span>Captured: {trace.captured_at}</span>
-                  {trace.used_fallback && (
-                    <span className="rounded bg-amber-500/20 px-2 py-0.5 text-amber-300">Fallback used</span>
-                  )}
-                </div>
-              </div>
-            )}
-          </DetailSection>
+        {activeTab === "overview" && (
+          <ExecutionOverviewTab
+            execution={execution}
+            isActive={isActive}
+            isTerminal={isTerminal}
+            actionBusy={actionBusy}
+            postRunBadgeExecution={postRunBadgeExecution}
+            agentManagerUiUrl={agentManagerUiUrl}
+            onSelectBacklog={selectBacklog}
+            onSelectExecution={selectExecution}
+            onFollowUp={() => setFollowUpTarget(execution)}
+            onCancel={() => void cancel()}
+            onRetry={() => void retry()}
+            onRunPostRunChecks={() => void triggerReview()}
+          />
+        )}
+        {activeTab === "changes" && (
+          <ExecutionChangesTab
+            finalization={execution.finalization}
+            isActive={isActive}
+          />
+        )}
+        {activeTab === "review" && (
+          <ExecutionReviewTab
+            execution={execution}
+            reviewRounds={reviewRounds}
+            isGatheringEvidence={isGatheringEvidence}
+            targetScenarios={targetScenarios}
+            postRunBadgeExecution={postRunBadgeExecution}
+            isActive={isActive}
+            onSelectScenario={(name) => selectScenario(name)}
+            onVerifyEvidence={(round, evidenceId, verified) => {
+              void reviewService.verifyEvidence(
+                execution.backlogKind,
+                execution.backlogName,
+                round,
+                evidenceId,
+                verified,
+                execution.executionId,
+              );
+            }}
+            onRequestMoreEvidence={(round, evidenceId) => {
+              useReviewStore.getState().openRequestPanel(round, evidenceId);
+            }}
+            onRunPostRunChecks={() => void triggerReview()}
+          />
+        )}
+        {activeTab === "prompt" && (
+          <ExecutionPromptTab trace={trace} isLoading={isTraceLoading} />
         )}
       </div>
+
+      {/* Evidence request panel */}
+      <EvidenceRequestPanel
+        backlogKind={execution?.backlogKind ?? ""}
+        backlogName={execution?.backlogName ?? ""}
+        reviewRounds={reviewRounds}
+        onAction={() => void queryClient.invalidateQueries({ queryKey: ["review-rounds", execution?.backlogKind, execution?.backlogName] })}
+      />
+
+      {/* Follow-up dialog */}
+      {followUpTarget && (
+        <FollowUpDialog
+          isOpen={Boolean(followUpTarget)}
+          onClose={() => setFollowUpTarget(null)}
+          execution={followUpTarget}
+          onSuccess={() => {
+            setFollowUpTarget(null);
+            refetch();
+          }}
+        />
+      )}
     </DetailPageLayout>
   );
 }

@@ -463,7 +463,7 @@ func finalizationToProto(finalization *Finalization) *domainpb.Finalization {
 	}
 	pb := &domainpb.Finalization{
 		Eligible:                finalization.Eligible,
-		Status:                  finalization.Status,
+		Status:                  string(finalization.Status),
 		Phase:                   finalization.Phase,
 		ScopeSource:             finalization.ScopeSource,
 		AffectedScenarios:       append([]string(nil), finalization.AffectedScenarios...),
@@ -498,15 +498,15 @@ func finalizationToProto(finalization *Finalization) *domainpb.Finalization {
 			ScenarioName: scenario.ScenarioName,
 			ChangedPaths: append([]string(nil), scenario.ChangedPaths...),
 			Restart: &domainpb.RestartResult{
-				Status:   scenario.Restart.Status,
+				Status:   string(scenario.Restart.Status),
 				Attempts: int32(scenario.Restart.Attempts),
 			},
 			Health: &domainpb.HealthCheckResult{
-				Status:      scenario.Health.Status,
+				Status:      string(scenario.Health.Status),
 				SchemaValid: scenario.Health.SchemaValid,
 			},
 			Review: &domainpb.ScenarioReview{
-				Status: scenario.Review.Status,
+				Status: string(scenario.Review.Status),
 			},
 		}
 		if scenario.Restart.LastError != "" {

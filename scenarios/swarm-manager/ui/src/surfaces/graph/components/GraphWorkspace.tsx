@@ -18,7 +18,7 @@ import { defaultQueryOptions } from "../../../lib";
 import { applyTheme, watchSystemTheme } from "../../../lib/theme-utils";
 import { buildFeed } from "../../../lib/feed";
 import { settingsService } from "../../../services";
-import { useAgentActivitiesStore, useBacklogStore, useCaptureStore } from "../../../stores";
+import { useAgentActivitiesStore, useBacklogStore, useCaptureStore, useExecutionStore } from "../../../stores";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
 import { buildActivityNodeId, parseNodeId } from "../lib/node-id-parser";
@@ -161,6 +161,7 @@ export function GraphWorkspace() {
   const fetchBacklog = useBacklogStore((s) => s.fetchBacklog);
   const backlogItems = useBacklogStore((s) => s.items);
   const fetchCaptures = useCaptureStore((s) => s.fetchCaptures);
+  const fetchExecutions = useExecutionStore((s) => s.fetchExecutions);
   const captures = useCaptureStore((s) => s.captures);
   const agentActivities = useAgentActivitiesStore((s) => s.activities);
   const stopRun = useAgentActivitiesStore((s) => s.stopRun);
@@ -210,7 +211,8 @@ export function GraphWorkspace() {
   useEffect(() => {
     void fetchBacklog();
     void fetchCaptures();
-  }, [fetchBacklog, fetchCaptures]);
+    void fetchExecutions();
+  }, [fetchBacklog, fetchCaptures, fetchExecutions]);
 
   useStorePolling({
     enabled: true,

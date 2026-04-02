@@ -162,6 +162,10 @@ func (a *App) registerSubcommandGroups() []cliapp.SubcommandGroup {
 				{Name: "cancel", NeedsAPI: true, Description: "Cancel an execution (--id ID)", Run: a.cmdExecutionCancel},
 				{Name: "retry", NeedsAPI: true, Description: "Retry a failed execution (--id ID)", Run: a.cmdExecutionRetry},
 				{Name: "circuit-breaker-reset", NeedsAPI: true, Description: "Reset circuit breaker for an item (--item KIND/NAME)", Run: a.cmdCircuitBreakerReset},
+				{Name: "review-list", NeedsAPI: true, Description: "List review evidence rounds (--kind KIND --name NAME)", Run: a.cmdReviewList},
+				{Name: "review-verify", NeedsAPI: true, Description: "Mark evidence item as verified (--kind KIND --name NAME --round N --evidence-id ID)", Run: a.cmdReviewVerify},
+				{Name: "review-request", NeedsAPI: true, Description: "Request additional evidence (--kind KIND --name NAME --round N --message MSG)", Run: a.cmdReviewRequest},
+				{Name: "review-trigger", NeedsAPI: true, Description: "Manually trigger review agent (--id EXECUTION_ID --kind KIND --name NAME)", Run: a.cmdReviewTrigger},
 			},
 		},
 		{

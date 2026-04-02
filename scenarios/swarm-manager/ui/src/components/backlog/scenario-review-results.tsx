@@ -11,6 +11,7 @@ import { Button } from "../ui/button";
 import { PostRunStatusBadge } from "../execution/post-run-status-badge";
 import { DetailSection } from "../detail/DetailSection";
 import { executionService } from "../../services";
+import { resolvePostRunExecution } from "../../lib";
 import type { ExecutionRecord } from "../../types";
 
 export interface ScenarioReviewResultsProps {
@@ -30,73 +31,53 @@ export function ScenarioReviewResults({
   if (targetScenarios.length === 0) return null;
 
   const renderPostRunStatus = () => {
-    if (latestExecution?.finalization) {
+    if (latestExecution) {
+      const resolved = resolvePostRunExecution(latestExecution);
+      if (resolved) {
+        return (
+          <div className="border-t border-slate-800 pt-2">
+            <PostRunStatusBadge
+              execution={resolved}
+              onRunChecks={async () => {
+                try {
+                  await executionService.triggerReview(latestExecution.executionId);
+                } catch {
+                  // Will be visible on next query refetch
+                }
+              }}
+            />
+          </div>
+        );
+      }
+      // Completed/failed execution with no finalization data — offer to run it.
       return (
-        <div className="border-t border-slate-800 pt-2">
-          <PostRunStatusBadge
-            execution={latestExecution}
-            onRunChecks={async () => {
+        <div className="space-y-2 border-t border-slate-800 pt-2">
+          <div className="flex items-center gap-1.5">
+            <CheckCircle2 className="h-3.5 w-3.5 text-slate-500" />
+            <span className="text-xs text-slate-400">No post-run checks yet</span>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full"
+            onClick={async () => {
               try {
                 await executionService.triggerReview(latestExecution.executionId);
               } catch {
-                // Will be visible on next query refetch
+                // Error handled by query refetch showing updated state
               }
             }}
-          />
+          >
+            <RefreshCw className="mr-1.5 h-3 w-3" />
+            Run Post-Run Checks
+          </Button>
         </div>
       );
     }
-    if (latestExecution?.status === "validating") {
-      return (
-        <div className="border-t border-slate-800 pt-2">
-          <PostRunStatusBadge
-            execution={{
-              ...latestExecution,
-              finalization: {
-                eligible: true,
-                status: "running",
-                phase: "scope_detection",
-                scopeSource: "none",
-                warnings: [],
-                affectedScenarios: [],
-                aggregateClassification: "not_assessable",
-                scenarios: [],
-              },
-            }}
-          />
-        </div>
-      );
-    }
-    if (!latestExecution) {
-      return (
-        <div className="flex items-center gap-1.5 border-t border-slate-800 pt-2">
-          <CheckCircle2 className="h-3.5 w-3.5 text-slate-500" />
-          <span className="text-xs text-slate-400">Post-run checks will run after execution</span>
-        </div>
-      );
-    }
-    // Completed/failed execution with no finalization data — offer to run it.
     return (
-      <div className="space-y-2 border-t border-slate-800 pt-2">
-        <div className="flex items-center gap-1.5">
-          <CheckCircle2 className="h-3.5 w-3.5 text-slate-500" />
-          <span className="text-xs text-slate-400">No post-run checks yet</span>
-        </div>
-        <Button
-          size="sm"
-          variant="outline"
-          className="w-full"
-          onClick={async () => {
-            try {
-              await executionService.triggerReview(latestExecution.executionId);
-            } catch {
-              // Error handled by query refetch showing updated state
-            }
-          }}
-        >
-          <RefreshCw className="mr-1.5 h-3 w-3" />
-          Run Post-Run Checks
-        </Button>
+      <div className="flex items-center gap-1.5 border-t border-slate-800 pt-2">
+        <CheckCircle2 className="h-3.5 w-3.5 text-slate-500" />
+        <span className="text-xs text-slate-400">Post-run checks will run after execution</span>
       </div>
     );
   };

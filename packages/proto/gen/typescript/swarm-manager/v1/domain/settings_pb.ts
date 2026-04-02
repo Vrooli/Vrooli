@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/domain/settings.proto.
  */
 export const file_swarm_manager_v1_domain_settings: GenFile = /*@__PURE__*/
-  fileDesc("CiZzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9zZXR0aW5ncy5wcm90bxIQc3dhcm1fbWFuYWdlci52MSK8BgoIU2V0dGluZ3MSKQoFdGhlbWUYASABKAlCGrpIF3IVUgRkYXJrUgVsaWdodFIGc3lzdGVtEikKDGRlZmF1bHRfbW9kZRgFIAEoCUITukgQcg5SBm1hbnVhbFIEeW9sbxISCgphdXRvX2ZpeHVwGAcgASgIEiUKEm1heF9maXh1cF9hdHRlbXB0cxgIIAEoBUIJukgGGgQYBSgAEiIKD21heF9hdXRvX3JvdW5kcxgJIAEoBUIJukgGGgQYMigAEiAKGGF1dG9faW5pdGlhbGl6ZV93b3Jrc2hvcBgQIAEoCBIdChVhdXRvX2FkdmFuY2Vfd29ya3Nob3AYESABKAgSHQoVYXV0b19jYXNjYWRlX3dvcmtzaG9wGBIgASgIEiMKD2FnZW50X21heF90dXJucxgKIAEoBUIKukgHGgUYyAEoBRIpChVhZ2VudF90aW1lb3V0X3NlY29uZHMYCyABKAVCCrpIBxoFGJAcKDwSHwoXYWdlbnRfcmVxdWlyZXNfYXBwcm92YWwYDCABKAgSJgoSc2VhcmNoX2RlYm91bmNlX21zGA0gASgFQgq6SAcaBRjQDyhkEicKEXRvYXN0X2R1cmF0aW9uX21zGA4gASgFQgy6SAkaBxiw6gEo6AcSIwobY29uZmlybV9kZXN0cnVjdGl2ZV9hY3Rpb25zGA8gASgIEj4KHXJldmlld19jb2RlX3F1YWxpdHlfbWluX3Njb3JlGBMgASgBQhe6SBQSEhkAAAAAAABZQCkAAAAAAAAAABI6ChlyZXZpZXdfdGVzdF9taW5fcGFzc19yYXRlGBQgASgBQhe6SBQSEhkAAAAAAADwPykAAAAAAAAAABIvCh5yZXZpZXdfbWF4X2Jsb2NraW5nX3Zpb2xhdGlvbnMYFSABKAVCB7pIBBoCKAASLQoTcmV2aWV3X21heF93YXJuaW5ncxgWIAEoBUIQukgNGgso////////////ARIiChpyZXZpZXdfcmVxdWlyZV9zY3JlZW5zaG90cxgXIAEoCBIcChRyZXZpZXdfcmVxdWlyZV90ZXN0cxgYIAEoCEoECAIQA0oECAMQBEoECAQQBUoECAYQB0JPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvZG9tYWluO2RvbWFpbmIGcHJvdG8z", [file_buf_validate_validate]);
+  fileDesc("CiZzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9zZXR0aW5ncy5wcm90bxIQc3dhcm1fbWFuYWdlci52MSLfCAoIU2V0dGluZ3MSKQoFdGhlbWUYASABKAlCGrpIF3IVUgRkYXJrUgVsaWdodFIGc3lzdGVtEikKDGRlZmF1bHRfbW9kZRgFIAEoCUITukgQcg5SBm1hbnVhbFIEeW9sbxISCgphdXRvX2ZpeHVwGAcgASgIEiUKEm1heF9maXh1cF9hdHRlbXB0cxgIIAEoBUIJukgGGgQYBSgAEiIKD21heF9hdXRvX3JvdW5kcxgJIAEoBUIJukgGGgQYMigAEiAKGGF1dG9faW5pdGlhbGl6ZV93b3Jrc2hvcBgQIAEoCBIdChVhdXRvX2FkdmFuY2Vfd29ya3Nob3AYESABKAgSHQoVYXV0b19jYXNjYWRlX3dvcmtzaG9wGBIgASgIEiMKD2FnZW50X21heF90dXJucxgKIAEoBUIKukgHGgUYyAEoBRIpChVhZ2VudF90aW1lb3V0X3NlY29uZHMYCyABKAVCCrpIBxoFGJAcKDwSHwoXYWdlbnRfcmVxdWlyZXNfYXBwcm92YWwYDCABKAgSJgoSc2VhcmNoX2RlYm91bmNlX21zGA0gASgFQgq6SAcaBRjQDyhkEicKEXRvYXN0X2R1cmF0aW9uX21zGA4gASgFQgy6SAkaBxiw6gEo6AcSIwobY29uZmlybV9kZXN0cnVjdGl2ZV9hY3Rpb25zGA8gASgIEj4KHXJldmlld19jb2RlX3F1YWxpdHlfbWluX3Njb3JlGBMgASgBQhe6SBQSEhkAAAAAAABZQCkAAAAAAAAAABI6ChlyZXZpZXdfdGVzdF9taW5fcGFzc19yYXRlGBQgASgBQhe6SBQSEhkAAAAAAADwPykAAAAAAAAAABIvCh5yZXZpZXdfbWF4X2Jsb2NraW5nX3Zpb2xhdGlvbnMYFSABKAVCB7pIBBoCKAASLQoTcmV2aWV3X21heF93YXJuaW5ncxgWIAEoBUIQukgNGgso////////////ARIiChpyZXZpZXdfcmVxdWlyZV9zY3JlZW5zaG90cxgXIAEoCBIcChRyZXZpZXdfcmVxdWlyZV90ZXN0cxgYIAEoCBIsChltYXhfY29uY3VycmVudF9leGVjdXRpb25zGBkgASgFQgm6SAYaBBgUKAESIgoPbWF4X3F1ZXVlX2RlcHRoGBogASgFQgm6SAYaBBhkKAASLAoZY2lyY3VpdF9icmVha2VyX3RocmVzaG9sZBgbIAEoBUIJukgGGgQYCigBEjQKIGNpcmN1aXRfYnJlYWtlcl9jb29sZG93bl9taW51dGVzGBwgASgFQgq6SAcaBRigCygFEjIKGmV4ZWN1dGlvbl9jb3N0X2NhcF9wZXJfcnVuGB0gASgBQg66SAsSCSkAAAAAAAAAABI3ChZjb3N0X3Blcl90dXJuX2VzdGltYXRlGB4gASgBQhe6SBQSEhkAAAAAAAAUQCkAAAAAAAAAAEoECAIQA0oECAMQBEoECAQQBUoECAYQB0JPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvZG9tYWluO2RvbWFpbmIGcHJvdG8z", [file_buf_validate_validate]);
 
 /**
  * Settings captures persisted configuration for Swarm Manager.
@@ -130,6 +130,38 @@ export type Settings = Message<"swarm_manager.v1.Settings"> & {
    * @generated from field: bool review_require_tests = 24;
    */
   reviewRequireTests: boolean;
+
+  /**
+   * Concurrency and governance settings.
+   *
+   * @generated from field: int32 max_concurrent_executions = 25;
+   */
+  maxConcurrentExecutions: number;
+
+  /**
+   * @generated from field: int32 max_queue_depth = 26;
+   */
+  maxQueueDepth: number;
+
+  /**
+   * @generated from field: int32 circuit_breaker_threshold = 27;
+   */
+  circuitBreakerThreshold: number;
+
+  /**
+   * @generated from field: int32 circuit_breaker_cooldown_minutes = 28;
+   */
+  circuitBreakerCooldownMinutes: number;
+
+  /**
+   * @generated from field: double execution_cost_cap_per_run = 29;
+   */
+  executionCostCapPerRun: number;
+
+  /**
+   * @generated from field: double cost_per_turn_estimate = 30;
+   */
+  costPerTurnEstimate: number;
 };
 
 /**

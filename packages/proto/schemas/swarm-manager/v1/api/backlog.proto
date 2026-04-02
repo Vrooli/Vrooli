@@ -4,6 +4,7 @@ package swarm_manager.v1;
 
 import "buf/validate/validate.proto";
 import "swarm-manager/v1/domain/backlog.proto";
+import "swarm-manager/v1/domain/execution.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
 
@@ -462,4 +463,36 @@ message ClarificationActionResponse {
 
   // Agent-manager task ID (set when invalidate_round spawns a new agent).
   optional string task_id = 5;
+}
+
+// =============================================================================
+// REVIEW EVIDENCE API
+// =============================================================================
+
+// ListReviewRoundsResponse returns all review evidence rounds for a backlog item.
+message ListReviewRoundsResponse {
+  repeated swarm_manager.v1.ReviewEvidenceRound rounds = 1;
+}
+
+// VerifyEvidenceRequest marks an evidence item as verified or unverified.
+message VerifyEvidenceRequest {
+  bool verified = 1;
+}
+
+// RequestMoreEvidenceRequest asks the review agent for additional evidence.
+message RequestMoreEvidenceRequest {
+  string message = 1 [(buf.validate.field).string.min_len = 1];
+  // Optionally scope the request to a specific evidence item.
+  optional string evidence_id = 2;
+}
+
+// RequestMoreEvidenceResponse returns the created thread ID.
+message RequestMoreEvidenceResponse {
+  string thread_id = 1;
+}
+
+// ContinueEvidenceRequestRequest sends a follow-up message in a request thread.
+message ContinueEvidenceRequestRequest {
+  string message = 1 [(buf.validate.field).string.min_len = 1];
+}
 }

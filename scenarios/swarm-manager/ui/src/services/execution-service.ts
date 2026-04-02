@@ -1,6 +1,7 @@
 import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
+import { buildQueryString } from "../lib/query-utils";
 import type { BacklogKind, ExecutionMode, ExecutionRecord, ExecutionStatus } from "../types";
 import {
   parseProtoResponse,
@@ -62,29 +63,15 @@ export function createExecutionService(apiClient: IApiClient = defaultApiClient)
 
   return {
     async list(filters?: ListExecutionFilters): Promise<ExecutionRecord[]> {
-      const query = new URLSearchParams();
-      if (filters?.status) {
-        query.set("status", filters.status);
-      }
-      if (filters?.mode) {
-        query.set("mode", filters.mode);
-      }
-      if (filters?.backlogKind) {
-        query.set("backlog_kind", filters.backlogKind);
-      }
-      if (filters?.backlogName) {
-        query.set("backlog_name", filters.backlogName);
-      }
-      if (filters?.startedBy) {
-        query.set("started_by", filters.startedBy);
-      }
-      if (filters?.createdFrom) {
-        query.set("created_from", filters.createdFrom);
-      }
-      if (filters?.createdTo) {
-        query.set("created_to", filters.createdTo);
-      }
-      const suffix = query.toString() ? `?${query.toString()}` : "";
+      const suffix = buildQueryString({
+        status: filters?.status,
+        mode: filters?.mode,
+        backlog_kind: filters?.backlogKind,
+        backlog_name: filters?.backlogName,
+        started_by: filters?.startedBy,
+        created_from: filters?.createdFrom,
+        created_to: filters?.createdTo,
+      });
       const data = await apiClient.get<unknown>(`${API_ENDPOINTS.execution}${suffix}`);
       const resp = parseProtoResponse(listExecutionResponseSchema, data, "execution list");
       return resp.items.map(mapProtoExecutionRecord);

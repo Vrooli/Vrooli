@@ -40,6 +40,10 @@ import {
   useDetailSelectionStore,
 } from "../stores";
 import { BACKLOG_LENSES } from "../components/detail/lens-options";
+import { reviewService } from "../services/review-service";
+import { useReviewStore } from "../stores/review-store";
+import { EvidenceRequestPanel } from "../components/backlog/evidence-request-panel";
+import { useQueryClient } from "@tanstack/react-query";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { useDetailNavigation } from "../hooks/useDetailNavigation";
@@ -84,13 +88,15 @@ export function BacklogDetailsPage() {
 
   // --- UI state store ---
   const uiStore = useBacklogDetailUIStore();
+  const queryClient = useQueryClient();
 
   // --- Data hook ---
   const data = useBacklogDetailData({ backlogKind, name, agentRunIsActive });
   const {
     item, isLoadingItem, itemError, refetchItem, spawnedItems,
     files, isLoadingFiles, filesError, refetchFiles,
-    executionHistory, workshopRounds, readinessData, archiveTargets,
+    executionHistory, reviewRounds, isGatheringEvidence,
+    workshopRounds, readinessData, archiveTargets,
     depRelations, itemActions, targetScenarios,
     deliverableLabel, workshopActionLabel,
     isWorkshopFinalized, isLocked, isTerminal, workshopBlockedDeps,
@@ -446,10 +452,21 @@ export function BacklogDetailsPage() {
                       agentRunIsActive={agentRunIsActive}
                       latestAgentActivity={latestAgentActivity}
                       agentManagerUiUrl={agentManagerUiUrl}
+                      reviewRounds={reviewRounds}
+                      isGatheringEvidence={isGatheringEvidence}
+                      backlogKind={backlogKind ?? ""}
+                      backlogName={name ?? ""}
                       onStopRun={(runId) => void stopRun(runId)}
                       onFollowUp={(exec) => uiStore.setFollowUpTarget(exec)}
                       onViewExecution={() => closeDetail()}
                       onSelectScenario={selectScenario}
+                      onVerifyEvidence={(round, evidenceId, verified) => {
+                        const execId = executionHistory?.[0]?.executionId;
+                        void reviewService.verifyEvidence(backlogKind ?? "", name ?? "", round, evidenceId, verified, execId);
+                      }}
+                      onRequestMoreEvidence={(round, evidenceId) => {
+                        useReviewStore.getState().openRequestPanel(round, evidenceId);
+                      }}
                     />
                   </div>
                 )}
@@ -493,10 +510,21 @@ export function BacklogDetailsPage() {
                         agentRunIsActive={agentRunIsActive}
                         latestAgentActivity={latestAgentActivity}
                         agentManagerUiUrl={agentManagerUiUrl}
+                        reviewRounds={reviewRounds}
+                        isGatheringEvidence={isGatheringEvidence}
+                        backlogKind={backlogKind ?? ""}
+                        backlogName={name ?? ""}
                         onStopRun={(runId) => void stopRun(runId)}
                         onFollowUp={(exec) => uiStore.setFollowUpTarget(exec)}
                         onViewExecution={() => closeDetail()}
                         onSelectScenario={selectScenario}
+                        onVerifyEvidence={(round, evidenceId, verified) => {
+                          const execId = executionHistory?.[0]?.executionId;
+                          void reviewService.verifyEvidence(backlogKind ?? "", name ?? "", round, evidenceId, verified, execId);
+                        }}
+                        onRequestMoreEvidence={(round, evidenceId) => {
+                          useReviewStore.getState().openRequestPanel(round, evidenceId);
+                        }}
                       />
                     </div>
                   )}
@@ -504,6 +532,13 @@ export function BacklogDetailsPage() {
               </div>
             </>
           )}
+
+          <EvidenceRequestPanel
+            backlogKind={backlogKind ?? ""}
+            backlogName={name ?? ""}
+            reviewRounds={reviewRounds}
+            onAction={() => void queryClient.invalidateQueries({ queryKey: ["review-rounds", backlogKind, name] })}
+          />
 
           <BacklogDialogs
             data={data}

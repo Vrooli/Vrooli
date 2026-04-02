@@ -137,9 +137,10 @@ type CreateRequest struct {
 
 // Policy controls default execution behavior when callers do not provide mode/delay.
 type Policy struct {
-	DefaultMode      Mode `json:"default_mode"`
-	MaxFixupAttempts int  `json:"max_fixup_attempts"`
-	AutoFixup        bool `json:"auto_fixup"`
+	DefaultMode        Mode `json:"default_mode"`
+	MaxFixupAttempts   int  `json:"max_fixup_attempts"`
+	AutoFixup          bool `json:"auto_fixup"`
+	ReviewAgentEnabled bool `json:"review_agent_enabled"`
 }
 
 // GovernanceSettings controls concurrency, queue depth, circuit breaker, and cost caps.

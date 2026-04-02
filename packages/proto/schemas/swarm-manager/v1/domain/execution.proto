@@ -130,6 +130,73 @@ message ScenarioReview {
   optional ReviewResult result = 4;
 }
 
+// EvidenceItem represents a single piece of verification evidence gathered
+// by the review agent.
+message EvidenceItem {
+  string id = 1;
+  // Type: screenshot, api_test, cli_output, config_diff, workflow_recording, custom.
+  string type = 2;
+  string title = 3;
+  string description = 4;
+  // Path relative to review/captures/ within the backlog item directory.
+  optional string capture_path = 5;
+  bool verified = 6;
+  optional string verified_at = 7;
+  // Before-state capture for comparison (future: populated from baseline).
+  optional string before_capture_path = 8;
+  // Structured test results (for api_test, cli_output types).
+  repeated EvidenceTestResult test_results = 9;
+}
+
+// EvidenceTestResult captures a structured test outcome within an evidence item.
+message EvidenceTestResult {
+  string name = 1;
+  bool passed = 2;
+  optional string output_summary = 3;
+}
+
+// EvidenceRequestThread captures a multi-turn conversation about needing
+// more evidence.
+message EvidenceRequestThread {
+  string id = 1;
+  // Which evidence item this request is about (optional).
+  optional string evidence_id = 2;
+  // Status: pending, fulfilled, dismissed.
+  string status = 3;
+  repeated EvidenceRequestMessage messages = 4;
+  string created_at = 5;
+  // Agent-manager run ID for the targeted evidence request.
+  optional string run_id = 6;
+}
+
+// EvidenceRequestMessage is a single turn in an evidence request thread.
+message EvidenceRequestMessage {
+  // Role: user, assistant.
+  string role = 1;
+  string content = 2;
+  string timestamp = 3;
+  // Evidence items added by this message.
+  repeated string added_evidence_ids = 4;
+}
+
+// ReviewEvidenceRound captures one pass of evidence gathering by the
+// review agent.
+message ReviewEvidenceRound {
+  int32 round = 1;
+  string generated_at = 2;
+  string execution_id = 3;
+  // Status: pending, gathering, complete, failed.
+  string status = 4;
+  optional string agent_assessment = 5;
+  // Classification: ready, ready_with_notes, needs_work, not_assessable.
+  optional string classification = 6;
+  repeated string notes = 7;
+  repeated EvidenceItem evidence = 8;
+  repeated EvidenceRequestThread request_threads = 9;
+  // Agent-manager run ID for the review agent session.
+  optional string run_id = 10;
+}
+
 // ExecutionPolicy controls default mode, delay, and auto-fixup behavior.
 message ExecutionPolicy {
   string default_mode = 1 [(buf.validate.field).string = { in: ["manual", "yolo"] }];
@@ -138,4 +205,6 @@ message ExecutionPolicy {
   bool auto_fixup = 3;
   // Maximum number of automatic fixup attempts (0-5).
   int32 max_fixup_attempts = 4 [(buf.validate.field).int32 = { gte: 0, lte: 5 }];
+  // When true, spawns a review agent after finalization to gather evidence.
+  bool review_agent_enabled = 5;
 }

@@ -272,7 +272,7 @@ export const literalSelectors = {
     tabReview: "settings-tab-review",
     saveButton: "settings-save",
   },
-  // Execution page selectors
+  // Execution list page selectors
   execution: {
     page: "execution-page",
     tabs: "execution-tabs",
@@ -284,6 +284,28 @@ export const literalSelectors = {
     activeList: "execution-active-list",
     grid: "execution-grid",
     promptTrace: "execution-prompt-trace",
+  },
+  // Execution detail page selectors
+  executionDetails: {
+    page: "execution-details-page",
+    tabRow: "execution-details-tab-row",
+    tabOverview: "execution-details-tab-overview",
+    tabChanges: "execution-details-tab-changes",
+    tabReview: "execution-details-tab-review",
+    tabPrompt: "execution-details-tab-prompt",
+    overviewMetadata: "execution-details-overview-metadata",
+    overviewActions: "execution-details-overview-actions",
+    changesFileList: "execution-details-changes-file-list",
+    changesEmpty: "execution-details-changes-empty",
+    reviewSection: "execution-details-review-section",
+    reviewEmpty: "execution-details-review-empty",
+    promptTrace: "execution-details-prompt-trace",
+    promptEmpty: "execution-details-prompt-empty",
+    followUpButton: "execution-details-follow-up",
+    retryButton: "execution-details-retry",
+    cancelButton: "execution-details-cancel",
+    runChecksButton: "execution-details-run-checks",
+    viewRunButton: "execution-details-view-run",
   },
   // Run backlog modal selectors
   runBacklog: {
@@ -363,6 +385,25 @@ export const literalSelectors = {
     zoomIn: "graph-nav-zoom-in",
     zoomOut: "graph-nav-zoom-out",
     fitView: "graph-nav-fit-view",
+  },
+  // Evidence renderer selectors
+  evidence: {
+    cliOutput: "evidence-cli-output",
+    configDiff: "evidence-config-diff",
+    workflowRecording: "evidence-workflow-recording",
+    lightbox: "media-lightbox",
+    truncatedLink: "evidence-truncated-link",
+  },
+  // Evidence request panel selectors
+  evidenceRequest: {
+    panel: "evidence-request-panel",
+    messageList: "evidence-request-messages",
+    textInput: "evidence-request-input",
+    sendButton: "evidence-request-send",
+    dismissButton: "evidence-request-dismiss",
+    staleWarning: "evidence-request-stale-warning",
+    error: "evidence-request-error",
+    targetContext: "evidence-request-target-context",
   },
 } as const;
 

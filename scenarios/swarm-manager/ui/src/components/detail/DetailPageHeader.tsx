@@ -105,18 +105,21 @@ export function DetailPageHeader({
 
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-lg font-semibold text-slate-100">{title}</h1>
-          {status ? (
-            <div className="mt-0.5">
-              <StatusBadge
-                status={status}
-                size="sm"
-                onStatusChange={onStatusChange}
-                statusChangePending={statusChangePending}
-              />
+          {(status || subtitle) && (
+            <div className="mt-0.5 flex items-center gap-2">
+              {status && (
+                <StatusBadge
+                  status={status}
+                  size="sm"
+                  onStatusChange={onStatusChange}
+                  statusChangePending={statusChangePending}
+                />
+              )}
+              {subtitle && (
+                <p className="truncate text-sm text-slate-400">{subtitle}</p>
+              )}
             </div>
-          ) : subtitle ? (
-            <p className="truncate text-sm text-slate-400">{subtitle}</p>
-          ) : null}
+          )}
         </div>
 
         {actions && (

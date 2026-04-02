@@ -79,6 +79,20 @@ export const API_ENDPOINTS = {
   graph: "/graph",
   stats: "/stats",
   health: "/health",
+  // Review evidence endpoints
+  reviewRounds: (kind: string, name: string) => `/backlog/${kind}/${name}/review`,
+  reviewCapture: (kind: string, name: string, capturePath: string) =>
+    `/backlog/${kind}/${name}/review/captures/${capturePath}`,
+  reviewVerify: (kind: string, name: string, round: number, evidenceId: string) =>
+    `/backlog/${kind}/${name}/review/${round}/verify/${evidenceId}`,
+  reviewRequest: (kind: string, name: string, round: number) =>
+    `/backlog/${kind}/${name}/review/${round}/request`,
+  reviewContinueRequest: (kind: string, name: string, round: number, threadId: string) =>
+    `/backlog/${kind}/${name}/review/${round}/request/${threadId}`,
+  reviewDismissRequest: (kind: string, name: string, round: number, threadId: string) =>
+    `/backlog/${kind}/${name}/review/${round}/request/${threadId}/dismiss`,
+  executionTriggerReviewAgent: (executionId: string) =>
+    `/execution/${executionId}/trigger-review-agent`,
 } as const;
 
 /**

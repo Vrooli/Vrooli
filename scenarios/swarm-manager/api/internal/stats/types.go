@@ -16,6 +16,7 @@ type StatsResponse struct {
 	Blocking    BlockingStats   `json:"blocking"`
 	Agent       AgentStats      `json:"agent"`
 	Dashboard   DashboardStats  `json:"dashboard"`
+	Review      ReviewStats     `json:"review"`
 }
 
 // ThroughputStats tracks item creation and completion rates.
@@ -89,4 +90,13 @@ type DashboardStats struct {
 type VelocityPoint struct {
 	WeekStart string `json:"week_start"`
 	Completed int    `json:"completed"`
+}
+
+// ReviewStats tracks review agent evidence gathering metrics.
+type ReviewStats struct {
+	RoundsCompleted         int     `json:"rounds_completed"`
+	AverageEvidencePerRound float64 `json:"avg_evidence_per_round"`
+	VerificationRate        float64 `json:"verification_rate"`
+	RequestMoreRate         float64 `json:"request_more_rate"`
+	AverageReviewDuration   float64 `json:"avg_review_duration_seconds"`
 }

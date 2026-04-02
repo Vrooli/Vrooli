@@ -65,3 +65,39 @@ export const defaultQueryOptions = {
  * Useful for extending or overriding specific options.
  */
 export type DefaultQueryOptions = typeof defaultQueryOptions;
+
+/**
+ * Builds a URL query string from a params record, omitting undefined/null/empty values.
+ * Array values are joined with commas.
+ *
+ * @returns A query string starting with "?" if any params are present, or empty string if none.
+ *
+ * @example
+ * ```ts
+ * buildQueryString({ status: "active", mode: undefined })
+ * // => "?status=active"
+ *
+ * buildQueryString({ kinds: ["idea", "fix"] })
+ * // => "?kinds=idea%2Cfix"
+ *
+ * buildQueryString({})
+ * // => ""
+ * ```
+ */
+export function buildQueryString(
+  params: Record<string, string | string[] | number | boolean | undefined | null>,
+): string {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === "") continue;
+    if (Array.isArray(value)) {
+      if (value.length > 0) {
+        query.set(key, value.join(","));
+      }
+    } else {
+      query.set(key, String(value));
+    }
+  }
+  const encoded = query.toString();
+  return encoded ? `?${encoded}` : "";
+}

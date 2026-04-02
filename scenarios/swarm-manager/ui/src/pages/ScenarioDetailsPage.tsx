@@ -15,15 +15,14 @@
  * [REQ:REQ-P0-008] Scenario Deletion Workflow with Safeguards
  */
 
-import { useState, useEffect, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 
 import {
+  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronUp,
   Circle,
-  CheckCircle2,
   Loader2,
   MoreHorizontal,
   Package,
@@ -37,17 +36,14 @@ import {
 } from "lucide-react";
 import { BottomSheet } from "../components/ui/bottom-sheet";
 import { Button } from "../components/ui/button";
-import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { ErrorState } from "../components/ui/error-state";
-import { InlineLoadingIndicator, PageLoadingState } from "../components/ui/loading-states";
-import { Select } from "../components/ui/select";
+import { PageLoadingState } from "../components/ui/loading-states";
 import { TagList } from "../components/ui/tag-list";
-import { FileSelectionDialog, type FileSelectionResult } from "../components/scenarios/file-selection-dialog";
-import { capitalize, defaultQueryOptions } from "../lib";
-import { scenariosService, executionService } from "../services";
+import type { FileSelectionResult } from "../components/scenarios/file-selection-dialog";
+import { ScenarioDeleteDialog } from "../components/scenarios/ScenarioDeleteDialog";
+import { capitalize } from "../lib";
 import { selectors } from "../consts/selectors";
 import { SCENARIO_STATUS_COLORS, SCENARIO_STATUS_ICONS } from "../types";
-import type { ScenarioFile, PreserveFilesPreset } from "../types";
 import { useDetailSelectionStore } from "../stores/detail-selection-store";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
@@ -55,386 +51,106 @@ import { DetailSection } from "../components/detail/DetailSection";
 import { SCENARIO_LENSES } from "../components/detail/lens-options";
 import { selectionToNodeId } from "../stores/detail-selection-store";
 import { useDetailNavigation } from "../hooks/useDetailNavigation";
-import { useStorePolling } from "../hooks/useStorePolling";
-import { useScenariosStore } from "../stores";
-
-const ARCHIVE_PRESET_OPTIONS: { value: PreserveFilesPreset; label: string; description: string }[] = [
-  { value: "documentation", label: "Documentation", description: "PRD.md, README.md, docs/**, *.md" },
-  { value: "requirements", label: "Requirements", description: "PRD.md, requirements/**, specs/**, REQUIREMENTS.md" },
-  { value: "planning", label: "Planning", description: "PRD.md, .vrooli/**, planning/**, design/**" },
-  {
-    value: "all-planning",
-    label: "All Planning Files",
-    description: "All docs, requirements, specs, planning, design, and markdown files",
-  },
-];
-
-const ARCHIVE_PREFERENCES_STORAGE_KEY = "swarm-manager.archive.preferences.v1";
-
-interface ArchivePreferences {
-  mode: "preset" | "custom";
-  preset: PreserveFilesPreset;
-  customPaths: string[];
-  specSync: boolean;
-}
-
-type SpecSyncPhase = "idle" | "syncing" | "archiving" | "done" | "failed";
-
-const ARCHIVE_PRESET_PATTERNS: Record<PreserveFilesPreset, string[]> = {
-  documentation: ["PRD.md", "README.md", "docs/**", "*.md"],
-  requirements: ["PRD.md", "requirements/**", "specs/**", "REQUIREMENTS.md"],
-  planning: ["PRD.md", ".vrooli/**", "planning/**", "design/**"],
-  "all-planning": [
-    "PRD.md",
-    "README.md",
-    "docs/**",
-    "requirements/**",
-    "specs/**",
-    "planning/**",
-    "design/**",
-    ".vrooli/**",
-    "*.md",
-  ],
-};
-
-const ARCHIVE_IGNORED_DIRS = new Set([
-  "node_modules",
-  ".git",
-  "dist",
-  "build",
-  "coverage",
-  ".next",
-  ".turbo",
-  "target",
-  "vendor",
-]);
-
-function isIgnoredArchivePath(path: string): boolean {
-  return path.split("/").some((segment) => ARCHIVE_IGNORED_DIRS.has(segment));
-}
-
-function matchesPattern(path: string, pattern: string): boolean {
-  if (!pattern.includes("*")) {
-    return path === pattern || path.endsWith("/" + pattern);
-  }
-  if (pattern.includes("**")) {
-    const prefix = pattern.split("**")[0];
-    return !prefix || path.startsWith(prefix);
-  }
-  if (pattern.startsWith("*.")) {
-    return path.endsWith(pattern.slice(1));
-  }
-  if (pattern.endsWith("/*")) {
-    const prefix = pattern.slice(0, -2);
-    return path.startsWith(prefix + "/") && !path.slice(prefix.length + 1).includes("/");
-  }
-  return false;
-}
-
-function collectPaths(file: ScenarioFile): string[] {
-  if (file.type === "file") return [file.path];
-  if (!file.children) return [];
-  return file.children.flatMap(collectPaths);
-}
-
-function getDefaultArchivePreferences(): ArchivePreferences {
-  return {
-    mode: "preset",
-    preset: "planning",
-    customPaths: [],
-    specSync: false,
-  };
-}
-
-function isValidPreset(value: string): value is PreserveFilesPreset {
-  return value in ARCHIVE_PRESET_PATTERNS;
-}
-
-function loadArchivePreferences(): ArchivePreferences {
-  if (typeof window === "undefined") {
-    return getDefaultArchivePreferences();
-  }
-  try {
-    const raw = window.localStorage.getItem(ARCHIVE_PREFERENCES_STORAGE_KEY);
-    if (!raw) return getDefaultArchivePreferences();
-    const parsed = JSON.parse(raw) as Partial<ArchivePreferences>;
-    const preset = parsed.preset && isValidPreset(parsed.preset) ? parsed.preset : "planning";
-    const mode = parsed.mode === "custom" ? "custom" : "preset";
-    const customPaths = Array.isArray(parsed.customPaths)
-      ? parsed.customPaths.filter((path): path is string => typeof path === "string" && path.length > 0)
-      : [];
-    const specSync = parsed.specSync === true;
-    return { mode, preset, customPaths, specSync };
-  } catch {
-    return getDefaultArchivePreferences();
-  }
-}
-
-function persistArchivePreferences(preferences: ArchivePreferences): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(ARCHIVE_PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
-}
+import { useScenarioDetailData } from "../hooks/useScenarioDetailData";
+import { useArchivePreferences } from "../hooks/useArchivePreferences";
 
 export function ScenarioDetailsPage() {
   const selection = useDetailSelectionStore((s) => s.selection);
   const name = selection?.name;
   const nodeId = selectionToNodeId(selection);
   const { closeDetail } = useDetailNavigation();
-  const queryClient = useQueryClient();
-  const upsertScenario = useScenariosStore((state) => state.upsertScenario);
-  const removeScenario = useScenariosStore((state) => state.removeScenario);
-  const cachedScenario = useScenariosStore((state) => state.scenarios.find((s) => s.name === name));
 
-  // Local state for optimistic UI updates
-  const [localGreenfield, setLocalGreenfield] = useState<boolean | null>(null);
+  const {
+    scenario,
+    isLoading,
+    error,
+    refetch,
+    localGreenfield,
+    handleGreenfieldToggle,
+    updateMutation,
+    actionMutation,
+    deleteMutationInternal,
+    specSyncPhase,
+    specSyncError,
+    isSpecSyncInProgress,
+    triggerSpecSyncArchive,
+    handleSpecSyncCancel,
+    resetSpecSync,
+    scenarioFiles,
+    filesLoading,
+    loadScenarioFiles,
+  } = useScenarioDetailData(name, closeDetail);
 
   // Delete dialog state
   // [REQ:REQ-P0-008] Delete confirmation dialog state
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [archiveOnDelete, setArchiveOnDelete] = useState(true);
-  const [archivePreset, setArchivePreset] = useState<PreserveFilesPreset>(() => loadArchivePreferences().preset);
-  const [archiveMode, setArchiveMode] = useState<"preset" | "custom">(() => loadArchivePreferences().mode);
-  const [customPaths, setCustomPaths] = useState<string[]>(() => loadArchivePreferences().customPaths);
-  const [specSyncEnabled, setSpecSyncEnabled] = useState(() => loadArchivePreferences().specSync);
-
-  // Spec-sync progress state
-  const [specSyncPhase, setSpecSyncPhase] = useState<SpecSyncPhase>("idle");
-  const [specSyncExecutionId, setSpecSyncExecutionId] = useState<string | null>(null);
-  const [specSyncError, setSpecSyncError] = useState<string | null>(null);
   const [showActionsSheet, setShowActionsSheet] = useState(false);
   const [mobileDangerExpanded, setMobileDangerExpanded] = useState(false);
-
-  // File selection dialog state
   const [showFileSelectionDialog, setShowFileSelectionDialog] = useState(false);
-  const [scenarioFiles, setScenarioFiles] = useState<ScenarioFile[]>([]);
-  const [filesLoading, setFilesLoading] = useState(false);
-  const [fileTreeLoaded, setFileTreeLoaded] = useState(false);
 
-  useEffect(() => {
-    persistArchivePreferences({
-      mode: archiveMode,
-      preset: archivePreset,
-      customPaths,
-      specSync: specSyncEnabled,
-    });
-  }, [archiveMode, archivePreset, customPaths, specSyncEnabled]);
+  const {
+    archivePreset,
+    setArchivePreset,
+    archiveMode,
+    setArchiveMode,
+    customPaths,
+    setCustomPaths,
+    specSyncEnabled,
+    setSpecSyncEnabled,
+    fileTreeLoaded,
+    setFileTreeLoaded,
+    effectiveArchiveMode,
+    previewPaths,
+    previewList,
+  } = useArchivePreferences(scenarioFiles, archiveOnDelete);
 
   useEffect(() => {
     setShowActionsSheet(false);
     setMobileDangerExpanded(false);
   }, [name]);
 
-  // Fetch scenario details
-  // Note: queryFn is only called when enabled is true (i.e., name exists)
-  const {
-    data: scenario,
-    isLoading,
-    error,
-    refetch,
-  } = useQuery({
-    queryKey: ["scenarios", name],
-    queryFn: () => {
-      if (!name) throw new Error("Name is required");
-      return scenariosService.get(name);
-    },
-    enabled: !!name,
-    placeholderData: cachedScenario,
-    ...defaultQueryOptions,
-  });
-
-  // Sync local state when scenario data loads
-  useEffect(() => {
-    if (scenario) {
-      setLocalGreenfield(scenario.isGreenfield);
-    }
-  }, [scenario]);
-
-  // Update metadata mutation
-  // [REQ:REQ-P0-007] PATCH endpoint for toggling metadata
-  const updateMutation = useMutation({
-    mutationFn: (updates: { isGreenfield?: boolean }) => {
-      if (!name) throw new Error("Name is required");
-      return scenariosService.updateMetadata(name, updates);
-    },
-    onSuccess: (updatedScenario) => {
-      // Update cache with new data
-      queryClient.setQueryData(["scenarios", name], updatedScenario);
-      upsertScenario(updatedScenario);
-    },
-    onError: () => {
-      // Revert local state on error
-      if (scenario) {
-        setLocalGreenfield(scenario.isGreenfield);
-      }
-    },
-  });
-
-  const actionMutation = useMutation({
-    mutationFn: async (action: "start" | "stop" | "restart") => {
-      if (!name) throw new Error("Name is required");
-      if (action === "start") {
-        return scenariosService.start(name);
-      }
-      if (action === "stop") {
-        return scenariosService.stop(name);
-      }
-      return scenariosService.restart(name);
-    },
-    onSuccess: (updatedScenario) => {
-      queryClient.setQueryData(["scenarios", name], updatedScenario);
-      upsertScenario(updatedScenario);
-    },
-  });
-
-  // Toggle handlers with optimistic updates
-  const handleGreenfieldToggle = () => {
-    const newValue = !localGreenfield;
-    setLocalGreenfield(newValue);
-    updateMutation.mutate({ isGreenfield: newValue });
-  };
-
-  // Delete mutation
-  // [REQ:REQ-P0-008] DELETE endpoint for scenario deletion with archive option
-  const deleteMutation = useMutation({
-    mutationFn: () => {
-      if (!name) throw new Error("Name is required");
-      const preserveFiles = archiveOnDelete
-        ? effectiveArchiveMode === "custom"
-          ? { paths: customPaths }
-          : { preset: archivePreset }
-        : undefined;
-      return scenariosService.delete(name, {
-        archive: archiveOnDelete,
-        preserveFiles,
-      });
-    },
-    onSuccess: () => {
-      if (name) {
-        removeScenario(name);
-      }
-      closeDetail();
-    },
-  });
-
-  // Spec-sync polling effect
-  useStorePolling({
-    enabled: specSyncPhase === "syncing" && !!specSyncExecutionId,
-    intervalMs: 3000,
-    pollFn: async () => {
-      if (!specSyncExecutionId) return;
-      try {
-        const execution = await executionService.get(specSyncExecutionId);
-        if (execution.status === "completed") {
-          setSpecSyncPhase("done");
-          if (name) {
-            removeScenario(name);
-          }
-          closeDetail();
-        } else if (execution.status === "failed") {
-          setSpecSyncPhase("failed");
-          setSpecSyncError(execution.failureReason ?? "Spec sync failed");
-        } else if (execution.status === "canceled") {
-          setSpecSyncPhase("idle");
-          setSpecSyncExecutionId(null);
-        }
-      } catch {
-        // Transient error, keep polling
-      }
-    },
-  });
-
   // Delete handlers
   const handleDeleteClick = () => {
     setShowDeleteDialog(true);
     setFileTreeLoaded(false);
-    setSpecSyncPhase("idle");
-    setSpecSyncError(null);
-    setSpecSyncExecutionId(null);
-    void loadScenarioFiles();
+    resetSpecSync();
+    void loadScenarioFiles().finally(() => setFileTreeLoaded(true));
   };
 
   const handleDeleteConfirm = () => {
     if (archiveOnDelete && specSyncEnabled) {
-      // Trigger spec-sync-archive flow
-      if (!name) return;
-      const preserveFiles = effectiveArchiveMode === "custom"
-        ? { paths: customPaths }
-        : { preset: archivePreset };
-      setSpecSyncPhase("syncing");
-      setSpecSyncError(null);
-      scenariosService
-        .specSyncArchive(name, { preserveFiles })
-        .then((response) => {
-          setSpecSyncExecutionId(response.executionId);
-        })
-        .catch((err: unknown) => {
-          setSpecSyncPhase("failed");
-          setSpecSyncError(err instanceof Error ? err.message : "Failed to start spec sync");
-        });
+      triggerSpecSyncArchive(effectiveArchiveMode, customPaths, archivePreset);
     } else {
-      deleteMutation.mutate();
+      deleteMutationInternal.mutate({ archiveOnDelete, effectiveArchiveMode, customPaths, archivePreset });
     }
   };
 
   const handleSpecSyncRetry = () => {
-    setSpecSyncPhase("idle");
-    setSpecSyncError(null);
-    setSpecSyncExecutionId(null);
+    resetSpecSync();
     handleDeleteConfirm();
   };
 
   const handleArchiveWithoutSync = () => {
-    setSpecSyncPhase("idle");
-    setSpecSyncError(null);
-    setSpecSyncExecutionId(null);
+    resetSpecSync();
     setSpecSyncEnabled(false);
-    deleteMutation.mutate();
-  };
-
-  const handleSpecSyncCancel = () => {
-    if (specSyncExecutionId) {
-      executionService.cancel(specSyncExecutionId).catch((err) => {
-        console.error("[spec-sync] cancel failed:", err);
-      });
-    }
-    setSpecSyncPhase("idle");
-    setSpecSyncError(null);
-    setSpecSyncExecutionId(null);
-    setShowDeleteDialog(false);
-    setArchiveOnDelete(true);
+    deleteMutationInternal.mutate({ archiveOnDelete, effectiveArchiveMode, customPaths, archivePreset });
   };
 
   const handleDeleteCancel = () => {
     if (specSyncPhase === "syncing") {
       handleSpecSyncCancel();
+      setShowDeleteDialog(false);
+      setArchiveOnDelete(true);
       return;
     }
     setShowDeleteDialog(false);
     setArchiveOnDelete(true);
-    setSpecSyncPhase("idle");
-    setSpecSyncError(null);
-    setSpecSyncExecutionId(null);
-  };
-
-  // Load scenario files for file selection dialog
-  const loadScenarioFiles = async () => {
-    if (!name) return;
-    setFileTreeLoaded(false);
-    setFilesLoading(true);
-    try {
-      const files = await scenariosService.getFiles(name);
-      setScenarioFiles(Array.isArray(files) ? files : []);
-    } catch (error) {
-      console.error("Failed to load scenario files:", error);
-      setScenarioFiles([]);
-    } finally {
-      setFileTreeLoaded(true);
-      setFilesLoading(false);
-    }
+    resetSpecSync();
   };
 
   const handleCustomizeFilesClick = () => {
-    loadScenarioFiles();
+    void loadScenarioFiles().finally(() => setFileTreeLoaded(true));
     setShowFileSelectionDialog(true);
   };
 
@@ -455,7 +171,6 @@ export function ScenarioDetailsPage() {
 
   // Get status icon
   const StatusIcon = scenario ? (SCENARIO_STATUS_ICONS[scenario.status] || Circle) : Circle;
-  const isSpecSyncInProgress = specSyncPhase === "syncing" || specSyncPhase === "archiving";
   const isPageLoading = isLoading && !scenario;
   const isRunning = scenario?.status === "running";
   const isStopped = scenario?.status === "stopped";
@@ -463,26 +178,6 @@ export function ScenarioDetailsPage() {
   const actionError = actionMutation.isError
     ? `Failed to ${actionMutation.variables ?? "run action"}. Please try again.`
     : null;
-  const allScenarioFilePaths = useMemo(
-    () => scenarioFiles.flatMap(collectPaths).sort((a, b) => a.localeCompare(b)),
-    [scenarioFiles]
-  );
-  const scenarioPathSet = useMemo(() => new Set(allScenarioFilePaths), [allScenarioFilePaths]);
-  const canUseCustomSelection = useMemo(() => {
-    if (archiveMode !== "custom" || customPaths.length === 0) return false;
-    if (!fileTreeLoaded) return true;
-    return customPaths.every((path) => scenarioPathSet.has(path));
-  }, [archiveMode, customPaths, fileTreeLoaded, scenarioPathSet]);
-  const effectiveArchiveMode = archiveMode === "custom" && canUseCustomSelection ? "custom" : "preset";
-  const previewPaths = useMemo(() => {
-    if (!archiveOnDelete) return [];
-    if (effectiveArchiveMode === "custom") return [...customPaths].sort((a, b) => a.localeCompare(b));
-    const patterns = ARCHIVE_PRESET_PATTERNS[archivePreset];
-    return allScenarioFilePaths.filter(
-      (path) => !isIgnoredArchivePath(path) && patterns.some((pattern) => matchesPattern(path, pattern))
-    );
-  }, [archiveOnDelete, effectiveArchiveMode, customPaths, archivePreset, allScenarioFilePaths]);
-  const previewList = previewPaths.slice(0, 10);
 
   if (!name) {
     return (
@@ -765,9 +460,9 @@ export function ScenarioDetailsPage() {
                       size="sm"
                       className="w-full"
                       onClick={handleDeleteClick}
-                      disabled={deleteMutation.isPending}
+                      disabled={deleteMutationInternal.isPending}
                     >
-                      {deleteMutation.isPending ? (
+                      {deleteMutationInternal.isPending ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           Deleting...
@@ -779,7 +474,7 @@ export function ScenarioDetailsPage() {
                         </>
                       )}
                     </Button>
-                    {deleteMutation.isError && (
+                    {deleteMutationInternal.isError && (
                       <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
                         Failed to delete scenario. Please try again.
                       </div>
@@ -993,10 +688,10 @@ export function ScenarioDetailsPage() {
                   variant="destructive"
                   size="sm"
                   onClick={handleDeleteClick}
-                  disabled={deleteMutation.isPending}
+                  disabled={deleteMutationInternal.isPending}
                   data-testid={selectors.scenarioDetails.deleteButton}
                 >
-                  {deleteMutation.isPending ? (
+                  {deleteMutationInternal.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Deleting...
@@ -1011,7 +706,7 @@ export function ScenarioDetailsPage() {
               </div>
 
               {/* Delete error feedback */}
-              {deleteMutation.isError && (
+              {deleteMutationInternal.isError && (
                 <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">
                   Failed to delete scenario. Please try again.
                 </div>
@@ -1032,192 +727,42 @@ export function ScenarioDetailsPage() {
       )}
 
       {/* Delete confirmation dialog */}
-      {/* [REQ:REQ-P0-008] Strong confirmation dialog with archive option */}
-      <ConfirmDialog
+      <ScenarioDeleteDialog
         isOpen={showDeleteDialog}
+        scenarioDisplayName={scenario?.displayName || name || ""}
+        scenarioName={scenario?.name}
+        isDeleteLoading={deleteMutationInternal.isPending}
+        archiveOnDelete={archiveOnDelete}
+        onArchiveOnDeleteChange={(checked) => {
+          setArchiveOnDelete(checked);
+          if (checked) {
+            void loadScenarioFiles().finally(() => setFileTreeLoaded(true));
+          }
+        }}
+        archivePreset={archivePreset}
+        onArchivePresetChange={setArchivePreset}
+        effectiveArchiveMode={effectiveArchiveMode}
+        customPaths={customPaths}
+        onCustomPathsChange={setCustomPaths}
+        onArchiveModeChange={setArchiveMode}
+        previewPaths={previewPaths}
+        previewList={previewList}
+        filesLoading={filesLoading}
+        specSyncEnabled={specSyncEnabled}
+        onSpecSyncEnabledChange={setSpecSyncEnabled}
+        specSyncPhase={specSyncPhase}
+        specSyncError={specSyncError}
+        isSpecSyncInProgress={isSpecSyncInProgress}
+        onSpecSyncRetry={handleSpecSyncRetry}
+        onArchiveWithoutSync={handleArchiveWithoutSync}
+        onSpecSyncCancel={handleSpecSyncCancel}
+        showFileSelectionDialog={showFileSelectionDialog}
+        onCustomizeFilesClick={handleCustomizeFilesClick}
+        onFileSelectionConfirm={handleFileSelectionConfirm}
+        onFileSelectionCancel={handleFileSelectionCancel}
+        scenarioFiles={scenarioFiles}
         onClose={handleDeleteCancel}
         onConfirm={handleDeleteConfirm}
-        title="Delete Scenario"
-        description={`Are you sure you want to delete "${scenario?.displayName || name}"? This will remove the scenario from the catalog.`}
-        confirmationText={scenario?.name}
-        confirmLabel={specSyncEnabled && archiveOnDelete ? "Sync & Archive" : "Delete Scenario"}
-        isLoading={deleteMutation.isPending || isSpecSyncInProgress}
-        checkboxContent={{
-          label: "Archive to backlog (idea) before deleting (recommended)",
-          checked: archiveOnDelete,
-          onChange: (checked) => {
-            setArchiveOnDelete(checked);
-            if (checked) {
-              void loadScenarioFiles();
-            }
-          },
-          testId: selectors.scenarioDetails.archiveCheckbox,
-        }}
-        sidePanel={archiveOnDelete ? (
-          <div className="space-y-4" data-testid="archive-preview-panel">
-            {/* Spec-sync progress overlay */}
-            {specSyncPhase !== "idle" && (
-              <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 p-3 space-y-2">
-                {specSyncPhase === "syncing" && (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
-                      <span className="text-sm font-medium text-cyan-300">Syncing specs with code...</span>
-                    </div>
-                    <p className="text-xs text-slate-400">
-                      An agent is updating docs to match the implementation. This may take several minutes.
-                    </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-1"
-                      onClick={handleSpecSyncCancel}
-                    >
-                      Cancel
-                    </Button>
-                  </>
-                )}
-                {specSyncPhase === "archiving" && (
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
-                    <span className="text-sm font-medium text-cyan-300">Specs synced. Archiving...</span>
-                  </div>
-                )}
-                {specSyncPhase === "done" && (
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-400" />
-                    <span className="text-sm font-medium text-green-300">Archive complete!</span>
-                  </div>
-                )}
-                {specSyncPhase === "failed" && (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <XCircle className="h-4 w-4 text-red-400" />
-                      <span className="text-sm font-medium text-red-300">Spec sync failed</span>
-                    </div>
-                    <p className="text-xs text-red-300/80">{specSyncError}</p>
-                    <div className="flex gap-2 pt-1">
-                      <Button variant="outline" size="sm" onClick={handleSpecSyncRetry}>
-                        Retry
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={handleArchiveWithoutSync}>
-                        Archive Without Sync
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={handleDeleteCancel}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            <div className="space-y-1">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-cyan-300">Archive Preview</h3>
-              <p className="text-xs text-slate-400">
-                Choose what to keep with the archived idea before deletion.
-              </p>
-            </div>
-
-            {/* Spec-sync toggle */}
-            <label className="flex items-start gap-2 rounded-lg bg-slate-800/50 p-3 cursor-pointer" data-testid="spec-sync-toggle">
-              <input
-                type="checkbox"
-                checked={specSyncEnabled}
-                onChange={(e) => setSpecSyncEnabled(e.target.checked)}
-                disabled={isSpecSyncInProgress}
-                className="mt-0.5 rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500/50"
-              />
-              <div className="space-y-0.5">
-                <span className="text-xs font-medium text-slate-200">Sync specs with code before archiving</span>
-                <p className="text-[11px] text-slate-400">
-                  An agent will update PRD, requirements, and docs to match the current code. Takes several minutes.
-                </p>
-              </div>
-            </label>
-
-            <div className="space-y-2">
-              <label className="block text-xs font-medium text-slate-300" htmlFor="archive-preset-select">
-                Preset
-              </label>
-              <Select
-                id="archive-preset-select"
-                value={archivePreset}
-                onChange={(e) => {
-                  setArchivePreset(e.target.value as PreserveFilesPreset);
-                  setArchiveMode("preset");
-                }}
-                withChevron
-                data-testid="archive-preset-select"
-              >
-                {ARCHIVE_PRESET_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
-              <p className="text-xs text-slate-500">
-                {ARCHIVE_PRESET_OPTIONS.find((preset) => preset.value === archivePreset)?.description}
-              </p>
-            </div>
-            <div className="rounded-lg border border-white/10 bg-slate-800/70 p-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-slate-200">
-                  {effectiveArchiveMode === "custom" ? "Custom Selection" : "Included Files"}
-                </span>
-                <span className="text-xs text-cyan-300" data-testid="archive-preview-count">
-                  {previewPaths.length} files
-                </span>
-              </div>
-              <div className="mt-2 max-h-40 space-y-1 overflow-y-auto text-xs text-slate-300">
-                {filesLoading ? (
-                  <InlineLoadingIndicator
-                    label="Loading file tree..."
-                    className="border-transparent bg-transparent px-0 text-slate-400"
-                    testId="scenario-archive-file-tree-loading"
-                  />
-                ) : previewList.length > 0 ? (
-                  previewList.map((path) => (
-                    <p key={path} className="truncate font-mono" title={path}>
-                      {path}
-                    </p>
-                  ))
-                ) : (
-                  <p className="text-slate-500">No files selected for archive.</p>
-                )}
-                {!filesLoading && previewPaths.length > previewList.length && (
-                  <p className="pt-1 text-slate-500">+{previewPaths.length - previewList.length} more files</p>
-                )}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={handleCustomizeFilesClick}
-              className="text-sm text-cyan-400 hover:text-cyan-300 underline underline-offset-2"
-              data-testid="customize-files-link"
-            >
-              {effectiveArchiveMode === "custom" ? "Edit custom file selection..." : "Fine-tune file selection..."}
-            </button>
-          </div>
-        ) : null}
-        testIds={{
-          dialog: selectors.scenarioDetails.deleteDialog,
-          confirmButton: selectors.scenarioDetails.deleteConfirmButton,
-          cancelButton: selectors.scenarioDetails.deleteCancelButton,
-        }}
-      />
-
-      {/* File selection dialog */}
-      <FileSelectionDialog
-        isOpen={showFileSelectionDialog}
-        onClose={handleFileSelectionCancel}
-        onConfirm={handleFileSelectionConfirm}
-        scenarioName={scenario?.displayName || name || ""}
-        files={scenarioFiles}
-        isLoading={filesLoading}
-        initialSelection={effectiveArchiveMode === "custom"
-          ? { paths: customPaths }
-          : { preset: archivePreset, paths: [] }}
       />
     </div>
     </DetailPageLayout>

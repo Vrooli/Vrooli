@@ -9,9 +9,8 @@
 import { Square } from "lucide-react";
 import { Button } from "../ui/button";
 import { formatRelativeTime, canFollowUpExecution } from "../../lib";
-import { EXECUTION_STATUS_COLORS, formatExecutionStatus } from "../../types/constants";
+import { EXECUTION_STATUS_COLORS, formatExecutionStatus, type ExecutionRecord, type ExecutionStatus } from "../../types";
 import { selectors } from "../../consts/selectors";
-import type { ExecutionRecord, ExecutionStatus } from "../../types";
 import type { AgentActivityRecord } from "../../stores/agent-activities-store";
 
 export interface LatestExecutionSummaryProps {
