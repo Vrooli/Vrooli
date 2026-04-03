@@ -15,7 +15,7 @@
   "dependencies": {
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "marked": "^9.1.2",
-    "dompurify": "^3.0.5"
+    "dompurify": "^3.3.2"
   },
   "devDependencies": {
     "http-server": "^14.1.1",
