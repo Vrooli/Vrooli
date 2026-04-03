@@ -39,6 +39,8 @@ const CTA_CONFIG: Record<string, { label: string; icon: React.ElementType }> = {
   finalize: { label: "Finalize", icon: Sparkles },
   followUp: { label: "Follow Up", icon: Wrench },
   archive: { label: "Archive", icon: Eye },
+  review: { label: "Review", icon: Eye },
+  answer: { label: "Answer", icon: MessageCircle },
 };
 
 function handleCtaClick(
@@ -50,9 +52,9 @@ function handleCtaClick(
   const cta = item.primaryCta;
   if (cta === "run" && item.kind && item.name && props.onRun) {
     props.onRun(item.kind, item.name);
-  } else if (cta === "followUp" && item.executionId && props.onFollowUp) {
+  } else if ((cta === "followUp" || cta === "review") && item.executionId && props.onFollowUp) {
     props.onFollowUp(item.executionId);
-  } else if ((cta === "workshop" || cta === "finalize") && props.onEnterDecisionStream) {
+  } else if ((cta === "workshop" || cta === "finalize" || cta === "answer") && props.onEnterDecisionStream) {
     props.onEnterDecisionStream();
   } else {
     props.onNavigate();

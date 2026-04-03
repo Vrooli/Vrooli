@@ -181,6 +181,12 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 		record.Status = StatusCanceled
 		record.UpdatedAt = nowRFC3339()
 		record.FinishedAt = nowRFC3339()
+		// Also mark finalization as failed so the UI stops showing the progress indicator.
+		if record.Finalization != nil {
+			record.Finalization.Status = FinalizationStatusFailed
+			record.Finalization.Phase = FinalizationPhaseFailed
+			record.Finalization.CompletedAt = nowRFC3339()
+		}
 		records[idx] = record
 		if err := s.store.Save(records); err != nil {
 			return Record{}, err

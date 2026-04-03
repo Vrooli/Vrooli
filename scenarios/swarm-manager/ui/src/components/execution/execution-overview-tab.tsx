@@ -12,6 +12,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { Button } from "../ui/button";
+import { EntityLink } from "../ui/entity-link";
 import { PostRunStatusBadge } from "./post-run-status-badge";
 import { DetailSection } from "../detail/DetailSection";
 import { formatRelativeTime, canRunPostRunChecks } from "../../lib";
@@ -26,8 +27,6 @@ export interface ExecutionOverviewTabProps {
   actionBusy: boolean;
   postRunBadgeExecution: ExecutionRecord | null;
   agentManagerUiUrl: string | null;
-  onSelectBacklog: (kind: string, name: string) => void;
-  onSelectExecution: (id: string) => void;
   onFollowUp: () => void;
   onCancel: () => void;
   onRetry: () => void;
@@ -41,8 +40,6 @@ export function ExecutionOverviewTab({
   actionBusy,
   postRunBadgeExecution,
   agentManagerUiUrl,
-  onSelectBacklog,
-  onSelectExecution,
   onFollowUp,
   onCancel,
   onRetry,
@@ -61,13 +58,12 @@ export function ExecutionOverviewTab({
           >
             <div>
               <p className="text-xs text-slate-500 uppercase tracking-wider">Backlog</p>
-              <button
-                type="button"
-                onClick={() => onSelectBacklog(execution.backlogKind, execution.backlogName)}
-                className="text-cyan-400 hover:text-cyan-300 text-sm text-left"
-              >
-                {execution.backlogKind}/{execution.backlogName}
-              </button>
+              <EntityLink
+                entityType="backlog"
+                kind={execution.backlogKind}
+                name={execution.backlogName}
+                label={`${execution.backlogKind}/${execution.backlogName}`}
+              />
             </div>
             {execution.startedBy && (
               <div>
@@ -98,13 +94,11 @@ export function ExecutionOverviewTab({
             {execution.parentExecutionId && (
               <div className="col-span-2">
                 <p className="text-xs text-slate-500 uppercase tracking-wider">Parent Execution</p>
-                <button
-                  type="button"
-                  onClick={() => onSelectExecution(execution.parentExecutionId as string)}
-                  className="text-cyan-400 hover:text-cyan-300 text-sm"
-                >
-                  {execution.parentExecutionId}
-                </button>
+                <EntityLink
+                  entityType="execution"
+                  executionId={execution.parentExecutionId}
+                  label={execution.parentExecutionId}
+                />
               </div>
             )}
           </div>

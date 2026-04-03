@@ -10,7 +10,6 @@
  */
 
 import { memo, useState, useCallback, useRef } from "react";
-import { Link } from "react-router-dom";
 import { Check } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ResolvedDependency } from "../../lib/backlog-queue-utils";
@@ -22,6 +21,7 @@ import {
   type BacklogStatus,
 } from "../../types";
 import { Popover } from "../ui/popover";
+import { useDetailSelectionStore } from "../../stores/detail-selection-store";
 
 interface DependencyChipListProps {
   label: string;
@@ -117,6 +117,8 @@ export const DependencyChipList = memo(function DependencyChipList({
   icon: Icon,
   onStatusChange,
 }: DependencyChipListProps) {
+  const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
+
   if (items.length === 0) return null;
 
   return (
@@ -127,9 +129,10 @@ export const DependencyChipList = memo(function DependencyChipList({
       </div>
       <div className="flex flex-wrap gap-1.5">
         {items.map((dep) => (
-          <Link
+          <button
             key={`${dep.kind}/${dep.name}`}
-            to={`/backlog/${dep.kind}/${dep.name}`}
+            type="button"
+            onClick={() => selectBacklog(dep.kind, dep.name)}
             title={formatBacklogStatus(dep.status)}
             className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium transition-colors hover:brightness-125 ${BACKLOG_STATUS_CHIP_COLORS[dep.status]}`}
           >
@@ -137,7 +140,7 @@ export const DependencyChipList = memo(function DependencyChipList({
               <StatusDot dep={dep} onStatusChange={onStatusChange} />
             ) : null}
             {dep.title}
-          </Link>
+          </button>
         ))}
       </div>
     </div>

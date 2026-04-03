@@ -179,6 +179,7 @@ func mapJobToResult(job reviewJobStatus) (*ReviewResult, bool, error) {
 			result.Classification = mapReadinessToClassification(job.Summary.Readiness)
 			result.Summary = fmt.Sprintf("Scenario %s readiness: %s", job.Summary.ScenarioName, job.Summary.Readiness)
 			result.Dimensions = parseDimensions(job.Summary.Dimensions, job.Summary.DimensionStatuses)
+			result.RawDimensions = job.Summary.Dimensions
 		} else {
 			result.Classification = "not_assessable"
 			result.Summary = "review completed without summary"

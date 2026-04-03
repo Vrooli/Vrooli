@@ -28,7 +28,6 @@ export function ExecutionTab({ form, patch }: ExecutionTabProps) {
             defaultMode: DEFAULT_SETTINGS.defaultMode,
             autoFixup: DEFAULT_SETTINGS.autoFixup,
             maxFixupAttempts: DEFAULT_SETTINGS.maxFixupAttempts,
-            reviewAgentEnabled: DEFAULT_SETTINGS.reviewAgentEnabled,
           })}>Reset</button>
         </div>
         <div className="mt-4 space-y-4">
@@ -53,20 +52,6 @@ export function ExecutionTab({ form, patch }: ExecutionTabProps) {
                 { value: true as const, label: "Enabled" },
               ]}
               onChange={(v) => patch({ autoFixup: v })}
-            />
-          </div>
-          <div className="border-t border-white/5 pt-4">
-            <label className="block text-sm font-medium text-slate-300">Review Agent</label>
-            <p className="mt-1 text-xs text-slate-400">
-              Automatically gather evidence after execution. You can always trigger reviews manually.
-            </p>
-            <ToggleButtons
-              value={form.reviewAgentEnabled}
-              options={[
-                { value: false as const, label: "Disabled" },
-                { value: true as const, label: "Enabled" },
-              ]}
-              onChange={(v) => patch({ reviewAgentEnabled: v })}
             />
           </div>
           {form.autoFixup && (

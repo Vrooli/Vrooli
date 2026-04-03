@@ -1,9 +1,9 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
 import { DependencyChipList } from "./dependency-chip-list";
+import { useDetailSelectionStore } from "../../stores/detail-selection-store";
 import type { ResolvedDependency } from "../../lib/backlog-queue-utils";
 import type { BacklogStatus } from "../../types";
 
@@ -23,13 +23,15 @@ function renderChips(
   onStatusChange?: (dep: ResolvedDependency, newStatus: BacklogStatus) => void,
 ) {
   return render(
-    <MemoryRouter>
-      <DependencyChipList label={label} items={items} icon={ArrowUpRight} onStatusChange={onStatusChange} />
-    </MemoryRouter>,
+    <DependencyChipList label={label} items={items} icon={ArrowUpRight} onStatusChange={onStatusChange} />,
   );
 }
 
 describe("DependencyChipList", () => {
+  beforeEach(() => {
+    useDetailSelectionStore.setState({ selection: null });
+  });
+
   it("renders nothing when items array is empty", () => {
     const { container } = renderChips([]);
     expect(container.innerHTML).toBe("");
@@ -52,10 +54,11 @@ describe("DependencyChipList", () => {
     expect(screen.getByText("Gamma")).toBeInTheDocument();
   });
 
-  it("links to the correct backlog details URL", () => {
+  it("navigates to backlog detail when chip is clicked", () => {
     renderChips([makeDep({ kind: "fix", name: "broken-thing", title: "Broken" })]);
-    const link = screen.getByText("Broken").closest("a");
-    expect(link).toHaveAttribute("href", "/backlog/fix/broken-thing");
+    fireEvent.click(screen.getByText("Broken"));
+    const selection = useDetailSelectionStore.getState().selection;
+    expect(selection).toMatchObject({ entityType: "backlog", kind: "fix", name: "broken-thing" });
   });
 
   it("applies status-based color classes", () => {

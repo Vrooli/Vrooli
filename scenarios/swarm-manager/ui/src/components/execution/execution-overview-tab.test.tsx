@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { ExecutionOverviewTab } from "./execution-overview-tab";
+import { useDetailSelectionStore } from "../../stores/detail-selection-store";
 import type { ExecutionRecord, Finalization } from "../../types";
 import { selectors } from "../../consts/selectors";
 
@@ -29,8 +30,6 @@ const makeFinalization = (overrides?: Partial<Finalization>): Finalization => ({
 
 const noopHandlers = {
   agentManagerUiUrl: null as string | null,
-  onSelectBacklog: vi.fn(),
-  onSelectExecution: vi.fn(),
   onFollowUp: vi.fn(),
   onCancel: vi.fn(),
   onRetry: vi.fn(),
@@ -38,6 +37,10 @@ const noopHandlers = {
 };
 
 describe("ExecutionOverviewTab", () => {
+  beforeEach(() => {
+    useDetailSelectionStore.setState({ selection: null });
+  });
+
   it("renders metadata grid with backlog link", () => {
     render(
       <ExecutionOverviewTab
@@ -54,8 +57,7 @@ describe("ExecutionOverviewTab", () => {
     expect(screen.getByTestId(selectors.executionDetails.overviewMetadata)).toBeInTheDocument();
   });
 
-  it("fires onSelectBacklog when backlog link is clicked", () => {
-    const handler = vi.fn();
+  it("navigates to backlog when backlog link is clicked", () => {
     render(
       <ExecutionOverviewTab
         execution={makeExecution()}
@@ -64,12 +66,12 @@ describe("ExecutionOverviewTab", () => {
         actionBusy={false}
         postRunBadgeExecution={null}
         {...noopHandlers}
-        onSelectBacklog={handler}
       />,
     );
 
     fireEvent.click(screen.getByText("fix/test-bug"));
-    expect(handler).toHaveBeenCalledWith("fix", "test-bug");
+    const selection = useDetailSelectionStore.getState().selection;
+    expect(selection).toMatchObject({ entityType: "backlog", kind: "fix", name: "test-bug" });
   });
 
   it("shows failure reason when present", () => {
@@ -183,8 +185,7 @@ describe("ExecutionOverviewTab", () => {
     expect(screen.queryByTestId(selectors.executionDetails.runChecksButton)).not.toBeInTheDocument();
   });
 
-  it("shows parent execution link when present", () => {
-    const handler = vi.fn();
+  it("navigates to parent execution when link is clicked", () => {
     render(
       <ExecutionOverviewTab
         execution={makeExecution({ parentExecutionId: "parent-exec-1" })}
@@ -193,14 +194,14 @@ describe("ExecutionOverviewTab", () => {
         actionBusy={false}
         postRunBadgeExecution={null}
         {...noopHandlers}
-        onSelectExecution={handler}
       />,
     );
 
     const link = screen.getByText("parent-exec-1");
     expect(link).toBeInTheDocument();
     fireEvent.click(link);
-    expect(handler).toHaveBeenCalledWith("parent-exec-1");
+    const selection = useDetailSelectionStore.getState().selection;
+    expect(selection).toMatchObject({ entityType: "execution", identifier: "parent-exec-1" });
   });
 
   it("disables buttons when actionBusy", () => {

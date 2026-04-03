@@ -40,7 +40,6 @@ const makeFinalization = (overrides?: Partial<Finalization>): Finalization => ({
 
 const noopHandlers = {
   onFollowUp: vi.fn(),
-  onSelectScenario: vi.fn(),
   onVerifyEvidence: vi.fn(),
   onRequestMoreEvidence: vi.fn(),
 };
@@ -52,7 +51,6 @@ describe("ExecutionReviewTab", () => {
         execution={makeExecution()}
         reviewRounds={[]}
         isGatheringEvidence={false}
-        targetScenarios={[]}
         isActive={false}
         {...noopHandlers}
       />,
@@ -67,7 +65,6 @@ describe("ExecutionReviewTab", () => {
         execution={makeExecution({ status: "running" })}
         reviewRounds={[]}
         isGatheringEvidence={false}
-        targetScenarios={[]}
         isActive={true}
         {...noopHandlers}
       />,
@@ -82,7 +79,6 @@ describe("ExecutionReviewTab", () => {
         execution={exec}
         reviewRounds={[]}
         isGatheringEvidence={false}
-        targetScenarios={[]}
         isActive={false}
         {...noopHandlers}
       />,
@@ -90,13 +86,12 @@ describe("ExecutionReviewTab", () => {
     expect(screen.getByTestId("mock-review-flow")).toBeInTheDocument();
   });
 
-  it("renders ReviewFlow when scenarios exist", () => {
+  it("renders ReviewFlow when execution has finalization data", () => {
     render(
       <ExecutionReviewTab
-        execution={makeExecution()}
+        execution={makeExecution({ finalization: makeFinalization() })}
         reviewRounds={[]}
         isGatheringEvidence={false}
-        targetScenarios={["app-a"]}
         isActive={false}
         {...noopHandlers}
       />,
@@ -110,7 +105,6 @@ describe("ExecutionReviewTab", () => {
         execution={makeExecution()}
         reviewRounds={[]}
         isGatheringEvidence={true}
-        targetScenarios={[]}
         isActive={false}
         {...noopHandlers}
       />,

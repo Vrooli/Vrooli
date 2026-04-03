@@ -224,7 +224,7 @@ var entries = []Entry{
 		Operations:   []string{"review"},
 		Purpose:      "Gather typed evidence (screenshots, API tests, CLI output) after execution finalization.",
 		OutputPaths:  []string{"review/round-NNN.json", "review/captures/*"},
-		VariableKeys: []string{"ITEM_FOLDER", "PLAN_CONTENT", "DIFF_SUMMARY", "CHANGED_PATHS", "AFFECTED_SCENARIOS", "ROUND_NUMBER", "USER_REQUEST"},
+		VariableKeys: []string{"ITEM_FOLDER", "PLAN_CONTENT", "DIFF_SUMMARY", "CHANGED_PATHS", "AFFECTED_SCENARIOS", "ROUND_NUMBER", "USER_REQUEST", "GCT_REVIEW_RESULTS"},
 	},
 	{
 		ID:           "archive-spec-sync",

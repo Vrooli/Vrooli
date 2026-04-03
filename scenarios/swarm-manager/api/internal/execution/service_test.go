@@ -1293,3 +1293,68 @@ func TestBuildFinalizationFeedback_WithDimensions(t *testing.T) {
 		t.Error("missing yellow dimension")
 	}
 }
+
+// --- checkReviewAgentEnabled tests ---
+
+type errPolicyProvider struct {
+	err error
+}
+
+func (p *errPolicyProvider) LoadPolicy() (Policy, error) {
+	return Policy{}, p.err
+}
+
+func TestCheckReviewAgentEnabled_Enabled(t *testing.T) {
+	svc := &Service{
+		policyProvider: &stubPolicyProvider{policy: Policy{ReviewAgentEnabled: true}},
+	}
+	enabled, reason := svc.checkReviewAgentEnabled()
+	if !enabled {
+		t.Fatal("expected enabled=true")
+	}
+	if reason != "" {
+		t.Fatalf("expected empty reason, got %q", reason)
+	}
+}
+
+func TestCheckReviewAgentEnabled_Disabled(t *testing.T) {
+	svc := &Service{
+		policyProvider: &stubPolicyProvider{policy: Policy{ReviewAgentEnabled: false}},
+	}
+	enabled, reason := svc.checkReviewAgentEnabled()
+	if enabled {
+		t.Fatal("expected enabled=false")
+	}
+	if reason != finalizationWarningEvidenceSkippedDisabled {
+		t.Fatalf("expected %q, got %q", finalizationWarningEvidenceSkippedDisabled, reason)
+	}
+}
+
+func TestCheckReviewAgentEnabled_PolicyLoadError(t *testing.T) {
+	svc := &Service{
+		policyProvider: &errPolicyProvider{err: errors.New("disk full")},
+	}
+	enabled, reason := svc.checkReviewAgentEnabled()
+	if enabled {
+		t.Fatal("expected enabled=false on policy load error")
+	}
+	if reason != finalizationWarningEvidenceSkippedPolicyErr {
+		t.Fatalf("expected %q, got %q", finalizationWarningEvidenceSkippedPolicyErr, reason)
+	}
+}
+
+func TestEvidenceSkipMessage(t *testing.T) {
+	svc := &Service{}
+	msg := svc.evidenceSkipMessage(finalizationWarningEvidenceSkippedDisabled)
+	if !strings.Contains(msg, "disabled in settings") {
+		t.Fatalf("expected settings hint, got %q", msg)
+	}
+	msg = svc.evidenceSkipMessage(finalizationWarningEvidenceSkippedPolicyErr)
+	if !strings.Contains(msg, "Could not load settings") {
+		t.Fatalf("expected policy error hint, got %q", msg)
+	}
+	msg = svc.evidenceSkipMessage("unknown_code")
+	if msg != "Evidence gathering was skipped." {
+		t.Fatalf("expected fallback message, got %q", msg)
+	}
+}

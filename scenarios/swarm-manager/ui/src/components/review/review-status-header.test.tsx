@@ -16,11 +16,11 @@ function makeExecution(overrides?: Partial<ExecutionRecord>): ExecutionRecord {
   } as ExecutionRecord;
 }
 
-function makeFinalization(classification: string): Finalization {
+function makeFinalization(classification: string, statusOverride?: string): Finalization {
   return {
     eligible: true,
-    status: "completed",
-    phase: "completed",
+    status: statusOverride ?? "completed",
+    phase: statusOverride === "running" ? "reviewing" : "completed",
     scopeSource: "none",
     aggregateClassification: classification,
     aggregateSummary: "Test summary",
@@ -33,7 +33,10 @@ function makeFinalization(classification: string): Finalization {
 const defaultProps = {
   isActive: false,
   isTriggering: false,
-  onTriggerReview: vi.fn(),
+  isTriggeringEvidence: false,
+  isCancelling: false,
+  onOpenLaunchSheet: vi.fn(),
+  onCancelReview: vi.fn(),
   onFollowUp: vi.fn(),
 };
 
@@ -50,7 +53,7 @@ describe("ReviewStatusHeader", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("shows Run Review for terminal execution without finalization", () => {
+  it("shows Review for terminal execution without finalization", () => {
     render(
       <ReviewStatusHeader
         {...defaultProps}
@@ -58,7 +61,7 @@ describe("ReviewStatusHeader", () => {
       />
     );
     const btn = screen.getByTestId(selectors.review.primaryAction);
-    expect(btn).toHaveTextContent("Run Review");
+    expect(btn).toHaveTextContent("Review");
   });
 
   it("shows Running... when triggering", () => {
@@ -72,6 +75,29 @@ describe("ReviewStatusHeader", () => {
     const btn = screen.getByTestId(selectors.review.primaryAction);
     expect(btn).toHaveTextContent("Running...");
     expect(btn).toBeDisabled();
+  });
+
+  it("shows Running... when triggering evidence only", () => {
+    render(
+      <ReviewStatusHeader
+        {...defaultProps}
+        execution={makeExecution({ status: "completed" })}
+        isTriggeringEvidence
+      />
+    );
+    const btn = screen.getByTestId(selectors.review.primaryAction);
+    expect(btn).toHaveTextContent("Running...");
+    expect(btn).toBeDisabled();
+  });
+
+  it("shows Review when finalization is complete and ready", () => {
+    const exec = makeExecution({
+      status: "completed",
+      finalization: makeFinalization("ready"),
+    });
+    render(<ReviewStatusHeader {...defaultProps} execution={exec} />);
+    const btn = screen.getByTestId(selectors.review.primaryAction);
+    expect(btn).toHaveTextContent("Review");
   });
 
   it("shows Fix Issues when finalization needs_work", () => {
@@ -89,33 +115,32 @@ describe("ReviewStatusHeader", () => {
     expect(onFollowUp).toHaveBeenCalledWith(exec);
   });
 
-  it("shows Follow Up when finalization is ready", () => {
-    const onFollowUp = vi.fn();
+  it("shows Stop Review when finalization is running", () => {
+    const onCancelReview = vi.fn();
     const exec = makeExecution({
-      status: "completed",
-      finalization: makeFinalization("ready"),
+      status: "validating",
+      finalization: makeFinalization("", "running"),
     });
     render(
-      <ReviewStatusHeader {...defaultProps} execution={exec} onFollowUp={onFollowUp} />
+      <ReviewStatusHeader {...defaultProps} execution={exec} onCancelReview={onCancelReview} />
     );
-    const btn = screen.getByTestId(selectors.review.primaryAction);
-    expect(btn).toHaveTextContent("Follow Up");
+    const btn = screen.getByTestId(selectors.review.stopAction);
+    expect(btn).toHaveTextContent("Stop Review");
     fireEvent.click(btn);
-    expect(onFollowUp).toHaveBeenCalledWith(exec);
+    expect(onCancelReview).toHaveBeenCalled();
   });
 
-  it("shows Re-run link when finalization exists", () => {
+  it("shows Stopping... when cancelling", () => {
     const exec = makeExecution({
-      status: "completed",
-      finalization: makeFinalization("ready"),
+      status: "validating",
+      finalization: makeFinalization("", "running"),
     });
-    render(<ReviewStatusHeader {...defaultProps} execution={exec} />);
-    expect(screen.getByTestId(selectors.review.rerunAction)).toBeInTheDocument();
-  });
-
-  it("hides Re-run link when no finalization", () => {
-    render(<ReviewStatusHeader {...defaultProps} execution={makeExecution()} />);
-    expect(screen.queryByTestId(selectors.review.rerunAction)).toBeNull();
+    render(
+      <ReviewStatusHeader {...defaultProps} execution={exec} isCancelling />
+    );
+    const btn = screen.getByTestId(selectors.review.stopAction);
+    expect(btn).toHaveTextContent("Stopping...");
+    expect(btn).toBeDisabled();
   });
 
   it("shows failure reason when present", () => {

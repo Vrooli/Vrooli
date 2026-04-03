@@ -7,7 +7,7 @@ import type { ReadinessIndicatorData } from "../lib/maturity";
 import { backlogService, executionService } from "../services";
 import { reviewService } from "../services/review-service";
 import type { ReviewRound } from "../services/review-service";
-import type { BacklogKind } from "../types";
+import type { BacklogKind, ExecutionRecord } from "../types";
 import type { MaturityItemSummary, WorkshopRound } from "../types/domain";
 import { useBacklogStore } from "../stores";
 
@@ -77,8 +77,15 @@ export function useBacklogQueries({
       return executionService.list({ backlogKind: backlogKind as BacklogKind, backlogName: name });
     },
     enabled: !!backlogKind && !!name,
-    refetchInterval: 10_000,
+    refetchInterval: (query) => {
+      const records = query.state.data as ExecutionRecord[] | undefined;
+      const latest = records?.[0];
+      // Poll faster during active finalization for responsive progress updates
+      return latest?.status === "validating" ? 3_000 : 10_000;
+    },
   });
+
+  const isValidating = executionHistory?.[0]?.status === "validating";
 
   const { data: reviewRounds } = useQuery({
     queryKey: ["review-rounds", backlogKind, name],
@@ -87,7 +94,7 @@ export function useBacklogQueries({
       return reviewService.listRounds(backlogKind, name);
     },
     enabled: !!backlogKind && !!name,
-    refetchInterval: agentRunIsActive ? AGENT_RUN_REFRESH_MS : false,
+    refetchInterval: (agentRunIsActive || isValidating) ? AGENT_RUN_REFRESH_MS : false,
   });
 
   const isGatheringEvidence = useMemo(

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/idgen"
 	"swarm-manager/internal/promptmanager"
@@ -71,7 +72,7 @@ func (s *Service) SetEventLogger(e EventLogger) {
 
 // StartReviewForExecution is called by the execution service during finalization
 // to spawn a review agent. It satisfies execution.ReviewServiceIntegration.
-func (s *Service) StartReviewForExecution(ctx context.Context, executionID, backlogKind, backlogName, itemTitle, itemDir string, affectedScenarios []string, changedPathsByScenario map[string][]string) error {
+func (s *Service) StartReviewForExecution(ctx context.Context, executionID, backlogKind, backlogName, itemTitle, itemDir string, affectedScenarios []string, changedPathsByScenario map[string][]string, gctResultsJSON string) error {
 	return s.startReview(ctx, startReviewParams{
 		ExecutionID:            executionID,
 		BacklogKind:            backlogKind,
@@ -80,6 +81,7 @@ func (s *Service) StartReviewForExecution(ctx context.Context, executionID, back
 		ItemDir:                itemDir,
 		AffectedScenarios:      affectedScenarios,
 		ChangedPathsByScenario: changedPathsByScenario,
+		GCTResultsJSON:         gctResultsJSON,
 	})
 }
 
@@ -92,6 +94,7 @@ type startReviewParams struct {
 	ItemDir                string
 	AffectedScenarios      []string
 	ChangedPathsByScenario map[string][]string
+	GCTResultsJSON         string // Pre-serialized GCT review results per scenario
 }
 
 // startReview creates a review round and spawns the review agent.
@@ -116,12 +119,13 @@ func (s *Service) startReview(ctx context.Context, params startReviewParams) err
 
 	// Build the prompt via prompt-manager skill.
 	variables := map[string]string{
-		"ITEM_FOLDER":        params.ItemDir,
-		"PLAN_CONTENT":       planContent,
-		"DIFF_SUMMARY":       fmt.Sprintf("Changed %d files across %d scenarios", len(changedPaths), len(params.AffectedScenarios)),
-		"CHANGED_PATHS":      strings.Join(changedPaths, ", "),
-		"AFFECTED_SCENARIOS": strings.Join(params.AffectedScenarios, ", "),
-		"ROUND_NUMBER":       fmt.Sprintf("%03d", roundNum),
+		"ITEM_FOLDER":         params.ItemDir,
+		"PLAN_CONTENT":        planContent,
+		"DIFF_SUMMARY":        fmt.Sprintf("Changed %d files across %d scenarios", len(changedPaths), len(params.AffectedScenarios)),
+		"CHANGED_PATHS":       strings.Join(changedPaths, ", "),
+		"AFFECTED_SCENARIOS":  strings.Join(params.AffectedScenarios, ", "),
+		"ROUND_NUMBER":        fmt.Sprintf("%03d", roundNum),
+		"GCT_REVIEW_RESULTS":  params.GCTResultsJSON,
 	}
 
 	promptContent, err := s.promptClient.ReadSkill(ctx, "swarm-manager-review", variables, true)
@@ -254,6 +258,80 @@ func (s *Service) RequestMoreEvidence(ctx context.Context, kind, name string, ro
 
 	if s.eventLogger != nil && round.ExecutionID != "" {
 		s.eventLogger.EmitReviewRequestCreated(round.ExecutionID, threadID, message)
+	}
+
+	// Spawn a targeted review agent with the user's request.
+	if s.agentService != nil && s.agentService.IsEnabled() {
+		go func() {
+			spawnCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+
+			// Inject agent activity spec for the tracked agent service.
+			spawnCtx = agentactivity.WithSpec(spawnCtx, agentactivity.Spec{
+				OwnerType:   agentactivity.OwnerBacklog,
+				OwnerKind:   kind,
+				OwnerName:   name,
+				ExecutionID: round.ExecutionID,
+				Purpose:     agentactivity.PurposeReview,
+				RequestedBy: "swarm-manager-ui",
+				Metadata: map[string]string{
+					"entrypoint": "review.request_more_evidence",
+					"thread_id":  threadID,
+				},
+			})
+
+			planContent := workshop.LoadPlanContent(itemDir)
+			vars := map[string]string{
+				"ITEM_FOLDER":  itemDir,
+				"PLAN_CONTENT": planContent,
+				"ROUND_NUMBER": fmt.Sprintf("%03d", roundNum),
+				"USER_REQUEST": message,
+			}
+
+			prompt, renderErr := s.promptClient.ReadSkill(spawnCtx, "swarm-manager-review", vars, true)
+			if renderErr != nil {
+				slog.Error("render review skill for evidence request", "error", renderErr, "thread_id", threadID)
+				return
+			}
+
+			titlePreview := message
+			if len(titlePreview) > 50 {
+				titlePreview = titlePreview[:50]
+			}
+
+			result, spawnErr := s.agentService.SpawnBacklog(spawnCtx, agentmanager.BacklogSpawnRequest{
+				Kind:        kind,
+				Name:        name,
+				Title:       "Evidence Request: " + titlePreview,
+				Description: prompt,
+				Prompt:      prompt,
+				ScopePath:   ".",
+				ProjectRoot: ".",
+				CreatedBy:   "swarm-manager:review-request",
+				Purpose:     "review",
+				Environment: map[string]string{
+					"VROOLI_SPAWN_SOURCE": "swarm-manager-review-request",
+				},
+			})
+			if spawnErr != nil {
+				slog.Error("spawn review agent for evidence request", "error", spawnErr, "thread_id", threadID)
+				return
+			}
+
+			// Update thread with agent RunID.
+			r, loadErr := LoadRound(itemDir, roundNum)
+			if loadErr != nil || r == nil {
+				return
+			}
+			for i := range r.RequestThreads {
+				if r.RequestThreads[i].ID == threadID {
+					r.RequestThreads[i].RunID = result.RunID
+					break
+				}
+			}
+			_ = SaveRound(itemDir, *r)
+			slog.Info("review evidence request agent spawned", "thread_id", threadID, "run_id", result.RunID)
+		}()
 	}
 
 	return threadID, nil

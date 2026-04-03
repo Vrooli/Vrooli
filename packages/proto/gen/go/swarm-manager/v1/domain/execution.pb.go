@@ -293,8 +293,10 @@ type ReviewResult struct {
 	Dimensions     []*ReviewDimension `protobuf:"bytes,3,rep,name=dimensions,proto3" json:"dimensions,omitempty"`
 	Summary        string             `protobuf:"bytes,4,opt,name=summary,proto3" json:"summary,omitempty"`
 	ReviewedAt     string             `protobuf:"bytes,5,opt,name=reviewed_at,json=reviewedAt,proto3" json:"reviewed_at,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Full GCT dimensions JSON preserved for review agent consumption.
+	RawDimensions *string `protobuf:"bytes,6,opt,name=raw_dimensions,json=rawDimensions,proto3,oneof" json:"raw_dimensions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ReviewResult) Reset() {
@@ -358,6 +360,13 @@ func (x *ReviewResult) GetSummary() string {
 func (x *ReviewResult) GetReviewedAt() string {
 	if x != nil {
 		return x.ReviewedAt
+	}
+	return ""
+}
+
+func (x *ReviewResult) GetRawDimensions() string {
+	if x != nil && x.RawDimensions != nil {
+		return *x.RawDimensions
 	}
 	return ""
 }
@@ -1523,7 +1532,7 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\x0epreserve_paths\x18\x04 \x03(\tR\rpreservePaths\x12,\n" +
 	"\x0fpreserve_preset\x18\x05 \x01(\tH\x01R\x0epreservePreset\x88\x01\x01B\x13\n" +
 	"\x11_preset_or_customB\x12\n" +
-	"\x10_preserve_preset\"\xcb\x01\n" +
+	"\x10_preserve_preset\"\x8a\x02\n" +
 	"\fReviewResult\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12&\n" +
 	"\x0eclassification\x18\x02 \x01(\tR\x0eclassification\x12A\n" +
@@ -1532,7 +1541,9 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"dimensions\x12\x18\n" +
 	"\asummary\x18\x04 \x01(\tR\asummary\x12\x1f\n" +
 	"\vreviewed_at\x18\x05 \x01(\tR\n" +
-	"reviewedAt\"h\n" +
+	"reviewedAt\x12*\n" +
+	"\x0eraw_dimensions\x18\x06 \x01(\tH\x00R\rrawDimensions\x88\x01\x01B\x11\n" +
+	"\x0f_raw_dimensions\"h\n" +
 	"\x0fReviewDimension\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x1d\n" +
@@ -1723,6 +1734,7 @@ func file_swarm_manager_v1_domain_execution_proto_init() {
 	}
 	file_swarm_manager_v1_domain_execution_proto_msgTypes[0].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_execution_proto_msgTypes[1].OneofWrappers = []any{}
+	file_swarm_manager_v1_domain_execution_proto_msgTypes[2].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_execution_proto_msgTypes[3].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_execution_proto_msgTypes[4].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_execution_proto_msgTypes[5].OneofWrappers = []any{}

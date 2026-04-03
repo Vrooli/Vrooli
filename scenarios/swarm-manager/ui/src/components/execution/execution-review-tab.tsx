@@ -14,10 +14,8 @@ export interface ExecutionReviewTabProps {
   execution: ExecutionRecord;
   reviewRounds: ReviewRound[];
   isGatheringEvidence: boolean;
-  targetScenarios: string[];
   isActive: boolean;
   onFollowUp: (exec: ExecutionRecord) => void;
-  onSelectScenario: (name: string) => void;
   onVerifyEvidence: (round: number, evidenceId: string, verified: boolean) => void;
   onRequestMoreEvidence: (round: number, evidenceId?: string) => void;
 }
@@ -26,10 +24,8 @@ export function ExecutionReviewTab({
   execution,
   reviewRounds,
   isGatheringEvidence,
-  targetScenarios,
   isActive,
   onFollowUp,
-  onSelectScenario,
   onVerifyEvidence,
   onRequestMoreEvidence,
 }: ExecutionReviewTabProps) {
@@ -43,7 +39,7 @@ export function ExecutionReviewTab({
     );
   }
 
-  const hasContent = execution.finalization || targetScenarios.length > 0 || reviewRounds.length > 0 || isGatheringEvidence;
+  const hasContent = execution.finalization || reviewRounds.length > 0 || isGatheringEvidence;
 
   if (!hasContent) {
     return (
@@ -63,14 +59,12 @@ export function ExecutionReviewTab({
     <div data-testid={selectors.executionDetails.reviewSection}>
       <ReviewFlow
         execution={execution}
-        targetScenarios={targetScenarios}
         reviewRounds={reviewRounds}
         isGatheringEvidence={isGatheringEvidence}
         isActive={false}
         backlogKind={execution.backlogKind}
         backlogName={execution.backlogName}
         onFollowUp={onFollowUp}
-        onSelectScenario={onSelectScenario}
         onVerifyEvidence={onVerifyEvidence}
         onRequestMoreEvidence={onRequestMoreEvidence}
       />

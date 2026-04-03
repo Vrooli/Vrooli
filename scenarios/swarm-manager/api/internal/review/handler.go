@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 )
@@ -213,7 +214,20 @@ func (h *Handler) TriggerReviewAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.service.TriggerReviewAgent(r.Context(), body.BacklogKind, body.BacklogName, executionID, body.AffectedScenarios); err != nil {
+	// Inject agent activity spec for the tracked agent service.
+	ctx := agentactivity.WithSpec(r.Context(), agentactivity.Spec{
+		OwnerType:   agentactivity.OwnerBacklog,
+		OwnerKind:   body.BacklogKind,
+		OwnerName:   body.BacklogName,
+		ExecutionID: executionID,
+		Purpose:     agentactivity.PurposeReview,
+		RequestedBy: "swarm-manager-ui",
+		Metadata: map[string]string{
+			"entrypoint": "review.trigger_review_agent",
+		},
+	})
+
+	if err := h.service.TriggerReviewAgent(ctx, body.BacklogKind, body.BacklogName, executionID, body.AffectedScenarios); err != nil {
 		apierr.MapError(w, "[review]", apierr.Internal("trigger review agent: %v", err))
 		return
 	}

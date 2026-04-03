@@ -17,7 +17,7 @@
 
 import { useState, useEffect } from "react";
 
-import { Circle } from "lucide-react";
+import { Circle, Package } from "lucide-react";
 import { BottomSheet } from "../components/ui/bottom-sheet";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
@@ -199,6 +199,7 @@ export function ScenarioDetailsPage() {
       header={
         <DetailPageHeader
           entityType="scenario"
+          entityIcon={Package}
           title={scenario?.displayName || name || "Unknown"}
           status={scenario?.status}
           nodeId={nodeId}

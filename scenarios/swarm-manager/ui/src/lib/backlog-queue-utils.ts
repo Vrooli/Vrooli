@@ -179,7 +179,7 @@ export interface ActionContext {
 }
 
 /** Which single CTA should receive primary visual emphasis. */
-export type PrimaryCta = "run" | "workshop" | "finalize" | "followUp" | "archive" | null;
+export type PrimaryCta = "run" | "workshop" | "finalize" | "followUp" | "archive" | "review" | "answer" | null;
 
 /** Computed action states for a backlog item. */
 export interface ItemActions {

@@ -14,8 +14,8 @@ import { ConfirmDialog } from "../ui/confirm-dialog";
 import { formatBacklogStatus } from "../../types";
 import type { WorkshopRound } from "../../types/domain";
 import type { ReadinessIndicatorData } from "../../lib/maturity";
-import { useDetailSelectionStore } from "../../stores";
 import { useBacklogDetail } from "../../contexts/BacklogDetailContext";
+import { EntityLink } from "../ui/entity-link";
 
 export interface BacklogNotesPanelProps {
   readinessData: ReadinessIndicatorData | null;
@@ -81,17 +81,13 @@ export function BacklogNotesPanel({
                 return (
                   <span key={dep}>
                     {i > 0 && ", "}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (depKind && depName) {
-                          useDetailSelectionStore.getState().selectBacklog(depKind, depName);
-                        }
-                      }}
-                      className="font-medium text-orange-200 underline decoration-orange-500/40 hover:text-orange-100 hover:decoration-orange-400/60"
-                    >
-                      {dep}
-                    </button>
+                    <EntityLink
+                      entityType="backlog"
+                      kind={depKind}
+                      name={depName}
+                      label={dep}
+                      className="rounded-none bg-transparent px-0 py-0 font-medium text-orange-200 underline decoration-orange-500/40 hover:bg-transparent hover:text-orange-100 hover:decoration-orange-400/60"
+                    />
                   </span>
                 );
               })}

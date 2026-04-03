@@ -1,6 +1,9 @@
 package execution
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // DOC: docs/concepts/ARCHITECTURE.md#domain-concepts
 // DOC: docs/reference/operational-targets.md
@@ -93,6 +96,7 @@ type ReviewResult struct {
 	JobID          string            `json:"job_id"`
 	Classification string            `json:"classification"` // ready, ready_with_notes, needs_work, not_assessable
 	Dimensions     []ReviewDimension `json:"dimensions,omitempty"`
+	RawDimensions  json.RawMessage   `json:"raw_dimensions,omitempty"` // Full GCT dimensions JSON for review agent consumption
 	Summary        string            `json:"summary"`
 	ReviewedAt     string            `json:"reviewed_at"`
 }

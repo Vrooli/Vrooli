@@ -140,6 +140,12 @@ func (s *Service) markFinalizationPhase(executionID, phase string) error {
 		return err
 	}
 	record := &records[idx]
+
+	// If the execution has been cancelled, don't overwrite the terminal state.
+	if record.Status == StatusCanceled {
+		return fmt.Errorf("execution %s was canceled", executionID)
+	}
+
 	finalization := ensureFinalization(record)
 	finalization.Status = FinalizationStatusRunning
 	finalization.Phase = strings.TrimSpace(phase)

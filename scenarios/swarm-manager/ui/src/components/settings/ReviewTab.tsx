@@ -17,6 +17,31 @@ export interface ReviewTabProps {
 export function ReviewTab({ form, patch }: ReviewTabProps) {
   return (
     <div className="space-y-6">
+      {/* Review Agent */}
+      <Card>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-medium text-slate-200">Review Agent</h3>
+            <p className="mt-1 text-sm text-slate-400">
+              Automatically gather evidence after execution completes. You can always trigger reviews manually.
+            </p>
+          </div>
+          <button className="text-xs text-slate-500 hover:text-slate-300" onClick={() => patch({
+            reviewAgentEnabled: DEFAULT_SETTINGS.reviewAgentEnabled,
+          })}>Reset</button>
+        </div>
+        <div className="mt-4">
+          <ToggleButtons
+            value={form.reviewAgentEnabled}
+            options={[
+              { value: false as const, label: "Disabled" },
+              { value: true as const, label: "Enabled" },
+            ]}
+            onChange={(v) => patch({ reviewAgentEnabled: v })}
+          />
+        </div>
+      </Card>
+
       <Card data-testid={selectors.settings.reviewSettings}>
         <div className="flex items-center justify-between">
           <div>

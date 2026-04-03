@@ -8,7 +8,6 @@
  */
 
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import {
   ArrowRightLeft,
   ArrowUpRight,
@@ -20,6 +19,7 @@ import {
   Target,
 } from "lucide-react";
 import { TagList } from "../ui/tag-list";
+import { EntityLink } from "../ui/entity-link";
 import { DetailSection } from "../detail/DetailSection";
 import { DependencyChipList } from "./dependency-chip-list";
 import { formatRelativeTime } from "../../lib";
@@ -34,8 +34,6 @@ export interface BacklogDetailsPanelProps {
   isLocked: boolean;
   onEditGlobs: () => void;
   onDepStatusChange: (dep: ResolvedDependency, newStatus: BacklogStatus) => void;
-  onSelectInitiative: (initiative: string) => void;
-  onSelectScenario: (scenario: string) => void;
 }
 
 export function BacklogDetailsPanel({
@@ -45,8 +43,6 @@ export function BacklogDetailsPanel({
   isLocked,
   onEditGlobs,
   onDepStatusChange,
-  onSelectInitiative,
-  onSelectScenario: _onSelectScenario,
 }: BacklogDetailsPanelProps) {
   const [descExpanded, setDescExpanded] = useState(false);
   const [descOverflows, setDescOverflows] = useState(false);
@@ -93,14 +89,12 @@ export function BacklogDetailsPanel({
               <Target className="h-3.5 w-3.5" />
               Initiative
             </div>
-            <button
-              type="button"
-              onClick={() => item.initiative && onSelectInitiative(item.initiative)}
-              className="inline-flex items-center rounded-full bg-sky-500/15 px-2.5 py-1 text-xs font-medium text-sky-400 transition-colors hover:bg-sky-500/25 hover:text-sky-300"
+            <EntityLink
+              entityType="initiative"
+              name={item.initiative}
+              label={item.initiative}
               data-testid={selectors.backlogDetails.initiativeChip}
-            >
-              {item.initiative}
-            </button>
+            />
           </div>
         )}
         <DependencyChipList
@@ -121,12 +115,19 @@ export function BacklogDetailsPanel({
               <GitBranch className="h-3.5 w-3.5" />
               Spawned from
             </div>
-            <Link
-              to={`/backlog/${item.spawnedFrom}`}
-              className="inline-flex items-center rounded-full bg-violet-500/15 px-2.5 py-1 text-xs font-medium text-violet-400 transition-colors hover:bg-violet-500/25 hover:text-violet-300"
-            >
-              {item.spawnedFrom}
-            </Link>
+            {(() => {
+              const slashIdx = item.spawnedFrom!.indexOf("/");
+              const spawnKind = slashIdx > 0 ? item.spawnedFrom!.slice(0, slashIdx) : "";
+              const spawnName = slashIdx > 0 ? item.spawnedFrom!.slice(slashIdx + 1) : item.spawnedFrom!;
+              return (
+                <EntityLink
+                  entityType="backlog"
+                  kind={spawnKind}
+                  name={spawnName}
+                  label={item.spawnedFrom!}
+                />
+              );
+            })()}
           </div>
         )}
         {spawnedItems && spawnedItems.length > 0 && (
@@ -137,13 +138,13 @@ export function BacklogDetailsPanel({
             </div>
             <div className="flex flex-wrap gap-1.5">
               {spawnedItems.map((si) => (
-                <Link
+                <EntityLink
                   key={`${si.kind}/${si.name}`}
-                  to={`/backlog/${si.kind}/${si.name}`}
-                  className="inline-flex items-center rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-emerald-400 transition-colors hover:bg-emerald-500/25 hover:text-emerald-300"
-                >
-                  {si.title}
-                </Link>
+                  entityType="backlog"
+                  kind={si.kind}
+                  name={si.name}
+                  label={si.title}
+                />
               ))}
             </div>
           </div>

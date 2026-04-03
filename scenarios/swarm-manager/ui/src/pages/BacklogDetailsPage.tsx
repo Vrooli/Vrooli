@@ -7,7 +7,7 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Activity, CircleHelp, Files, Sparkles } from "lucide-react";
+import { Activity, CircleHelp, ClipboardList, Files, Sparkles } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { PlanPanel } from "../components/backlog/plan-panel";
 import { useUrlState } from "../hooks/use-url-state";
@@ -18,6 +18,7 @@ import { BacklogDetailsPanel } from "../components/backlog/backlog-details-panel
 import { BacklogNotesPanel } from "../components/backlog/backlog-notes-panel";
 import { BacklogActionButtons } from "../components/backlog/backlog-action-buttons";
 import { OutputTab } from "../components/backlog/output-tab";
+import { ActivityTab } from "../components/backlog/activity-tab";
 import { BacklogScenariosPanel } from "../components/backlog/backlog-scenarios-panel";
 import { BacklogDesktopHeader } from "../components/backlog/backlog-desktop-header";
 import { BacklogDialogs } from "../components/backlog/backlog-dialogs";
@@ -53,13 +54,14 @@ import { BacklogDetailProvider } from "../contexts/BacklogDetailContext";
 
 const DEFAULT_PREVIEW_FILE_PATH = "spec.json";
 const AGENT_RUN_REFRESH_MS = 6000;
-type DetailsTab = "info" | "prompt" | "files" | "output";
+type DetailsTab = "info" | "prompt" | "files" | "output" | "activity";
 
 export function BacklogDetailsPage() {
   // --- Navigation / selection ---
   const selection = useDetailSelectionStore((s) => s.selection);
-  const selectInitiative = useDetailSelectionStore((s) => s.selectInitiative);
-  const selectScenario = useDetailSelectionStore((s) => s.selectScenario);
+  const selectExecution = useDetailSelectionStore((s) => s.selectExecution);
+
+
   const nodeId = selectionToNodeId(selection);
   const { closeDetail } = useDetailNavigation();
   const kind = selection?.kind;
@@ -107,7 +109,7 @@ export function BacklogDetailsPage() {
 
   // --- Local UI state (URL-synced or needs render) ---
   const [activeTab, setActiveTab] = useUrlState<DetailsTab>("tab", "info", {
-    validate: (v): v is DetailsTab => ["info", "prompt", "files", "output"].includes(v),
+    validate: (v): v is DetailsTab => ["info", "prompt", "files", "output", "activity"].includes(v),
   });
   const [selectedFile, setSelectedFile] = useState<BacklogFile | null>(null);
   const { url: agentManagerUiUrl } = useEmbeddedServiceUrl("agent-manager");
@@ -146,7 +148,7 @@ export function BacklogDetailsPage() {
   const timeline = useActivityTimeline({
     backlogKind: backlogKind ?? undefined,
     backlogName: name,
-    enabled: activeTab === "output",
+    enabled: activeTab === "output" || activeTab === "activity",
     agentRunIsActive,
   });
 
@@ -289,8 +291,6 @@ export function BacklogDetailsPage() {
       onDepStatusChange={(dep, newStatus) =>
         data.updateDepStatus({ kind: dep.kind, depName: dep.name, newStatus })
       }
-      onSelectInitiative={selectInitiative}
-      onSelectScenario={selectScenario}
     />
   ) : null;
 
@@ -372,6 +372,10 @@ export function BacklogDetailsPage() {
           <TabsTrigger value="output" className="gap-2" data-testid={selectors.backlogDetails.tabOutput}>
             <Activity className="h-4 w-4" />
             Output
+          </TabsTrigger>
+          <TabsTrigger value="activity" className="gap-2" data-testid={selectors.backlogDetails.tabActivity}>
+            <ClipboardList className="h-4 w-4" />
+            Activity
             {agentRunIsActive && (
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
@@ -423,7 +427,7 @@ export function BacklogDetailsPage() {
                       </div>
                     )}
                     {detailsPanel}
-                    <BacklogScenariosPanel targetScenarios={targetScenarios} onSelectScenario={selectScenario} />
+                    <BacklogScenariosPanel targetScenarios={targetScenarios} />
                     {notesPanel}
                     {operationalTargetsSection}
                   </div>
@@ -436,19 +440,15 @@ export function BacklogDetailsPage() {
                   <div className="flex-1 space-y-0 overflow-y-auto pb-4">
                     <OutputTab
                       executionHistory={executionHistory}
-                      timeline={timeline}
-                      targetScenarios={targetScenarios}
                       agentRunIsActive={agentRunIsActive}
                       latestAgentActivity={latestAgentActivity}
-                      agentManagerUiUrl={agentManagerUiUrl}
                       reviewRounds={reviewRounds}
                       isGatheringEvidence={isGatheringEvidence}
                       backlogKind={backlogKind ?? ""}
                       backlogName={name ?? ""}
                       onStopRun={(runId) => void stopRun(runId)}
                       onFollowUp={(exec) => uiStore.setFollowUpTarget(exec)}
-                      onViewExecution={() => closeDetail()}
-                      onSelectScenario={selectScenario}
+
                       onVerifyEvidence={(round, evidenceId, verified) => {
                         const execId = executionHistory?.[0]?.executionId;
                         void reviewService.verifyEvidence(backlogKind ?? "", name ?? "", round, evidenceId, verified, execId);
@@ -456,6 +456,19 @@ export function BacklogDetailsPage() {
                       onRequestMoreEvidence={(round, evidenceId) => {
                         useReviewStore.getState().openRequestPanel(round, evidenceId);
                       }}
+                    />
+                  </div>
+                )}
+                {activeTab === "activity" && (
+                  <div className="flex-1 space-y-0 overflow-y-auto pb-4">
+                    <ActivityTab
+                      timeline={timeline}
+                      agentRunIsActive={agentRunIsActive}
+                      latestAgentActivity={latestAgentActivity}
+                      agentManagerUiUrl={agentManagerUiUrl}
+                      onStopRun={(runId) => void stopRun(runId)}
+                      onFollowUp={(exec) => uiStore.setFollowUpTarget(exec)}
+                      onViewExecution={(exec) => selectExecution(exec.executionId)}
                     />
                   </div>
                 )}
@@ -481,7 +494,7 @@ export function BacklogDetailsPage() {
                   {activeTab === "info" && (
                     <div className="space-y-0 pt-3">
                       {detailsPanel}
-                      <BacklogScenariosPanel targetScenarios={targetScenarios} onSelectScenario={selectScenario} />
+                      <BacklogScenariosPanel targetScenarios={targetScenarios} />
                       {notesPanel}
                       {operationalTargetsSection}
                     </div>
@@ -494,19 +507,15 @@ export function BacklogDetailsPage() {
                     <div className="space-y-0 pt-3">
                       <OutputTab
                         executionHistory={executionHistory}
-                        timeline={timeline}
-                        targetScenarios={targetScenarios}
                         agentRunIsActive={agentRunIsActive}
                         latestAgentActivity={latestAgentActivity}
-                        agentManagerUiUrl={agentManagerUiUrl}
                         reviewRounds={reviewRounds}
                         isGatheringEvidence={isGatheringEvidence}
                         backlogKind={backlogKind ?? ""}
                         backlogName={name ?? ""}
                         onStopRun={(runId) => void stopRun(runId)}
                         onFollowUp={(exec) => uiStore.setFollowUpTarget(exec)}
-                        onViewExecution={() => closeDetail()}
-                        onSelectScenario={selectScenario}
+  
                         onVerifyEvidence={(round, evidenceId, verified) => {
                           const execId = executionHistory?.[0]?.executionId;
                           void reviewService.verifyEvidence(backlogKind ?? "", name ?? "", round, evidenceId, verified, execId);
@@ -514,6 +523,19 @@ export function BacklogDetailsPage() {
                         onRequestMoreEvidence={(round, evidenceId) => {
                           useReviewStore.getState().openRequestPanel(round, evidenceId);
                         }}
+                      />
+                    </div>
+                  )}
+                  {activeTab === "activity" && (
+                    <div className="space-y-0 pt-3">
+                      <ActivityTab
+                        timeline={timeline}
+                        agentRunIsActive={agentRunIsActive}
+                        latestAgentActivity={latestAgentActivity}
+                        agentManagerUiUrl={agentManagerUiUrl}
+                        onStopRun={(runId) => void stopRun(runId)}
+                        onFollowUp={(exec) => uiStore.setFollowUpTarget(exec)}
+                        onViewExecution={(exec) => selectExecution(exec.executionId)}
                       />
                     </div>
                   )}

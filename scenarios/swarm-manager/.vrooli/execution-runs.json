@@ -842,11 +842,10 @@
     "previous_status": "backlog",
     "task_id": "a1d8fc88-b246-4656-bbec-323a0ea96f21",
     "run_id": "c092d7a7-d9c5-44d8-88ca-e35fdea8c09a",
-    "status": "failed",
+    "status": "canceled",
     "mode": "yolo",
     "started_at": "2026-03-30T17:57:47Z",
-    "finished_at": "2026-03-30T18:27:47Z",
-    "failure_reason": "Runner claude-code encountered an error. Please check runner configuration.",
+    "finished_at": "2026-04-03T14:39:03Z",
     "started_by": "swarm-manager-ui",
     "operation": "generator",
     "prompt_trace": {
@@ -856,8 +855,125 @@
       "used_fallback": false,
       "captured_at": "2026-03-30T17:57:47Z"
     },
+    "finalization": {
+      "eligible": true,
+      "status": "failed",
+      "phase": "failed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-04-03T14:39:00Z",
+      "completed_at": "2026-04-03T14:39:03Z",
+      "affected_scenarios": [
+        "deployment-manager",
+        "landing-page-business-suite",
+        "prompt-manager",
+        "scenario-to-cloud",
+        "scenario-to-desktop"
+      ],
+      "scenarios": [
+        {
+          "scenario_name": "deployment-manager",
+          "restart": {
+            "status": "completed",
+            "attempts": 1,
+            "started_at": "2026-04-03T14:39:01Z",
+            "finished_at": "2026-04-03T14:39:29Z"
+          },
+          "health": {
+            "status": "completed",
+            "scenario_status": "running",
+            "health_status": "healthy",
+            "schema_valid": true,
+            "details": "scenario is healthy",
+            "checked_at": "2026-04-03T14:39:31Z"
+          },
+          "review": {
+            "status": "pending"
+          }
+        },
+        {
+          "scenario_name": "landing-page-business-suite",
+          "restart": {
+            "status": "completed",
+            "attempts": 1,
+            "started_at": "2026-04-03T14:39:31Z",
+            "finished_at": "2026-04-03T14:39:43Z"
+          },
+          "health": {
+            "status": "completed",
+            "scenario_status": "running",
+            "health_status": "healthy",
+            "schema_valid": true,
+            "details": "scenario is healthy",
+            "checked_at": "2026-04-03T14:39:45Z"
+          },
+          "review": {
+            "status": "pending"
+          }
+        },
+        {
+          "scenario_name": "prompt-manager",
+          "restart": {
+            "status": "completed",
+            "attempts": 1,
+            "started_at": "2026-04-03T14:39:45Z",
+            "finished_at": "2026-04-03T14:40:18Z"
+          },
+          "health": {
+            "status": "completed",
+            "scenario_status": "running",
+            "health_status": "healthy",
+            "schema_valid": true,
+            "details": "scenario is healthy",
+            "checked_at": "2026-04-03T14:40:23Z"
+          },
+          "review": {
+            "status": "pending"
+          }
+        },
+        {
+          "scenario_name": "scenario-to-cloud",
+          "restart": {
+            "status": "completed",
+            "attempts": 1,
+            "started_at": "2026-04-03T14:40:23Z",
+            "finished_at": "2026-04-03T14:40:49Z"
+          },
+          "health": {
+            "status": "completed",
+            "scenario_status": "running",
+            "health_status": "healthy",
+            "schema_valid": true,
+            "details": "scenario is healthy",
+            "checked_at": "2026-04-03T14:40:50Z"
+          },
+          "review": {
+            "status": "pending"
+          }
+        },
+        {
+          "scenario_name": "scenario-to-desktop",
+          "restart": {
+            "status": "completed",
+            "attempts": 1,
+            "started_at": "2026-04-03T14:40:50Z",
+            "finished_at": "2026-04-03T14:41:17Z"
+          },
+          "health": {
+            "status": "completed",
+            "scenario_status": "running",
+            "health_status": "healthy",
+            "schema_valid": true,
+            "details": "scenario is healthy",
+            "checked_at": "2026-04-03T14:41:21Z"
+          },
+          "review": {
+            "status": "pending"
+          }
+        }
+      ]
+    },
     "created_at": "2026-03-30T17:57:47Z",
-    "updated_at": "2026-03-30T18:27:47Z"
+    "updated_at": "2026-04-03T14:41:21Z"
   },
   {
     "execution_id": "520fb4bfcf4fca8e",
@@ -1131,7 +1247,7 @@
     "status": "completed",
     "mode": "yolo",
     "started_at": "2026-04-02T03:17:33Z",
-    "finished_at": "2026-04-02T19:01:39Z",
+    "finished_at": "2026-04-03T15:46:01Z",
     "started_by": "swarm-manager-ui",
     "operation": "generator",
     "prompt_trace": {
@@ -1146,21 +1262,28 @@
       "status": "completed",
       "phase": "completed",
       "scope_source": "acceptance_allow",
-      "started_at": "2026-04-02T18:59:15Z",
-      "completed_at": "2026-04-02T19:01:39Z",
+      "started_at": "2026-04-03T15:43:39Z",
+      "completed_at": "2026-04-03T15:46:01Z",
+      "warnings": [
+        {
+          "code": "review_agent_failed",
+          "message": "spawn review agent: agent activity spec missing from context",
+          "created_at": "2026-04-03T15:46:01Z"
+        }
+      ],
       "affected_scenarios": [
         "agent-manager"
       ],
       "aggregate_classification": "ready_with_notes",
-      "aggregate_summary": "agent-manager ready with notes",
+      "aggregate_summary": "agent-manager ready with notes; 1 warning(s)",
       "scenarios": [
         {
           "scenario_name": "agent-manager",
           "restart": {
             "status": "completed",
             "attempts": 1,
-            "started_at": "2026-04-02T18:59:17Z",
-            "finished_at": "2026-04-02T18:59:34Z"
+            "started_at": "2026-04-03T15:43:40Z",
+            "finished_at": "2026-04-03T15:43:57Z"
           },
           "health": {
             "status": "completed",
@@ -1168,19 +1291,15 @@
             "health_status": "healthy",
             "schema_valid": true,
             "details": "scenario is healthy",
-            "checked_at": "2026-04-02T18:59:54Z"
+            "checked_at": "2026-04-03T15:44:15Z"
           },
           "review": {
             "status": "completed",
-            "job_id": "7813c1b1-1af4-4aea-b2b3-9aaed7013aa9",
+            "job_id": "d0407eb8-eaab-4c9d-8228-d7e87a45ff5d",
             "result": {
-              "job_id": "7813c1b1-1af4-4aea-b2b3-9aaed7013aa9",
+              "job_id": "d0407eb8-eaab-4c9d-8228-d7e87a45ff5d",
               "classification": "ready_with_notes",
               "dimensions": [
-                {
-                  "name": "visual",
-                  "status": "red"
-                },
                 {
                   "name": "provenance",
                   "status": "green"
@@ -1188,28 +1307,63 @@
                 {
                   "name": "codeQuality",
                   "status": "red",
-                  "details": "0.0 score, 75 violations"
+                  "details": "0.0 score, 73 violations"
                 },
                 {
                   "name": "tests",
                   "status": "yellow",
-                  "details": "9/11 passed"
+                  "details": "10/11 passed"
                 },
                 {
                   "name": "standards",
                   "status": "yellow",
                   "details": "4 warnings"
+                },
+                {
+                  "name": "visual",
+                  "status": "red"
                 }
               ],
+              "raw_dimensions": {
+                "codeQuality": {
+                  "available": true,
+                  "score": 0,
+                  "violations": 73,
+                  "stale": false
+                },
+                "tests": {
+                  "available": true,
+                  "passed": false,
+                  "total": 11,
+                  "passedCount": 10,
+                  "failedCount": 1,
+                  "lastRun": "2026-04-03T15:45:58.235225685Z"
+                },
+                "standards": {
+                  "available": true,
+                  "blockingViolations": 0,
+                  "warnings": 4,
+                  "totalViolations": 4
+                },
+                "visual": {
+                  "available": true,
+                  "screenshotCount": 0,
+                  "stale": false
+                },
+                "provenance": {
+                  "available": true,
+                  "tracedFiles": 1
+                }
+              },
               "summary": "Scenario agent-manager readiness: yellow",
-              "reviewed_at": "2026-04-02T19:01:39Z"
+              "reviewed_at": "2026-04-03T15:46:01Z"
             }
           }
         }
       ]
     },
     "created_at": "2026-04-02T03:17:33Z",
-    "updated_at": "2026-04-02T19:01:39Z"
+    "updated_at": "2026-04-03T15:46:01Z"
   },
   {
     "execution_id": "99c7a1f3288d359a",

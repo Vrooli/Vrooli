@@ -3,8 +3,9 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { ScenarioChips } from "./scenario-chips";
 
 describe("ScenarioChips", () => {
-  it("renders a chip for each scenario", () => {
+  it("renders a chip for each scenario with label", () => {
     render(<ScenarioChips scenarios={["alpha", "beta"]} onSelect={vi.fn()} />);
+    expect(screen.getByText("Target Scenarios")).toBeInTheDocument();
     expect(screen.getByText("alpha")).toBeInTheDocument();
     expect(screen.getByText("beta")).toBeInTheDocument();
   });

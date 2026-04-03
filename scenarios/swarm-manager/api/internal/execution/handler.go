@@ -125,6 +125,10 @@ func reviewResultToProto(rr *ReviewResult) *domainpb.ReviewResult {
 		Summary:        rr.Summary,
 		ReviewedAt:     rr.ReviewedAt,
 	}
+	if len(rr.RawDimensions) > 0 {
+		s := string(rr.RawDimensions)
+		pb.RawDimensions = &s
+	}
 	for _, dim := range rr.Dimensions {
 		pbDim := &domainpb.ReviewDimension{
 			Name:   dim.Name,

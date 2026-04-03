@@ -2,8 +2,12 @@ package execution
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
+
+	"swarm-manager/internal/agentactivity"
 )
 
 func (s *Service) processFinalization(ctx context.Context, executionID string) error {
@@ -40,6 +44,9 @@ func (s *Service) processFinalization(ctx context.Context, executionID string) e
 		return err
 	}
 
+	if err := s.markFinalizationPhase(executionID, FinalizationPhaseRestarting); err != nil {
+		return err
+	}
 	for _, scenarioName := range scope.affectedScenarios {
 		if err := s.runScenarioRestartAndHealth(ctx, executionID, scenarioName); err != nil {
 			return err
@@ -57,15 +64,22 @@ func (s *Service) processFinalization(ctx context.Context, executionID string) e
 
 	// Evidence gathering phase (optional, policy-gated). The review agent
 	// spawns asynchronously; its failure is non-fatal to finalization.
-	if s.isReviewAgentEnabled() {
+	switch enabled, reason := s.checkReviewAgentEnabled(); {
+	case enabled:
 		if err := s.markFinalizationPhase(executionID, FinalizationPhaseEvidenceGathering); err != nil {
 			return err
 		}
 		if err := s.triggerReviewAgent(ctx, executionID, scope, item); err != nil {
+			slog.Warn("review agent spawn failed", "execution_id", executionID, "err", err)
 			_ = s.appendFinalizationWarning(executionID, newFinalizationWarning(
 				finalizationWarningReviewAgentFailed, "", err.Error(), false,
 			))
 		}
+	default:
+		slog.Info("evidence gathering skipped", "execution_id", executionID, "reason", reason)
+		_ = s.appendFinalizationWarning(executionID, newFinalizationWarning(
+			reason, "", s.evidenceSkipMessage(reason), false,
+		))
 	}
 
 	return s.finishFinalization(executionID)
@@ -209,13 +223,31 @@ func (s *Service) finishFinalization(executionID string) error {
 	return nil
 }
 
-// isReviewAgentEnabled checks the execution policy for the review_agent_enabled flag.
-func (s *Service) isReviewAgentEnabled() bool {
+// checkReviewAgentEnabled checks the execution policy for the review_agent_enabled flag.
+// Returns (true, "") when enabled, or (false, warningCode) with a machine-readable
+// reason when disabled so callers can emit structured warnings.
+func (s *Service) checkReviewAgentEnabled() (bool, string) {
 	policy, err := s.policyProvider.LoadPolicy()
 	if err != nil {
-		return false
+		slog.Error("failed to load policy for review agent check", "err", err)
+		return false, finalizationWarningEvidenceSkippedPolicyErr
 	}
-	return policy.ReviewAgentEnabled
+	if !policy.ReviewAgentEnabled {
+		return false, finalizationWarningEvidenceSkippedDisabled
+	}
+	return true, ""
+}
+
+// evidenceSkipMessage returns a human-readable message for an evidence-skip warning code.
+func (s *Service) evidenceSkipMessage(code string) string {
+	switch code {
+	case finalizationWarningEvidenceSkippedDisabled:
+		return "Review agent is disabled in settings. Enable it to gather evidence automatically."
+	case finalizationWarningEvidenceSkippedPolicyErr:
+		return "Could not load settings to check review agent policy. Evidence gathering was skipped."
+	default:
+		return "Evidence gathering was skipped."
+	}
 }
 
 // triggerReviewAgent spawns the review agent to gather evidence after finalization.
@@ -224,9 +256,51 @@ func (s *Service) triggerReviewAgent(ctx context.Context, executionID string, sc
 	if s.reviewService == nil {
 		return fmt.Errorf("review service not configured")
 	}
+
+	// Inject agent activity spec so the tracked agent service can record the spawn.
+	ctx = agentactivity.WithSpec(ctx, backlogActivitySpec(
+		item,
+		executionID,
+		agentactivity.PurposeReview,
+		"finalization",
+		map[string]string{
+			"entrypoint": "finalization.evidence_gathering",
+		},
+	))
+
+	// Load GCT review results for each affected scenario so the review agent
+	// can evaluate existing coverage before gathering evidence.
+	type scenarioGCTResult struct {
+		Classification string            `json:"classification"`
+		Dimensions     []ReviewDimension `json:"dimensions,omitempty"`
+		RawDimensions  json.RawMessage   `json:"raw_dimensions,omitempty"`
+		Summary        string            `json:"summary"`
+	}
+	resultsByScenario := make(map[string]*scenarioGCTResult)
+	for _, name := range scope.affectedScenarios {
+		sf, err := s.loadScenarioFinalization(executionID, name)
+		if err == nil && sf.Review.Result != nil {
+			r := sf.Review.Result
+			resultsByScenario[name] = &scenarioGCTResult{
+				Classification: r.Classification,
+				Dimensions:     r.Dimensions,
+				RawDimensions:  r.RawDimensions,
+				Summary:        r.Summary,
+			}
+		}
+	}
+
+	gctJSON := ""
+	if len(resultsByScenario) > 0 {
+		if b, err := json.Marshal(resultsByScenario); err == nil {
+			gctJSON = string(b)
+		}
+	}
+
 	return s.reviewService.StartReviewForExecution(ctx,
 		executionID, item.Kind, item.Name, item.Title,
 		s.itemDir(item.Kind, item.Name),
 		scope.affectedScenarios, scope.changedPathsByScenario,
+		gctJSON,
 	)
 }

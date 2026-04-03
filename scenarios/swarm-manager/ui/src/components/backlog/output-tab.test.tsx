@@ -8,6 +8,13 @@ import type { ExecutionRecord } from "../../types";
 vi.mock("../../services", () => ({
   executionService: {
     triggerReview: vi.fn().mockResolvedValue({}),
+    cancel: vi.fn().mockResolvedValue({}),
+  },
+}));
+
+vi.mock("../../services/review-service", () => ({
+  reviewService: {
+    triggerReviewAgent: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -28,19 +35,14 @@ const createTestQueryClient = () =>
 
 const defaultProps: OutputTabProps = {
   executionHistory: undefined,
-  timeline: { entries: [], isLoading: false, error: null },
-  targetScenarios: [],
   agentRunIsActive: false,
   latestAgentActivity: null,
-  agentManagerUiUrl: null,
   reviewRounds: [],
   isGatheringEvidence: false,
   backlogKind: "execute",
   backlogName: "test-item",
   onStopRun: vi.fn(),
   onFollowUp: vi.fn(),
-  onViewExecution: vi.fn(),
-  onSelectScenario: vi.fn(),
   onVerifyEvidence: vi.fn(),
   onRequestMoreEvidence: vi.fn(),
 };
@@ -67,36 +69,5 @@ describe("OutputTab", () => {
       executionHistory: [makeExecution()],
     });
     expect(screen.getByText("Completed")).toBeInTheDocument();
-  });
-
-  it("hides scenario chips when no target scenarios", () => {
-    renderWithProviders({
-      ...defaultProps,
-      executionHistory: [makeExecution()],
-      targetScenarios: [],
-    });
-    expect(screen.queryByTestId("review-scenario-chips")).not.toBeInTheDocument();
-  });
-
-  it("shows scenario chips when target scenarios exist", () => {
-    renderWithProviders({
-      ...defaultProps,
-      executionHistory: [makeExecution()],
-      targetScenarios: ["my-scenario"],
-    });
-    expect(screen.getByText("my-scenario")).toBeInTheDocument();
-  });
-
-  it("renders ActivityTimeline section", () => {
-    renderWithProviders({
-      ...defaultProps,
-      timeline: {
-        entries: [],
-        isLoading: false,
-        error: null,
-      },
-    });
-    // ActivityTimeline renders with empty entries - look for the output tab container
-    expect(screen.getByTestId("backlog-details-output-tab")).toBeInTheDocument();
   });
 });

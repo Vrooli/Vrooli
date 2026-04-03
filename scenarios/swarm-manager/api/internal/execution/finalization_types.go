@@ -49,6 +49,8 @@ const (
 	finalizationWarningReviewSkipped             = "review_skipped"
 	finalizationWarningFinalizationInfra         = "finalization_infrastructure"
 	finalizationWarningReviewAgentFailed         = "review_agent_failed"
+	finalizationWarningEvidenceSkippedDisabled   = "evidence_skipped_disabled"
+	finalizationWarningEvidenceSkippedPolicyErr  = "evidence_skipped_policy_error"
 )
 
 // ScenarioLifecycle restarts affected scenarios after execution completion.

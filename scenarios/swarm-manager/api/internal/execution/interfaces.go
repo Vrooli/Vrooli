@@ -51,7 +51,7 @@ type GovernanceProvider interface {
 // needs to trigger evidence gathering. Uses a callback signature to avoid
 // import cycles between the execution and review packages.
 type ReviewServiceIntegration interface {
-	StartReviewForExecution(ctx context.Context, executionID, backlogKind, backlogName, itemTitle, itemDir string, affectedScenarios []string, changedPathsByScenario map[string][]string) error
+	StartReviewForExecution(ctx context.Context, executionID, backlogKind, backlogName, itemTitle, itemDir string, affectedScenarios []string, changedPathsByScenario map[string][]string, gctResultsJSON string) error
 }
 
 // EventLogger records execution state-change events for analytics.

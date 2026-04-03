@@ -8,10 +8,10 @@ import (
 )
 
 func (s *Service) runScenarioRestartAndHealth(ctx context.Context, executionID string, scenarioName string) error {
-	if err := s.markFinalizationPhase(executionID, FinalizationPhaseRestarting); err != nil {
-		return err
-	}
-
+	// NOTE: The overall finalization phase (restarting) is set once before the
+	// scenario loop in processFinalization. Per-scenario restart/health updates
+	// only update the scenario-level state to avoid phase flickering when
+	// processing multiple scenarios.
 	if s.scenarioLifecycle == nil || s.scenarioHealth == nil {
 		return s.failFinalization(executionID, scenarioName, "scenario restart/health seams are not configured")
 	}
@@ -70,9 +70,6 @@ func (s *Service) runScenarioRestartAndHealth(ctx context.Context, executionID s
 			return err
 		}
 
-		if err := s.markFinalizationPhase(executionID, FinalizationPhaseHealthCheck); err != nil {
-			return err
-		}
 		healthSnapshot, healthErr := s.waitForScenarioHealth(ctx, scenarioName)
 		if healthErr == nil {
 			return s.updateScenarioHealthState(executionID, scenarioName, HealthCheckResult{

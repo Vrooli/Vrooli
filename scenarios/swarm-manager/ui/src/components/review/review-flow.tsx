@@ -3,48 +3,70 @@
  *
  * Used identically by both BacklogDetailsPage (Output tab) and
  * ExecutionDetailsPage (Review tab). Presents a linear narrative:
- * status header → scenario chips → finalization details → evidence.
+ * status header → finalization progress → scenario results → evidence.
  */
 
+import { useQuery } from "@tanstack/react-query";
 import { ReviewStatusHeader } from "./review-status-header";
-import { ScenarioChips } from "./scenario-chips";
+import { ReviewLaunchSheet } from "./review-launch-sheet";
+import { ScenarioResultCards } from "./scenario-result-cards";
 import { useReviewActions } from "./use-review-actions";
 import { PostRunStatusBadge } from "../execution/post-run-status-badge";
 import { EvidencePanel } from "../backlog/evidence-panel";
 import { resolvePostRunExecution } from "../../lib/finalization";
+import { defaultQueryOptions } from "../../lib";
+import { settingsService } from "../../services/settings-service";
 import { selectors } from "../../consts/selectors";
 import type { ExecutionRecord } from "../../types";
+import type { Settings } from "../../types/settings";
 import type { ReviewRound } from "../../services/review-service";
 
 export interface ReviewFlowProps {
   execution: ExecutionRecord | undefined;
-  targetScenarios: string[];
   reviewRounds: ReviewRound[];
   isGatheringEvidence: boolean;
   isActive: boolean;
   backlogKind: string;
   backlogName: string;
   onFollowUp: (exec: ExecutionRecord) => void;
-  onSelectScenario: (name: string) => void;
   onVerifyEvidence: (round: number, evidenceId: string, verified: boolean) => void;
   onRequestMoreEvidence: (round: number, evidenceId?: string) => void;
 }
 
 export function ReviewFlow({
   execution,
-  targetScenarios,
   reviewRounds,
   isGatheringEvidence,
   isActive,
   backlogKind,
   backlogName,
   onFollowUp,
-  onSelectScenario,
   onVerifyEvidence,
   onRequestMoreEvidence,
 }: ReviewFlowProps) {
-  const { triggerReview, isTriggering } = useReviewActions(execution?.executionId);
+  const {
+    triggerReview,
+    triggerEvidenceOnly,
+    cancelReview,
+    isTriggering,
+    isTriggeringEvidence,
+    isCancelling,
+    triggerError,
+    isLaunchSheetOpen,
+    openLaunchSheet,
+    closeLaunchSheet,
+  } = useReviewActions(execution?.executionId, backlogKind, backlogName);
+  const { data: settings } = useQuery<Settings, Error>({
+    queryKey: ["settings"],
+    queryFn: () => settingsService.get(),
+    ...defaultQueryOptions,
+  });
+  const reviewAgentEnabled = settings?.reviewAgentEnabled ?? true;
   const resolved = execution ? resolvePostRunExecution(execution) : null;
+  const hasExistingFinalization = Boolean(resolved?.finalization);
+  const finalizationTerminal = resolved?.finalization?.status === "completed"
+    || resolved?.finalization?.status === "failed"
+    || resolved?.finalization?.status === "skipped";
 
   // Nothing to show when no execution and not active
   if (!execution && !isActive) return null;
@@ -55,23 +77,29 @@ export function ReviewFlow({
         execution={execution}
         isActive={isActive}
         isTriggering={isTriggering}
-        onTriggerReview={triggerReview}
+        isTriggeringEvidence={isTriggeringEvidence}
+        isCancelling={isCancelling}
+        onOpenLaunchSheet={openLaunchSheet}
+        onCancelReview={cancelReview}
         onFollowUp={onFollowUp}
       />
 
-      {targetScenarios.length > 0 && (
-        <div className="py-2">
-          <ScenarioChips scenarios={targetScenarios} onSelect={onSelectScenario} />
-        </div>
-      )}
-
+      {/* Finalization progress stepper — shown during active finalization */}
       {resolved && (
         <div className="py-2">
           <PostRunStatusBadge execution={resolved} />
         </div>
       )}
 
-      {(reviewRounds.length > 0 || isGatheringEvidence) && (
+      {/* Per-scenario results — shown after finalization completes */}
+      {execution && (
+        <div className="py-2">
+          <ScenarioResultCards execution={execution} />
+        </div>
+      )}
+
+      {/* Evidence panel — always shown when finalization is terminal so empty state is visible */}
+      {(reviewRounds.length > 0 || isGatheringEvidence || finalizationTerminal) && (
         <EvidencePanel
           rounds={reviewRounds}
           backlogKind={backlogKind}
@@ -81,6 +109,19 @@ export function ReviewFlow({
           onRequestMore={onRequestMoreEvidence}
         />
       )}
+
+      {/* Review launch sheet */}
+      <ReviewLaunchSheet
+        isOpen={isLaunchSheetOpen}
+        onClose={closeLaunchSheet}
+        onFullReview={triggerReview}
+        onGatherEvidence={triggerEvidenceOnly}
+        isTriggering={isTriggering}
+        isTriggeringEvidence={isTriggeringEvidence}
+        hasExistingFinalization={hasExistingFinalization}
+        reviewAgentEnabled={reviewAgentEnabled}
+        triggerError={triggerError}
+      />
     </div>
   );
 }

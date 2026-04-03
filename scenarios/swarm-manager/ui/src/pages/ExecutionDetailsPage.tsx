@@ -54,9 +54,7 @@ export function ExecutionDetailsPage() {
 
   // --- Navigation / selection ---
   const selection = useDetailSelectionStore((s) => s.selection);
-  const selectExecution = useDetailSelectionStore((s) => s.selectExecution);
-  const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
-  const selectScenario = useDetailSelectionStore((s) => s.selectScenario);
+
   const executionId = selection?.identifier;
   const nodeId = selectionToNodeId(selection);
 
@@ -101,6 +99,7 @@ export function ExecutionDetailsPage() {
         header={
           <DetailPageHeader
             entityType="execution"
+            entityIcon={ENTITY_TYPE_ICONS.execution}
             title={executionId ?? "Unknown"}
             nodeId={null}
             lenses={[]}
@@ -236,8 +235,6 @@ export function ExecutionDetailsPage() {
             actionBusy={actionBusy}
             postRunBadgeExecution={postRunBadgeExecution}
             agentManagerUiUrl={agentManagerUiUrl}
-            onSelectBacklog={selectBacklog}
-            onSelectExecution={selectExecution}
             onFollowUp={() => setFollowUpTarget(execution)}
             onCancel={() => void cancel()}
             onRetry={() => void retry()}
@@ -255,10 +252,8 @@ export function ExecutionDetailsPage() {
             execution={execution}
             reviewRounds={reviewRounds}
             isGatheringEvidence={isGatheringEvidence}
-            targetScenarios={targetScenarios}
             isActive={isActive}
             onFollowUp={() => setFollowUpTarget(execution)}
-            onSelectScenario={(name) => selectScenario(name)}
             onVerifyEvidence={(round, evidenceId, verified) => {
               void reviewService.verifyEvidence(
                 execution.backlogKind,

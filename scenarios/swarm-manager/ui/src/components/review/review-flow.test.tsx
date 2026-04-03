@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReviewFlow } from "./review-flow";
 import { selectors } from "../../consts/selectors";
 import type { ExecutionRecord, Finalization } from "../../types";
@@ -8,6 +9,13 @@ import type { ReviewRound } from "../../services/review-service";
 vi.mock("../../services", () => ({
   executionService: {
     triggerReview: vi.fn().mockResolvedValue({}),
+    cancel: vi.fn().mockResolvedValue({}),
+  },
+}));
+
+vi.mock("../../services/review-service", () => ({
+  reviewService: {
+    triggerReviewAgent: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -34,9 +42,19 @@ function makeRound(overrides?: Partial<ReviewRound>): ReviewRound {
   } as ReviewRound;
 }
 
+const createTestQueryClient = () =>
+  new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+function renderWithProviders(ui: React.ReactElement) {
+  return render(
+    <QueryClientProvider client={createTestQueryClient()}>
+      {ui}
+    </QueryClientProvider>,
+  );
+}
+
 const defaultProps = {
   execution: undefined as ExecutionRecord | undefined,
-  targetScenarios: [] as string[],
   reviewRounds: [] as ReviewRound[],
   isGatheringEvidence: false,
   isActive: false,
@@ -50,21 +68,19 @@ const defaultProps = {
 
 describe("ReviewFlow", () => {
   it("renders nothing when no execution and not active", () => {
-    const { container } = render(<ReviewFlow {...defaultProps} />);
+    const { container } = renderWithProviders(<ReviewFlow {...defaultProps} />);
     expect(container.firstChild).toBeNull();
   });
 
-  it("renders status header and scenario chips with execution", () => {
-    render(
+  it("renders status header with execution", () => {
+    renderWithProviders(
       <ReviewFlow
         {...defaultProps}
         execution={makeExecution()}
-        targetScenarios={["deployment-manager"]}
       />
     );
     expect(screen.getByTestId(selectors.review.flow)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.review.statusHeader)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.review.scenarioChips)).toBeInTheDocument();
   });
 
   it("renders finalization badge when execution has finalization", () => {
@@ -81,12 +97,12 @@ describe("ReviewFlow", () => {
         affectedScenarios: [],
       } as Finalization,
     });
-    render(<ReviewFlow {...defaultProps} execution={exec} />);
+    renderWithProviders(<ReviewFlow {...defaultProps} execution={exec} />);
     expect(screen.getByTestId("post-run-status-badge")).toBeInTheDocument();
   });
 
   it("renders evidence panel when review rounds exist", () => {
-    render(
+    renderWithProviders(
       <ReviewFlow
         {...defaultProps}
         execution={makeExecution()}

@@ -7,16 +7,15 @@
  */
 
 import { FolderOpen } from "lucide-react";
+import { EntityLink } from "../ui/entity-link";
 import { DetailSection } from "../detail/DetailSection";
 
 export interface BacklogScenariosPanelProps {
   targetScenarios: string[];
-  onSelectScenario: (name: string) => void;
 }
 
 export function BacklogScenariosPanel({
   targetScenarios,
-  onSelectScenario,
 }: BacklogScenariosPanelProps) {
   if (targetScenarios.length === 0) return null;
 
@@ -24,14 +23,12 @@ export function BacklogScenariosPanel({
     <DetailSection title="Target Scenarios" icon={FolderOpen}>
       <div className="flex flex-wrap gap-1.5">
         {targetScenarios.map((scenarioName) => (
-          <button
+          <EntityLink
             key={scenarioName}
-            type="button"
-            onClick={() => onSelectScenario(scenarioName)}
-            className="inline-flex items-center rounded-full bg-violet-500/15 px-2.5 py-1 text-xs font-medium text-violet-400 hover:bg-violet-500/25 transition-colors"
-          >
-            {scenarioName}
-          </button>
+            entityType="scenario"
+            name={scenarioName}
+            label={scenarioName}
+          />
         ))}
       </div>
     </DetailSection>

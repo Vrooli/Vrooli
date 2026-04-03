@@ -62,18 +62,20 @@ class ArchiveContext(_message.Message):
     def __init__(self, scenario_name: _Optional[str] = ..., scenario_path: _Optional[str] = ..., preset_or_custom: _Optional[str] = ..., preserve_paths: _Optional[_Iterable[str]] = ..., preserve_preset: _Optional[str] = ...) -> None: ...
 
 class ReviewResult(_message.Message):
-    __slots__ = ("job_id", "classification", "dimensions", "summary", "reviewed_at")
+    __slots__ = ("job_id", "classification", "dimensions", "summary", "reviewed_at", "raw_dimensions")
     JOB_ID_FIELD_NUMBER: _ClassVar[int]
     CLASSIFICATION_FIELD_NUMBER: _ClassVar[int]
     DIMENSIONS_FIELD_NUMBER: _ClassVar[int]
     SUMMARY_FIELD_NUMBER: _ClassVar[int]
     REVIEWED_AT_FIELD_NUMBER: _ClassVar[int]
+    RAW_DIMENSIONS_FIELD_NUMBER: _ClassVar[int]
     job_id: str
     classification: str
     dimensions: _containers.RepeatedCompositeFieldContainer[ReviewDimension]
     summary: str
     reviewed_at: str
-    def __init__(self, job_id: _Optional[str] = ..., classification: _Optional[str] = ..., dimensions: _Optional[_Iterable[_Union[ReviewDimension, _Mapping]]] = ..., summary: _Optional[str] = ..., reviewed_at: _Optional[str] = ...) -> None: ...
+    raw_dimensions: str
+    def __init__(self, job_id: _Optional[str] = ..., classification: _Optional[str] = ..., dimensions: _Optional[_Iterable[_Union[ReviewDimension, _Mapping]]] = ..., summary: _Optional[str] = ..., reviewed_at: _Optional[str] = ..., raw_dimensions: _Optional[str] = ...) -> None: ...
 
 class ReviewDimension(_message.Message):
     __slots__ = ("name", "status", "details")

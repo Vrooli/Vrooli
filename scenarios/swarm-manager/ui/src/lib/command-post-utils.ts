@@ -110,7 +110,7 @@ export function groupActionItems(
         title: exec.backlogName || exec.executionId,
         executionId: exec.executionId,
         reasons: [],
-        primaryCta: null,
+        primaryCta: "review",
       });
     }
   }
@@ -181,7 +181,7 @@ export function groupActionItems(
     }
 
     if (ctx.hasPendingDecisions) {
-      groups.get("pending-decisions")?.push(actionable);
+      groups.get("pending-decisions")?.push({ ...actionable, primaryCta: "answer" });
     } else if (actions.primaryCta === "workshop" || actions.primaryCta === "finalize") {
       groups.get("needs-workshop")?.push(actionable);
     } else if (actions.primaryCta === "run") {

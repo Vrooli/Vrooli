@@ -27,6 +27,7 @@ const (
 	PurposeSpecSync   Purpose = "spec_sync"
 	PurposeClassify   Purpose = "classify"
 	PurposeClarify    Purpose = "clarify"
+	PurposeReview     Purpose = "review"
 )
 
 type InteractionType string

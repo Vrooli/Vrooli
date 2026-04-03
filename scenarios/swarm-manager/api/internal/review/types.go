@@ -40,6 +40,8 @@ type Round struct {
 	Notes           []string        `json:"notes,omitempty"`
 	Evidence        []EvidenceItem  `json:"evidence"`
 	RequestThreads  []RequestThread `json:"request_threads,omitempty"`
+	// ImprovementSuggestions recommends durable automations to replace one-off evidence.
+	ImprovementSuggestions []ImprovementSuggestion `json:"improvement_suggestions,omitempty"`
 	// RunID is the agent-manager run ID for the review agent session.
 	RunID string `json:"run_id,omitempty"`
 }
@@ -73,6 +75,14 @@ type RequestThread struct {
 	CreatedAt  string           `json:"created_at"`
 	// RunID is the agent-manager run ID for the targeted evidence request.
 	RunID string `json:"run_id,omitempty"`
+}
+
+// ImprovementSuggestion recommends a durable automation to replace one-off evidence.
+type ImprovementSuggestion struct {
+	Category    string `json:"category"`              // test_coverage, visual_capture, health_check, ci_workflow, standards_rule, other
+	Description string `json:"description"`
+	EvidenceID  string `json:"evidence_id,omitempty"`
+	Priority    string `json:"priority"`              // high, medium, low
 }
 
 // RequestMessage is a single turn in a request thread.

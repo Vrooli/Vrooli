@@ -9,11 +9,11 @@
  */
 
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Target, FolderOpen } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Target, FolderOpen, Archive } from "lucide-react";
+import { Button } from "../components/ui/button";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
-import { DetailActionButtons } from "../components/detail/DetailActionButtons";
 import { DetailSection } from "../components/detail/DetailSection";
 import { StatusBadge } from "../components/detail/StatusBadge";
 import { INITIATIVE_LENSES } from "../components/detail/lens-options";
@@ -22,7 +22,10 @@ import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
 import { FileTree, type TreeFile } from "../components/ui/file-tree";
 import { FilePreview } from "../components/ui/file-preview";
+import { EntityLink } from "../components/ui/entity-link";
 import { defaultQueryOptions, formatRelativeTime } from "../lib";
+import { defaultApiClient } from "../lib/api-client";
+import { API_ENDPOINTS } from "../lib/api-endpoints";
 import { initiativeService } from "../services";
 import { selectors } from "../consts/selectors";
 import { BACKLOG_STATUS_CHIP_COLORS } from "../types";
@@ -38,7 +41,7 @@ function parseItemRef(ref: string): { kind: string; name: string } | null {
 
 export function InitiativeDetailsPage() {
   const selection = useDetailSelectionStore((s) => s.selection);
-  const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
+
   const name = selection?.name;
   const nodeId = selectionToNodeId(selection);
 
@@ -63,6 +66,33 @@ export function InitiativeDetailsPage() {
 
   const initiative = data?.initiative;
   const rollup = data?.rollup;
+
+  const queryClient = useQueryClient();
+  const archiveMutation = useMutation({
+    mutationFn: async () => {
+      if (!name) throw new Error("Initiative name is required");
+      await defaultApiClient.put(API_ENDPOINTS.initiativeByName(name), { status: "archived" });
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["initiative", name] });
+    },
+  });
+
+  const isArchived = initiative?.status === "archived";
+
+  const mobileActions = initiative ? (
+    <div className="flex flex-col gap-2 p-4">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => archiveMutation.mutate()}
+        disabled={isArchived || archiveMutation.isPending}
+      >
+        <Archive className="mr-1.5 h-4 w-4" />
+        {archiveMutation.isPending ? "Archiving..." : "Archive"}
+      </Button>
+    </div>
+  ) : undefined;
 
   // Resolve member items against the backlog store
   const resolvedItems = useMemo(() => {
@@ -143,6 +173,7 @@ export function InitiativeDetailsPage() {
         header={
           <DetailPageHeader
             entityType="initiative"
+            entityIcon={Target}
             title={name ?? "Unknown"}
             nodeId={null}
             lenses={[]}
@@ -166,13 +197,15 @@ export function InitiativeDetailsPage() {
       header={
         <DetailPageHeader
           entityType="initiative"
+          entityIcon={Target}
           title={initiative.title || initiative.name}
           status={initiative.status}
           nodeId={nodeId}
           lenses={INITIATIVE_LENSES}
-          actions={<DetailActionButtons entityType="initiative" />}
         />
       }
+      mobileActions={mobileActions}
+      mobileActionsTitle="Initiative Actions"
     >
       <div className="space-y-0 md:mx-auto md:max-w-3xl" data-testid={selectors.initiativeDetails.page}>
       {/* Overview section */}
@@ -276,14 +309,14 @@ export function InitiativeDetailsPage() {
             {resolvedItems.map((item) => {
               const chipColors = BACKLOG_STATUS_CHIP_COLORS[item.status] ?? "bg-slate-600/20 text-slate-300";
               return (
-                <button
+                <EntityLink
                   key={item.ref}
-                  type="button"
-                  onClick={() => selectBacklog(item.kind, item.name)}
-                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium transition-colors hover:brightness-125 ${chipColors}`}
-                >
-                  {item.title}
-                </button>
+                  entityType="backlog"
+                  kind={item.kind}
+                  name={item.name}
+                  label={item.title}
+                  className={`hover:brightness-125 ${chipColors}`}
+                />
               );
             })}
           </div>

@@ -1,12 +1,12 @@
 /**
  * DetailPageHeader
  *
- * Unified header for all entity detail pages. Provides:
- * - Mobile: hamburger (Menu) to open sidebar; Desktop: back arrow (ArrowLeft) to close detail
- * - Entity type badge
- * - Title and optional subtitle
- * - Status badge
- * - Action slot for entity-specific buttons
+ * Unified header for all entity detail pages. Two-row layout:
+ *
+ * Row 1: nav button + title (nearly full width for readability)
+ * Row 2: entity type badge + status + subtitle + primary action
+ *
+ * Also provides:
  * - Integrated LensBar for cross-lens navigation
  * - Optional tab bar slot for entity-specific tabs (e.g., backlog info/prompt/files)
  *
@@ -26,7 +26,7 @@ import type { BacklogStatus } from "../../types";
 
 export interface DetailPageHeaderProps {
   entityType: string;
-  /** Optional icon rendered inside the entity type badge, replacing the text label. */
+  /** Optional icon rendered inside the entity type badge. */
   entityIcon?: LucideIcon;
   title: string;
   subtitle?: string;
@@ -35,7 +35,7 @@ export interface DetailPageHeaderProps {
   nodeId: string | null;
   /** Available lens navigation options. */
   lenses: LensOption[];
-  /** Entity-specific action buttons (rendered inline on desktop). */
+  /** Entity-specific action buttons (rendered in the metadata row). */
   actions?: ReactNode;
   /** Optional tab bar rendered below the LensBar (e.g., backlog tabs). */
   tabBar?: ReactNode;
@@ -77,12 +77,12 @@ export function DetailPageHeader({
 
   return (
     <header className={cn("border-b border-slate-800", className)} data-testid="detail-page-header">
-      {/* Primary row: nav button, type badge, title, status, actions */}
+      {/* Nav button (left) + two-row content (right) */}
       <div className="flex items-center gap-3 px-4 py-3 md:px-6">
         <button
           type="button"
           onClick={handleNavClick}
-          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
+          className="shrink-0 self-center rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
           aria-label={isMobile ? "Open sidebar" : "Close detail view"}
           data-testid="detail-nav-button"
         >
@@ -93,40 +93,50 @@ export function DetailPageHeader({
           )}
         </button>
 
-        {EntityIcon ? (
-          <span className="rounded-full bg-slate-700/60 p-1.5" title={entityType}>
-            <EntityIcon className="h-4 w-4 text-slate-400" />
-          </span>
-        ) : (
-          <span className="rounded-full bg-slate-700/60 px-2 py-0.5 text-xs font-medium uppercase tracking-wider text-slate-400">
-            {entityType}
-          </span>
-        )}
-
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-lg font-semibold text-slate-100">{title}</h1>
-          {(status || subtitle) && (
-            <div className="mt-0.5 flex items-center gap-2">
-              {status && (
-                <StatusBadge
-                  status={status}
-                  size="sm"
-                  onStatusChange={onStatusChange}
-                  statusChangePending={statusChangePending}
-                />
-              )}
-              {subtitle && (
-                <p className="truncate text-sm text-slate-400">{subtitle}</p>
-              )}
-            </div>
-          )}
-        </div>
+          {/* Row 1: title */}
+          <h1
+            className="truncate text-lg font-semibold text-slate-100"
+            title={title}
+          >
+            {title}
+          </h1>
 
-        {actions && (
-          <div className="flex items-center gap-2">
-            {actions}
+          {/* Row 2: entity badge + status + subtitle + actions */}
+          <div className="mt-1 flex items-center gap-2">
+            {EntityIcon ? (
+              <span className="inline-flex h-6 shrink-0 items-center rounded-full bg-slate-700/60 px-1.5" title={entityType}>
+                <EntityIcon className="h-3.5 w-3.5 text-slate-400" />
+              </span>
+            ) : (
+              <span className="inline-flex h-6 shrink-0 items-center rounded-full bg-slate-700/60 px-2 text-xs font-medium uppercase tracking-wider text-slate-400">
+                {entityType}
+              </span>
+            )}
+
+            {status && (
+              <StatusBadge
+                status={status}
+                size="sm"
+                onStatusChange={onStatusChange}
+                statusChangePending={statusChangePending}
+              />
+            )}
+
+            {subtitle && (
+              <p className="min-w-0 truncate text-sm text-slate-400">{subtitle}</p>
+            )}
+
+            {/* Spacer pushes actions to the right */}
+            <div className="flex-1" />
+
+            {actions && (
+              <div className="flex shrink-0 items-center gap-2">
+                {actions}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* LensBar: cross-lens navigation */}

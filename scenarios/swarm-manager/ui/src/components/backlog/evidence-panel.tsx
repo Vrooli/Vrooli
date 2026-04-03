@@ -111,8 +111,12 @@ export function EvidencePanel({
 
       {/* Empty state */}
       {rounds.length === 0 && !isGathering && (
-        <div className="px-4 pb-3 text-xs text-slate-400 dark:text-slate-500">
-          Review agent will gather evidence after post-run checks complete.
+        <div className="px-4 py-6 text-center">
+          <Eye className="mx-auto mb-2 h-8 w-8 text-slate-600" />
+          <p className="text-sm font-medium text-slate-400">No evidence gathered yet</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Run a review to gather screenshots, test results, and other verification artifacts.
+          </p>
         </div>
       )}
     </div>
