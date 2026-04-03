@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/idgen"
 	"swarm-manager/internal/pathutil"
@@ -111,14 +112,14 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 func (h *Handler) List(w http.ResponseWriter, _ *http.Request) {
 	items, err := h.store.Load()
 	if err != nil {
-		httputil.InternalError(w, "[queue] list", "failed to load queue")
+		apierr.MapError(w, "[queue] list", apierr.Internal("failed to load queue"))
 		return
 	}
 	sort.Slice(items, func(i, j int) bool {
 		return items[i].Created < items[j].Created
 	})
 	if err := httputil.JSON(w, ListResponse{Items: items}); err != nil {
-		httputil.InternalError(w, "[queue] list", "failed to encode response")
+		apierr.MapError(w, "[queue] list", apierr.Internal("failed to encode response"))
 		return
 	}
 }
@@ -127,17 +128,17 @@ func (h *Handler) List(w http.ResponseWriter, _ *http.Request) {
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	var req CreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httputil.BadRequest(w, "[queue] create", "invalid request body")
+		apierr.MapError(w, "[queue] create", apierr.BadRequest("invalid request body"))
 		return
 	}
 	if strings.TrimSpace(req.Kind) == "" {
-		httputil.BadRequest(w, "[queue] create", "kind is required")
+		apierr.MapError(w, "[queue] create", apierr.BadRequest("kind is required"))
 		return
 	}
 
 	items, err := h.store.Load()
 	if err != nil {
-		httputil.InternalError(w, "[queue] create", "failed to load queue")
+		apierr.MapError(w, "[queue] create", apierr.Internal("failed to load queue"))
 		return
 	}
 
@@ -150,7 +151,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	items = append(items, item)
 
 	if err := h.store.Save(items); err != nil {
-		httputil.InternalError(w, "[queue] create", "failed to persist queue")
+		apierr.MapError(w, "[queue] create", apierr.Internal("failed to persist queue"))
 		return
 	}
 
@@ -159,7 +160,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		h.eventLogger.EmitQueued(item.Kind, item.ID, len(items))
 	}
 	if err := httputil.JSONWithStatus(w, http.StatusCreated, ItemResponse{Item: item}); err != nil {
-		httputil.InternalError(w, "[queue] create", "failed to encode response")
+		apierr.MapError(w, "[queue] create", apierr.Internal("failed to encode response"))
 		return
 	}
 }
@@ -168,13 +169,13 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimSpace(mux.Vars(r)["id"])
 	if id == "" {
-		httputil.BadRequest(w, "[queue] delete", "id is required")
+		apierr.MapError(w, "[queue] delete", apierr.BadRequest("id is required"))
 		return
 	}
 
 	items, err := h.store.Load()
 	if err != nil {
-		httputil.InternalError(w, "[queue] delete", "failed to load queue")
+		apierr.MapError(w, "[queue] delete", apierr.Internal("failed to load queue"))
 		return
 	}
 
@@ -186,7 +187,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.store.Save(updated); err != nil {
-		httputil.InternalError(w, "[queue] delete", "failed to persist queue")
+		apierr.MapError(w, "[queue] delete", apierr.Internal("failed to persist queue"))
 		return
 	}
 

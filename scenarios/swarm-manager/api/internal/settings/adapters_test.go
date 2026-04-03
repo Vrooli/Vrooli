@@ -72,6 +72,27 @@ func TestPolicyAdapter(t *testing.T) {
 	if policy.MaxFixupAttempts != 3 {
 		t.Errorf("MaxFixupAttempts = %d, want 3", policy.MaxFixupAttempts)
 	}
+	if !policy.ReviewAgentEnabled {
+		t.Error("ReviewAgentEnabled should be true")
+	}
+}
+
+func TestPolicyAdapter_ReviewAgentDisabled(t *testing.T) {
+	dir := t.TempDir()
+	store := NewStore(filepath.Join(dir, "settings.json"))
+	s := DefaultSettings()
+	s.ReviewAgentEnabled = false
+	if err := store.Save(s); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	adapter := NewPolicyAdapter(store)
+	policy, err := adapter.LoadPolicy()
+	if err != nil {
+		t.Fatalf("LoadPolicy: %v", err)
+	}
+	if policy.ReviewAgentEnabled {
+		t.Error("ReviewAgentEnabled should be false when explicitly disabled")
+	}
 }
 
 func TestGovernanceAdapter(t *testing.T) {

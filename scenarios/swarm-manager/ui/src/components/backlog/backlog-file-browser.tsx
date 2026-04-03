@@ -29,6 +29,7 @@ import { FileUpload } from "../ui/file-upload";
 import { Dialog } from "../ui/dialog";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 import { cn } from "../../lib";
+import { collectMatchingFiles, getBaseName, getParentPath, joinPath, normalizeDestinationPath } from "../../lib/file-path-utils";
 import { selectors } from "../../consts/selectors";
 import type { BacklogFile, BacklogKind } from "../../types";
 
@@ -46,45 +47,6 @@ interface FileActionMenuState {
 }
 
 const RECENT_FILES_LIMIT = 5;
-
-const collectMatchingFiles = (entries: BacklogFile[], query: string): BacklogFile[] => {
-  const normalized = query.trim().toLowerCase();
-  if (!normalized) return [];
-
-  const matches: BacklogFile[] = [];
-  const walk = (items: BacklogFile[]) => {
-    items.forEach((item) => {
-      if (item.type === "file") {
-        const haystack = `${item.name} ${item.path}`.toLowerCase();
-        if (haystack.includes(normalized)) {
-          matches.push(item);
-        }
-      }
-      if (item.children && item.children.length > 0) {
-        walk(item.children);
-      }
-    });
-  };
-
-  walk(entries);
-  return matches;
-};
-
-const getParentPath = (path: string): string => {
-  const slashIndex = path.lastIndexOf("/");
-  return slashIndex > -1 ? path.slice(0, slashIndex) : "";
-};
-
-const getBaseName = (path: string): string => {
-  const slashIndex = path.lastIndexOf("/");
-  return slashIndex > -1 ? path.slice(slashIndex + 1) : path;
-};
-
-const joinPath = (parent: string, name: string): string => (parent ? `${parent}/${name}` : name);
-
-const normalizeDestinationPath = (value: string): string => {
-  return value.trim().replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "");
-};
 
 export interface BacklogFileBrowserProps {
   files: BacklogFile[] | undefined;

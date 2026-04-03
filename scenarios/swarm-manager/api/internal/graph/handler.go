@@ -5,6 +5,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 )
 
@@ -34,7 +35,7 @@ func (h *Handler) GetGraph(w http.ResponseWriter, r *http.Request) {
 	}
 	lens := Lens(lensParam)
 	if !ValidateLens(lens) {
-		httputil.BadRequest(w, "[graph]", "invalid lens: must be topology, flow, or operations")
+		apierr.MapError(w, "[graph]", apierr.BadRequest("invalid lens: must be topology, flow, or operations"))
 		return
 	}
 
@@ -48,7 +49,7 @@ func (h *Handler) GetGraph(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if !valid {
-			httputil.BadRequest(w, "[graph]", "invalid focus_node_id: must start with backlog-item/, initiative/, or scenario/")
+			apierr.MapError(w, "[graph]", apierr.BadRequest("invalid focus_node_id: must start with backlog-item/, initiative/, or scenario/"))
 			return
 		}
 	}
@@ -60,13 +61,13 @@ func (h *Handler) GetGraph(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.projector.Project(r.Context(), params)
 	if err != nil {
-		httputil.InternalError(w, "[graph]", "failed to build graph projection")
+		apierr.MapError(w, "[graph]", apierr.Internal("failed to build graph projection"))
 		return
 	}
 
 	protoResp, err := encodeGraphResponse(resp)
 	if err != nil {
-		httputil.InternalError(w, "[graph]", "failed to encode graph projection")
+		apierr.MapError(w, "[graph]", apierr.Internal("failed to encode graph projection"))
 		return
 	}
 

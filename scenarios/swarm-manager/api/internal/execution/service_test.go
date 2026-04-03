@@ -382,8 +382,8 @@ func TestCancel_ReturnsErrorWhenRestoreFails(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected cancel restore error")
 	}
-	if !strings.Contains(err.Error(), "failed to load backlog item for cancel restore") {
-		t.Fatalf("expected restore load error, got %v", err)
+	if !strings.Contains(err.Error(), "backlog status restore failed") {
+		t.Fatalf("expected restore error, got %v", err)
 	}
 }
 

@@ -21,6 +21,7 @@ import (
 	"github.com/gorilla/mux"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/storage"
@@ -31,9 +32,10 @@ type Settings struct {
 	Theme string `json:"theme"`
 
 	// Execution defaults.
-	DefaultMode      string `json:"default_mode"`
-	AutoFixup        bool   `json:"auto_fixup"`
-	MaxFixupAttempts int    `json:"max_fixup_attempts"`
+	DefaultMode        string `json:"default_mode"`
+	AutoFixup          bool   `json:"auto_fixup"`
+	MaxFixupAttempts   int    `json:"max_fixup_attempts"`
+	ReviewAgentEnabled bool   `json:"review_agent_enabled"`
 
 	// Workshop.
 	MaxAutoRounds          int  `json:"max_auto_rounds"`
@@ -72,9 +74,10 @@ type Settings struct {
 type SettingsPatch struct {
 	Theme *string `json:"theme,omitempty"`
 
-	DefaultMode      *string `json:"default_mode,omitempty"`
-	AutoFixup        *bool   `json:"auto_fixup,omitempty"`
-	MaxFixupAttempts *int    `json:"max_fixup_attempts,omitempty"`
+	DefaultMode        *string `json:"default_mode,omitempty"`
+	AutoFixup          *bool   `json:"auto_fixup,omitempty"`
+	MaxFixupAttempts   *int    `json:"max_fixup_attempts,omitempty"`
+	ReviewAgentEnabled *bool   `json:"review_agent_enabled,omitempty"`
 
 	MaxAutoRounds          *int  `json:"max_auto_rounds,omitempty"`
 	AutoInitializeWorkshop *bool `json:"auto_initialize_workshop,omitempty"`
@@ -134,6 +137,7 @@ func DefaultSettings() Settings {
 		DefaultMode:               "yolo",
 		AutoFixup:                 false,
 		MaxFixupAttempts:          2,
+		ReviewAgentEnabled:        true,
 		MaxAutoRounds:             10,
 		AutoInitializeWorkshop:    true,
 		AutoAdvanceWorkshop:       true,
@@ -312,12 +316,12 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 func (h *Handler) Get(w http.ResponseWriter, _ *http.Request) {
 	settings, err := h.store.Load()
 	if err != nil {
-		httputil.InternalError(w, "[settings] get", "failed to load settings")
+		apierr.MapError(w, "[settings] get", apierr.Internal("failed to load settings"))
 		return
 	}
 	resp := &apipb.SettingsResponse{Settings: settingsToProto(settings)}
 	if err := httputil.ProtoJSON(w, resp); err != nil {
-		httputil.InternalError(w, "[settings] get", "failed to encode response")
+		apierr.MapError(w, "[settings] get", apierr.Internal("failed to encode response"))
 		return
 	}
 }
@@ -326,12 +330,12 @@ func (h *Handler) Get(w http.ResponseWriter, _ *http.Request) {
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	var req apipb.UpdateSettingsRequest
 	if err := httputil.DecodeProtoJSON(r, &req); err != nil {
-		httputil.BadRequest(w, "[settings] update", "invalid request body")
+		apierr.MapError(w, "[settings] update", apierr.BadRequest("invalid request body"))
 		return
 	}
 
 	if isEmptyUpdateSettingsRequest(&req) {
-		httputil.BadRequest(w, "[settings] update", "no settings provided")
+		apierr.MapError(w, "[settings] update", apierr.BadRequest("no settings provided"))
 		return
 	}
 	if !httputil.ValidateProtoRequest(w, "[settings] update", "invalid request body", &req) {
@@ -340,7 +344,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	current, err := h.store.Load()
 	if err != nil {
-		httputil.InternalError(w, "[settings] update", "failed to load settings")
+		apierr.MapError(w, "[settings] update", apierr.Internal("failed to load settings"))
 		return
 	}
 
@@ -348,10 +352,10 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	updated := applyPatch(current, patch)
 	if err := h.store.Save(updated); err != nil {
 		if errors.Is(err, errInvalidTheme) || errors.Is(err, errInvalidMode) {
-			httputil.BadRequest(w, "[settings] update", err.Error())
+			apierr.MapError(w, "[settings] update", apierr.BadRequest("%s", err.Error()))
 			return
 		}
-		httputil.InternalError(w, "[settings] update", "failed to persist settings")
+		apierr.MapError(w, "[settings] update", apierr.Internal("failed to persist settings"))
 		return
 	}
 
@@ -363,7 +367,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	resp := &apipb.SettingsResponse{Settings: settingsToProto(updated)}
 	if err := httputil.ProtoJSON(w, resp); err != nil {
-		httputil.InternalError(w, "[settings] update", "failed to encode response")
+		apierr.MapError(w, "[settings] update", apierr.Internal("failed to encode response"))
 		return
 	}
 }
@@ -380,6 +384,9 @@ func applyPatch(current Settings, patch SettingsPatch) Settings {
 	}
 	if patch.MaxFixupAttempts != nil {
 		current.MaxFixupAttempts = *patch.MaxFixupAttempts
+	}
+	if patch.ReviewAgentEnabled != nil {
+		current.ReviewAgentEnabled = *patch.ReviewAgentEnabled
 	}
 	if patch.MaxAutoRounds != nil {
 		current.MaxAutoRounds = *patch.MaxAutoRounds
@@ -452,32 +459,33 @@ func applyPatch(current Settings, patch SettingsPatch) Settings {
 
 func settingsToProto(s Settings) *domainpb.Settings {
 	return &domainpb.Settings{
-		Theme:                       s.Theme,
-		DefaultMode:                 s.DefaultMode,
-		AutoFixup:                   s.AutoFixup,
-		MaxFixupAttempts:            int32(s.MaxFixupAttempts),
-		MaxAutoRounds:               int32(s.MaxAutoRounds),
-		AutoInitializeWorkshop:      s.AutoInitializeWorkshop,
-		AutoAdvanceWorkshop:         s.AutoAdvanceWorkshop,
-		AutoCascadeWorkshop:         s.AutoCascadeWorkshop,
-		AgentMaxTurns:               int32(s.AgentMaxTurns),
-		AgentTimeoutSeconds:         int32(s.AgentTimeoutSeconds),
-		AgentRequiresApproval:       s.AgentRequiresApproval,
-		SearchDebounceMs:            int32(s.SearchDebounceMs),
-		ToastDurationMs:             int32(s.ToastDurationMs),
-		ConfirmDestructiveActions:   s.ConfirmDestructiveActions,
-		ReviewCodeQualityMinScore:   s.ReviewCodeQualityMinScore,
-		ReviewTestMinPassRate:       s.ReviewTestMinPassRate,
-		ReviewMaxBlockingViolations: int32(s.ReviewMaxBlockingViolations),
-		ReviewMaxWarnings:           int32(s.ReviewMaxWarnings),
-		ReviewRequireScreenshots:        s.ReviewRequireScreenshots,
-		ReviewRequireTests:              s.ReviewRequireTests,
-		MaxConcurrentExecutions:         int32(s.MaxConcurrentExecutions),
-		MaxQueueDepth:                   int32(s.MaxQueueDepth),
-		CircuitBreakerThreshold:         int32(s.CircuitBreakerThreshold),
-		CircuitBreakerCooldownMinutes:   int32(s.CircuitBreakerCooldownMinutes),
-		ExecutionCostCapPerRun:          s.ExecutionCostCapPerRun,
-		CostPerTurnEstimate:             s.CostPerTurnEstimate,
+		Theme:                         s.Theme,
+		DefaultMode:                   s.DefaultMode,
+		AutoFixup:                     s.AutoFixup,
+		MaxFixupAttempts:              int32(s.MaxFixupAttempts),
+		ReviewAgentEnabled:            s.ReviewAgentEnabled,
+		MaxAutoRounds:                 int32(s.MaxAutoRounds),
+		AutoInitializeWorkshop:        s.AutoInitializeWorkshop,
+		AutoAdvanceWorkshop:           s.AutoAdvanceWorkshop,
+		AutoCascadeWorkshop:           s.AutoCascadeWorkshop,
+		AgentMaxTurns:                 int32(s.AgentMaxTurns),
+		AgentTimeoutSeconds:           int32(s.AgentTimeoutSeconds),
+		AgentRequiresApproval:         s.AgentRequiresApproval,
+		SearchDebounceMs:              int32(s.SearchDebounceMs),
+		ToastDurationMs:               int32(s.ToastDurationMs),
+		ConfirmDestructiveActions:     s.ConfirmDestructiveActions,
+		ReviewCodeQualityMinScore:     s.ReviewCodeQualityMinScore,
+		ReviewTestMinPassRate:         s.ReviewTestMinPassRate,
+		ReviewMaxBlockingViolations:   int32(s.ReviewMaxBlockingViolations),
+		ReviewMaxWarnings:             int32(s.ReviewMaxWarnings),
+		ReviewRequireScreenshots:      s.ReviewRequireScreenshots,
+		ReviewRequireTests:            s.ReviewRequireTests,
+		MaxConcurrentExecutions:       int32(s.MaxConcurrentExecutions),
+		MaxQueueDepth:                 int32(s.MaxQueueDepth),
+		CircuitBreakerThreshold:       int32(s.CircuitBreakerThreshold),
+		CircuitBreakerCooldownMinutes: int32(s.CircuitBreakerCooldownMinutes),
+		ExecutionCostCapPerRun:        s.ExecutionCostCapPerRun,
+		CostPerTurnEstimate:           s.CostPerTurnEstimate,
 	}
 }
 
@@ -500,6 +508,10 @@ func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
 	if req.MaxFixupAttempts != nil {
 		v := int(*req.MaxFixupAttempts)
 		patch.MaxFixupAttempts = &v
+	}
+	if req.ReviewAgentEnabled != nil {
+		v := *req.ReviewAgentEnabled
+		patch.ReviewAgentEnabled = &v
 	}
 	if req.MaxAutoRounds != nil {
 		v := int(*req.MaxAutoRounds)
@@ -600,6 +612,7 @@ func isEmptyUpdateSettingsRequest(req *apipb.UpdateSettingsRequest) bool {
 		req.DefaultMode == nil &&
 		req.AutoFixup == nil &&
 		req.MaxFixupAttempts == nil &&
+		req.ReviewAgentEnabled == nil &&
 		req.MaxAutoRounds == nil &&
 		req.AutoInitializeWorkshop == nil &&
 		req.AutoAdvanceWorkshop == nil &&

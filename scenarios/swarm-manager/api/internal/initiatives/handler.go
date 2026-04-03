@@ -7,6 +7,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 )
 
@@ -46,13 +47,13 @@ func (h *Handler) List(w http.ResponseWriter, _ *http.Request) {
 	items, err := h.service.List()
 	if err != nil {
 		log.Printf("[initiatives] list: %v", err)
-		httputil.InternalError(w, "[initiatives] list", "failed to list initiatives")
+		apierr.MapError(w, "[initiatives] list", apierr.Internal("failed to list initiatives"))
 		return
 	}
 
 	resp := map[string]any{"items": items}
 	if err := httputil.JSON(w, resp); err != nil {
-		httputil.InternalError(w, "[initiatives] list", "failed to encode response")
+		apierr.MapError(w, "[initiatives] list", apierr.Internal("failed to encode response"))
 	}
 }
 
@@ -60,31 +61,31 @@ func (h *Handler) List(w http.ResponseWriter, _ *http.Request) {
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	var req CreateRequest
 	if err := httputil.DecodeJSONStrict(r, &req); err != nil {
-		httputil.BadRequest(w, "[initiatives] create", "invalid request body")
+		apierr.MapError(w, "[initiatives] create", apierr.BadRequest("invalid request body"))
 		return
 	}
 
 	if strings.TrimSpace(req.Name) == "" {
-		httputil.BadRequest(w, "[initiatives] create", "name is required")
+		apierr.MapError(w, "[initiatives] create", apierr.BadRequest("name is required"))
 		return
 	}
 	if strings.TrimSpace(req.Title) == "" {
-		httputil.BadRequest(w, "[initiatives] create", "title is required")
+		apierr.MapError(w, "[initiatives] create", apierr.BadRequest("title is required"))
 		return
 	}
 	if status := strings.TrimSpace(req.Status); status != "" && !ValidateStatus(status) {
-		httputil.BadRequest(w, "[initiatives] create", "status must be active, completed, or archived")
+		apierr.MapError(w, "[initiatives] create", apierr.BadRequest("status must be active, completed, or archived"))
 		return
 	}
 
 	init, err := h.service.Create(req)
 	if err != nil {
 		if strings.Contains(err.Error(), "already exists") {
-			httputil.Conflict(w, "[initiatives] create", err.Error())
+			apierr.MapError(w, "[initiatives] create", apierr.Conflict("%s", err.Error()))
 			return
 		}
 		log.Printf("[initiatives] create: %v", err)
-		httputil.InternalError(w, "[initiatives] create", "failed to create initiative")
+		apierr.MapError(w, "[initiatives] create", apierr.Internal("failed to create initiative"))
 		return
 	}
 
@@ -95,7 +96,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	resp := InitiativeWithRollup{Initiative: *init, Rollup: *rollup}
 	if err := httputil.JSONWithStatus(w, http.StatusCreated, resp); err != nil {
-		httputil.InternalError(w, "[initiatives] create", "failed to encode response")
+		apierr.MapError(w, "[initiatives] create", apierr.Internal("failed to encode response"))
 	}
 }
 
@@ -103,23 +104,23 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	if strings.TrimSpace(name) == "" {
-		httputil.BadRequest(w, "[initiatives] get", "name is required")
+		apierr.MapError(w, "[initiatives] get", apierr.BadRequest("name is required"))
 		return
 	}
 
 	result, err := h.service.Get(name)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			httputil.NotFound(w, "[initiatives] get", "initiative not found")
+			apierr.MapError(w, "[initiatives] get", apierr.NotFound("initiative not found"))
 			return
 		}
 		log.Printf("[initiatives] get: %v", err)
-		httputil.InternalError(w, "[initiatives] get", "failed to load initiative")
+		apierr.MapError(w, "[initiatives] get", apierr.Internal("failed to load initiative"))
 		return
 	}
 
 	if err := httputil.JSON(w, result); err != nil {
-		httputil.InternalError(w, "[initiatives] get", "failed to encode response")
+		apierr.MapError(w, "[initiatives] get", apierr.Internal("failed to encode response"))
 	}
 	h.service.RecordView(name)
 }
@@ -128,37 +129,37 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	if strings.TrimSpace(name) == "" {
-		httputil.BadRequest(w, "[initiatives] update", "name is required")
+		apierr.MapError(w, "[initiatives] update", apierr.BadRequest("name is required"))
 		return
 	}
 
 	var req UpdateRequest
 	if err := httputil.DecodeJSONStrict(r, &req); err != nil {
-		httputil.BadRequest(w, "[initiatives] update", "invalid request body")
+		apierr.MapError(w, "[initiatives] update", apierr.BadRequest("invalid request body"))
 		return
 	}
 
 	if !req.HasChanges() {
-		httputil.BadRequest(w, "[initiatives] update", "at least one field must be provided")
+		apierr.MapError(w, "[initiatives] update", apierr.BadRequest("at least one field must be provided"))
 		return
 	}
 	if req.Title != nil && strings.TrimSpace(*req.Title) == "" {
-		httputil.BadRequest(w, "[initiatives] update", "title is required")
+		apierr.MapError(w, "[initiatives] update", apierr.BadRequest("title is required"))
 		return
 	}
 	if req.Status != nil && !ValidateStatus(strings.TrimSpace(*req.Status)) {
-		httputil.BadRequest(w, "[initiatives] update", "status must be active, completed, or archived")
+		apierr.MapError(w, "[initiatives] update", apierr.BadRequest("status must be active, completed, or archived"))
 		return
 	}
 
 	init, err := h.service.Update(name, req)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			httputil.NotFound(w, "[initiatives] update", "initiative not found")
+			apierr.MapError(w, "[initiatives] update", apierr.NotFound("initiative not found"))
 			return
 		}
 		log.Printf("[initiatives] update: %v", err)
-		httputil.InternalError(w, "[initiatives] update", "failed to update initiative")
+		apierr.MapError(w, "[initiatives] update", apierr.Internal("failed to update initiative"))
 		return
 	}
 
@@ -169,7 +170,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	resp := InitiativeWithRollup{Initiative: *init, Rollup: *rollup}
 	if err := httputil.JSON(w, resp); err != nil {
-		httputil.InternalError(w, "[initiatives] update", "failed to encode response")
+		apierr.MapError(w, "[initiatives] update", apierr.Internal("failed to encode response"))
 	}
 }
 
@@ -177,13 +178,13 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	if strings.TrimSpace(name) == "" {
-		httputil.BadRequest(w, "[initiatives] delete", "name is required")
+		apierr.MapError(w, "[initiatives] delete", apierr.BadRequest("name is required"))
 		return
 	}
 
 	if err := h.service.Delete(name); err != nil {
 		log.Printf("[initiatives] delete: %v", err)
-		httputil.InternalError(w, "[initiatives] delete", "failed to delete initiative")
+		apierr.MapError(w, "[initiatives] delete", apierr.Internal("failed to delete initiative"))
 		return
 	}
 
@@ -199,43 +200,43 @@ type itemsRequest struct {
 func (h *Handler) AddItems(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	if strings.TrimSpace(name) == "" {
-		httputil.BadRequest(w, "[initiatives] add-items", "name is required")
+		apierr.MapError(w, "[initiatives] add-items", apierr.BadRequest("name is required"))
 		return
 	}
 
 	var req itemsRequest
 	if err := httputil.DecodeJSONStrict(r, &req); err != nil {
-		httputil.BadRequest(w, "[initiatives] add-items", "invalid request body")
+		apierr.MapError(w, "[initiatives] add-items", apierr.BadRequest("invalid request body"))
 		return
 	}
 	if len(req.Items) == 0 {
-		httputil.BadRequest(w, "[initiatives] add-items", "at least one item is required")
+		apierr.MapError(w, "[initiatives] add-items", apierr.BadRequest("at least one item is required"))
 		return
 	}
 
 	if err := h.service.AddItems(name, req.Items); err != nil {
 		if strings.Contains(err.Error(), "invalid item reference") {
-			httputil.BadRequest(w, "[initiatives] add-items", err.Error())
+			apierr.MapError(w, "[initiatives] add-items", apierr.BadRequest("%s", err.Error()))
 			return
 		}
 		if strings.Contains(err.Error(), "not found") {
-			httputil.NotFound(w, "[initiatives] add-items", "initiative not found")
+			apierr.MapError(w, "[initiatives] add-items", apierr.NotFound("initiative not found"))
 			return
 		}
 		log.Printf("[initiatives] add-items: %v", err)
-		httputil.InternalError(w, "[initiatives] add-items", "failed to add items")
+		apierr.MapError(w, "[initiatives] add-items", apierr.Internal("failed to add items"))
 		return
 	}
 
 	result, err := h.service.Get(name)
 	if err != nil {
 		log.Printf("[initiatives] add-items: failed to reload: %v", err)
-		httputil.InternalError(w, "[initiatives] add-items", "items added but failed to reload initiative")
+		apierr.MapError(w, "[initiatives] add-items", apierr.Internal("items added but failed to reload initiative"))
 		return
 	}
 
 	if err := httputil.JSON(w, result); err != nil {
-		httputil.InternalError(w, "[initiatives] add-items", "failed to encode response")
+		apierr.MapError(w, "[initiatives] add-items", apierr.Internal("failed to encode response"))
 	}
 }
 
@@ -243,38 +244,38 @@ func (h *Handler) AddItems(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) RemoveItems(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	if strings.TrimSpace(name) == "" {
-		httputil.BadRequest(w, "[initiatives] remove-items", "name is required")
+		apierr.MapError(w, "[initiatives] remove-items", apierr.BadRequest("name is required"))
 		return
 	}
 
 	var req itemsRequest
 	if err := httputil.DecodeJSONStrict(r, &req); err != nil {
-		httputil.BadRequest(w, "[initiatives] remove-items", "invalid request body")
+		apierr.MapError(w, "[initiatives] remove-items", apierr.BadRequest("invalid request body"))
 		return
 	}
 	if len(req.Items) == 0 {
-		httputil.BadRequest(w, "[initiatives] remove-items", "at least one item is required")
+		apierr.MapError(w, "[initiatives] remove-items", apierr.BadRequest("at least one item is required"))
 		return
 	}
 
 	if err := h.service.RemoveItems(name, req.Items); err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			httputil.NotFound(w, "[initiatives] remove-items", "initiative not found")
+			apierr.MapError(w, "[initiatives] remove-items", apierr.NotFound("initiative not found"))
 			return
 		}
 		log.Printf("[initiatives] remove-items: %v", err)
-		httputil.InternalError(w, "[initiatives] remove-items", "failed to remove items")
+		apierr.MapError(w, "[initiatives] remove-items", apierr.Internal("failed to remove items"))
 		return
 	}
 
 	result, err := h.service.Get(name)
 	if err != nil {
 		log.Printf("[initiatives] remove-items: failed to reload: %v", err)
-		httputil.InternalError(w, "[initiatives] remove-items", "items removed but failed to reload initiative")
+		apierr.MapError(w, "[initiatives] remove-items", apierr.Internal("items removed but failed to reload initiative"))
 		return
 	}
 
 	if err := httputil.JSON(w, result); err != nil {
-		httputil.InternalError(w, "[initiatives] remove-items", "failed to encode response")
+		apierr.MapError(w, "[initiatives] remove-items", apierr.Internal("failed to encode response"))
 	}
 }

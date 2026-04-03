@@ -13,25 +13,19 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useAutoResizeTextarea } from "../../hooks/useAutoResizeTextarea";
+import { useClarificationThread } from "../../hooks/useClarificationThread";
 import { AlertCircle, ChevronDown, ChevronUp, Loader2, Paperclip, SendHorizontal } from "lucide-react";
 import { FloatingPanel } from "../ui/floating-panel";
 import { CaptureAttachmentPreview } from "../capture/capture-attachment-preview";
 import { ClarificationMessages } from "./clarification-messages";
 import { ClarificationActionButtons } from "./clarification-action-buttons";
 import { UpdateDecisionPreview } from "./update-decision-preview";
-import { useClarificationStore } from "../../stores/clarification-store";
 import { useAttachments } from "../../hooks/useAttachments";
-import { useStorePolling } from "../../hooks/useStorePolling";
 import { parseImpactFromContent } from "../../lib/clarification-utils";
-import { isApiError } from "../../lib/api-client";
-import { backlogService } from "../../services/backlog-service";
 
-
-const POLL_INTERVAL_MS = 3000;
 const MAX_VISIBLE_LINES = 4;
 const LINE_HEIGHT_PX = 20;
 const MAX_TEXTAREA_HEIGHT = MAX_VISIBLE_LINES * LINE_HEIGHT_PX + 12;
-const STALENESS_THRESHOLD_MS = 90_000;
 const DRAFT_KEY = "swarm-clarification-draft";
 const DRAFT_DEBOUNCE_MS = 300;
 
@@ -46,9 +40,6 @@ interface ClarificationPanelProps {
 }
 
 export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
-  const { isOpen, target, thread, isCreating, isLoading, close, setThread, setCreating, setLoading } =
-    useClarificationStore();
-
   const [text, setText] = useState(() => {
     try {
       return localStorage.getItem(DRAFT_KEY) ?? "";
@@ -56,17 +47,30 @@ export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
       return "";
     }
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isActing, setIsActing] = useState(false);
-  const [isStale, setIsStale] = useState(false);
   const [showUpdatePreview, setShowUpdatePreview] = useState(false);
   const [contextNoteCollapsed, setContextNoteCollapsed] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const stalenessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { attachments, addFile, removeFile, clearAll, getFiles } = useAttachments();
+
+  const {
+    thread, target, isOpen, isCreating, isLoading,
+    isSubmitting, isActing, isStale, isWaitingForAgent,
+    error, setError,
+    handleSubmit: threadSubmit,
+    handleAction: threadAction,
+    handleConfirmUpdate: threadConfirmUpdate,
+    handleClose: threadClose,
+  } = useClarificationThread({
+    onAction,
+    onClose: () => {
+      setText("");
+      setShowUpdatePreview(false);
+      clearAll();
+      try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+    },
+  });
 
   // Persist text draft to localStorage (debounced).
   useEffect(() => {
@@ -107,162 +111,24 @@ export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
   }, [isOpen]);
 
   // ---------------------------------------------------------------------------
-  // Fetch existing thread on panel reopen
-  // ---------------------------------------------------------------------------
-
-  useEffect(() => {
-    const threadId = target?.clarificationId;
-    if (!isOpen || !threadId) return;
-
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const resp = await backlogService.getClarification(
-          target.backlogKind,
-          target.backlogName,
-          threadId,
-        );
-        if (!cancelled) {
-          setThread(resp.thread);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          if (isApiError(err) && err.status === 404) {
-            // Thread was deleted (e.g. round invalidation) — show empty state.
-          } else {
-            setError(isApiError(err) ? err.userMessage : "Failed to load clarification thread.");
-          }
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [isOpen, target?.clarificationId, target?.backlogKind, target?.backlogName, setThread, setLoading]);
-
-  // ---------------------------------------------------------------------------
-  // Polling for agent responses
-  // ---------------------------------------------------------------------------
-
-  const lastMsg = thread?.messages[thread.messages.length - 1];
-  const isWaitingForAgent =
-    thread?.status === "active" && lastMsg?.role === "user";
-
-  const pollForResponse = useCallback(async () => {
-    if (!target || !thread) return;
-    try {
-      const resp = await backlogService.getClarification(
-        target.backlogKind,
-        target.backlogName,
-        thread.id,
-      );
-      if (
-        resp.thread &&
-        (resp.thread.messages.length > thread.messages.length ||
-          resp.thread.status !== "active")
-      ) {
-        setThread(resp.thread);
-      }
-    } catch {
-      // Polling failure is non-fatal.
-    }
-  }, [target, thread, setThread]);
-
-  useStorePolling({
-    enabled: isWaitingForAgent,
-    intervalMs: POLL_INTERVAL_MS,
-    pollFn: pollForResponse,
-  });
-
-  // Staleness timeout — warn user when agent takes too long.
-  useEffect(() => {
-    if (isWaitingForAgent) {
-      setIsStale(false);
-      stalenessTimerRef.current = setTimeout(() => setIsStale(true), STALENESS_THRESHOLD_MS);
-      return () => {
-        if (stalenessTimerRef.current) clearTimeout(stalenessTimerRef.current);
-      };
-    }
-    setIsStale(false);
-    if (stalenessTimerRef.current) {
-      clearTimeout(stalenessTimerRef.current);
-      stalenessTimerRef.current = null;
-    }
-  }, [isWaitingForAgent]);
-
-  // ---------------------------------------------------------------------------
   // Submission handlers
   // ---------------------------------------------------------------------------
 
   const handleSubmit = useCallback(async () => {
     const trimmed = text.trim();
     if ((!trimmed && attachments.length === 0) || !target) return;
-    if (isSubmitting || isCreating) return;
 
     const files = getFiles();
+    setText("");
+    clearAll();
 
-    setError(null);
-
-    if (!thread) {
-      // First message — create a new clarification thread.
-      setCreating(true);
-      setText("");
-      clearAll();
-      try {
-        const resp = await backlogService.createClarification(
-          target.backlogKind,
-          target.backlogName,
-          target.roundNumber,
-          target.itemId,
-          trimmed || undefined,
-          files.length > 0 ? files : undefined,
-        );
-        setThread(resp.thread);
-      } catch (err) {
-        console.error("Create clarification failed:", err);
-        setError(isApiError(err) ? err.userMessage : "Failed to start clarification. Please try again.");
-        setText(trimmed);
-      } finally {
-        setCreating(false);
-      }
-    } else {
-      // Continue existing thread.
-      setIsSubmitting(true);
-      setText("");
-      clearAll();
-      try {
-        const resp = await backlogService.continueClarification(
-          target.backlogKind,
-          target.backlogName,
-          thread.id,
-          trimmed,
-          files.length > 0 ? files : undefined,
-        );
-        setThread(resp.thread);
-      } catch (err) {
-        console.error("Continue clarification failed:", err);
-        setError(isApiError(err) ? err.userMessage : "Failed to send message. Please try again.");
-        setText(trimmed);
-      } finally {
-        setIsSubmitting(false);
-      }
+    try {
+      await threadSubmit(trimmed, files);
+    } catch {
+      // Restore text on failure
+      setText(trimmed);
     }
-  }, [
-    text,
-    attachments.length,
-    target,
-    thread,
-    isSubmitting,
-    isCreating,
-    getFiles,
-    clearAll,
-    setCreating,
-    setThread,
-  ]);
+  }, [text, attachments.length, target, getFiles, clearAll, threadSubmit]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
@@ -284,76 +150,23 @@ export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
 
   const handleAction = useCallback(
     async (action: string) => {
-      if (!target || !thread) return;
-
       // Intercept update_decision to show preview when we have the current item.
-      if (action === "update_decision" && target.currentItem) {
+      if (action === "update_decision" && target?.currentItem) {
         setShowUpdatePreview(true);
         return;
       }
-
-      setIsActing(true);
-      setError(null);
-      try {
-        const suggestedUpdate = thread.latest_impact?.suggested_update;
-        await backlogService.clarificationAction(
-          target.backlogKind,
-          target.backlogName,
-          thread.id,
-          action,
-          action === "update_decision" && suggestedUpdate
-            ? suggestedUpdate
-            : undefined,
-        );
-        close();
-        onAction?.(action);
-      } catch (err) {
-        console.error("Clarification action failed:", err);
-        setError(isApiError(err) ? err.userMessage : "Action failed. Please try again.");
-      } finally {
-        setIsActing(false);
-      }
+      await threadAction(action);
     },
-    [target, thread, close, onAction],
+    [target?.currentItem, threadAction],
   );
 
   const handleConfirmUpdate = useCallback(async () => {
-    if (!target || !thread) return;
-    setIsActing(true);
-    setError(null);
     try {
-      const suggestedUpdate = thread.latest_impact?.suggested_update;
-      await backlogService.clarificationAction(
-        target.backlogKind,
-        target.backlogName,
-        thread.id,
-        "update_decision",
-        suggestedUpdate,
-      );
-      close();
-      onAction?.("update_decision");
-    } catch (err) {
-      console.error("Clarification action failed:", err);
-      setError(isApiError(err) ? err.userMessage : "Action failed. Please try again.");
+      await threadConfirmUpdate();
+    } catch {
       setShowUpdatePreview(false);
-    } finally {
-      setIsActing(false);
     }
-  }, [target, thread, close, onAction]);
-
-  // ---------------------------------------------------------------------------
-  // Close handler — reset local state when panel closes.
-  // ---------------------------------------------------------------------------
-
-  const handleClose = useCallback(() => {
-    setText("");
-    setError(null);
-    setIsStale(false);
-    setShowUpdatePreview(false);
-    clearAll();
-    try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
-    close();
-  }, [close, clearAll]);
+  }, [threadConfirmUpdate, setShowUpdatePreview]);
 
   // ---------------------------------------------------------------------------
   // Derived state
@@ -380,7 +193,7 @@ export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
     thread?.status === "resolved" || thread?.status === "dismissed";
 
   const panelTitle = target?.itemTopic
-    ? `Clarify: ${target.itemTopic.length > 40 ? target.itemTopic.slice(0, 40) + "…" : target.itemTopic}`
+    ? `Clarify: ${target.itemTopic.length > 40 ? target.itemTopic.slice(0, 40) + "\u2026" : target.itemTopic}`
     : "Clarification";
 
   // ---------------------------------------------------------------------------
@@ -390,7 +203,7 @@ export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
   return (
     <FloatingPanel
       isOpen={isOpen}
-      onClose={handleClose}
+      onClose={threadClose}
       title={panelTitle}
       initialPosition={INITIAL_POSITION}
       className="max-w-lg"
@@ -417,7 +230,7 @@ export function ClarificationPanel({ onAction }: ClarificationPanelProps) {
         ) : thread && thread.messages.length > 0 ? (
           <ClarificationMessages
             messages={thread.messages}
-            isWaitingForAgent={isWaitingForAgent ?? false}
+            isWaitingForAgent={isWaitingForAgent}
           />
         ) : (
           <div className="flex flex-1 items-center justify-center px-4">

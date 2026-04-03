@@ -2,16 +2,14 @@
  * OutputTab
  *
  * Composition root for the Output tab on BacklogDetailsPage.
- * Consolidates execution status, scenario review results, and the
- * activity timeline into a single unified view.
+ * Presents a linear narrative: active run indicator → review flow → timeline.
  *
  * All data flows in via props — no direct hook calls, keeping this
  * component testable and the data flow explicit.
  */
 
 import { LatestExecutionSummary } from "./latest-execution-summary";
-import { ScenarioReviewResults } from "./scenario-review-results";
-import { EvidencePanel } from "./evidence-panel";
+import { ReviewFlow } from "../review/review-flow";
 import { ActivityTimeline } from "../detail/ActivityTimeline";
 import { selectors } from "../../consts/selectors";
 import type { ExecutionRecord } from "../../types";
@@ -80,27 +78,21 @@ export function OutputTab({
         agentRunIsActive={agentRunIsActive}
         latestAgentActivity={latestAgentActivity}
         onStopRun={onStopRun}
-        onFollowUp={onFollowUp}
       />
 
-      {targetScenarios.length > 0 && (
-        <ScenarioReviewResults
-          latestExecution={latestExecution}
-          targetScenarios={targetScenarios}
-          onSelectScenario={onSelectScenario}
-        />
-      )}
-
-      {(reviewRounds.length > 0 || isGatheringEvidence) && (
-        <EvidencePanel
-          rounds={reviewRounds}
-          backlogKind={backlogKind}
-          backlogName={backlogName}
-          isGathering={isGatheringEvidence}
-          onVerify={onVerifyEvidence}
-          onRequestMore={onRequestMoreEvidence}
-        />
-      )}
+      <ReviewFlow
+        execution={latestExecution}
+        targetScenarios={targetScenarios}
+        reviewRounds={reviewRounds}
+        isGatheringEvidence={isGatheringEvidence}
+        isActive={agentRunIsActive}
+        backlogKind={backlogKind}
+        backlogName={backlogName}
+        onFollowUp={onFollowUp}
+        onSelectScenario={onSelectScenario}
+        onVerifyEvidence={onVerifyEvidence}
+        onRequestMoreEvidence={onRequestMoreEvidence}
+      />
 
       <ActivityTimeline
         entries={timeline.entries}

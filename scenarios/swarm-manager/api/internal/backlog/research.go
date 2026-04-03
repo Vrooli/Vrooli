@@ -16,6 +16,7 @@ import (
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/promptcatalog"
 	"swarm-manager/internal/prompttrace"
@@ -171,17 +172,17 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 	item, err := h.store.LoadItem(kind, name)
 	if err != nil {
 		if os.IsNotExist(err) {
-			httputil.NotFound(w, "[backlog] research", "backlog item not found")
+			apierr.MapError(w, "[backlog] research", apierr.NotFound("backlog item not found"))
 			return
 		}
-		httputil.InternalError(w, "[backlog] research", "failed to load backlog item")
+		apierr.MapError(w, "[backlog] research", apierr.Internal("failed to load backlog item"))
 		return
 	}
 
 	var req apipb.BacklogResearchRequest
 	if r.Body != nil && r.ContentLength != 0 {
 		if err := httputil.DecodeProtoJSON(r, &req); err != nil {
-			httputil.BadRequest(w, "[backlog] research", "invalid request body")
+			apierr.MapError(w, "[backlog] research", apierr.BadRequest("invalid request body"))
 			return
 		}
 		normalizeResearchRequest(&req)
@@ -192,40 +193,40 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 
 	mode, modeErr := parseResearchMode(readOptionalString(req.Mode))
 	if modeErr != nil {
-		httputil.BadRequest(w, "[backlog] research", modeErr.Error())
+		apierr.MapError(w, "[backlog] research", apierr.BadRequest("%s", modeErr.Error()))
 		return
 	}
 	if err := validateResearchModeForKind(kind, mode); err != nil {
-		httputil.BadRequest(w, "[backlog] research", err.Error())
+		apierr.MapError(w, "[backlog] research", apierr.BadRequest("%s", err.Error()))
 		return
 	}
 
 	if mode == ResearchModeInitialize && item.Status != StatusBacklog {
-		httputil.Conflict(w, "[backlog] research", "initialize is only available for items in 'backlog' status")
+		apierr.MapError(w, "[backlog] research", apierr.Conflict("initialize is only available for items in 'backlog' status"))
 		return
 	}
 	if mode == ResearchModeFinalize {
 		itemDir := h.store.ItemDir(kind, item.Name)
 		latestRound, roundCount, loadErr := LoadLatestRound(itemDir)
 		if loadErr != nil {
-			httputil.InternalError(w, "[backlog] research", "failed to load workshop rounds for finalize")
+			apierr.MapError(w, "[backlog] research", apierr.Internal("failed to load workshop rounds for finalize"))
 			return
 		}
 		if latestRound == nil {
-			httputil.Conflict(w, "[backlog] research", "finalize requires at least one workshop round")
+			apierr.MapError(w, "[backlog] research", apierr.Conflict("finalize requires at least one workshop round"))
 			return
 		}
 		if CountPendingDecisions(latestRound) > 0 {
-			httputil.Conflict(w, "[backlog] research", "finalize is only available after answering all workshop decisions")
+			apierr.MapError(w, "[backlog] research", apierr.Conflict("finalize is only available after answering all workshop decisions"))
 			return
 		}
 		effective := ComputeEffectiveScores(latestRound.Readiness, roundCount, kind)
 		if !IsReady(effective) {
-			httputil.Conflict(w, "[backlog] research", "finalize is only available when the latest workshop round is ready")
+			apierr.MapError(w, "[backlog] research", apierr.Conflict("finalize is only available when the latest workshop round is ready"))
 			return
 		}
 		if !NeedsSynthesis(latestRound) {
-			httputil.Conflict(w, "[backlog] research", "finalize is only available when the latest workshop answers have not been synthesized yet")
+			apierr.MapError(w, "[backlog] research", apierr.Conflict("finalize is only available when the latest workshop answers have not been synthesized yet"))
 			return
 		}
 	}
@@ -238,7 +239,7 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 
 	service := h.agentService
 	if service == nil {
-		httputil.ServiceUnavailable(w, "[backlog] research", "agent-manager is not available")
+		apierr.MapError(w, "[backlog] research", apierr.Unavailable("agent-manager is not available"))
 		return
 	}
 
@@ -330,7 +331,7 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 			"skill_id": selection.SkillID,
 		}
 		if err := httputil.JSONWithStatus(w, http.StatusOK, resp); err != nil {
-			httputil.InternalError(w, "[backlog] research", "failed to encode dry-run response")
+			apierr.MapError(w, "[backlog] research", apierr.Internal("failed to encode dry-run response"))
 		}
 		return
 	}
@@ -363,10 +364,10 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		if errors.Is(err, agentmanager.ErrNotAvailable) {
-			httputil.ServiceUnavailable(w, "[backlog] research", "agent-manager is not available")
+			apierr.MapError(w, "[backlog] research", apierr.Unavailable("agent-manager is not available"))
 			return
 		}
-		httputil.InternalError(w, "[backlog] research", "failed to spawn research agent")
+		apierr.MapError(w, "[backlog] research", apierr.Internal("failed to spawn research agent"))
 		return
 	}
 
@@ -377,7 +378,7 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		Created: runResult.CreatedAt,
 	}
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusCreated, resp); err != nil {
-		httputil.InternalError(w, "[backlog] research", "failed to encode response")
+		apierr.MapError(w, "[backlog] research", apierr.Internal("failed to encode response"))
 		return
 	}
 	tracePath := prompttrace.ResearchTracePath(h.store.ItemDir(kind, item.Name))

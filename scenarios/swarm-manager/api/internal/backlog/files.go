@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/mux"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/fileops"
 	"swarm-manager/internal/httputil"
 )
@@ -53,20 +54,20 @@ func (h *Handler) ListFiles(w http.ResponseWriter, r *http.Request) {
 
 	itemDir := h.store.ItemDir(kind, name)
 	if _, err := os.Stat(itemDir); os.IsNotExist(err) {
-		httputil.NotFound(w, "", "backlog item not found")
+		apierr.MapError(w, "", apierr.NotFound("backlog item not found"))
 		return
 	}
 
 	nodes, err := fileops.BuildFileTree(itemDir, "")
 	if err != nil {
-		httputil.InternalError(w, "[backlog] list files", "failed to read file tree")
+		apierr.MapError(w, "[backlog] list files", apierr.Internal("failed to read file tree"))
 		return
 	}
 
 	files := fileNodesToBacklogFiles(nodes)
 	resp := &apipb.BacklogFilesResponse{Files: backlogFilesToProto(files)}
 	if err := httputil.ProtoJSON(w, resp); err != nil {
-		httputil.InternalError(w, "[backlog] list files", "failed to encode response")
+		apierr.MapError(w, "[backlog] list files", apierr.Internal("failed to encode response"))
 	}
 }
 
@@ -80,29 +81,29 @@ func (h *Handler) GetFileContent(w http.ResponseWriter, r *http.Request) {
 
 	itemDir := h.store.ItemDir(kind, name)
 	if _, err := os.Stat(itemDir); os.IsNotExist(err) {
-		httputil.NotFound(w, "", "backlog item not found")
+		apierr.MapError(w, "", apierr.NotFound("backlog item not found"))
 		return
 	}
 
 	fullPath, valid := httputil.SafeFilePath(itemDir, filePath)
 	if !valid {
-		httputil.BadRequest(w, "[backlog] get file", "invalid file path")
+		apierr.MapError(w, "[backlog] get file", apierr.BadRequest("invalid file path"))
 		return
 	}
 
 	if info, err := os.Stat(fullPath); err == nil && info.IsDir() {
-		httputil.BadRequest(w, "[backlog] get file", "path is a directory, not a file")
+		apierr.MapError(w, "[backlog] get file", apierr.BadRequest("path is a directory, not a file"))
 		return
 	}
 
 	content, err := os.ReadFile(fullPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			httputil.NotFound(w, "", "file not found")
+			apierr.MapError(w, "", apierr.NotFound("file not found"))
 			return
 		}
 		log.Printf("[backlog] get file content: failed to read %s/%s: %v", name, filePath, err)
-		httputil.InternalError(w, "[backlog] get file content", "failed to read file")
+		apierr.MapError(w, "[backlog] get file content", apierr.Internal("failed to read file"))
 		return
 	}
 
@@ -120,18 +121,18 @@ func (h *Handler) UploadFile(w http.ResponseWriter, r *http.Request) {
 
 	itemDir := h.store.ItemDir(kind, name)
 	if _, err := os.Stat(itemDir); os.IsNotExist(err) {
-		httputil.NotFound(w, "", "backlog item not found")
+		apierr.MapError(w, "", apierr.NotFound("backlog item not found"))
 		return
 	}
 
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
-		httputil.BadRequest(w, "[backlog] upload file", "failed to parse upload")
+		apierr.MapError(w, "[backlog] upload file", apierr.BadRequest("failed to parse upload"))
 		return
 	}
 
 	file, header, err := r.FormFile("file")
 	if err != nil {
-		httputil.BadRequest(w, "[backlog] upload file", "file is required")
+		apierr.MapError(w, "[backlog] upload file", apierr.BadRequest("file is required"))
 		return
 	}
 	defer file.Close()
@@ -143,25 +144,25 @@ func (h *Handler) UploadFile(w http.ResponseWriter, r *http.Request) {
 
 	fullPath, valid := httputil.SafeFilePath(itemDir, targetPath)
 	if !valid {
-		httputil.BadRequest(w, "[backlog] upload file", "invalid file path")
+		apierr.MapError(w, "[backlog] upload file", apierr.BadRequest("invalid file path"))
 		return
 	}
 
 	if info, err := os.Stat(fullPath); err == nil && info.IsDir() {
-		httputil.Conflict(w, "[backlog] upload file", "target path is an existing directory")
+		apierr.MapError(w, "[backlog] upload file", apierr.Conflict("target path is an existing directory"))
 		return
 	}
 
 	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
 		log.Printf("[backlog] upload file: failed to create directory %s: %v", fullPath, err)
-		httputil.InternalError(w, "[backlog] upload file", "failed to create directory")
+		apierr.MapError(w, "[backlog] upload file", apierr.Internal("failed to create directory"))
 		return
 	}
 
 	out, err := os.Create(fullPath)
 	if err != nil {
 		log.Printf("[backlog] upload file: failed to create file %s: %v", fullPath, err)
-		httputil.InternalError(w, "[backlog] upload file", "failed to save file")
+		apierr.MapError(w, "[backlog] upload file", apierr.Internal("failed to save file"))
 		return
 	}
 	defer out.Close()
@@ -169,7 +170,7 @@ func (h *Handler) UploadFile(w http.ResponseWriter, r *http.Request) {
 	written, err := out.ReadFrom(file)
 	if err != nil {
 		log.Printf("[backlog] upload file: failed to write file %s: %v", fullPath, err)
-		httputil.InternalError(w, "[backlog] upload file", "failed to save file")
+		apierr.MapError(w, "[backlog] upload file", apierr.Internal("failed to save file"))
 		return
 	}
 
@@ -184,7 +185,7 @@ func (h *Handler) UploadFile(w http.ResponseWriter, r *http.Request) {
 
 	resp := &apipb.BacklogFileResponse{File: backlogFileToProto(fileNode)}
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusCreated, resp); err != nil {
-		httputil.InternalError(w, "[backlog] upload file", "failed to encode response")
+		apierr.MapError(w, "[backlog] upload file", apierr.Internal("failed to encode response"))
 	}
 }
 
@@ -197,16 +198,16 @@ func (h *Handler) OperateFile(w http.ResponseWriter, r *http.Request) {
 
 	itemDir := h.store.ItemDir(kind, name)
 	if _, err := os.Stat(itemDir); os.IsNotExist(err) {
-		httputil.NotFound(w, "", "backlog item not found")
+		apierr.MapError(w, "", apierr.NotFound("backlog item not found"))
 		return
 	}
 
 	var req apipb.BacklogFileOperationRequest
 	if err := httputil.DecodeProtoJSON(r, &req); err != nil {
 		if errors.Is(err, io.EOF) || r.ContentLength == 0 {
-			httputil.BadRequest(w, "[backlog] file operation", "request body is required")
+			apierr.MapError(w, "[backlog] file operation", apierr.BadRequest("request body is required"))
 		} else {
-			httputil.BadRequest(w, "[backlog] file operation", "invalid request body")
+			apierr.MapError(w, "[backlog] file operation", apierr.BadRequest("invalid request body"))
 		}
 		return
 	}
@@ -217,26 +218,26 @@ func (h *Handler) OperateFile(w http.ResponseWriter, r *http.Request) {
 	operation := strings.ToLower(strings.TrimSpace(req.GetOperation()))
 	sourcePath, err := fileops.NormalizeRelativePath(req.GetSourcePath())
 	if err != nil {
-		httputil.BadRequest(w, "[backlog] file operation", err.Error())
+		apierr.MapError(w, "[backlog] file operation", apierr.BadRequest("%s", err.Error()))
 		return
 	}
 	if fileops.IsProtectedPath(sourcePath, protectedBacklogFileName) {
-		httputil.Error(w, "[backlog] file operation", "operation not allowed on protected file", http.StatusForbidden)
+		apierr.MapError(w, "[backlog] file operation", apierr.Forbidden("operation not allowed on protected file"))
 		return
 	}
 
 	sourceFullPath, valid := httputil.SafeFilePath(itemDir, sourcePath)
 	if !valid {
-		httputil.BadRequest(w, "[backlog] file operation", "invalid source path")
+		apierr.MapError(w, "[backlog] file operation", apierr.BadRequest("invalid source path"))
 		return
 	}
 	sourceInfo, err := os.Stat(sourceFullPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			httputil.NotFound(w, "[backlog] file operation", "source path not found")
+			apierr.MapError(w, "[backlog] file operation", apierr.NotFound("source path not found"))
 			return
 		}
-		httputil.InternalError(w, "[backlog] file operation", "failed to access source path")
+		apierr.MapError(w, "[backlog] file operation", apierr.Internal("failed to access source path"))
 		return
 	}
 
@@ -244,41 +245,41 @@ func (h *Handler) OperateFile(w http.ResponseWriter, r *http.Request) {
 	switch operation {
 	case "delete":
 		if err := os.RemoveAll(sourceFullPath); err != nil {
-			httputil.InternalError(w, "[backlog] file operation", "failed to delete path")
+			apierr.MapError(w, "[backlog] file operation", apierr.Internal("failed to delete path"))
 			return
 		}
 		resp.DeletedPath = &sourcePath
 	case "rename", "move", "copy":
 		destinationPath, pathErr := fileops.NormalizeRelativePath(req.GetDestinationPath())
 		if pathErr != nil {
-			httputil.BadRequest(w, "[backlog] file operation", "destination_path is required")
+			apierr.MapError(w, "[backlog] file operation", apierr.BadRequest("destination_path is required"))
 			return
 		}
 		if fileops.IsProtectedPath(destinationPath, protectedBacklogFileName) {
-			httputil.Error(w, "[backlog] file operation", "operation not allowed on protected file", http.StatusForbidden)
+			apierr.MapError(w, "[backlog] file operation", apierr.Forbidden("operation not allowed on protected file"))
 			return
 		}
 
 		if operation == "rename" && filepath.Dir(sourcePath) != filepath.Dir(destinationPath) {
-			httputil.BadRequest(w, "[backlog] file operation", "rename must stay in the same directory")
+			apierr.MapError(w, "[backlog] file operation", apierr.BadRequest("rename must stay in the same directory"))
 			return
 		}
 
 		destinationFullPath, dstValid := httputil.SafeFilePath(itemDir, destinationPath)
 		if !dstValid {
-			httputil.BadRequest(w, "[backlog] file operation", "invalid destination path")
+			apierr.MapError(w, "[backlog] file operation", apierr.BadRequest("invalid destination path"))
 			return
 		}
 		if _, statErr := os.Stat(destinationFullPath); statErr == nil {
-			httputil.Conflict(w, "[backlog] file operation", "destination path already exists")
+			apierr.MapError(w, "[backlog] file operation", apierr.Conflict("destination path already exists"))
 			return
 		} else if !os.IsNotExist(statErr) {
-			httputil.InternalError(w, "[backlog] file operation", "failed to access destination path")
+			apierr.MapError(w, "[backlog] file operation", apierr.Internal("failed to access destination path"))
 			return
 		}
 
 		if err := os.MkdirAll(filepath.Dir(destinationFullPath), 0o755); err != nil {
-			httputil.InternalError(w, "[backlog] file operation", "failed to create destination directory")
+			apierr.MapError(w, "[backlog] file operation", apierr.Internal("failed to create destination directory"))
 			return
 		}
 
@@ -286,46 +287,46 @@ func (h *Handler) OperateFile(w http.ResponseWriter, r *http.Request) {
 			if sourceInfo.IsDir() {
 				prefix := sourcePath + "/"
 				if destinationPath == sourcePath || strings.HasPrefix(destinationPath, prefix) {
-					httputil.BadRequest(w, "[backlog] file operation", "cannot copy a directory into itself")
+					apierr.MapError(w, "[backlog] file operation", apierr.BadRequest("cannot copy a directory into itself"))
 					return
 				}
 			}
 			if err := fileops.CopyPath(sourceFullPath, destinationFullPath); err != nil {
-				httputil.InternalError(w, "[backlog] file operation", "failed to copy path")
+				apierr.MapError(w, "[backlog] file operation", apierr.Internal("failed to copy path"))
 				return
 			}
 		} else {
 			if sourceInfo.IsDir() {
 				prefix := sourcePath + "/"
 				if destinationPath == sourcePath || strings.HasPrefix(destinationPath, prefix) {
-					httputil.BadRequest(w, "[backlog] file operation", "cannot move a directory into itself")
+					apierr.MapError(w, "[backlog] file operation", apierr.BadRequest("cannot move a directory into itself"))
 					return
 				}
 			}
 			if err := os.Rename(sourceFullPath, destinationFullPath); err != nil {
-				httputil.InternalError(w, "[backlog] file operation", "failed to move path")
+				apierr.MapError(w, "[backlog] file operation", apierr.Internal("failed to move path"))
 				return
 			}
 		}
 
 		dstInfo, statErr := os.Stat(destinationFullPath)
 		if statErr != nil {
-			httputil.InternalError(w, "[backlog] file operation", "failed to inspect destination path")
+			apierr.MapError(w, "[backlog] file operation", apierr.Internal("failed to inspect destination path"))
 			return
 		}
 		node, nodeErr := fileops.BuildFileNodeFromPath(destinationFullPath, destinationPath, dstInfo, fileops.BuildFileTree)
 		if nodeErr != nil {
-			httputil.InternalError(w, "[backlog] file operation", "failed to build response")
+			apierr.MapError(w, "[backlog] file operation", apierr.Internal("failed to build response"))
 			return
 		}
 		result := backlogFileToProto(fileNodeToBacklogFile(node))
 		resp.File = result
 	default:
-		httputil.BadRequest(w, "[backlog] file operation", "unsupported operation")
+		apierr.MapError(w, "[backlog] file operation", apierr.BadRequest("unsupported operation"))
 		return
 	}
 
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, &resp); err != nil {
-		httputil.InternalError(w, "[backlog] file operation", "failed to encode response")
+		apierr.MapError(w, "[backlog] file operation", apierr.Internal("failed to encode response"))
 	}
 }

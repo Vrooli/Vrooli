@@ -58,3 +58,18 @@ export type { IGraphService, GraphProjection, GraphProjectionMeta } from "./grap
 // Stats
 export { statsService, createStatsService } from "./stats-service";
 export type { IStatsService } from "./stats-service";
+
+// GCT
+export { gctService, createGCTService } from "./gct-service";
+export type { IGCTService, GCTStatusResponse } from "./gct-service";
+
+// Review
+export { reviewService, createReviewService } from "./review-service";
+export type {
+  IReviewService,
+  ReviewRound,
+  ReviewRoundStatus,
+  EvidenceItem,
+  EvidenceType,
+  RequestThread,
+} from "./review-service";

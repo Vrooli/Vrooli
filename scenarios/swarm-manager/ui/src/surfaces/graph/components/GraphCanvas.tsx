@@ -6,6 +6,7 @@
  */
 
 import { memo, useCallback, useEffect, useMemo, useRef } from "react";
+import { useGraphAutoFit } from "../hooks/useGraphAutoFit";
 import {
   Background,
   BackgroundVariant,
@@ -23,6 +24,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useGraphDataStore } from "../stores/graph-data-store";
+import { useGraphSettingsStore } from "../stores/graph-settings-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
 import { applyDagreLayout } from "../lib/layout-utils";
 import { buildGraphPresentation } from "../lib/graph-presentation";
@@ -70,14 +72,13 @@ export const GraphCanvas = memo(function GraphCanvas() {
   const meta = useGraphDataStore((s) => s.meta);
   const loading = useGraphDataStore((s) => s.loading);
   const error = useGraphDataStore((s) => s.error);
-  const settings = useGraphDataStore((s) => s.settingsByLens[s.lens]);
+  const settings = useGraphSettingsStore((s) => s.settingsByLens[s.activeLens]);
   const groupingMode = settings.groupingMode;
   const autoFitOnChange = settings.autoFitOnChange;
 
   const layoutMode = useGraphUIStore((s) => s.layoutMode);
   const layoutDirection = useGraphUIStore((s) => s.layoutDirection);
   const highlightState = useGraphUIStore((s) => s.highlightState);
-  const fitViewNonce = useGraphUIStore((s) => s.fitViewNonce);
   const expandedTopologyClusters = useGraphUIStore((s) => s.expandedTopologyClusters);
   const selectNode = useGraphUIStore((s) => s.selectNode);
   const setHighlightState = useGraphUIStore((s) => s.setHighlightState);
@@ -88,13 +89,6 @@ export const GraphCanvas = memo(function GraphCanvas() {
   const focusNodeId = useGraphDataStore((s) => s.focusNodeId);
 
   const flowRef = useRef<ReactFlowInstance<GraphNode, GraphEdge> | null>(null);
-
-  // Track whether the initial data load has completed for the current lens.
-  // Used to suppress autoFitOnChange during the first data arrival when a
-  // stored viewport exists (otherwise fitView overrides the restored viewport).
-  const initialLoadCompleteRef = useRef(false);
-  // Track which lens the initialLoadComplete flag is for, so lens switches reset it.
-  const initialLoadLensRef = useRef(lens);
 
   const { processedNodes, processedEdges, visibleEdgeTypes } = useMemo(() => {
     return buildGraphPresentation({
@@ -226,68 +220,18 @@ export const GraphCanvas = memo(function GraphCanvas() {
     setEdges(styledEdges);
   }, [setEdges, styledEdges]);
 
-  // Reset initial-load tracking when the lens changes.
-  if (lens !== initialLoadLensRef.current) {
-    initialLoadCompleteRef.current = false;
-    initialLoadLensRef.current = lens;
-  }
-
-  // PERF: Use a cheap fingerprint instead of JSON.stringify of all IDs.
-  // The fingerprint detects structural changes (nodes/edges added/removed,
-  // layout/lens changes) without serializing every ID on every render.
-  // We hash the sorted IDs into a single string using join, which is much
-  // cheaper than JSON.stringify of the full arrays.
-  const nodeFingerprint = useMemo(
-    () => processedNodes.map((n) => n.id).join("\0"),
-    [processedNodes],
-  );
-  const edgeFingerprint = useMemo(
-    () => processedEdges.map((e) => e.id).join("\0"),
-    [processedEdges],
-  );
-  const autoFitFingerprint = `${lens}|${layoutMode}|${layoutDirection}|${groupingMode}|${settings.showSecondaryEdges}|${nodeFingerprint}|${edgeFingerprint}`;
-
-  useEffect(() => {
-    if (!autoFitOnChange || !flowRef.current || styledNodes.length === 0) {
-      return;
-    }
-
-    // On the first data arrival after mount or lens switch, skip fitView if
-    // a stored viewport exists. The stored viewport was already applied via
-    // ReactFlow's defaultViewport prop, and fitView would override it.
-    //
-    // IMPORTANT: We read the viewport from the store snapshot (getState)
-    // rather than using the reactive `storedViewport` selector, because
-    // every pan/zoom updates the stored viewport. If it were a dependency,
-    // this effect would re-fire on every interaction and call fitView,
-    // snapping the camera back.
-    if (!initialLoadCompleteRef.current) {
-      initialLoadCompleteRef.current = true;
-      const currentLens = useGraphDataStore.getState().lens;
-      const savedViewport = useGraphUIStore.getState().viewportByLens[currentLens];
-      if (savedViewport) {
-        return;
-      }
-    }
-
-    const raf = window.requestAnimationFrame(() => {
-      flowRef.current?.fitView({ padding: 0.2, maxZoom: 1.2 });
-    });
-
-    return () => window.cancelAnimationFrame(raf);
-  }, [autoFitFingerprint, autoFitOnChange, styledNodes.length]);
-
-  useEffect(() => {
-    if (!flowRef.current || fitViewNonce === 0 || styledNodes.length === 0) {
-      return;
-    }
-
-    const raf = window.requestAnimationFrame(() => {
-      flowRef.current?.fitView({ padding: 0.2, maxZoom: 1.2 });
-    });
-
-    return () => window.cancelAnimationFrame(raf);
-  }, [fitViewNonce, styledNodes.length]);
+  useGraphAutoFit({
+    flowRef,
+    lens,
+    layoutMode,
+    layoutDirection,
+    groupingMode,
+    showSecondaryEdges: settings.showSecondaryEdges,
+    autoFitOnChange,
+    processedNodes,
+    processedEdges,
+    styledNodesLength: styledNodes.length,
+  });
 
   // Restore visual focus when graph data arrives and a selection or focus node
   // exists. This handles three scenarios:

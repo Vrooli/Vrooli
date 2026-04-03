@@ -29,7 +29,7 @@ import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
-import { FollowUpDialog } from "../components/execution/follow-up-dialog";
+import { FollowUpSheet } from "../components/review/follow-up-sheet";
 import { ExecutionOverviewTab } from "../components/execution/execution-overview-tab";
 import { ExecutionChangesTab } from "../components/execution/execution-changes-tab";
 import { ExecutionReviewTab } from "../components/execution/execution-review-tab";
@@ -267,8 +267,8 @@ export function ExecutionDetailsPage() {
             reviewRounds={reviewRounds}
             isGatheringEvidence={isGatheringEvidence}
             targetScenarios={targetScenarios}
-            postRunBadgeExecution={postRunBadgeExecution}
             isActive={isActive}
+            onFollowUp={() => setFollowUpTarget(execution)}
             onSelectScenario={(name) => selectScenario(name)}
             onVerifyEvidence={(round, evidenceId, verified) => {
               void reviewService.verifyEvidence(
@@ -283,7 +283,6 @@ export function ExecutionDetailsPage() {
             onRequestMoreEvidence={(round, evidenceId) => {
               useReviewStore.getState().openRequestPanel(round, evidenceId);
             }}
-            onRunPostRunChecks={() => void triggerReview()}
           />
         )}
         {activeTab === "prompt" && (
@@ -299,12 +298,13 @@ export function ExecutionDetailsPage() {
         onAction={() => void queryClient.invalidateQueries({ queryKey: ["review-rounds", execution?.backlogKind, execution?.backlogName] })}
       />
 
-      {/* Follow-up dialog */}
+      {/* Follow-up sheet */}
       {followUpTarget && (
-        <FollowUpDialog
+        <FollowUpSheet
           isOpen={Boolean(followUpTarget)}
           onClose={() => setFollowUpTarget(null)}
           execution={followUpTarget}
+          reviewRounds={reviewRounds}
           onSuccess={() => {
             setFollowUpTarget(null);
             refetch();

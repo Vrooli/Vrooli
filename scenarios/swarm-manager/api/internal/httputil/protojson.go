@@ -80,9 +80,9 @@ func IsValidationError(err error) bool {
 func ValidateProtoRequest(w http.ResponseWriter, logPrefix, badRequestMessage string, msg proto.Message) bool {
 	if err := ValidateProto(msg); err != nil {
 		if IsValidationError(err) {
-			BadRequest(w, logPrefix, badRequestMessage)
+			http.Error(w, badRequestMessage, http.StatusBadRequest)
 		} else {
-			InternalError(w, logPrefix, "failed to validate request")
+			http.Error(w, "failed to validate request", http.StatusInternalServerError)
 		}
 		return false
 	}

@@ -3,78 +3,9 @@
 // DOC: docs/concepts/ARCHITECTURE.md#logical-architecture
 // DOC: docs/internal/INTENT.md#api-components
 //
-// # Purpose
-//
-// This API serves as the backend for the Swarm Manager UI, providing endpoints
-// for managing the scenario ecosystem: backlog, scenario lifecycle, and
-// execution control.
-//
-// # Current Status: Backlog/Scenarios/Settings/Execution Implemented (File-Based)
-//
-// The API provides:
-//   - Health check endpoints at / and /api/v1/health
-//   - Backlog CRUD endpoints at /api/v1/backlog (GET, POST, PUT, DELETE)
-//   - Backlog queue + research endpoints at /api/v1/backlog/{kind}/{name}/queue and /api/v1/backlog/{kind}/{name}/research
-//   - Scenario catalog endpoints at /api/v1/scenarios
-//   - Settings persistence at /api/v1/settings
-//   - Execution control at /api/v1/execution
-//   - Agent-manager status at /api/v1/agent-manager/status
-//
-// # Architecture
-//
-// The server uses:
-//   - gorilla/mux for HTTP routing
-//   - api-core/health for standardized health responses
-//   - api-core/server for graceful shutdown
-//   - File-system based storage for backlog items (git-tracked in scenarios/swarm-manager/{ideas,research,fix,execute}/)
-//
-// # Implemented Endpoints (P0)
-//
-//	GET    /api/v1/backlog                   - List all backlog items
-//	POST   /api/v1/backlog                   - Create new backlog item
-//	GET    /api/v1/backlog/{kind}/{name}     - Get backlog item by name
-//	PUT    /api/v1/backlog/{kind}/{name}     - Update backlog item
-//	DELETE /api/v1/backlog/{kind}/{name}     - Delete backlog item
-//	POST   /api/v1/backlog/{kind}/{name}/queue    - Queue backlog item for processing
-//	POST   /api/v1/backlog/{kind}/{name}/research - Spawn research agent
-//
-// # Scenario Endpoints (P0)
-//
-//	GET    /api/v1/scenarios      - List all scenarios (supports search, filter, sort)
-//	GET    /api/v1/scenarios/{name} - Get scenario details
-//	POST   /api/v1/scenarios/{name}/start - Start scenario via CLI
-//	POST   /api/v1/scenarios/{name}/stop - Stop scenario via CLI
-//	POST   /api/v1/scenarios/{name}/restart - Restart scenario via CLI
-//
-// # Settings Endpoints (P1)
-//
-//	GET    /api/v1/settings       - Fetch settings
-//	PUT    /api/v1/settings       - Update settings (partial)
-//
-// # Agent-manager Endpoints
-//
-//	GET /api/v1/agent-manager/status - Agent-manager availability and profile status
-//
-// # Overview Endpoint
-//
-//	GET    /api/v1/overview      - Aggregated overview (items, initiatives, dep graph, summary)
-//
-// # Queue Endpoints (Local)
-//
-//	GET    /api/v1/queue          - List queue items
-//	POST   /api/v1/queue          - Enqueue item
-//	DELETE /api/v1/queue/{id}     - Remove item (idempotent)
-//
-// # Execution Endpoints (Core)
-//
-//	GET    /api/v1/execution                            - List execution runs
-//	POST   /api/v1/execution                            - Create execution run
-//	GET    /api/v1/execution/policy                     - Get execution policy defaults
-//	PUT    /api/v1/execution/policy                     - Update execution policy defaults
-//	GET    /api/v1/execution/{execution_id}             - Get execution run
-//	POST   /api/v1/execution/{execution_id}/start       - Start run
-//	POST   /api/v1/execution/{execution_id}/cancel      - Cancel run
-//	POST   /api/v1/execution/{execution_id}/retry       - Retry failed run
+// The API serves as the backend for the Swarm Manager UI, providing endpoints
+// for backlog management, scenario lifecycle, execution control, settings,
+// agent coordination, and real-time graph streaming.
 //
 // Related PRD targets: OT-P0-002, OT-P0-005, OT-P0-006
 package main
@@ -94,7 +25,6 @@ import (
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
-	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
 	"swarm-manager/internal/agentactivity"
@@ -139,7 +69,7 @@ type Server struct {
 }
 
 // NewServer initializes routes using the default scenario root resolved from
-// the environment. Database connection is optional.
+// the environment.
 func NewServer() *Server {
 	return NewServerWithRoot(pathutil.ResolveScenarioRoot("swarm-manager"))
 }
@@ -169,28 +99,34 @@ func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
 	scenarioRoot := s.scenarioRoot
 	scenariosDir := filepath.Dir(scenarioRoot)
+
+	// --- Infrastructure ---
 	s.registerHealthRoutes()
-	s.registerSettingsRoutes(scenarioRoot) // Must be before backlog/execution (they depend on settings store)
-	s.registerAgentActivityRoutes(scenarioRoot)
+	s.registerSettingsRoutes(scenarioRoot)      // Must be before backlog/execution (they depend on settings store)
+	s.registerAgentActivityRoutes(scenarioRoot) // Must be before backlog/execution (they depend on agent activity)
+	s.registerScenarioRoutes(scenariosDir)
+
+	// --- Core domain ---
 	backlogHandler := s.registerBacklogRoutes(scenarioRoot)
 	initService := s.registerInitiativeRoutes(scenarioRoot, backlogHandler)
-	overviewSvc := s.registerOverviewRoutes(backlogHandler, initService)
 	s.registerCapturesRoutes(scenarioRoot, backlogHandler)
-	s.registerScenarioRoutes(scenariosDir)
-	s.registerAgentManagerRoutes()
-	s.registerQueueRoutes(scenarioRoot)
+
+	// --- Execution & review ---
 	execSvc := s.registerExecutionRoutes(scenarioRoot)
+	s.registerReviewRoutes(scenarioRoot, execSvc)
+	s.registerQueueRoutes(scenarioRoot)
+
+	// --- Read-only surfaces ---
+	overviewSvc := s.registerOverviewRoutes(backlogHandler, initService)
 	if execSvc != nil {
 		overviewSvc.SetGovernanceProvider(execSvc)
 	}
-	s.registerReviewRoutes(scenarioRoot, execSvc)
 	s.registerGraphRoutes(scenarioRoot)
 	s.registerPromptRoutes(scenarioRoot)
+	s.registerAgentManagerRoutes()
 }
 
 func (s *Server) registerHealthRoutes() {
-	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
-	// Uses api-core/health for standardized response format
 	healthHandler := health.New().Version("1.0.0").
 		Check(health.CheckerFunc(func(_ context.Context) health.CheckResult {
 			return health.CheckResult{Name: "database", Connected: true}
@@ -201,8 +137,6 @@ func (s *Server) registerHealthRoutes() {
 }
 
 func (s *Server) registerBacklogRoutes(scenarioRoot string) *backlog.Handler {
-	// Backlog endpoints
-	// [REQ:REQ-P0-002] Backlog management
 	backlogHandler := backlog.NewHandlerWithClients(scenarioRoot, s.requireTrackedAgentService(), nil)
 	backlogHandler.SetPolicyProvider(settings.NewPolicyAdapter(s.settingsStore))
 	backlogHandler.SetGovernanceProvider(settings.NewGovernanceAdapter(s.settingsStore))
@@ -212,7 +146,6 @@ func (s *Server) registerBacklogRoutes(scenarioRoot string) *backlog.Handler {
 }
 
 func (s *Server) registerInitiativeRoutes(scenarioRoot string, backlogHandler *backlog.Handler) *initiatives.Service {
-	// Initiative endpoints for grouping backlog items into work streams.
 	initStore := initiatives.NewStore(scenarioRoot)
 	if err := initStore.Migrate(); err != nil {
 		log.Printf("[initiatives] migration warning: %v", err)
@@ -229,7 +162,6 @@ func (s *Server) registerInitiativeRoutes(scenarioRoot string, backlogHandler *b
 }
 
 func (s *Server) registerOverviewRoutes(backlogHandler *backlog.Handler, initService *initiatives.Service) *overview.Service {
-	// Overview aggregation endpoint for situational awareness.
 	overviewSvc := overview.NewService(backlogHandler.Store(), initService)
 	overviewHandler := overview.NewHandler(overviewSvc)
 	overviewHandler.RegisterRoutes(s.router)
@@ -237,7 +169,6 @@ func (s *Server) registerOverviewRoutes(backlogHandler *backlog.Handler, initSer
 }
 
 func (s *Server) registerCapturesRoutes(scenarioRoot string, backlogHandler *backlog.Handler) {
-	// Captures endpoints for quick-capture unified feed
 	capturesHandler := captures.NewHandler(scenarioRoot, s.requireTrackedAgentService(), nil)
 	capturesHandler.SetBacklogCreator(captures.NewBacklogItemCreatorAdapter(backlogHandler.Store()))
 	capturesHandler.RegisterRoutes(s.router)
@@ -245,14 +176,11 @@ func (s *Server) registerCapturesRoutes(scenarioRoot string, backlogHandler *bac
 }
 
 func (s *Server) registerScenarioRoutes(scenariosDir string) {
-	// Scenarios catalog endpoints
-	// [REQ:REQ-P0-006] Scenario catalog with priority, search, and filter
 	s.scenariosHandler = scenarios.NewHandler(scenariosDir)
 	s.scenariosHandler.RegisterRoutes(s.router)
 }
 
 func (s *Server) registerSettingsRoutes(scenarioRoot string) {
-	// Settings persistence endpoints
 	settingsPath := filepath.Join(scenarioRoot, ".vrooli", "settings.json")
 	settingsHandler := settings.NewHandler(settingsPath)
 	settingsHandler.RegisterRoutes(s.router)
@@ -274,123 +202,13 @@ func (s *Server) registerAgentActivityRoutes(scenarioRoot string) {
 }
 
 func (s *Server) registerAgentManagerRoutes() {
-	// Agent-manager status endpoint
 	agentManagerHandler := agentmanager.NewHandler(s.agentSvc)
 	agentManagerHandler.RegisterRoutes(s.router)
 }
 
 func (s *Server) registerQueueRoutes(scenarioRoot string) {
-	// Local queue endpoints (filesystem-backed)
 	s.queueHandler = queue.NewHandler(filepath.Join(scenarioRoot, ".vrooli", "queue.json"))
 	s.queueHandler.RegisterRoutes(s.router)
-}
-
-func (s *Server) registerExecutionRoutes(scenarioRoot string) *execution.Service {
-	// Create archiver from scenarios handler for post-spec-sync archive
-	var archiver execution.Archiver
-	if s.scenariosHandler != nil {
-		archiver = scenarios.NewArchiver(s.scenariosHandler)
-	}
-
-	// Execution control endpoints
-	cfg := execution.ServiceConfig{
-		RootDir:                  scenarioRoot,
-		StorePath:                filepath.Join(scenarioRoot, ".vrooli", "execution-runs.json"),
-		PolicyProvider:           settings.NewPolicyAdapter(s.settingsStore),
-		GovernanceProvider:       settings.NewGovernanceAdapter(s.settingsStore),
-		ReviewThresholdsProvider: settings.NewReviewThresholdsAdapter(s.settingsStore),
-		AgentService:             s.requireTrackedAgentService(),
-		ScenarioLifecycle:        scenarios.NewCLILifecycle(),
-		ScenarioHealthChecker:    scenarios.NewCLIHealthChecker(20 * time.Second),
-		Archiver:                 archiver,
-		ReviewClient:             execution.NewHTTPReviewClient(nil),
-	}
-	s.executionSvc = execution.NewService(cfg)
-	s.executionHandler = execution.NewHandlerFromService(s.executionSvc)
-	s.executionHandler.RegisterRoutes(s.router)
-
-	// Wire execution queuer back into scenarios handler for spec-sync-archive
-	if s.scenariosHandler != nil {
-		s.scenariosHandler.SetExecutionQueuer(scenarios.NewExecutionQueuer(s.executionSvc))
-	}
-	if s.backlogHandler != nil {
-		s.backlogHandler.SetExecutionQueuer(s.executionSvc)
-	}
-	return s.executionSvc
-}
-
-func (s *Server) registerReviewRoutes(scenarioRoot string, execSvc *execution.Service) {
-	backlogStore := backlog.NewFileStore(scenarioRoot)
-	cfg := review.ServiceConfig{
-		RootDir:      scenarioRoot,
-		AgentService: s.requireTrackedAgentService(),
-		ItemDirFn:    func(kind, name string) string { return backlogStore.ItemDir(backlog.BacklogKind(kind), name) },
-	}
-	s.reviewSvc = review.NewService(cfg)
-	s.reviewHandler = review.NewHandler(s.reviewSvc)
-	s.reviewHandler.RegisterRoutes(s.router)
-
-	// Wire review service into execution service for finalization integration.
-	if execSvc != nil {
-		execSvc.SetReviewService(s.reviewSvc)
-	}
-}
-
-func (s *Server) registerGraphRoutes(scenarioRoot string) {
-	if s.backlogHandler == nil {
-		return
-	}
-
-	projCfg := graph.ProjectionConfig{
-		Backlog:    s.backlogHandler.Store(),
-		Initiative: graph.NewInitiativeAdapter(s.initStore),
-		Capture:    graph.NewCaptureAdapter(scenarioRoot),
-		Scenario: graph.NewScenarioSourceAdapter(
-			scenarios.NewCLIProviderWithOptions(scenarios.CLIProviderOptions{
-				IncludePorts: false,
-			}),
-		),
-	}
-	if s.executionSvc != nil {
-		projCfg.Execution = graph.NewExecutionAdapter(s.executionSvc)
-	}
-	if s.agentActivitySvc != nil {
-		projCfg.Activity = s.agentActivitySvc
-	}
-	projSvc := graph.NewProjectionService(projCfg)
-	projectionCache := graph.NewProjectionCache(graph.ProjectionCacheConfig{
-		Projector: projSvc,
-	})
-
-	// HTTP handler.
-	graphHandler := graph.NewHandler(projectionCache)
-	graphHandler.RegisterRoutes(s.router)
-
-	// WebSocket broker and stream handler.
-	s.graphBroker = graph.NewBroker()
-	streamHandler := graph.NewStreamHandler(s.graphBroker)
-	streamHandler.RegisterRoutes(s.router)
-
-	// Wire graph invalidation into mutating services and handlers.
-	dispatch := graph.NewDispatch(s.graphBroker, projectionCache)
-	if s.backlogHandler != nil {
-		s.backlogHandler.SetEventDispatcher(dispatch)
-	}
-	if s.capturesHandler != nil {
-		s.capturesHandler.SetEventDispatcher(dispatch)
-	}
-	if s.initiativeService != nil {
-		s.initiativeService.SetEventDispatcher(dispatch)
-	}
-	if s.executionSvc != nil {
-		s.executionSvc.SetEventDispatcher(dispatch)
-	}
-	if s.agentActivitySvc != nil {
-		s.agentActivitySvc.SetEventDispatcher(dispatch)
-	}
-	if s.scenariosHandler != nil {
-		s.scenariosHandler.SetEventDispatcher(dispatch)
-	}
 }
 
 func (s *Server) requireTrackedAgentService() *agentactivity.Service {
@@ -405,49 +223,18 @@ func (s *Server) registerPromptRoutes(scenarioRoot string) {
 	promptHandler.RegisterRoutes(s.router)
 }
 
-// Handler returns the HTTP handler with recovery middleware
+// Handler returns the HTTP handler with recovery middleware.
 func (s *Server) Handler() http.Handler {
 	return handlers.RecoveryHandler()(s.router)
 }
 
-// loggingMiddleware prints simple request logs
+// loggingMiddleware prints simple request logs.
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		next.ServeHTTP(w, r)
 		log.Printf("[%s] %s %s", r.Method, r.RequestURI, time.Since(start))
 	})
-}
-
-// resolveEventDBPath returns the SQLite DSN for the event log database.
-func resolveEventDBPath() string {
-	if p := os.Getenv("SWARM_MANAGER_SQLITE_PATH"); p != "" {
-		return "file:" + p + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=synchronous(NORMAL)"
-	}
-	resolver, err := storage.NewResolver(storage.ResolverConfig{
-		AppID:   "vrooli",
-		Profile: storage.ProfileAuto,
-	})
-	if err != nil {
-		log.Printf("[eventlog] storage resolver error, using fallback: %v", err)
-		home, _ := os.UserHomeDir()
-		p := filepath.Join(home, ".vrooli", "data", "swarm-manager", "events.db")
-		return "file:" + p + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=synchronous(NORMAL)"
-	}
-	dbPath, err := resolver.Path(
-		storage.Options{ScenarioID: "swarm-manager"},
-		storage.ClassData,
-		"events.db",
-	)
-	if err != nil {
-		log.Printf("[eventlog] path resolution error, using fallback: %v", err)
-		home, _ := os.UserHomeDir()
-		dbPath = filepath.Join(home, ".vrooli", "data", "swarm-manager", "events.db")
-	}
-	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
-		log.Printf("[eventlog] mkdir error: %v", err)
-	}
-	return "file:" + dbPath + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=synchronous(NORMAL)"
 }
 
 func main() {
@@ -460,61 +247,13 @@ func main() {
 
 	log.Printf("Running in filesystem-only mode")
 
-	// Initialize event log database.
-	dsn := resolveEventDBPath()
-	eventDB, err := sql.Open("sqlite", dsn)
-	if err != nil {
-		log.Printf("[eventlog] failed to open database: %v (stats will be unavailable)", err)
-	}
-	var emitter *eventlog.Emitter
-	var statsEngine *stats.Engine
-	if eventDB != nil {
-		eventDB.SetMaxOpenConns(1)
-		eventDB.SetMaxIdleConns(1)
-		repo := eventlog.NewSQLiteRepository(eventDB)
-		if err := repo.InitSchema(context.Background()); err != nil {
-			log.Printf("[eventlog] schema init error: %v", err)
-		} else {
-			emitter = eventlog.NewEmitter(repo)
-			statsEngine = stats.NewEngine(repo)
-			if err := statsEngine.Rebuild(context.Background()); err != nil {
-				log.Printf("[stats] rebuild error: %v", err)
-			} else {
-				log.Printf("[stats] engine initialized, replayed events")
-			}
-		}
-	}
-
 	srv := NewServer()
-	srv.eventDB = eventDB
-	srv.emitter = emitter
-	srv.statsEngine = statsEngine
+	srv.initEventLog()
+	srv.wireEventLoggers()
 
-	// Wire event logger into all mutating handlers.
-	if emitter != nil {
-		if srv.backlogHandler != nil {
-			srv.backlogHandler.SetEventLogger(emitter)
-		}
-		if srv.executionSvc != nil {
-			srv.executionSvc.SetEventLogger(emitter)
-		}
-		if srv.initiativeService != nil {
-			srv.initiativeService.SetEventLogger(emitter)
-		}
-		if srv.queueHandler != nil {
-			srv.queueHandler.SetEventLogger(emitter)
-		}
-		if srv.capturesHandler != nil {
-			srv.capturesHandler.SetEventLogger(emitter)
-		}
-		if srv.reviewSvc != nil {
-			srv.reviewSvc.SetEventEmitter(emitter)
-		}
-	}
-
-	// Register stats endpoint.
-	if statsEngine != nil {
-		statsHandler := stats.NewHandler(statsEngine)
+	// Register stats endpoint (requires event log).
+	if srv.statsEngine != nil {
+		statsHandler := stats.NewHandler(srv.statsEngine)
 		statsHandler.RegisterRoutes(srv.router)
 	}
 
@@ -530,7 +269,6 @@ func main() {
 		cancel()
 	}
 
-	// Start server with graceful shutdown (port from API_PORT env var)
 	if err := server.Run(server.Config{
 		Handler: srv.Handler(),
 	}); err != nil {

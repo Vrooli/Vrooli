@@ -74,6 +74,7 @@ vi.mock("@xyflow/react", async () => {
 
 import { GraphCanvas } from "./GraphCanvas";
 import { cloneGraphDataInitialState, useGraphDataStore } from "../stores/graph-data-store";
+import { useGraphSettingsStore, cloneGraphSettingsInitialState } from "../stores/graph-settings-store";
 import { cloneGraphUIInitialState, useGraphUIStore } from "../stores/graph-ui-store";
 import {
   makeExecutionNode,
@@ -86,6 +87,7 @@ import {
 
 function resetStores() {
   useGraphDataStore.setState(cloneGraphDataInitialState());
+  useGraphSettingsStore.setState(cloneGraphSettingsInitialState());
   useGraphUIStore.setState(cloneGraphUIInitialState());
 }
 
@@ -100,9 +102,9 @@ describe("GraphCanvas", () => {
   });
 
   it("renders initiative clusters collapsed on the first paint", async () => {
-    useGraphDataStore.setState((state) => ({
+    useGraphSettingsStore.setState((state) => ({
       ...state,
-      lens: "topology",
+      activeLens: "topology",
       settingsByLens: {
         ...state.settingsByLens,
         topology: {
@@ -110,6 +112,10 @@ describe("GraphCanvas", () => {
           groupingMode: "initiative",
         },
       },
+    }));
+    useGraphDataStore.setState((state) => ({
+      ...state,
+      lens: "topology",
       nodes: [
         makeInitiativeNode("initiative/graph-adoption", {
           label: "Graph Adoption",
@@ -153,9 +159,9 @@ describe("GraphCanvas", () => {
   });
 
   it("keeps backlog items visible in flat topology view", async () => {
-    useGraphDataStore.setState((state) => ({
+    useGraphSettingsStore.setState((state) => ({
       ...state,
-      lens: "topology",
+      activeLens: "topology",
       settingsByLens: {
         ...state.settingsByLens,
         topology: {
@@ -163,6 +169,10 @@ describe("GraphCanvas", () => {
           groupingMode: "none",
         },
       },
+    }));
+    useGraphDataStore.setState((state) => ({
+      ...state,
+      lens: "topology",
       nodes: [
         makeInitiativeNode("initiative/graph-adoption", {
           label: "Graph Adoption",
@@ -200,9 +210,9 @@ describe("GraphCanvas", () => {
   });
 
   it("hides secondary edges when the current lens disables them", async () => {
-    useGraphDataStore.setState((state) => ({
+    useGraphSettingsStore.setState((state) => ({
       ...state,
-      lens: "topology",
+      activeLens: "topology",
       settingsByLens: {
         ...state.settingsByLens,
         topology: {
@@ -211,6 +221,10 @@ describe("GraphCanvas", () => {
           showSecondaryEdges: false,
         },
       },
+    }));
+    useGraphDataStore.setState((state) => ({
+      ...state,
+      lens: "topology",
       nodes: [
         makeCaptureNode("capture/c-1", {
           label: "Capture",
@@ -275,9 +289,9 @@ describe("GraphCanvas", () => {
   });
 
   it("dims non-highlighted nodes and edges when a node is selected", async () => {
-    useGraphDataStore.setState((state) => ({
+    useGraphSettingsStore.setState((state) => ({
       ...state,
-      lens: "topology",
+      activeLens: "topology",
       settingsByLens: {
         ...state.settingsByLens,
         topology: {
@@ -285,6 +299,10 @@ describe("GraphCanvas", () => {
           groupingMode: "none",
         },
       },
+    }));
+    useGraphDataStore.setState((state) => ({
+      ...state,
+      lens: "topology",
       nodes: [
         makeBacklogNode("backlog-item/execute/task-a", { label: "A", status: "queued" }),
         makeBacklogNode("backlog-item/execute/task-b", { label: "B", status: "queued" }),
@@ -323,9 +341,9 @@ describe("GraphCanvas", () => {
   });
 
   it("dims edges where either endpoint is not highlighted", async () => {
-    useGraphDataStore.setState((state) => ({
+    useGraphSettingsStore.setState((state) => ({
       ...state,
-      lens: "topology",
+      activeLens: "topology",
       settingsByLens: {
         ...state.settingsByLens,
         topology: {
@@ -333,6 +351,10 @@ describe("GraphCanvas", () => {
           groupingMode: "none",
         },
       },
+    }));
+    useGraphDataStore.setState((state) => ({
+      ...state,
+      lens: "topology",
       nodes: [
         makeBacklogNode("backlog-item/execute/task-a", { label: "A", status: "queued" }),
         makeScenarioNode("scenario/app", { label: "App", status: "running" }),
@@ -363,9 +385,9 @@ describe("GraphCanvas", () => {
   });
 
   it("all nodes return to full opacity when highlight is cleared", async () => {
-    useGraphDataStore.setState((state) => ({
+    useGraphSettingsStore.setState((state) => ({
       ...state,
-      lens: "topology",
+      activeLens: "topology",
       settingsByLens: {
         ...state.settingsByLens,
         topology: {
@@ -373,6 +395,10 @@ describe("GraphCanvas", () => {
           groupingMode: "none",
         },
       },
+    }));
+    useGraphDataStore.setState((state) => ({
+      ...state,
+      lens: "topology",
       nodes: [
         makeBacklogNode("backlog-item/execute/task-a", { label: "A", status: "queued" }),
         makeScenarioNode("scenario/app", { label: "App", status: "running" }),

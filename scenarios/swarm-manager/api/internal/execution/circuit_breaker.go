@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/storage"
 )
 
@@ -117,7 +118,7 @@ func (cb *CircuitBreaker) Reset(itemKey string) error {
 	}
 
 	if _, ok := state.Items[itemKey]; !ok {
-		return errNotFound
+		return apierr.NotFound("no circuit breaker state for item")
 	}
 
 	delete(state.Items, itemKey)

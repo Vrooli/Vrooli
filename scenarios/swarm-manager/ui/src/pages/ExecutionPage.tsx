@@ -1,22 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Activity, Filter, RefreshCw, X } from "lucide-react";
+import { X } from "lucide-react";
 import { Card } from "../components/ui/card";
-import { Button } from "../components/ui/button";
-import { ErrorState } from "../components/ui/error-state";
-import { Input } from "../components/ui/input";
-import { InlineLoadingIndicator, PageLoadingState } from "../components/ui/loading-states";
-import { ResponsiveList, ResponsiveListItem } from "../components/ui/responsive-list";
-import { SearchBar } from "../components/ui/search-bar";
-import { Select } from "../components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { ExecutionCard } from "../components/execution/execution-card";
-import { FollowUpDialog } from "../components/execution/follow-up-dialog";
+import { InlineLoadingIndicator } from "../components/ui/loading-states";
+import { ExecutionFilters } from "../components/execution/ExecutionFilters";
+import { ExecutionListView } from "../components/execution/ExecutionListView";
+import { ExecutionToolbar } from "../components/execution/ExecutionToolbar";
+import { FollowUpSheet } from "../components/review/follow-up-sheet";
 import { selectors } from "../consts/selectors";
 import {
-  canCancelExecution,
-  canRetryExecution,
-  canStartExecution,
   EXECUTION_TAB_CONFIG,
   isExecutionActive,
   isExecutionInTab,
@@ -27,45 +19,25 @@ import { executionService, promptService } from "../services";
 import { gctService } from "../services/gct-service";
 import { useStorePolling } from "../hooks/useStorePolling";
 import { useExecutionStore } from "../stores";
-import {
-  EXECUTION_MODES,
-  EXECUTION_STATUSES,
-  formatExecutionMode,
-  formatExecutionStatus,
-  type ExecutionMode,
-  type ExecutionRecord,
-  type ExecutionStatus,
-  type PromptTrace,
-} from "../types";
+import type { ExecutionMode, ExecutionRecord, ExecutionStatus, PromptTrace } from "../types";
 
 const AUTO_REFRESH_MS = 6000;
 
-type AgentManagerRunLookup = {
-  run?: {
-    sandboxId?: string;
-  };
-};
+type AgentManagerRunLookup = { run?: { sandboxId?: string } };
 
 function parseAgentManagerRunLookup(value: unknown): AgentManagerRunLookup | null {
-  if (typeof value !== "object" || value === null) {
-    return null;
-  }
-
+  if (typeof value !== "object" || value === null) return null;
   const candidate = value as { run?: unknown };
-  if (typeof candidate.run !== "object" || candidate.run === null) {
-    return {};
-  }
-
+  if (typeof candidate.run !== "object" || candidate.run === null) return {};
   const run = candidate.run as { sandboxId?: unknown };
-  return {
-    run: typeof run.sandboxId === "string" ? { sandboxId: run.sandboxId } : {},
-  };
+  return { run: typeof run.sandboxId === "string" ? { sandboxId: run.sandboxId } : {} };
 }
 
 export function ExecutionPage() {
   const { items, status, error, isRefreshing, fetchExecutions, upsertExecution } = useExecutionStore();
   const navigate = useNavigate();
 
+  // --- Filter state ---
   const [activeTab, setActiveTab] = useState<ExecutionTabId>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<ExecutionStatus | "">("");
@@ -88,12 +60,12 @@ export function ExecutionPage() {
       setShowFilters(true);
       setActiveTab("all");
       appliedBacklogParam.current = true;
-      // Clear the query param from the URL
       searchParams.delete("backlog");
       setSearchParams(searchParams, { replace: true });
     }
   }, [searchParams, setSearchParams]);
 
+  // --- Action state ---
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [traceByExecutionId, setTraceByExecutionId] = useState<Record<string, PromptTrace>>({});
@@ -107,136 +79,71 @@ export function ExecutionPage() {
     let cancelled = false;
     fetch(`/embedded/${encodeURIComponent("agent-manager")}/external-url`)
       .then((res) => (res.ok ? res.json() : null))
-      .then((data: { url?: string } | null) => {
-        if (!cancelled && data?.url) {
-          setAgentManagerUiUrl(data.url);
-        }
-      })
-      .catch(() => { /* agent-manager not available */ });
+      .then((data: { url?: string } | null) => { if (!cancelled && data?.url) setAgentManagerUiUrl(data.url); })
+      .catch(() => {});
     fetch(`/embedded/${encodeURIComponent("workspace-sandbox")}/external-url`)
       .then((res) => (res.ok ? res.json() : null))
-      .then((data: { url?: string } | null) => {
-        if (!cancelled && data?.url) {
-          setWorkspaceSandboxBaseUrl(data.url);
-        }
-      })
-      .catch(() => { /* workspace-sandbox not available */ });
+      .then((data: { url?: string } | null) => { if (!cancelled && data?.url) setWorkspaceSandboxBaseUrl(data.url); })
+      .catch(() => {});
     return () => { cancelled = true; };
   }, []);
 
-  useStorePolling({
-    enabled: true,
-    intervalMs: AUTO_REFRESH_MS,
-    pollFn: () => void fetchExecutions({ force: true }),
-    immediate: true,
-  });
+  useStorePolling({ enabled: true, intervalMs: AUTO_REFRESH_MS, pollFn: () => void fetchExecutions({ force: true }), immediate: true });
+  useStorePolling({ enabled: true, intervalMs: 30_000, pollFn: () => void gctService.getStatus().then((s) => setGctAvailable(s.available)), immediate: true });
 
-  // Poll GCT availability every 30 seconds.
-  useStorePolling({
-    enabled: true,
-    intervalMs: 30_000,
-    pollFn: () => void gctService.getStatus().then((s) => setGctAvailable(s.available)),
-    immediate: true,
-  });
-
-
+  // --- Derived data ---
   const activeTabConfig = EXECUTION_TAB_CONFIG.find((tab) => tab.id === activeTab) ?? EXECUTION_TAB_CONFIG[0];
   const hasLoaded = status !== "idle";
 
-  const tabItems = useMemo(
-    () => items.filter((item) => isExecutionInTab(item, activeTab)),
-    [items, activeTab]
-  );
+  const tabItems = useMemo(() => items.filter((item) => isExecutionInTab(item, activeTab)), [items, activeTab]);
 
   const filteredItems = useMemo(() => {
     return tabItems.filter((item) =>
-      matchesExecutionFilters(item, {
-        searchTerm,
-        statusFilter,
-        modeFilter,
-        operationFilter,
-        startedByFilter,
-        backlogFilter,
-        fromFilter,
-        toFilter,
-      })
+      matchesExecutionFilters(item, { searchTerm, statusFilter, modeFilter, operationFilter, startedByFilter, backlogFilter, fromFilter, toFilter })
     );
   }, [tabItems, searchTerm, statusFilter, modeFilter, operationFilter, startedByFilter, backlogFilter, fromFilter, toFilter]);
 
-  const activeRuns = useMemo(() => {
-    return filteredItems.filter(isExecutionActive).slice(0, 3);
-  }, [filteredItems]);
+  const activeRuns = useMemo(() => filteredItems.filter(isExecutionActive).slice(0, 3), [filteredItems]);
 
   const stats = useMemo(() => {
-    const running = tabItems.filter((item) => item.status === "starting" || item.status === "running").length;
-    const validating = tabItems.filter((item) => item.status === "validating").length;
-    const review = tabItems.filter((item) => item.status === "needs_review").length;
-    const failed = tabItems.filter((item) => item.status === "failed" || item.status === "canceled").length;
-    return {
-      total: tabItems.length,
-      running,
-      validating,
-      review,
-      failed,
-    };
+    const running = tabItems.filter((i) => i.status === "starting" || i.status === "running").length;
+    const validating = tabItems.filter((i) => i.status === "validating").length;
+    const review = tabItems.filter((i) => i.status === "needs_review").length;
+    const failed = tabItems.filter((i) => i.status === "failed" || i.status === "canceled").length;
+    return { total: tabItems.length, running, validating, review, failed };
   }, [tabItems]);
 
-  const activeFilterCount = [
-    searchTerm,
-    statusFilter,
-    modeFilter,
-    operationFilter,
-    startedByFilter,
-    backlogFilter,
-    fromFilter,
-    toFilter,
-  ].filter((value) => value.trim().length > 0).length;
+  const activeFilterCount = [searchTerm, statusFilter, modeFilter, operationFilter, startedByFilter, backlogFilter, fromFilter, toFilter]
+    .filter((v) => v.trim().length > 0).length;
 
   const clearFilters = () => {
-    setSearchTerm("");
-    setStatusFilter("");
-    setModeFilter("");
-    setOperationFilter("");
-    setStartedByFilter("");
-    setBacklogFilter("");
-    setFromFilter("");
-    setToFilter("");
+    setSearchTerm(""); setStatusFilter(""); setModeFilter(""); setOperationFilter("");
+    setStartedByFilter(""); setBacklogFilter(""); setFromFilter(""); setToFilter("");
     setShowFilters(false);
   };
 
+  // --- Action handlers ---
   const runAction = async (executionId: string, action: "start" | "cancel" | "retry") => {
-    setBusyId(executionId);
-    setActionError(null);
+    setBusyId(executionId); setActionError(null);
     try {
       let updated: ExecutionRecord;
-      if (action === "start") {
-        updated = await executionService.start(executionId);
-      } else if (action === "cancel") {
-        updated = await executionService.cancel(executionId);
-      } else {
-        updated = await executionService.retry(executionId);
-      }
+      if (action === "start") updated = await executionService.start(executionId);
+      else if (action === "cancel") updated = await executionService.cancel(executionId);
+      else updated = await executionService.retry(executionId);
       upsertExecution(updated);
-    } catch (actionErr) {
-      const message = actionErr instanceof Error ? actionErr.message : `Failed to ${action} execution.`;
-      setActionError(message);
-    } finally {
-      setBusyId(null);
-    }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : `Failed to ${action} execution.`);
+    } finally { setBusyId(null); }
   };
 
   const handleViewTrace = async (executionId: string) => {
-    setTraceLoadingId(executionId);
-    setActionError(null);
+    setTraceLoadingId(executionId); setActionError(null);
     try {
       const trace = await promptService.getExecutionPromptTrace(executionId);
       setTraceByExecutionId((prev) => ({ ...prev, [executionId]: trace }));
-    } catch (traceErr) {
-      const message = traceErr instanceof Error ? traceErr.message : "Failed to load prompt trace.";
-      setActionError(message);
-    } finally {
-      setTraceLoadingId(null);
-    }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to load prompt trace.");
+    } finally { setTraceLoadingId(null); }
   };
 
   const handleFollowUp = (executionId: string) => {
@@ -245,17 +152,13 @@ export function ExecutionPage() {
   };
 
   const handleTriggerReview = async (executionId: string) => {
-    setBusyId(executionId);
-    setActionError(null);
+    setBusyId(executionId); setActionError(null);
     try {
       const updated = await executionService.triggerReview(executionId);
       upsertExecution(updated);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to run post-run checks.";
-      setActionError(message);
-    } finally {
-      setBusyId(null);
-    }
+      setActionError(err instanceof Error ? err.message : "Failed to run post-run checks.");
+    } finally { setBusyId(null); }
   };
 
   const handleOpenReviewSandbox = async (executionId: string) => {
@@ -267,207 +170,49 @@ export function ExecutionPage() {
       const rawRunData: unknown = runResp.ok ? await runResp.json() : null;
       const runData = parseAgentManagerRunLookup(rawRunData);
       const sandboxId = runData?.run?.sandboxId;
-      if (sandboxId) {
-        window.open(`${baseUrl.replace(/\/$/, "")}?sandbox=${sandboxId}&review=true`, "_blank");
-      } else {
-        window.open(baseUrl, "_blank");
-      }
-    } catch {
-      window.open(baseUrl, "_blank");
-    }
+      if (sandboxId) window.open(`${baseUrl.replace(/\/$/, "")}?sandbox=${sandboxId}&review=true`, "_blank");
+      else window.open(baseUrl, "_blank");
+    } catch { window.open(baseUrl, "_blank"); }
   };
 
-  if (!activeTabConfig) {
-    return null;
-  }
+  if (!activeTabConfig) return null;
 
   return (
     <div className="space-y-6" data-testid={selectors.execution.page}>
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ExecutionTabId)} className="w-full">
-            <div className="-mx-6 md:mx-0">
-              <TabsList
-                className="w-full flex-nowrap justify-start gap-1 overflow-x-auto no-scrollbar rounded-none bg-transparent p-0 md:w-auto md:flex-wrap md:overflow-visible md:rounded-md md:bg-slate-800/50 md:p-1"
-                data-testid={selectors.execution.tabs}
-              >
-                {EXECUTION_TAB_CONFIG.map((tab) => (
-                  <TabsTrigger key={tab.id} value={tab.id} className="gap-2">
-                    {tab.label}
-                    <span className="rounded-full bg-slate-600 px-2 py-0.5 text-xs text-slate-200">
-                      {items.filter((item) => isExecutionInTab(item, tab.id)).length}
-                    </span>
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </div>
-          </Tabs>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void fetchExecutions({ force: true })}
-            disabled={status === "loading" || isRefreshing}
-            aria-label="Refresh"
-            className="shrink-0"
-          >
-            <RefreshCw className={`h-4 w-4 lg:mr-2 ${status === "loading" || isRefreshing ? "animate-spin" : ""}`} />
-            <span className="hidden lg:inline">Refresh</span>
-          </Button>
-        </div>
-
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-2">
-            <SearchBar
-              placeholder="Search executions..."
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              data-testid={selectors.execution.search}
-              widthClass="w-full sm:w-80"
-            />
-
-            <div className="relative">
-              <Button
-                variant="outline"
-                size="sm"
-                aria-label="Filter executions"
-                data-testid={selectors.execution.filter}
-                onClick={() => setShowFilters(!showFilters)}
-                className={activeFilterCount > 0 ? "border-cyan-500/50" : ""}
-              >
-                <Filter className="h-4 w-4" />
-                {activeFilterCount > 0 ? (
-                  <span className="ml-1 rounded-full bg-cyan-500 px-1.5 text-xs text-white">{activeFilterCount}</span>
-                ) : null}
-              </Button>
-
-              {showFilters ? (
-                <div className="absolute left-0 top-full z-10 mt-2 w-80 space-y-3 rounded-lg border border-white/10 bg-slate-800 p-3 shadow-xl">
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-sm font-medium text-slate-200">Filters</span>
-                    {activeFilterCount > 0 ? (
-                      <button onClick={clearFilters} className="text-xs text-slate-400 hover:text-slate-200">
-                        Clear all
-                      </button>
-                    ) : null}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <label htmlFor="execution-status-filter" className="text-xs text-slate-400">Status</label>
-                      <Select
-                        id="execution-status-filter"
-                        value={statusFilter}
-                        onChange={(event) => setStatusFilter(event.target.value as ExecutionStatus | "")}
-                        variant="filter"
-                        withChevron
-                      >
-                        <option value="">All statuses</option>
-                        {EXECUTION_STATUSES.map((option) => (
-                          <option key={option} value={option}>{formatExecutionStatus(option)}</option>
-                        ))}
-                      </Select>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label htmlFor="execution-mode-filter" className="text-xs text-slate-400">Mode</label>
-                      <Select
-                        id="execution-mode-filter"
-                        value={modeFilter}
-                        onChange={(event) => setModeFilter(event.target.value as ExecutionMode | "")}
-                        variant="filter"
-                        withChevron
-                      >
-                        <option value="">All modes</option>
-                        {EXECUTION_MODES.map((option) => (
-                          <option key={option} value={option}>{formatExecutionMode(option)}</option>
-                        ))}
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label htmlFor="execution-operation-filter" className="text-xs text-slate-400">Operation</label>
-                    <Select
-                      id="execution-operation-filter"
-                      value={operationFilter}
-                      onChange={(event) => setOperationFilter(event.target.value as "generator" | "improver" | "")}
-                      variant="filter"
-                      withChevron
-                    >
-                      <option value="">All operations</option>
-                      <option value="generator">Generator</option>
-                      <option value="improver">Improver</option>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label htmlFor="execution-started-by-filter" className="text-xs text-slate-400">Started by</label>
-                    <Input
-                      id="execution-started-by-filter"
-                      size="sm"
-                      placeholder="team source"
-                      value={startedByFilter}
-                      onChange={(event) => setStartedByFilter(event.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label htmlFor="execution-backlog-filter" className="text-xs text-slate-400">Scenario/backlog</label>
-                    <Input
-                      id="execution-backlog-filter"
-                      size="sm"
-                      placeholder="kind/name"
-                      value={backlogFilter}
-                      onChange={(event) => setBacklogFilter(event.target.value)}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <label htmlFor="execution-created-from" className="text-xs text-slate-400">Created from</label>
-                      <Input
-                        id="execution-created-from"
-                        type="datetime-local"
-                        size="sm"
-                        value={fromFilter}
-                        onChange={(event) => setFromFilter(event.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label htmlFor="execution-created-to" className="text-xs text-slate-400">Created to</label>
-                      <Input
-                        id="execution-created-to"
-                        type="datetime-local"
-                        size="sm"
-                        value={toFilter}
-                        onChange={(event) => setToFilter(event.target.value)}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 text-sm text-slate-400">
-            <span>{stats.total} run{stats.total !== 1 ? "s" : ""}</span>
-            {stats.running > 0 ? <span className="text-cyan-400">{stats.running} running</span> : null}
-            {stats.validating > 0 ? <span className="text-indigo-400">{stats.validating} validating</span> : null}
-            {stats.review > 0 ? <span className="text-yellow-400">{stats.review} needs review</span> : null}
-            {stats.failed > 0 ? <span className="text-amber-400">{stats.failed} failed/canceled</span> : null}
-            <span className={gctAvailable ? "text-emerald-400" : "text-slate-500"} data-testid="gct-status-indicator">
-              GCT: {gctAvailable === null ? "..." : gctAvailable ? "Connected" : "Offline"}
-            </span>
-          </div>
-        </div>
-      </div>
+      <ExecutionToolbar
+        items={items}
+        activeTab={activeTab}
+        onActiveTabChange={setActiveTab}
+        status={status}
+        isRefreshing={isRefreshing}
+        onRefresh={() => void fetchExecutions({ force: true })}
+        searchTerm={searchTerm}
+        onSearchChange={(e) => setSearchTerm(e.target.value)}
+        showFilters={showFilters}
+        onToggleFilters={() => setShowFilters(!showFilters)}
+        activeFilterCount={activeFilterCount}
+        statusFilter={statusFilter}
+        modeFilter={modeFilter}
+        operationFilter={operationFilter}
+        startedByFilter={startedByFilter}
+        backlogFilter={backlogFilter}
+        fromFilter={fromFilter}
+        toFilter={toFilter}
+        onStatusFilterChange={setStatusFilter}
+        onModeFilterChange={setModeFilter}
+        onOperationFilterChange={setOperationFilter}
+        onStartedByFilterChange={setStartedByFilter}
+        onBacklogFilterChange={setBacklogFilter}
+        onFromFilterChange={setFromFilter}
+        onToFilterChange={setToFilter}
+        onClearFilters={clearFilters}
+        stats={stats}
+        gctAvailable={gctAvailable}
+      />
 
       {searchTerm ? (
         <div className="flex items-center gap-2 text-sm text-slate-400">
-          <span>
-            Showing results for <span className="text-slate-200">"{searchTerm}"</span>
-          </span>
+          <span>Showing results for <span className="text-slate-200">"{searchTerm}"</span></span>
           <button onClick={() => setSearchTerm("")} className="text-slate-400 hover:text-slate-200" aria-label="Clear search">
             <X className="h-4 w-4" />
           </button>
@@ -475,131 +220,44 @@ export function ExecutionPage() {
       ) : null}
 
       {actionError ? (
-        <Card className="border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-          {actionError}
-        </Card>
+        <Card className="border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">{actionError}</Card>
       ) : null}
+
       {isRefreshing && items.length > 0 ? (
-        <InlineLoadingIndicator
-          label="Refreshing execution runs..."
-          testId="execution-refreshing-indicator"
-        />
+        <InlineLoadingIndicator label="Refreshing execution runs..." testId="execution-refreshing-indicator" />
       ) : null}
 
-      <div className="space-y-4">
-        {(status === "loading" || !hasLoaded) && items.length === 0 ? (
-          <PageLoadingState
-            label="Loading execution runs..."
-            variant="list"
-            testId="execution-loading-state"
-          />
-        ) : null}
-
-        {error && items.length === 0 && hasLoaded ? (
-          <ErrorState
-            error={error}
-            title="Unable to load execution runs"
-            onRetry={() => fetchExecutions({ force: true })}
-          />
-        ) : null}
-
-        {!error && tabItems.length === 0 && hasLoaded ? (
-          <Card padding="lg" centered data-testid={selectors.execution.empty}>
-            <Activity className="mx-auto h-12 w-12 text-slate-600" />
-            <h3 className="mt-4 text-lg font-medium text-slate-300">{activeTabConfig.emptyTitle}</h3>
-            <p className="mt-2 max-w-md text-sm text-slate-400">{activeTabConfig.emptyDescription}</p>
-          </Card>
-        ) : null}
-
-        {tabItems.length > 0 && filteredItems.length === 0 ? (
-          <Card padding="lg" centered data-testid={selectors.execution.noResults}>
-            <Activity className="mx-auto h-12 w-12 text-slate-600" />
-            <h3 className="mt-4 text-lg font-medium text-slate-300">No matching runs</h3>
-            <p className="mt-2 text-sm text-slate-400">Try adjusting your search or filter criteria.</p>
-            <Button variant="outline" size="sm" className="mt-4" onClick={clearFilters}>
-              Clear filters
-            </Button>
-          </Card>
-        ) : null}
-
-        {activeRuns.length > 0 ? (
-          <div className="space-y-3" data-testid={selectors.execution.activeSection}>
-            <div className="flex items-center gap-2 text-sm font-medium text-slate-300">
-              <Activity className="h-4 w-4 text-cyan-400" />
-              <span>Active Runs</span>
-            </div>
-            <ResponsiveList data-testid={selectors.execution.activeList} columns="md:grid-cols-1 lg:grid-cols-2">
-              {activeRuns.map((item) => (
-                <ResponsiveListItem
-                  key={`active-${item.executionId}`}
-                  className="md:border-cyan-500/30 md:bg-cyan-500/5 md:hover:border-cyan-500/50 md:hover:bg-cyan-500/10"
-                >
-                  <ExecutionCard
-                    item={item}
-                    isBusy={busyId === item.executionId}
-                    canStart={canStartExecution(item.status)}
-                    canCancel={canCancelExecution(item.status)}
-                    canRetry={canRetryExecution(item.status)}
-                    onStart={(executionId) => void runAction(executionId, "start")}
-                    onCancel={(executionId) => void runAction(executionId, "cancel")}
-                    onRetry={(executionId) => void runAction(executionId, "retry")}
-                    onViewTrace={(executionId) => void handleViewTrace(executionId)}
-                    onViewBacklog={(kind, name) => navigate(`/backlog/${kind}/${name}`)}
-                    trace={traceByExecutionId[item.executionId]}
-                    traceLoading={traceLoadingId === item.executionId}
-                    agentManagerUiUrl={agentManagerUiUrl}
-                    onFollowUp={handleFollowUp}
-                    onOpenReviewSandbox={(id) => void handleOpenReviewSandbox(id)}
-                    onTriggerReview={(id) => void handleTriggerReview(id)}
-                  />
-                </ResponsiveListItem>
-              ))}
-            </ResponsiveList>
-          </div>
-        ) : null}
-
-        {filteredItems.length > 0 ? (
-          <div className="space-y-3">
-            {activeRuns.length > 0 ? (
-              <div className="text-sm font-medium text-slate-400">{activeTabConfig.id === "all" ? "All Runs" : `All ${activeTabConfig.label}`}</div>
-            ) : null}
-            <ResponsiveList data-testid={selectors.execution.grid} columns="md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
-              {filteredItems.map((item) => (
-                <ResponsiveListItem key={item.executionId} interactive>
-                  <ExecutionCard
-                    item={item}
-                    isBusy={busyId === item.executionId}
-                    canStart={canStartExecution(item.status)}
-                    canCancel={canCancelExecution(item.status)}
-                    canRetry={canRetryExecution(item.status)}
-                    onStart={(executionId) => void runAction(executionId, "start")}
-                    onCancel={(executionId) => void runAction(executionId, "cancel")}
-                    onRetry={(executionId) => void runAction(executionId, "retry")}
-                    onViewTrace={(executionId) => void handleViewTrace(executionId)}
-                    onViewBacklog={(kind, name) => navigate(`/backlog/${kind}/${name}`)}
-                    trace={traceByExecutionId[item.executionId]}
-                    traceLoading={traceLoadingId === item.executionId}
-                    agentManagerUiUrl={agentManagerUiUrl}
-                    onFollowUp={handleFollowUp}
-                    onOpenReviewSandbox={(id) => void handleOpenReviewSandbox(id)}
-                    onTriggerReview={(id) => void handleTriggerReview(id)}
-                  />
-                </ResponsiveListItem>
-              ))}
-            </ResponsiveList>
-          </div>
-        ) : null}
-      </div>
+      <ExecutionListView
+        status={status}
+        hasLoaded={hasLoaded}
+        error={error}
+        tabItems={tabItems}
+        filteredItems={filteredItems}
+        activeRuns={activeRuns}
+        activeTabConfig={activeTabConfig}
+        busyId={busyId}
+        traceByExecutionId={traceByExecutionId}
+        traceLoadingId={traceLoadingId}
+        agentManagerUiUrl={agentManagerUiUrl}
+        onStart={(id) => void runAction(id, "start")}
+        onCancel={(id) => void runAction(id, "cancel")}
+        onRetry={(id) => void runAction(id, "retry")}
+        onViewTrace={(id) => void handleViewTrace(id)}
+        onViewBacklog={(kind, name) => navigate(`/backlog/${kind}/${name}`)}
+        onFollowUp={handleFollowUp}
+        onOpenReviewSandbox={(id) => void handleOpenReviewSandbox(id)}
+        onTriggerReview={(id) => void handleTriggerReview(id)}
+        onFetchRetry={() => fetchExecutions({ force: true })}
+        onClearFilters={clearFilters}
+      />
 
       {followUpTarget && (
-        <FollowUpDialog
+        <FollowUpSheet
           isOpen={Boolean(followUpTarget)}
           onClose={() => setFollowUpTarget(null)}
           execution={followUpTarget}
-          onSuccess={(newExec) => {
-            upsertExecution(newExec);
-            setFollowUpTarget(null);
-          }}
+          reviewRounds={[]}
+          onSuccess={(newExec) => { upsertExecution(newExec); setFollowUpTarget(null); }}
         />
       )}
     </div>

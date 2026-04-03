@@ -431,7 +431,7 @@ describe("ExecutionCard", () => {
     );
 
     expect(screen.queryByTestId("review-trigger-button")).not.toBeInTheDocument();
-    expect(screen.getByTestId("post-run-rerun-button")).toBeInTheDocument();
+    expect(screen.getByTestId("post-run-status-badge")).toBeInTheDocument();
   });
 
   it("maps backlog kinds to readable labels", () => {

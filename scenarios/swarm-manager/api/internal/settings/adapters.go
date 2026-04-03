@@ -38,9 +38,10 @@ func (a *policyAdapter) LoadPolicy() (execution.Policy, error) {
 		return execution.Policy{}, err
 	}
 	return execution.Policy{
-		DefaultMode:      execution.Mode(s.DefaultMode),
-		AutoFixup:        s.AutoFixup,
-		MaxFixupAttempts: s.MaxFixupAttempts,
+		DefaultMode:        execution.Mode(s.DefaultMode),
+		AutoFixup:          s.AutoFixup,
+		MaxFixupAttempts:   s.MaxFixupAttempts,
+		ReviewAgentEnabled: s.ReviewAgentEnabled,
 	}, nil
 }
 

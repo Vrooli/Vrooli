@@ -5,6 +5,7 @@ package backlog
 import (
 	"net/http"
 
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 )
 
@@ -28,7 +29,7 @@ type FeedbackSummaryResponse struct {
 func (h *Handler) FeedbackSummary(w http.ResponseWriter, r *http.Request) {
 	items, err := h.store.LoadAll(nil)
 	if err != nil {
-		httputil.InternalError(w, "[backlog] feedback-summary", err.Error())
+		apierr.MapError(w, "[backlog] feedback-summary", apierr.Internal("%s", err.Error()))
 		return
 	}
 
@@ -67,6 +68,6 @@ func (h *Handler) FeedbackSummary(w http.ResponseWriter, r *http.Request) {
 		TotalItemsAffected: len(summaryItems),
 	}
 	if err := httputil.JSON(w, resp); err != nil {
-		httputil.InternalError(w, "[backlog] feedback-summary", "failed to encode response")
+		apierr.MapError(w, "[backlog] feedback-summary", apierr.Internal("failed to encode response"))
 	}
 }

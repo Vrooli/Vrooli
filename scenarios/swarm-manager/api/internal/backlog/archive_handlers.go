@@ -4,7 +4,6 @@ package backlog
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 )
 
@@ -89,21 +89,21 @@ func (h *Handler) CreateTargetHandler(w http.ResponseWriter, r *http.Request) {
 
 	var body ArchiveTarget
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		httputil.BadRequest(w, "[backlog] create target", "invalid JSON body")
+		apierr.MapError(w, "[backlog] create target", apierr.BadRequest("invalid JSON body"))
 		return
 	}
 	if body.Title == "" {
-		httputil.BadRequest(w, "[backlog] create target", "title is required")
+		apierr.MapError(w, "[backlog] create target", apierr.BadRequest("title is required"))
 		return
 	}
 
 	dir := h.store.ItemDir(kind, name)
 	if err := CreateTarget(dir, body); err != nil {
 		if strings.Contains(err.Error(), "already exists") {
-			httputil.BadRequest(w, "[backlog] create target", err.Error())
+			apierr.MapError(w, "[backlog] create target", apierr.BadRequest("%s", err.Error()))
 			return
 		}
-		httputil.InternalError(w, "[backlog] create target", err.Error())
+		apierr.MapError(w, "[backlog] create target", apierr.Internal("%s", err.Error()))
 		return
 	}
 
@@ -118,23 +118,23 @@ func (h *Handler) UpdateTargetHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	targetID := mux.Vars(r)["targetId"]
 	if targetID == "" {
-		httputil.BadRequest(w, "[backlog] update target", "targetId is required")
+		apierr.MapError(w, "[backlog] update target", apierr.BadRequest("targetId is required"))
 		return
 	}
 
 	var body ArchiveTarget
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		httputil.BadRequest(w, "[backlog] update target", "invalid JSON body")
+		apierr.MapError(w, "[backlog] update target", apierr.BadRequest("invalid JSON body"))
 		return
 	}
 
 	dir := h.store.ItemDir(kind, name)
 	if err := UpdateTarget(dir, targetID, body); err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			httputil.NotFound(w, "[backlog] update target", err.Error())
+			apierr.MapError(w, "[backlog] update target", apierr.NotFound("%s", err.Error()))
 			return
 		}
-		httputil.InternalError(w, "[backlog] update target", err.Error())
+		apierr.MapError(w, "[backlog] update target", apierr.Internal("%s", err.Error()))
 		return
 	}
 
@@ -149,17 +149,17 @@ func (h *Handler) DeleteTargetHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	targetID := mux.Vars(r)["targetId"]
 	if targetID == "" {
-		httputil.BadRequest(w, "[backlog] delete target", "targetId is required")
+		apierr.MapError(w, "[backlog] delete target", apierr.BadRequest("targetId is required"))
 		return
 	}
 
 	dir := h.store.ItemDir(kind, name)
 	if err := DeleteTarget(dir, targetID); err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			httputil.NotFound(w, "[backlog] update target", err.Error())
+			apierr.MapError(w, "[backlog] update target", apierr.NotFound("%s", err.Error()))
 			return
 		}
-		httputil.InternalError(w, "[backlog] delete target", err.Error())
+		apierr.MapError(w, "[backlog] delete target", apierr.Internal("%s", err.Error()))
 		return
 	}
 
@@ -174,7 +174,7 @@ func (h *Handler) UpdateModuleRequirementsHandler(w http.ResponseWriter, r *http
 	}
 	moduleID := mux.Vars(r)["moduleId"]
 	if moduleID == "" {
-		httputil.BadRequest(w, "[backlog] update module requirements", "moduleId is required")
+		apierr.MapError(w, "[backlog] update module requirements", apierr.BadRequest("moduleId is required"))
 		return
 	}
 
@@ -182,13 +182,13 @@ func (h *Handler) UpdateModuleRequirementsHandler(w http.ResponseWriter, r *http
 		Requirements []json.RawMessage `json:"requirements"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		httputil.BadRequest(w, "[backlog] update module requirements", "invalid JSON body")
+		apierr.MapError(w, "[backlog] update module requirements", apierr.BadRequest("invalid JSON body"))
 		return
 	}
 
 	dir := h.store.ItemDir(kind, name)
 	if err := WriteModuleRequirements(dir, moduleID, body.Requirements); err != nil {
-		httputil.InternalError(w, "[backlog] update module requirements", err.Error())
+		apierr.MapError(w, "[backlog] update module requirements", apierr.Internal("%s", err.Error()))
 		return
 	}
 
@@ -209,11 +209,11 @@ func (h *Handler) CreateModuleHandler(w http.ResponseWriter, r *http.Request) {
 		Position    int    `json:"position"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		httputil.BadRequest(w, "[backlog] create module", "invalid JSON body")
+		apierr.MapError(w, "[backlog] create module", apierr.BadRequest("invalid JSON body"))
 		return
 	}
 	if body.ID == "" {
-		httputil.BadRequest(w, "[backlog] create module", "id is required")
+		apierr.MapError(w, "[backlog] create module", apierr.BadRequest("id is required"))
 		return
 	}
 
@@ -224,7 +224,7 @@ func (h *Handler) CreateModuleHandler(w http.ResponseWriter, r *http.Request) {
 		Description: body.Description,
 	}
 	if err := CreateModule(dir, input, body.Position); err != nil {
-		httputil.InternalError(w, "[backlog] create module", err.Error())
+		apierr.MapError(w, "[backlog] create module", apierr.Internal("%s", err.Error()))
 		return
 	}
 
@@ -239,7 +239,7 @@ func (h *Handler) UpdateModuleMetaHandler(w http.ResponseWriter, r *http.Request
 	}
 	moduleID := mux.Vars(r)["moduleId"]
 	if moduleID == "" {
-		httputil.BadRequest(w, "[backlog] update module meta", "moduleId is required")
+		apierr.MapError(w, "[backlog] update module meta", apierr.BadRequest("moduleId is required"))
 		return
 	}
 
@@ -248,13 +248,13 @@ func (h *Handler) UpdateModuleMetaHandler(w http.ResponseWriter, r *http.Request
 		Description string `json:"description"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		httputil.BadRequest(w, "[backlog] update module meta", "invalid JSON body")
+		apierr.MapError(w, "[backlog] update module meta", apierr.BadRequest("invalid JSON body"))
 		return
 	}
 
 	dir := h.store.ItemDir(kind, name)
 	if err := UpdateModuleMeta(dir, moduleID, body.Title, body.Description); err != nil {
-		httputil.InternalError(w, "[backlog] update module meta", err.Error())
+		apierr.MapError(w, "[backlog] update module meta", apierr.Internal("%s", err.Error()))
 		return
 	}
 
@@ -269,13 +269,13 @@ func (h *Handler) DeleteModuleHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	moduleID := mux.Vars(r)["moduleId"]
 	if moduleID == "" {
-		httputil.BadRequest(w, "[backlog] delete module", "moduleId is required")
+		apierr.MapError(w, "[backlog] delete module", apierr.BadRequest("moduleId is required"))
 		return
 	}
 
 	dir := h.store.ItemDir(kind, name)
 	if err := DeleteModule(dir, moduleID); err != nil {
-		httputil.InternalError(w, "[backlog] delete module", err.Error())
+		apierr.MapError(w, "[backlog] delete module", apierr.Internal("%s", err.Error()))
 		return
 	}
 
@@ -299,11 +299,11 @@ func (h *Handler) BatchReviewHandler(w http.ResponseWriter, r *http.Request) {
 		} `json:"items"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		httputil.BadRequest(w, "[backlog] batch review", "invalid JSON body")
+		apierr.MapError(w, "[backlog] batch review", apierr.BadRequest("invalid JSON body"))
 		return
 	}
 	if len(body.Items) == 0 {
-		httputil.BadRequest(w, "[backlog] batch review", "items array is required")
+		apierr.MapError(w, "[backlog] batch review", apierr.BadRequest("items array is required"))
 		return
 	}
 
@@ -330,7 +330,7 @@ func (h *Handler) BatchReviewHandler(w http.ResponseWriter, r *http.Request) {
 			targetUpdates[item.ID] = rs
 		case "requirement":
 			if item.ModuleID == "" {
-				httputil.BadRequest(w, "[backlog] batch review", "module_id is required for requirement items")
+				apierr.MapError(w, "[backlog] batch review", apierr.BadRequest("module_id is required for requirement items"))
 				return
 			}
 			if reqUpdates[item.ModuleID] == nil {
@@ -346,7 +346,7 @@ func (h *Handler) BatchReviewHandler(w http.ResponseWriter, r *http.Request) {
 				ReviewedAt:    reviewed,
 			}
 		default:
-			httputil.BadRequest(w, "[backlog] batch review", "type must be 'target' or 'requirement'")
+			apierr.MapError(w, "[backlog] batch review", apierr.BadRequest("type must be 'target' or 'requirement'"))
 			return
 		}
 	}
@@ -355,7 +355,7 @@ func (h *Handler) BatchReviewHandler(w http.ResponseWriter, r *http.Request) {
 	if len(targetUpdates) > 0 {
 		state, err := ReadReviewState(dir)
 		if err != nil {
-			httputil.InternalError(w, "[backlog] batch review", err.Error())
+			apierr.MapError(w, "[backlog] batch review", apierr.Internal("%s", err.Error()))
 			return
 		}
 		for id, rs := range targetUpdates {
@@ -366,7 +366,7 @@ func (h *Handler) BatchReviewHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if err := WriteReviewState(dir, state); err != nil {
-			httputil.InternalError(w, "[backlog] batch review", err.Error())
+			apierr.MapError(w, "[backlog] batch review", apierr.Internal("%s", err.Error()))
 			return
 		}
 	}
@@ -375,7 +375,7 @@ func (h *Handler) BatchReviewHandler(w http.ResponseWriter, r *http.Request) {
 	if len(reqUpdates) > 0 {
 		for moduleID, updates := range reqUpdates {
 			if err := PatchModuleReviewState(dir, moduleID, updates); err != nil {
-				httputil.InternalError(w, "[backlog] batch review", fmt.Sprintf("module %s: %s", moduleID, err.Error()))
+				apierr.MapError(w, "[backlog] batch review", apierr.Internal("module %s: %s", moduleID, err.Error()))
 				return
 			}
 		}

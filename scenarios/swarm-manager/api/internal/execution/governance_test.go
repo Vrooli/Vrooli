@@ -2,6 +2,7 @@ package execution
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -92,7 +93,7 @@ func TestConcurrencyGate_StartLocked(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected errAtCapacity, got nil")
 	}
-	if err.Error() != errAtCapacity.Error() {
+	if !errors.Is(err, errAtCapacity) {
 		t.Fatalf("expected errAtCapacity, got: %v", err)
 	}
 
@@ -190,7 +191,7 @@ func TestCostCapEnforcement(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected cost cap error, got nil")
 	}
-	if !strings.Contains(err.Error(), "estimated cost exceeds cap") {
+	if !strings.Contains(err.Error(), "estimated cost") || !strings.Contains(err.Error(), "exceeds cap") {
 		t.Fatalf("expected cost cap error, got: %v", err)
 	}
 

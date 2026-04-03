@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/depgraph"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/httputil"
@@ -59,12 +60,12 @@ type batchQueueItemResult struct {
 func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 	var req batchQueueRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httputil.BadRequest(w, "[backlog] batch-queue", "invalid request body: "+err.Error())
+		apierr.MapError(w, "[backlog] batch-queue", apierr.BadRequest("%s", "invalid request body: "+err.Error()))
 		return
 	}
 
 	if len(req.Items) == 0 {
-		httputil.BadRequest(w, "[backlog] batch-queue", "at least one item is required")
+		apierr.MapError(w, "[backlog] batch-queue", apierr.BadRequest("at least one item is required"))
 		return
 	}
 
@@ -83,7 +84,7 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 	if strings.TrimSpace(req.Mode) != "" {
 		mode = execution.Mode(strings.ToLower(strings.TrimSpace(req.Mode)))
 		if !execution.ValidateMode(mode) {
-			httputil.BadRequest(w, "[backlog] batch-queue", fmt.Sprintf("invalid execution mode %q: must be manual or yolo", mode))
+			apierr.MapError(w, "[backlog] batch-queue", apierr.BadRequest("invalid execution mode %q: must be manual or yolo", mode))
 			return
 		}
 	}
@@ -99,16 +100,16 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 	for _, ref := range req.Items {
 		kind, name, err := parseDependencyRef(ref)
 		if err != nil {
-			httputil.BadRequest(w, "[backlog] batch-queue", fmt.Sprintf("invalid item reference %q: %s", ref, err.Error()))
+			apierr.MapError(w, "[backlog] batch-queue", apierr.BadRequest("invalid item reference %q: %s", ref, err.Error()))
 			return
 		}
 		item, loadErr := h.store.LoadItem(kind, name)
 		if loadErr != nil {
 			if errors.Is(loadErr, ErrNotFound) {
-				httputil.NotFound(w, "[backlog] batch-queue", fmt.Sprintf("item %q not found", ref))
+				apierr.MapError(w, "[backlog] batch-queue", apierr.NotFound("item %q not found", ref))
 				return
 			}
-			httputil.InternalError(w, "[backlog] batch-queue", fmt.Sprintf("failed to load %q", ref))
+			apierr.MapError(w, "[backlog] batch-queue", apierr.Internal("failed to load %q", ref))
 			return
 		}
 		loaded = append(loaded, loadedItem{ref: ref, item: item})
@@ -122,8 +123,8 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if cycle, found := g.DetectCycle(); found {
-		httputil.BadRequest(w, "[backlog] batch-queue",
-			fmt.Sprintf("dependency cycle detected: %s", strings.Join(cycle, " -> ")))
+		apierr.MapError(w, "[backlog] batch-queue",
+			apierr.BadRequest("dependency cycle detected: %s", strings.Join(cycle, " -> ")))
 		return
 	}
 	sortedOrder, _ := g.TopologicalSort()
@@ -237,7 +238,7 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 		ExecutionOrder: sortedOrder,
 	}
 	if err := httputil.JSON(w, resp); err != nil {
-		httputil.InternalError(w, "[backlog] batch-queue", "failed to encode response")
+		apierr.MapError(w, "[backlog] batch-queue", apierr.Internal("failed to encode response"))
 	}
 }
 

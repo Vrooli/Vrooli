@@ -828,10 +828,10 @@ describe("ScenarioDetailsPage", () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByTestId("scenario-details-start")).toBeInTheDocument();
+        expect(screen.getAllByTestId("scenario-details-start").length).toBeGreaterThan(0);
       });
-      expect(screen.getByTestId("scenario-details-stop")).toBeInTheDocument();
-      expect(screen.getByTestId("scenario-details-restart")).toBeInTheDocument();
+      expect(screen.getAllByTestId("scenario-details-stop").length).toBeGreaterThan(0);
+      expect(screen.getAllByTestId("scenario-details-restart").length).toBeGreaterThan(0);
     });
 
     it("calls start when start button is clicked", async () => {
@@ -846,10 +846,11 @@ describe("ScenarioDetailsPage", () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByTestId("scenario-details-start")).toBeInTheDocument();
+        expect(screen.getAllByTestId("scenario-details-start").length).toBeGreaterThan(0);
       });
 
-      fireEvent.click(screen.getByTestId("scenario-details-start"));
+      const startButtons = screen.getAllByTestId("scenario-details-start");
+      fireEvent.click(startButtons[0]!);
 
       await waitFor(() => {
         expect(scenariosService.start).toHaveBeenCalledWith("test-scenario");

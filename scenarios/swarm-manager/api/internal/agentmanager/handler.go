@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 )
 
@@ -48,7 +49,7 @@ func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := httputil.ProtoJSON(w, response); err != nil {
-		httputil.InternalError(w, "[agent-manager] status", "failed to encode response")
+		apierr.MapError(w, "[agent-manager] status", apierr.Internal("failed to encode response"))
 	}
 }
 
@@ -72,13 +73,13 @@ type stopRunResponse struct {
 // GetRun returns agent-manager lifecycle state for a run.
 func (h *Handler) GetRun(w http.ResponseWriter, r *http.Request) {
 	if h.service == nil || !h.service.IsEnabled() {
-		httputil.ServiceUnavailable(w, "[agent-manager] run", "agent-manager is not available")
+		apierr.MapError(w, "[agent-manager] run", apierr.Unavailable("agent-manager is not available"))
 		return
 	}
 
 	runID := strings.TrimSpace(mux.Vars(r)["runID"])
 	if runID == "" {
-		httputil.BadRequest(w, "[agent-manager] run", "run_id is required")
+		apierr.MapError(w, "[agent-manager] run", apierr.BadRequest("run_id is required"))
 		return
 	}
 
@@ -86,13 +87,13 @@ func (h *Handler) GetRun(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrNotAvailable):
-			httputil.ServiceUnavailable(w, "[agent-manager] run", "agent-manager is not available")
+			apierr.MapError(w, "[agent-manager] run", apierr.Unavailable("agent-manager is not available"))
 		case strings.Contains(err.Error(), "status 404"):
-			httputil.NotFound(w, "[agent-manager] run", "run not found")
+			apierr.MapError(w, "[agent-manager] run", apierr.NotFound("run not found"))
 		case errors.Is(err, ErrRequestFailed):
-			httputil.Error(w, "[agent-manager] run", "failed to load run status", http.StatusBadGateway)
+			apierr.MapError(w, "[agent-manager] run", apierr.BadGateway("failed to load run status"))
 		default:
-			httputil.InternalError(w, "[agent-manager] run", "failed to load run status")
+			apierr.MapError(w, "[agent-manager] run", apierr.Internal("failed to load run status"))
 		}
 		return
 	}
@@ -110,32 +111,32 @@ func (h *Handler) GetRun(w http.ResponseWriter, r *http.Request) {
 		response.DurationSeconds = duration
 	}
 	if err := httputil.JSON(w, response); err != nil {
-		httputil.InternalError(w, "[agent-manager] run", "failed to encode response")
+		apierr.MapError(w, "[agent-manager] run", apierr.Internal("failed to encode response"))
 	}
 }
 
 // StopRun requests cancellation for a run.
 func (h *Handler) StopRun(w http.ResponseWriter, r *http.Request) {
 	if h.service == nil || !h.service.IsEnabled() {
-		httputil.ServiceUnavailable(w, "[agent-manager] run stop", "agent-manager is not available")
+		apierr.MapError(w, "[agent-manager] run stop", apierr.Unavailable("agent-manager is not available"))
 		return
 	}
 
 	runID := strings.TrimSpace(mux.Vars(r)["runID"])
 	if runID == "" {
-		httputil.BadRequest(w, "[agent-manager] run stop", "run_id is required")
+		apierr.MapError(w, "[agent-manager] run stop", apierr.BadRequest("run_id is required"))
 		return
 	}
 	if err := h.service.StopRun(r.Context(), runID); err != nil {
 		switch {
 		case errors.Is(err, ErrNotAvailable):
-			httputil.ServiceUnavailable(w, "[agent-manager] run stop", "agent-manager is not available")
+			apierr.MapError(w, "[agent-manager] run stop", apierr.Unavailable("agent-manager is not available"))
 		case strings.Contains(err.Error(), "status 404"):
-			httputil.NotFound(w, "[agent-manager] run stop", "run not found")
+			apierr.MapError(w, "[agent-manager] run stop", apierr.NotFound("run not found"))
 		case errors.Is(err, ErrRequestFailed):
-			httputil.Error(w, "[agent-manager] run stop", "failed to stop run", http.StatusBadGateway)
+			apierr.MapError(w, "[agent-manager] run stop", apierr.BadGateway("failed to stop run"))
 		default:
-			httputil.InternalError(w, "[agent-manager] run stop", "failed to stop run")
+			apierr.MapError(w, "[agent-manager] run stop", apierr.Internal("failed to stop run"))
 		}
 		return
 	}
@@ -145,7 +146,7 @@ func (h *Handler) StopRun(w http.ResponseWriter, r *http.Request) {
 		Stopped: true,
 		Status:  "stop_requested",
 	}); err != nil {
-		httputil.InternalError(w, "[agent-manager] run stop", "failed to encode response")
+		apierr.MapError(w, "[agent-manager] run stop", apierr.Internal("failed to encode response"))
 	}
 }
 

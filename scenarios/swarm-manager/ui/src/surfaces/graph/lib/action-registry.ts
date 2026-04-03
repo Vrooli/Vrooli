@@ -24,7 +24,8 @@ import {
   Archive,
   Users,
 } from "lucide-react";
-import type { GraphLens, EntityType } from "../stores/graph-data-store";
+import type { GraphLens } from "../stores/graph-data-store";
+import type { EntityType } from "../stores/graph-settings-store";
 import { getGraphNodeStatus, type GraphNode } from "../types";
 import { parseNodeId } from "./node-id-parser";
 import { API_ENDPOINTS } from "../../../lib/api-endpoints";

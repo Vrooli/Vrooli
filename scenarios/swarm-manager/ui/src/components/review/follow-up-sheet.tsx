@@ -1,46 +1,37 @@
 /**
- * Follow-Up Dialog - Triggers a follow-up execution from a completed/failed execution.
+ * FollowUpSheet — Drawer-based follow-up panel that shows evidence
+ * context inline when addressing review issues.
  *
- * Allows the user to choose:
- * - Follow-up type: fixup (from review), general continuation, or custom
- * - Run mode: continue existing agent session or spawn a fresh run
- * - Additional context/instructions
+ * Replaces the previous FollowUpDialog (centered Dialog) with a
+ * responsive Drawer (420px right-side on desktop, bottom-sheet on mobile).
  */
+
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, MessageSquare, Wrench, PenLine } from "lucide-react";
-import { Dialog } from "../ui/dialog";
+import { Drawer } from "../ui/drawer";
 import { Button } from "../ui/button";
+import { EvidenceContextSummary } from "./evidence-context-summary";
 import { buildFinalizationContext, cn, hasActionableFinalizationIssues } from "../../lib";
 import { selectors } from "../../consts/selectors";
 import { executionService } from "../../services";
 import type { ExecutionRecord } from "../../types";
 import type { FollowUpRequest } from "../../services/execution-service";
+import type { ReviewRound } from "../../services/review-service";
 
 type FollowUpType = FollowUpRequest["followUpType"];
 type RunMode = FollowUpRequest["runMode"];
 
-interface FollowUpDialogProps {
+export interface FollowUpSheetProps {
   isOpen: boolean;
   onClose: () => void;
   execution: ExecutionRecord;
+  reviewRounds: ReviewRound[];
   onSuccess?: (newExecution: ExecutionRecord) => void;
 }
 
 function buildDefaultContext(execution: ExecutionRecord, type: FollowUpType): string {
   if (type !== "fixup") return "";
   return buildFinalizationContext(execution.finalization);
-}
-
-function ReviewSummaryPanel({ execution }: { execution: ExecutionRecord }) {
-  const summary = buildFinalizationContext(execution.finalization);
-  if (!summary.trim()) return null;
-
-  return (
-    <div className="rounded-md border border-slate-700 bg-slate-800/50 p-3 space-y-1.5" data-testid={selectors.followUp.reviewSummary}>
-      <p className="text-xs font-medium text-slate-300">Post-Run Findings</p>
-      <pre className="whitespace-pre-wrap break-words text-[11px] leading-relaxed text-slate-400">{summary}</pre>
-    </div>
-  );
 }
 
 const TYPE_OPTIONS: { type: FollowUpType; label: string; description: string; icon: typeof Wrench; requiresReview: boolean }[] = [
@@ -67,7 +58,7 @@ const TYPE_OPTIONS: { type: FollowUpType; label: string; description: string; ic
   },
 ];
 
-export function FollowUpDialog({ isOpen, onClose, execution, onSuccess }: FollowUpDialogProps) {
+export function FollowUpSheet({ isOpen, onClose, execution, reviewRounds, onSuccess }: FollowUpSheetProps) {
   const hasReviewIssues = hasActionableFinalizationIssues(execution);
   const canContinue = Boolean(execution.runId);
 
@@ -77,7 +68,6 @@ export function FollowUpDialog({ isOpen, onClose, execution, onSuccess }: Follow
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Reset state when dialog opens
   useEffect(() => {
     if (isOpen) {
       const defaultType: FollowUpType = hasReviewIssues ? "fixup" : "followup";
@@ -89,7 +79,6 @@ export function FollowUpDialog({ isOpen, onClose, execution, onSuccess }: Follow
     }
   }, [isOpen, execution, hasReviewIssues, canContinue]);
 
-  // Update context when type changes
   const handleTypeChange = useCallback((type: FollowUpType) => {
     setFollowUpType(type);
     setContext(buildDefaultContext(execution, type));
@@ -121,15 +110,34 @@ export function FollowUpDialog({ isOpen, onClose, execution, onSuccess }: Follow
   const availableTypes = TYPE_OPTIONS.filter((opt) => !opt.requiresReview || hasReviewIssues);
 
   return (
-    <Dialog
+    <Drawer
       isOpen={isOpen}
       onClose={onClose}
       title={`Follow Up: ${execution.backlogKind}/${execution.backlogName}`}
-      isLoading={isSubmitting}
-      testId={selectors.followUp.dialog}
-      maxWidth="max-w-md"
+      testId={selectors.review.followUpSheet}
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" size="sm" onClick={onClose} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleSubmit}
+            disabled={isSubmitting || (followUpType === "custom" && !context.trim())}
+            data-testid={selectors.followUp.submitButton}
+          >
+            {isSubmitting ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
+            {runMode === "continue" ? "Continue" : "Start Follow-up"}
+          </Button>
+        </div>
+      }
     >
       <div className="space-y-5">
+        {/* Evidence context (when fixup selected) */}
+        {followUpType === "fixup" && reviewRounds.length > 0 && (
+          <EvidenceContextSummary rounds={reviewRounds} />
+        )}
+
         {/* Follow-up type selection */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-slate-300">Type</label>
@@ -204,11 +212,6 @@ export function FollowUpDialog({ isOpen, onClose, execution, onSuccess }: Follow
           </p>
         </div>
 
-        {/* Review summary (when fixup is available) */}
-        {followUpType === "fixup" && execution.finalization && (
-          <ReviewSummaryPanel execution={execution} />
-        )}
-
         {/* Context textarea */}
         <div className="space-y-2">
           <label htmlFor="follow-up-context" className="text-sm font-medium text-slate-300">
@@ -231,23 +234,7 @@ export function FollowUpDialog({ isOpen, onClose, execution, onSuccess }: Follow
             {error}
           </p>
         )}
-
-        {/* Submit */}
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" size="sm" onClick={onClose} disabled={isSubmitting}>
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleSubmit}
-            disabled={isSubmitting || (followUpType === "custom" && !context.trim())}
-            data-testid={selectors.followUp.submitButton}
-          >
-            {isSubmitting ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
-            {runMode === "continue" ? "Continue" : "Start Follow-up"}
-          </Button>
-        </div>
       </div>
-    </Dialog>
+    </Drawer>
   );
 }

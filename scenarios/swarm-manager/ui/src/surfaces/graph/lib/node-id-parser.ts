@@ -6,7 +6,7 @@
  * may contain slashes (e.g., "execute/my-feature" for backlog items).
  */
 
-import type { EntityType } from "../stores/graph-data-store";
+import type { EntityType } from "../stores/graph-settings-store";
 
 export interface ParsedNodeId {
   entityType: EntityType;

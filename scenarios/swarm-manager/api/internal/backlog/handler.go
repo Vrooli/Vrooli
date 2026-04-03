@@ -18,17 +18,14 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 	"swarm-manager/internal/agentmanager"
-	"swarm-manager/internal/depgraph"
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/pathutil"
@@ -165,37 +162,6 @@ func (h *Handler) invalidateAllGraphLenses() {
 	h.eventDispatcher.DispatchInvalidate("topology", "flow", "operations")
 }
 
-func validateCreateBacklogItemRequest(req *apipb.CreateBacklogItemRequest) string {
-	if strings.TrimSpace(req.Title) == "" {
-		return "title is required"
-	}
-	if strings.TrimSpace(req.Kind) == "" {
-		return "kind is required"
-	}
-	if req.Priority != nil {
-		if *req.Priority < 1 || *req.Priority > 10 {
-			return "priority must be between 1 and 10"
-		}
-	}
-	return ""
-}
-
-func normalizeCreateBacklogItemRequest(req *apipb.CreateBacklogItemRequest) {
-	req.Name = strings.TrimSpace(req.Name)
-	if req.Name == "" {
-		req.Name = strings.TrimSpace(req.Title)
-	}
-	req.Kind = strings.ToLower(strings.TrimSpace(req.Kind))
-	if req.Effort != nil {
-		normalized := strings.ToUpper(strings.TrimSpace(*req.Effort))
-		if normalized == "" {
-			req.Effort = nil
-		} else {
-			req.Effort = &normalized
-		}
-	}
-}
-
 func (h *Handler) validateInitiativeReference(name string) error {
 	if strings.TrimSpace(name) == "" || h.initiativeAssigner == nil {
 		return nil
@@ -250,329 +216,6 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/import", h.Import).Methods("POST")
 }
 
-// List returns all backlog items.
-func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	kinds, err := parseKindsQuery(r)
-	if err != nil {
-		httputil.BadRequest(w, "[backlog] list", err.Error())
-		return
-	}
-
-	statusFilter, err := parseStatusesQuery(r)
-	if err != nil {
-		httputil.BadRequest(w, "[backlog] list", err.Error())
-		return
-	}
-
-	items, err := h.store.LoadAll(kinds)
-	if err != nil {
-		httputil.InternalError(w, "[backlog] list", err.Error())
-		return
-	}
-
-	items = filterByStatus(items, statusFilter)
-
-	if sf := r.URL.Query().Get("spawned_from"); sf != "" {
-		filtered := items[:0]
-		for _, item := range items {
-			if item.SpawnedFrom == sf {
-				filtered = append(filtered, item)
-			}
-		}
-		items = filtered
-	}
-
-	// Sort by priority (ascending) then by updated (descending)
-	sort.Slice(items, func(i, j int) bool {
-		if items[i].Priority != items[j].Priority {
-			return items[i].Priority < items[j].Priority
-		}
-		return items[i].Updated > items[j].Updated
-	})
-
-	protoItems := make([]*domainpb.BacklogItem, 0, len(items))
-	for _, item := range items {
-		protoItems = append(protoItems, backlogToProto(item))
-	}
-
-	resp := &apipb.ListBacklogItemsResponse{Items: protoItems}
-	if err := httputil.ProtoJSON(w, resp); err != nil {
-		httputil.InternalError(w, "[backlog] list", "failed to encode response")
-	}
-}
-
-// Get returns a single backlog item by name.
-func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
-	kind, name, ok := h.parseKindAndName(w, r, "get")
-	if !ok {
-		return
-	}
-
-	item, err := h.store.LoadItem(kind, name)
-	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			httputil.NotFound(w, "", "backlog item not found")
-			return
-		}
-		httputil.InternalError(w, "[backlog] get", err.Error())
-		return
-	}
-
-	resp := &apipb.BacklogItemResponse{Item: backlogToProto(item)}
-	if err := httputil.ProtoJSON(w, resp); err != nil {
-		httputil.InternalError(w, "[backlog] get", "failed to encode response")
-	}
-	if h.eventLogger != nil {
-		h.eventLogger.EmitBacklogViewed(string(kind)+"/"+name, string(kind))
-	}
-}
-
-// Create creates a new backlog item.
-func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-	var req apipb.CreateBacklogItemRequest
-	if err := httputil.DecodeProtoJSONStrict(r, &req); err != nil {
-		httputil.BadRequest(w, "[backlog] create", "invalid request body")
-		return
-	}
-	normalizeCreateBacklogItemRequest(&req)
-	if !httputil.ValidateProtoRequest(w, "[backlog] create", "invalid request body", &req) {
-		return
-	}
-	if validationErr := validateCreateBacklogItemRequest(&req); validationErr != "" {
-		httputil.BadRequest(w, "[backlog] create", validationErr)
-		return
-	}
-
-	kind, err := ParseBacklogKind(req.Kind)
-	if err != nil {
-		httputil.BadRequest(w, "[backlog] create", err.Error())
-		return
-	}
-
-	// Sanitize name (folder-safe). Allow title fallback.
-	name := strings.TrimSpace(req.Name)
-	if name == "" {
-		name = req.Title
-	}
-	name = sanitizeName(name)
-	if name == "" {
-		httputil.BadRequest(w, "[backlog] create", "name is required")
-		return
-	}
-
-	now := time.Now().UTC().Format(time.RFC3339)
-	priority := 5
-	if req.Priority != nil {
-		priority = int(*req.Priority)
-	}
-	description := ""
-	if req.Description != nil {
-		description = *req.Description
-	}
-	tags := req.Tags
-	if tags == nil {
-		tags = []string{}
-	}
-
-	dependsOn := req.DependsOn
-	if dependsOn == nil {
-		dependsOn = []string{}
-	}
-	initiative := ""
-	if req.Initiative != nil {
-		initiative = strings.TrimSpace(*req.Initiative)
-	}
-	if err := h.validateInitiativeReference(initiative); err != nil {
-		httputil.BadRequest(w, "[backlog] create", err.Error())
-		return
-	}
-
-	effort := ""
-	if req.Effort != nil {
-		normalized, err := validateEffort(*req.Effort)
-		if err != nil {
-			httputil.BadRequest(w, "[backlog] create", err.Error())
-			return
-		}
-		effort = normalized
-	}
-
-	if err := validateGlobs(req.AcceptanceAllow); err != nil {
-		httputil.BadRequest(w, "[backlog] create", "acceptance_allow: "+err.Error())
-		return
-	}
-	if err := validateGlobs(req.AcceptanceDeny); err != nil {
-		httputil.BadRequest(w, "[backlog] create", "acceptance_deny: "+err.Error())
-		return
-	}
-
-	spawnedFrom := ""
-	if req.SpawnedFrom != nil {
-		spawnedFrom = strings.TrimSpace(*req.SpawnedFrom)
-	}
-
-	item := BacklogItem{
-		Name:            name,
-		Title:           req.Title,
-		Description:     description,
-		Status:          StatusBacklog,
-		Priority:        priority,
-		Tags:            tags,
-		Created:         now,
-		Updated:         now,
-		Kind:            kind,
-		DependsOn:       dependsOn,
-		Initiative:      initiative,
-		Effort:          effort,
-		AcceptanceAllow: req.AcceptanceAllow,
-		AcceptanceDeny:  req.AcceptanceDeny,
-		SpawnedFrom:     spawnedFrom,
-	}
-
-	itemDir := h.store.ItemDir(kind, name)
-	if err := os.Mkdir(itemDir, 0o755); err != nil {
-		if os.IsExist(err) {
-			httputil.Conflict(w, "[backlog] create", "backlog item already exists")
-			return
-		}
-		// Parent dir may not exist for the first item of this kind — ensure it, then retry.
-		if mkErr := os.MkdirAll(filepath.Dir(itemDir), 0o755); mkErr != nil {
-			log.Printf("[backlog] create: failed to create parent directory for %q: %v", name, mkErr)
-			httputil.InternalError(w, "[backlog] create", "failed to create backlog directory")
-			return
-		}
-		if retryErr := os.Mkdir(itemDir, 0o755); retryErr != nil {
-			if os.IsExist(retryErr) {
-				httputil.Conflict(w, "[backlog] create", "backlog item already exists")
-				return
-			}
-			log.Printf("[backlog] create: failed to create directory for %q: %v", name, retryErr)
-			httputil.InternalError(w, "[backlog] create", "failed to create backlog directory")
-			return
-		}
-	}
-
-	// Validate dependencies exist and check for cycles.
-	if len(item.DependsOn) > 0 {
-		if err := h.store.ValidateDependencies(item.DependsOn); err != nil {
-			_ = os.RemoveAll(itemDir)
-			httputil.BadRequest(w, "[backlog] create", err.Error())
-			return
-		}
-		if err := h.checkDependencyCycles(item); err != nil {
-			_ = os.RemoveAll(itemDir)
-			httputil.BadRequest(w, "[backlog] create", err.Error())
-			return
-		}
-	}
-
-	if err := h.store.SaveItem(item); err != nil {
-		_ = os.RemoveAll(itemDir)
-		log.Printf("[backlog] create: failed to save %q: %v", name, err)
-		httputil.InternalError(w, "[backlog] create", "failed to save backlog item")
-		return
-	}
-
-	// Auto-initialize workshop for new items (unless disabled in settings or blocked by deps).
-	h.maybeAutoWorkshop(item, false)
-
-	log.Printf("[backlog] created: %q (kind=%s, priority=%d, status=%s)", name, kind, priority, StatusBacklog)
-	if h.eventLogger != nil {
-		h.eventLogger.EmitBacklogCreated(string(kind)+"/"+name, string(kind), string(StatusBacklog), priority, item.Initiative, item.Effort)
-	}
-	h.invalidateAllGraphLenses()
-	resp := &apipb.BacklogItemResponse{Item: backlogToProto(item)}
-	if err := httputil.ProtoJSONWithStatus(w, http.StatusCreated, resp); err != nil {
-		httputil.InternalError(w, "[backlog] create", "failed to encode response")
-	}
-}
-
-// maybeAutoWorkshop checks the global auto_initialize_workshop setting,
-// dependency readiness, and spawns the first workshop round asynchronously
-// if appropriate.
-func (h *Handler) maybeAutoWorkshop(item BacklogItem, forceOverride bool) {
-	cfg, err := settings.NewStore("").Load()
-	if err != nil {
-		log.Printf("[backlog] auto-workshop: settings load error for %s/%s: %v, using defaults", item.Kind, item.Name, err)
-		cfg = settings.DefaultSettings()
-	}
-	if !workshop.ShouldAutoInitialize(cfg.AutoInitializeWorkshop) {
-		return
-	}
-	if !forceOverride && len(item.DependsOn) > 0 {
-		depStatuses, err := h.store.CheckWorkshopDependencies(item.DependsOn)
-		if err != nil {
-			log.Printf("[backlog] auto-workshop: dep check error for %s/%s: %v, proceeding anyway", item.Kind, item.Name, err)
-		} else {
-			result := workshop.CheckWorkshopDependencies(depStatuses)
-			if result.Blocked {
-				log.Printf("[backlog] auto-workshop: blocked for %s/%s by deps: %v", item.Kind, item.Name, result.BlockingDeps)
-				return
-			}
-		}
-	}
-	go func() {
-		_, _, spawnErr := h.spawnWorkshopAsync(item, ResearchModeInitialize)
-		if spawnErr != nil {
-			log.Printf("[backlog] auto-init: failed for %s/%s: %v", item.Kind, item.Name, spawnErr)
-		}
-	}()
-}
-
-// cascadeWorkshopTrigger finds items that depend on the given item and
-// auto-triggers their workshops if all their dependencies are now met.
-// Only triggers for items still in "backlog" status with no existing
-// workshop rounds.
-func (h *Handler) cascadeWorkshopTrigger(readyItem BacklogItem) {
-	readyKey := string(readyItem.Kind) + "/" + readyItem.Name
-
-	allItems, err := h.store.LoadAll(nil)
-	if err != nil {
-		log.Printf("[backlog] cascade: failed to load items: %v", err)
-		return
-	}
-
-	for _, item := range allItems {
-		if item.Status != StatusBacklog {
-			continue
-		}
-		dependsOnReady := false
-		for _, dep := range item.DependsOn {
-			if dep == readyKey {
-				dependsOnReady = true
-				break
-			}
-		}
-		if !dependsOnReady {
-			continue
-		}
-
-		depStatuses, err := h.store.CheckWorkshopDependencies(item.DependsOn)
-		if err != nil {
-			log.Printf("[backlog] cascade: dep check failed for %s/%s: %v", item.Kind, item.Name, err)
-			continue
-		}
-		result := workshop.CheckWorkshopDependencies(depStatuses)
-		if result.Blocked {
-			continue
-		}
-
-		itemDir := h.store.ItemDir(item.Kind, item.Name)
-		_, roundCount, _ := workshop.LoadLatestRound(itemDir)
-		if roundCount > 0 {
-			continue
-		}
-
-		log.Printf("[backlog] cascade: triggering workshop for %s/%s (unblocked by %s)", item.Kind, item.Name, readyKey)
-		go func(it BacklogItem) {
-			_, _, spawnErr := h.spawnWorkshopAsync(it, ResearchModeInitialize)
-			if spawnErr != nil {
-				log.Printf("[backlog] cascade: failed for %s/%s: %v", it.Kind, it.Name, spawnErr)
-			}
-		}(item)
-	}
-}
-
 // Update updates an existing backlog item.
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	kind, name, ok := h.parseKindAndName(w, r, "update")
@@ -583,21 +226,21 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	existing, err := h.store.LoadItem(kind, name)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			httputil.NotFound(w, "[backlog] update", "backlog item not found")
+			apierr.MapError(w, "[backlog] update", apierr.NotFound("backlog item not found"))
 			return
 		}
 		log.Printf("[backlog] update: failed to load %q: %v", name, err)
-		httputil.InternalError(w, "[backlog] update", httputil.TruncateErrorMessage(err, 240))
+		apierr.MapError(w, "[backlog] update", apierr.Internal("%s", httputil.TruncateErrorMessage(err, 240)))
 		return
 	}
 
 	update, fields, err := decodeUpdateBacklogPatch(r)
 	if err != nil {
-		httputil.BadRequest(w, "[backlog] update", err.Error())
+		apierr.MapError(w, "[backlog] update", apierr.BadRequest("%s", err.Error()))
 		return
 	}
 	if validationErr := validateUpdateBacklogItemRequest(update, fields, existing.Kind); validationErr != "" {
-		httputil.BadRequest(w, "[backlog] update", validationErr)
+		apierr.MapError(w, "[backlog] update", apierr.BadRequest("%s", validationErr))
 		return
 	}
 
@@ -610,7 +253,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	if fields.Has(updateFieldEffort) {
 		normalized, err := validateEffort(update.GetEffort())
 		if err != nil {
-			httputil.BadRequest(w, "[backlog] update", err.Error())
+			apierr.MapError(w, "[backlog] update", apierr.BadRequest("%s", err.Error()))
 			return
 		}
 		update.Effort = &normalized
@@ -621,25 +264,25 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	if fields.Has(updateFieldInitiative) {
 		if err := h.validateInitiativeReference(existing.Initiative); err != nil {
-			httputil.BadRequest(w, "[backlog] update", err.Error())
+			apierr.MapError(w, "[backlog] update", apierr.BadRequest("%s", err.Error()))
 			return
 		}
 	}
 
 	if fields.Has(updateFieldDependsOn) && len(existing.DependsOn) > 0 {
 		if err := h.store.ValidateDependencies(existing.DependsOn); err != nil {
-			httputil.BadRequest(w, "[backlog] update", err.Error())
+			apierr.MapError(w, "[backlog] update", apierr.BadRequest("%s", err.Error()))
 			return
 		}
 		if err := h.checkDependencyCycles(existing); err != nil {
-			httputil.BadRequest(w, "[backlog] update", err.Error())
+			apierr.MapError(w, "[backlog] update", apierr.BadRequest("%s", err.Error()))
 			return
 		}
 	}
 
 	if err := h.store.SaveItem(existing); err != nil {
 		log.Printf("[backlog] update: failed to save %q: %v", name, err)
-		httputil.InternalError(w, "[backlog] update", "failed to save backlog item")
+		apierr.MapError(w, "[backlog] update", apierr.Internal("failed to save backlog item"))
 		return
 	}
 
@@ -684,7 +327,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	resp := &apipb.BacklogItemResponse{Item: backlogToProto(existing)}
 	h.invalidateAllGraphLenses()
 	if err := httputil.ProtoJSON(w, resp); err != nil {
-		httputil.InternalError(w, "[backlog] update", "failed to encode response")
+		apierr.MapError(w, "[backlog] update", apierr.Internal("failed to encode response"))
 	}
 }
 
@@ -704,7 +347,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	if err := os.RemoveAll(itemDir); err != nil {
 		log.Printf("[backlog] delete: failed to delete %q: %v", name, err)
-		httputil.InternalError(w, "[backlog] delete", "failed to delete backlog item")
+		apierr.MapError(w, "[backlog] delete", apierr.Internal("failed to delete backlog item"))
 		return
 	}
 
@@ -722,119 +365,12 @@ func (h *Handler) parseKindAndName(w http.ResponseWriter, r *http.Request, actio
 	name := vars["name"]
 	kind, err := ParseBacklogKind(kindRaw)
 	if err != nil {
-		httputil.BadRequest(w, "[backlog] "+action, "invalid kind")
+		apierr.MapError(w, "[backlog] "+action, apierr.BadRequest("invalid kind"))
 		return "", "", false
 	}
 	if strings.TrimSpace(name) == "" {
-		httputil.BadRequest(w, "[backlog] "+action, "name is required")
+		apierr.MapError(w, "[backlog] "+action, apierr.BadRequest("name is required"))
 		return "", "", false
 	}
 	return kind, name, true
-}
-
-// checkDependencyCycles builds a dependency graph from all existing items plus
-// the given item and checks for cycles.
-func (h *Handler) checkDependencyCycles(item BacklogItem) error {
-	items, err := h.store.LoadAll(nil)
-	if err != nil {
-		return fmt.Errorf("failed to load items for cycle check: %w", err)
-	}
-
-	g := depgraph.New()
-	itemKey := string(item.Kind) + "/" + item.Name
-	g.AddNode(itemKey, item.DependsOn)
-
-	for _, existing := range items {
-		key := string(existing.Kind) + "/" + existing.Name
-		if key == itemKey {
-			continue // use the new/updated version
-		}
-		g.AddNode(key, existing.DependsOn)
-	}
-
-	if cycle, found := g.DetectCycle(); found {
-		return fmt.Errorf("dependency cycle detected: %s", strings.Join(cycle, " -> "))
-	}
-	return nil
-}
-
-func parseKindsQuery(r *http.Request) ([]BacklogKind, error) {
-	query := r.URL.Query()
-	raw := strings.TrimSpace(query.Get("kinds"))
-	if raw == "" {
-		raw = strings.TrimSpace(query.Get("kind"))
-	}
-	if raw == "" {
-		return nil, nil
-	}
-
-	parts := strings.Split(raw, ",")
-	kinds := make([]BacklogKind, 0, len(parts))
-	for _, part := range parts {
-		kind, err := ParseBacklogKind(part)
-		if err != nil {
-			return nil, err
-		}
-		kinds = append(kinds, kind)
-	}
-	return kinds, nil
-}
-
-// parseStatusesQuery reads the "statuses" (or "status") query parameter.
-// Returns nil when no filter is specified (caller should apply default).
-// The special value "all" returns an empty slice signaling no filtering.
-func parseStatusesQuery(r *http.Request) ([]BacklogStatus, error) {
-	query := r.URL.Query()
-	raw := strings.TrimSpace(query.Get("statuses"))
-	if raw == "" {
-		raw = strings.TrimSpace(query.Get("status"))
-	}
-	if raw == "" {
-		return nil, nil
-	}
-	if strings.EqualFold(raw, "all") {
-		return []BacklogStatus{}, nil
-	}
-
-	parts := strings.Split(raw, ",")
-	statuses := make([]BacklogStatus, 0, len(parts))
-	for _, part := range parts {
-		s := BacklogStatus(strings.TrimSpace(part))
-		if s == "" {
-			continue
-		}
-		statuses = append(statuses, s)
-	}
-	return statuses, nil
-}
-
-// filterByStatus applies status filtering to a list of backlog items.
-//   - nil (no query param): exclude archived items (default)
-//   - empty slice (status=all): no filtering, return everything
-//   - non-empty slice: include only items matching one of the given statuses
-func filterByStatus(items []BacklogItem, statuses []BacklogStatus) []BacklogItem {
-	if statuses != nil && len(statuses) == 0 {
-		return items
-	}
-
-	filtered := make([]BacklogItem, 0, len(items))
-	if statuses == nil {
-		for _, item := range items {
-			if item.Status != StatusArchived {
-				filtered = append(filtered, item)
-			}
-		}
-		return filtered
-	}
-
-	allow := make(map[BacklogStatus]bool, len(statuses))
-	for _, s := range statuses {
-		allow[s] = true
-	}
-	for _, item := range items {
-		if allow[item.Status] {
-			filtered = append(filtered, item)
-		}
-	}
-	return filtered
 }

@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, Check, ChevronDown, ChevronUp, ExternalLink, Loader2, RefreshCw } from "lucide-react";
-import { Button } from "../ui/button";
+import { AlertTriangle, Check, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { cn } from "../../lib";
 import type { ExecutionRecord, Finalization, FinalizationPhase, ScenarioFinalization } from "../../types";
 
@@ -76,14 +75,11 @@ function ScenarioSummary({ scenario }: { scenario: ScenarioFinalization }) {
 
 export interface PostRunStatusBadgeProps {
   execution: ExecutionRecord;
-  onOpenSandbox?: () => void;
-  onRunChecks?: () => void;
 }
 
-export function PostRunStatusBadge({ execution, onOpenSandbox, onRunChecks }: PostRunStatusBadgeProps) {
+export function PostRunStatusBadge({ execution }: PostRunStatusBadgeProps) {
   const [expanded, setExpanded] = useState(false);
   const finalization = execution.finalization;
-  const hasIssues = finalization?.aggregateClassification === "needs_work" || finalization?.aggregateClassification === "not_assessable" || finalization?.status === "failed";
   const hasDetails = Boolean(finalization?.aggregateSummary || finalization?.warnings.length || finalization?.scenarios.length);
 
   if (!finalization) {
@@ -136,39 +132,6 @@ export function PostRunStatusBadge({ execution, onOpenSandbox, onRunChecks }: Po
           ))}
         </div>
       )}
-
-      <div className="flex gap-2">
-        {hasIssues && onOpenSandbox && execution.runId && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="flex-1 border-red-500/30 text-red-300 hover:bg-red-500/10 hover:text-red-200"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenSandbox();
-            }}
-            data-testid="post-run-open-sandbox"
-          >
-            <ExternalLink className="mr-1.5 h-3 w-3" />
-            Review in Sandbox
-          </Button>
-        )}
-        {onRunChecks && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="flex-1"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRunChecks();
-            }}
-            data-testid="post-run-rerun-button"
-          >
-            <RefreshCw className="mr-1.5 h-3 w-3" />
-            Re-run Checks
-          </Button>
-        )}
-      </div>
     </div>
   );
 }

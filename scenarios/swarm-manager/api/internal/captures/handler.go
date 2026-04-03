@@ -28,6 +28,7 @@ import (
 
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/idgen"
 	"swarm-manager/internal/promptcatalog"
@@ -168,7 +169,7 @@ func (h *Handler) List(w http.ResponseWriter, _ *http.Request) {
 			_ = httputil.JSON(w, map[string]any{"captures": []any{}})
 			return
 		}
-		httputil.InternalError(w, "[captures] list", "failed to read captures directory")
+		apierr.MapError(w, "[captures] list", apierr.Internal("failed to read captures directory"))
 		return
 	}
 
@@ -207,13 +208,13 @@ var allowedImageTypes = map[string]bool{
 // Create creates a new capture from a multipart form (text + optional image files).
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
-		httputil.BadRequest(w, "[captures] create", "invalid multipart form")
+		apierr.MapError(w, "[captures] create", apierr.BadRequest("invalid multipart form"))
 		return
 	}
 
 	text := strings.TrimSpace(r.FormValue("text"))
 	if text == "" {
-		httputil.BadRequest(w, "[captures] create", "text is required")
+		apierr.MapError(w, "[captures] create", apierr.BadRequest("text is required"))
 		return
 	}
 
@@ -230,7 +231,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	dir := h.captureDir(id)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		httputil.InternalError(w, "[captures] create", "failed to create capture directory")
+		apierr.MapError(w, "[captures] create", apierr.Internal("failed to create capture directory"))
 		return
 	}
 
@@ -241,14 +242,14 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		if !allowedImageTypes[mediaType] {
 			// Clean up the capture directory on rejection.
 			_ = os.RemoveAll(dir)
-			httputil.BadRequest(w, "[captures] create", fmt.Sprintf("unsupported file type: %s", mediaType))
+			apierr.MapError(w, "[captures] create", apierr.BadRequest("unsupported file type: %s", mediaType))
 			return
 		}
 
 		attDir := filepath.Join(dir, "attachments")
 		if err := os.MkdirAll(attDir, 0o755); err != nil {
 			_ = os.RemoveAll(dir)
-			httputil.InternalError(w, "[captures] create", "failed to create attachments directory")
+			apierr.MapError(w, "[captures] create", apierr.Internal("failed to create attachments directory"))
 			return
 		}
 
@@ -258,7 +259,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		src, err := fh.Open()
 		if err != nil {
 			_ = os.RemoveAll(dir)
-			httputil.InternalError(w, "[captures] create", "failed to read uploaded file")
+			apierr.MapError(w, "[captures] create", apierr.Internal("failed to read uploaded file"))
 			return
 		}
 
@@ -266,7 +267,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			src.Close()
 			_ = os.RemoveAll(dir)
-			httputil.InternalError(w, "[captures] create", "failed to save uploaded file")
+			apierr.MapError(w, "[captures] create", apierr.Internal("failed to save uploaded file"))
 			return
 		}
 
@@ -275,7 +276,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		dst.Close()
 		if copyErr != nil {
 			_ = os.RemoveAll(dir)
-			httputil.InternalError(w, "[captures] create", "failed to write uploaded file")
+			apierr.MapError(w, "[captures] create", apierr.Internal("failed to write uploaded file"))
 			return
 		}
 
@@ -283,7 +284,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.writeCapture(&cap); err != nil {
-		httputil.InternalError(w, "[captures] create", "failed to write capture")
+		apierr.MapError(w, "[captures] create", apierr.Internal("failed to write capture"))
 		return
 	}
 
@@ -330,10 +331,10 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	cap, err := h.loadCapture(id)
 	if err != nil {
 		if os.IsNotExist(err) {
-			httputil.NotFound(w, "[captures] get", "capture not found")
+			apierr.MapError(w, "[captures] get", apierr.NotFound("capture not found"))
 			return
 		}
-		httputil.InternalError(w, "[captures] get", "failed to load capture")
+		apierr.MapError(w, "[captures] get", apierr.Internal("failed to load capture"))
 		return
 	}
 	_ = httputil.JSON(w, map[string]any{"capture": cap})
@@ -352,7 +353,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := os.RemoveAll(dir); err != nil {
-		httputil.InternalError(w, "[captures] delete", "failed to delete capture")
+		apierr.MapError(w, "[captures] delete", apierr.Internal("failed to delete capture"))
 		return
 	}
 	h.invalidateTopologyGraph()
@@ -365,10 +366,10 @@ func (h *Handler) Classify(w http.ResponseWriter, r *http.Request) {
 	cap, err := h.loadCapture(id)
 	if err != nil {
 		if os.IsNotExist(err) {
-			httputil.NotFound(w, "[captures] classify", "capture not found")
+			apierr.MapError(w, "[captures] classify", apierr.NotFound("capture not found"))
 			return
 		}
-		httputil.InternalError(w, "[captures] classify", "failed to load capture")
+		apierr.MapError(w, "[captures] classify", apierr.Internal("failed to load capture"))
 		return
 	}
 
@@ -376,7 +377,7 @@ func (h *Handler) Classify(w http.ResponseWriter, r *http.Request) {
 	cap.Status = "classifying"
 	cap.Classification = nil
 	if err := h.writeCapture(cap); err != nil {
-		httputil.InternalError(w, "[captures] classify", "failed to update capture")
+		apierr.MapError(w, "[captures] classify", apierr.Internal("failed to update capture"))
 		return
 	}
 
@@ -386,10 +387,10 @@ func (h *Handler) Classify(w http.ResponseWriter, r *http.Request) {
 	runResult, err := h.spawnClassifyAgent(r, cap)
 	if err != nil {
 		if errors.Is(err, agentmanager.ErrNotAvailable) {
-			httputil.ServiceUnavailable(w, "[captures] classify", "agent-manager is not available")
+			apierr.MapError(w, "[captures] classify", apierr.Unavailable("agent-manager is not available"))
 			return
 		}
-		httputil.InternalError(w, "[captures] classify", "failed to spawn classification agent")
+		apierr.MapError(w, "[captures] classify", apierr.Internal("failed to spawn classification agent"))
 		return
 	}
 
@@ -411,7 +412,7 @@ type createItemRequest struct {
 // It pre-fills the item with text from the capture and tags from the classification.
 func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 	if h.backlogCreator == nil {
-		httputil.InternalError(w, "[captures] create-item", "backlog creator not configured")
+		apierr.MapError(w, "[captures] create-item", apierr.Internal("backlog creator not configured"))
 		return
 	}
 
@@ -419,10 +420,10 @@ func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 	cap, err := h.loadCapture(id)
 	if err != nil {
 		if os.IsNotExist(err) {
-			httputil.NotFound(w, "[captures] create-item", "capture not found")
+			apierr.MapError(w, "[captures] create-item", apierr.NotFound("capture not found"))
 			return
 		}
-		httputil.InternalError(w, "[captures] create-item", "failed to load capture")
+		apierr.MapError(w, "[captures] create-item", apierr.Internal("failed to load capture"))
 		return
 	}
 
@@ -463,11 +464,11 @@ func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.backlogCreator.SaveItem(kind, name, title, cap.Text, dedupTags); err != nil {
 		if strings.Contains(err.Error(), "already exists") {
-			httputil.Conflict(w, "[captures] create-item", "backlog item already exists")
+			apierr.MapError(w, "[captures] create-item", apierr.Conflict("backlog item already exists"))
 			return
 		}
 		log.Printf("[captures] create-item: %v", err)
-		httputil.InternalError(w, "[captures] create-item", "failed to create backlog item")
+		apierr.MapError(w, "[captures] create-item", apierr.Internal("failed to create backlog item"))
 		return
 	}
 

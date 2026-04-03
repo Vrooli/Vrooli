@@ -6,7 +6,7 @@
  * topology-compression behavior can be tested directly.
  */
 
-import type { GraphLensSettings } from "../stores/graph-data-store";
+import type { GraphLensSettings } from "../stores/graph-settings-store";
 import {
   getGraphNodeData,
   type GraphEdge,

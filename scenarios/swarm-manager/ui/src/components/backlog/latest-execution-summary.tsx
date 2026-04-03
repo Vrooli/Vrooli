@@ -1,16 +1,16 @@
 /**
  * LatestExecutionSummary
  *
- * Persistent section at the top of the Output tab showing the most recent
- * execution's status. This component always renders — empty state, active
- * run, or completed/failed — providing a persistent execution indicator.
+ * Persistent section at the top of the Output tab showing the active
+ * run state or the empty state. Completed/failed execution status and
+ * actions are now handled by ReviewStatusHeader in ReviewFlow.
  */
 
 import { Square } from "lucide-react";
 import { Button } from "../ui/button";
-import { formatRelativeTime, canFollowUpExecution } from "../../lib";
-import { EXECUTION_STATUS_COLORS, formatExecutionStatus, type ExecutionRecord, type ExecutionStatus } from "../../types";
+import { formatRelativeTime } from "../../lib";
 import { selectors } from "../../consts/selectors";
+import type { ExecutionRecord } from "../../types";
 import type { AgentActivityRecord } from "../../stores/agent-activities-store";
 
 export interface LatestExecutionSummaryProps {
@@ -22,8 +22,6 @@ export interface LatestExecutionSummaryProps {
   latestAgentActivity: AgentActivityRecord | null;
   /** Stop a running agent. */
   onStopRun: (runId: string) => void;
-  /** Open follow-up dialog for this execution. */
-  onFollowUp: (exec: ExecutionRecord) => void;
 }
 
 export function LatestExecutionSummary({
@@ -31,7 +29,6 @@ export function LatestExecutionSummary({
   agentRunIsActive,
   latestAgentActivity,
   onStopRun,
-  onFollowUp,
 }: LatestExecutionSummaryProps) {
   const testId = `${selectors.backlogDetails.outputTab}-latest-exec`;
 
@@ -84,44 +81,6 @@ export function LatestExecutionSummary({
     );
   }
 
-  // Completed/failed execution
-  const statusColor = EXECUTION_STATUS_COLORS[latestExecution.status as ExecutionStatus] ?? "bg-slate-500";
-  const canFollowUp = canFollowUpExecution(latestExecution.status as ExecutionStatus);
-
-  return (
-    <div className="py-3" data-testid={testId}>
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${statusColor}`} />
-          <span className="text-xs font-medium capitalize text-slate-200">
-            {formatExecutionStatus(latestExecution.status as ExecutionStatus)}
-          </span>
-          {latestExecution.operation && (
-            <span className="rounded bg-slate-700/60 px-1.5 py-0.5 text-[11px] font-medium text-slate-300">
-              {latestExecution.operation.replace("_", " ")}
-            </span>
-          )}
-          <span className="text-xs text-slate-400">
-            {formatRelativeTime(latestExecution.createdAt)}
-          </span>
-          {canFollowUp && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="ml-auto h-7 px-2 text-xs"
-              onClick={() => onFollowUp(latestExecution)}
-              data-testid={`${testId}-follow-up`}
-            >
-              Follow Up
-            </Button>
-          )}
-        </div>
-        {latestExecution.failureReason && (
-          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
-            {latestExecution.failureReason}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  // Completed/failed — status is shown by ReviewStatusHeader
+  return null;
 }

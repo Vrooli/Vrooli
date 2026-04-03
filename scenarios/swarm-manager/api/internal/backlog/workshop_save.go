@@ -22,6 +22,7 @@ import (
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/settings"
 	"swarm-manager/internal/workshop"
@@ -44,16 +45,16 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 	item, err := h.store.LoadItem(kind, name)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			httputil.NotFound(w, "[backlog] workshop-save", "backlog item not found")
+			apierr.MapError(w, "[backlog] workshop-save", apierr.NotFound("backlog item not found"))
 			return
 		}
-		httputil.InternalError(w, "[backlog] workshop-save", "failed to load backlog item")
+		apierr.MapError(w, "[backlog] workshop-save", apierr.Internal("failed to load backlog item"))
 		return
 	}
 
 	var req apipb.WorkshopSaveRequest
 	if err := httputil.DecodeProtoJSON(r, &req); err != nil {
-		httputil.BadRequest(w, "[backlog] workshop-save", "invalid request body")
+		apierr.MapError(w, "[backlog] workshop-save", apierr.BadRequest("invalid request body"))
 		return
 	}
 	if !httputil.ValidateProtoRequest(w, "[backlog] workshop-save", "invalid request body", &req) {
@@ -63,13 +64,13 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 	// Parse and validate the round content.
 	var round workshop.Round
 	if err := json.Unmarshal([]byte(req.Content), &round); err != nil {
-		httputil.BadRequest(w, "[backlog] workshop-save", "content is not valid workshop round JSON")
+		apierr.MapError(w, "[backlog] workshop-save", apierr.BadRequest("content is not valid workshop round JSON"))
 		return
 	}
 	round.PendingSynthesis = workshop.NeedsSynthesis(&round)
 	content, err := json.MarshalIndent(round, "", "  ")
 	if err != nil {
-		httputil.InternalError(w, "[backlog] workshop-save", "failed to encode round content")
+		apierr.MapError(w, "[backlog] workshop-save", apierr.Internal("failed to encode round content"))
 		return
 	}
 
@@ -78,7 +79,7 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 	workshopDir := filepath.Join(itemDir, "workshop")
 	if err := os.MkdirAll(workshopDir, 0o755); err != nil {
 		log.Printf("[backlog] workshop-save: failed to create workshop dir: %v", err)
-		httputil.InternalError(w, "[backlog] workshop-save", "failed to create workshop directory")
+		apierr.MapError(w, "[backlog] workshop-save", apierr.Internal("failed to create workshop directory"))
 		return
 	}
 
@@ -86,7 +87,7 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 	roundPath := filepath.Join(workshopDir, roundFile)
 	if err := os.WriteFile(roundPath, content, 0o644); err != nil {
 		log.Printf("[backlog] workshop-save: failed to write %s: %v", roundPath, err)
-		httputil.InternalError(w, "[backlog] workshop-save", "failed to save round file")
+		apierr.MapError(w, "[backlog] workshop-save", apierr.Internal("failed to save round file"))
 		return
 	}
 
@@ -150,7 +151,7 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 		AutoAdvance: autoAdvance,
 	}
 	if err := httputil.ProtoJSON(w, resp); err != nil {
-		httputil.InternalError(w, "[backlog] workshop-save", "failed to encode response")
+		apierr.MapError(w, "[backlog] workshop-save", apierr.Internal("failed to encode response"))
 	}
 }
 
@@ -283,16 +284,16 @@ func (h *Handler) WorkshopDeleteRound(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := h.store.LoadItem(kind, name); err != nil {
 		if errors.Is(err, ErrNotFound) {
-			httputil.NotFound(w, "[backlog] workshop-delete-round", "backlog item not found")
+			apierr.MapError(w, "[backlog] workshop-delete-round", apierr.NotFound("backlog item not found"))
 			return
 		}
-		httputil.InternalError(w, "[backlog] workshop-delete-round", "failed to load backlog item")
+		apierr.MapError(w, "[backlog] workshop-delete-round", apierr.Internal("failed to load backlog item"))
 		return
 	}
 
 	var req apipb.WorkshopDeleteRoundRequest
 	if err := httputil.DecodeProtoJSON(r, &req); err != nil {
-		httputil.BadRequest(w, "[backlog] workshop-delete-round", "invalid request body")
+		apierr.MapError(w, "[backlog] workshop-delete-round", apierr.BadRequest("invalid request body"))
 		return
 	}
 	if !httputil.ValidateProtoRequest(w, "[backlog] workshop-delete-round", "invalid request body", &req) {
@@ -303,18 +304,18 @@ func (h *Handler) WorkshopDeleteRound(w http.ResponseWriter, r *http.Request) {
 
 	// Prevent deletion while a workshop agent is running.
 	if isWorkshopLocked(itemDir) {
-		httputil.Conflict(w, "[backlog] workshop-delete-round", "workshop is currently being generated; try again after the agent finishes")
+		apierr.MapError(w, "[backlog] workshop-delete-round", apierr.Conflict("workshop is currently being generated; try again after the agent finishes"))
 		return
 	}
 
 	remaining, err := workshop.DeleteRoundAndRenumber(itemDir, int(req.RoundNumber))
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			httputil.NotFound(w, "[backlog] workshop-delete-round", err.Error())
+			apierr.MapError(w, "[backlog] workshop-delete-round", apierr.NotFound("%s", err.Error()))
 			return
 		}
 		log.Printf("[backlog] workshop-delete-round: %v", err)
-		httputil.InternalError(w, "[backlog] workshop-delete-round", "failed to delete workshop round")
+		apierr.MapError(w, "[backlog] workshop-delete-round", apierr.Internal("failed to delete workshop round"))
 		return
 	}
 
@@ -325,7 +326,7 @@ func (h *Handler) WorkshopDeleteRound(w http.ResponseWriter, r *http.Request) {
 		RemainingRounds: int32(remaining),
 	}
 	if err := httputil.ProtoJSON(w, resp); err != nil {
-		httputil.InternalError(w, "[backlog] workshop-delete-round", "failed to encode response")
+		apierr.MapError(w, "[backlog] workshop-delete-round", apierr.Internal("failed to encode response"))
 	}
 }
 
@@ -340,10 +341,10 @@ func (h *Handler) WorkshopReset(w http.ResponseWriter, r *http.Request) {
 	item, err := h.store.LoadItem(kind, name)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			httputil.NotFound(w, "[backlog] workshop-reset", "backlog item not found")
+			apierr.MapError(w, "[backlog] workshop-reset", apierr.NotFound("backlog item not found"))
 			return
 		}
-		httputil.InternalError(w, "[backlog] workshop-reset", "failed to load backlog item")
+		apierr.MapError(w, "[backlog] workshop-reset", apierr.Internal("failed to load backlog item"))
 		return
 	}
 
@@ -351,7 +352,7 @@ func (h *Handler) WorkshopReset(w http.ResponseWriter, r *http.Request) {
 
 	// Prevent reset while a workshop agent is running.
 	if isWorkshopLocked(itemDir) {
-		httputil.Conflict(w, "[backlog] workshop-reset", "workshop is currently being generated; try again after the agent finishes")
+		apierr.MapError(w, "[backlog] workshop-reset", apierr.Conflict("workshop is currently being generated; try again after the agent finishes"))
 		return
 	}
 
@@ -364,7 +365,7 @@ func (h *Handler) WorkshopReset(w http.ResponseWriter, r *http.Request) {
 	deleted, err := workshop.ResetWorkshop(itemDir, deliverableFile)
 	if err != nil {
 		log.Printf("[backlog] workshop-reset: %v", err)
-		httputil.InternalError(w, "[backlog] workshop-reset", "failed to reset workshop")
+		apierr.MapError(w, "[backlog] workshop-reset", apierr.Internal("failed to reset workshop"))
 		return
 	}
 
@@ -375,7 +376,7 @@ func (h *Handler) WorkshopReset(w http.ResponseWriter, r *http.Request) {
 		item.Status = StatusBacklog
 		if err := h.store.SaveItem(item); err != nil {
 			log.Printf("[backlog] workshop-reset: failed to revert status: %v", err)
-			httputil.InternalError(w, "[backlog] workshop-reset", "failed to revert status")
+			apierr.MapError(w, "[backlog] workshop-reset", apierr.Internal("failed to revert status"))
 			return
 		}
 		statusReverted = true
@@ -388,6 +389,6 @@ func (h *Handler) WorkshopReset(w http.ResponseWriter, r *http.Request) {
 		StatusReverted: statusReverted,
 	}
 	if err := httputil.ProtoJSON(w, resp); err != nil {
-		httputil.InternalError(w, "[backlog] workshop-reset", "failed to encode response")
+		apierr.MapError(w, "[backlog] workshop-reset", apierr.Internal("failed to encode response"))
 	}
 }

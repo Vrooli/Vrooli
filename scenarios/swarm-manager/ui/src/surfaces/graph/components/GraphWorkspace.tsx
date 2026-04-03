@@ -8,7 +8,7 @@
  * - Bottom-right: MiniMap (rendered inside GraphCanvas)
  */
 
-import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, BarChart3, HelpCircle, Menu, MessageSquarePlus, RefreshCw, Settings } from "lucide-react";
@@ -20,14 +20,15 @@ import { buildFeed } from "../../../lib/feed";
 import { settingsService } from "../../../services";
 import { useAgentActivitiesStore, useBacklogStore, useCaptureStore, useExecutionStore } from "../../../stores";
 import { useGraphDataStore } from "../stores/graph-data-store";
+import { useGraphSettingsStore } from "../stores/graph-settings-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
 import { buildActivityNodeId, parseNodeId } from "../lib/node-id-parser";
-import { clearVisualFocus } from "../lib/visual-focus";
 import { useDetailSelectionStore } from "../../../stores/detail-selection-store";
 import { useDetailUrlSync } from "../../../hooks/useDetailUrlSync";
 import { useDetailNavigation } from "../../../hooks/useDetailNavigation";
 import { AgentsDropdown } from "../../../components/agents/AgentsDropdown";
 import { useGraphKeyboardShortcuts } from "../hooks/useGraphKeyboardShortcuts";
+import { useGraphStateSync } from "../hooks/useGraphStateSync";
 import { useGraphWebSocket } from "../hooks/useGraphWebSocket";
 import { FloatingActionButton } from "../../../components/ui/floating-action-button";
 import { PageLoadingState } from "../../../components/ui/loading-states";
@@ -66,13 +67,8 @@ import { SettingsDrawer } from "./SettingsDrawer";
 import { StatsPanel } from "./StatsPanel";
 import { NodeInspectorPanel } from "./NodeInspectorPanel";
 import { GraphHelpPanel } from "./GraphHelpPanel";
-import { getGraphNodeLabel } from "../types";
 import type { GraphLens } from "../stores/graph-data-store";
 import type { FeedbackItem, MaturityItem } from "../../../lib/feed";
-
-function isGraphLens(value: string | null): value is GraphLens {
-  return value === "focus" || value === "topology" || value === "operations";
-}
 
 /** Canvas error boundary prefix for correlation IDs */
 const CANVAS_ERROR_ID_PREFIX = "canvas_err";
@@ -152,11 +148,8 @@ export function GraphWorkspace() {
 
   const commandPostBadgeCount = useCommandPostBadgeCount();
 
-  const searchLens = searchParams.get("lens");
-  const urlLens: GraphLens = isGraphLens(searchLens) ? searchLens : "topology";
-  const urlSelect = searchParams.get("select");
-  const urlFocus = searchParams.get("focus");
-  const urlReturnLens = searchParams.get("returnLens");
+  // --- Graph state sync (URL ↔ store) ---
+  const { urlLens, handleLensChange, handleReturnToAtlas, handleDeselectNode } = useGraphStateSync();
 
   const fetchBacklog = useBacklogStore((s) => s.fetchBacklog);
   const backlogItems = useBacklogStore((s) => s.items);
@@ -170,22 +163,12 @@ export function GraphWorkspace() {
   const toggleSidebar = useGraphUIStore((s) => s.toggleSidebar);
 
   const lens = useGraphDataStore((s) => s.lens);
-  const fetchGraph = useGraphDataStore((s) => s.fetchGraph);
-  const nodes = useGraphDataStore((s) => s.nodes);
-  const setLens = useGraphDataStore((s) => s.setLens);
   const setNodePulsing = useGraphDataStore((s) => s.setNodePulsing);
   const focusNodeId = useGraphDataStore((s) => s.focusNodeId);
-  const setFocusNode = useGraphDataStore((s) => s.setFocusNode);
-  const returnLens = useGraphDataStore((s) => s.returnLens);
-  const setReturnLens = useGraphDataStore((s) => s.setReturnLens);
   const focusNodeLabel = useGraphUIStore((s) => s.focusNodeLabel);
-  const setFocusNodeLabel = useGraphUIStore((s) => s.setFocusNodeLabel);
-  const selectedNodeId = useGraphUIStore((s) => s.selectedNodeId);
   const selectNode = useGraphUIStore((s) => s.selectNode);
-  const setHighlightState = useGraphUIStore((s) => s.setHighlightState);
-  const applyLayoutForLens = useGraphUIStore((s) => s.applyLayoutForLens);
 
-  const showNavControls = useGraphDataStore((s) => s.settingsByLens[s.lens].showNavControls);
+  const showNavControls = useGraphSettingsStore((s) => s.settingsByLens[s.activeLens].showNavControls);
 
   const detailSelection = useDetailSelectionStore((s) => s.selection);
   const { openDetail } = useDetailNavigation();
@@ -220,71 +203,6 @@ export function GraphWorkspace() {
     pollFn: () => void refreshActivities(true),
     immediate: true,
   });
-
-  useEffect(() => {
-    setLens(urlLens);
-    applyLayoutForLens(urlLens);
-    void fetchGraph(urlLens);
-  }, [applyLayoutForLens, fetchGraph, setLens, urlLens]);
-
-  useEffect(() => {
-    setFocusNode(urlFocus ?? null);
-    setReturnLens(isGraphLens(urlReturnLens) ? urlReturnLens : null);
-  }, [urlFocus, urlReturnLens, setFocusNode, setReturnLens]);
-
-  useEffect(() => {
-    if (!focusNodeId) {
-      setFocusNodeLabel(null);
-      return;
-    }
-    const node = nodes.find((n) => n.id === focusNodeId);
-    if (node) {
-      setFocusNodeLabel(getGraphNodeLabel(node));
-    }
-  }, [focusNodeId, nodes, setFocusNodeLabel]);
-
-  // Sync URL → store only on URL-driven changes. Canvas clicks update the
-  // store directly without touching the URL, so we must not deselect when
-  // urlSelect is absent — that would race with the canvas click handler.
-  const prevUrlSelect = useRef(urlSelect);
-  useEffect(() => {
-    if (urlSelect === prevUrlSelect.current) {
-      return;
-    }
-    prevUrlSelect.current = urlSelect;
-
-    if (urlSelect) {
-      if (urlSelect !== selectedNodeId) {
-        selectNode(urlSelect);
-      }
-    } else {
-      if (selectedNodeId) {
-        selectNode(null);
-      }
-    }
-  }, [selectedNodeId, selectNode, urlSelect]);
-
-  const handleLensChange = useCallback(
-    (newLens: GraphLens) => {
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        next.set("lens", newLens);
-        return next;
-      });
-    },
-    [setSearchParams],
-  );
-
-  const handleReturnToAtlas = useCallback(() => {
-    const target = returnLens ?? "topology";
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.set("lens", target);
-      next.delete("focus");
-      next.delete("returnLens");
-      return next;
-    });
-  }, [returnLens, setSearchParams]);
 
   const feed = useMemo(() => {
     const feedbackItems: FeedbackItem[] = [];
@@ -328,17 +246,6 @@ export function GraphWorkspace() {
     [selectNode, setSearchParams, openDetail, sidebarCollapsed],
   );
 
-  const handleDeselectNode = useCallback(() => {
-    const cleared = clearVisualFocus();
-    selectNode(cleared.selectedNodeId);
-    setHighlightState(cleared.highlightState);
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.delete("select");
-      return next;
-    });
-  }, [selectNode, setHighlightState, setSearchParams]);
-
   useGraphKeyboardShortcuts({
     onLensChange: handleLensChange,
     onDeselectNode: handleDeselectNode,
@@ -347,21 +254,6 @@ export function GraphWorkspace() {
     onToggleCommandPost: () => setShowCommandPost((prev) => !prev),
     focusNodeId,
   });
-
-  // Sync store → URL when selection is cleared (e.g., by pane click in GraphCanvas).
-  const prevSelectedNodeId = useRef(selectedNodeId);
-  useEffect(() => {
-    const prev = prevSelectedNodeId.current;
-    prevSelectedNodeId.current = selectedNodeId;
-    if (prev !== null && selectedNodeId === null) {
-      setSearchParams((p) => {
-        if (!p.has("select")) return p;
-        const next = new URLSearchParams(p);
-        next.delete("select");
-        return next;
-      });
-    }
-  }, [selectedNodeId, setSearchParams]);
 
   const handleNodePulse = useCallback(
     (nodeId: string) => {

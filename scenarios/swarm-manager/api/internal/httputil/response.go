@@ -21,7 +21,6 @@ package httputil
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -41,40 +40,6 @@ func JSONWithStatus(w http.ResponseWriter, status int, data any) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	return json.NewEncoder(w).Encode(data)
-}
-
-// Error writes an error response using http.Error.
-// This is a thin wrapper for consistent logging patterns.
-func Error(w http.ResponseWriter, logPrefix, message string, code int) {
-	if logPrefix != "" {
-		log.Printf("%s: %s (status=%d)", logPrefix, message, code)
-	}
-	http.Error(w, message, code)
-}
-
-// BadRequest writes a 400 Bad Request response.
-func BadRequest(w http.ResponseWriter, logPrefix, message string) {
-	Error(w, logPrefix, message, http.StatusBadRequest)
-}
-
-// NotFound writes a 404 Not Found response.
-func NotFound(w http.ResponseWriter, logPrefix, message string) {
-	Error(w, logPrefix, message, http.StatusNotFound)
-}
-
-// InternalError writes a 500 Internal Server Error response.
-func InternalError(w http.ResponseWriter, logPrefix, message string) {
-	Error(w, logPrefix, message, http.StatusInternalServerError)
-}
-
-// Conflict writes a 409 Conflict response.
-func Conflict(w http.ResponseWriter, logPrefix, message string) {
-	Error(w, logPrefix, message, http.StatusConflict)
-}
-
-// ServiceUnavailable writes a 503 Service Unavailable response.
-func ServiceUnavailable(w http.ResponseWriter, logPrefix, message string) {
-	Error(w, logPrefix, message, http.StatusServiceUnavailable)
 }
 
 // ValidatePath checks if a file path is safely within a base directory.

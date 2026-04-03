@@ -327,6 +327,16 @@ export const literalSelectors = {
     error: "follow-up-error",
     reviewSummary: "follow-up-review-summary",
   },
+  // Shared review flow selectors
+  review: {
+    flow: "review-flow",
+    statusHeader: "review-status-header",
+    primaryAction: "review-primary-action",
+    rerunAction: "review-rerun-action",
+    scenarioChips: "review-scenario-chips",
+    evidenceContextSummary: "review-evidence-context-summary",
+    followUpSheet: "review-follow-up-sheet",
+  },
   // Initiative details page selectors
   initiativeDetails: {
     page: "initiative-details-page",

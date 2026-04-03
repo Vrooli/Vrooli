@@ -5,6 +5,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 )
 
@@ -27,10 +28,10 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 func (h *Handler) GetOverview(w http.ResponseWriter, _ *http.Request) {
 	resp, err := h.service.GetOverview()
 	if err != nil {
-		httputil.InternalError(w, "[overview] get", "failed to build overview")
+		apierr.MapError(w, "[overview] get", apierr.Internal("failed to build overview"))
 		return
 	}
 	if err := httputil.JSON(w, resp); err != nil {
-		httputil.InternalError(w, "[overview] get", "failed to encode response")
+		apierr.MapError(w, "[overview] get", apierr.Internal("failed to encode response"))
 	}
 }

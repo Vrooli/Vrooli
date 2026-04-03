@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/depgraph"
 	"swarm-manager/internal/httputil"
 )
@@ -117,19 +118,19 @@ type batchCreateResponse struct {
 func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 	var req batchCreateRequest
 	if err := httputil.DecodeJSONStrict(r, &req); err != nil {
-		httputil.BadRequest(w, "[backlog] batch-create", "invalid request body: "+httputil.TruncateErrorMessage(err, 240))
+		apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("%s", "invalid request body: "+httputil.TruncateErrorMessage(err, 240)))
 		return
 	}
 
 	if len(req.Items) == 0 {
-		httputil.BadRequest(w, "[backlog] batch-create", "at least one item is required")
+		apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("at least one item is required"))
 		return
 	}
 
 	const maxBatchSize = 100
 	if len(req.Items) > maxBatchSize {
-		httputil.BadRequest(w, "[backlog] batch-create",
-			fmt.Sprintf("batch size %d exceeds maximum of %d", len(req.Items), maxBatchSize))
+		apierr.MapError(w, "[backlog] batch-create",
+			apierr.BadRequest("batch size %d exceeds maximum of %d", len(req.Items), maxBatchSize))
 		return
 	}
 
@@ -147,23 +148,23 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 	for i, raw := range req.Initiatives {
 		name := strings.TrimSpace(raw.Name)
 		if name == "" {
-			httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("initiatives[%d]: name is required", i))
+			apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("initiatives[%d]: name is required", i))
 			return
 		}
 		if strings.TrimSpace(raw.Title) == "" {
-			httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("initiatives[%d]: title is required", i))
+			apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("initiatives[%d]: title is required", i))
 			return
 		}
 		if raw.Status != nil {
 			status := strings.TrimSpace(*raw.Status)
 			if !isValidInitiativeStatus(status) {
-				httputil.BadRequest(w, "[backlog] batch-create",
-					fmt.Sprintf("initiatives[%d]: status must be active, completed, or archived", i))
+				apierr.MapError(w, "[backlog] batch-create",
+					apierr.BadRequest("initiatives[%d]: status must be active, completed, or archived", i))
 				return
 			}
 		}
 		if _, exists := providedInitiatives[name]; exists {
-			httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("initiatives[%d]: duplicate initiative %q", i, name))
+			apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("initiatives[%d]: duplicate initiative %q", i, name))
 			return
 		}
 		raw.Name = name
@@ -182,18 +183,18 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 	for i, raw := range req.Items {
 		// Validate kind.
 		if strings.TrimSpace(raw.Kind) == "" {
-			httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("item[%d]: kind is required", i))
+			apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("item[%d]: kind is required", i))
 			return
 		}
 		kind, err := ParseBacklogKind(raw.Kind)
 		if err != nil {
-			httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("item[%d]: %s", i, err.Error()))
+			apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("item[%d]: %s", i, err.Error()))
 			return
 		}
 
 		// Validate title.
 		if strings.TrimSpace(raw.Title) == "" {
-			httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("item[%d]: title is required", i))
+			apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("item[%d]: title is required", i))
 			return
 		}
 
@@ -204,14 +205,14 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 		}
 		name = sanitizeName(name)
 		if name == "" {
-			httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("item[%d]: name is required", i))
+			apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("item[%d]: name is required", i))
 			return
 		}
 
 		// Check for duplicate names within the batch (using kind/name key).
 		key := string(kind) + "/" + name
 		if batchNames[key] {
-			httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("item[%d]: duplicate item %q in batch", i, key))
+			apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("item[%d]: duplicate item %q in batch", i, key))
 			return
 		}
 		batchNames[key] = true
@@ -220,7 +221,7 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 		priority := 5
 		if raw.Priority != nil {
 			if *raw.Priority < 1 || *raw.Priority > 10 {
-				httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("item[%d]: priority must be between 1 and 10", i))
+				apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("item[%d]: priority must be between 1 and 10", i))
 				return
 			}
 			priority = int(*raw.Priority)
@@ -229,7 +230,7 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 		// Check for conflicts with existing items on disk.
 		itemDir := h.store.ItemDir(kind, name)
 		if _, err := os.Stat(itemDir); err == nil {
-			httputil.Conflict(w, "[backlog] batch-create", fmt.Sprintf("item[%d]: %q already exists", i, key))
+			apierr.MapError(w, "[backlog] batch-create", apierr.Conflict("item[%d]: %q already exists", i, key))
 			return
 		}
 
@@ -251,18 +252,18 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 		if raw.Effort != nil {
 			normalized, err := validateEffort(*raw.Effort)
 			if err != nil {
-				httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("item[%d]: %s", i, err.Error()))
+				apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("item[%d]: %s", i, err.Error()))
 				return
 			}
 			effort = normalized
 		}
 
 		if err := validateGlobs(raw.AcceptanceAllow); err != nil {
-			httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("item[%d]: acceptance_allow: %s", i, err.Error()))
+			apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("item[%d]: acceptance_allow: %s", i, err.Error()))
 			return
 		}
 		if err := validateGlobs(raw.AcceptanceDeny); err != nil {
-			httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("item[%d]: acceptance_deny: %s", i, err.Error()))
+			apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("item[%d]: acceptance_deny: %s", i, err.Error()))
 			return
 		}
 
@@ -288,7 +289,7 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 
 	for name := range providedInitiatives {
 		if !referencedInitiatives[name] {
-			httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("initiative %q is not referenced by any item", name))
+			apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("initiative %q is not referenced by any item", name))
 			return
 		}
 	}
@@ -300,12 +301,12 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 	)
 	if len(referencedInitiatives) > 0 {
 		if h.initiativeAssigner == nil {
-			httputil.InternalError(w, "[backlog] batch-create", "initiative support not configured")
+			apierr.MapError(w, "[backlog] batch-create", apierr.Internal("initiative support not configured"))
 			return
 		}
 		initiativePlans, initiativeResults, err = h.resolveInitiativePlans(referencedInitiatives, providedInitiatives)
 		if err != nil {
-			httputil.BadRequest(w, "[backlog] batch-create", err.Error())
+			apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("%s", err.Error()))
 			return
 		}
 	}
@@ -320,11 +321,11 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 			// Must exist on disk.
 			depKind, depName, err := parseDependencyRef(ref)
 			if err != nil {
-				httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("item[%d]: %s", i, err.Error()))
+				apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("item[%d]: %s", i, err.Error()))
 				return
 			}
 			if _, loadErr := h.store.LoadItem(depKind, depName); errors.Is(loadErr, ErrNotFound) {
-				httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("item[%d]: dependency %q does not exist", i, ref))
+				apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("item[%d]: dependency %q does not exist", i, ref))
 				return
 			}
 		}
@@ -334,7 +335,7 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 	existingItems, err := h.store.LoadAll(nil)
 	if err != nil {
 		log.Printf("[backlog] batch-create: failed to load existing items: %v", err)
-		httputil.InternalError(w, "[backlog] batch-create", "failed to load existing items for cycle check")
+		apierr.MapError(w, "[backlog] batch-create", apierr.Internal("failed to load existing items for cycle check"))
 		return
 	}
 
@@ -348,8 +349,8 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 		g.AddNode(key, existing.DependsOn)
 	}
 	if cycle, found := g.DetectCycle(); found {
-		httputil.BadRequest(w, "[backlog] batch-create",
-			fmt.Sprintf("dependency cycle detected: %s", strings.Join(cycle, " -> ")))
+		apierr.MapError(w, "[backlog] batch-create",
+			apierr.BadRequest("dependency cycle detected: %s", strings.Join(cycle, " -> ")))
 		return
 	}
 
@@ -365,7 +366,7 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 			Preview:     true,
 		}
 		if err := httputil.JSON(w, resp); err != nil {
-			httputil.InternalError(w, "[backlog] batch-create", "failed to encode response")
+			apierr.MapError(w, "[backlog] batch-create", apierr.Internal("failed to encode response"))
 		}
 		return
 	}
@@ -379,13 +380,13 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 		case "create":
 			if createErr := h.initiativeAssigner.Create(plan.spec); createErr != nil {
 				log.Printf("[backlog] batch-create: failed to create initiative %q: %v", name, createErr)
-				httputil.InternalError(w, "[backlog] batch-create", "failed to create initiative: "+httputil.TruncateErrorMessage(createErr, 240))
+				apierr.MapError(w, "[backlog] batch-create", apierr.Internal("%s", "failed to create initiative: "+httputil.TruncateErrorMessage(createErr, 240)))
 				return
 			}
 		case "update":
 			if updateErr := h.initiativeAssigner.Update(plan.spec); updateErr != nil {
 				log.Printf("[backlog] batch-create: failed to update initiative %q: %v", name, updateErr)
-				httputil.InternalError(w, "[backlog] batch-create", "failed to update initiative: "+httputil.TruncateErrorMessage(updateErr, 240))
+				apierr.MapError(w, "[backlog] batch-create", apierr.Internal("%s", "failed to update initiative: "+httputil.TruncateErrorMessage(updateErr, 240)))
 				return
 			}
 		}
@@ -401,7 +402,7 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 		if mkErr := os.MkdirAll(itemDir, 0o755); mkErr != nil {
 			rollbackBatchCreate(createdDirs, appliedInitiatives, h.initiativeAssigner)
 			log.Printf("[backlog] batch-create: failed to create directory for %q: %v", v.item.Name, mkErr)
-			httputil.InternalError(w, "[backlog] batch-create", "failed to create item directory")
+			apierr.MapError(w, "[backlog] batch-create", apierr.Internal("failed to create item directory"))
 			return
 		}
 		createdDirs = append(createdDirs, itemDir)
@@ -409,7 +410,7 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 		if saveErr := h.store.SaveItem(v.item); saveErr != nil {
 			rollbackBatchCreate(createdDirs, appliedInitiatives, h.initiativeAssigner)
 			log.Printf("[backlog] batch-create: failed to save %q: %v", v.item.Name, saveErr)
-			httputil.InternalError(w, "[backlog] batch-create", "failed to save item")
+			apierr.MapError(w, "[backlog] batch-create", apierr.Internal("failed to save item"))
 			return
 		}
 
@@ -422,7 +423,7 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 		if addErr := h.initiativeAssigner.AddItems(name, refs); addErr != nil {
 			rollbackBatchCreate(createdDirs, appliedInitiatives, h.initiativeAssigner)
 			log.Printf("[backlog] batch-create: failed to add items to initiative %q: %v", name, addErr)
-			httputil.InternalError(w, "[backlog] batch-create", "failed to assign items to initiative: "+httputil.TruncateErrorMessage(addErr, 240))
+			apierr.MapError(w, "[backlog] batch-create", apierr.Internal("%s", "failed to assign items to initiative: "+httputil.TruncateErrorMessage(addErr, 240)))
 			return
 		}
 	}
@@ -441,7 +442,7 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 		Count:       len(createdItems),
 	}
 	if err := httputil.JSONWithStatus(w, http.StatusCreated, resp); err != nil {
-		httputil.InternalError(w, "[backlog] batch-create", "failed to encode response")
+		apierr.MapError(w, "[backlog] batch-create", apierr.Internal("failed to encode response"))
 	}
 }
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { getActionsForNode } from "./action-registry";
-import type { EntityType } from "../stores/graph-data-store";
+import type { EntityType } from "../stores/graph-settings-store";
 import type { GraphNode } from "../types";
 import { makeGraphNode } from "../test-helpers";
 

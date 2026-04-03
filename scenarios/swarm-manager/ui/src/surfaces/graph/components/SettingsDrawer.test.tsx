@@ -19,11 +19,13 @@ vi.mock("../../../components/ui/floating-panel", () => ({
 }));
 
 import { useGraphDataStore, cloneGraphDataInitialState } from "../stores/graph-data-store";
+import { useGraphSettingsStore, cloneGraphSettingsInitialState } from "../stores/graph-settings-store";
 import { makeBacklogNode, makeExecutionNode, makeScenarioNode } from "../test-helpers";
 import { SettingsDrawer } from "./SettingsDrawer";
 
 function resetStore() {
   useGraphDataStore.setState(cloneGraphDataInitialState());
+  useGraphSettingsStore.setState(cloneGraphSettingsInitialState());
   window.localStorage.clear();
 }
 

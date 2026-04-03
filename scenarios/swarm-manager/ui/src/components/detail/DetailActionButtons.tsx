@@ -12,7 +12,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useGraphDataStore } from "../../surfaces/graph/stores/graph-data-store";
-import type { EntityType } from "../../surfaces/graph/stores/graph-data-store";
+import type { EntityType } from "../../surfaces/graph/stores/graph-settings-store";
 import { getActionsForNode, type InspectorAction } from "../../surfaces/graph/lib/action-registry";
 import type { GraphNode } from "../../surfaces/graph/types";
 import { useDetailSelectionStore } from "../../stores/detail-selection-store";

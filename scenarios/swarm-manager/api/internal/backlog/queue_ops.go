@@ -15,6 +15,7 @@ import (
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/httputil"
 )
@@ -101,16 +102,16 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 	item, err := h.store.LoadItem(kind, name)
 	if err != nil {
 		if os.IsNotExist(err) {
-			httputil.NotFound(w, "[backlog] queue", "backlog item not found")
+			apierr.MapError(w, "[backlog] queue", apierr.NotFound("backlog item not found"))
 			return
 		}
 		log.Printf("[backlog] queue: failed to load %q: %v", name, err)
-		httputil.InternalError(w, "[backlog] queue", httputil.TruncateErrorMessage(err, 240))
+		apierr.MapError(w, "[backlog] queue", apierr.Internal("%s", httputil.TruncateErrorMessage(err, 240)))
 		return
 	}
 
 	if !isQueueableStatus(item.Kind, item.Status) {
-		httputil.BadRequest(w, "[backlog] queue", "backlog item cannot be queued from current status: "+string(item.Status))
+		apierr.MapError(w, "[backlog] queue", apierr.BadRequest("backlog item cannot be queued from current status: %s", item.Status))
 		return
 	}
 
@@ -119,7 +120,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
 			// Tolerate empty bodies (all fields optional).
 			if !errors.Is(err, io.EOF) && r.ContentLength != 0 {
-				httputil.BadRequest(w, "[backlog] queue", "invalid request body")
+				apierr.MapError(w, "[backlog] queue", apierr.BadRequest("invalid request body"))
 				return
 			}
 		}
@@ -137,7 +138,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 	if pbReq.GetMode() != "" {
 		mode = execution.Mode(strings.ToLower(strings.TrimSpace(pbReq.GetMode())))
 		if !execution.ValidateMode(mode) {
-			httputil.BadRequest(w, "[backlog] queue", fmt.Sprintf("invalid execution mode %q: must be manual or yolo", mode))
+			apierr.MapError(w, "[backlog] queue", apierr.BadRequest("invalid execution mode %q: must be manual or yolo", mode))
 			return
 		}
 	}
@@ -162,11 +163,11 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 	preflight, preflightErr := executionService.ProcessPreflight(r.Context(), string(kind), name)
 	if preflightErr != nil {
 		if os.IsNotExist(preflightErr) {
-			httputil.NotFound(w, "[backlog] queue", "backlog item not found")
+			apierr.MapError(w, "[backlog] queue", apierr.NotFound("backlog item not found"))
 			return
 		}
 		log.Printf("[backlog] queue: process preflight failed for %s/%s: %v", kind, name, preflightErr)
-		httputil.InternalError(w, "[backlog] queue", "failed to evaluate process preflight")
+		apierr.MapError(w, "[backlog] queue", apierr.Internal("failed to evaluate process preflight"))
 		return
 	}
 	// When !preflight.Ready we keep evaluating feedback gates and force
@@ -187,7 +188,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 	blockingReasons, depErr = appendDependencyBlockingReasons(item, h.store, blockingReasons)
 	if depErr != nil {
 		log.Printf("[backlog] queue: dependency check failed for %s/%s: %v", kind, name, depErr)
-		httputil.InternalError(w, "[backlog] queue", "failed to check dependencies")
+		apierr.MapError(w, "[backlog] queue", apierr.Internal("failed to check dependencies"))
 		return
 	}
 
@@ -219,7 +220,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		}
 		resp := buildQueueResponse(true, false, message, "dry-run-task", "", time.Now().UTC().Format(time.RFC3339))
 		if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, resp); err != nil {
-			httputil.InternalError(w, "[backlog] queue", "failed to encode dry-run response")
+			apierr.MapError(w, "[backlog] queue", apierr.Internal("failed to encode dry-run response"))
 		}
 		return
 	}
@@ -228,7 +229,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		if !force || hasNonForceableQueueReasons(blockingReasons) {
 			resp := buildQueueResponse(true, false, "Queue blocked by readiness checks.", "", "", time.Now().UTC().Format(time.RFC3339))
 			if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, resp); err != nil {
-				httputil.InternalError(w, "[backlog] queue", "failed to encode blocked response")
+				apierr.MapError(w, "[backlog] queue", apierr.Internal("failed to encode blocked response"))
 			}
 			return
 		}
@@ -243,25 +244,25 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		if errors.Is(err, agentmanager.ErrNotAvailable) {
-			httputil.ServiceUnavailable(w, "[backlog] queue", "agent-manager is not available")
+			apierr.MapError(w, "[backlog] queue", apierr.Unavailable("agent-manager is not available"))
 			return
 		}
 		if os.IsNotExist(err) {
-			httputil.NotFound(w, "[backlog] queue", "backlog item not found")
+			apierr.MapError(w, "[backlog] queue", apierr.NotFound("backlog item not found"))
 			return
 		}
 		if strings.Contains(err.Error(), "cannot be queued") || strings.Contains(err.Error(), "process preflight failed") {
-			httputil.BadRequest(w, "[backlog] queue", err.Error())
+			apierr.MapError(w, "[backlog] queue", apierr.BadRequest("%s", err.Error()))
 			return
 		}
-		httputil.InternalError(w, "[backlog] queue", "failed to queue execution: "+httputil.TruncateErrorMessage(err, 240))
+		apierr.MapError(w, "[backlog] queue", apierr.Internal("%s", "failed to queue execution: "+httputil.TruncateErrorMessage(err, 240)))
 		return
 	}
 
 	item, err = h.store.LoadItem(kind, name)
 	if err != nil {
 		log.Printf("[backlog] queue: failed to reload %q after queue: %v", name, err)
-		httputil.InternalError(w, "[backlog] queue", "failed to load updated backlog item")
+		apierr.MapError(w, "[backlog] queue", apierr.Internal("failed to load updated backlog item"))
 		return
 	}
 
@@ -281,7 +282,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		PendingSuggestions:  int32(pendingDecisions),
 	}
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusAccepted, resp); err != nil {
-		httputil.InternalError(w, "[backlog] queue", "failed to encode response")
+		apierr.MapError(w, "[backlog] queue", apierr.Internal("failed to encode response"))
 	}
 }
 
@@ -295,10 +296,10 @@ func (h *Handler) ProcessPreflight(w http.ResponseWriter, r *http.Request) {
 	item, err := h.store.LoadItem(kind, name)
 	if err != nil {
 		if os.IsNotExist(err) {
-			httputil.NotFound(w, "[backlog] process-preflight", "backlog item not found")
+			apierr.MapError(w, "[backlog] process-preflight", apierr.NotFound("backlog item not found"))
 			return
 		}
-		httputil.InternalError(w, "[backlog] process-preflight", "failed to load backlog item")
+		apierr.MapError(w, "[backlog] process-preflight", apierr.Internal("failed to load backlog item"))
 		return
 	}
 
@@ -312,10 +313,10 @@ func (h *Handler) ProcessPreflight(w http.ResponseWriter, r *http.Request) {
 	preflight, err := executionService.ProcessPreflight(r.Context(), string(kind), name)
 	if err != nil {
 		if os.IsNotExist(err) {
-			httputil.NotFound(w, "[backlog] process-preflight", "backlog item not found")
+			apierr.MapError(w, "[backlog] process-preflight", apierr.NotFound("backlog item not found"))
 			return
 		}
-		httputil.InternalError(w, "[backlog] process-preflight", "failed to evaluate preflight")
+		apierr.MapError(w, "[backlog] process-preflight", apierr.Internal("failed to evaluate preflight"))
 		return
 	}
 
@@ -323,6 +324,6 @@ func (h *Handler) ProcessPreflight(w http.ResponseWriter, r *http.Request) {
 		"item":      item,
 		"preflight": preflight,
 	}); err != nil {
-		httputil.InternalError(w, "[backlog] process-preflight", "failed to encode response")
+		apierr.MapError(w, "[backlog] process-preflight", apierr.Internal("failed to encode response"))
 	}
 }

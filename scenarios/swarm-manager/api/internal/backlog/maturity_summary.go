@@ -3,6 +3,7 @@ package backlog
 import (
 	"net/http"
 
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 )
 
@@ -29,7 +30,7 @@ type MaturitySummaryResponse struct {
 func (h *Handler) MaturitySummary(w http.ResponseWriter, r *http.Request) {
 	items, err := h.store.LoadAll(nil) // all kinds
 	if err != nil {
-		httputil.InternalError(w, "[backlog] maturity-summary", err.Error())
+		apierr.MapError(w, "[backlog] maturity-summary", apierr.Internal("%s", err.Error()))
 		return
 	}
 
@@ -73,6 +74,6 @@ func (h *Handler) MaturitySummary(w http.ResponseWriter, r *http.Request) {
 
 	resp := MaturitySummaryResponse{Items: summaryItems}
 	if err := httputil.JSON(w, resp); err != nil {
-		httputil.InternalError(w, "[backlog] maturity-summary", "failed to encode response")
+		apierr.MapError(w, "[backlog] maturity-summary", apierr.Internal("failed to encode response"))
 	}
 }

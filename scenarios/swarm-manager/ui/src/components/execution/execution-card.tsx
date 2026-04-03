@@ -138,11 +138,7 @@ export function ExecutionCard({
         const resolved = resolvePostRunExecution(item);
         if (!resolved) return null;
         return (
-          <PostRunStatusBadge
-            execution={resolved}
-            onOpenSandbox={onOpenReviewSandbox ? () => onOpenReviewSandbox(item.executionId) : undefined}
-            onRunChecks={onTriggerReview ? () => onTriggerReview(item.executionId) : undefined}
-          />
+          <PostRunStatusBadge execution={resolved} />
         );
       })()}
 

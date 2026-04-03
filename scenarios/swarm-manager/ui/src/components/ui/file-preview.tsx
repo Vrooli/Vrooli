@@ -20,16 +20,14 @@ import {
   Copy,
   Diff,
   Eye,
-  FileCode,
-  FileImage,
-  FileText,
   Info,
   Loader2,
   RotateCcw,
   Save,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
-import { defaultQueryOptions, getFileExtension, useResolvedTheme } from "../../lib";
+import { defaultQueryOptions, useResolvedTheme } from "../../lib";
+import { getContentTypeForFile, getFileType, getFileTypeIcon, getFileTypeIconClass, getMonacoLanguage } from "../../lib/file-type-utils";
 import { renderMarkdown } from "../../lib/render-markdown";
 import { backlogService } from "../../services";
 import type { BacklogKind } from "../../types";
@@ -60,113 +58,6 @@ export interface FilePreviewProps {
   readOnly?: boolean;
   /** data-testid attribute */
   "data-testid"?: string;
-}
-
-/**
- * Determines the file type category from the file extension.
- */
-function getFileType(fileName: string): "markdown" | "code" | "image" | "text" {
-  const ext = getFileExtension(fileName);
-
-  if (["md", "markdown"].includes(ext)) {
-    return "markdown";
-  }
-
-  if (["png", "jpg", "jpeg", "gif", "svg", "webp", "bmp", "ico"].includes(ext)) {
-    return "image";
-  }
-
-  if ([
-    "js", "jsx", "ts", "tsx", "json", "go", "py", "rs", "java", "c", "cpp", "h",
-    "html", "css", "scss", "yaml", "yml", "toml", "xml", "sh", "bash", "zsh",
-    "sql", "graphql", "proto", "dockerfile",
-  ].includes(ext)) {
-    return "code";
-  }
-
-  return "text";
-}
-
-/**
- * Returns the appropriate icon for a file type.
- */
-function FileIcon({ type }: { type: ReturnType<typeof getFileType> }) {
-  switch (type) {
-    case "markdown":
-    case "text":
-      return <FileText className="h-5 w-5 text-slate-400" />;
-    case "code":
-      return <FileCode className="h-5 w-5 text-cyan-400" />;
-    case "image":
-      return <FileImage className="h-5 w-5 text-purple-400" />;
-  }
-}
-
-/**
- * Returns the Monaco language identifier for a file.
- */
-function getMonacoLanguage(fileName: string): string {
-  const ext = getFileExtension(fileName);
-  const languageMap: Record<string, string> = {
-    js: "javascript",
-    jsx: "javascript",
-    ts: "typescript",
-    tsx: "typescript",
-    json: "json",
-    md: "markdown",
-    markdown: "markdown",
-    yaml: "yaml",
-    yml: "yaml",
-    toml: "toml",
-    html: "html",
-    css: "css",
-    scss: "scss",
-    go: "go",
-    py: "python",
-    rs: "rust",
-    java: "java",
-    c: "c",
-    cpp: "cpp",
-    h: "cpp",
-    sh: "shell",
-    bash: "shell",
-    zsh: "shell",
-    sql: "sql",
-    graphql: "graphql",
-    proto: "protobuf",
-    xml: "xml",
-  };
-  return languageMap[ext] ?? "plaintext";
-}
-
-/**
- * Maps file extensions to reasonable content types for saving.
- */
-function getContentTypeForFile(fileName: string): string {
-  const ext = getFileExtension(fileName);
-  switch (ext) {
-    case "json":
-      return "application/json";
-    case "md":
-    case "markdown":
-      return "text/markdown";
-    case "yaml":
-    case "yml":
-      return "text/yaml";
-    case "toml":
-      return "text/plain";
-    case "html":
-      return "text/html";
-    case "css":
-    case "scss":
-      return "text/css";
-    case "xml":
-      return "text/xml";
-    case "sql":
-      return "text/plain";
-    default:
-      return "text/plain";
-  }
 }
 
 const DEFAULT_EDITOR_OPTIONS = {
@@ -437,7 +328,7 @@ export function FilePreview({
           stickyHeader && "sticky top-0 z-20 backdrop-blur"
         )}
       >
-        <FileIcon type={fileType} />
+        {(() => { const Icon = getFileTypeIcon(fileType); return <Icon className={getFileTypeIconClass(fileType)} />; })()}
         <span className="font-medium text-slate-200 truncate" data-testid="file-preview-name">
           {fileName}
         </span>

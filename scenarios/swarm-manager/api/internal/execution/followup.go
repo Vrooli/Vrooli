@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"strings"
 
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/idgen"
 	"swarm-manager/internal/workshop"
 )
@@ -177,7 +179,7 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 	defer s.mu.Unlock()
 
 	if s.agentService == nil || !s.agentService.IsEnabled() {
-		return Record{}, agentmanager.ErrNotAvailable
+		return Record{}, apierr.Unavailable("agent-manager is not available")
 	}
 
 	records, idx, err := s.loadRecordLocked(req.ExecutionID)
@@ -191,7 +193,7 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 	case StatusCompleted, StatusFailed, StatusNeedsFixup:
 		// OK
 	default:
-		return Record{}, fmt.Errorf("cannot follow up execution in %q state", parent.Status)
+		return Record{}, apierr.BadRequest("cannot follow up execution in %q state", parent.Status)
 	}
 
 	// Load backlog item for context.
@@ -268,7 +270,7 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 		))
 		if err := s.continuer.ContinueRun(continueCtx, parent.RunID, prompt); err != nil {
 			if strings.Contains(err.Error(), "session_expired") || strings.Contains(err.Error(), "continuation_not_supported") {
-				return Record{}, fmt.Errorf("%w: %v", errSessionExpired, err)
+				return Record{}, apierr.Wrap(apierr.ErrSessionExpired, http.StatusConflict, "agent session expired; retry with run_mode=new")
 			}
 			return Record{}, fmt.Errorf("continue run failed: %w", err)
 		}

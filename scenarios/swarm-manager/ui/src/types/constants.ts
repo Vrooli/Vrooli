@@ -7,17 +7,12 @@
 
 import { Activity, Bug, Circle, CheckCircle, AlertCircle, Cpu, Lightbulb, MessageSquare, Package, Rocket, Search, Target, Wrench, Zap, type LucideIcon } from "lucide-react";
 import { formatDisplayText } from "../lib";
-import type {
-  AgentActivityStatus,
-  AgentRunStatus,
-  BacklogKind,
-  BacklogStatus,
-  CaptureStatus,
-  ExecutionMode,
-  ExecutionStatus,
-  InitiativeStatus,
-  ScenarioStatus,
-} from "./domain";
+import type { BacklogKind, BacklogStatus } from "./backlog";
+import type { CaptureStatus } from "./capture";
+import type { InitiativeStatus } from "./initiative";
+import type { ScenarioStatus } from "./scenario";
+import type { ExecutionMode, ExecutionStatus } from "./execution";
+import type { AgentActivityStatus, AgentRunStatus } from "./agent";
 
 // ============================================================================
 // Backlog Status Display

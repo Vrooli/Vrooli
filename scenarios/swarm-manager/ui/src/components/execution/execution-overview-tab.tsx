@@ -140,10 +140,7 @@ export function ExecutionOverviewTab({
           {postRunBadgeExecution && (
             <div className="space-y-2">
               <p className="text-xs text-slate-500 uppercase tracking-wider">Post-Run Checks</p>
-              <PostRunStatusBadge
-                execution={postRunBadgeExecution}
-                onRunChecks={onRunPostRunChecks}
-              />
+              <PostRunStatusBadge execution={postRunBadgeExecution} />
             </div>
           )}
         </div>

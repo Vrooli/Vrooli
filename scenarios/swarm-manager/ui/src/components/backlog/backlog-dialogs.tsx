@@ -14,7 +14,7 @@ import { ModuleFormDialog } from "./module-form-dialog";
 import { TargetFormDialog } from "./target-form-dialog";
 import { ClarificationPanel } from "./clarification-panel";
 import { ConfirmDialog } from "../ui/confirm-dialog";
-import { FollowUpDialog } from "../execution/follow-up-dialog";
+import { FollowUpSheet } from "../review/follow-up-sheet";
 import { findRequirementGroup } from "../../lib/archive-utils";
 import { selectors } from "../../consts/selectors";
 import { useBacklogDetail } from "../../contexts/BacklogDetailContext";
@@ -180,10 +180,11 @@ export function BacklogDialogs({
       />
 
       {ui.followUpTarget && (
-        <FollowUpDialog
+        <FollowUpSheet
           isOpen={Boolean(ui.followUpTarget)}
           onClose={() => ui.setFollowUpTarget(null)}
           execution={ui.followUpTarget}
+          reviewRounds={data.reviewRounds}
           onSuccess={() => {
             ui.setFollowUpTarget(null);
             data.invalidateItem();

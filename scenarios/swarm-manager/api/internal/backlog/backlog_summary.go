@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 )
 
@@ -25,7 +26,7 @@ type BacklogSummaryResponse struct {
 func (h *Handler) BacklogSummary(w http.ResponseWriter, r *http.Request) {
 	items, err := h.store.LoadAll(nil)
 	if err != nil {
-		httputil.InternalError(w, "[backlog] summary", err.Error())
+		apierr.MapError(w, "[backlog] summary", apierr.Internal("%s", err.Error()))
 		return
 	}
 
@@ -108,7 +109,7 @@ func (h *Handler) BacklogSummary(w http.ResponseWriter, r *http.Request) {
 		PendingQuestions: PendingQuestionsResponse{Items: pendingItems},
 	}
 	if err := httputil.JSON(w, resp); err != nil {
-		httputil.InternalError(w, "[backlog] summary", "failed to encode response")
+		apierr.MapError(w, "[backlog] summary", apierr.Internal("failed to encode response"))
 	}
 }
 

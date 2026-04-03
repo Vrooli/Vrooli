@@ -5,23 +5,15 @@ import type { ExecutionRecord, Finalization } from "../../types";
 import type { ReviewRound } from "../../services/review-service";
 import { selectors } from "../../consts/selectors";
 
-// Mock child components to isolate review tab logic
-vi.mock("./post-run-status-badge", () => ({
-  PostRunStatusBadge: ({ execution }: { execution: ExecutionRecord }) => (
-    <div data-testid="mock-post-run-badge">{execution.finalization?.aggregateClassification}</div>
-  ),
+// Mock ReviewFlow to isolate tab logic
+vi.mock("../review/review-flow", () => ({
+  ReviewFlow: () => <div data-testid="mock-review-flow">ReviewFlow</div>,
 }));
 
-vi.mock("../backlog/scenario-review-results", () => ({
-  ScenarioReviewResults: ({ targetScenarios }: { targetScenarios: string[] }) => (
-    <div data-testid="mock-scenario-reviews">{targetScenarios.join(", ")}</div>
-  ),
-}));
-
-vi.mock("../backlog/evidence-panel", () => ({
-  EvidencePanel: ({ rounds }: { rounds: ReviewRound[] }) => (
-    <div data-testid="mock-evidence-panel">{rounds.length} rounds</div>
-  ),
+vi.mock("../../services", () => ({
+  executionService: {
+    triggerReview: vi.fn().mockResolvedValue({}),
+  },
 }));
 
 const makeExecution = (overrides?: Partial<ExecutionRecord>): ExecutionRecord => ({
@@ -33,7 +25,7 @@ const makeExecution = (overrides?: Partial<ExecutionRecord>): ExecutionRecord =>
   createdAt: "2026-03-20T00:00:00Z",
   updatedAt: "2026-03-20T01:00:00Z",
   ...overrides,
-});
+} as ExecutionRecord);
 
 const makeFinalization = (overrides?: Partial<Finalization>): Finalization => ({
   eligible: true,
@@ -45,13 +37,13 @@ const makeFinalization = (overrides?: Partial<Finalization>): Finalization => ({
   aggregateClassification: "ready",
   scenarios: [],
   ...overrides,
-});
+} as Finalization);
 
 const noopHandlers = {
+  onFollowUp: vi.fn(),
   onSelectScenario: vi.fn(),
   onVerifyEvidence: vi.fn(),
   onRequestMoreEvidence: vi.fn(),
-  onRunPostRunChecks: vi.fn(),
 };
 
 describe("ExecutionReviewTab", () => {
@@ -62,12 +54,10 @@ describe("ExecutionReviewTab", () => {
         reviewRounds={[]}
         isGatheringEvidence={false}
         targetScenarios={[]}
-        postRunBadgeExecution={null}
         isActive={false}
         {...noopHandlers}
       />,
     );
-
     expect(screen.getByTestId(selectors.executionDetails.reviewEmpty)).toBeInTheDocument();
     expect(screen.getByText(/No review data available/)).toBeInTheDocument();
   });
@@ -79,16 +69,14 @@ describe("ExecutionReviewTab", () => {
         reviewRounds={[]}
         isGatheringEvidence={false}
         targetScenarios={[]}
-        postRunBadgeExecution={null}
         isActive={true}
         {...noopHandlers}
       />,
     );
-
     expect(screen.getByText(/Review will be available after/)).toBeInTheDocument();
   });
 
-  it("renders PostRunStatusBadge when postRunBadgeExecution exists", () => {
+  it("renders ReviewFlow when execution has finalization", () => {
     const exec = makeExecution({ finalization: makeFinalization() });
     render(
       <ExecutionReviewTab
@@ -96,71 +84,38 @@ describe("ExecutionReviewTab", () => {
         reviewRounds={[]}
         isGatheringEvidence={false}
         targetScenarios={[]}
-        postRunBadgeExecution={exec}
         isActive={false}
         {...noopHandlers}
       />,
     );
-
-    expect(screen.getByTestId("mock-post-run-badge")).toBeInTheDocument();
-    expect(screen.getByText("ready")).toBeInTheDocument();
+    expect(screen.getByTestId("mock-review-flow")).toBeInTheDocument();
   });
 
-  it("renders ScenarioReviewResults when scenarios exist", () => {
-    const exec = makeExecution({ finalization: makeFinalization() });
-    render(
-      <ExecutionReviewTab
-        execution={exec}
-        reviewRounds={[]}
-        isGatheringEvidence={false}
-        targetScenarios={["app-a", "app-b"]}
-        postRunBadgeExecution={exec}
-        isActive={false}
-        {...noopHandlers}
-      />,
-    );
-
-    expect(screen.getByTestId("mock-scenario-reviews")).toBeInTheDocument();
-    expect(screen.getByText("app-a, app-b")).toBeInTheDocument();
-  });
-
-  it("renders EvidencePanel when review rounds exist", () => {
-    const round: ReviewRound = {
-      round: 1,
-      generated_at: "2026-03-20T00:00:00Z",
-      execution_id: "exec-1",
-      status: "complete",
-      evidence: [],
-    };
+  it("renders ReviewFlow when scenarios exist", () => {
     render(
       <ExecutionReviewTab
         execution={makeExecution()}
-        reviewRounds={[round]}
+        reviewRounds={[]}
         isGatheringEvidence={false}
-        targetScenarios={[]}
-        postRunBadgeExecution={null}
+        targetScenarios={["app-a"]}
         isActive={false}
         {...noopHandlers}
       />,
     );
-
-    expect(screen.getByTestId("mock-evidence-panel")).toBeInTheDocument();
-    expect(screen.getByText("1 rounds")).toBeInTheDocument();
+    expect(screen.getByTestId("mock-review-flow")).toBeInTheDocument();
   });
 
-  it("renders EvidencePanel when gathering evidence", () => {
+  it("renders ReviewFlow when gathering evidence", () => {
     render(
       <ExecutionReviewTab
         execution={makeExecution()}
         reviewRounds={[]}
         isGatheringEvidence={true}
         targetScenarios={[]}
-        postRunBadgeExecution={null}
         isActive={false}
         {...noopHandlers}
       />,
     );
-
-    expect(screen.getByTestId("mock-evidence-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("mock-review-flow")).toBeInTheDocument();
   });
 });

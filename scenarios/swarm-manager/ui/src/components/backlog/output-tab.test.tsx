@@ -69,22 +69,21 @@ describe("OutputTab", () => {
     expect(screen.getByText("Completed")).toBeInTheDocument();
   });
 
-  it("hides ScenarioReviewResults when no target scenarios", () => {
+  it("hides scenario chips when no target scenarios", () => {
     renderWithProviders({
       ...defaultProps,
       executionHistory: [makeExecution()],
       targetScenarios: [],
     });
-    expect(screen.queryByText("Scenario Reviews")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("review-scenario-chips")).not.toBeInTheDocument();
   });
 
-  it("shows ScenarioReviewResults when target scenarios exist", () => {
+  it("shows scenario chips when target scenarios exist", () => {
     renderWithProviders({
       ...defaultProps,
       executionHistory: [makeExecution()],
       targetScenarios: ["my-scenario"],
     });
-    expect(screen.getByText("Scenario Reviews")).toBeInTheDocument();
     expect(screen.getByText("my-scenario")).toBeInTheDocument();
   });
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildGraphPresentation, filterGraphEdges, filterGraphNodes } from "./graph-presentation";
-import { createDefaultLensSettings } from "../stores/graph-data-store";
-import type { GraphLensSettings } from "../stores/graph-data-store";
+import { createDefaultLensSettings } from "../stores/graph-settings-store";
+import type { GraphLensSettings } from "../stores/graph-settings-store";
 import type { GraphEdge, GraphNode } from "../types";
 import { makeGraphEdge, makeGraphNode } from "../test-helpers";
 

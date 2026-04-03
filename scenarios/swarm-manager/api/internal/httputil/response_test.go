@@ -77,56 +77,6 @@ func TestJSONWithStatus(t *testing.T) {
 	}
 }
 
-func TestErrorResponses(t *testing.T) {
-	tests := []struct {
-		name       string
-		fn         func(http.ResponseWriter, string, string)
-		wantStatus int
-		wantBody   string
-	}{
-		{
-			name:       "BadRequest",
-			fn:         BadRequest,
-			wantStatus: http.StatusBadRequest,
-			wantBody:   "test error",
-		},
-		{
-			name:       "NotFound",
-			fn:         NotFound,
-			wantStatus: http.StatusNotFound,
-			wantBody:   "not found",
-		},
-		{
-			name:       "InternalError",
-			fn:         InternalError,
-			wantStatus: http.StatusInternalServerError,
-			wantBody:   "server error",
-		},
-		{
-			name:       "Conflict",
-			fn:         Conflict,
-			wantStatus: http.StatusConflict,
-			wantBody:   "already exists",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			w := httptest.NewRecorder()
-			tt.fn(w, "", tt.wantBody)
-
-			if w.Code != tt.wantStatus {
-				t.Errorf("Status = %d, want %d", w.Code, tt.wantStatus)
-			}
-
-			got := strings.TrimSpace(w.Body.String())
-			if got != tt.wantBody {
-				t.Errorf("Body = %q, want %q", got, tt.wantBody)
-			}
-		})
-	}
-}
-
 func TestValidatePath(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -214,62 +164,6 @@ func TestSafeFilePath(t *testing.T) {
 			}
 			if gotPath != tt.wantPath {
 				t.Errorf("SafeFilePath() path = %q, want %q", gotPath, tt.wantPath)
-			}
-		})
-	}
-}
-
-// TestErrorResponses_WithPrefix tests that error functions include prefix in logging
-func TestErrorResponses_WithPrefix(t *testing.T) {
-	tests := []struct {
-		name       string
-		fn         func(http.ResponseWriter, string, string)
-		prefix     string
-		msg        string
-		wantStatus int
-	}{
-		{
-			name:       "BadRequest with prefix",
-			fn:         BadRequest,
-			prefix:     "[handler]",
-			msg:        "validation failed",
-			wantStatus: http.StatusBadRequest,
-		},
-		{
-			name:       "NotFound with prefix",
-			fn:         NotFound,
-			prefix:     "[resource]",
-			msg:        "not found",
-			wantStatus: http.StatusNotFound,
-		},
-		{
-			name:       "InternalError with prefix",
-			fn:         InternalError,
-			prefix:     "[db]",
-			msg:        "connection error",
-			wantStatus: http.StatusInternalServerError,
-		},
-		{
-			name:       "Conflict with prefix",
-			fn:         Conflict,
-			prefix:     "[create]",
-			msg:        "already exists",
-			wantStatus: http.StatusConflict,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			w := httptest.NewRecorder()
-			tt.fn(w, tt.prefix, tt.msg)
-
-			if w.Code != tt.wantStatus {
-				t.Errorf("Status = %d, want %d", w.Code, tt.wantStatus)
-			}
-
-			got := strings.TrimSpace(w.Body.String())
-			if got != tt.msg {
-				t.Errorf("Body = %q, want %q", got, tt.msg)
 			}
 		})
 	}

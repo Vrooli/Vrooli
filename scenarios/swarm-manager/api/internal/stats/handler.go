@@ -6,6 +6,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 )
 
@@ -28,7 +29,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 // Optional query param: ?category=throughput,blocking (comma-separated) to filter.
 func (h *Handler) GetStats(w http.ResponseWriter, r *http.Request) {
 	if err := h.engine.Refresh(r.Context()); err != nil {
-		httputil.InternalError(w, "[stats] refresh", "failed to refresh stats")
+		apierr.MapError(w, "[stats] refresh", apierr.Internal("failed to refresh stats"))
 		return
 	}
 
@@ -61,6 +62,6 @@ func (h *Handler) GetStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := httputil.JSON(w, resp); err != nil {
-		httputil.InternalError(w, "[stats] encode", "failed to encode response")
+		apierr.MapError(w, "[stats] encode", apierr.Internal("failed to encode response"))
 	}
 }

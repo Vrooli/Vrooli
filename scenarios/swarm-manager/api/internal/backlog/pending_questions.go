@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 )
 
@@ -57,7 +58,7 @@ type PendingQuestionsResponse struct {
 func (h *Handler) PendingQuestions(w http.ResponseWriter, r *http.Request) {
 	items, err := h.store.LoadAll(nil)
 	if err != nil {
-		httputil.InternalError(w, "[backlog] pending-questions", err.Error())
+		apierr.MapError(w, "[backlog] pending-questions", apierr.Internal("%s", err.Error()))
 		return
 	}
 
@@ -88,7 +89,7 @@ func (h *Handler) PendingQuestions(w http.ResponseWriter, r *http.Request) {
 
 	resp := PendingQuestionsResponse{Items: result}
 	if err := httputil.JSON(w, resp); err != nil {
-		httputil.InternalError(w, "[backlog] pending-questions", "failed to encode response")
+		apierr.MapError(w, "[backlog] pending-questions", apierr.Internal("failed to encode response"))
 	}
 }
 

@@ -7,16 +7,11 @@
 package backlog
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log"
-	"mime"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -25,11 +20,10 @@ import (
 	"github.com/gorilla/mux"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
-	"swarm-manager/internal/promptcatalog"
 	"swarm-manager/internal/workshop"
 )
 
@@ -45,10 +39,10 @@ func (h *Handler) CreateClarification(w http.ResponseWriter, r *http.Request) {
 	item, err := h.store.LoadItem(kind, name)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			httputil.NotFound(w, "[backlog] clarification-create", "backlog item not found")
+			apierr.MapError(w, "[backlog] clarification-create", apierr.NotFound("backlog item not found"))
 			return
 		}
-		httputil.InternalError(w, "[backlog] clarification-create", "failed to load backlog item")
+		apierr.MapError(w, "[backlog] clarification-create", apierr.Internal("failed to load backlog item"))
 		return
 	}
 
@@ -60,18 +54,18 @@ func (h *Handler) CreateClarification(w http.ResponseWriter, r *http.Request) {
 	ct := r.Header.Get("Content-Type")
 	if strings.HasPrefix(ct, "multipart/form-data") {
 		if err := r.ParseMultipartForm(10 << 20); err != nil {
-			httputil.BadRequest(w, "[backlog] clarification-create", "invalid multipart form")
+			apierr.MapError(w, "[backlog] clarification-create", apierr.BadRequest("invalid multipart form"))
 			return
 		}
 		rn, convErr := strconv.Atoi(r.FormValue("round_number"))
 		if convErr != nil || rn < 1 {
-			httputil.BadRequest(w, "[backlog] clarification-create", "round_number is required and must be >= 1")
+			apierr.MapError(w, "[backlog] clarification-create", apierr.BadRequest("round_number is required and must be >= 1"))
 			return
 		}
 		roundNumber = int32(rn)
 		itemID = strings.TrimSpace(r.FormValue("item_id"))
 		if itemID == "" {
-			httputil.BadRequest(w, "[backlog] clarification-create", "item_id is required")
+			apierr.MapError(w, "[backlog] clarification-create", apierr.BadRequest("item_id is required"))
 			return
 		}
 		message = strings.TrimSpace(r.FormValue("message"))
@@ -80,14 +74,14 @@ func (h *Handler) CreateClarification(w http.ResponseWriter, r *http.Request) {
 		itemDir := h.store.ItemDir(kind, name)
 		savedIDs, saveErr := h.saveClarificationAttachments(itemDir, r)
 		if saveErr != nil {
-			httputil.InternalError(w, "[backlog] clarification-create", "failed to save attachments")
+			apierr.MapError(w, "[backlog] clarification-create", apierr.Internal("failed to save attachments"))
 			return
 		}
 		attachmentIDs = savedIDs
 	} else {
 		var req apipb.CreateClarificationRequest
 		if err := httputil.DecodeProtoJSON(r, &req); err != nil {
-			httputil.BadRequest(w, "[backlog] clarification-create", "invalid request body")
+			apierr.MapError(w, "[backlog] clarification-create", apierr.BadRequest("invalid request body"))
 			return
 		}
 		if !httputil.ValidateProtoRequest(w, "[backlog] clarification-create", "invalid request body", &req) {
@@ -103,7 +97,7 @@ func (h *Handler) CreateClarification(w http.ResponseWriter, r *http.Request) {
 	itemDir := h.store.ItemDir(kind, name)
 	rounds, err := workshop.LoadRounds(itemDir)
 	if err != nil {
-		httputil.InternalError(w, "[backlog] clarification-create", "failed to load workshop rounds")
+		apierr.MapError(w, "[backlog] clarification-create", apierr.Internal("failed to load workshop rounds"))
 		return
 	}
 
@@ -115,7 +109,7 @@ func (h *Handler) CreateClarification(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if targetRound == nil {
-		httputil.NotFound(w, "[backlog] clarification-create", fmt.Sprintf("round %d not found", roundNumber))
+		apierr.MapError(w, "[backlog] clarification-create", apierr.NotFound("round %d not found", roundNumber))
 		return
 	}
 
@@ -127,11 +121,11 @@ func (h *Handler) CreateClarification(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if targetItem == nil {
-		httputil.BadRequest(w, "[backlog] clarification-create", fmt.Sprintf("item %q not found in round %d", itemID, roundNumber))
+		apierr.MapError(w, "[backlog] clarification-create", apierr.BadRequest("item %q not found in round %d", itemID, roundNumber))
 		return
 	}
 	if targetItem.Type != "decision" {
-		httputil.BadRequest(w, "[backlog] clarification-create", "clarification is only supported for decision items")
+		apierr.MapError(w, "[backlog] clarification-create", apierr.BadRequest("clarification is only supported for decision items"))
 		return
 	}
 
@@ -151,7 +145,7 @@ func (h *Handler) CreateClarification(w http.ResponseWriter, r *http.Request) {
 
 	// Spawn the clarification agent.
 	if !h.agentService.IsEnabled() {
-		httputil.ServiceUnavailable(w, "[backlog] clarification-create", "agent-manager is not available")
+		apierr.MapError(w, "[backlog] clarification-create", apierr.Unavailable("agent-manager is not available"))
 		return
 	}
 
@@ -185,7 +179,7 @@ func (h *Handler) CreateClarification(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Printf("[backlog] clarification-create: agent spawn failed: %v", err)
-		httputil.InternalError(w, "[backlog] clarification-create", "failed to spawn clarification agent")
+		apierr.MapError(w, "[backlog] clarification-create", apierr.Internal("failed to spawn clarification agent"))
 		return
 	}
 
@@ -211,7 +205,7 @@ func (h *Handler) CreateClarification(w http.ResponseWriter, r *http.Request) {
 
 	if err := workshop.SaveClarification(itemDir, thread); err != nil {
 		log.Printf("[backlog] clarification-create: save failed: %v", err)
-		httputil.InternalError(w, "[backlog] clarification-create", "failed to save clarification thread")
+		apierr.MapError(w, "[backlog] clarification-create", apierr.Internal("failed to save clarification thread"))
 		return
 	}
 
@@ -251,18 +245,18 @@ func (h *Handler) GetClarification(w http.ResponseWriter, r *http.Request) {
 
 	threadID := mux.Vars(r)["threadId"]
 	if strings.TrimSpace(threadID) == "" {
-		httputil.BadRequest(w, "[backlog] clarification-get", "threadId is required")
+		apierr.MapError(w, "[backlog] clarification-get", apierr.BadRequest("threadId is required"))
 		return
 	}
 
 	itemDir := h.store.ItemDir(kind, name)
 	thread, err := workshop.LoadClarificationByID(itemDir, threadID)
 	if err != nil {
-		httputil.InternalError(w, "[backlog] clarification-get", "failed to load clarification")
+		apierr.MapError(w, "[backlog] clarification-get", apierr.Internal("failed to load clarification"))
 		return
 	}
 	if thread == nil {
-		httputil.NotFound(w, "[backlog] clarification-get", "clarification thread not found")
+		apierr.MapError(w, "[backlog] clarification-get", apierr.NotFound("clarification thread not found"))
 		return
 	}
 
@@ -336,7 +330,7 @@ func (h *Handler) ContinueClarification(w http.ResponseWriter, r *http.Request) 
 
 	threadID := mux.Vars(r)["threadId"]
 	if strings.TrimSpace(threadID) == "" {
-		httputil.BadRequest(w, "[backlog] clarification-continue", "threadId is required")
+		apierr.MapError(w, "[backlog] clarification-continue", apierr.BadRequest("threadId is required"))
 		return
 	}
 
@@ -347,25 +341,25 @@ func (h *Handler) ContinueClarification(w http.ResponseWriter, r *http.Request) 
 	ct := r.Header.Get("Content-Type")
 	if strings.HasPrefix(ct, "multipart/form-data") {
 		if err := r.ParseMultipartForm(10 << 20); err != nil {
-			httputil.BadRequest(w, "[backlog] clarification-continue", "invalid multipart form")
+			apierr.MapError(w, "[backlog] clarification-continue", apierr.BadRequest("invalid multipart form"))
 			return
 		}
 		continueMessage = strings.TrimSpace(r.FormValue("message"))
 		if continueMessage == "" {
-			httputil.BadRequest(w, "[backlog] clarification-continue", "message is required")
+			apierr.MapError(w, "[backlog] clarification-continue", apierr.BadRequest("message is required"))
 			return
 		}
 		itemDir := h.store.ItemDir(kind, name)
 		savedIDs, saveErr := h.saveClarificationAttachments(itemDir, r)
 		if saveErr != nil {
-			httputil.InternalError(w, "[backlog] clarification-continue", "failed to save attachments")
+			apierr.MapError(w, "[backlog] clarification-continue", apierr.Internal("failed to save attachments"))
 			return
 		}
 		continueAttachmentIDs = savedIDs
 	} else {
 		var req apipb.ContinueClarificationRequest
 		if err := httputil.DecodeProtoJSON(r, &req); err != nil {
-			httputil.BadRequest(w, "[backlog] clarification-continue", "invalid request body")
+			apierr.MapError(w, "[backlog] clarification-continue", apierr.BadRequest("invalid request body"))
 			return
 		}
 		if !httputil.ValidateProtoRequest(w, "[backlog] clarification-continue", "invalid request body", &req) {
@@ -378,15 +372,15 @@ func (h *Handler) ContinueClarification(w http.ResponseWriter, r *http.Request) 
 	itemDir := h.store.ItemDir(kind, name)
 	thread, err := workshop.LoadClarificationByID(itemDir, threadID)
 	if err != nil {
-		httputil.InternalError(w, "[backlog] clarification-continue", "failed to load clarification")
+		apierr.MapError(w, "[backlog] clarification-continue", apierr.Internal("failed to load clarification"))
 		return
 	}
 	if thread == nil {
-		httputil.NotFound(w, "[backlog] clarification-continue", "clarification thread not found")
+		apierr.MapError(w, "[backlog] clarification-continue", apierr.NotFound("clarification thread not found"))
 		return
 	}
 	if thread.Status != "active" {
-		httputil.Conflict(w, "[backlog] clarification-continue", "clarification thread is "+thread.Status+", cannot continue")
+		apierr.MapError(w, "[backlog] clarification-continue", apierr.Conflict("clarification thread is %s, cannot continue", thread.Status))
 		return
 	}
 
@@ -409,7 +403,7 @@ func (h *Handler) ContinueClarification(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := workshop.SaveClarification(itemDir, thread); err != nil {
-		httputil.InternalError(w, "[backlog] clarification-continue", "failed to save clarification")
+		apierr.MapError(w, "[backlog] clarification-continue", apierr.Internal("failed to save clarification"))
 		return
 	}
 
@@ -431,13 +425,13 @@ func (h *Handler) ClarificationAction(w http.ResponseWriter, r *http.Request) {
 
 	threadID := mux.Vars(r)["threadId"]
 	if strings.TrimSpace(threadID) == "" {
-		httputil.BadRequest(w, "[backlog] clarification-action", "threadId is required")
+		apierr.MapError(w, "[backlog] clarification-action", apierr.BadRequest("threadId is required"))
 		return
 	}
 
 	var req apipb.ClarificationActionRequest
 	if err := httputil.DecodeProtoJSON(r, &req); err != nil {
-		httputil.BadRequest(w, "[backlog] clarification-action", "invalid request body")
+		apierr.MapError(w, "[backlog] clarification-action", apierr.BadRequest("invalid request body"))
 		return
 	}
 	if !httputil.ValidateProtoRequest(w, "[backlog] clarification-action", "invalid request body", &req) {
@@ -447,11 +441,11 @@ func (h *Handler) ClarificationAction(w http.ResponseWriter, r *http.Request) {
 	itemDir := h.store.ItemDir(kind, name)
 	thread, err := workshop.LoadClarificationByID(itemDir, threadID)
 	if err != nil {
-		httputil.InternalError(w, "[backlog] clarification-action", "failed to load clarification")
+		apierr.MapError(w, "[backlog] clarification-action", apierr.Internal("failed to load clarification"))
 		return
 	}
 	if thread == nil {
-		httputil.NotFound(w, "[backlog] clarification-action", "clarification thread not found")
+		apierr.MapError(w, "[backlog] clarification-action", apierr.NotFound("clarification thread not found"))
 		return
 	}
 
@@ -463,7 +457,7 @@ func (h *Handler) ClarificationAction(w http.ResponseWriter, r *http.Request) {
 	// Load the target round for item manipulation.
 	rounds, err := workshop.LoadRounds(itemDir)
 	if err != nil {
-		httputil.InternalError(w, "[backlog] clarification-action", "failed to load rounds")
+		apierr.MapError(w, "[backlog] clarification-action", apierr.Internal("failed to load rounds"))
 		return
 	}
 
@@ -493,7 +487,7 @@ func (h *Handler) ClarificationAction(w http.ResponseWriter, r *http.Request) {
 
 	case "update_decision":
 		if targetRound == nil {
-			httputil.NotFound(w, "[backlog] clarification-action", "target round not found")
+			apierr.MapError(w, "[backlog] clarification-action", apierr.NotFound("target round not found"))
 			return
 		}
 		updated := false
@@ -529,7 +523,7 @@ func (h *Handler) ClarificationAction(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if !updated {
-			httputil.NotFound(w, "[backlog] clarification-action", "decision item not found in round")
+			apierr.MapError(w, "[backlog] clarification-action", apierr.NotFound("decision item not found in round"))
 			return
 		}
 		h.saveRound(itemDir, targetRound)
@@ -538,7 +532,7 @@ func (h *Handler) ClarificationAction(w http.ResponseWriter, r *http.Request) {
 
 	case "remove_decision":
 		if targetRound == nil {
-			httputil.NotFound(w, "[backlog] clarification-action", "target round not found")
+			apierr.MapError(w, "[backlog] clarification-action", apierr.NotFound("target round not found"))
 			return
 		}
 		filtered := make([]workshop.Item, 0, len(targetRound.Items))
@@ -554,7 +548,7 @@ func (h *Handler) ClarificationAction(w http.ResponseWriter, r *http.Request) {
 
 	case "invalidate_round":
 		if targetRound == nil {
-			httputil.NotFound(w, "[backlog] clarification-action", "target round not found")
+			apierr.MapError(w, "[backlog] clarification-action", apierr.NotFound("target round not found"))
 			return
 		}
 		// Delete clarification files for this round.
@@ -589,7 +583,7 @@ func (h *Handler) ClarificationAction(w http.ResponseWriter, r *http.Request) {
 		resp.Message = "Round invalidated and new workshop round triggered."
 
 	default:
-		httputil.BadRequest(w, "[backlog] clarification-action", "unknown action: "+req.Action)
+		apierr.MapError(w, "[backlog] clarification-action", apierr.BadRequest("unknown action: %s", req.Action))
 		return
 	}
 
@@ -613,201 +607,4 @@ func (h *Handler) ClarificationAction(w http.ResponseWriter, r *http.Request) {
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, resp); err != nil {
 		log.Printf("[backlog] clarification-action: failed to write response: %v", err)
 	}
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-// clarificationAllowedImageTypes lists Content-Types accepted for clarification attachments.
-var clarificationAllowedImageTypes = map[string]bool{
-	"image/jpeg": true,
-	"image/png":  true,
-	"image/gif":  true,
-	"image/webp": true,
-}
-
-// saveClarificationAttachments saves uploaded files from a multipart request
-// and returns their attachment IDs (relative paths). Follows the same pattern
-// as capture attachment storage.
-func (h *Handler) saveClarificationAttachments(itemDir string, r *http.Request) ([]string, error) {
-	if r.MultipartForm == nil {
-		return nil, nil
-	}
-	files := r.MultipartForm.File["files"]
-	if len(files) == 0 {
-		return nil, nil
-	}
-
-	attDir := filepath.Join(itemDir, "workshop", "attachments")
-	if err := os.MkdirAll(attDir, 0o755); err != nil {
-		return nil, fmt.Errorf("create attachment dir: %w", err)
-	}
-
-	var ids []string
-	for _, fh := range files {
-		mediaType, _, _ := mime.ParseMediaType(fh.Header.Get("Content-Type"))
-		if !clarificationAllowedImageTypes[mediaType] {
-			return nil, fmt.Errorf("unsupported file type: %s", mediaType)
-		}
-
-		attID := uuid.New().String()
-		ext := filepath.Ext(fh.Filename)
-		destName := attID + ext
-		destPath := filepath.Join(attDir, destName)
-
-		src, err := fh.Open()
-		if err != nil {
-			return nil, fmt.Errorf("open uploaded file: %w", err)
-		}
-		dst, err := os.Create(destPath)
-		if err != nil {
-			src.Close()
-			return nil, fmt.Errorf("create attachment file: %w", err)
-		}
-		_, copyErr := io.Copy(dst, src)
-		src.Close()
-		dst.Close()
-		if copyErr != nil {
-			return nil, fmt.Errorf("write attachment file: %w", copyErr)
-		}
-		ids = append(ids, filepath.Join("workshop", "attachments", destName))
-	}
-	return ids, nil
-}
-
-// buildClarificationPrompt constructs the prompt for a clarification agent
-// by fetching the skill from prompt-manager.
-func (h *Handler) buildClarificationPrompt(
-	ctx context.Context,
-	item BacklogItem,
-	itemDir string,
-	decision *workshop.Item,
-	userQuestion string,
-	priorMessages []workshop.ClarificationMessage,
-) (string, error) {
-	entry, ok := promptcatalog.ResolveBacklogSkill("clarify", string(item.Kind))
-	if !ok {
-		return "", fmt.Errorf("no prompt catalog entry for mode=clarify kind=%s", item.Kind)
-	}
-
-	vars := buildVariableMap(item, itemDir)
-	vars["DECISION_TOPIC"] = decision.Topic
-	vars["DECISION_CONTEXT"] = decision.Context
-	vars["DECISION_OPTIONS"] = workshop.FormatOptionsForPrompt(decision.Options)
-	vars["USER_QUESTION"] = userQuestion
-	vars["CLARIFICATION_HISTORY"] = workshop.FormatClarificationHistory(priorMessages)
-
-	prompt, err := h.promptClient.ReadSkill(ctx, entry.SkillID, vars, false)
-	if err != nil {
-		return "", fmt.Errorf("prompt-manager read: %w", err)
-	}
-	return prompt, nil
-}
-
-// saveRound writes a round back to disk.
-func (h *Handler) saveRound(itemDir string, round *workshop.Round) {
-	data, err := json.MarshalIndent(round, "", "  ")
-	if err != nil {
-		log.Printf("[backlog] saveRound: marshal error: %v", err)
-		return
-	}
-	path := filepath.Join(itemDir, "workshop", fmt.Sprintf("round-%03d.json", round.RoundNum))
-	if err := os.WriteFile(path, data, 0o644); err != nil {
-		log.Printf("[backlog] saveRound: write error: %v", err)
-	}
-}
-
-// saveRoundItem links a clarification to a decision item and saves the round.
-func (h *Handler) saveRoundItem(itemDir string, round *workshop.Round, item *workshop.Item) error {
-	for i := range round.Items {
-		if round.Items[i].ID == item.ID {
-			round.Items[i] = *item
-			break
-		}
-	}
-	h.saveRound(itemDir, round)
-	return nil
-}
-
-// spawnWorkshopForClarification spawns a new workshop round after invalidation.
-func (h *Handler) spawnWorkshopForClarification(
-	ctx context.Context,
-	kind BacklogKind,
-	item BacklogItem,
-	itemDir string,
-) (agentmanager.RunResult, error) {
-	selection, err := h.fetchResearchPrompt(ctx, item, ResearchModeWorkshop)
-	if err != nil {
-		return agentmanager.RunResult{}, fmt.Errorf("fetch workshop prompt: %w", err)
-	}
-
-	return h.agentService.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
-		Kind:        string(kind),
-		Name:        item.Name,
-		Title:       fmt.Sprintf("Workshop: %s (re-run after clarification)", item.Title),
-		Description: selection.Prompt,
-		Prompt:      selection.Prompt,
-		ScopePath:   ".",
-		ProjectRoot: ".",
-		CreatedBy:   "swarm-manager",
-		Purpose:     "research",
-		Environment: map[string]string{
-			"VROOLI_SPAWN_SOURCE": string(kind) + "/" + item.Name,
-		},
-	})
-}
-
-// lastAssistantMessage returns the most recent assistant message in a thread.
-func lastAssistantMessage(thread *workshop.ClarificationThread) *workshop.ClarificationMessage {
-	for i := len(thread.Messages) - 1; i >= 0; i-- {
-		if thread.Messages[i].Role == "assistant" {
-			return &thread.Messages[i]
-		}
-	}
-	return nil
-}
-
-// isTerminalStatus checks if a run status indicates completion.
-func isTerminalStatus(status string) bool {
-	switch strings.ToLower(status) {
-	case "complete", "completed", "success", "failed", "error", "cancelled", "canceled":
-		return true
-	}
-	return false
-}
-
-// clarificationThreadToProto converts a workshop.ClarificationThread to its
-// proto representation. The domain types (ClarificationThread, etc.) live in
-// the domain proto package; the API response messages reference them.
-func clarificationThreadToProto(t *workshop.ClarificationThread) *domainpb.ClarificationThread {
-	if t == nil {
-		return nil
-	}
-	pb := &domainpb.ClarificationThread{
-		Id:          t.ID,
-		RoundNumber: int32(t.RoundNumber),
-		ItemId:      t.ItemID,
-		RunId:       t.RunID,
-		Status:      t.Status,
-		CreatedAt:   t.CreatedAt,
-		UpdatedAt:   t.UpdatedAt,
-	}
-	for _, msg := range t.Messages {
-		pb.Messages = append(pb.Messages, &domainpb.ClarificationMessage{
-			Role:          msg.Role,
-			Content:       msg.Content,
-			CreatedAt:     msg.CreatedAt,
-			AttachmentIds: msg.AttachmentIDs,
-		})
-	}
-	if t.LatestImpact != nil {
-		pb.LatestImpact = &domainpb.ClarificationImpact{
-			Level:           t.LatestImpact.Level,
-			Reasoning:       t.LatestImpact.Reasoning,
-			ContextNote:     t.LatestImpact.ContextNote,
-			SuggestedUpdate: t.LatestImpact.SuggestedUpdate,
-		}
-	}
-	return pb
 }

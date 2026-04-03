@@ -12,6 +12,7 @@ import (
 	"time"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 )
 
@@ -63,7 +64,7 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 	var req apipb.ExportBacklogRequest
 	if r.Body != nil && r.ContentLength != 0 {
 		if err := httputil.DecodeProtoJSON(r, &req); err != nil {
-			httputil.BadRequest(w, "[backlog] export", "invalid request body")
+			apierr.MapError(w, "[backlog] export", apierr.BadRequest("invalid request body"))
 			return
 		}
 	}
@@ -73,7 +74,7 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 	for _, raw := range req.GetKinds() {
 		k, err := ParseBacklogKind(raw)
 		if err != nil {
-			httputil.BadRequest(w, "[backlog] export", err.Error())
+			apierr.MapError(w, "[backlog] export", apierr.BadRequest("%s", err.Error()))
 			return
 		}
 		kinds = append(kinds, k)
@@ -82,7 +83,7 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 	// Load all items matching kind filter.
 	items, err := h.store.LoadAll(kinds)
 	if err != nil {
-		httputil.InternalError(w, "[backlog] export", "failed to load backlog items")
+		apierr.MapError(w, "[backlog] export", apierr.Internal("failed to load backlog items"))
 		return
 	}
 
@@ -92,7 +93,7 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 		statusFilter = make(map[BacklogStatus]bool, len(req.GetStatuses()))
 		for _, s := range req.GetStatuses() {
 			if !validateBacklogStatus(s) {
-				httputil.BadRequest(w, "[backlog] export", fmt.Sprintf("invalid status: %s", s))
+				apierr.MapError(w, "[backlog] export", apierr.BadRequest("invalid status: %s", s))
 				return
 			}
 			statusFilter[BacklogStatus(s)] = true

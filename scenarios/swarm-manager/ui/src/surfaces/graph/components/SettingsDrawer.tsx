@@ -18,11 +18,12 @@ import {
 import { FloatingPanel } from "../../../components/ui/floating-panel";
 import { cn } from "../../../lib/utils";
 import { useGraphDataStore } from "../stores/graph-data-store";
+import { useGraphSettingsStore } from "../stores/graph-settings-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
 import { ENTITY_REGISTRY, GRAPH_ENTITY_TYPES } from "../lib/entity-shapes";
 import { ENTITY_STATUS_REGISTRY, getGraphNodeEntityType, getGraphNodeStatus } from "../types";
-import type { GraphEntityType } from "../types";
-import type { EntityType, GraphGroupingMode } from "../stores/graph-data-store";
+import type { GraphEntityType, GraphGroupingMode } from "../types";
+import type { EntityType } from "../stores/graph-settings-store";
 import type { LayoutMode } from "../stores/graph-ui-store";
 
 const SettingsPage = lazy(() =>
@@ -53,18 +54,18 @@ function GraphControlsContent() {
   const loading = useGraphDataStore((s) => s.loading);
   const error = useGraphDataStore((s) => s.error);
   const fetchGraph = useGraphDataStore((s) => s.fetchGraph);
-  const settings = useGraphDataStore((s) => s.settingsByLens[s.lens]);
-  const setEntityFilter = useGraphDataStore((s) => s.setEntityFilter);
-  const setStatusVisibility = useGraphDataStore((s) => s.setStatusVisibility);
-  const clearStatusFilter = useGraphDataStore((s) => s.clearStatusFilter);
-  const setEntityStatusGroupVisibility = useGraphDataStore((s) => s.setEntityStatusGroupVisibility);
-  const setGroupingMode = useGraphDataStore((s) => s.setGroupingMode);
-  const setShowSecondaryEdges = useGraphDataStore((s) => s.setShowSecondaryEdges);
-  const setShowMiniMap = useGraphDataStore((s) => s.setShowMiniMap);
-  const setShowNavControls = useGraphDataStore((s) => s.setShowNavControls);
-  const setAutoFitOnChange = useGraphDataStore((s) => s.setAutoFitOnChange);
-  const setHighlightActionableNodes = useGraphDataStore((s) => s.setHighlightActionableNodes);
-  const resetLensSettings = useGraphDataStore((s) => s.resetLensSettings);
+  const settings = useGraphSettingsStore((s) => s.settingsByLens[s.activeLens]);
+  const setEntityFilter = useGraphSettingsStore((s) => s.setEntityFilter);
+  const setStatusVisibility = useGraphSettingsStore((s) => s.setStatusVisibility);
+  const clearStatusFilter = useGraphSettingsStore((s) => s.clearStatusFilter);
+  const setEntityStatusGroupVisibility = useGraphSettingsStore((s) => s.setEntityStatusGroupVisibility);
+  const setGroupingMode = useGraphSettingsStore((s) => s.setGroupingMode);
+  const setShowSecondaryEdges = useGraphSettingsStore((s) => s.setShowSecondaryEdges);
+  const setShowMiniMap = useGraphSettingsStore((s) => s.setShowMiniMap);
+  const setShowNavControls = useGraphSettingsStore((s) => s.setShowNavControls);
+  const setAutoFitOnChange = useGraphSettingsStore((s) => s.setAutoFitOnChange);
+  const setHighlightActionableNodes = useGraphSettingsStore((s) => s.setHighlightActionableNodes);
+  const resetLensSettings = useGraphSettingsStore((s) => s.resetLensSettings);
 
   const layoutMode = useGraphUIStore((s) => s.layoutMode);
   const layoutDirection = useGraphUIStore((s) => s.layoutDirection);

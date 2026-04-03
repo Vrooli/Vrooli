@@ -36,7 +36,6 @@ const defaultProps: LatestExecutionSummaryProps = {
   agentRunIsActive: false,
   latestAgentActivity: null,
   onStopRun: vi.fn(),
-  onFollowUp: vi.fn(),
 };
 
 describe("LatestExecutionSummary", () => {
@@ -85,61 +84,23 @@ describe("LatestExecutionSummary", () => {
     expect(screen.getByText("Stopping...")).toBeInTheDocument();
   });
 
-  it("renders completed execution with status", () => {
-    render(
+  it("renders null for completed execution (status handled by ReviewStatusHeader)", () => {
+    const { container } = render(
       <LatestExecutionSummary
         {...defaultProps}
         latestExecution={makeExecution({ status: "completed" })}
       />,
     );
-    expect(screen.getByText("Completed")).toBeInTheDocument();
+    expect(container.firstChild).toBeNull();
   });
 
-  it("renders failed execution with failure reason", () => {
-    render(
+  it("renders null for failed execution (status handled by ReviewStatusHeader)", () => {
+    const { container } = render(
       <LatestExecutionSummary
         {...defaultProps}
-        latestExecution={makeExecution({
-          status: "failed",
-          failureReason: "Agent crashed unexpectedly",
-        })}
+        latestExecution={makeExecution({ status: "failed" })}
       />,
     );
-    expect(screen.getByText("Failed")).toBeInTheDocument();
-    expect(screen.getByText("Agent crashed unexpectedly")).toBeInTheDocument();
-  });
-
-  it("shows Follow Up button for follow-up-eligible executions", async () => {
-    const onFollowUp = vi.fn();
-    const exec = makeExecution({ status: "completed" });
-    render(
-      <LatestExecutionSummary
-        {...defaultProps}
-        latestExecution={exec}
-        onFollowUp={onFollowUp}
-      />,
-    );
-    await userEvent.click(screen.getByText("Follow Up"));
-    expect(onFollowUp).toHaveBeenCalledWith(exec);
-  });
-
-  it("hides Follow Up button for non-eligible executions", () => {
-    render(
-      <LatestExecutionSummary
-        {...defaultProps}
-        latestExecution={makeExecution({ status: "running" })}
-      />,
-    );
-    expect(screen.queryByText("Follow Up")).not.toBeInTheDocument();
-  });
-
-  it("shows operation badge when present", () => {
-    render(
-      <LatestExecutionSummary
-        {...defaultProps}
-        latestExecution={makeExecution({ operation: "generator" })}
-      />,
-    );
-    expect(screen.getByText("generator")).toBeInTheDocument();
+    expect(container.firstChild).toBeNull();
   });
 });

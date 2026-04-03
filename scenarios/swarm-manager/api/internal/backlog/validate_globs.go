@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/bmatcuk/doublestar/v4"
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 )
 
@@ -33,7 +34,7 @@ type validateGlobsResponse struct {
 func (h *Handler) ValidateGlobs(w http.ResponseWriter, r *http.Request) {
 	var req validateGlobsRequest
 	if err := httputil.DecodeJSONStrict(r, &req); err != nil {
-		httputil.BadRequest(w, "[backlog] validate-globs", err.Error())
+		apierr.MapError(w, "[backlog] validate-globs", apierr.BadRequest("%s", err.Error()))
 		return
 	}
 
@@ -78,6 +79,6 @@ func (h *Handler) ValidateGlobs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := httputil.JSON(w, validateGlobsResponse{Results: results}); err != nil {
-		httputil.InternalError(w, "[backlog] validate-globs", "failed to encode response")
+		apierr.MapError(w, "[backlog] validate-globs", apierr.Internal("failed to encode response"))
 	}
 }

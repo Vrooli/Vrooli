@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/promptcatalog"
@@ -69,7 +70,7 @@ func allowedSkillID(skillID string) bool {
 func (h *Handler) Catalog(w http.ResponseWriter, _ *http.Request) {
 	items := promptcatalog.Entries()
 	if err := httputil.JSON(w, map[string]any{"items": items}); err != nil {
-		httputil.InternalError(w, "[prompts] catalog", "failed to encode response")
+		apierr.MapError(w, "[prompts] catalog", apierr.Internal("failed to encode response"))
 	}
 }
 
@@ -134,37 +135,37 @@ func (h *Handler) ListSkills(w http.ResponseWriter, r *http.Request) {
 		skill, err := h.client.GetSkill(r.Context(), entry.SkillID)
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "status 404") {
-				httputil.NotFound(w, "[prompts] list-skills", "prompt skill not found: "+entry.SkillID)
+				apierr.MapError(w, "[prompts] list-skills", apierr.NotFound("prompt skill not found: %s", entry.SkillID))
 				return
 			}
-			httputil.InternalError(w, "[prompts] list-skills", "failed to load prompt skills")
+			apierr.MapError(w, "[prompts] list-skills", apierr.Internal("failed to load prompt skills"))
 			return
 		}
 		items = append(items, buildSkillSummary(skill))
 	}
 	if err := httputil.JSON(w, map[string]any{"items": items}); err != nil {
-		httputil.InternalError(w, "[prompts] list-skills", "failed to encode response")
+		apierr.MapError(w, "[prompts] list-skills", apierr.Internal("failed to encode response"))
 	}
 }
 
 func (h *Handler) GetSkill(w http.ResponseWriter, r *http.Request) {
 	skillID := strings.TrimSpace(mux.Vars(r)["id"])
 	if !allowedSkillID(skillID) {
-		httputil.BadRequest(w, "[prompts] get-skill", "skill is not part of the prompt catalog")
+		apierr.MapError(w, "[prompts] get-skill", apierr.BadRequest("skill is not part of the prompt catalog"))
 		return
 	}
 	skill, err := h.client.GetSkill(r.Context(), skillID)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "status 404") {
-			httputil.NotFound(w, "[prompts] get-skill", "prompt skill not found")
+			apierr.MapError(w, "[prompts] get-skill", apierr.NotFound("prompt skill not found"))
 			return
 		}
-		httputil.InternalError(w, "[prompts] get-skill", "failed to load prompt skill")
+		apierr.MapError(w, "[prompts] get-skill", apierr.Internal("failed to load prompt skill"))
 		return
 	}
 	resp := buildSkillSummary(skill)
 	if err := httputil.JSON(w, map[string]any{"item": resp}); err != nil {
-		httputil.InternalError(w, "[prompts] get-skill", "failed to encode response")
+		apierr.MapError(w, "[prompts] get-skill", apierr.Internal("failed to encode response"))
 	}
 }
 
@@ -179,20 +180,20 @@ type updatePromptSkillRequest struct {
 func (h *Handler) UpdateSkill(w http.ResponseWriter, r *http.Request) {
 	skillID := strings.TrimSpace(mux.Vars(r)["id"])
 	if !allowedSkillID(skillID) {
-		httputil.BadRequest(w, "[prompts] update-skill", "skill is not part of the prompt catalog")
+		apierr.MapError(w, "[prompts] update-skill", apierr.BadRequest("skill is not part of the prompt catalog"))
 		return
 	}
 
 	var req updatePromptSkillRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httputil.BadRequest(w, "[prompts] update-skill", "invalid request body")
+		apierr.MapError(w, "[prompts] update-skill", apierr.BadRequest("invalid request body"))
 		return
 	}
 
 	if req.Content != nil {
 		missing := missingRequiredVariables(skillID, *req.Content)
 		if len(missing) > 0 {
-			httputil.BadRequest(w, "[prompts] update-skill", "missing required template variables: "+strings.Join(missing, ", "))
+			apierr.MapError(w, "[prompts] update-skill", apierr.BadRequest("missing required template variables: %s", strings.Join(missing, ", ")))
 			return
 		}
 	}
@@ -207,72 +208,72 @@ func (h *Handler) UpdateSkill(w http.ResponseWriter, r *http.Request) {
 	skill, err := h.client.UpdateSkill(r.Context(), skillID, patch)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "status 404") {
-			httputil.NotFound(w, "[prompts] update-skill", "prompt skill not found")
+			apierr.MapError(w, "[prompts] update-skill", apierr.NotFound("prompt skill not found"))
 			return
 		}
 		if strings.Contains(strings.ToLower(err.Error()), "status 400") ||
 			strings.Contains(strings.ToLower(err.Error()), "status 403") {
-			httputil.BadRequest(w, "[prompts] update-skill", "prompt-manager rejected skill update")
+			apierr.MapError(w, "[prompts] update-skill", apierr.BadRequest("prompt-manager rejected skill update"))
 			return
 		}
-		httputil.InternalError(w, "[prompts] update-skill", "failed to update prompt skill")
+		apierr.MapError(w, "[prompts] update-skill", apierr.Internal("failed to update prompt skill"))
 		return
 	}
 	resp := buildSkillSummary(skill)
 	if err := httputil.JSON(w, map[string]any{"item": resp}); err != nil {
-		httputil.InternalError(w, "[prompts] update-skill", "failed to encode response")
+		apierr.MapError(w, "[prompts] update-skill", apierr.Internal("failed to encode response"))
 	}
 }
 
 func (h *Handler) GetSkillVersions(w http.ResponseWriter, r *http.Request) {
 	skillID := strings.TrimSpace(mux.Vars(r)["id"])
 	if !allowedSkillID(skillID) {
-		httputil.BadRequest(w, "[prompts] versions", "skill is not part of the prompt catalog")
+		apierr.MapError(w, "[prompts] versions", apierr.BadRequest("skill is not part of the prompt catalog"))
 		return
 	}
 
 	versions, err := h.client.GetSkillVersions(r.Context(), skillID)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "status 404") {
-			httputil.NotFound(w, "[prompts] versions", "prompt skill not found")
+			apierr.MapError(w, "[prompts] versions", apierr.NotFound("prompt skill not found"))
 			return
 		}
-		httputil.InternalError(w, "[prompts] versions", "failed to load prompt versions")
+		apierr.MapError(w, "[prompts] versions", apierr.Internal("failed to load prompt versions"))
 		return
 	}
 	if err := httputil.JSON(w, versions); err != nil {
-		httputil.InternalError(w, "[prompts] versions", "failed to encode response")
+		apierr.MapError(w, "[prompts] versions", apierr.Internal("failed to encode response"))
 	}
 }
 
 func (h *Handler) RevertSkillVersion(w http.ResponseWriter, r *http.Request) {
 	skillID := strings.TrimSpace(mux.Vars(r)["id"])
 	if !allowedSkillID(skillID) {
-		httputil.BadRequest(w, "[prompts] revert", "skill is not part of the prompt catalog")
+		apierr.MapError(w, "[prompts] revert", apierr.BadRequest("skill is not part of the prompt catalog"))
 		return
 	}
 	versionRaw := strings.TrimSpace(mux.Vars(r)["version"])
 	version := 0
 	if _, err := fmt.Sscanf(versionRaw, "%d", &version); err != nil || version <= 0 {
-		httputil.BadRequest(w, "[prompts] revert", "version must be a positive integer")
+		apierr.MapError(w, "[prompts] revert", apierr.BadRequest("version must be a positive integer"))
 		return
 	}
 	if err := h.client.RevertSkillVersion(r.Context(), skillID, version); err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "status 404") {
-			httputil.NotFound(w, "[prompts] revert", "version or prompt skill not found")
+			apierr.MapError(w, "[prompts] revert", apierr.NotFound("version or prompt skill not found"))
 			return
 		}
-		httputil.InternalError(w, "[prompts] revert", "failed to revert prompt skill")
+		apierr.MapError(w, "[prompts] revert", apierr.Internal("failed to revert prompt skill"))
 		return
 	}
 	skill, err := h.client.GetSkill(r.Context(), skillID)
 	if err != nil {
-		httputil.InternalError(w, "[prompts] revert", "revert applied but failed to reload prompt skill")
+		apierr.MapError(w, "[prompts] revert", apierr.Internal("revert applied but failed to reload prompt skill"))
 		return
 	}
 	resp := buildSkillSummary(skill)
 	if err := httputil.JSON(w, map[string]any{"item": resp}); err != nil {
-		httputil.InternalError(w, "[prompts] revert", "failed to encode response")
+		apierr.MapError(w, "[prompts] revert", apierr.Internal("failed to encode response"))
 	}
 }
 
@@ -285,12 +286,12 @@ type previewRequest struct {
 func (h *Handler) Preview(w http.ResponseWriter, r *http.Request) {
 	var req previewRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httputil.BadRequest(w, "[prompts] preview", "invalid request body")
+		apierr.MapError(w, "[prompts] preview", apierr.BadRequest("invalid request body"))
 		return
 	}
 	skillID := strings.TrimSpace(req.SkillID)
 	if !allowedSkillID(skillID) {
-		httputil.BadRequest(w, "[prompts] preview", "skill is not part of the prompt catalog")
+		apierr.MapError(w, "[prompts] preview", apierr.BadRequest("skill is not part of the prompt catalog"))
 		return
 	}
 	withScope := false
@@ -299,7 +300,7 @@ func (h *Handler) Preview(w http.ResponseWriter, r *http.Request) {
 	}
 	rendered, err := h.client.ReadSkill(r.Context(), skillID, req.Variables, withScope)
 	if err != nil {
-		httputil.InternalError(w, "[prompts] preview", "failed to render prompt")
+		apierr.MapError(w, "[prompts] preview", apierr.Internal("failed to render prompt"))
 		return
 	}
 	if err := httputil.JSON(w, map[string]any{
@@ -308,7 +309,7 @@ func (h *Handler) Preview(w http.ResponseWriter, r *http.Request) {
 		"variables":  req.Variables,
 		"prompt":     rendered,
 	}); err != nil {
-		httputil.InternalError(w, "[prompts] preview", "failed to encode response")
+		apierr.MapError(w, "[prompts] preview", apierr.Internal("failed to encode response"))
 	}
 }
 
@@ -345,12 +346,12 @@ func defaultVariables(req simulateRequest) map[string]string {
 func (h *Handler) Simulate(w http.ResponseWriter, r *http.Request) {
 	var req simulateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httputil.BadRequest(w, "[prompts] simulate", "invalid request body")
+		apierr.MapError(w, "[prompts] simulate", apierr.BadRequest("invalid request body"))
 		return
 	}
 	kind := strings.ToLower(strings.TrimSpace(req.Kind))
 	if kind == "" {
-		httputil.BadRequest(w, "[prompts] simulate", "kind is required")
+		apierr.MapError(w, "[prompts] simulate", apierr.BadRequest("kind is required"))
 		return
 	}
 	mode := strings.ToLower(strings.TrimSpace(req.Mode))
@@ -359,13 +360,13 @@ func (h *Handler) Simulate(w http.ResponseWriter, r *http.Request) {
 	}
 	entry, ok := promptcatalog.ResolveBacklogSkill(mode, kind)
 	if !ok {
-		httputil.BadRequest(w, "[prompts] simulate", "mode must be workshop, initialize, or finalize for the selected kind")
+		apierr.MapError(w, "[prompts] simulate", apierr.BadRequest("mode must be workshop, initialize, or finalize for the selected kind"))
 		return
 	}
 	vars := defaultVariables(req)
 	rendered, err := h.client.ReadSkill(r.Context(), entry.SkillID, vars, false)
 	if err != nil {
-		httputil.InternalError(w, "[prompts] simulate", "failed to resolve prompt")
+		apierr.MapError(w, "[prompts] simulate", apierr.Internal("failed to resolve prompt"))
 		return
 	}
 	if err := httputil.JSON(w, map[string]any{
@@ -378,6 +379,6 @@ func (h *Handler) Simulate(w http.ResponseWriter, r *http.Request) {
 		"variables":  vars,
 		"prompt":     rendered,
 	}); err != nil {
-		httputil.InternalError(w, "[prompts] simulate", "failed to encode response")
+		apierr.MapError(w, "[prompts] simulate", apierr.Internal("failed to encode response"))
 	}
 }

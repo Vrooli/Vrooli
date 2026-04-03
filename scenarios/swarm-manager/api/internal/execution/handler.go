@@ -3,8 +3,6 @@ package execution
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -12,7 +10,7 @@ import (
 	"github.com/gorilla/mux"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
-	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 )
 
@@ -77,7 +75,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	items, err := h.service.List(r.Context(), filters)
 	if err != nil {
-		httputil.InternalError(w, "[execution] list", "failed to list executions")
+		apierr.MapError(w, "[execution] list", err)
 		return
 	}
 	protoItems := make([]*domainpb.ExecutionRecord, len(items))
@@ -86,27 +84,23 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	resp := &apipb.ListExecutionResponse{Items: protoItems}
 	if err := httputil.ProtoJSON(w, resp); err != nil {
-		httputil.InternalError(w, "[execution] list", "failed to encode response")
+		apierr.MapError(w, "[execution] list", apierr.Internal("failed to encode response"))
 	}
 }
 
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	executionID := strings.TrimSpace(mux.Vars(r)["execution_id"])
 	if executionID == "" {
-		httputil.BadRequest(w, "[execution] get", "execution_id is required")
+		apierr.MapError(w, "[execution] get", apierr.BadRequest("execution_id is required"))
 		return
 	}
 	record, err := h.service.Get(r.Context(), executionID)
 	if err != nil {
-		if errors.Is(err, errNotFound) {
-			httputil.NotFound(w, "[execution] get", "execution not found")
-			return
-		}
-		httputil.InternalError(w, "[execution] get", "failed to fetch execution")
+		apierr.MapError(w, "[execution] get", err)
 		return
 	}
 	if err := httputil.ProtoJSON(w, executionResponse(record)); err != nil {
-		httputil.InternalError(w, "[execution] get", "failed to encode response")
+		apierr.MapError(w, "[execution] get", apierr.Internal("failed to encode response"))
 	}
 	h.service.RecordView(executionID)
 }
@@ -114,31 +108,27 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetPromptTrace(w http.ResponseWriter, r *http.Request) {
 	executionID := strings.TrimSpace(mux.Vars(r)["execution_id"])
 	if executionID == "" {
-		httputil.BadRequest(w, "[execution] prompt-trace", "execution_id is required")
+		apierr.MapError(w, "[execution] prompt-trace", apierr.BadRequest("execution_id is required"))
 		return
 	}
 	record, err := h.service.Get(r.Context(), executionID)
 	if err != nil {
-		if errors.Is(err, errNotFound) {
-			httputil.NotFound(w, "[execution] prompt-trace", "execution not found")
-			return
-		}
-		httputil.InternalError(w, "[execution] prompt-trace", "failed to fetch execution")
+		apierr.MapError(w, "[execution] prompt-trace", err)
 		return
 	}
 	if record.PromptTrace == nil {
-		httputil.NotFound(w, "[execution] prompt-trace", "prompt trace not found")
+		apierr.MapError(w, "[execution] prompt-trace", apierr.NotFound("prompt trace not found"))
 		return
 	}
 	if err := httputil.JSON(w, map[string]any{"trace": record.PromptTrace}); err != nil {
-		httputil.InternalError(w, "[execution] prompt-trace", "failed to encode response")
+		apierr.MapError(w, "[execution] prompt-trace", apierr.Internal("failed to encode response"))
 	}
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	var pbReq apipb.CreateExecutionRequest
 	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
-		httputil.BadRequest(w, "[execution] create", "invalid request body")
+		apierr.MapError(w, "[execution] create", apierr.BadRequest("invalid request body"))
 		return
 	}
 	if !httputil.ValidateProtoRequest(w, "[execution] create", "invalid execution request", &pbReq) {
@@ -157,29 +147,11 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	record, err := h.service.QueueBacklog(r.Context(), req)
 	if err != nil {
-		log.Printf("[execution] create: queue backlog failed: %v", err)
-		h.mapCreateError(w, err)
+		apierr.MapError(w, "[execution] create", err)
 		return
 	}
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusAccepted, executionResponse(record)); err != nil {
-		httputil.InternalError(w, "[execution] create", "failed to encode response")
-	}
-}
-
-func (h *Handler) mapCreateError(w http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, errNotFound):
-		httputil.NotFound(w, "[execution] create", "backlog item not found")
-	case errors.Is(err, errQueueFull), errors.Is(err, errCircuitBroken), errors.Is(err, errCostCapExceeded):
-		httputil.Conflict(w, "[execution] create", err.Error())
-	case errors.Is(err, agentmanager.ErrNotAvailable):
-		httputil.ServiceUnavailable(w, "[execution] create", "agent-manager is not available")
-	case errors.Is(err, agentmanager.ErrRequestFailed):
-		httputil.Error(w, "[execution] create", "agent-manager request failed; check agent-manager health/logs and retry", http.StatusBadGateway)
-	case isCreateBadRequestError(err):
-		httputil.BadRequest(w, "[execution] create", err.Error())
-	default:
-		httputil.InternalError(w, "[execution] create", "failed to create execution: "+summarizeCreateError(err))
+		apierr.MapError(w, "[execution] create", apierr.Internal("failed to encode response"))
 	}
 }
 
@@ -189,97 +161,78 @@ func (h *Handler) ResetCircuitBreaker(w http.ResponseWriter, r *http.Request) {
 		Item string `json:"item"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		httputil.BadRequest(w, "[execution] circuit-breaker-reset", "invalid request body")
+		apierr.MapError(w, "[execution] circuit-breaker-reset", apierr.BadRequest("invalid request body"))
 		return
 	}
 	if strings.TrimSpace(body.Item) == "" {
-		httputil.BadRequest(w, "[execution] circuit-breaker-reset", "item is required")
+		apierr.MapError(w, "[execution] circuit-breaker-reset", apierr.BadRequest("item is required"))
 		return
 	}
 	if err := h.service.ResetCircuitBreaker(body.Item); err != nil {
-		if errors.Is(err, errNotFound) {
-			httputil.NotFound(w, "[execution] circuit-breaker-reset", "no circuit breaker state for item")
-			return
-		}
-		httputil.InternalError(w, "[execution] circuit-breaker-reset", "failed to reset circuit breaker")
+		apierr.MapError(w, "[execution] circuit-breaker-reset", err)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(`{"ok":true}`))
 }
 
-func isCreateBadRequestError(err error) bool {
-	if err == nil {
-		return false
-	}
-	msg := strings.ToLower(strings.TrimSpace(err.Error()))
-	return strings.Contains(msg, "cannot be queued") ||
-		strings.Contains(msg, "required") ||
-		strings.Contains(msg, "mode must") ||
-		strings.Contains(msg, "process preflight failed")
-}
-
-func summarizeCreateError(err error) string {
-	return httputil.TruncateErrorMessage(err, 240)
-}
-
 func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 	executionID := strings.TrimSpace(mux.Vars(r)["execution_id"])
 	if executionID == "" {
-		httputil.BadRequest(w, "[execution] start", "execution_id is required")
+		apierr.MapError(w, "[execution] start", apierr.BadRequest("execution_id is required"))
 		return
 	}
 	record, err := h.service.Start(r.Context(), executionID)
 	if err != nil {
-		h.mapMutationError(w, "[execution] start", err)
+		apierr.MapError(w, "[execution] start", err)
 		return
 	}
 	if err := httputil.ProtoJSON(w, executionResponse(record)); err != nil {
-		httputil.InternalError(w, "[execution] start", "failed to encode response")
+		apierr.MapError(w, "[execution] start", apierr.Internal("failed to encode response"))
 	}
 }
 
 func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
 	executionID := strings.TrimSpace(mux.Vars(r)["execution_id"])
 	if executionID == "" {
-		httputil.BadRequest(w, "[execution] cancel", "execution_id is required")
+		apierr.MapError(w, "[execution] cancel", apierr.BadRequest("execution_id is required"))
 		return
 	}
 	record, err := h.service.Cancel(r.Context(), executionID)
 	if err != nil {
-		h.mapMutationError(w, "[execution] cancel", err)
+		apierr.MapError(w, "[execution] cancel", err)
 		return
 	}
 	if err := httputil.ProtoJSON(w, executionResponse(record)); err != nil {
-		httputil.InternalError(w, "[execution] cancel", "failed to encode response")
+		apierr.MapError(w, "[execution] cancel", apierr.Internal("failed to encode response"))
 	}
 }
 
 func (h *Handler) Retry(w http.ResponseWriter, r *http.Request) {
 	executionID := strings.TrimSpace(mux.Vars(r)["execution_id"])
 	if executionID == "" {
-		httputil.BadRequest(w, "[execution] retry", "execution_id is required")
+		apierr.MapError(w, "[execution] retry", apierr.BadRequest("execution_id is required"))
 		return
 	}
 	record, err := h.service.Retry(r.Context(), executionID)
 	if err != nil {
-		h.mapMutationError(w, "[execution] retry", err)
+		apierr.MapError(w, "[execution] retry", err)
 		return
 	}
 	if err := httputil.ProtoJSON(w, executionResponse(record)); err != nil {
-		httputil.InternalError(w, "[execution] retry", "failed to encode response")
+		apierr.MapError(w, "[execution] retry", apierr.Internal("failed to encode response"))
 	}
 }
 
 func (h *Handler) FollowUp(w http.ResponseWriter, r *http.Request) {
 	executionID := strings.TrimSpace(mux.Vars(r)["execution_id"])
 	if executionID == "" {
-		httputil.BadRequest(w, "[execution] follow-up", "execution_id is required")
+		apierr.MapError(w, "[execution] follow-up", apierr.BadRequest("execution_id is required"))
 		return
 	}
 	var pbReq apipb.FollowUpExecutionRequest
 	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
-		httputil.BadRequest(w, "[execution] follow-up", "invalid request body")
+		apierr.MapError(w, "[execution] follow-up", apierr.BadRequest("invalid request body"))
 		return
 	}
 	if !httputil.ValidateProtoRequest(w, "[execution] follow-up", "invalid follow-up request", &pbReq) {
@@ -293,26 +246,11 @@ func (h *Handler) FollowUp(w http.ResponseWriter, r *http.Request) {
 	}
 	record, err := h.service.FollowUp(r.Context(), req)
 	if err != nil {
-		h.mapFollowUpError(w, err)
+		apierr.MapError(w, "[execution] follow-up", err)
 		return
 	}
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusAccepted, executionResponse(record)); err != nil {
-		httputil.InternalError(w, "[execution] follow-up", "failed to encode response")
-	}
-}
-
-func (h *Handler) mapFollowUpError(w http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, errNotFound):
-		httputil.NotFound(w, "[execution] follow-up", "execution not found")
-	case errors.Is(err, agentmanager.ErrNotAvailable):
-		httputil.ServiceUnavailable(w, "[execution] follow-up", "agent-manager is not available")
-	case errors.Is(err, errSessionExpired):
-		httputil.Conflict(w, "[execution] follow-up", "agent session expired; retry with run_mode=new")
-	case strings.Contains(err.Error(), "cannot follow up"):
-		httputil.BadRequest(w, "[execution] follow-up", err.Error())
-	default:
-		httputil.InternalError(w, "[execution] follow-up", "failed to create follow-up: "+httputil.TruncateErrorMessage(err, 240))
+		apierr.MapError(w, "[execution] follow-up", apierr.Internal("failed to encode response"))
 	}
 }
 
@@ -320,16 +258,16 @@ func (h *Handler) mapFollowUpError(w http.ResponseWriter, err error) {
 func (h *Handler) TriggerReview(w http.ResponseWriter, r *http.Request) {
 	executionID := strings.TrimSpace(mux.Vars(r)["execution_id"])
 	if executionID == "" {
-		httputil.BadRequest(w, "[execution] trigger-review", "execution_id is required")
+		apierr.MapError(w, "[execution] trigger-review", apierr.BadRequest("execution_id is required"))
 		return
 	}
 	record, err := h.service.TriggerReview(r.Context(), executionID)
 	if err != nil {
-		h.mapMutationError(w, "[execution] trigger-review", err)
+		apierr.MapError(w, "[execution] trigger-review", err)
 		return
 	}
 	if err := httputil.ProtoJSON(w, executionResponse(record)); err != nil {
-		httputil.InternalError(w, "[execution] trigger-review", "failed to encode response")
+		apierr.MapError(w, "[execution] trigger-review", apierr.Internal("failed to encode response"))
 	}
 }
 
@@ -349,32 +287,6 @@ func (h *Handler) GCTStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		_, _ = w.Write([]byte(`{"available":false}`))
 	}
-}
-
-func (h *Handler) mapMutationError(w http.ResponseWriter, prefix string, err error) {
-	switch {
-	case errors.Is(err, errNotFound):
-		httputil.NotFound(w, prefix, "execution not found")
-	case isCancelRestoreError(err):
-		httputil.Conflict(w, prefix, "execution canceled but backlog status restore failed; fix the backlog item status and retry")
-	case strings.Contains(err.Error(), "required"),
-		strings.Contains(err.Error(), "cannot"),
-		strings.Contains(err.Error(), "only"):
-		httputil.BadRequest(w, prefix, err.Error())
-	case strings.Contains(err.Error(), "not available"):
-		httputil.ServiceUnavailable(w, prefix, "agent-manager is not available")
-	default:
-		httputil.InternalError(w, prefix, "execution operation failed: "+httputil.TruncateErrorMessage(err, 240))
-	}
-}
-
-func isCancelRestoreError(err error) bool {
-	if err == nil {
-		return false
-	}
-	message := strings.ToLower(strings.TrimSpace(err.Error()))
-	return strings.Contains(message, "failed to load backlog item for cancel restore") ||
-		strings.Contains(message, "failed to restore backlog status after cancel")
 }
 
 func executionResponse(record Record) *apipb.ExecutionResponse {

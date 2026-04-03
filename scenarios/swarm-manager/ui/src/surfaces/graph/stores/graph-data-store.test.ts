@@ -15,7 +15,6 @@ vi.mock("../../../services", () => ({
 
 import {
   cloneGraphDataInitialState,
-  createGraphDataInitialState,
   resetGraphRequestState,
   useGraphDataStore,
 } from "./graph-data-store";
@@ -54,90 +53,9 @@ describe("graphDataStore", () => {
     expect(state.graphsByLens.topology.meta).toBeNull();
   });
 
-  it("defaults to the topology lens with initiative grouping", () => {
+  it("defaults to the topology lens", () => {
     const state = useGraphDataStore.getState();
     expect(state.lens).toBe("topology");
-    expect(state.settingsByLens.topology.groupingMode).toBe("initiative");
-    expect(state.settingsByLens.operations.groupingMode).toBe("none");
-  });
-
-  it("migrates legacy grouped topology settings to the new topology default", () => {
-    window.localStorage.setItem(
-      "swarm-manager.graph.settings.v2",
-      JSON.stringify({
-        topology: {
-          entityFilters: { capture: false },
-          groupingMode: "initiative",
-          showSecondaryEdges: false,
-          autoFitOnChange: true,
-        },
-      }),
-    );
-
-    const initialState = createGraphDataInitialState();
-    // Legacy migration resets groupingMode to the default for the lens.
-    // Topology's default is now "initiative".
-    expect(initialState.settingsByLens.topology.groupingMode).toBe("initiative");
-    expect(initialState.settingsByLens.topology.entityFilters.capture).toBe(false);
-    expect(initialState.settingsByLens.topology.showSecondaryEdges).toBe(false);
-  });
-
-  it("migrates v3 flat status filters to v4 grouped format", () => {
-    window.localStorage.setItem(
-      "swarm-manager.graph.settings.v3",
-      JSON.stringify({
-        topology: {
-          entityFilters: {},
-          statusFilters: { completed: false, failed: false },
-          groupingMode: "none",
-          showSecondaryEdges: true,
-          autoFitOnChange: true,
-        },
-      }),
-    );
-
-    const initialState = createGraphDataInitialState();
-    const filters = initialState.settingsByLens.topology.statusFilters;
-
-    // "completed" exists in backlog, execution, and initiative
-    expect(filters.backlog?.completed).toBe(false);
-    expect(filters.execution?.completed).toBe(false);
-    expect(filters.initiative?.completed).toBe(false);
-
-    // "failed" exists in backlog, execution, capture, agent-activity, agent-run
-    expect(filters.backlog?.failed).toBe(false);
-    expect(filters.execution?.failed).toBe(false);
-    expect(filters.capture?.failed).toBe(false);
-    expect(filters["agent-activity"]?.failed).toBe(false);
-    expect(filters["agent-run"]?.failed).toBe(false);
-
-    // Scenario shouldn't have "completed" since it's not in its status list
-    expect(filters.scenario?.completed).toBeUndefined();
-  });
-
-  it("loads v4 grouped status filters directly", () => {
-    window.localStorage.setItem(
-      "swarm-manager.graph.settings.v4",
-      JSON.stringify({
-        topology: {
-          entityFilters: {},
-          statusFilters: {
-            backlog: { completed: false },
-            execution: { running: false },
-          },
-          groupingMode: "none",
-          showSecondaryEdges: true,
-          autoFitOnChange: true,
-        },
-      }),
-    );
-
-    const initialState = createGraphDataInitialState();
-    const filters = initialState.settingsByLens.topology.statusFilters;
-    expect(filters.backlog?.completed).toBe(false);
-    expect(filters.execution?.running).toBe(false);
-    // Not cross-contaminated
-    expect(filters.backlog?.running).toBeUndefined();
   });
 
   it("sets graph data atomically", () => {
@@ -157,72 +75,6 @@ describe("graphDataStore", () => {
     expect(state.edges).toEqual(edges);
     expect(state.meta?.nodeCount).toBe(1);
     expect(state.graphsByLens.topology.nodes).toEqual(nodes);
-  });
-
-  it("applies entity filters per lens and persists them", () => {
-    useGraphDataStore.getState().setEntityFilter("capture", false);
-
-    const { settingsByLens } = useGraphDataStore.getState();
-    expect(settingsByLens.topology.entityFilters.capture).toBe(false);
-    expect(settingsByLens.operations.entityFilters.capture).toBe(true);
-
-    const persisted = window.localStorage.getItem("swarm-manager.graph.settings.v5");
-    expect(persisted).toContain("\"capture\":false");
-  });
-
-  it("tracks status visibility per entity type for the active lens", () => {
-    useGraphDataStore.getState().setStatusVisibility("execution", "running", false);
-
-    expect(useGraphDataStore.getState().settingsByLens.topology.statusFilters.execution?.running).toBe(false);
-
-    useGraphDataStore.getState().clearStatusFilter("execution", "running");
-    expect(useGraphDataStore.getState().settingsByLens.topology.statusFilters.execution?.running).toBeUndefined();
-  });
-
-  it("keeps status filters independent across entity types", () => {
-    useGraphDataStore.getState().setStatusVisibility("backlog", "completed", false);
-    useGraphDataStore.getState().setStatusVisibility("execution", "completed", true);
-
-    const filters = useGraphDataStore.getState().settingsByLens.topology.statusFilters;
-    expect(filters.backlog?.completed).toBe(false);
-    expect(filters.execution?.completed).toBe(true);
-  });
-
-  it("sets all statuses for an entity type via group visibility", () => {
-    const statuses = ["running", "stopped", "error", "unknown"];
-    useGraphDataStore.getState().setEntityStatusGroupVisibility("scenario", statuses, false);
-
-    const group = useGraphDataStore.getState().settingsByLens.topology.statusFilters.scenario;
-    expect(group).toBeDefined();
-    for (const status of statuses) {
-      expect(group?.[status]).toBe(false);
-    }
-  });
-
-  it("cleans up empty entity group when last status filter is cleared", () => {
-    useGraphDataStore.getState().setStatusVisibility("capture", "failed", false);
-    expect(useGraphDataStore.getState().settingsByLens.topology.statusFilters.capture).toBeDefined();
-
-    useGraphDataStore.getState().clearStatusFilter("capture", "failed");
-    expect(useGraphDataStore.getState().settingsByLens.topology.statusFilters.capture).toBeUndefined();
-  });
-
-  it("resets only the current lens settings", () => {
-    const store = useGraphDataStore.getState();
-    store.setEntityFilter("capture", false);
-    store.setGroupingMode("none");
-    store.setStatusVisibility("execution", "running", false);
-    store.setLens("operations");
-    store.setEntityFilter("execution", false);
-
-    useGraphDataStore.getState().setLens("topology");
-    useGraphDataStore.getState().resetLensSettings();
-
-    const state = useGraphDataStore.getState();
-    expect(state.settingsByLens.topology.entityFilters.capture).toBe(true);
-    expect(state.settingsByLens.topology.groupingMode).toBe("initiative");
-    expect(state.settingsByLens.topology.statusFilters).toEqual({});
-    expect(state.settingsByLens.operations.entityFilters.execution).toBe(false);
   });
 
   it("fetches graph data through the graph service", async () => {
@@ -459,17 +311,6 @@ describe("graphDataStore", () => {
     useGraphDataStore.getState().setLens("topology");
     expect(useGraphDataStore.getState().nodes).toHaveLength(1);
     expect(useGraphDataStore.getState().nodes[0]?.id).toBe("scenario/topo");
-  });
-
-  it("persists and restores settings including initiative status filters", () => {
-    useGraphDataStore.getState().setStatusVisibility("initiative", "archived", false);
-
-    const persisted = window.localStorage.getItem("swarm-manager.graph.settings.v5");
-    expect(persisted).toBeTruthy();
-
-    // Create new state from localStorage (simulating page reload)
-    const freshState = createGraphDataInitialState();
-    expect(freshState.settingsByLens.topology.statusFilters.initiative?.archived).toBe(false);
   });
 
   it("handles silent fetch without showing loading state", async () => {

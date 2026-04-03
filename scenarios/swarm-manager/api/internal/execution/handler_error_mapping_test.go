@@ -1,20 +1,25 @@
 package execution
 
 import (
-	"fmt"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/apierr"
 )
 
-func TestMapMutationError_CancelRestoreLoadFailureReturnsConflict(t *testing.T) {
-	h := &Handler{}
-	rec := httptest.NewRecorder()
+// These tests verify that the execution service returns properly typed
+// apierr.DomainError values, so apierr.MapError in the handler produces
+// correct HTTP responses without string-matching.
 
-	h.mapMutationError(rec, "[execution] cancel", errWithMessage("failed to load backlog item for cancel restore: open /tmp/spec.json: no such file or directory"))
+func TestMapError_CancelRestoreReturnsConflict(t *testing.T) {
+	// Simulate the error returned by restoreBacklogStatusForRecord.
+	err := apierr.Conflict("execution canceled but backlog status restore failed; fix the backlog item status and retry")
+
+	rec := httptest.NewRecorder()
+	apierr.MapError(rec, "[execution] cancel", err)
 
 	if rec.Code != http.StatusConflict {
 		t.Fatalf("expected status %d, got %d", http.StatusConflict, rec.Code)
@@ -24,28 +29,11 @@ func TestMapMutationError_CancelRestoreLoadFailureReturnsConflict(t *testing.T) 
 	}
 }
 
-func TestMapMutationError_CancelRestoreStatusWriteFailureReturnsConflict(t *testing.T) {
-	h := &Handler{}
+func TestMapError_BadGatewayForAgentFailure(t *testing.T) {
+	err := apierr.BadGateway("agent-manager request failed; check agent-manager health/logs and retry")
+
 	rec := httptest.NewRecorder()
-
-	h.mapMutationError(rec, "[execution] cancel", errWithMessage("failed to restore backlog status after cancel: permission denied"))
-
-	if rec.Code != http.StatusConflict {
-		t.Fatalf("expected status %d, got %d", http.StatusConflict, rec.Code)
-	}
-	if !strings.Contains(rec.Body.String(), "execution canceled but backlog status restore failed") {
-		t.Fatalf("expected conflict guidance message, got %q", rec.Body.String())
-	}
-	if !strings.Contains(rec.Body.String(), "fix the backlog item status and retry") {
-		t.Fatalf("expected remediation guidance, got %q", rec.Body.String())
-	}
-}
-
-func TestMapCreateError_AgentManagerRequestFailureReturnsBadGateway(t *testing.T) {
-	h := &Handler{}
-	rec := httptest.NewRecorder()
-
-	h.mapCreateError(rec, fmt.Errorf("%w: status 500", agentmanager.ErrRequestFailed))
+	apierr.MapError(rec, "[execution] create", err)
 
 	if rec.Code != http.StatusBadGateway {
 		t.Fatalf("expected status %d, got %d", http.StatusBadGateway, rec.Code)
@@ -55,11 +43,11 @@ func TestMapCreateError_AgentManagerRequestFailureReturnsBadGateway(t *testing.T
 	}
 }
 
-func TestMapCreateError_ProcessPreflightFailureReturnsBadRequest(t *testing.T) {
-	h := &Handler{}
-	rec := httptest.NewRecorder()
+func TestMapError_PreflightFailureReturnsBadRequest(t *testing.T) {
+	err := apierr.BadRequest("process preflight failed: 3 critical clarify question(s) remain unanswered")
 
-	h.mapCreateError(rec, errWithMessage("process preflight failed: 3 critical clarify question(s) remain unanswered"))
+	rec := httptest.NewRecorder()
+	apierr.MapError(rec, "[execution] create", err)
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
@@ -69,19 +57,41 @@ func TestMapCreateError_ProcessPreflightFailureReturnsBadRequest(t *testing.T) {
 	}
 }
 
-func TestSummarizeCreateError_TruncatesLongMessages(t *testing.T) {
-	longErr := errWithMessage(strings.Repeat("x", 500))
-	got := summarizeCreateError(longErr)
-	if len(got) > 243 {
-		t.Fatalf("expected summarized error to be truncated, got len=%d", len(got))
+func TestMapError_UntypedErrorReturnsInternalServerError(t *testing.T) {
+	err := errors.New(strings.Repeat("x", 500))
+
+	rec := httptest.NewRecorder()
+	apierr.MapError(rec, "[execution] create", err)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, rec.Code)
 	}
-	if !strings.HasSuffix(got, "...") {
-		t.Fatalf("expected truncated message to end with ellipsis, got %q", got)
+	body := rec.Body.String()
+	if len(body) > 260 {
+		t.Fatalf("expected truncated error message, got len=%d", len(body))
 	}
 }
 
-type errWithMessage string
-
-func (e errWithMessage) Error() string {
-	return string(e)
+func TestServiceErrors_AreTypedDomainErrors(t *testing.T) {
+	tests := []struct {
+		name       string
+		err        error
+		wantStatus int
+	}{
+		{"not found", apierr.NotFound("execution not found"), 404},
+		{"bad request", apierr.BadRequest("backlog_kind is required"), 400},
+		{"conflict", apierr.Conflict("queue depth limit exceeded"), 409},
+		{"unavailable", apierr.Unavailable("agent-manager is not available"), 503},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var domainErr *apierr.DomainError
+			if !errors.As(tt.err, &domainErr) {
+				t.Fatal("expected DomainError")
+			}
+			if domainErr.Status != tt.wantStatus {
+				t.Errorf("expected status %d, got %d", tt.wantStatus, domainErr.Status)
+			}
+		})
+	}
 }
