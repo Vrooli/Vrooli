@@ -200,6 +200,9 @@ message RunSummary {
 
   // Estimated cost in USD.
   double cost_estimate = 7;
+
+  // Last-turn input tokens — approximates current context window usage.
+  int32 context_tokens = 8;
 }
 
 // =============================================================================

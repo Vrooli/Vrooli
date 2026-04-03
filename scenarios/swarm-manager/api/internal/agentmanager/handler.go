@@ -62,6 +62,11 @@ type runStatusResponse struct {
 	ErrorMessage    string  `json:"error_message,omitempty"`
 	DurationSeconds float64 `json:"duration_seconds,omitempty"`
 	Active          bool    `json:"active"`
+	TokensUsed      int32   `json:"tokens_used,omitempty"`
+	TurnsUsed       int32   `json:"turns_used,omitempty"`
+	CostEstimate    float64 `json:"cost_estimate,omitempty"`
+	ChangedFiles    int32   `json:"changed_files,omitempty"`
+	ContextTokens   int32   `json:"context_tokens,omitempty"`
 }
 
 type stopRunResponse struct {
@@ -106,6 +111,11 @@ func (h *Handler) GetRun(w http.ResponseWriter, r *http.Request) {
 		FinishedAt:   state.FinishedAt,
 		ErrorMessage: state.ErrorMsg,
 		Active:       isActiveStatus(state.Status),
+		TokensUsed:    state.TokensUsed,
+		TurnsUsed:     state.TurnsUsed,
+		CostEstimate:  state.CostEstimate,
+		ChangedFiles:  state.ChangedFiles,
+		ContextTokens: state.ContextTokens,
 	}
 	if duration := durationSeconds(state.StartedAt, state.FinishedAt); duration > 0 {
 		response.DurationSeconds = duration

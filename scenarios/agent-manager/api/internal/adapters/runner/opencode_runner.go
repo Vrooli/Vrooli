@@ -374,10 +374,11 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 			}
 		}
 		result.Summary = &domain.RunSummary{
-			Description:  lastAssistantMessage,
-			TurnsUsed:    metrics.TurnsUsed,
-			TokensUsed:   TotalTokens(metrics),
-			CostEstimate: metrics.CostEstimateUSD,
+			Description:   lastAssistantMessage,
+			TurnsUsed:     metrics.TurnsUsed,
+			TokensUsed:    TotalTokens(metrics),
+			CostEstimate:  metrics.CostEstimateUSD,
+			ContextTokens: metrics.TokensInput,
 		}
 	}
 
@@ -1417,10 +1418,11 @@ func (r *OpenCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*Ex
 			}
 		}
 		result.Summary = &domain.RunSummary{
-			Description:  lastAssistantMessage,
-			TurnsUsed:    metrics.TurnsUsed,
-			TokensUsed:   TotalTokens(metrics),
-			CostEstimate: metrics.CostEstimateUSD,
+			Description:   lastAssistantMessage,
+			TurnsUsed:     metrics.TurnsUsed,
+			TokensUsed:    TotalTokens(metrics),
+			CostEstimate:  metrics.CostEstimateUSD,
+			ContextTokens: metrics.TokensInput,
 		}
 	}
 

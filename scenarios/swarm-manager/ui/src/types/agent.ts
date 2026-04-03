@@ -27,6 +27,11 @@ export interface AgentRunState {
   errorMessage?: string;
   durationSeconds?: number;
   active: boolean;
+  tokensUsed?: number;
+  turnsUsed?: number;
+  costEstimate?: number;
+  changedFiles?: number;
+  contextTokens?: number;
 }
 
 export type AgentActivityStatus =

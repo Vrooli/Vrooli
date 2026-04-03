@@ -457,10 +457,11 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 		result.Success = true
 		result.ExitCode = 0
 		result.Summary = &domain.RunSummary{
-			Description:  lastAssistantMessage,
-			TurnsUsed:    metrics.TurnsUsed,
-			TokensUsed:   TotalTokens(metrics),
-			CostEstimate: metrics.CostEstimateUSD,
+			Description:   lastAssistantMessage,
+			TurnsUsed:     metrics.TurnsUsed,
+			TokensUsed:    TotalTokens(metrics),
+			CostEstimate:  metrics.CostEstimateUSD,
+			ContextTokens: metrics.TokensInput,
 		}
 	}
 
@@ -1275,10 +1276,11 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 		result.Success = true
 		result.ExitCode = 0
 		result.Summary = &domain.RunSummary{
-			Description:  lastAssistantMessage,
-			TurnsUsed:    metrics.TurnsUsed,
-			TokensUsed:   TotalTokens(metrics),
-			CostEstimate: metrics.CostEstimateUSD,
+			Description:   lastAssistantMessage,
+			TurnsUsed:     metrics.TurnsUsed,
+			TokensUsed:    TotalTokens(metrics),
+			CostEstimate:  metrics.CostEstimateUSD,
+			ContextTokens: metrics.TokensInput,
 		}
 	}
 

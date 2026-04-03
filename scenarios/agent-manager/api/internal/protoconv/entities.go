@@ -273,6 +273,7 @@ func RunToProto(r *domain.Run) *pb.Run {
 			TokensUsed:    int32(r.Summary.TokensUsed),
 			TurnsUsed:     int32(r.Summary.TurnsUsed),
 			CostEstimate:  r.Summary.CostEstimate,
+			ContextTokens: int32(r.Summary.ContextTokens),
 		}
 	}
 
@@ -362,6 +363,7 @@ func RunFromProto(r *pb.Run) *domain.Run {
 			TokensUsed:    int(r.Summary.TokensUsed),
 			TurnsUsed:     int(r.Summary.TurnsUsed),
 			CostEstimate:  r.Summary.CostEstimate,
+			ContextTokens: int(r.Summary.ContextTokens),
 		}
 	}
 

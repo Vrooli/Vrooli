@@ -106,7 +106,7 @@ class RunActions(_message.Message):
     def __init__(self, can_investigate: _Optional[bool] = ..., can_apply_investigation: _Optional[bool] = ..., can_delete: _Optional[bool] = ..., can_stop: _Optional[bool] = ..., can_retry: _Optional[bool] = ..., can_continue: _Optional[bool] = ..., can_approve: _Optional[bool] = ..., can_reject: _Optional[bool] = ..., can_review: _Optional[bool] = ..., can_extract_recommendations: _Optional[bool] = ..., can_regenerate_recommendations: _Optional[bool] = ..., can_continue_reason: _Optional[str] = ...) -> None: ...
 
 class RunSummary(_message.Message):
-    __slots__ = ("description", "files_modified", "files_created", "files_deleted", "tokens_used", "turns_used", "cost_estimate")
+    __slots__ = ("description", "files_modified", "files_created", "files_deleted", "tokens_used", "turns_used", "cost_estimate", "context_tokens")
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     FILES_MODIFIED_FIELD_NUMBER: _ClassVar[int]
     FILES_CREATED_FIELD_NUMBER: _ClassVar[int]
@@ -114,6 +114,7 @@ class RunSummary(_message.Message):
     TOKENS_USED_FIELD_NUMBER: _ClassVar[int]
     TURNS_USED_FIELD_NUMBER: _ClassVar[int]
     COST_ESTIMATE_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_TOKENS_FIELD_NUMBER: _ClassVar[int]
     description: str
     files_modified: _containers.RepeatedScalarFieldContainer[str]
     files_created: _containers.RepeatedScalarFieldContainer[str]
@@ -121,7 +122,8 @@ class RunSummary(_message.Message):
     tokens_used: int
     turns_used: int
     cost_estimate: float
-    def __init__(self, description: _Optional[str] = ..., files_modified: _Optional[_Iterable[str]] = ..., files_created: _Optional[_Iterable[str]] = ..., files_deleted: _Optional[_Iterable[str]] = ..., tokens_used: _Optional[int] = ..., turns_used: _Optional[int] = ..., cost_estimate: _Optional[float] = ...) -> None: ...
+    context_tokens: int
+    def __init__(self, description: _Optional[str] = ..., files_modified: _Optional[_Iterable[str]] = ..., files_created: _Optional[_Iterable[str]] = ..., files_deleted: _Optional[_Iterable[str]] = ..., tokens_used: _Optional[int] = ..., turns_used: _Optional[int] = ..., cost_estimate: _Optional[float] = ..., context_tokens: _Optional[int] = ...) -> None: ...
 
 class RunCheckpoint(_message.Message):
     __slots__ = ("run_id", "phase", "step_within_phase", "sandbox_id", "work_dir", "lock_id", "last_event_sequence", "last_heartbeat", "retry_count", "saved_at", "metadata")

@@ -175,14 +175,19 @@ type RunResult struct {
 
 // RunState captures externally visible lifecycle state for a run.
 type RunState struct {
-	RunID      string
-	TaskID     string
-	Status     string
-	StartedAt  string
-	FinishedAt string
-	ErrorMsg   string
-	SandboxID  string
-	Summary    string
+	RunID        string
+	TaskID       string
+	Status       string
+	StartedAt    string
+	FinishedAt   string
+	ErrorMsg     string
+	SandboxID    string
+	Summary       string
+	TokensUsed    int32
+	TurnsUsed     int32
+	CostEstimate  float64
+	ChangedFiles  int32
+	ContextTokens int32
 }
 
 // RunDiff captures the changed files for a sandboxed run.
@@ -373,9 +378,16 @@ func (s *AgentService) GetRunState(ctx context.Context, runID string) (RunState,
 	if run.EndedAt != nil {
 		state.FinishedAt = run.EndedAt.AsTime().UTC().Format(time.RFC3339)
 	}
-	if run.Summary != nil && run.Summary.Description != "" {
-		state.Summary = strings.TrimSpace(run.Summary.Description)
+	if run.Summary != nil {
+		if run.Summary.Description != "" {
+			state.Summary = strings.TrimSpace(run.Summary.Description)
+		}
+		state.TokensUsed = run.Summary.TokensUsed
+		state.TurnsUsed = run.Summary.TurnsUsed
+		state.CostEstimate = run.Summary.CostEstimate
+		state.ContextTokens = run.Summary.ContextTokens
 	}
+	state.ChangedFiles = run.ChangedFiles
 	return state, nil
 }
 

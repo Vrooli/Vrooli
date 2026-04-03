@@ -9,6 +9,9 @@ vi.mock("../../services", () => ({
   executionService: {
     followUp: vi.fn(),
   },
+  agentManagerService: {
+    getRunState: vi.fn(),
+  },
 }));
 
 vi.mock("../ui/drawer", () => ({
@@ -22,8 +25,9 @@ vi.mock("../ui/drawer", () => ({
     ) : null,
 }));
 
-const { executionService } = await import("../../services");
+const { executionService, agentManagerService } = await import("../../services");
 const mockFollowUp = vi.mocked(executionService.followUp);
+const mockGetRunState = vi.mocked(agentManagerService.getRunState);
 
 function makeExecution(overrides?: Partial<ExecutionRecord>): ExecutionRecord {
   return {
@@ -75,6 +79,12 @@ const defaultProps = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Default: return no metrics so RunHealthIndicator doesn't render unless overridden
+  mockGetRunState.mockResolvedValue({
+    runId: "run-1",
+    status: "complete",
+    active: false,
+  });
 });
 
 describe("FollowUpSheet", () => {
@@ -160,5 +170,48 @@ describe("FollowUpSheet", () => {
     const exec = makeExecution({ runId: undefined });
     render(<FollowUpSheet {...defaultProps} execution={exec} />);
     expect(screen.getByTestId(selectors.followUp.runModeContinue)).toBeDisabled();
+  });
+
+  it("shows run health indicator when run metrics are available", async () => {
+    mockGetRunState.mockResolvedValue({
+      runId: "run-1",
+      status: "complete",
+      active: false,
+      contextTokens: 150000,
+      turnsUsed: 37,
+      durationSeconds: 245,
+      costEstimate: 1.23,
+      changedFiles: 8,
+    });
+    render(<FollowUpSheet {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.followUp.runHealth)).toBeInTheDocument();
+    });
+    expect(screen.getByText("37")).toBeInTheDocument();
+    expect(screen.getByText("150k")).toBeInTheDocument();
+    expect(screen.getByText("$1.23")).toBeInTheDocument();
+    expect(screen.getByText("8")).toBeInTheDocument();
+  });
+
+  it("shows context warning when tokens exceed 70%", async () => {
+    mockGetRunState.mockResolvedValue({
+      runId: "run-1",
+      status: "complete",
+      active: false,
+      contextTokens: 160000,
+      turnsUsed: 50,
+    });
+    render(<FollowUpSheet {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/context window is filling up/i)).toBeInTheDocument();
+    });
+  });
+
+  it("does not show run health when no runId", () => {
+    const exec = makeExecution({ runId: undefined });
+    render(<FollowUpSheet {...defaultProps} execution={exec} />);
+    expect(screen.queryByTestId(selectors.followUp.runHealth)).toBeNull();
   });
 });

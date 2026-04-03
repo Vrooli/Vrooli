@@ -512,7 +512,9 @@ type RunSummary struct {
 	// Number of conversation turns.
 	TurnsUsed int32 `protobuf:"varint,6,opt,name=turns_used,json=turnsUsed,proto3" json:"turns_used,omitempty"`
 	// Estimated cost in USD.
-	CostEstimate  float64 `protobuf:"fixed64,7,opt,name=cost_estimate,json=costEstimate,proto3" json:"cost_estimate,omitempty"`
+	CostEstimate float64 `protobuf:"fixed64,7,opt,name=cost_estimate,json=costEstimate,proto3" json:"cost_estimate,omitempty"`
+	// Last-turn input tokens — approximates current context window usage.
+	ContextTokens int32 `protobuf:"varint,8,opt,name=context_tokens,json=contextTokens,proto3" json:"context_tokens,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -592,6 +594,13 @@ func (x *RunSummary) GetTurnsUsed() int32 {
 func (x *RunSummary) GetCostEstimate() float64 {
 	if x != nil {
 		return x.CostEstimate
+	}
+	return 0
+}
+
+func (x *RunSummary) GetContextTokens() int32 {
+	if x != nil {
+		return x.ContextTokens
 	}
 	return 0
 }
@@ -2047,7 +2056,7 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\x1bcan_extract_recommendations\x18\n" +
 	" \x01(\bR\x19canExtractRecommendations\x12D\n" +
 	"\x1ecan_regenerate_recommendations\x18\v \x01(\bR\x1ccanRegenerateRecommendations\x12.\n" +
-	"\x13can_continue_reason\x18\f \x01(\tR\x11canContinueReason\"\x84\x02\n" +
+	"\x13can_continue_reason\x18\f \x01(\tR\x11canContinueReason\"\xab\x02\n" +
 	"\n" +
 	"RunSummary\x12 \n" +
 	"\vdescription\x18\x01 \x01(\tR\vdescription\x12%\n" +
@@ -2058,7 +2067,8 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"tokensUsed\x12\x1d\n" +
 	"\n" +
 	"turns_used\x18\x06 \x01(\x05R\tturnsUsed\x12#\n" +
-	"\rcost_estimate\x18\a \x01(\x01R\fcostEstimate\"\xcf\x04\n" +
+	"\rcost_estimate\x18\a \x01(\x01R\fcostEstimate\x12%\n" +
+	"\x0econtext_tokens\x18\b \x01(\x05R\rcontextTokens\"\xcf\x04\n" +
 	"\rRunCheckpoint\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x120\n" +
 	"\x05phase\x18\x02 \x01(\x0e2\x1a.agent_manager.v1.RunPhaseR\x05phase\x12*\n" +

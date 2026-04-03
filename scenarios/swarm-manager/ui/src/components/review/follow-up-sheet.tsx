@@ -7,13 +7,14 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, MessageSquare, Wrench, PenLine } from "lucide-react";
+import { Loader2, MessageSquare, Wrench, PenLine, Clock, Zap, DollarSign, FileCode, AlertTriangle } from "lucide-react";
 import { Drawer } from "../ui/drawer";
 import { Button } from "../ui/button";
 import { EvidenceContextSummary } from "./evidence-context-summary";
 import { buildFinalizationContext, cn, hasActionableFinalizationIssues } from "../../lib";
 import { selectors } from "../../consts/selectors";
-import { executionService } from "../../services";
+import { agentManagerService, executionService } from "../../services";
+import type { AgentRunState } from "../../types";
 import type { ExecutionRecord } from "../../types";
 import type { FollowUpRequest } from "../../services/execution-service";
 import type { ReviewRound } from "../../services/review-service";
@@ -58,6 +59,101 @@ const TYPE_OPTIONS: { type: FollowUpType; label: string; description: string; ic
   },
 ];
 
+/** Estimated context window size for common models. */
+const CONTEXT_WINDOW_TOKENS = 200_000;
+
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.round(seconds % 60);
+  return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+}
+
+function formatTokens(tokens: number): string {
+  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`;
+  if (tokens >= 1_000) return `${(tokens / 1_000).toFixed(0)}k`;
+  return String(tokens);
+}
+
+function RunHealthIndicator({ runState }: { runState: AgentRunState | null }) {
+  if (!runState) return null;
+
+  const { contextTokens, turnsUsed, costEstimate, changedFiles, durationSeconds } = runState;
+  const hasAnyMetric = contextTokens || turnsUsed || costEstimate || changedFiles || durationSeconds;
+  if (!hasAnyMetric) return null;
+
+  const contextPercent = contextTokens ? Math.min((contextTokens / CONTEXT_WINDOW_TOKENS) * 100, 100) : 0;
+  const isContextHigh = contextPercent > 70;
+
+  return (
+    <div
+      className="rounded-lg border border-white/10 bg-slate-800/30 p-3 space-y-2.5"
+      data-testid={selectors.followUp.runHealth}
+    >
+      <p className="text-xs font-medium text-slate-400">Previous Run</p>
+
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+        {turnsUsed != null && (
+          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+            <MessageSquare className="h-3 w-3 shrink-0 text-slate-500" />
+            <span><span className="text-slate-300 font-medium">{turnsUsed}</span> turns</span>
+          </div>
+        )}
+        {durationSeconds != null && (
+          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+            <Clock className="h-3 w-3 shrink-0 text-slate-500" />
+            <span className="text-slate-300 font-medium">{formatDuration(durationSeconds)}</span>
+          </div>
+        )}
+        {changedFiles != null && (
+          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+            <FileCode className="h-3 w-3 shrink-0 text-slate-500" />
+            <span><span className="text-slate-300 font-medium">{changedFiles}</span> files changed</span>
+          </div>
+        )}
+        {costEstimate != null && (
+          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+            <DollarSign className="h-3 w-3 shrink-0 text-slate-500" />
+            <span className="text-slate-300 font-medium">${costEstimate.toFixed(2)}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Context window usage bar */}
+      {contextTokens != null && (
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-1.5 text-slate-400">
+              <Zap className="h-3 w-3 shrink-0 text-slate-500" />
+              <span>Context: <span className="text-slate-300 font-medium">{formatTokens(contextTokens)}</span> tokens</span>
+            </div>
+            <span className={cn("font-medium", isContextHigh ? "text-amber-400" : "text-slate-500")}>
+              {contextPercent.toFixed(0)}%
+            </span>
+          </div>
+          <div className="h-1.5 w-full rounded-full bg-slate-700">
+            <div
+              className={cn(
+                "h-full rounded-full transition-all",
+                contextPercent > 85 ? "bg-red-500" : isContextHigh ? "bg-amber-500" : "bg-cyan-500",
+              )}
+              style={{ width: `${contextPercent}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Warning hint */}
+      {isContextHigh && (
+        <div className="flex items-start gap-1.5 text-[11px] text-amber-400/80">
+          <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+          <span>Context window is filling up — a new run may be more reliable.</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function FollowUpSheet({ isOpen, onClose, execution, reviewRounds, onSuccess }: FollowUpSheetProps) {
   const hasReviewIssues = hasActionableFinalizationIssues(execution);
   const canContinue = Boolean(execution.runId);
@@ -68,6 +164,21 @@ export function FollowUpSheet({ isOpen, onClose, execution, reviewRounds, onSucc
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedEvidenceIds, setSelectedEvidenceIds] = useState<Set<string>>(new Set());
+  const [runState, setRunState] = useState<AgentRunState | null>(null);
+
+  // Fetch run metrics when the sheet opens and a runId exists.
+  useEffect(() => {
+    if (!isOpen || !execution.runId) {
+      setRunState(null);
+      return;
+    }
+    let cancelled = false;
+    agentManagerService.getRunState(execution.runId).then(
+      (state) => { if (!cancelled) setRunState(state); },
+      () => { if (!cancelled) setRunState(null); },
+    );
+    return () => { cancelled = true; };
+  }, [isOpen, execution.runId]);
 
   useEffect(() => {
     if (isOpen) {
@@ -154,7 +265,7 @@ export function FollowUpSheet({ isOpen, onClose, execution, reviewRounds, onSucc
         </div>
       }
     >
-      <div className="space-y-5">
+      <div className="space-y-5 px-4 py-4">
         {/* Evidence context — always shown when rounds exist */}
         {reviewRounds.length > 0 && (
           <EvidenceContextSummary
@@ -204,6 +315,9 @@ export function FollowUpSheet({ isOpen, onClose, execution, reviewRounds, onSucc
             })}
           </div>
         </div>
+
+        {/* Run health — informs Continue vs New Run decision */}
+        {canContinue && <RunHealthIndicator runState={runState} />}
 
         {/* Run mode toggle */}
         <div className="space-y-2">

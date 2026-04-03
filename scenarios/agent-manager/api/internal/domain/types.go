@@ -512,6 +512,7 @@ type RunSummary struct {
 	TokensUsed    int      `json:"tokensUsed,omitempty"`
 	TurnsUsed     int      `json:"turnsUsed,omitempty"`
 	CostEstimate  float64  `json:"costEstimate,omitempty"`
+	ContextTokens int      `json:"contextTokens,omitempty"`
 }
 
 // RunConfig contains the resolved configuration for a run.

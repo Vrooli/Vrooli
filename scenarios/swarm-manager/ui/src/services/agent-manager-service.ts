@@ -17,6 +17,11 @@ interface AgentRunStateResponse {
   error_message?: string;
   duration_seconds?: number;
   active?: boolean;
+  tokens_used?: number;
+  turns_used?: number;
+  cost_estimate?: number;
+  changed_files?: number;
+  context_tokens?: number;
 }
 
 interface AgentRunDetailsResponse {
@@ -72,6 +77,26 @@ export function createAgentManagerService(apiClient: IApiClient = defaultApiClie
             ? data.duration_seconds
             : undefined,
         active: Boolean(data.active),
+        tokensUsed:
+          typeof data.tokens_used === "number" && data.tokens_used > 0
+            ? data.tokens_used
+            : undefined,
+        turnsUsed:
+          typeof data.turns_used === "number" && data.turns_used > 0
+            ? data.turns_used
+            : undefined,
+        costEstimate:
+          typeof data.cost_estimate === "number" && data.cost_estimate > 0
+            ? data.cost_estimate
+            : undefined,
+        changedFiles:
+          typeof data.changed_files === "number" && data.changed_files > 0
+            ? data.changed_files
+            : undefined,
+        contextTokens:
+          typeof data.context_tokens === "number" && data.context_tokens > 0
+            ? data.context_tokens
+            : undefined,
       };
     },
     async getRunDetails(runId: string): Promise<AgentRunDetails> {

@@ -248,6 +248,9 @@ func (a *App) runGet(args []string) error {
 		if run.Summary.TokensUsed > 0 {
 			fmt.Printf("  Tokens Used:   %d\n", run.Summary.TokensUsed)
 		}
+		if run.Summary.ContextTokens > 0 {
+			fmt.Printf("  Context:       %d tokens\n", run.Summary.ContextTokens)
+		}
 		if run.Summary.CostEstimate > 0 {
 			fmt.Printf("  Cost Estimate: $%.4f\n", run.Summary.CostEstimate)
 		}

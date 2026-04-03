@@ -328,6 +328,7 @@ export const literalSelectors = {
     submitButton: "follow-up-submit-button",
     error: "follow-up-error",
     reviewSummary: "follow-up-review-summary",
+    runHealth: "follow-up-run-health",
   },
   // Shared review flow selectors
   review: {
