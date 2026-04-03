@@ -90,6 +90,7 @@ type DownloadArtifact struct {
 	SizeBytes         int64                  `json:"size_bytes,omitempty"`
 	SHA256            string                 `json:"sha256,omitempty"`
 	SHA512            string                 `json:"sha512,omitempty"`
+	GitCommitHash     string                 `json:"git_commit_hash,omitempty"`
 	ContentType       string                 `json:"content_type,omitempty"`
 	OriginalFilename  string                 `json:"original_filename,omitempty"`
 	Platform          string                 `json:"platform,omitempty"`
@@ -114,6 +115,7 @@ type artifactScanTargets struct {
 	sizeOut       sql.NullInt64
 	shaOut        sql.NullString
 	sha512Out     sql.NullString
+	commitHash    sql.NullString
 	ctypeOut      sql.NullString
 	fnameOut      sql.NullString
 	platformOut   sql.NullString
@@ -123,7 +125,7 @@ type artifactScanTargets struct {
 
 // scanDest returns the ordered slice of scan destinations matching the standard artifact SELECT columns:
 // id, bundle_key, app_key, provider, bucket, object_key, etag, size_bytes, sha256, sha512,
-// content_type, original_filename, platform, release_version, metadata, created_at, updated_at
+// git_commit_hash, content_type, original_filename, platform, release_version, metadata, created_at, updated_at
 func (t *artifactScanTargets) scanDest() []interface{} {
 	return []interface{}{
 		&t.artifact.ID,
@@ -136,6 +138,7 @@ func (t *artifactScanTargets) scanDest() []interface{} {
 		&t.sizeOut,
 		&t.shaOut,
 		&t.sha512Out,
+		&t.commitHash,
 		&t.ctypeOut,
 		&t.fnameOut,
 		&t.platformOut,
@@ -158,6 +161,7 @@ func (t *artifactScanTargets) hydrate() DownloadArtifact {
 	}
 	t.artifact.SHA256 = t.shaOut.String
 	t.artifact.SHA512 = t.sha512Out.String
+	t.artifact.GitCommitHash = t.commitHash.String
 	t.artifact.ContentType = t.ctypeOut.String
 	t.artifact.OriginalFilename = t.fnameOut.String
 	t.artifact.Platform = t.platformOut.String
@@ -740,6 +744,7 @@ type CommitArtifactRequest struct {
 	ReleaseVersion   string                 `json:"release_version"`
 	SHA256           string                 `json:"sha256"`
 	SHA512           string                 `json:"sha512"`
+	GitCommitHash    string                 `json:"git_commit_hash"`
 	Metadata         map[string]interface{} `json:"metadata"`
 	SetAsCurrent     bool                   `json:"set_as_current"`
 }
@@ -782,14 +787,15 @@ func (s *DownloadHostingService) CommitArtifact(ctx context.Context, bundleKey s
 	query := `
 		INSERT INTO download_artifacts (
 			bundle_key, app_key, provider, bucket, object_key, etag, size_bytes, sha256, sha512,
-			content_type, original_filename, platform, release_version, metadata, updated_at
-		) VALUES ($1,$2,'s3',$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13, NOW())
+			git_commit_hash, content_type, original_filename, platform, release_version, metadata, updated_at
+		) VALUES ($1,$2,'s3',$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14, NOW())
 		ON CONFLICT (bundle_key, bucket, object_key) DO UPDATE SET
 			app_key = COALESCE(EXCLUDED.app_key, download_artifacts.app_key),
 			etag = EXCLUDED.etag,
 			size_bytes = EXCLUDED.size_bytes,
 			sha256 = EXCLUDED.sha256,
 			sha512 = EXCLUDED.sha512,
+			git_commit_hash = EXCLUDED.git_commit_hash,
 			content_type = EXCLUDED.content_type,
 			original_filename = EXCLUDED.original_filename,
 			platform = EXCLUDED.platform,
@@ -797,7 +803,7 @@ func (s *DownloadHostingService) CommitArtifact(ctx context.Context, bundleKey s
 			metadata = EXCLUDED.metadata,
 			updated_at = NOW()
 		RETURNING id, bundle_key, app_key, provider, bucket, object_key, etag, size_bytes, sha256, sha512,
-		          content_type, original_filename, platform, release_version, metadata, created_at, updated_at
+		          git_commit_hash, content_type, original_filename, platform, release_version, metadata, created_at, updated_at
 	`
 
 	row := s.db.QueryRowContext(ctx, query,
@@ -809,6 +815,7 @@ func (s *DownloadHostingService) CommitArtifact(ctx context.Context, bundleKey s
 		size,
 		normalizeOptionalString(&req.SHA256),
 		normalizeOptionalString(&req.SHA512),
+		normalizeOptionalString(&req.GitCommitHash),
 		normalizeOptionalString(&contentType),
 		normalizeOptionalString(&req.OriginalFilename),
 		normalizeOptionalString(&req.Platform),
@@ -828,7 +835,7 @@ func (s *DownloadHostingService) CommitArtifact(ctx context.Context, bundleKey s
 func (s *DownloadHostingService) GetArtifact(ctx context.Context, bundleKey string, id int64) (*DownloadArtifact, error) {
 	row := s.db.QueryRowContext(ctx, `
 		SELECT id, bundle_key, app_key, provider, bucket, object_key, etag, size_bytes, sha256, sha512,
-		       content_type, original_filename, platform, release_version, metadata, created_at, updated_at
+		       git_commit_hash, content_type, original_filename, platform, release_version, metadata, created_at, updated_at
 		FROM download_artifacts
 		WHERE bundle_key = $1 AND id = $2
 		LIMIT 1
@@ -900,7 +907,7 @@ func (s *DownloadHostingService) ListArtifacts(ctx context.Context, bundleKey st
 
 	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(`
 		SELECT id, bundle_key, app_key, provider, bucket, object_key, etag, size_bytes, sha256, sha512,
-		       content_type, original_filename, platform, release_version, metadata, created_at, updated_at
+		       git_commit_hash, content_type, original_filename, platform, release_version, metadata, created_at, updated_at
 		FROM download_artifacts
 		WHERE %s
 		ORDER BY created_at DESC, id DESC
@@ -970,7 +977,7 @@ func (s *DownloadHostingService) ListArtifactsByApp(ctx context.Context, bundleK
 	// Join with download_assets to determine which artifact is current for each platform
 	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(`
 		SELECT a.id, a.bundle_key, a.app_key, a.provider, a.bucket, a.object_key, a.etag, a.size_bytes, a.sha256, a.sha512,
-		       a.content_type, a.original_filename, a.platform, a.release_version, a.metadata, a.created_at, a.updated_at,
+		       a.git_commit_hash, a.content_type, a.original_filename, a.platform, a.release_version, a.metadata, a.created_at, a.updated_at,
 		       CASE WHEN da.artifact_id = a.id THEN true ELSE false END AS is_current
 		FROM download_artifacts a
 		LEFT JOIN download_assets da ON da.bundle_key = a.bundle_key AND da.app_key = a.app_key AND da.platform = a.platform
@@ -1009,7 +1016,7 @@ func (s *DownloadHostingService) ListArtifactsByApp(ctx context.Context, bundleK
 func (s *DownloadHostingService) GetCurrentArtifactByFilename(ctx context.Context, bundleKey, appKey, variantKey, filename string) (*DownloadArtifact, error) {
 	row := s.db.QueryRowContext(ctx, `
 		SELECT da.id, da.bundle_key, da.app_key, da.provider, da.bucket, da.object_key,
-		       da.etag, da.size_bytes, da.sha256, da.sha512, da.content_type,
+		       da.etag, da.size_bytes, da.sha256, da.sha512, da.git_commit_hash, da.content_type,
 		       da.original_filename, da.platform, da.release_version, da.metadata,
 		       da.created_at, da.updated_at
 		FROM download_artifacts da

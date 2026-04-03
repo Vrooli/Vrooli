@@ -160,6 +160,10 @@ func (s *DeployStage) Execute(ctx context.Context, input *StageInput) *StageResu
 	if input.Config != nil {
 		releaseVersion = input.Config.Version
 	}
+	gitCommitHash := ""
+	if input.Provenance != nil {
+		gitCommitHash = input.Provenance.GitCommitHash
+	}
 
 	for platform, artifactPath := range artifacts {
 		if checkCancellation(ctx, result, s.timeProvider) {
@@ -173,6 +177,7 @@ func (s *DeployStage) Execute(ctx context.Context, input *StageInput) *StageResu
 			Platform:       platform,
 			FilePath:       artifactPath,
 			ReleaseVersion: releaseVersion,
+			GitCommitHash:  gitCommitHash,
 		})
 		if err != nil {
 			failStage(result, s.timeProvider, errors.ErrDeployFailed(

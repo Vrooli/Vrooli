@@ -70,6 +70,18 @@ CREATE TABLE IF NOT EXISTS profile_required_platforms (
     PRIMARY KEY (profile_id, platform)
 );
 
+-- Published versions tracks post-publish version history (append-only)
+CREATE TABLE IF NOT EXISTS published_versions (
+    id SERIAL PRIMARY KEY,
+    profile_id VARCHAR(255) NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    platform VARCHAR(50) NOT NULL,
+    version VARCHAR(100) NOT NULL,
+    git_commit_hash VARCHAR(64),
+    artifact_id BIGINT,
+    deployment_id VARCHAR(255) REFERENCES deployments(id),
+    published_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_profiles_scenario ON profiles(scenario);
 CREATE INDEX IF NOT EXISTS idx_profiles_created_at ON profiles(created_at DESC);
@@ -80,3 +92,5 @@ CREATE INDEX IF NOT EXISTS idx_deployments_status ON deployments(status);
 CREATE INDEX IF NOT EXISTS idx_deployments_started_at ON deployments(started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_approvals_profile_commit ON deployment_approvals(profile_id, git_commit_hash);
 CREATE INDEX IF NOT EXISTS idx_approvals_pending ON deployment_approvals(status) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS idx_published_versions_profile_platform
+    ON published_versions(profile_id, platform, published_at DESC);

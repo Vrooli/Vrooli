@@ -80,6 +80,7 @@ type UploadRequest struct {
 	FilePath       string
 	ReleaseVersion string
 	ReleaseNotes   string
+	GitCommitHash  string
 }
 
 // UploadResult is the outcome of a single artifact upload.
@@ -315,6 +316,7 @@ func (c *LPBSClient) proxyCommit(ctx context.Context, req *UploadRequest, presig
 			"platform":          req.Platform,
 			"release_version":   req.ReleaseVersion,
 			"sha512":            sha512Hex,
+			"git_commit_hash":   req.GitCommitHash,
 		})
 	if err != nil {
 		return 0, fmt.Errorf("commit artifact: %w", err)

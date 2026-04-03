@@ -78,6 +78,11 @@ func (s *Server) setupRoutes() {
 		s.Router.HandleFunc("/api/v1/profiles/{id}/required-platforms", s.ApprovalsHandler.GetRequiredPlatforms).Methods("GET")
 	}
 
+	// Published versions endpoints
+	if s.PublishedVersionsHandler != nil {
+		s.Router.HandleFunc("/api/v1/profiles/{id}/published-versions", s.PublishedVersionsHandler.GetPublishedVersions).Methods("GET")
+	}
+
 	// Visual validation endpoints
 	if s.ValidationHandler != nil {
 		s.Router.HandleFunc("/api/v1/validations", s.ValidationHandler.Create).Methods("POST")

@@ -51,8 +51,9 @@ type Server struct {
 	SigningHandler      *codesigning.Handler
 	BuildHandler        *build.Handler
 	ValidationHandler   *visualvalidation.Handler
-	ApprovalsHandler    *deployments.ApprovalsHandler
-	Orchestrator        *deployments.Orchestrator
+	ApprovalsHandler         *deployments.ApprovalsHandler
+	PublishedVersionsHandler *deployments.PublishedVersionsHandler
+	Orchestrator             *deployments.Orchestrator
 
 	// Repositories
 	ProfilesRepo profiles.Repository
@@ -111,6 +112,12 @@ func New() (*Server, error) {
 		LogStructured("warning: failed to ensure approvals schema", map[string]interface{}{"error": err.Error()})
 	}
 
+	// Create published versions repository and ensure schema
+	publishedVersionsRepo := deployments.NewSQLPublishedVersionsRepository(db)
+	if err := publishedVersionsRepo.EnsureSchema(context.Background()); err != nil {
+		LogStructured("warning: failed to ensure published versions schema", map[string]interface{}{"error": err.Error()})
+	}
+
 	srv := &Server{
 		Config:              cfg,
 		DB:                  db,
@@ -129,8 +136,9 @@ func New() (*Server, error) {
 		SigningHandler:      codesigning.NewHandler(signingRepo, signingValidator, signingChecker, logFn),
 		BuildHandler:        build.NewHandler(profilesRepo, logFn),
 		ValidationHandler:   visualvalidation.NewHandler(visualvalidation.NewSQLRepository(db), validationVideoDir(), logFn),
-		ApprovalsHandler:    deployments.NewApprovalsHandler(approvalsRepo, logFn),
-		Orchestrator:        deployments.NewOrchestratorWithApprovals(profilesRepo, approvalsRepo, logFn),
+		ApprovalsHandler:         deployments.NewApprovalsHandler(approvalsRepo, logFn),
+		PublishedVersionsHandler: deployments.NewPublishedVersionsHandler(publishedVersionsRepo, logFn),
+		Orchestrator:             deployments.NewOrchestratorFull(profilesRepo, approvalsRepo, publishedVersionsRepo, logFn),
 	}
 
 	srv.setupRoutes()

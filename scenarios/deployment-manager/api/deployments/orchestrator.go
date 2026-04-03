@@ -56,18 +56,19 @@ type DeployDesktopRequest struct {
 
 // DeployDesktopResponse is the response from orchestrated deployment.
 type DeployDesktopResponse struct {
-	Status           string                `json:"status"`
-	ProfileID        string                `json:"profile_id"`
-	Scenario         string                `json:"scenario"`
-	Steps            []OrchestrationStep   `json:"steps"`
-	ManifestPath     string                `json:"manifest_path,omitempty"`
-	BuildResults     *build.BuildAllResult `json:"build_results,omitempty"`
-	DesktopBuildID   string                `json:"desktop_build_id,omitempty"`
-	DesktopPath      string                `json:"desktop_path,omitempty"`
-	InstallerBuildID string                `json:"installer_build_id,omitempty"`
-	Installers       map[string]string     `json:"installers,omitempty"`
-	Duration         string                `json:"duration,omitempty"`
-	NextSteps        []string              `json:"next_steps,omitempty"`
+	Status            string                `json:"status"`
+	ProfileID         string                `json:"profile_id"`
+	Scenario          string                `json:"scenario"`
+	Steps             []OrchestrationStep   `json:"steps"`
+	ManifestPath      string                `json:"manifest_path,omitempty"`
+	BuildResults      *build.BuildAllResult `json:"build_results,omitempty"`
+	DesktopBuildID    string                `json:"desktop_build_id,omitempty"`
+	DesktopPath       string                `json:"desktop_path,omitempty"`
+	InstallerBuildID  string                `json:"installer_build_id,omitempty"`
+	Installers        map[string]string     `json:"installers,omitempty"`
+	PublishedVersions []PublishedVersion    `json:"published_versions,omitempty"`
+	Duration          string                `json:"duration,omitempty"`
+	NextSteps         []string              `json:"next_steps,omitempty"`
 }
 
 // OrchestrationStep represents a single step in the orchestration.
@@ -81,10 +82,11 @@ type OrchestrationStep struct {
 
 // Orchestrator handles the full desktop deployment workflow.
 type Orchestrator struct {
-	profileRepo   profiles.Repository
-	approvalsRepo ApprovalsRepository
-	vrooli        string
-	log           func(string, map[string]interface{})
+	profileRepo           profiles.Repository
+	approvalsRepo         ApprovalsRepository
+	publishedVersionsRepo PublishedVersionsRepository
+	vrooli                string
+	log                   func(string, map[string]interface{})
 }
 
 // NewOrchestrator creates a new deployment orchestrator.
@@ -94,15 +96,21 @@ func NewOrchestrator(profileRepo profiles.Repository, log func(string, map[strin
 
 // NewOrchestratorWithApprovals creates a new deployment orchestrator with approval gating.
 func NewOrchestratorWithApprovals(profileRepo profiles.Repository, approvalsRepo ApprovalsRepository, log func(string, map[string]interface{})) *Orchestrator {
+	return NewOrchestratorFull(profileRepo, approvalsRepo, nil, log)
+}
+
+// NewOrchestratorFull creates a new deployment orchestrator with all optional repositories.
+func NewOrchestratorFull(profileRepo profiles.Repository, approvalsRepo ApprovalsRepository, publishedVersionsRepo PublishedVersionsRepository, log func(string, map[string]interface{})) *Orchestrator {
 	vrooli := os.Getenv("VROOLI_ROOT")
 	if vrooli == "" {
 		vrooli = filepath.Join(os.Getenv("HOME"), "Vrooli")
 	}
 	return &Orchestrator{
-		profileRepo:   profileRepo,
-		approvalsRepo: approvalsRepo,
-		vrooli:        vrooli,
-		log:           log,
+		profileRepo:           profileRepo,
+		approvalsRepo:         approvalsRepo,
+		publishedVersionsRepo: publishedVersionsRepo,
+		vrooli:                vrooli,
+		log:                   log,
 	}
 }
 
@@ -391,7 +399,6 @@ func (o *Orchestrator) DeployDesktop(w http.ResponseWriter, r *http.Request) {
 
 			for _, svc := range buildableServices {
 				result, err := builder.BuildAll(buildCtx, svc.ID, svc.Build, buildPlatforms)
-
 				if err != nil {
 					o.log("error", map[string]interface{}{
 						"msg":     "build failed",
@@ -580,6 +587,13 @@ func (o *Orchestrator) DeployDesktop(w http.ResponseWriter, r *http.Request) {
 				"Approve or reject at POST /api/v1/validations/{id}/review",
 			)
 		}
+		response.Steps = append(response.Steps, step)
+	}
+
+	// Step 9: Publish to LPBS and record version (non-fatal)
+	if o.publishedVersionsRepo != nil && !req.DryRun {
+		step = o.startStep("Publish to LPBS")
+		o.publishToLPBS(ctx, profile, req, response, &step)
 		response.Steps = append(response.Steps, step)
 	}
 
@@ -844,6 +858,92 @@ func (o *Orchestrator) writeJSON(w http.ResponseWriter, status int, payload inte
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(payload)
+}
+
+// publishToLPBS triggers a deploy-stage-only pipeline, extracts version data,
+// and persists it. Errors are non-fatal: logged but do not fail the deployment.
+func (o *Orchestrator) publishToLPBS(ctx context.Context, profile *profiles.Profile, req DeployDesktopRequest, response *DeployDesktopResponse, step *OrchestrationStep) {
+	client, err := NewDesktopPackagerClient(o.log)
+	if err != nil {
+		step.Status = "warning"
+		step.Message = fmt.Sprintf("could not create desktop client: %v", err)
+		o.log("warn", map[string]interface{}{"msg": "publish step skipped", "error": err.Error()})
+		return
+	}
+
+	pipelineReq := &PublishPipelineRequest{
+		ScenarioName:    profile.Scenario,
+		Platforms:       req.Platforms,
+		Publish:         true,
+		ResumeFromStage: "deploy",
+		StopAfterStage:  "deploy",
+	}
+
+	pipelineResp, err := client.RunPublishPipeline(ctx, pipelineReq)
+	if err != nil {
+		step.Status = "warning"
+		step.Message = fmt.Sprintf("failed to trigger publish pipeline: %v", err)
+		o.log("warn", map[string]interface{}{"msg": "publish pipeline trigger failed", "error": err.Error()})
+		return
+	}
+
+	o.log("info", map[string]interface{}{
+		"msg":         "publish pipeline started",
+		"pipeline_id": pipelineResp.PipelineID,
+	})
+
+	status, err := client.WaitForPipeline(ctx, pipelineResp.PipelineID)
+	if err != nil {
+		step.Status = "warning"
+		step.Message = fmt.Sprintf("publish pipeline failed: %v", err)
+		o.log("warn", map[string]interface{}{"msg": "publish pipeline failed", "error": err.Error()})
+		return
+	}
+
+	// Extract deploy result and provenance
+	deployResult, err := ExtractDeployResult(status)
+	if err != nil {
+		step.Status = "warning"
+		step.Message = fmt.Sprintf("published but could not extract deploy result: %v", err)
+		o.log("warn", map[string]interface{}{"msg": "deploy result extraction failed", "error": err.Error()})
+		return
+	}
+
+	provenance, _ := ExtractProvenance(status)
+
+	version := ""
+	gitHash := ""
+	if provenance != nil {
+		version = provenance.Version
+		gitHash = provenance.GitCommitHash
+	}
+	if version == "" {
+		version = "unknown"
+	}
+
+	// Persist one record per platform
+	var published []PublishedVersion
+	for _, artifact := range deployResult.Artifacts {
+		record := &PublishedVersion{
+			ProfileID:     req.ProfileID,
+			Platform:      artifact.Platform,
+			Version:       version,
+			GitCommitHash: gitHash,
+			ArtifactID:    artifact.ArtifactID,
+		}
+		if err := o.publishedVersionsRepo.RecordPublish(ctx, record); err != nil {
+			o.log("warn", map[string]interface{}{
+				"msg":      "failed to record published version",
+				"platform": artifact.Platform,
+				"error":    err.Error(),
+			})
+			continue
+		}
+		published = append(published, *record)
+	}
+
+	response.PublishedVersions = published
+	o.successStep(step, fmt.Sprintf("published %d artifact(s), version %s", len(published), version))
 }
 
 func resolveBuildPlatforms(inputs []string) []string {

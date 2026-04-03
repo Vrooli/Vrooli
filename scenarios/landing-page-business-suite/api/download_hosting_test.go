@@ -527,6 +527,75 @@ func TestDownloadHostingService_CommitArtifact_Success(t *testing.T) {
 	}
 }
 
+func TestDownloadHostingService_CommitArtifact_GitCommitHash(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	cleanupDownloadStorageSettings(t, db)
+	cleanupDownloadArtifacts(t, db)
+
+	mockStorage := &mockDownloadStorage{
+		headEtag:        "hash123",
+		headSize:        2048,
+		headContentType: "application/octet-stream",
+	}
+	mockProvider := &mockStorageProvider{storage: mockStorage}
+
+	service := NewDownloadHostingService(db, mockProvider)
+	ctx := context.Background()
+
+	_, err := db.Exec(`
+		INSERT INTO download_storage_settings (bundle_key, provider, bucket, region, signed_url_ttl_seconds)
+		VALUES ('commit_hash_test', 's3', 'test-bucket', 'us-east-1', 900)
+	`)
+	if err != nil {
+		t.Fatalf("Failed to insert settings: %v", err)
+	}
+
+	commitHash := "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+	req := CommitArtifactRequest{
+		Bucket:           "test-bucket",
+		ObjectKey:        "artifacts/hash-app/1.0.0/app.zip",
+		OriginalFilename: "app.zip",
+		ContentType:      "application/zip",
+		Platform:         "linux",
+		ReleaseVersion:   "1.0.0",
+		GitCommitHash:    commitHash,
+	}
+
+	artifact, err := service.CommitArtifact(ctx, "commit_hash_test", req)
+	if err != nil {
+		t.Fatalf("CommitArtifact failed: %v", err)
+	}
+	if artifact.GitCommitHash != commitHash {
+		t.Errorf("Expected GitCommitHash %q, got %q", commitHash, artifact.GitCommitHash)
+	}
+
+	// Verify round-trip via GetArtifact
+	fetched, err := service.GetArtifact(ctx, "commit_hash_test", artifact.ID)
+	if err != nil {
+		t.Fatalf("GetArtifact failed: %v", err)
+	}
+	if fetched.GitCommitHash != commitHash {
+		t.Errorf("GetArtifact: expected GitCommitHash %q, got %q", commitHash, fetched.GitCommitHash)
+	}
+
+	// Verify committing without git_commit_hash still works
+	req2 := CommitArtifactRequest{
+		Bucket:           "test-bucket",
+		ObjectKey:        "artifacts/hash-app/1.0.0/app-no-hash.zip",
+		OriginalFilename: "app-no-hash.zip",
+		Platform:         "windows",
+		ReleaseVersion:   "1.0.0",
+	}
+	artifact2, err := service.CommitArtifact(ctx, "commit_hash_test", req2)
+	if err != nil {
+		t.Fatalf("CommitArtifact without hash failed: %v", err)
+	}
+	if artifact2.GitCommitHash != "" {
+		t.Errorf("Expected empty GitCommitHash, got %q", artifact2.GitCommitHash)
+	}
+}
+
 func TestDownloadHostingService_CommitArtifact_Upsert(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
