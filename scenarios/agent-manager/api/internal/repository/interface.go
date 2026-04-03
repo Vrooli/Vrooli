@@ -135,6 +135,10 @@ type RunRepository interface {
 	// for longer than the stale timeout. These are likely from crashed workers.
 	// Used by the worker to recover stuck extractions.
 	ListStaleExtractions(ctx context.Context, staleTimeout time.Duration, limit int) ([]*domain.Run, error)
+
+	// GetByTokenHash retrieves a run by its identity token hash.
+	// Returns nil, nil if no matching run is found.
+	GetByTokenHash(ctx context.Context, tokenHash string) (*domain.Run, error)
 }
 
 // -----------------------------------------------------------------------------

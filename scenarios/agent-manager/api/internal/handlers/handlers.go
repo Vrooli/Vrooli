@@ -170,6 +170,9 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 		r.HandleFunc("/api/v1/attachments/upload", h.UploadAttachment).Methods("POST")
 		r.HandleFunc("/api/v1/uploads/{path:.*}", h.ServeUpload).Methods("GET")
 	}
+
+	// Identity verification endpoint
+	r.HandleFunc("/api/v1/identity/verify", h.VerifyIdentityToken).Methods("POST")
 }
 
 // =============================================================================
@@ -2725,6 +2728,34 @@ func (h *Handler) ValidatePath(w http.ResponseWriter, r *http.Request) {
 	result, err := h.svc.ValidatePath(r.Context(), path, projectRoot)
 	if err != nil {
 		writeError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, result)
+}
+
+// VerifyIdentityToken handles POST /api/v1/identity/verify.
+func (h *Handler) VerifyIdentityToken(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Token string `json:"token"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON body")
+		return
+	}
+	if req.Token == "" {
+		writeSimpleError(w, r, "token", "token is required")
+		return
+	}
+
+	result, err := h.svc.VerifyIdentityToken(r.Context(), req.Token)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	if !result.Valid {
+		writeJSON(w, http.StatusUnauthorized, result)
 		return
 	}
 

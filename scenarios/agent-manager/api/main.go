@@ -19,6 +19,7 @@ import (
 	"agent-manager/internal/database"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/handlers"
+	"agent-manager/internal/identity"
 	"agent-manager/internal/metrics"
 	"agent-manager/internal/modelregistry"
 	"agent-manager/internal/orchestration"
@@ -326,6 +327,12 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 	// Create recommendation extractor for investigation outputs
 	recommendationExtractor := recommendation.NewOllamaExtractor()
 
+	// Load identity signing secret for agent identity tokens.
+	identitySecret, err := identity.LoadOrCreateSecret(database.DataDir())
+	if err != nil {
+		log.Fatalf("Failed to initialize identity secret: %v", err)
+	}
+
 	// Build orchestrator with all dependencies including WebSocket broadcaster and terminator
 	orch := orchestration.New(
 		profileRepo,
@@ -347,6 +354,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		orchestration.WithFlagValidator(flagValidator),
 		orchestration.WithAttachmentStorage(uploadStorage),
 		orchestration.WithOrchestrationSettings(orchSettingsStore),
+		orchestration.WithIdentitySecret(identitySecret),
 	)
 
 	// Build reconciler config from orchestration settings (or defaults).

@@ -39,6 +39,7 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/identity"
 	"agent-manager/internal/repository"
 	"github.com/google/uuid"
 )
@@ -133,6 +134,10 @@ type RunExecutor struct {
 
 	// Custom environment variables injected by API callers.
 	customEnv map[string]string
+
+	// Identity token state
+	identitySecret []byte // HMAC secret for token signing (nil = identity disabled)
+	identityToken  string // generated token for this run
 }
 
 // NewRunExecutor creates a new executor for the given run.
@@ -186,6 +191,13 @@ func (e *RunExecutor) WithExistingSandbox(sandboxID uuid.UUID, workDir string) *
 		e.workDir = workDir
 	}
 	e.checkpoint = e.checkpoint.WithSandbox(sandboxID, workDir)
+	return e
+}
+
+// WithIdentitySecret sets the HMAC secret used to generate identity tokens.
+// If not set, no identity token will be injected into runs.
+func (e *RunExecutor) WithIdentitySecret(secret []byte) *RunExecutor {
+	e.identitySecret = secret
 	return e
 }
 
@@ -340,6 +352,9 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 		e.handleContextError(ctx, err)
 		return
 	}
+
+	// Step 3.5: Generate identity token (before execution so it's available in env)
+	e.generateIdentityToken(execCtx)
 
 	// Step 4: Execute agent
 	e.advancePhase(execCtx, domain.RunPhaseExecuting)
@@ -951,26 +966,83 @@ func (e *RunExecutor) SandboxEnvVars() map[string]string {
 	return vars
 }
 
-// MergedEnvVars returns custom env vars merged with sandbox env vars.
-// Sandbox vars take precedence on key conflicts to prevent callers from
+// IdentityEnvVars returns identity token env vars for the current run.
+// Returns nil if no identity token has been generated.
+func (e *RunExecutor) IdentityEnvVars() map[string]string {
+	if e.identityToken == "" {
+		return nil
+	}
+	return map[string]string{
+		"VROOLI_AGENT_IDENTITY_TOKEN": e.identityToken,
+	}
+}
+
+// MergedEnvVars returns custom env vars merged with sandbox and identity env vars.
+// Sandbox and identity vars take precedence on key conflicts to prevent callers from
 // overriding VROOLI_SANDBOX_MERGED or other system-managed variables.
 func (e *RunExecutor) MergedEnvVars() map[string]string {
 	sandbox := e.SandboxEnvVars()
-	if len(e.customEnv) == 0 {
-		return sandbox
+	identityVars := e.IdentityEnvVars()
+	if len(e.customEnv) == 0 && len(sandbox) == 0 && len(identityVars) == 0 {
+		return nil
 	}
-	merged := make(map[string]string, len(e.customEnv)+len(sandbox))
+	merged := make(map[string]string, len(e.customEnv)+len(sandbox)+len(identityVars))
 	for k, v := range e.customEnv {
 		merged[k] = v
 	}
-	// Sandbox vars override custom vars for security.
+	// System vars override custom vars for security.
 	for k, v := range sandbox {
+		merged[k] = v
+	}
+	for k, v := range identityVars {
 		merged[k] = v
 	}
 	if len(merged) == 0 {
 		return nil
 	}
 	return merged
+}
+
+// generateIdentityToken creates a signed identity token for this run and
+// persists its hash in the database. Non-fatal: if generation fails, the run
+// proceeds without an identity token.
+func (e *RunExecutor) generateIdentityToken(ctx context.Context) {
+	if len(e.identitySecret) == 0 {
+		return
+	}
+
+	now := time.Now()
+	profileKey := ""
+	if e.profile != nil {
+		profileKey = e.profile.ProfileKey
+	}
+	scopePath := ""
+	if e.task != nil {
+		scopePath = e.task.ScopePath
+	}
+
+	claims := &identity.Claims{
+		RunID:      e.run.ID,
+		TaskID:     e.run.TaskID,
+		ProfileKey: profileKey,
+		ScopePath:  scopePath,
+		IssuedAt:   now.Unix(),
+		ExpiresAt:  now.Add(identity.DefaultTTL).Unix(),
+		Meta:       map[string]string{},
+	}
+
+	token, err := identity.GenerateToken(claims, e.identitySecret)
+	if err != nil {
+		e.emitSystemEvent(ctx, "warn", "failed to generate identity token: "+err.Error())
+		return
+	}
+
+	e.identityToken = token
+	e.run.IdentityTokenHash = identity.HashToken(token)
+
+	if err := e.runs.Update(ctx, e.run); err != nil {
+		e.emitSystemEvent(ctx, "warn", "failed to persist identity token hash: "+err.Error())
+	}
 }
 
 func (e *RunExecutor) createEventSink() runner.EventSink {
@@ -1084,6 +1156,7 @@ func (e *RunExecutor) handleSuccessfulCompletion(ctx context.Context) {
 		e.run.RecommendationQueuedAt = &now
 	}
 
+	e.revokeIdentityToken()
 	e.applySandboxLifecycle(ctx, domain.SandboxLifecycleRunCompleted, "run completed")
 }
 
@@ -1110,12 +1183,22 @@ func (e *RunExecutor) handleFailure(ctx context.Context) {
 		}
 	}
 
+	e.revokeIdentityToken()
 	e.applySandboxLifecycle(ctx, domain.SandboxLifecycleRunFailed, "run failed")
 }
 
 func (e *RunExecutor) handleCancellation(ctx context.Context) {
 	e.run.Status = domain.RunStatusCancelled
+	e.revokeIdentityToken()
 	e.applySandboxLifecycle(ctx, domain.SandboxLifecycleRunCancelled, "run cancelled")
+}
+
+// revokeIdentityToken marks the run's identity token as revoked.
+func (e *RunExecutor) revokeIdentityToken() {
+	if e.run.IdentityTokenHash != "" {
+		now := time.Now()
+		e.run.IdentityTokenRevokedAt = &now
+	}
 }
 
 // =============================================================================

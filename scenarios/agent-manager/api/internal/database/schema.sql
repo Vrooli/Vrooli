@@ -91,6 +91,8 @@ CREATE TABLE IF NOT EXISTS runs (
     recommendation_attempts INTEGER DEFAULT 0,
     recommendation_error TEXT,
     recommendation_queued_at TEXT,
+    identity_token_hash TEXT,
+    identity_token_revoked_at TEXT,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
 );

@@ -389,6 +389,10 @@ type Run struct {
 	RecommendationError    string               `json:"recommendationError,omitempty" db:"recommendation_error"`
 	RecommendationQueuedAt *time.Time           `json:"recommendationQueuedAt,omitempty" db:"recommendation_queued_at"`
 
+	// Identity token fields
+	IdentityTokenHash      string     `json:"identityTokenHash,omitempty" db:"identity_token_hash"`
+	IdentityTokenRevokedAt *time.Time `json:"identityTokenRevokedAt,omitempty" db:"identity_token_revoked_at"`
+
 	// First ~120 chars of the associated task description (computed, not persisted).
 	PromptPreview string `json:"promptPreview,omitempty"`
 

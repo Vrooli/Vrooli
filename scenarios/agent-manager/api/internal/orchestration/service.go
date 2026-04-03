@@ -29,6 +29,7 @@ import (
 	"agent-manager/internal/adapters/sandbox"
 	agentconfig "agent-manager/internal/config"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/identity"
 	"agent-manager/internal/modelregistry"
 	"agent-manager/internal/policy"
 	"agent-manager/internal/promptmanager"
@@ -121,6 +122,9 @@ type Service interface {
 	// --- Path Validation ---
 	ValidatePath(ctx context.Context, path string, projectRoot string) (*sandbox.PathValidationResult, error)
 
+	// --- Identity Token Operations ---
+	VerifyIdentityToken(ctx context.Context, token string) (*IdentityVerifyResult, error)
+
 	// --- Config Accessors ---
 	GetDefaultProjectRoot() string
 }
@@ -144,6 +148,14 @@ type RunListOptions struct {
 	TagPrefix                 string // Filter runs by tag prefix (e.g., "ecosystem-" to get all ecosystem-manager runs)
 	InvestigatesRunID         *uuid.UUID
 	AppliesInvestigationRunID *uuid.UUID
+}
+
+// IdentityVerifyResult is the result of verifying an agent identity token.
+type IdentityVerifyResult struct {
+	Valid     bool             `json:"valid"`
+	Claims    *identity.Claims `json:"claims,omitempty"`
+	RunStatus domain.RunStatus `json:"run_status,omitempty"`
+	Error     string           `json:"error,omitempty"`
 }
 
 // PurgeTarget identifies entities eligible for purge.
@@ -437,6 +449,9 @@ type Orchestrator struct {
 
 	// Reconciler reference for hot-reload propagation.
 	reconciler *Reconciler
+
+	// Identity signing secret for agent identity tokens.
+	identitySecret []byte
 }
 
 // OrchestratorConfig holds service configuration.
@@ -591,6 +606,13 @@ func WithAttachmentStorage(s storage.Service) Option {
 func WithOrchestrationSettings(store *agentconfig.OrchestrationSettingsStore) Option {
 	return func(o *Orchestrator) {
 		o.orchestrationSettings = store
+	}
+}
+
+// WithIdentitySecret sets the HMAC secret for signing agent identity tokens.
+func WithIdentitySecret(secret []byte) Option {
+	return func(o *Orchestrator) {
+		o.identitySecret = secret
 	}
 }
 
@@ -2059,6 +2081,9 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 	if len(customEnv) > 0 {
 		executor.WithCustomEnvironment(customEnv)
 	}
+	if len(o.identitySecret) > 0 {
+		executor.WithIdentitySecret(o.identitySecret)
+	}
 	executor.WithRecommendationQueueFilter(o.recommendationQueueFilter(ctx))
 	executor.Execute(ctx)
 }
@@ -2159,6 +2184,9 @@ func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *dom
 	// Configure executor with broadcaster for real-time WebSocket updates
 	if o.broadcaster != nil {
 		executor.WithBroadcaster(o.broadcaster)
+	}
+	if len(o.identitySecret) > 0 {
+		executor.WithIdentitySecret(o.identitySecret)
 	}
 	executor.WithRecommendationQueueFilter(o.recommendationQueueFilter(ctx))
 	executor.WithResumeFrom(checkpoint)
@@ -2296,6 +2324,37 @@ func (o *Orchestrator) ValidatePath(ctx context.Context, path string, projectRoo
 		return nil, domain.NewConfigMissingError("sandbox", "provider not configured", nil)
 	}
 	return o.sandbox.ValidatePath(ctx, path, projectRoot)
+}
+
+// VerifyIdentityToken validates a signed agent identity token and returns the
+// embedded claims along with the current run status.
+func (o *Orchestrator) VerifyIdentityToken(ctx context.Context, token string) (*IdentityVerifyResult, error) {
+	if len(o.identitySecret) == 0 {
+		return &IdentityVerifyResult{Valid: false, Error: "identity system not configured"}, nil
+	}
+
+	claims, err := identity.VerifyToken(token, o.identitySecret)
+	if err != nil {
+		return &IdentityVerifyResult{Valid: false, Error: err.Error()}, nil
+	}
+
+	// Look up the run by token hash to get current status.
+	tokenHash := identity.HashToken(token)
+	run, err := o.runs.GetByTokenHash(ctx, tokenHash)
+	if err != nil {
+		return nil, err
+	}
+
+	runStatus := domain.RunStatus("unknown")
+	if run != nil {
+		runStatus = run.Status
+	}
+
+	return &IdentityVerifyResult{
+		Valid:     true,
+		Claims:    claims,
+		RunStatus: runStatus,
+	}, nil
 }
 
 // Status Operations

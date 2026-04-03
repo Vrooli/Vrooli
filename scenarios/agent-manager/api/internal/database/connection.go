@@ -70,6 +70,27 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 	return dbWrapper, nil
 }
 
+// DataDir returns the directory where the SQLite database file is stored.
+// This follows the same resolution priority as sqliteDSN.
+func DataDir() string {
+	root := strings.TrimSpace(os.Getenv("AM_SQLITE_PATH"))
+	if root != "" {
+		return filepath.Dir(root)
+	}
+	dataRoot := strings.TrimSpace(os.Getenv("SQLITE_DATABASE_PATH"))
+	if dataRoot == "" {
+		dataRoot = strings.TrimSpace(os.Getenv("VROOLI_DATA"))
+	}
+	if dataRoot == "" {
+		home, _ := os.UserHomeDir()
+		if home == "" {
+			home = "."
+		}
+		dataRoot = filepath.Join(home, ".vrooli", "data", "sqlite", "databases")
+	}
+	return dataRoot
+}
+
 func sqliteDSN(log *logrus.Logger) (string, error) {
 	root := strings.TrimSpace(os.Getenv("AM_SQLITE_PATH"))
 	if root == "" {
@@ -251,6 +272,26 @@ func (db *DB) ensureRunsTableCompatibility(ctx context.Context) error {
 
 	if !hasColumn["source_investigation_run_id"] {
 		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN source_investigation_run_id TEXT"); err != nil {
+			return &domain.DatabaseError{
+				Operation:  "schema_preflight",
+				EntityType: "Schema",
+				Cause:      err,
+			}
+		}
+	}
+
+	if !hasColumn["identity_token_hash"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN identity_token_hash TEXT"); err != nil {
+			return &domain.DatabaseError{
+				Operation:  "schema_preflight",
+				EntityType: "Schema",
+				Cause:      err,
+			}
+		}
+	}
+
+	if !hasColumn["identity_token_revoked_at"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN identity_token_revoked_at TEXT"); err != nil {
 			return &domain.DatabaseError{
 				Operation:  "schema_preflight",
 				EntityType: "Schema",

@@ -63,8 +63,11 @@ type runRow struct {
 	RecommendationAttempts int                      `db:"recommendation_attempts"`
 	RecommendationError    sql.NullString           `db:"recommendation_error"`
 	RecommendationQueuedAt NullableTime             `db:"recommendation_queued_at"`
-	CreatedAt              SQLiteTime               `db:"created_at"`
-	UpdatedAt              SQLiteTime               `db:"updated_at"`
+	// Identity token fields
+	IdentityTokenHash      sql.NullString `db:"identity_token_hash"`
+	IdentityTokenRevokedAt NullableTime   `db:"identity_token_revoked_at"`
+	CreatedAt              SQLiteTime     `db:"created_at"`
+	UpdatedAt              SQLiteTime     `db:"updated_at"`
 }
 
 func (row *runRow) toDomain() *domain.Run {
@@ -104,6 +107,9 @@ func (row *runRow) toDomain() *domain.Run {
 		RecommendationAttempts: row.RecommendationAttempts,
 		RecommendationError:    row.RecommendationError.String,
 		RecommendationQueuedAt: row.RecommendationQueuedAt.ToPtr(),
+		// Identity token fields
+		IdentityTokenHash:      row.IdentityTokenHash.String,
+		IdentityTokenRevokedAt: row.IdentityTokenRevokedAt.ToPtr(),
 		CreatedAt:              row.CreatedAt.Time(),
 		UpdatedAt:              row.UpdatedAt.Time(),
 	}
@@ -151,6 +157,9 @@ func runFromDomain(r *domain.Run) *runRow {
 		RecommendationAttempts: r.RecommendationAttempts,
 		RecommendationError:    sql.NullString{String: r.RecommendationError, Valid: r.RecommendationError != ""},
 		RecommendationQueuedAt: NewNullableTime(r.RecommendationQueuedAt),
+		// Identity token fields
+		IdentityTokenHash:      sql.NullString{String: r.IdentityTokenHash, Valid: r.IdentityTokenHash != ""},
+		IdentityTokenRevokedAt: NewNullableTime(r.IdentityTokenRevokedAt),
 		CreatedAt:              SQLiteTime(r.CreatedAt),
 		UpdatedAt:              SQLiteTime(r.UpdatedAt),
 	}
@@ -200,6 +209,7 @@ const runColumns = `id, task_id, agent_profile_id, tag, sandbox_id, run_mode, st
 	resolved_config, diff_path, log_path, changed_files, total_size_bytes, sandbox_config, session_id,
 	source_run_ids, source_investigation_run_id,
 	recommendation_status, recommendation_result, recommendation_attempts, recommendation_error, recommendation_queued_at,
+	identity_token_hash, identity_token_revoked_at,
 	created_at, updated_at`
 
 // listRunColumns contains the pruned column set for List() queries.
@@ -295,6 +305,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			resolved_config, diff_path, log_path, changed_files, total_size_bytes, sandbox_config, session_id,
 			source_run_ids, source_investigation_run_id,
 			recommendation_status, recommendation_result, recommendation_attempts, recommendation_error, recommendation_queued_at,
+			identity_token_hash, identity_token_revoked_at,
 			created_at, updated_at)
 			VALUES (:id, :task_id, :agent_profile_id, :tag, :sandbox_id, :run_mode, :status,
 			:started_at, :ended_at, :phase, :last_checkpoint_id, :last_heartbeat, :progress_percent,
@@ -302,6 +313,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			:resolved_config, :diff_path, :log_path, :changed_files, :total_size_bytes, :sandbox_config, :session_id,
 			:source_run_ids, :source_investigation_run_id,
 			:recommendation_status, :recommendation_result, :recommendation_attempts, :recommendation_error, :recommendation_queued_at,
+			:identity_token_hash, :identity_token_revoked_at,
 			:created_at, :updated_at)`
 
 	_, err := r.db.NamedExecContext(ctx, query, row)
@@ -416,6 +428,7 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 			recommendation_status = :recommendation_status, recommendation_result = :recommendation_result,
 		recommendation_attempts = :recommendation_attempts, recommendation_error = :recommendation_error,
 		recommendation_queued_at = :recommendation_queued_at,
+		identity_token_hash = :identity_token_hash, identity_token_revoked_at = :identity_token_revoked_at,
 		updated_at = :updated_at
 		WHERE id = :id`
 
@@ -424,6 +437,18 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 		return wrapDBError("update", "Run", run.ID.String(), err)
 	}
 	return nil
+}
+
+func (r *runRepository) GetByTokenHash(ctx context.Context, tokenHash string) (*domain.Run, error) {
+	query := fmt.Sprintf("SELECT %s FROM runs WHERE identity_token_hash = ?", runColumns)
+	var row runRow
+	if err := r.db.GetContext(ctx, &row, query, tokenHash); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, wrapDBError("get_by_token_hash", "Run", tokenHash, err)
+	}
+	return row.toDomain(), nil
 }
 
 func (r *runRepository) Delete(ctx context.Context, id uuid.UUID) error {
