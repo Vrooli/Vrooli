@@ -414,6 +414,9 @@ export const literalSelectors = {
     workflowRecording: "evidence-workflow-recording",
     lightbox: "media-lightbox",
     truncatedLink: "evidence-truncated-link",
+    reviewCheckbox: "evidence-review-checkbox",
+    markAllReviewed: "evidence-mark-all-reviewed",
+    agentAssessment: "evidence-agent-assessment",
   },
   // Evidence request panel selectors
   evidenceRequest: {

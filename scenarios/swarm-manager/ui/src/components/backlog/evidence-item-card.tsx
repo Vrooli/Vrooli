@@ -4,6 +4,9 @@
  * Renders a single evidence item with type-specific visualization.
  * Supports screenshots (inline thumbnail), API tests (pass/fail list),
  * CLI output (code block), and other types.
+ *
+ * Unreviewed items appear with a left accent bar and bold title (like an
+ * unread message). Clicking "Mark as reviewed" clears the accent.
  */
 
 import { useState } from "react";
@@ -14,11 +17,8 @@ import {
   FileCode,
   Video,
   FileText,
-  CheckSquare,
-  Square,
   ChevronDown,
   ChevronRight,
-  MessageSquarePlus,
 } from "lucide-react";
 import type { EvidenceItem, EvidenceType } from "../../services/review-service";
 import { buildApiUrl } from "@vrooli/api-base";
@@ -32,7 +32,6 @@ export interface EvidenceItemCardProps {
   backlogKind: string;
   backlogName: string;
   onVerify: (evidenceId: string, verified: boolean) => void;
-  onRequestMore: (evidenceId: string) => void;
 }
 
 const typeIcons: Record<EvidenceType, typeof Camera> = {
@@ -58,28 +57,35 @@ export function EvidenceItemCard({
   backlogKind,
   backlogName,
   onVerify,
-  onRequestMore,
 }: EvidenceItemCardProps) {
   const [expanded, setExpanded] = useState(false);
   const Icon = typeIcons[item.type] ?? FileText;
-  const CheckIcon = item.verified ? CheckSquare : Square;
+  const isUnread = !item.verified;
 
   return (
-    <div className="rounded-md border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+    <div
+      className={`rounded-md border bg-white dark:bg-slate-900 ${
+        isUnread
+          ? "border-l-[3px] border-l-violet-500 border-t-slate-200 border-r-slate-200 border-b-slate-200 dark:border-t-slate-700 dark:border-r-slate-700 dark:border-b-slate-700"
+          : "border-slate-200 dark:border-slate-700"
+      }`}
+    >
       {/* Header row */}
       <div className="flex items-center gap-2 px-3 py-2">
-        {/* Verification checkbox */}
-        <button
-          onClick={() => onVerify(item.id, !item.verified)}
-          className={`flex-shrink-0 ${
-            item.verified
-              ? "text-emerald-500 hover:text-emerald-600"
-              : "text-slate-300 hover:text-slate-500 dark:text-slate-600 dark:hover:text-slate-400"
-          }`}
-          title={item.verified ? "Mark as unverified" : "Mark as verified"}
-        >
-          <CheckIcon className="h-4 w-4" />
-        </button>
+        {/* Review checkbox */}
+        <input
+          type="checkbox"
+          checked={item.verified}
+          onChange={() => onVerify(item.id, !item.verified)}
+          className="h-3.5 w-3.5 flex-shrink-0 accent-cyan-500 cursor-pointer"
+          title={item.verified ? "Mark as unreviewed" : "Mark as reviewed"}
+          data-testid={selectors.evidence.reviewCheckbox}
+        />
+
+        {/* Unread indicator dot */}
+        {isUnread && (
+          <span className="h-2 w-2 flex-shrink-0 rounded-full bg-violet-500" />
+        )}
 
         {/* Type badge */}
         <span className="flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-400">
@@ -87,19 +93,16 @@ export function EvidenceItemCard({
           {typeLabels[item.type]}
         </span>
 
-        {/* Title */}
-        <span className="flex-1 truncate text-xs font-medium text-slate-700 dark:text-slate-200">
+        {/* Title — bold when unread */}
+        <span
+          className={`flex-1 line-clamp-2 text-xs ${
+            isUnread
+              ? "font-semibold text-slate-800 dark:text-slate-100"
+              : "font-normal text-slate-500 dark:text-slate-400"
+          }`}
+        >
           {item.title}
         </span>
-
-        {/* Actions */}
-        <button
-          onClick={() => onRequestMore(item.id)}
-          className="flex-shrink-0 text-slate-400 hover:text-violet-500"
-          title="Request more evidence for this item"
-        >
-          <MessageSquarePlus className="h-3.5 w-3.5" />
-        </button>
 
         {/* Expand/collapse for details */}
         <button
@@ -114,14 +117,16 @@ export function EvidenceItemCard({
         </button>
       </div>
 
+      {/* Description — always visible */}
+      {item.description && (
+        <p className="px-3 pb-2 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+          {item.description}
+        </p>
+      )}
+
       {/* Expanded content — type-specific rendering */}
       {expanded && (
         <div className="border-t border-slate-100 px-3 py-2 dark:border-slate-800">
-          {/* Description */}
-          <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
-            {item.description}
-          </p>
-
           {/* Type-specific content */}
           {item.type === "screenshot" && item.capture_path && (
             <ScreenshotEvidence

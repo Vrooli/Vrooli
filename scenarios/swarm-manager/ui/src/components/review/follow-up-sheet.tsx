@@ -67,6 +67,7 @@ export function FollowUpSheet({ isOpen, onClose, execution, reviewRounds, onSucc
   const [context, setContext] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedEvidenceIds, setSelectedEvidenceIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (isOpen) {
@@ -76,8 +77,15 @@ export function FollowUpSheet({ isOpen, onClose, execution, reviewRounds, onSucc
       setContext(buildDefaultContext(execution, defaultType));
       setError(null);
       setIsSubmitting(false);
+      // Pre-select all evidence from latest round for fixup; empty otherwise
+      if (defaultType === "fixup" && reviewRounds.length > 0) {
+        const latest = reviewRounds[reviewRounds.length - 1];
+        setSelectedEvidenceIds(new Set(latest?.evidence.map((e) => e.id) ?? []));
+      } else {
+        setSelectedEvidenceIds(new Set());
+      }
     }
-  }, [isOpen, execution, hasReviewIssues, canContinue]);
+  }, [isOpen, execution, hasReviewIssues, canContinue, reviewRounds]);
 
   const handleTypeChange = useCallback((type: FollowUpType) => {
     setFollowUpType(type);
@@ -88,9 +96,23 @@ export function FollowUpSheet({ isOpen, onClose, execution, reviewRounds, onSucc
     setIsSubmitting(true);
     setError(null);
     try {
+      // Build context with optional evidence references
+      let finalContext = context.trim();
+      if (selectedEvidenceIds.size > 0) {
+        const latestRound = reviewRounds[reviewRounds.length - 1];
+        const selectedItems = latestRound?.evidence.filter((e) => selectedEvidenceIds.has(e.id)) ?? [];
+        if (selectedItems.length > 0) {
+          const evidenceBlock = selectedItems
+            .map((e) => `- [${e.type}] ${e.title}: ${e.description}`)
+            .join("\n");
+          finalContext = finalContext
+            ? `${finalContext}\n\n--- Referenced Evidence ---\n${evidenceBlock}`
+            : `--- Referenced Evidence ---\n${evidenceBlock}`;
+        }
+      }
       const newExecution = await executionService.followUp(execution.executionId, {
         followUpType,
-        context: context.trim() || undefined,
+        context: finalContext || undefined,
         runMode,
       });
       onSuccess?.(newExecution);
@@ -133,9 +155,21 @@ export function FollowUpSheet({ isOpen, onClose, execution, reviewRounds, onSucc
       }
     >
       <div className="space-y-5">
-        {/* Evidence context (when fixup selected) */}
-        {followUpType === "fixup" && reviewRounds.length > 0 && (
-          <EvidenceContextSummary rounds={reviewRounds} />
+        {/* Evidence context — always shown when rounds exist */}
+        {reviewRounds.length > 0 && (
+          <EvidenceContextSummary
+            rounds={reviewRounds}
+            selectable
+            selectedIds={selectedEvidenceIds}
+            onToggle={(id) => {
+              setSelectedEvidenceIds((prev) => {
+                const next = new Set(prev);
+                if (next.has(id)) next.delete(id);
+                else next.add(id);
+                return next;
+              });
+            }}
+          />
         )}
 
         {/* Follow-up type selection */}

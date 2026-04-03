@@ -448,10 +448,14 @@ export function BacklogDetailsPage() {
                       backlogName={name ?? ""}
                       onStopRun={(runId) => void stopRun(runId)}
                       onFollowUp={(exec) => uiStore.setFollowUpTarget(exec)}
-
+                      onArchive={item ? () => handlers.handleUpdateItem({
+                        title: item.title, description: item.description,
+                        status: "archived", priority: item.priority, tags: item.tags,
+                      }) : undefined}
                       onVerifyEvidence={(round, evidenceId, verified) => {
                         const execId = executionHistory?.[0]?.executionId;
-                        void reviewService.verifyEvidence(backlogKind ?? "", name ?? "", round, evidenceId, verified, execId);
+                        void reviewService.verifyEvidence(backlogKind ?? "", name ?? "", round, evidenceId, verified, execId)
+                          .then(() => queryClient.invalidateQueries({ queryKey: ["review-rounds", backlogKind, name] }));
                       }}
                       onRequestMoreEvidence={(round, evidenceId) => {
                         useReviewStore.getState().openRequestPanel(round, evidenceId);
@@ -515,10 +519,14 @@ export function BacklogDetailsPage() {
                         backlogName={name ?? ""}
                         onStopRun={(runId) => void stopRun(runId)}
                         onFollowUp={(exec) => uiStore.setFollowUpTarget(exec)}
-  
+                        onArchive={item ? () => handlers.handleUpdateItem({
+                          title: item.title, description: item.description,
+                          status: "archived", priority: item.priority, tags: item.tags,
+                        }) : undefined}
                         onVerifyEvidence={(round, evidenceId, verified) => {
                           const execId = executionHistory?.[0]?.executionId;
-                          void reviewService.verifyEvidence(backlogKind ?? "", name ?? "", round, evidenceId, verified, execId);
+                          void reviewService.verifyEvidence(backlogKind ?? "", name ?? "", round, evidenceId, verified, execId)
+                            .then(() => queryClient.invalidateQueries({ queryKey: ["review-rounds", backlogKind, name] }));
                         }}
                         onRequestMoreEvidence={(round, evidenceId) => {
                           useReviewStore.getState().openRequestPanel(round, evidenceId);

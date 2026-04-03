@@ -1745,13 +1745,34 @@
     "interaction_type": "spawn",
     "task_id": "c96d44de-668d-49cd-ac4c-0dbe15e1347b",
     "run_id": "15666c1e-8958-4b02-b2b3-f31f899c3ec7",
-    "status": "running",
+    "status": "complete",
     "requested_at": "2026-04-03T16:14:34Z",
     "started_at": "2026-04-03T16:14:34Z",
+    "finished_at": "2026-04-03T16:14:52Z",
     "requested_by": "swarm-manager-ui",
     "metadata": {
       "entrypoint": "review.trigger_review_agent"
     },
-    "updated_at": "2026-04-03T16:14:36Z"
+    "updated_at": "2026-04-03T16:20:38Z"
+  },
+  {
+    "activity_id": "12904d90b880f30b",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "agent-manager-identity-tokens",
+    "execution_id": "6a8775c241dc39ff",
+    "purpose": "review",
+    "interaction_type": "spawn",
+    "task_id": "fd0ee897-632b-4c43-a527-143853b84049",
+    "run_id": "c12ca049-0a5d-43b8-8cd0-0e599bc12f7c",
+    "status": "complete",
+    "requested_at": "2026-04-03T16:53:19Z",
+    "started_at": "2026-04-03T16:53:19Z",
+    "finished_at": "2026-04-03T16:58:09Z",
+    "requested_by": "swarm-manager-ui",
+    "metadata": {
+      "entrypoint": "review.trigger_review_agent"
+    },
+    "updated_at": "2026-04-03T16:58:25Z"
   }
 ]

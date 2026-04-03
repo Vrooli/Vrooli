@@ -105,10 +105,10 @@ describe("FollowUpSheet", () => {
     expect(screen.getByTestId(selectors.review.evidenceContextSummary)).toBeInTheDocument();
   });
 
-  it("hides evidence context for general follow-up", () => {
+  it("shows evidence context for general follow-up when rounds exist", () => {
     render(<FollowUpSheet {...defaultProps} reviewRounds={[makeRound()]} />);
-    // General follow-up is the default when no review issues
-    expect(screen.queryByTestId(selectors.review.evidenceContextSummary)).toBeNull();
+    // Evidence context is always shown when rounds exist
+    expect(screen.getByTestId(selectors.review.evidenceContextSummary)).toBeInTheDocument();
   });
 
   it("submits follow-up and calls onSuccess", async () => {

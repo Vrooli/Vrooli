@@ -61,6 +61,7 @@ type Server struct {
 	reviewSvc         *review.Service
 	reviewHandler     *review.Handler
 	executionStopChan chan struct{}
+	reviewStopChan    chan struct{}
 	graphBroker       *graph.Broker
 	queueHandler      *queue.Handler
 	scenarioRoot      string
@@ -90,6 +91,7 @@ func NewServerWithRoot(scenarioRoot string) *Server {
 		router:            mux.NewRouter(),
 		agentSvc:          agentSvc,
 		executionStopChan: make(chan struct{}),
+		reviewStopChan:    make(chan struct{}),
 		scenarioRoot:      scenarioRoot,
 	}
 	srv.setupRoutes()
@@ -262,6 +264,11 @@ func main() {
 		go srv.executionHandler.StartBackgroundWorker(srv.executionStopChan)
 	}
 
+	if srv.reviewSvc != nil {
+		srv.reviewSvc.RecoverActiveRounds()
+		go srv.reviewSvc.StartBackgroundWorker(srv.reviewStopChan)
+	}
+
 	if srv.agentSvc != nil && srv.agentSvc.IsEnabled() {
 		initCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		if err := srv.agentSvc.Initialize(initCtx, nil); err != nil {
@@ -276,6 +283,7 @@ func main() {
 		log.Fatalf("Server error: %v", err)
 	}
 	close(srv.executionStopChan)
+	close(srv.reviewStopChan)
 }
 
 func getEnvDefault(key, fallback string) string {

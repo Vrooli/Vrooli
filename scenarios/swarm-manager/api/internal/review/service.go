@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"swarm-manager/internal/agentactivity"
@@ -12,12 +14,19 @@ import (
 	"swarm-manager/internal/idgen"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/workshop"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // AgentSpawner spawns agent-manager sessions.
 type AgentSpawner interface {
 	IsEnabled() bool
 	SpawnBacklog(ctx context.Context, req agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error)
+}
+
+// RunInspector retrieves the current state of an agent run.
+type RunInspector interface {
+	GetRunState(ctx context.Context, runID string) (agentmanager.RunState, error)
 }
 
 // EventLogger records review events for analytics.
@@ -42,13 +51,24 @@ type ServiceConfig struct {
 	ItemDirFn    func(kind, name string) string
 }
 
+// activeRound tracks a gathering round so the poller knows which runs to check.
+type activeRound struct {
+	ItemDir  string
+	RoundNum int
+	RunID    string
+}
+
 // Service provides review evidence management for completed executions.
 type Service struct {
 	rootDir      string
 	agentService AgentSpawner
+	inspector    RunInspector
 	promptClient promptmanager.Client
 	eventLogger  EventLogger
 	itemDirFn    func(kind, name string) string
+
+	mu           sync.Mutex
+	activeRounds map[string]activeRound // keyed by RunID
 }
 
 // NewService creates a new review service.
@@ -57,12 +77,18 @@ func NewService(cfg ServiceConfig) *Service {
 	if pc == nil {
 		pc = promptmanager.NewHTTPClient()
 	}
-	return &Service{
+	svc := &Service{
 		rootDir:      cfg.RootDir,
 		agentService: cfg.AgentService,
 		promptClient: pc,
 		itemDirFn:    cfg.ItemDirFn,
+		activeRounds: make(map[string]activeRound),
 	}
+	// Type-assert for RunInspector capability (matches execution pattern).
+	if inspector, ok := cfg.AgentService.(RunInspector); ok {
+		svc.inspector = inspector
+	}
+	return svc
 }
 
 // SetEventLogger injects an optional event logger for analytics.
@@ -108,30 +134,27 @@ func (s *Service) startReview(ctx context.Context, params startReviewParams) err
 		return fmt.Errorf("determine next round: %w", err)
 	}
 
-	// Load plan content for the prompt.
+	// Load plan content for context.
 	planContent := workshop.LoadPlanContent(params.ItemDir)
 
-	// Build changed paths summary.
+	// Build changed paths list.
 	var changedPaths []string
 	for _, paths := range params.ChangedPathsByScenario {
 		changedPaths = append(changedPaths, paths...)
 	}
 
-	// Build the prompt via prompt-manager skill.
-	variables := map[string]string{
-		"ITEM_FOLDER":         params.ItemDir,
-		"PLAN_CONTENT":        planContent,
-		"DIFF_SUMMARY":        fmt.Sprintf("Changed %d files across %d scenarios", len(changedPaths), len(params.AffectedScenarios)),
-		"CHANGED_PATHS":       strings.Join(changedPaths, ", "),
-		"AFFECTED_SCENARIOS":  strings.Join(params.AffectedScenarios, ", "),
-		"ROUND_NUMBER":        fmt.Sprintf("%03d", roundNum),
-		"GCT_REVIEW_RESULTS":  params.GCTResultsJSON,
+	// Render instructions with structural variables only.
+	instructionVars := map[string]string{
+		"ITEM_FOLDER":  params.ItemDir,
+		"ROUND_NUMBER": fmt.Sprintf("%03d", roundNum),
 	}
-
-	promptContent, err := s.promptClient.ReadSkill(ctx, "swarm-manager-review", variables, true)
+	instructions, err := s.promptClient.ReadSkill(ctx, "swarm-manager-review", instructionVars, true)
 	if err != nil {
 		return fmt.Errorf("render review skill: %w", err)
 	}
+
+	// Build context attachments for data the agent needs to review.
+	attachments := buildReviewAttachments(planContent, changedPaths, params.AffectedScenarios, params.GCTResultsJSON, "")
 
 	// Create the round file in gathering state.
 	round := Round{
@@ -142,17 +165,18 @@ func (s *Service) startReview(ctx context.Context, params startReviewParams) err
 		Evidence:    []EvidenceItem{},
 	}
 
-	// Spawn the review agent.
+	// Spawn the review agent with instructions as system prompt and data as context.
 	runResult, err := s.agentService.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
-		Kind:        params.BacklogKind,
-		Name:        params.BacklogName,
-		Title:       "Review: " + params.ItemTitle,
-		Description: promptContent,
-		Prompt:      promptContent,
-		ScopePath:   ".",
-		ProjectRoot: ".",
-		CreatedBy:   "swarm-manager:review",
-		Purpose:     "review",
+		Kind:               params.BacklogKind,
+		Name:               params.BacklogName,
+		Title:              "Review: " + params.ItemTitle,
+		Description:        instructions,
+		Prompt:             instructions,
+		ScopePath:          ".",
+		ProjectRoot:        ".",
+		CreatedBy:          "swarm-manager:review",
+		Purpose:            "review",
+		ContextAttachments: attachments,
 		Environment: map[string]string{
 			"VROOLI_SPAWN_SOURCE": "swarm-manager-review",
 		},
@@ -166,6 +190,9 @@ func (s *Service) startReview(ctx context.Context, params startReviewParams) err
 		return fmt.Errorf("save review round: %w", err)
 	}
 
+	// Track the gathering round for polling.
+	s.trackActiveRound(runResult.RunID, params.ItemDir, roundNum)
+
 	if s.eventLogger != nil {
 		s.eventLogger.EmitReviewStarted(params.ExecutionID, roundNum)
 	}
@@ -175,9 +202,42 @@ func (s *Service) startReview(ctx context.Context, params startReviewParams) err
 }
 
 // ListRounds returns all review evidence rounds for a backlog item.
+// For any round still in gathering state, it checks the agent-manager run
+// state inline and updates the round if the run has completed.
 func (s *Service) ListRounds(kind, name string) ([]Round, error) {
 	itemDir := s.resolveItemDir(kind, name)
-	return LoadRounds(itemDir)
+	rounds, err := LoadRounds(itemDir)
+	if err != nil {
+		return nil, err
+	}
+
+	if s.inspector == nil {
+		return rounds, nil
+	}
+
+	for i := range rounds {
+		round := &rounds[i]
+		if round.Status != RoundStatusGathering || round.RunID == "" {
+			continue
+		}
+		state, stateErr := s.inspector.GetRunState(context.Background(), round.RunID)
+		if stateErr != nil {
+			continue
+		}
+		nextStatus := mapRunStatusToRoundStatus(state.Status)
+		if nextStatus == "" {
+			continue
+		}
+		round.Status = nextStatus
+		_ = SaveRound(itemDir, *round)
+
+		// Remove from active tracking if present.
+		s.mu.Lock()
+		delete(s.activeRounds, round.RunID)
+		s.mu.Unlock()
+	}
+
+	return rounds, nil
 }
 
 // GetRound returns a specific review round by number.
@@ -281,18 +341,18 @@ func (s *Service) RequestMoreEvidence(ctx context.Context, kind, name string, ro
 			})
 
 			planContent := workshop.LoadPlanContent(itemDir)
-			vars := map[string]string{
-				"ITEM_FOLDER":  itemDir,
-				"PLAN_CONTENT": planContent,
-				"ROUND_NUMBER": fmt.Sprintf("%03d", roundNum),
-				"USER_REQUEST": message,
-			}
 
-			prompt, renderErr := s.promptClient.ReadSkill(spawnCtx, "swarm-manager-review", vars, true)
+			instructionVars := map[string]string{
+				"ITEM_FOLDER":  itemDir,
+				"ROUND_NUMBER": fmt.Sprintf("%03d", roundNum),
+			}
+			prompt, renderErr := s.promptClient.ReadSkill(spawnCtx, "swarm-manager-review", instructionVars, true)
 			if renderErr != nil {
 				slog.Error("render review skill for evidence request", "error", renderErr, "thread_id", threadID)
 				return
 			}
+
+			reqAttachments := buildReviewAttachments(planContent, nil, nil, "", message)
 
 			titlePreview := message
 			if len(titlePreview) > 50 {
@@ -300,15 +360,16 @@ func (s *Service) RequestMoreEvidence(ctx context.Context, kind, name string, ro
 			}
 
 			result, spawnErr := s.agentService.SpawnBacklog(spawnCtx, agentmanager.BacklogSpawnRequest{
-				Kind:        kind,
-				Name:        name,
-				Title:       "Evidence Request: " + titlePreview,
-				Description: prompt,
-				Prompt:      prompt,
-				ScopePath:   ".",
-				ProjectRoot: ".",
-				CreatedBy:   "swarm-manager:review-request",
-				Purpose:     "review",
+				Kind:               kind,
+				Name:               name,
+				Title:              "Evidence Request: " + titlePreview,
+				Description:        prompt,
+				Prompt:             prompt,
+				ScopePath:          ".",
+				ProjectRoot:        ".",
+				CreatedBy:          "swarm-manager:review-request",
+				Purpose:            "review",
+				ContextAttachments: reqAttachments,
 				Environment: map[string]string{
 					"VROOLI_SPAWN_SOURCE": "swarm-manager-review-request",
 				},
@@ -417,4 +478,234 @@ func (s *Service) resolveItemDir(kind, name string) string {
 		kindDir = kind
 	}
 	return s.rootDir + "/" + kindDir + "/" + name
+}
+
+// buildReviewAttachments creates structured context attachments for the review
+// agent so that BuildSplitPrompt can separate instructions (system prompt)
+// from data (user message).
+func buildReviewAttachments(planContent string, changedPaths, affectedScenarios []string, gctResultsJSON, userRequest string) []*domainpb.ContextAttachment {
+	var atts []*domainpb.ContextAttachment
+
+	atts = append(atts, &domainpb.ContextAttachment{
+		Type:     "note",
+		Key:      "plan-content",
+		Label:    "Plan Content",
+		Summary:  "Backlog item plan/spec",
+		Content:  planContent,
+		Format:   "markdown",
+		Priority: "high",
+	})
+
+	diffContent := fmt.Sprintf("Changed %d files across %d scenarios", len(changedPaths), len(affectedScenarios))
+	if len(changedPaths) == 0 {
+		diffContent += "\n\nNote: Zero tracked changes may indicate the execution agent ran without sandbox mode enabled. " +
+			"In non-sandbox mode, changes are applied directly to the working tree and are not captured as a diff. " +
+			"You should still verify the implementation by examining the codebase directly."
+	}
+	atts = append(atts, &domainpb.ContextAttachment{
+		Type:     "note",
+		Key:      "diff-summary",
+		Label:    "Diff Summary",
+		Content:  diffContent,
+		Format:   "text",
+		Priority: "high",
+	})
+
+	if len(changedPaths) > 0 {
+		atts = append(atts, &domainpb.ContextAttachment{
+			Type:     "note",
+			Key:      "changed-paths",
+			Label:    "Changed File Paths",
+			Summary:  fmt.Sprintf("%d changed files", len(changedPaths)),
+			Content:  strings.Join(changedPaths, "\n"),
+			Format:   "text",
+			Priority: "high",
+		})
+	}
+
+	if len(affectedScenarios) > 0 {
+		atts = append(atts, &domainpb.ContextAttachment{
+			Type:     "note",
+			Key:      "affected-scenarios",
+			Label:    "Affected Scenarios",
+			Summary:  fmt.Sprintf("%d scenarios affected", len(affectedScenarios)),
+			Content:  strings.Join(affectedScenarios, "\n"),
+			Format:   "text",
+			Priority: "medium",
+		})
+	}
+
+	if gctResultsJSON != "" {
+		atts = append(atts, &domainpb.ContextAttachment{
+			Type:     "note",
+			Key:      "gct-review-results",
+			Label:    "GCT Review Results",
+			Summary:  "Automated review metrics per scenario",
+			Content:  gctResultsJSON,
+			Format:   "json",
+			Priority: "high",
+		})
+	}
+
+	if userRequest != "" {
+		atts = append(atts, &domainpb.ContextAttachment{
+			Type:     "note",
+			Key:      "user-request",
+			Label:    "User Evidence Request",
+			Summary:  "Specific evidence request from human reviewer",
+			Content:  userRequest,
+			Format:   "text",
+			Priority: "high",
+		})
+	}
+
+	return atts
+}
+
+// -----------------------------------------------------------------------------
+// Active round tracking & polling
+// -----------------------------------------------------------------------------
+
+func (s *Service) trackActiveRound(runID, itemDir string, roundNum int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.activeRounds[runID] = activeRound{
+		ItemDir:  itemDir,
+		RoundNum: roundNum,
+		RunID:    runID,
+	}
+}
+
+// RefreshGatheringRounds polls agent-manager for the status of all tracked
+// gathering rounds and updates their on-disk status when the run completes.
+func (s *Service) RefreshGatheringRounds(ctx context.Context) {
+	if s.inspector == nil {
+		return
+	}
+
+	s.mu.Lock()
+	snapshot := make(map[string]activeRound, len(s.activeRounds))
+	for k, v := range s.activeRounds {
+		snapshot[k] = v
+	}
+	s.mu.Unlock()
+
+	for runID, ar := range snapshot {
+		state, err := s.inspector.GetRunState(ctx, runID)
+		if err != nil {
+			continue // transient error, retry next tick
+		}
+
+		nextStatus := mapRunStatusToRoundStatus(state.Status)
+		if nextStatus == "" {
+			continue // still running
+		}
+
+		round, loadErr := LoadRound(ar.ItemDir, ar.RoundNum)
+		if loadErr != nil || round == nil {
+			s.mu.Lock()
+			delete(s.activeRounds, runID)
+			s.mu.Unlock()
+			continue
+		}
+
+		if round.Status == RoundStatusComplete || round.Status == RoundStatusFailed {
+			// Already terminal (e.g. agent wrote the round file itself).
+			s.mu.Lock()
+			delete(s.activeRounds, runID)
+			s.mu.Unlock()
+			continue
+		}
+
+		round.Status = nextStatus
+		if saveErr := SaveRound(ar.ItemDir, *round); saveErr != nil {
+			slog.Error("update review round status", "round", ar.RoundNum, "run_id", runID, "error", saveErr)
+			continue
+		}
+
+		slog.Info("review round status updated", "round", ar.RoundNum, "run_id", runID, "status", nextStatus)
+
+		if s.eventLogger != nil && round.ExecutionID != "" {
+			if nextStatus == RoundStatusComplete {
+				started, _ := time.Parse(time.RFC3339, round.GeneratedAt)
+				duration := time.Since(started).Seconds()
+				s.eventLogger.EmitReviewRoundCompleted(round.ExecutionID, round.RoundNum, len(round.Evidence), round.Classification, duration)
+			} else if nextStatus == RoundStatusFailed {
+				s.eventLogger.EmitReviewFailed(round.ExecutionID, "agent run failed", 0)
+			}
+		}
+
+		s.mu.Lock()
+		delete(s.activeRounds, runID)
+		s.mu.Unlock()
+	}
+}
+
+// mapRunStatusToRoundStatus converts an agent-manager run status to a terminal
+// round status. Returns "" if the run is still in progress.
+func mapRunStatusToRoundStatus(status string) RoundStatus {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "complete":
+		return RoundStatusComplete
+	case "failed":
+		return RoundStatusFailed
+	case "cancelled":
+		return RoundStatusFailed
+	default:
+		return "" // still in progress
+	}
+}
+
+// StartBackgroundWorker polls gathering rounds on a 5-second interval until
+// the stop channel is closed.
+func (s *Service) StartBackgroundWorker(stop <-chan struct{}) {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-stop:
+			return
+		case <-ticker.C:
+			s.RefreshGatheringRounds(context.Background())
+		}
+	}
+}
+
+// RecoverActiveRounds scans all backlog items for rounds in gathering state
+// and re-populates the in-memory tracking map. Call this at startup so that
+// rounds spawned before a restart are still polled.
+func (s *Service) RecoverActiveRounds() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, kindDir := range []string{"ideas", "research", "fix", "execute", "chore"} {
+		baseDir := s.rootDir + "/" + kindDir
+		entries, err := os.ReadDir(baseDir)
+		if err != nil {
+			continue
+		}
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			itemDir := baseDir + "/" + entry.Name()
+			rounds, loadErr := LoadRounds(itemDir)
+			if loadErr != nil {
+				continue
+			}
+			for _, round := range rounds {
+				if round.Status == RoundStatusGathering && round.RunID != "" {
+					s.activeRounds[round.RunID] = activeRound{
+						ItemDir:  itemDir,
+						RoundNum: round.RoundNum,
+						RunID:    round.RunID,
+					}
+				}
+			}
+		}
+	}
+
+	if len(s.activeRounds) > 0 {
+		slog.Info("recovered active review rounds", "count", len(s.activeRounds))
+	}
 }

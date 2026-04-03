@@ -21,9 +21,12 @@ function evidenceIcon(type: EvidenceItem["type"]) {
 
 export interface EvidenceContextSummaryProps {
   rounds: ReviewRound[];
+  selectable?: boolean;
+  selectedIds?: Set<string>;
+  onToggle?: (evidenceId: string) => void;
 }
 
-export function EvidenceContextSummary({ rounds }: EvidenceContextSummaryProps) {
+export function EvidenceContextSummary({ rounds, selectable, selectedIds, onToggle }: EvidenceContextSummaryProps) {
   if (rounds.length === 0) return null;
 
   const latest = rounds[rounds.length - 1];
@@ -56,13 +59,30 @@ export function EvidenceContextSummary({ rounds }: EvidenceContextSummaryProps) 
         <div className="space-y-1">
           {latest.evidence.map((item) => {
             const Icon = evidenceIcon(item.type);
-            return (
-              <div key={item.id} className="flex items-center gap-1.5 text-[11px] text-slate-500">
+            const inner = (
+              <>
+                {selectable && (
+                  <input
+                    type="checkbox"
+                    checked={selectedIds?.has(item.id) ?? false}
+                    onChange={() => onToggle?.(item.id)}
+                    className="h-3 w-3 accent-cyan-500"
+                  />
+                )}
                 <Icon className="h-3 w-3 shrink-0" />
                 <span className="truncate">{item.title}</span>
                 {item.verified && (
                   <Check className="h-3 w-3 shrink-0 text-emerald-500" />
                 )}
+              </>
+            );
+            return selectable ? (
+              <label key={item.id} className="flex items-center gap-1.5 text-[11px] text-slate-500 cursor-pointer hover:text-slate-400">
+                {inner}
+              </label>
+            ) : (
+              <div key={item.id} className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                {inner}
               </div>
             );
           })}

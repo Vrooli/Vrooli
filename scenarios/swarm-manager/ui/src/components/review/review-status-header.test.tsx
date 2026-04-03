@@ -37,7 +37,6 @@ const defaultProps = {
   isCancelling: false,
   onOpenLaunchSheet: vi.fn(),
   onCancelReview: vi.fn(),
-  onFollowUp: vi.fn(),
 };
 
 describe("ReviewStatusHeader", () => {
@@ -100,19 +99,14 @@ describe("ReviewStatusHeader", () => {
     expect(btn).toHaveTextContent("Review");
   });
 
-  it("shows Fix Issues when finalization needs_work", () => {
-    const onFollowUp = vi.fn();
+  it("shows Review even when finalization needs_work (fix action moved to footer)", () => {
     const exec = makeExecution({
       status: "completed",
       finalization: makeFinalization("needs_work"),
     });
-    render(
-      <ReviewStatusHeader {...defaultProps} execution={exec} onFollowUp={onFollowUp} />
-    );
+    render(<ReviewStatusHeader {...defaultProps} execution={exec} />);
     const btn = screen.getByTestId(selectors.review.primaryAction);
-    expect(btn).toHaveTextContent("Fix Issues");
-    fireEvent.click(btn);
-    expect(onFollowUp).toHaveBeenCalledWith(exec);
+    expect(btn).toHaveTextContent("Review");
   });
 
   it("shows Stop Review when finalization is running", () => {

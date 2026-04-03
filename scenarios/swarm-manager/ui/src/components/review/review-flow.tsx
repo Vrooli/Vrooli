@@ -3,9 +3,12 @@
  *
  * Used identically by both BacklogDetailsPage (Output tab) and
  * ExecutionDetailsPage (Review tab). Presents a linear narrative:
- * status header → finalization progress → scenario results → evidence.
+ * status header → finalization progress → scenario results → evidence →
+ * action footer (archive / follow-up).
  */
 
+import { useState } from "react";
+import { Archive, MessageSquare, Wrench } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { ReviewStatusHeader } from "./review-status-header";
 import { ReviewLaunchSheet } from "./review-launch-sheet";
@@ -13,11 +16,13 @@ import { ScenarioResultCards } from "./scenario-result-cards";
 import { useReviewActions } from "./use-review-actions";
 import { PostRunStatusBadge } from "../execution/post-run-status-badge";
 import { EvidencePanel } from "../backlog/evidence-panel";
+import { Button } from "../ui/button";
+import { ConfirmDialog } from "../ui/confirm-dialog";
 import { resolvePostRunExecution } from "../../lib/finalization";
-import { defaultQueryOptions } from "../../lib";
+import { defaultQueryOptions, canFollowUpExecution } from "../../lib";
 import { settingsService } from "../../services/settings-service";
 import { selectors } from "../../consts/selectors";
-import type { ExecutionRecord } from "../../types";
+import type { ExecutionRecord, ExecutionStatus } from "../../types";
 import type { Settings } from "../../types/settings";
 import type { ReviewRound } from "../../services/review-service";
 
@@ -29,6 +34,7 @@ export interface ReviewFlowProps {
   backlogKind: string;
   backlogName: string;
   onFollowUp: (exec: ExecutionRecord) => void;
+  onArchive?: () => void;
   onVerifyEvidence: (round: number, evidenceId: string, verified: boolean) => void;
   onRequestMoreEvidence: (round: number, evidenceId?: string) => void;
 }
@@ -41,9 +47,11 @@ export function ReviewFlow({
   backlogKind,
   backlogName,
   onFollowUp,
+  onArchive,
   onVerifyEvidence,
   onRequestMoreEvidence,
 }: ReviewFlowProps) {
+  const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
   const {
     triggerReview,
     triggerEvidenceOnly,
@@ -68,6 +76,23 @@ export function ReviewFlow({
     || resolved?.finalization?.status === "failed"
     || resolved?.finalization?.status === "skipped";
 
+  // Compute review state for footer actions.
+  const allEvidence = reviewRounds.flatMap((r) => r.evidence);
+  const totalCount = allEvidence.length;
+  const reviewedCount = allEvidence.filter((e) => e.verified).length;
+  const allReviewed = totalCount > 0 && reviewedCount === totalCount;
+  const hasNeedsWork = resolved?.finalization?.aggregateClassification === "needs_work";
+  const isTerminal = execution ? canFollowUpExecution(execution.status as ExecutionStatus) : false;
+  const showFooter = execution && !isActive && isTerminal && onArchive;
+
+  const handleArchiveClick = () => {
+    if (!allReviewed && totalCount > 0) {
+      setArchiveConfirmOpen(true);
+    } else {
+      onArchive?.();
+    }
+  };
+
   // Nothing to show when no execution and not active
   if (!execution && !isActive) return null;
 
@@ -81,7 +106,6 @@ export function ReviewFlow({
         isCancelling={isCancelling}
         onOpenLaunchSheet={openLaunchSheet}
         onCancelReview={cancelReview}
-        onFollowUp={onFollowUp}
       />
 
       {/* Finalization progress stepper — shown during active finalization */}
@@ -109,6 +133,55 @@ export function ReviewFlow({
           onRequestMore={onRequestMoreEvidence}
         />
       )}
+
+      {/* Action footer — archive and follow-up at the bottom after evidence */}
+      {showFooter && (
+        <div className="flex items-center gap-2 border-t border-slate-200 px-4 py-3 dark:border-slate-700">
+          {hasNeedsWork ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 border-red-500/30 px-3 text-xs text-red-300 hover:bg-red-500/10"
+              onClick={() => onFollowUp(execution)}
+            >
+              <Wrench className="mr-1.5 h-3.5 w-3.5" />
+              Fix Issues
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 px-3 text-xs"
+              onClick={() => onFollowUp(execution)}
+            >
+              <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
+              Follow Up
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 px-3 text-xs"
+            onClick={handleArchiveClick}
+          >
+            <Archive className="mr-1.5 h-3.5 w-3.5" />
+            Archive
+          </Button>
+        </div>
+      )}
+
+      {/* Archive confirmation when not all evidence is reviewed */}
+      <ConfirmDialog
+        isOpen={archiveConfirmOpen}
+        onClose={() => setArchiveConfirmOpen(false)}
+        onConfirm={() => {
+          setArchiveConfirmOpen(false);
+          onArchive?.();
+        }}
+        title="Archive without full review?"
+        description={`You have ${totalCount - reviewedCount} of ${totalCount} evidence items still unreviewed. Are you sure you want to archive this item?`}
+        confirmLabel="Archive anyway"
+      />
 
       {/* Review launch sheet */}
       <ReviewLaunchSheet

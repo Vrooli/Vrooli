@@ -52,7 +52,6 @@ function renderCard(item: EvidenceItem) {
       backlogKind="fix"
       backlogName="my-item"
       onVerify={vi.fn()}
-      onRequestMore={vi.fn()}
     />,
     { wrapper: createWrapper() },
   );
@@ -74,6 +73,13 @@ beforeEach(() => {
 });
 
 describe("EvidenceItemCard", () => {
+  describe("Description visibility", () => {
+    it("shows description without expanding", () => {
+      renderCard(makeEvidence({ description: "Full build passes" }));
+      expect(screen.getByText("Full build passes")).toBeTruthy();
+    });
+  });
+
   describe("CLI output evidence", () => {
     it("renders fetched content in a pre block when expanded", () => {
       mockCaptureResult.content = "hello from CLI";
@@ -172,8 +178,8 @@ describe("EvidenceItemCard", () => {
     });
   });
 
-  describe("Verification checkbox", () => {
-    it("calls onVerify when checkbox is clicked", () => {
+  describe("Review toggle", () => {
+    it("calls onVerify when checkbox is clicked on unreviewed item", () => {
       const onVerify = vi.fn();
       render(
         <EvidenceItemCard
@@ -181,32 +187,28 @@ describe("EvidenceItemCard", () => {
           backlogKind="fix"
           backlogName="my-item"
           onVerify={onVerify}
-          onRequestMore={vi.fn()}
         />,
         { wrapper: createWrapper() },
       );
 
-      fireEvent.click(screen.getByTitle("Mark as verified"));
+      fireEvent.click(screen.getByTitle("Mark as reviewed"));
       expect(onVerify).toHaveBeenCalledWith("ev-1", true);
     });
-  });
 
-  describe("Request more button", () => {
-    it("calls onRequestMore when clicked", () => {
-      const onRequestMore = vi.fn();
+    it("calls onVerify(false) when checkbox is clicked on reviewed item", () => {
+      const onVerify = vi.fn();
       render(
         <EvidenceItemCard
-          item={makeEvidence()}
+          item={makeEvidence({ verified: true })}
           backlogKind="fix"
           backlogName="my-item"
-          onVerify={vi.fn()}
-          onRequestMore={onRequestMore}
+          onVerify={onVerify}
         />,
         { wrapper: createWrapper() },
       );
 
-      fireEvent.click(screen.getByTitle("Request more evidence for this item"));
-      expect(onRequestMore).toHaveBeenCalledWith("ev-1");
+      fireEvent.click(screen.getByTitle("Mark as unreviewed"));
+      expect(onVerify).toHaveBeenCalledWith("ev-1", false);
     });
   });
 });

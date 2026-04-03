@@ -2,9 +2,9 @@
  * EvidencePanel
  *
  * Displays review evidence rounds in the Output tab. Each round shows
- * typed evidence cards (screenshots, API tests, CLI output, etc.) with
- * verification checkboxes. Users can request additional evidence via
- * the Request More button.
+ * typed evidence cards (screenshots, API tests, CLI output, etc.) styled
+ * as unread/read items. Users can mark items as reviewed and request
+ * additional evidence via the Request More button.
  */
 
 import { useState } from "react";
@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import type { ReviewRound } from "../../services/review-service";
 import { EvidenceItemCard } from "./evidence-item-card";
+import { selectors } from "../../consts/selectors";
 
 export interface EvidencePanelProps {
   rounds: ReviewRound[];
@@ -72,7 +73,7 @@ export function EvidencePanel({
           </span>
           {totalCount > 0 && (
             <span className="text-xs text-slate-500 dark:text-slate-400">
-              {verifiedCount} of {totalCount} verified
+              {totalCount - verifiedCount} unreviewed
             </span>
           )}
           {isGathering && (
@@ -160,13 +161,61 @@ function RoundSection({
         </span>
         <RoundStatusBadge status={round.status} classification={round.classification} />
         <span className="text-xs text-slate-400 dark:text-slate-500">
-          {round.evidence.length} items, {verifiedCount} verified
+          {round.evidence.length} items{verifiedCount < round.evidence.length ? `, ${round.evidence.length - verifiedCount} unreviewed` : ""}
         </span>
+        {/* Collapsed assessment preview */}
+        {round.agent_assessment && !expanded && (
+          <span className="flex-1 truncate text-xs text-slate-400 italic">
+            {round.agent_assessment}
+          </span>
+        )}
       </button>
 
       {/* Expanded content */}
       {expanded && (
         <div className="space-y-2 px-4 pb-3">
+          {/* Agent assessment — prominent, above evidence */}
+          {(round.agent_assessment || round.classification) && (
+            <div
+              className="rounded-lg border border-white/10 bg-slate-800/30 p-3 space-y-2"
+              data-testid={selectors.evidence.agentAssessment}
+            >
+              <div className="flex items-center gap-2">
+                <RoundStatusBadge status={round.status} classification={round.classification} />
+                <span className="text-xs font-medium text-slate-300">Agent Assessment</span>
+              </div>
+              {round.agent_assessment && (
+                <p className="text-sm leading-relaxed text-slate-300">
+                  {round.agent_assessment}
+                </p>
+              )}
+              {round.notes && round.notes.length > 0 && (
+                <ul className="space-y-1 pl-4 list-disc">
+                  {round.notes.map((note, i) => (
+                    <li key={i} className="text-xs text-slate-400">{note}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {/* Mark all reviewed */}
+          {round.evidence.length > 1 && (
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={verifiedCount === round.evidence.length && round.evidence.length > 0}
+                onChange={() => {
+                  const newVerified = verifiedCount < round.evidence.length;
+                  round.evidence.forEach((item) => onVerify(round.round, item.id, newVerified));
+                }}
+                className="h-3.5 w-3.5 accent-cyan-500 cursor-pointer"
+                data-testid={selectors.evidence.markAllReviewed}
+              />
+              <span className="text-xs text-slate-500">Mark all reviewed</span>
+            </label>
+          )}
+
           {/* Evidence cards */}
           {round.evidence.map((item) => (
             <EvidenceItemCard
@@ -175,28 +224,8 @@ function RoundSection({
               backlogKind={backlogKind}
               backlogName={backlogName}
               onVerify={(evidenceId, verified) => onVerify(round.round, evidenceId, verified)}
-              onRequestMore={(evidenceId) => onRequestMore(round.round, evidenceId)}
             />
           ))}
-
-          {/* Agent assessment */}
-          {round.agent_assessment && (
-            <div className="mt-2 rounded-md bg-slate-50 p-3 text-xs text-slate-600 dark:bg-slate-800/50 dark:text-slate-400">
-              <span className="font-medium">Agent assessment: </span>
-              {round.agent_assessment}
-            </div>
-          )}
-
-          {/* Notes */}
-          {round.notes && round.notes.length > 0 && (
-            <div className="mt-1 space-y-1">
-              {round.notes.map((note, i) => (
-                <div key={i} className="text-xs text-slate-500 dark:text-slate-400">
-                  - {note}
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       )}
     </div>

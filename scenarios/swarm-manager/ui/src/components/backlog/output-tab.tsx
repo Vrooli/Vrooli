@@ -34,6 +34,7 @@ export interface OutputTabProps {
   // Callbacks
   onStopRun: (runId: string) => void;
   onFollowUp: (exec: ExecutionRecord) => void;
+  onArchive?: () => void;
   onVerifyEvidence: (round: number, evidenceId: string, verified: boolean) => void;
   onRequestMoreEvidence: (round: number, evidenceId?: string) => void;
 }
@@ -48,6 +49,7 @@ export function OutputTab({
   backlogName,
   onStopRun,
   onFollowUp,
+  onArchive,
   onVerifyEvidence,
   onRequestMoreEvidence,
 }: OutputTabProps) {
@@ -70,6 +72,7 @@ export function OutputTab({
         backlogKind={backlogKind}
         backlogName={backlogName}
         onFollowUp={onFollowUp}
+        onArchive={onArchive}
         onVerifyEvidence={onVerifyEvidence}
         onRequestMoreEvidence={onRequestMoreEvidence}
       />

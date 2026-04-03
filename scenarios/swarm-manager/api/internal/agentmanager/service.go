@@ -150,18 +150,19 @@ type ResearchSpawnRequest struct {
 
 // BacklogSpawnRequest describes a request to spawn a backlog agent.
 type BacklogSpawnRequest struct {
-	Kind            string
-	Name            string
-	Title           string
-	Description     string
-	Prompt          string
-	ScopePath       string
-	ProjectRoot     string
-	CreatedBy       string
-	Purpose         string
-	AcceptanceAllow []string
-	AcceptanceDeny  []string
-	Environment     map[string]string
+	Kind               string
+	Name               string
+	Title              string
+	Description        string
+	Prompt             string
+	ScopePath          string
+	ProjectRoot        string
+	CreatedBy          string
+	Purpose            string
+	AcceptanceAllow    []string
+	AcceptanceDeny     []string
+	Environment        map[string]string
+	ContextAttachments []*domainpb.ContextAttachment
 }
 
 // RunResult returns agent-manager identifiers.
@@ -290,11 +291,12 @@ func (s *AgentService) SpawnBacklog(ctx context.Context, req BacklogSpawnRequest
 	}
 
 	task := &domainpb.Task{
-		Title:       title,
-		Description: truncateDescription(strings.TrimSpace(req.Description)),
-		ScopePath:   scopePath,
-		ProjectRoot: projectRoot,
-		CreatedBy:   createdBy,
+		Title:              title,
+		Description:        truncateDescription(strings.TrimSpace(req.Description)),
+		ScopePath:          scopePath,
+		ProjectRoot:        projectRoot,
+		CreatedBy:          createdBy,
+		ContextAttachments: req.ContextAttachments,
 	}
 
 	createdTask, err := s.client.CreateTask(ctx, task)

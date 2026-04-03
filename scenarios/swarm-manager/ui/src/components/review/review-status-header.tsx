@@ -1,14 +1,16 @@
 /**
  * ReviewStatusHeader — Single source of truth for post-execution status
- * display and primary action.
+ * display and review trigger action.
  *
  * Presents context-aware actions:
  * - "Review" opens the launch sheet for Full Review / Gather Evidence
  * - "Stop Review" when finalization is in progress
- * - "Fix Issues" / "Follow Up" when finalization is complete
+ *
+ * Follow-up / Fix Issues / Archive actions are in the ReviewFlow footer
+ * (below the evidence panel) so users see them after reviewing evidence.
  */
 
-import { Eye, Loader2, Play, Square, Wrench, MessageSquare } from "lucide-react";
+import { Eye, Loader2, Square } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn, formatRelativeTime, canFollowUpExecution } from "../../lib";
 import { resolvePostRunExecution } from "../../lib/finalization";
@@ -24,16 +26,13 @@ export interface ReviewStatusHeaderProps {
   isCancelling: boolean;
   onOpenLaunchSheet: () => void;
   onCancelReview: () => void;
-  onFollowUp: (exec: ExecutionRecord) => void;
 }
 
 type PrimaryAction =
   | { kind: "none" }
   | { kind: "review" }
   | { kind: "triggering" }
-  | { kind: "stop-review"; exec: ExecutionRecord }
-  | { kind: "fix-issues"; exec: ExecutionRecord }
-  | { kind: "follow-up"; exec: ExecutionRecord };
+  | { kind: "stop-review"; exec: ExecutionRecord };
 
 function resolvePrimaryAction(
   execution: ExecutionRecord | undefined,
@@ -45,19 +44,14 @@ function resolvePrimaryAction(
   if (isTriggering || isTriggeringEvidence) return { kind: "triggering" };
 
   const resolved = resolvePostRunExecution(execution);
-  const isTerminal = canFollowUpExecution(execution.status as ExecutionStatus);
 
   // Finalization in progress — offer to stop
   if (resolved?.finalization?.status === "running" || resolved?.finalization?.status === "pending") {
     return { kind: "stop-review", exec: execution };
   }
 
-  // Finalization complete with issues — offer fix
-  if (resolved?.finalization?.aggregateClassification === "needs_work") {
-    return { kind: "fix-issues", exec: execution };
-  }
-
   // Terminal execution — offer review (opens launch sheet)
+  const isTerminal = canFollowUpExecution(execution.status as ExecutionStatus);
   if (isTerminal) {
     return { kind: "review" };
   }
@@ -73,7 +67,6 @@ export function ReviewStatusHeader({
   isCancelling,
   onOpenLaunchSheet,
   onCancelReview,
-  onFollowUp,
 }: ReviewStatusHeaderProps) {
   if (!execution) return null;
   if (isActive) return null; // Active run display is handled by LatestExecutionSummary
@@ -134,30 +127,6 @@ export function ReviewStatusHeader({
             >
               <Square className="mr-1 h-3 w-3" />
               {isCancelling ? "Stopping..." : "Stop Review"}
-            </Button>
-          )}
-          {action.kind === "fix-issues" && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 border-red-500/30 px-2 text-xs text-red-300 hover:bg-red-500/10"
-              onClick={() => onFollowUp(action.exec)}
-              data-testid={selectors.review.primaryAction}
-            >
-              <Wrench className="mr-1 h-3 w-3" />
-              Fix Issues
-            </Button>
-          )}
-          {action.kind === "follow-up" && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 px-2 text-xs"
-              onClick={() => onFollowUp(action.exec)}
-              data-testid={selectors.review.primaryAction}
-            >
-              <MessageSquare className="mr-1 h-3 w-3" />
-              Follow Up
             </Button>
           )}
         </div>
