@@ -113,7 +113,7 @@ func (s Spec) normalized() (Spec, error) {
 
 	switch s.Purpose {
 	case PurposeInitialize, PurposeWorkshop, PurposeFinalize, PurposeResearch, PurposeProcess,
-		PurposeFixup, PurposeFollowUp, PurposeSpecSync, PurposeClassify, PurposeClarify:
+		PurposeFixup, PurposeFollowUp, PurposeSpecSync, PurposeClassify, PurposeClarify, PurposeReview:
 	default:
 		return Spec{}, fmt.Errorf("purpose is required")
 	}

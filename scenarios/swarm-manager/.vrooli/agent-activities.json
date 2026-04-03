@@ -1734,5 +1734,24 @@
       "skill_id": "swarm-manager-workshop-finalize"
     },
     "updated_at": "2026-04-03T12:26:10Z"
+  },
+  {
+    "activity_id": "858c9cd0ea2a0e62",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "agent-manager-identity-tokens",
+    "execution_id": "6a8775c241dc39ff",
+    "purpose": "review",
+    "interaction_type": "spawn",
+    "task_id": "c96d44de-668d-49cd-ac4c-0dbe15e1347b",
+    "run_id": "15666c1e-8958-4b02-b2b3-f31f899c3ec7",
+    "status": "running",
+    "requested_at": "2026-04-03T16:14:34Z",
+    "started_at": "2026-04-03T16:14:34Z",
+    "requested_by": "swarm-manager-ui",
+    "metadata": {
+      "entrypoint": "review.trigger_review_agent"
+    },
+    "updated_at": "2026-04-03T16:14:36Z"
   }
 ]
