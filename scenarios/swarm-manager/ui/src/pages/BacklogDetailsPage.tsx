@@ -5,7 +5,7 @@
  * [REQ:REQ-P0-004]
  */
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Activity, CircleHelp, Files, Sparkles } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
@@ -26,6 +26,7 @@ import { OperationalTargetsPanel } from "../components/backlog/operational-targe
 import { BulkActionToolbar } from "../components/backlog/bulk-action-toolbar";
 import { useActivityTimeline } from "../hooks/useActivityTimeline";
 import { useBacklogDetailData } from "../hooks/useBacklogDetailData";
+import { useEmbeddedServiceUrl } from "../hooks/useEmbeddedServiceUrl";
 import { useStorePolling } from "../hooks/useStorePolling";
 import { useBacklogHandlers } from "../hooks/useBacklogHandlers";
 import { findBacklogFileByPath } from "../lib/workshop-files";
@@ -109,7 +110,7 @@ export function BacklogDetailsPage() {
     validate: (v): v is DetailsTab => ["info", "prompt", "files", "output"].includes(v),
   });
   const [selectedFile, setSelectedFile] = useState<BacklogFile | null>(null);
-  const [agentManagerUiUrl, setAgentManagerUiUrl] = useState<string | null>(null);
+  const { url: agentManagerUiUrl } = useEmbeddedServiceUrl("agent-manager");
 
   // --- Handlers hook ---
   const handlers = useBacklogHandlers({
@@ -140,18 +141,6 @@ export function BacklogDetailsPage() {
   const agentLabel = item?.kind === "idea" ? "Idea Agent" : "Workshop";
 
   // --- Effects ---
-
-  // Fetch agent-manager external URL
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`/embedded/${encodeURIComponent("agent-manager")}/external-url`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: { url?: string } | null) => {
-        if (!cancelled && data?.url) setAgentManagerUiUrl(data.url);
-      })
-      .catch(() => { /* agent-manager not available */ });
-    return () => { cancelled = true; };
-  }, []);
 
   // Activity timeline — fetches when the Output tab is active
   const timeline = useActivityTimeline({

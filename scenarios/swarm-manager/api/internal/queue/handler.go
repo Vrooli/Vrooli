@@ -9,7 +9,7 @@ package queue
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"path/filepath"
 	"sort"
@@ -155,7 +155,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[queue] added: id=%s kind=%s", item.ID, item.Kind)
+	slog.Info("queue item added", "id", item.ID, "kind", item.Kind)
 	if h.eventLogger != nil {
 		h.eventLogger.EmitQueued(item.Kind, item.ID, len(items))
 	}
@@ -191,7 +191,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[queue] removed: id=%s", id)
+	slog.Info("queue item removed", "id", id)
 	if h.eventLogger != nil {
 		h.eventLogger.EmitDequeued("", id, "removed")
 	}

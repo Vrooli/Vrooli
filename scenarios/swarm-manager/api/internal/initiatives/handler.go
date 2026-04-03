@@ -1,7 +1,7 @@
 package initiatives
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -46,7 +46,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 func (h *Handler) List(w http.ResponseWriter, _ *http.Request) {
 	items, err := h.service.List()
 	if err != nil {
-		log.Printf("[initiatives] list: %v", err)
+		slog.Error("failed to list initiatives", "error", err)
 		apierr.MapError(w, "[initiatives] list", apierr.Internal("failed to list initiatives"))
 		return
 	}
@@ -84,7 +84,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 			apierr.MapError(w, "[initiatives] create", apierr.Conflict("%s", err.Error()))
 			return
 		}
-		log.Printf("[initiatives] create: %v", err)
+		slog.Error("failed to create initiative", "error", err)
 		apierr.MapError(w, "[initiatives] create", apierr.Internal("failed to create initiative"))
 		return
 	}
@@ -114,7 +114,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 			apierr.MapError(w, "[initiatives] get", apierr.NotFound("initiative not found"))
 			return
 		}
-		log.Printf("[initiatives] get: %v", err)
+		slog.Error("failed to get initiative", "error", err)
 		apierr.MapError(w, "[initiatives] get", apierr.Internal("failed to load initiative"))
 		return
 	}
@@ -158,7 +158,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 			apierr.MapError(w, "[initiatives] update", apierr.NotFound("initiative not found"))
 			return
 		}
-		log.Printf("[initiatives] update: %v", err)
+		slog.Error("failed to update initiative", "error", err)
 		apierr.MapError(w, "[initiatives] update", apierr.Internal("failed to update initiative"))
 		return
 	}
@@ -183,7 +183,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.service.Delete(name); err != nil {
-		log.Printf("[initiatives] delete: %v", err)
+		slog.Error("failed to delete initiative", "error", err)
 		apierr.MapError(w, "[initiatives] delete", apierr.Internal("failed to delete initiative"))
 		return
 	}
@@ -223,14 +223,14 @@ func (h *Handler) AddItems(w http.ResponseWriter, r *http.Request) {
 			apierr.MapError(w, "[initiatives] add-items", apierr.NotFound("initiative not found"))
 			return
 		}
-		log.Printf("[initiatives] add-items: %v", err)
+		slog.Error("failed to add items", "error", err)
 		apierr.MapError(w, "[initiatives] add-items", apierr.Internal("failed to add items"))
 		return
 	}
 
 	result, err := h.service.Get(name)
 	if err != nil {
-		log.Printf("[initiatives] add-items: failed to reload: %v", err)
+		slog.Error("failed to reload initiative after adding items", "error", err)
 		apierr.MapError(w, "[initiatives] add-items", apierr.Internal("items added but failed to reload initiative"))
 		return
 	}
@@ -263,14 +263,14 @@ func (h *Handler) RemoveItems(w http.ResponseWriter, r *http.Request) {
 			apierr.MapError(w, "[initiatives] remove-items", apierr.NotFound("initiative not found"))
 			return
 		}
-		log.Printf("[initiatives] remove-items: %v", err)
+		slog.Error("failed to remove items", "error", err)
 		apierr.MapError(w, "[initiatives] remove-items", apierr.Internal("failed to remove items"))
 		return
 	}
 
 	result, err := h.service.Get(name)
 	if err != nil {
-		log.Printf("[initiatives] remove-items: failed to reload: %v", err)
+		slog.Error("failed to reload initiative after removing items", "error", err)
 		apierr.MapError(w, "[initiatives] remove-items", apierr.Internal("items removed but failed to reload initiative"))
 		return
 	}

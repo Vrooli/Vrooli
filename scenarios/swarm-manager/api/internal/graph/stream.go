@@ -1,7 +1,7 @@
 package graph
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -38,7 +38,7 @@ func (h *StreamHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (h *StreamHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := h.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("[graph-ws] upgrade error: %v", err)
+		slog.Error("websocket upgrade error", "error", err)
 		return
 	}
 

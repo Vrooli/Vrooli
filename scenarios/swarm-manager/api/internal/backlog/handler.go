@@ -15,7 +15,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -26,6 +26,7 @@ import (
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/dispatch"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/pathutil"
@@ -51,13 +52,8 @@ type Handler struct {
 	executionQueuer    ExecutionQueuer
 	policyProvider     execution.PolicyProvider
 	governanceProvider execution.GovernanceProvider
-	eventDispatcher    EventDispatcher
+	eventDispatcher    dispatch.Invalidator
 	eventLogger        EventLogger
-}
-
-// EventDispatcher emits graph invalidation events for graph projections.
-type EventDispatcher interface {
-	DispatchInvalidate(lenses ...string)
 }
 
 // EventLogger records state-change events for analytics.
@@ -125,7 +121,7 @@ func (h *Handler) SetGovernanceProvider(gp execution.GovernanceProvider) {
 }
 
 // SetEventDispatcher injects an optional graph invalidation dispatcher.
-func (h *Handler) SetEventDispatcher(d EventDispatcher) {
+func (h *Handler) SetEventDispatcher(d dispatch.Invalidator) {
 	h.eventDispatcher = d
 }
 
@@ -229,7 +225,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 			apierr.MapError(w, "[backlog] update", apierr.NotFound("backlog item not found"))
 			return
 		}
-		log.Printf("[backlog] update: failed to load %q: %v", name, err)
+		slog.Error("failed to load item for update", "name", name, "err", err)
 		apierr.MapError(w, "[backlog] update", apierr.Internal("%s", httputil.TruncateErrorMessage(err, 240)))
 		return
 	}
@@ -281,15 +277,15 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.store.SaveItem(existing); err != nil {
-		log.Printf("[backlog] update: failed to save %q: %v", name, err)
+		slog.Error("failed to save item", "name", name, "err", err)
 		apierr.MapError(w, "[backlog] update", apierr.Internal("failed to save backlog item"))
 		return
 	}
 
 	if oldStatus != existing.Status || oldPriority != existing.Priority {
-		log.Printf("[backlog] updated: %q (status=%s→%s, priority=%d→%d)", name, oldStatus, existing.Status, oldPriority, existing.Priority)
+		slog.Info("item updated", "name", name, "old_status", oldStatus, "new_status", existing.Status, "old_priority", oldPriority, "new_priority", existing.Priority)
 	} else {
-		log.Printf("[backlog] updated: %q", name)
+		slog.Info("item updated", "name", name)
 	}
 
 	if h.eventLogger != nil {
@@ -316,7 +312,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		!workshop.IsWorkshopReady(string(oldStatus)) {
 		cfg, cfgErr := settings.NewStore("").Load()
 		if cfgErr != nil {
-			log.Printf("[backlog] cascade: settings load error: %v, using defaults", cfgErr)
+			slog.Warn("cascade settings load error, using defaults", "err", cfgErr)
 			cfg = settings.DefaultSettings()
 		}
 		if workshop.ShouldCascade(cfg.AutoCascadeWorkshop) {
@@ -346,12 +342,12 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := os.RemoveAll(itemDir); err != nil {
-		log.Printf("[backlog] delete: failed to delete %q: %v", name, err)
+		slog.Error("failed to delete item", "name", name, "err", err)
 		apierr.MapError(w, "[backlog] delete", apierr.Internal("failed to delete backlog item"))
 		return
 	}
 
-	log.Printf("[backlog] deleted: %q (kind=%s)", name, kind)
+	slog.Info("item deleted", "name", name, "kind", kind)
 	if h.eventLogger != nil {
 		h.eventLogger.EmitBacklogArchived(string(kind) + "/" + name)
 	}

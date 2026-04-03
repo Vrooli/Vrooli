@@ -22,7 +22,6 @@ import { WorkshopQuestionView, ReviewQuestionView } from "../backlog/question-re
 import { TagList } from "../ui/tag-list";
 import { useDecisionStreamLogic } from "../../hooks/useDecisionStreamLogic";
 import type { DecisionStreamResults } from "../../hooks/useDecisionStreamLogic";
-import type { BacklogKind } from "../../types";
 
 export type { DecisionStreamResults };
 

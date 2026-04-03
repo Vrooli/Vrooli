@@ -2051,11 +2051,245 @@ func (x *ClarificationActionResponse) GetTaskId() string {
 	return ""
 }
 
+// ListReviewRoundsResponse returns all review evidence rounds for a backlog item.
+type ListReviewRoundsResponse struct {
+	state         protoimpl.MessageState        `protogen:"open.v1"`
+	Rounds        []*domain.ReviewEvidenceRound `protobuf:"bytes,1,rep,name=rounds,proto3" json:"rounds,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListReviewRoundsResponse) Reset() {
+	*x = ListReviewRoundsResponse{}
+	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListReviewRoundsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListReviewRoundsResponse) ProtoMessage() {}
+
+func (x *ListReviewRoundsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListReviewRoundsResponse.ProtoReflect.Descriptor instead.
+func (*ListReviewRoundsResponse) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_backlog_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *ListReviewRoundsResponse) GetRounds() []*domain.ReviewEvidenceRound {
+	if x != nil {
+		return x.Rounds
+	}
+	return nil
+}
+
+// VerifyEvidenceRequest marks an evidence item as verified or unverified.
+type VerifyEvidenceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Verified      bool                   `protobuf:"varint,1,opt,name=verified,proto3" json:"verified,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VerifyEvidenceRequest) Reset() {
+	*x = VerifyEvidenceRequest{}
+	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VerifyEvidenceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VerifyEvidenceRequest) ProtoMessage() {}
+
+func (x *VerifyEvidenceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VerifyEvidenceRequest.ProtoReflect.Descriptor instead.
+func (*VerifyEvidenceRequest) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_backlog_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *VerifyEvidenceRequest) GetVerified() bool {
+	if x != nil {
+		return x.Verified
+	}
+	return false
+}
+
+// RequestMoreEvidenceRequest asks the review agent for additional evidence.
+type RequestMoreEvidenceRequest struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Message string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	// Optionally scope the request to a specific evidence item.
+	EvidenceId    *string `protobuf:"bytes,2,opt,name=evidence_id,json=evidenceId,proto3,oneof" json:"evidence_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RequestMoreEvidenceRequest) Reset() {
+	*x = RequestMoreEvidenceRequest{}
+	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestMoreEvidenceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestMoreEvidenceRequest) ProtoMessage() {}
+
+func (x *RequestMoreEvidenceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RequestMoreEvidenceRequest.ProtoReflect.Descriptor instead.
+func (*RequestMoreEvidenceRequest) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_backlog_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *RequestMoreEvidenceRequest) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *RequestMoreEvidenceRequest) GetEvidenceId() string {
+	if x != nil && x.EvidenceId != nil {
+		return *x.EvidenceId
+	}
+	return ""
+}
+
+// RequestMoreEvidenceResponse returns the created thread ID.
+type RequestMoreEvidenceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ThreadId      string                 `protobuf:"bytes,1,opt,name=thread_id,json=threadId,proto3" json:"thread_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RequestMoreEvidenceResponse) Reset() {
+	*x = RequestMoreEvidenceResponse{}
+	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestMoreEvidenceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestMoreEvidenceResponse) ProtoMessage() {}
+
+func (x *RequestMoreEvidenceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RequestMoreEvidenceResponse.ProtoReflect.Descriptor instead.
+func (*RequestMoreEvidenceResponse) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_backlog_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *RequestMoreEvidenceResponse) GetThreadId() string {
+	if x != nil {
+		return x.ThreadId
+	}
+	return ""
+}
+
+// ContinueEvidenceRequestRequest sends a follow-up message in a request thread.
+type ContinueEvidenceRequestRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ContinueEvidenceRequestRequest) Reset() {
+	*x = ContinueEvidenceRequestRequest{}
+	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ContinueEvidenceRequestRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ContinueEvidenceRequestRequest) ProtoMessage() {}
+
+func (x *ContinueEvidenceRequestRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ContinueEvidenceRequestRequest.ProtoReflect.Descriptor instead.
+func (*ContinueEvidenceRequestRequest) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_backlog_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *ContinueEvidenceRequestRequest) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 var File_swarm_manager_v1_api_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\n" +
-	"\"swarm-manager/v1/api/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\"\xd6\x04\n" +
+	"\"swarm-manager/v1/api/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\x1a'swarm-manager/v1/domain/execution.proto\"\xd6\x04\n" +
 	"\x18CreateBacklogItemRequest\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12%\n" +
@@ -2248,7 +2482,20 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\atask_id\x18\x05 \x01(\tH\x01R\x06taskId\x88\x01\x01B\t\n" +
 	"\a_run_idB\n" +
 	"\n" +
-	"\b_task_idBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
+	"\b_task_id\"Y\n" +
+	"\x18ListReviewRoundsResponse\x12=\n" +
+	"\x06rounds\x18\x01 \x03(\v2%.swarm_manager.v1.ReviewEvidenceRoundR\x06rounds\"3\n" +
+	"\x15VerifyEvidenceRequest\x12\x1a\n" +
+	"\bverified\x18\x01 \x01(\bR\bverified\"u\n" +
+	"\x1aRequestMoreEvidenceRequest\x12!\n" +
+	"\amessage\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\amessage\x12$\n" +
+	"\vevidence_id\x18\x02 \x01(\tH\x00R\n" +
+	"evidenceId\x88\x01\x01B\x0e\n" +
+	"\f_evidence_id\":\n" +
+	"\x1bRequestMoreEvidenceResponse\x12\x1b\n" +
+	"\tthread_id\x18\x01 \x01(\tR\bthreadId\"C\n" +
+	"\x1eContinueEvidenceRequestRequest\x12!\n" +
+	"\amessage\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\amessageBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
 var (
 	file_swarm_manager_v1_api_backlog_proto_rawDescOnce sync.Once
@@ -2262,59 +2509,66 @@ func file_swarm_manager_v1_api_backlog_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_api_backlog_proto_rawDescData
 }
 
-var file_swarm_manager_v1_api_backlog_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
+var file_swarm_manager_v1_api_backlog_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
 var file_swarm_manager_v1_api_backlog_proto_goTypes = []any{
-	(*CreateBacklogItemRequest)(nil),      // 0: swarm_manager.v1.CreateBacklogItemRequest
-	(*UpdateBacklogItemRequest)(nil),      // 1: swarm_manager.v1.UpdateBacklogItemRequest
-	(*ListBacklogItemsResponse)(nil),      // 2: swarm_manager.v1.ListBacklogItemsResponse
-	(*BacklogItemResponse)(nil),           // 3: swarm_manager.v1.BacklogItemResponse
-	(*BacklogFilesResponse)(nil),          // 4: swarm_manager.v1.BacklogFilesResponse
-	(*BacklogFileResponse)(nil),           // 5: swarm_manager.v1.BacklogFileResponse
-	(*BacklogFileOperationRequest)(nil),   // 6: swarm_manager.v1.BacklogFileOperationRequest
-	(*BacklogFileOperationResponse)(nil),  // 7: swarm_manager.v1.BacklogFileOperationResponse
-	(*QueueBacklogItemRequest)(nil),       // 8: swarm_manager.v1.QueueBacklogItemRequest
-	(*QueueBacklogItemResponse)(nil),      // 9: swarm_manager.v1.QueueBacklogItemResponse
-	(*BacklogResearchRequest)(nil),        // 10: swarm_manager.v1.BacklogResearchRequest
-	(*BacklogResearchResponse)(nil),       // 11: swarm_manager.v1.BacklogResearchResponse
-	(*ExportBacklogRequest)(nil),          // 12: swarm_manager.v1.ExportBacklogRequest
-	(*ImportBacklogResponse)(nil),         // 13: swarm_manager.v1.ImportBacklogResponse
-	(*ImportChange)(nil),                  // 14: swarm_manager.v1.ImportChange
-	(*WorkshopSaveRequest)(nil),           // 15: swarm_manager.v1.WorkshopSaveRequest
-	(*WorkshopSaveResponse)(nil),          // 16: swarm_manager.v1.WorkshopSaveResponse
-	(*WorkshopAutoAdvance)(nil),           // 17: swarm_manager.v1.WorkshopAutoAdvance
-	(*WorkshopDeleteRoundRequest)(nil),    // 18: swarm_manager.v1.WorkshopDeleteRoundRequest
-	(*WorkshopDeleteRoundResponse)(nil),   // 19: swarm_manager.v1.WorkshopDeleteRoundResponse
-	(*WorkshopResetRequest)(nil),          // 20: swarm_manager.v1.WorkshopResetRequest
-	(*WorkshopResetResponse)(nil),         // 21: swarm_manager.v1.WorkshopResetResponse
-	(*CreateClarificationRequest)(nil),    // 22: swarm_manager.v1.CreateClarificationRequest
-	(*CreateClarificationResponse)(nil),   // 23: swarm_manager.v1.CreateClarificationResponse
-	(*ContinueClarificationRequest)(nil),  // 24: swarm_manager.v1.ContinueClarificationRequest
-	(*ContinueClarificationResponse)(nil), // 25: swarm_manager.v1.ContinueClarificationResponse
-	(*GetClarificationResponse)(nil),      // 26: swarm_manager.v1.GetClarificationResponse
-	(*ClarificationActionRequest)(nil),    // 27: swarm_manager.v1.ClarificationActionRequest
-	(*ClarificationActionResponse)(nil),   // 28: swarm_manager.v1.ClarificationActionResponse
-	(*domain.BacklogItem)(nil),            // 29: swarm_manager.v1.BacklogItem
-	(*domain.BacklogFile)(nil),            // 30: swarm_manager.v1.BacklogFile
-	(*domain.ClarificationThread)(nil),    // 31: swarm_manager.v1.ClarificationThread
+	(*CreateBacklogItemRequest)(nil),       // 0: swarm_manager.v1.CreateBacklogItemRequest
+	(*UpdateBacklogItemRequest)(nil),       // 1: swarm_manager.v1.UpdateBacklogItemRequest
+	(*ListBacklogItemsResponse)(nil),       // 2: swarm_manager.v1.ListBacklogItemsResponse
+	(*BacklogItemResponse)(nil),            // 3: swarm_manager.v1.BacklogItemResponse
+	(*BacklogFilesResponse)(nil),           // 4: swarm_manager.v1.BacklogFilesResponse
+	(*BacklogFileResponse)(nil),            // 5: swarm_manager.v1.BacklogFileResponse
+	(*BacklogFileOperationRequest)(nil),    // 6: swarm_manager.v1.BacklogFileOperationRequest
+	(*BacklogFileOperationResponse)(nil),   // 7: swarm_manager.v1.BacklogFileOperationResponse
+	(*QueueBacklogItemRequest)(nil),        // 8: swarm_manager.v1.QueueBacklogItemRequest
+	(*QueueBacklogItemResponse)(nil),       // 9: swarm_manager.v1.QueueBacklogItemResponse
+	(*BacklogResearchRequest)(nil),         // 10: swarm_manager.v1.BacklogResearchRequest
+	(*BacklogResearchResponse)(nil),        // 11: swarm_manager.v1.BacklogResearchResponse
+	(*ExportBacklogRequest)(nil),           // 12: swarm_manager.v1.ExportBacklogRequest
+	(*ImportBacklogResponse)(nil),          // 13: swarm_manager.v1.ImportBacklogResponse
+	(*ImportChange)(nil),                   // 14: swarm_manager.v1.ImportChange
+	(*WorkshopSaveRequest)(nil),            // 15: swarm_manager.v1.WorkshopSaveRequest
+	(*WorkshopSaveResponse)(nil),           // 16: swarm_manager.v1.WorkshopSaveResponse
+	(*WorkshopAutoAdvance)(nil),            // 17: swarm_manager.v1.WorkshopAutoAdvance
+	(*WorkshopDeleteRoundRequest)(nil),     // 18: swarm_manager.v1.WorkshopDeleteRoundRequest
+	(*WorkshopDeleteRoundResponse)(nil),    // 19: swarm_manager.v1.WorkshopDeleteRoundResponse
+	(*WorkshopResetRequest)(nil),           // 20: swarm_manager.v1.WorkshopResetRequest
+	(*WorkshopResetResponse)(nil),          // 21: swarm_manager.v1.WorkshopResetResponse
+	(*CreateClarificationRequest)(nil),     // 22: swarm_manager.v1.CreateClarificationRequest
+	(*CreateClarificationResponse)(nil),    // 23: swarm_manager.v1.CreateClarificationResponse
+	(*ContinueClarificationRequest)(nil),   // 24: swarm_manager.v1.ContinueClarificationRequest
+	(*ContinueClarificationResponse)(nil),  // 25: swarm_manager.v1.ContinueClarificationResponse
+	(*GetClarificationResponse)(nil),       // 26: swarm_manager.v1.GetClarificationResponse
+	(*ClarificationActionRequest)(nil),     // 27: swarm_manager.v1.ClarificationActionRequest
+	(*ClarificationActionResponse)(nil),    // 28: swarm_manager.v1.ClarificationActionResponse
+	(*ListReviewRoundsResponse)(nil),       // 29: swarm_manager.v1.ListReviewRoundsResponse
+	(*VerifyEvidenceRequest)(nil),          // 30: swarm_manager.v1.VerifyEvidenceRequest
+	(*RequestMoreEvidenceRequest)(nil),     // 31: swarm_manager.v1.RequestMoreEvidenceRequest
+	(*RequestMoreEvidenceResponse)(nil),    // 32: swarm_manager.v1.RequestMoreEvidenceResponse
+	(*ContinueEvidenceRequestRequest)(nil), // 33: swarm_manager.v1.ContinueEvidenceRequestRequest
+	(*domain.BacklogItem)(nil),             // 34: swarm_manager.v1.BacklogItem
+	(*domain.BacklogFile)(nil),             // 35: swarm_manager.v1.BacklogFile
+	(*domain.ClarificationThread)(nil),     // 36: swarm_manager.v1.ClarificationThread
+	(*domain.ReviewEvidenceRound)(nil),     // 37: swarm_manager.v1.ReviewEvidenceRound
 }
 var file_swarm_manager_v1_api_backlog_proto_depIdxs = []int32{
-	29, // 0: swarm_manager.v1.ListBacklogItemsResponse.items:type_name -> swarm_manager.v1.BacklogItem
-	29, // 1: swarm_manager.v1.BacklogItemResponse.item:type_name -> swarm_manager.v1.BacklogItem
-	30, // 2: swarm_manager.v1.BacklogFilesResponse.files:type_name -> swarm_manager.v1.BacklogFile
-	30, // 3: swarm_manager.v1.BacklogFileResponse.file:type_name -> swarm_manager.v1.BacklogFile
-	30, // 4: swarm_manager.v1.BacklogFileOperationResponse.file:type_name -> swarm_manager.v1.BacklogFile
-	29, // 5: swarm_manager.v1.QueueBacklogItemResponse.item:type_name -> swarm_manager.v1.BacklogItem
+	34, // 0: swarm_manager.v1.ListBacklogItemsResponse.items:type_name -> swarm_manager.v1.BacklogItem
+	34, // 1: swarm_manager.v1.BacklogItemResponse.item:type_name -> swarm_manager.v1.BacklogItem
+	35, // 2: swarm_manager.v1.BacklogFilesResponse.files:type_name -> swarm_manager.v1.BacklogFile
+	35, // 3: swarm_manager.v1.BacklogFileResponse.file:type_name -> swarm_manager.v1.BacklogFile
+	35, // 4: swarm_manager.v1.BacklogFileOperationResponse.file:type_name -> swarm_manager.v1.BacklogFile
+	34, // 5: swarm_manager.v1.QueueBacklogItemResponse.item:type_name -> swarm_manager.v1.BacklogItem
 	14, // 6: swarm_manager.v1.ImportBacklogResponse.changes:type_name -> swarm_manager.v1.ImportChange
-	30, // 7: swarm_manager.v1.WorkshopSaveResponse.file:type_name -> swarm_manager.v1.BacklogFile
+	35, // 7: swarm_manager.v1.WorkshopSaveResponse.file:type_name -> swarm_manager.v1.BacklogFile
 	17, // 8: swarm_manager.v1.WorkshopSaveResponse.auto_advance:type_name -> swarm_manager.v1.WorkshopAutoAdvance
-	31, // 9: swarm_manager.v1.CreateClarificationResponse.thread:type_name -> swarm_manager.v1.ClarificationThread
-	31, // 10: swarm_manager.v1.ContinueClarificationResponse.thread:type_name -> swarm_manager.v1.ClarificationThread
-	31, // 11: swarm_manager.v1.GetClarificationResponse.thread:type_name -> swarm_manager.v1.ClarificationThread
-	12, // [12:12] is the sub-list for method output_type
-	12, // [12:12] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	36, // 9: swarm_manager.v1.CreateClarificationResponse.thread:type_name -> swarm_manager.v1.ClarificationThread
+	36, // 10: swarm_manager.v1.ContinueClarificationResponse.thread:type_name -> swarm_manager.v1.ClarificationThread
+	36, // 11: swarm_manager.v1.GetClarificationResponse.thread:type_name -> swarm_manager.v1.ClarificationThread
+	37, // 12: swarm_manager.v1.ListReviewRoundsResponse.rounds:type_name -> swarm_manager.v1.ReviewEvidenceRound
+	13, // [13:13] is the sub-list for method output_type
+	13, // [13:13] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_api_backlog_proto_init() }
@@ -2332,13 +2586,14 @@ func file_swarm_manager_v1_api_backlog_proto_init() {
 	file_swarm_manager_v1_api_backlog_proto_msgTypes[17].OneofWrappers = []any{}
 	file_swarm_manager_v1_api_backlog_proto_msgTypes[27].OneofWrappers = []any{}
 	file_swarm_manager_v1_api_backlog_proto_msgTypes[28].OneofWrappers = []any{}
+	file_swarm_manager_v1_api_backlog_proto_msgTypes[31].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_api_backlog_proto_rawDesc), len(file_swarm_manager_v1_api_backlog_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   29,
+			NumMessages:   34,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ExecutionReviewTab } from "./execution-review-tab";
 import type { ExecutionRecord, Finalization } from "../../types";
-import type { ReviewRound } from "../../services/review-service";
 import { selectors } from "../../consts/selectors";
 
 // Mock ReviewFlow to isolate tab logic

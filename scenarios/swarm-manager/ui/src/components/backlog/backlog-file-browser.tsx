@@ -7,31 +7,19 @@
  */
 
 import { useState, useCallback, useEffect, useMemo, useRef, type MouseEvent, type ReactNode } from "react";
-import {
-  ArrowRightLeft,
-  Copy,
-  Edit,
-  FileText,
-  Lock,
-  Loader2,
-  Search,
-  Trash2,
-  Upload,
-  X,
-} from "lucide-react";
+import { Upload } from "lucide-react";
 import { Popover } from "../ui/popover";
 import { Button } from "../ui/button";
 import { ErrorState } from "../ui/error-state";
-import { Input } from "../ui/input";
 import { InlineLoadingIndicator } from "../ui/loading-states";
 import { FileTree, type TreeFile } from "../ui/file-tree";
 import { FileUpload } from "../ui/file-upload";
-import { Dialog } from "../ui/dialog";
-import { ConfirmDialog } from "../ui/confirm-dialog";
-import { cn } from "../../lib";
 import { collectMatchingFiles, getBaseName, getParentPath, joinPath, normalizeDestinationPath } from "../../lib/file-path-utils";
 import { selectors } from "../../consts/selectors";
 import type { BacklogFile, BacklogKind } from "../../types";
+import { FileActionDialogs } from "./file-action-dialogs";
+import { useFileActionMenuRenderer } from "./file-action-menu";
+import { FileSearchResults, FileSearchResultsList } from "./file-search-results";
 
 export type FileActionType = "rename" | "move" | "copy" | "delete";
 
@@ -205,68 +193,9 @@ export function BacklogFileBrowser({
     }
   }, [onFileSelect]);
 
-  const renderFileActionItems = useCallback((target: BacklogFile, closeMenu: () => void) => {
-    const isProtected = target.path === "spec.json";
-    const rowClass = "flex w-full items-center justify-start gap-2 px-3 py-2 text-sm text-slate-100 hover:bg-slate-800/80";
-    return (
-      <div className="py-1" data-testid="backlog-file-actions-menu">
-        <button
-          type="button"
-          className={rowClass}
-          disabled={isProtected}
-          onClick={() => {
-            closeMenu();
-            openFileActionDialog("rename", target);
-          }}
-        >
-          <Edit className="h-4 w-4 text-slate-300" />
-          Rename
-        </button>
-        <button
-          type="button"
-          className={rowClass}
-          disabled={isProtected}
-          onClick={() => {
-            closeMenu();
-            openFileActionDialog("move", target);
-          }}
-        >
-          <ArrowRightLeft className="h-4 w-4 text-slate-300" />
-          Move
-        </button>
-        <button
-          type="button"
-          className={rowClass}
-          disabled={isProtected}
-          onClick={() => {
-            closeMenu();
-            openFileActionDialog("copy", target);
-          }}
-        >
-          <Copy className="h-4 w-4 text-slate-300" />
-          Copy
-        </button>
-        <button
-          type="button"
-          className={cn(rowClass, "text-red-300 hover:bg-red-500/20")}
-          disabled={isProtected}
-          onClick={() => {
-            closeMenu();
-            openFileActionDialog("delete", target);
-          }}
-        >
-          <Trash2 className="h-4 w-4 text-red-300" />
-          Delete
-        </button>
-        {isProtected && (
-          <p className="flex items-center gap-2 px-3 py-2 text-xs text-slate-400">
-            <Lock className="h-3.5 w-3.5" />
-            `spec.json` is protected.
-          </p>
-        )}
-      </div>
-    );
-  }, [openFileActionDialog]);
+  const renderFileActionItems = useFileActionMenuRenderer({
+    onOpenActionDialog: openFileActionDialog,
+  });
 
   // Notify the parent when header-relevant state changes so the workspace
   // can compose the header bar with the file actions menu.
@@ -278,6 +207,11 @@ export function BacklogFileBrowser({
       headerFileActionsRef,
     });
   }, [showFileActionsMenu, onHeaderSlotChange, handleOpenHeaderMenu, renderFileActionItems, headerFileActionsRef]);
+
+  const handleDialogClose = useCallback(() => {
+    setActiveFileAction(null);
+    setFileActionError(null);
+  }, []);
 
   return (
     <>
@@ -295,45 +229,13 @@ export function BacklogFileBrowser({
           </Button>
         </div>
         <div className="flex-1 space-y-4 overflow-y-auto px-3 pb-4 pt-4">
-          <div className="space-y-3 lg:hidden">
-            <Input
-              type="text"
-              value={fileSearch}
-              onChange={(event) => setFileSearch(event.target.value)}
-              placeholder="Search files"
-              leftIcon={<Search className="h-4 w-4" />}
-              rightSlot={
-                fileSearch.trim().length > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => setFileSearch("")}
-                    className="rounded-full p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-                    aria-label="Clear search"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                ) : null
-              }
-            />
-            {recentFiles.length > 0 && fileSearch.trim().length === 0 && (
-              <div className="space-y-2">
-                <p className="text-xs uppercase tracking-wider text-slate-500">Recent files</p>
-                <div className="space-y-1">
-                  {recentFiles.map((file) => (
-                    <button
-                      key={file.path}
-                      type="button"
-                      onClick={() => handleFileSelect(file)}
-                      className="flex w-full items-center gap-2 rounded-lg border border-white/10 bg-slate-800/40 px-3 py-2 text-left text-sm text-slate-200 hover:border-cyan-500/50 hover:bg-slate-800/70"
-                    >
-                      <FileText className="h-4 w-4 text-slate-400" />
-                      <span className="truncate">{file.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <FileSearchResults
+            fileSearch={fileSearch}
+            onFileSearchChange={setFileSearch}
+            searchResults={searchResults}
+            recentFiles={recentFiles}
+            onFileSelect={handleFileSelect}
+          />
 
           {showUpload && (
             <FileUpload
@@ -362,28 +264,11 @@ export function BacklogFileBrowser({
               }}
             />
           ) : fileSearch.trim().length > 0 ? (
-            searchResults.length > 0 ? (
-              <div className="space-y-1">
-                {searchResults.map((file) => (
-                  <button
-                    key={file.path}
-                    type="button"
-                    onClick={() => handleFileSelect(file)}
-                    className="flex w-full items-center gap-2 rounded-lg border border-white/10 bg-slate-800/40 px-3 py-2 text-left text-sm text-slate-200 hover:border-cyan-500/50 hover:bg-slate-800/70"
-                  >
-                    <FileText className="h-4 w-4 text-slate-400" />
-                    <div className="flex min-w-0 flex-1 flex-col">
-                      <span className="truncate">{file.name}</span>
-                      <span className="truncate text-xs text-slate-500">{file.path}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-lg border border-white/10 bg-slate-800/30 p-6 text-center text-sm text-slate-500">
-                No files match "{fileSearch.trim()}".
-              </div>
-            )
+            <FileSearchResultsList
+              searchResults={searchResults}
+              fileSearch={fileSearch}
+              onFileSelect={handleFileSelect}
+            />
           ) : (
             <FileTree
               files={files ?? []}
@@ -409,84 +294,14 @@ export function BacklogFileBrowser({
         </div>
       </div>
 
-      {/* File action dialogs (rename/move/copy) */}
-      <Dialog
-        isOpen={Boolean(activeFileAction && activeFileAction.action !== "delete")}
-        onClose={() => {
-          setActiveFileAction(null);
-          setFileActionError(null);
-        }}
-        title={
-          activeFileAction?.action === "rename"
-            ? `Rename ${activeFileAction.target.type}`
-            : activeFileAction?.action === "move"
-              ? `Move ${activeFileAction.target.type}`
-              : activeFileAction?.action === "copy"
-                ? `Copy ${activeFileAction.target.type}`
-                : "File Action"
-        }
-        maxWidth="max-w-md"
-      >
-        {activeFileAction && activeFileAction.action !== "delete" && (
-          <div className="space-y-4">
-            <div className="text-sm text-slate-300">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Source</p>
-              <p className="mt-1 break-all rounded-lg bg-slate-800/60 px-3 py-2">{activeFileAction.target.path}</p>
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs uppercase tracking-wide text-slate-500">
-                {activeFileAction.action === "rename" ? "New name" : "Destination path"}
-              </label>
-              <Input
-                value={fileActionInput}
-                onChange={(event) => setFileActionInput(event.target.value)}
-                placeholder={activeFileAction.action === "rename" ? "new-name.ext" : "path/to/target"}
-              />
-            </div>
-            {fileActionError && (
-              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
-                {fileActionError}
-              </div>
-            )}
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setActiveFileAction(null);
-                  setFileActionError(null);
-                }}
-                disabled={fileActionPending}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="default"
-                onClick={handleFileActionConfirm}
-                disabled={fileActionPending}
-                data-testid="confirm-file-action"
-              >
-                {fileActionPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : null}
-                Apply
-              </Button>
-            </div>
-          </div>
-        )}
-      </Dialog>
-
-      {/* File delete confirmation dialog */}
-      <ConfirmDialog
-        isOpen={Boolean(activeFileAction && activeFileAction.action === "delete")}
-        onClose={() => {
-          setActiveFileAction(null);
-          setFileActionError(null);
-        }}
+      <FileActionDialogs
+        activeAction={activeFileAction}
+        fileActionInput={fileActionInput}
+        fileActionError={fileActionError}
+        fileActionPending={fileActionPending}
+        onInputChange={setFileActionInput}
         onConfirm={handleFileActionConfirm}
-        title={`Delete ${activeFileAction?.target.type ?? "file"}`}
-        description={`Delete "${activeFileAction?.target.path ?? ""}" from this backlog item? This cannot be undone.`}
-        confirmLabel="Delete"
-        isLoading={fileActionPending}
+        onClose={handleDialogClose}
       />
     </>
   );

@@ -28,9 +28,10 @@ type Settings struct {
 	// UI theme preference.
 	Theme string `protobuf:"bytes,1,opt,name=theme,proto3" json:"theme,omitempty"`
 	// Execution defaults (absorbed from ExecutionPolicy).
-	DefaultMode      string `protobuf:"bytes,5,opt,name=default_mode,json=defaultMode,proto3" json:"default_mode,omitempty"`
-	AutoFixup        bool   `protobuf:"varint,7,opt,name=auto_fixup,json=autoFixup,proto3" json:"auto_fixup,omitempty"`
-	MaxFixupAttempts int32  `protobuf:"varint,8,opt,name=max_fixup_attempts,json=maxFixupAttempts,proto3" json:"max_fixup_attempts,omitempty"`
+	DefaultMode        string `protobuf:"bytes,5,opt,name=default_mode,json=defaultMode,proto3" json:"default_mode,omitempty"`
+	AutoFixup          bool   `protobuf:"varint,7,opt,name=auto_fixup,json=autoFixup,proto3" json:"auto_fixup,omitempty"`
+	MaxFixupAttempts   int32  `protobuf:"varint,8,opt,name=max_fixup_attempts,json=maxFixupAttempts,proto3" json:"max_fixup_attempts,omitempty"`
+	ReviewAgentEnabled bool   `protobuf:"varint,31,opt,name=review_agent_enabled,json=reviewAgentEnabled,proto3" json:"review_agent_enabled,omitempty"`
 	// Workshop settings.
 	MaxAutoRounds          int32 `protobuf:"varint,9,opt,name=max_auto_rounds,json=maxAutoRounds,proto3" json:"max_auto_rounds,omitempty"`
 	AutoInitializeWorkshop bool  `protobuf:"varint,16,opt,name=auto_initialize_workshop,json=autoInitializeWorkshop,proto3" json:"auto_initialize_workshop,omitempty"`
@@ -118,6 +119,13 @@ func (x *Settings) GetMaxFixupAttempts() int32 {
 		return x.MaxFixupAttempts
 	}
 	return 0
+}
+
+func (x *Settings) GetReviewAgentEnabled() bool {
+	if x != nil {
+		return x.ReviewAgentEnabled
+	}
+	return false
 }
 
 func (x *Settings) GetMaxAutoRounds() int32 {
@@ -278,13 +286,14 @@ var File_swarm_manager_v1_domain_settings_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\n" +
-	"&swarm-manager/v1/domain/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xf7\f\n" +
+	"&swarm-manager/v1/domain/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xa9\r\n" +
 	"\bSettings\x120\n" +
 	"\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04darkR\x05lightR\x06systemR\x05theme\x126\n" +
 	"\fdefault_mode\x18\x05 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\vdefaultMode\x12\x1d\n" +
 	"\n" +
 	"auto_fixup\x18\a \x01(\bR\tautoFixup\x127\n" +
-	"\x12max_fixup_attempts\x18\b \x01(\x05B\t\xbaH\x06\x1a\x04\x18\x05(\x00R\x10maxFixupAttempts\x121\n" +
+	"\x12max_fixup_attempts\x18\b \x01(\x05B\t\xbaH\x06\x1a\x04\x18\x05(\x00R\x10maxFixupAttempts\x120\n" +
+	"\x14review_agent_enabled\x18\x1f \x01(\bR\x12reviewAgentEnabled\x121\n" +
 	"\x0fmax_auto_rounds\x18\t \x01(\x05B\t\xbaH\x06\x1a\x04\x182(\x00R\rmaxAutoRounds\x128\n" +
 	"\x18auto_initialize_workshop\x18\x10 \x01(\bR\x16autoInitializeWorkshop\x122\n" +
 	"\x15auto_advance_workshop\x18\x11 \x01(\bR\x13autoAdvanceWorkshop\x122\n" +

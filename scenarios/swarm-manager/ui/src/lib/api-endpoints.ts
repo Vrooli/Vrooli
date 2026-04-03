@@ -93,6 +93,9 @@ export const API_ENDPOINTS = {
     `/backlog/${kind}/${name}/review/${round}/request/${threadId}/dismiss`,
   executionTriggerReviewAgent: (executionId: string) =>
     `/execution/${executionId}/trigger-review-agent`,
+  // Embedded service endpoints (served at origin root, not under /api/v1)
+  embeddedExternalUrl: (serviceName: string) =>
+    `/embedded/${encodeURIComponent(serviceName)}/external-url`,
 } as const;
 
 /**

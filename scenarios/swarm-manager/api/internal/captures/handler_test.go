@@ -374,7 +374,10 @@ func TestLoadCapture_MergesClassification(t *testing.T) {
 
 // mockBacklogCreator implements BacklogItemCreator for tests.
 type mockBacklogCreator struct {
-	items []struct{ kind, name, title, description string; tags []string }
+	items []struct {
+		kind, name, title, description string
+		tags                           []string
+	}
 }
 
 func (m *mockBacklogCreator) ItemDir(kind, name string) string {
@@ -382,7 +385,10 @@ func (m *mockBacklogCreator) ItemDir(kind, name string) string {
 }
 
 func (m *mockBacklogCreator) SaveItem(kind, name, title, description string, tags []string) error {
-	m.items = append(m.items, struct{ kind, name, title, description string; tags []string }{kind, name, title, description, tags})
+	m.items = append(m.items, struct {
+		kind, name, title, description string
+		tags                           []string
+	}{kind, name, title, description, tags})
 	return nil
 }
 

@@ -1,7 +1,7 @@
 package backlog
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -156,7 +156,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 		// Parent dir may not exist for the first item of this kind — ensure it, then retry.
 		if mkErr := os.MkdirAll(filepath.Dir(itemDir), 0o755); mkErr != nil {
-			log.Printf("[backlog] create: failed to create parent directory for %q: %v", name, mkErr)
+			slog.Error("failed to create parent directory", "name", name, "err", mkErr)
 			apierr.MapError(w, "[backlog] create", apierr.Internal("failed to create backlog directory"))
 			return
 		}
@@ -165,7 +165,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 				apierr.MapError(w, "[backlog] create", apierr.Conflict("backlog item already exists"))
 				return
 			}
-			log.Printf("[backlog] create: failed to create directory for %q: %v", name, retryErr)
+			slog.Error("failed to create directory", "name", name, "err", retryErr)
 			apierr.MapError(w, "[backlog] create", apierr.Internal("failed to create backlog directory"))
 			return
 		}
@@ -187,7 +187,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.store.SaveItem(item); err != nil {
 		_ = os.RemoveAll(itemDir)
-		log.Printf("[backlog] create: failed to save %q: %v", name, err)
+		slog.Error("failed to save item", "name", name, "err", err)
 		apierr.MapError(w, "[backlog] create", apierr.Internal("failed to save backlog item"))
 		return
 	}
@@ -195,7 +195,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	// Auto-initialize workshop for new items (unless disabled in settings or blocked by deps).
 	h.maybeAutoWorkshop(item, false)
 
-	log.Printf("[backlog] created: %q (kind=%s, priority=%d, status=%s)", name, kind, priority, StatusBacklog)
+	slog.Info("item created", "name", name, "kind", kind, "priority", priority, "status", StatusBacklog)
 	if h.eventLogger != nil {
 		h.eventLogger.EmitBacklogCreated(string(kind)+"/"+name, string(kind), string(StatusBacklog), priority, item.Initiative, item.Effort)
 	}
@@ -212,7 +212,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) maybeAutoWorkshop(item BacklogItem, forceOverride bool) {
 	cfg, err := settings.NewStore("").Load()
 	if err != nil {
-		log.Printf("[backlog] auto-workshop: settings load error for %s/%s: %v, using defaults", item.Kind, item.Name, err)
+		slog.Warn("auto-workshop settings load error, using defaults", "kind", item.Kind, "name", item.Name, "err", err)
 		cfg = settings.DefaultSettings()
 	}
 	if !workshop.ShouldAutoInitialize(cfg.AutoInitializeWorkshop) {
@@ -221,11 +221,11 @@ func (h *Handler) maybeAutoWorkshop(item BacklogItem, forceOverride bool) {
 	if !forceOverride && len(item.DependsOn) > 0 {
 		depStatuses, err := h.store.CheckWorkshopDependencies(item.DependsOn)
 		if err != nil {
-			log.Printf("[backlog] auto-workshop: dep check error for %s/%s: %v, proceeding anyway", item.Kind, item.Name, err)
+			slog.Warn("auto-workshop dep check error, proceeding anyway", "kind", item.Kind, "name", item.Name, "err", err)
 		} else {
 			result := workshop.CheckWorkshopDependencies(depStatuses)
 			if result.Blocked {
-				log.Printf("[backlog] auto-workshop: blocked for %s/%s by deps: %v", item.Kind, item.Name, result.BlockingDeps)
+				slog.Info("auto-workshop blocked by deps", "kind", item.Kind, "name", item.Name, "blocking_deps", result.BlockingDeps)
 				return
 			}
 		}
@@ -233,7 +233,7 @@ func (h *Handler) maybeAutoWorkshop(item BacklogItem, forceOverride bool) {
 	go func() {
 		_, _, spawnErr := h.spawnWorkshopAsync(item, ResearchModeInitialize)
 		if spawnErr != nil {
-			log.Printf("[backlog] auto-init: failed for %s/%s: %v", item.Kind, item.Name, spawnErr)
+			slog.Error("auto-init failed", "kind", item.Kind, "name", item.Name, "err", spawnErr)
 		}
 	}()
 }
@@ -247,7 +247,7 @@ func (h *Handler) cascadeWorkshopTrigger(readyItem BacklogItem) {
 
 	allItems, err := h.store.LoadAll(nil)
 	if err != nil {
-		log.Printf("[backlog] cascade: failed to load items: %v", err)
+		slog.Error("cascade failed to load items", "err", err)
 		return
 	}
 
@@ -268,7 +268,7 @@ func (h *Handler) cascadeWorkshopTrigger(readyItem BacklogItem) {
 
 		depStatuses, err := h.store.CheckWorkshopDependencies(item.DependsOn)
 		if err != nil {
-			log.Printf("[backlog] cascade: dep check failed for %s/%s: %v", item.Kind, item.Name, err)
+			slog.Warn("cascade dep check failed", "kind", item.Kind, "name", item.Name, "err", err)
 			continue
 		}
 		result := workshop.CheckWorkshopDependencies(depStatuses)
@@ -282,11 +282,11 @@ func (h *Handler) cascadeWorkshopTrigger(readyItem BacklogItem) {
 			continue
 		}
 
-		log.Printf("[backlog] cascade: triggering workshop for %s/%s (unblocked by %s)", item.Kind, item.Name, readyKey)
+		slog.Info("cascade triggering workshop", "kind", item.Kind, "name", item.Name, "unblocked_by", readyKey)
 		go func(it BacklogItem) {
 			_, _, spawnErr := h.spawnWorkshopAsync(it, ResearchModeInitialize)
 			if spawnErr != nil {
-				log.Printf("[backlog] cascade: failed for %s/%s: %v", it.Kind, it.Name, spawnErr)
+				slog.Error("cascade workshop spawn failed", "kind", it.Kind, "name", it.Name, "err", spawnErr)
 			}
 		}(item)
 	}

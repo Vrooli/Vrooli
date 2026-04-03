@@ -51,11 +51,11 @@ func (s *Service) SetGovernanceProvider(gp GovernanceProvider) {
 
 // OverviewResponse is the top-level payload returned by GetOverview.
 type OverviewResponse struct {
-	Items           []backlog.BacklogItem                   `json:"items"`
-	Initiatives     []initiatives.InitiativeWithRollup      `json:"initiatives"`
-	DependencyGraph DependencyGraph                         `json:"dependency_graph"`
-	Summary         OverviewSummary                         `json:"summary"`
-	Governance      *execution.GovernanceStatusResponse      `json:"governance,omitempty"`
+	Items           []backlog.BacklogItem               `json:"items"`
+	Initiatives     []initiatives.InitiativeWithRollup  `json:"initiatives"`
+	DependencyGraph DependencyGraph                     `json:"dependency_graph"`
+	Summary         OverviewSummary                     `json:"summary"`
+	Governance      *execution.GovernanceStatusResponse `json:"governance,omitempty"`
 }
 
 // DependencyGraph captures the edges and reachability status of backlog items.

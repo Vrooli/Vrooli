@@ -137,7 +137,7 @@ describe("EvidenceRequestPanel", () => {
 
     // Open panel with an existing thread.
     useReviewStore.getState().openRequestPanel(1);
-    useReviewStore.getState().setActiveThread(mockRound.request_threads![0] ?? null);
+    useReviewStore.getState().setActiveThread(mockRound.request_threads?.[0] ?? null);
 
     const { onAction } = renderPanel();
 
@@ -156,7 +156,7 @@ describe("EvidenceRequestPanel", () => {
     mockDismissRequest.mockResolvedValue(undefined);
 
     useReviewStore.getState().openRequestPanel(1);
-    useReviewStore.getState().setActiveThread(mockRound.request_threads![0] ?? null);
+    useReviewStore.getState().setActiveThread(mockRound.request_threads?.[0] ?? null);
 
     const { onAction } = renderPanel();
 

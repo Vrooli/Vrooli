@@ -16,8 +16,8 @@ describe("MediaLightbox", () => {
     );
     const video = screen.getByTestId("media-lightbox").querySelector("video");
     expect(video).toBeTruthy();
-    expect(video!.getAttribute("src")).toBe("/video.webm");
-    expect(video!.hasAttribute("controls")).toBe(true);
+    expect((video as HTMLVideoElement).getAttribute("src")).toBe("/video.webm");
+    expect((video as HTMLVideoElement).hasAttribute("controls")).toBe(true);
   });
 
   it("renders img element when type is image", () => {

@@ -161,4 +161,3 @@ func specFromContext(ctx context.Context) (Spec, error) {
 	}
 	return spec.normalized()
 }
-

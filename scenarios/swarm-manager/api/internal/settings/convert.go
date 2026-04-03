@@ -1,0 +1,186 @@
+package settings
+
+import (
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
+)
+
+func settingsToProto(s Settings) *domainpb.Settings {
+	return &domainpb.Settings{
+		Theme:                         s.Theme,
+		DefaultMode:                   s.DefaultMode,
+		AutoFixup:                     s.AutoFixup,
+		MaxFixupAttempts:              int32(s.MaxFixupAttempts),
+		ReviewAgentEnabled:            s.ReviewAgentEnabled,
+		MaxAutoRounds:                 int32(s.MaxAutoRounds),
+		AutoInitializeWorkshop:        s.AutoInitializeWorkshop,
+		AutoAdvanceWorkshop:           s.AutoAdvanceWorkshop,
+		AutoCascadeWorkshop:           s.AutoCascadeWorkshop,
+		AgentMaxTurns:                 int32(s.AgentMaxTurns),
+		AgentTimeoutSeconds:           int32(s.AgentTimeoutSeconds),
+		AgentRequiresApproval:         s.AgentRequiresApproval,
+		SearchDebounceMs:              int32(s.SearchDebounceMs),
+		ToastDurationMs:               int32(s.ToastDurationMs),
+		ConfirmDestructiveActions:     s.ConfirmDestructiveActions,
+		ReviewCodeQualityMinScore:     s.ReviewCodeQualityMinScore,
+		ReviewTestMinPassRate:         s.ReviewTestMinPassRate,
+		ReviewMaxBlockingViolations:   int32(s.ReviewMaxBlockingViolations),
+		ReviewMaxWarnings:             int32(s.ReviewMaxWarnings),
+		ReviewRequireScreenshots:      s.ReviewRequireScreenshots,
+		ReviewRequireTests:            s.ReviewRequireTests,
+		MaxConcurrentExecutions:       int32(s.MaxConcurrentExecutions),
+		MaxQueueDepth:                 int32(s.MaxQueueDepth),
+		CircuitBreakerThreshold:       int32(s.CircuitBreakerThreshold),
+		CircuitBreakerCooldownMinutes: int32(s.CircuitBreakerCooldownMinutes),
+		ExecutionCostCapPerRun:        s.ExecutionCostCapPerRun,
+		CostPerTurnEstimate:           s.CostPerTurnEstimate,
+	}
+}
+
+func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
+	patch := SettingsPatch{}
+	if req == nil {
+		return patch
+	}
+	if req.Theme != nil {
+		patch.Theme = req.Theme
+	}
+	if req.DefaultMode != nil {
+		s := *req.DefaultMode
+		patch.DefaultMode = &s
+	}
+	if req.AutoFixup != nil {
+		v := *req.AutoFixup
+		patch.AutoFixup = &v
+	}
+	if req.MaxFixupAttempts != nil {
+		v := int(*req.MaxFixupAttempts)
+		patch.MaxFixupAttempts = &v
+	}
+	if req.ReviewAgentEnabled != nil {
+		v := *req.ReviewAgentEnabled
+		patch.ReviewAgentEnabled = &v
+	}
+	if req.MaxAutoRounds != nil {
+		v := int(*req.MaxAutoRounds)
+		patch.MaxAutoRounds = &v
+	}
+	if req.AutoInitializeWorkshop != nil {
+		v := *req.AutoInitializeWorkshop
+		patch.AutoInitializeWorkshop = &v
+	}
+	if req.AutoAdvanceWorkshop != nil {
+		v := *req.AutoAdvanceWorkshop
+		patch.AutoAdvanceWorkshop = &v
+	}
+	if req.AutoCascadeWorkshop != nil {
+		v := *req.AutoCascadeWorkshop
+		patch.AutoCascadeWorkshop = &v
+	}
+	if req.AgentMaxTurns != nil {
+		v := int(*req.AgentMaxTurns)
+		patch.AgentMaxTurns = &v
+	}
+	if req.AgentTimeoutSeconds != nil {
+		v := int(*req.AgentTimeoutSeconds)
+		patch.AgentTimeoutSeconds = &v
+	}
+	if req.AgentRequiresApproval != nil {
+		v := *req.AgentRequiresApproval
+		patch.AgentRequiresApproval = &v
+	}
+	if req.SearchDebounceMs != nil {
+		v := int(*req.SearchDebounceMs)
+		patch.SearchDebounceMs = &v
+	}
+	if req.ToastDurationMs != nil {
+		v := int(*req.ToastDurationMs)
+		patch.ToastDurationMs = &v
+	}
+	if req.ConfirmDestructiveActions != nil {
+		v := *req.ConfirmDestructiveActions
+		patch.ConfirmDestructiveActions = &v
+	}
+	if req.ReviewCodeQualityMinScore != nil {
+		v := *req.ReviewCodeQualityMinScore
+		patch.ReviewCodeQualityMinScore = &v
+	}
+	if req.ReviewTestMinPassRate != nil {
+		v := *req.ReviewTestMinPassRate
+		patch.ReviewTestMinPassRate = &v
+	}
+	if req.ReviewMaxBlockingViolations != nil {
+		v := int(*req.ReviewMaxBlockingViolations)
+		patch.ReviewMaxBlockingViolations = &v
+	}
+	if req.ReviewMaxWarnings != nil {
+		v := int(*req.ReviewMaxWarnings)
+		patch.ReviewMaxWarnings = &v
+	}
+	if req.ReviewRequireScreenshots != nil {
+		v := *req.ReviewRequireScreenshots
+		patch.ReviewRequireScreenshots = &v
+	}
+	if req.ReviewRequireTests != nil {
+		v := *req.ReviewRequireTests
+		patch.ReviewRequireTests = &v
+	}
+	if req.MaxConcurrentExecutions != nil {
+		v := int(*req.MaxConcurrentExecutions)
+		patch.MaxConcurrentExecutions = &v
+	}
+	if req.MaxQueueDepth != nil {
+		v := int(*req.MaxQueueDepth)
+		patch.MaxQueueDepth = &v
+	}
+	if req.CircuitBreakerThreshold != nil {
+		v := int(*req.CircuitBreakerThreshold)
+		patch.CircuitBreakerThreshold = &v
+	}
+	if req.CircuitBreakerCooldownMinutes != nil {
+		v := int(*req.CircuitBreakerCooldownMinutes)
+		patch.CircuitBreakerCooldownMinutes = &v
+	}
+	if req.ExecutionCostCapPerRun != nil {
+		v := *req.ExecutionCostCapPerRun
+		patch.ExecutionCostCapPerRun = &v
+	}
+	if req.CostPerTurnEstimate != nil {
+		v := *req.CostPerTurnEstimate
+		patch.CostPerTurnEstimate = &v
+	}
+	return patch
+}
+
+func isEmptyUpdateSettingsRequest(req *apipb.UpdateSettingsRequest) bool {
+	if req == nil {
+		return true
+	}
+	return req.Theme == nil &&
+		req.DefaultMode == nil &&
+		req.AutoFixup == nil &&
+		req.MaxFixupAttempts == nil &&
+		req.ReviewAgentEnabled == nil &&
+		req.MaxAutoRounds == nil &&
+		req.AutoInitializeWorkshop == nil &&
+		req.AutoAdvanceWorkshop == nil &&
+		req.AutoCascadeWorkshop == nil &&
+		req.AgentMaxTurns == nil &&
+		req.AgentTimeoutSeconds == nil &&
+		req.AgentRequiresApproval == nil &&
+		req.SearchDebounceMs == nil &&
+		req.ToastDurationMs == nil &&
+		req.ConfirmDestructiveActions == nil &&
+		req.ReviewCodeQualityMinScore == nil &&
+		req.ReviewTestMinPassRate == nil &&
+		req.ReviewMaxBlockingViolations == nil &&
+		req.ReviewMaxWarnings == nil &&
+		req.ReviewRequireScreenshots == nil &&
+		req.ReviewRequireTests == nil &&
+		req.MaxConcurrentExecutions == nil &&
+		req.MaxQueueDepth == nil &&
+		req.CircuitBreakerThreshold == nil &&
+		req.CircuitBreakerCooldownMinutes == nil &&
+		req.ExecutionCostCapPerRun == nil &&
+		req.CostPerTurnEstimate == nil
+}

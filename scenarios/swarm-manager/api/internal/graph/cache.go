@@ -2,7 +2,7 @@ package graph
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 )
@@ -111,9 +111,9 @@ func (c *ProjectionCache) Project(ctx context.Context, params ProjectionParams) 
 	}
 
 	if params.FocusNodeID != "" {
-		log.Printf("[graph] built %s graph (focus=%s) in %s", params.Lens, params.FocusNodeID, c.now().Sub(startedAt))
+		slog.Info("built graph", "lens", params.Lens, "focus", params.FocusNodeID, "duration", c.now().Sub(startedAt))
 	} else {
-		log.Printf("[graph] built %s graph in %s", params.Lens, c.now().Sub(startedAt))
+		slog.Info("built graph", "lens", params.Lens, "duration", c.now().Sub(startedAt))
 	}
 	return response, nil
 }
@@ -157,6 +157,6 @@ func (c *ProjectionCache) staleOrError(key cacheKey, buildErr error) (GraphRespo
 		return GraphResponse{}, buildErr
 	}
 
-	log.Printf("[graph] serving stale %s graph after rebuild error: %v", key.Lens, buildErr)
+	slog.Warn("serving stale graph after rebuild error", "lens", key.Lens, "error", buildErr)
 	return entry.response, nil
 }

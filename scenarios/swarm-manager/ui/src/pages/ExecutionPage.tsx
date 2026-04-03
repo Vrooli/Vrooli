@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { X } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { InlineLoadingIndicator } from "../components/ui/loading-states";
-import { ExecutionFilters } from "../components/execution/ExecutionFilters";
 import { ExecutionListView } from "../components/execution/ExecutionListView";
 import { ExecutionToolbar } from "../components/execution/ExecutionToolbar";
 import { FollowUpSheet } from "../components/review/follow-up-sheet";
@@ -15,23 +14,14 @@ import {
   matchesExecutionFilters,
   type ExecutionTabId,
 } from "../lib";
-import { executionService, promptService } from "../services";
+import { agentManagerService, executionService, promptService } from "../services";
 import { gctService } from "../services/gct-service";
+import { useEmbeddedServiceUrl } from "../hooks/useEmbeddedServiceUrl";
 import { useStorePolling } from "../hooks/useStorePolling";
 import { useExecutionStore } from "../stores";
 import type { ExecutionMode, ExecutionRecord, ExecutionStatus, PromptTrace } from "../types";
 
 const AUTO_REFRESH_MS = 6000;
-
-type AgentManagerRunLookup = { run?: { sandboxId?: string } };
-
-function parseAgentManagerRunLookup(value: unknown): AgentManagerRunLookup | null {
-  if (typeof value !== "object" || value === null) return null;
-  const candidate = value as { run?: unknown };
-  if (typeof candidate.run !== "object" || candidate.run === null) return {};
-  const run = candidate.run as { sandboxId?: unknown };
-  return { run: typeof run.sandboxId === "string" ? { sandboxId: run.sandboxId } : {} };
-}
 
 export function ExecutionPage() {
   const { items, status, error, isRefreshing, fetchExecutions, upsertExecution } = useExecutionStore();
@@ -70,23 +60,10 @@ export function ExecutionPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [traceByExecutionId, setTraceByExecutionId] = useState<Record<string, PromptTrace>>({});
   const [traceLoadingId, setTraceLoadingId] = useState<string | null>(null);
-  const [agentManagerUiUrl, setAgentManagerUiUrl] = useState<string | null>(null);
+  const { url: agentManagerUiUrl } = useEmbeddedServiceUrl("agent-manager");
   const [followUpTarget, setFollowUpTarget] = useState<ExecutionRecord | null>(null);
-  const [workspaceSandboxBaseUrl, setWorkspaceSandboxBaseUrl] = useState<string | null>(null);
+  const { url: workspaceSandboxBaseUrl } = useEmbeddedServiceUrl("workspace-sandbox");
   const [gctAvailable, setGctAvailable] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`/embedded/${encodeURIComponent("agent-manager")}/external-url`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: { url?: string } | null) => { if (!cancelled && data?.url) setAgentManagerUiUrl(data.url); })
-      .catch(() => {});
-    fetch(`/embedded/${encodeURIComponent("workspace-sandbox")}/external-url`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: { url?: string } | null) => { if (!cancelled && data?.url) setWorkspaceSandboxBaseUrl(data.url); })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, []);
 
   useStorePolling({ enabled: true, intervalMs: AUTO_REFRESH_MS, pollFn: () => void fetchExecutions({ force: true }), immediate: true });
   useStorePolling({ enabled: true, intervalMs: 30_000, pollFn: () => void gctService.getStatus().then((s) => setGctAvailable(s.available)), immediate: true });
@@ -166,11 +143,8 @@ export function ExecutionPage() {
     if (!exec?.runId) return;
     const baseUrl = workspaceSandboxBaseUrl ?? `/embedded/workspace-sandbox/`;
     try {
-      const runResp = await fetch(`/api/v1/agent-manager/runs/${encodeURIComponent(exec.runId)}`);
-      const rawRunData: unknown = runResp.ok ? await runResp.json() : null;
-      const runData = parseAgentManagerRunLookup(rawRunData);
-      const sandboxId = runData?.run?.sandboxId;
-      if (sandboxId) window.open(`${baseUrl.replace(/\/$/, "")}?sandbox=${sandboxId}&review=true`, "_blank");
+      const details = await agentManagerService.getRunDetails(exec.runId);
+      if (details.sandboxId) window.open(`${baseUrl.replace(/\/$/, "")}?sandbox=${details.sandboxId}&review=true`, "_blank");
       else window.open(baseUrl, "_blank");
     } catch { window.open(baseUrl, "_blank"); }
   };

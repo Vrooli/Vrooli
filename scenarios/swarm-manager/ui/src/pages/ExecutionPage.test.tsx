@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { ExecutionPage } from "./ExecutionPage";
 import { useExecutionStore } from "../stores";
@@ -16,12 +17,26 @@ vi.mock("../services", () => ({
   promptService: {
     getExecutionPromptTrace: vi.fn(),
   },
+  agentManagerService: {
+    getStatus: vi.fn().mockResolvedValue({ available: false }),
+  },
+  embeddedService: {
+    getExternalUrl: vi.fn().mockResolvedValue(null),
+  },
+}));
+
+vi.mock("../services/gct-service", () => ({
+  gctService: {
+    getStatus: vi.fn().mockResolvedValue({ available: false }),
+  },
 }));
 
 import { executionService, promptService } from "../services";
 import type { PromptTrace } from "../types";
 
 describe("ExecutionPage", () => {
+  let queryClient: QueryClient;
+
   const mockPromptTrace: PromptTrace = {
     purpose: "Execution trace",
     prompt: "Execution prompt",
@@ -32,17 +47,25 @@ describe("ExecutionPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useExecutionStore.getState().reset();
+    queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
     vi.mocked(promptService.getExecutionPromptTrace).mockResolvedValue(mockPromptTrace);
   });
 
   afterEach(() => {
     useExecutionStore.getState().reset();
+    queryClient.clear();
   });
 
   it("renders the execution page with tabs and controls", async () => {
     vi.mocked(executionService.list).mockResolvedValue([]);
 
-    render(<MemoryRouter><ExecutionPage /></MemoryRouter>);
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter><ExecutionPage /></MemoryRouter>
+      </QueryClientProvider>,
+    );
 
     expect(screen.getByTestId("execution-page")).toBeInTheDocument();
     expect(screen.getByTestId("execution-tabs")).toBeInTheDocument();
@@ -71,7 +94,11 @@ describe("ExecutionPage", () => {
       },
     ]);
 
-    render(<MemoryRouter><ExecutionPage /></MemoryRouter>);
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter><ExecutionPage /></MemoryRouter>
+      </QueryClientProvider>,
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId("execution-grid")).toBeInTheDocument();

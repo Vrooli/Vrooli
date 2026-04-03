@@ -56,7 +56,7 @@ export function ExecutionListView({
   onFetchRetry,
   onClearFilters,
 }: ExecutionListViewProps) {
-  const renderCard = (item: ExecutionRecord, extraClasses?: string) => (
+  const renderCard = (item: ExecutionRecord, _extraClasses?: string) => (
     <ExecutionCard
       item={item}
       isBusy={busyId === item.executionId}

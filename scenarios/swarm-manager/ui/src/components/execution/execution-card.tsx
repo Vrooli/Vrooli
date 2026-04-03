@@ -57,7 +57,7 @@ export function ExecutionCard({
   onViewTrace,
   onViewBacklog,
   onFollowUp,
-  onOpenReviewSandbox,
+  onOpenReviewSandbox: _onOpenReviewSandbox,
   onTriggerReview,
   trace,
   traceLoading = false,

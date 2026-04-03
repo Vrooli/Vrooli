@@ -52,10 +52,10 @@ describe("resolvePostRunExecution", () => {
     const exec = makeExecution({ status: "validating" });
     const result = resolvePostRunExecution(exec);
     expect(result).not.toBeNull();
-    expect(result!.finalization).toBeDefined();
-    expect(result!.finalization!.status).toBe("running");
-    expect(result!.finalization!.phase).toBe("scope_detection");
-    expect(result!.executionId).toBe("exec-1");
+    expect(result?.finalization).toBeDefined();
+    expect(result?.finalization?.status).toBe("running");
+    expect(result?.finalization?.phase).toBe("scope_detection");
+    expect(result?.executionId).toBe("exec-1");
   });
 
   it("returns null for completed execution without finalization", () => {
@@ -83,7 +83,7 @@ describe("resolvePostRunExecution", () => {
     const exec = makeExecution({ status: "validating", finalization });
     const result = resolvePostRunExecution(exec);
     expect(result).toBe(exec);
-    expect(result!.finalization!.status).toBe("failed");
+    expect(result?.finalization?.status).toBe("failed");
   });
 
   it("does not mutate the original execution", () => {
@@ -161,7 +161,7 @@ describe("getExecutionReviewResults", () => {
     });
     const results = getExecutionReviewResults(exec);
     expect(results).toHaveLength(1);
-    expect(results[0]!.classification).toBe("needs_work");
+    expect(results[0]?.classification).toBe("needs_work");
   });
 
   it("skips scenarios without review results", () => {

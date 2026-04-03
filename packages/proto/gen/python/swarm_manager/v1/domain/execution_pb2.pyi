@@ -183,12 +183,98 @@ class ScenarioReview(_message.Message):
     result: ReviewResult
     def __init__(self, status: _Optional[str] = ..., job_id: _Optional[str] = ..., skip_reason: _Optional[str] = ..., result: _Optional[_Union[ReviewResult, _Mapping]] = ...) -> None: ...
 
+class EvidenceItem(_message.Message):
+    __slots__ = ("id", "type", "title", "description", "capture_path", "verified", "verified_at", "before_capture_path", "test_results")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    CAPTURE_PATH_FIELD_NUMBER: _ClassVar[int]
+    VERIFIED_FIELD_NUMBER: _ClassVar[int]
+    VERIFIED_AT_FIELD_NUMBER: _ClassVar[int]
+    BEFORE_CAPTURE_PATH_FIELD_NUMBER: _ClassVar[int]
+    TEST_RESULTS_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    type: str
+    title: str
+    description: str
+    capture_path: str
+    verified: bool
+    verified_at: str
+    before_capture_path: str
+    test_results: _containers.RepeatedCompositeFieldContainer[EvidenceTestResult]
+    def __init__(self, id: _Optional[str] = ..., type: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., capture_path: _Optional[str] = ..., verified: _Optional[bool] = ..., verified_at: _Optional[str] = ..., before_capture_path: _Optional[str] = ..., test_results: _Optional[_Iterable[_Union[EvidenceTestResult, _Mapping]]] = ...) -> None: ...
+
+class EvidenceTestResult(_message.Message):
+    __slots__ = ("name", "passed", "output_summary")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    PASSED_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    passed: bool
+    output_summary: str
+    def __init__(self, name: _Optional[str] = ..., passed: _Optional[bool] = ..., output_summary: _Optional[str] = ...) -> None: ...
+
+class EvidenceRequestThread(_message.Message):
+    __slots__ = ("id", "evidence_id", "status", "messages", "created_at", "run_id")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGES_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    evidence_id: str
+    status: str
+    messages: _containers.RepeatedCompositeFieldContainer[EvidenceRequestMessage]
+    created_at: str
+    run_id: str
+    def __init__(self, id: _Optional[str] = ..., evidence_id: _Optional[str] = ..., status: _Optional[str] = ..., messages: _Optional[_Iterable[_Union[EvidenceRequestMessage, _Mapping]]] = ..., created_at: _Optional[str] = ..., run_id: _Optional[str] = ...) -> None: ...
+
+class EvidenceRequestMessage(_message.Message):
+    __slots__ = ("role", "content", "timestamp", "added_evidence_ids")
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_FIELD_NUMBER: _ClassVar[int]
+    TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    ADDED_EVIDENCE_IDS_FIELD_NUMBER: _ClassVar[int]
+    role: str
+    content: str
+    timestamp: str
+    added_evidence_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, role: _Optional[str] = ..., content: _Optional[str] = ..., timestamp: _Optional[str] = ..., added_evidence_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ReviewEvidenceRound(_message.Message):
+    __slots__ = ("round", "generated_at", "execution_id", "status", "agent_assessment", "classification", "notes", "evidence", "request_threads", "run_id")
+    ROUND_FIELD_NUMBER: _ClassVar[int]
+    GENERATED_AT_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    AGENT_ASSESSMENT_FIELD_NUMBER: _ClassVar[int]
+    CLASSIFICATION_FIELD_NUMBER: _ClassVar[int]
+    NOTES_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_THREADS_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    round: int
+    generated_at: str
+    execution_id: str
+    status: str
+    agent_assessment: str
+    classification: str
+    notes: _containers.RepeatedScalarFieldContainer[str]
+    evidence: _containers.RepeatedCompositeFieldContainer[EvidenceItem]
+    request_threads: _containers.RepeatedCompositeFieldContainer[EvidenceRequestThread]
+    run_id: str
+    def __init__(self, round: _Optional[int] = ..., generated_at: _Optional[str] = ..., execution_id: _Optional[str] = ..., status: _Optional[str] = ..., agent_assessment: _Optional[str] = ..., classification: _Optional[str] = ..., notes: _Optional[_Iterable[str]] = ..., evidence: _Optional[_Iterable[_Union[EvidenceItem, _Mapping]]] = ..., request_threads: _Optional[_Iterable[_Union[EvidenceRequestThread, _Mapping]]] = ..., run_id: _Optional[str] = ...) -> None: ...
+
 class ExecutionPolicy(_message.Message):
-    __slots__ = ("default_mode", "auto_fixup", "max_fixup_attempts")
+    __slots__ = ("default_mode", "auto_fixup", "max_fixup_attempts", "review_agent_enabled")
     DEFAULT_MODE_FIELD_NUMBER: _ClassVar[int]
     AUTO_FIXUP_FIELD_NUMBER: _ClassVar[int]
     MAX_FIXUP_ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
+    REVIEW_AGENT_ENABLED_FIELD_NUMBER: _ClassVar[int]
     default_mode: str
     auto_fixup: bool
     max_fixup_attempts: int
-    def __init__(self, default_mode: _Optional[str] = ..., auto_fixup: _Optional[bool] = ..., max_fixup_attempts: _Optional[int] = ...) -> None: ...
+    review_agent_enabled: bool
+    def __init__(self, default_mode: _Optional[str] = ..., auto_fixup: _Optional[bool] = ..., max_fixup_attempts: _Optional[int] = ..., review_agent_enabled: _Optional[bool] = ...) -> None: ...

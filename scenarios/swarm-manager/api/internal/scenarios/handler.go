@@ -15,7 +15,7 @@ package scenarios
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"sort"
@@ -26,6 +26,7 @@ import (
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/dispatch"
 	"swarm-manager/internal/httputil"
 )
 
@@ -68,7 +69,7 @@ type Handler struct {
 	lifecycle       Lifecycle
 	completeness    CompletenessSource
 	executionQueuer ExecutionQueuer
-	eventDispatcher EventDispatcher
+	eventDispatcher dispatch.NodeDispatcher
 }
 
 // NewHandler creates a new scenarios handler.
@@ -123,7 +124,7 @@ func (h *Handler) SetExecutionQueuer(eq ExecutionQueuer) {
 }
 
 // SetEventDispatcher sets an optional event dispatcher for real-time graph updates.
-func (h *Handler) SetEventDispatcher(d EventDispatcher) {
+func (h *Handler) SetEventDispatcher(d dispatch.NodeDispatcher) {
 	h.eventDispatcher = d
 }
 
@@ -199,7 +200,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	// Sort scenarios
 	h.sortScenarios(scenarios, sortField, sortOrder)
 
-	log.Printf("[scenarios] list: returning %d scenarios (search=%q, status=%q, tags=%q)", len(scenarios), search, status, tagsParam)
+	slog.Info("listing scenarios", "count", len(scenarios), "search", search, "status", status, "tags", tagsParam)
 	protoScenarios := make([]*domainpb.Scenario, 0, len(scenarios))
 	for _, scenario := range scenarios {
 		protoScenarios = append(protoScenarios, scenarioToProto(scenario))
@@ -365,7 +366,7 @@ func (h *Handler) UpdateMetadata(w http.ResponseWriter, r *http.Request) {
 	}
 	applyCompletenessScore(&scenario, h.getCompletenessScores(r.Context()))
 
-	log.Printf("[scenarios] updated: %q (isGreenfield=%v)", name, scenario.IsGreenfield)
+	slog.Info("scenario metadata updated", "scenario", name, "isGreenfield", scenario.IsGreenfield)
 	resp := &apipb.ScenarioResponse{Scenario: scenarioToProto(scenario)}
 	if err := httputil.ProtoJSON(w, resp); err != nil {
 		apierr.MapError(w, "[scenarios] update", apierr.Internal("failed to encode response"))

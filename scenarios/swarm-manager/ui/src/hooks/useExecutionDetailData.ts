@@ -66,7 +66,7 @@ export function useExecutionDetailData({
     refetch: refetchExec,
   } = useQuery({
     queryKey: ["execution", executionId],
-    queryFn: () => executionService.get(executionId!),
+    queryFn: () => executionService.get(executionId as string),
     enabled: !!executionId,
     ...defaultQueryOptions,
   });
@@ -74,7 +74,7 @@ export function useExecutionDetailData({
   // --- Prompt trace query ---
   const { data: trace, isLoading: isTraceLoading } = useQuery({
     queryKey: ["execution", executionId, "prompt-trace"],
-    queryFn: () => promptService.getExecutionPromptTrace(executionId!).catch(() => null),
+    queryFn: () => promptService.getExecutionPromptTrace(executionId as string).catch(() => null),
     enabled: !!executionId,
     ...defaultQueryOptions,
   });
@@ -84,7 +84,7 @@ export function useExecutionDetailData({
   const backlogName = execution?.backlogName;
   const { data: reviewRounds } = useQuery({
     queryKey: ["review-rounds", backlogKind, backlogName],
-    queryFn: () => reviewService.listRounds(backlogKind!, backlogName!),
+    queryFn: () => reviewService.listRounds(backlogKind as string, backlogName as string),
     enabled: !!backlogKind && !!backlogName,
     ...defaultQueryOptions,
   });
@@ -131,17 +131,17 @@ export function useExecutionDetailData({
   );
 
   const cancel = useCallback(
-    () => doAction(() => executionService.cancel(executionId!)),
+    () => doAction(() => executionService.cancel(executionId as string)),
     [doAction, executionId],
   );
 
   const retry = useCallback(
-    () => doAction(() => executionService.retry(executionId!)),
+    () => doAction(() => executionService.retry(executionId as string)),
     [doAction, executionId],
   );
 
   const triggerReviewAction = useCallback(
-    () => doAction(() => executionService.triggerReview(executionId!)),
+    () => doAction(() => executionService.triggerReview(executionId as string)),
     [doAction, executionId],
   );
 

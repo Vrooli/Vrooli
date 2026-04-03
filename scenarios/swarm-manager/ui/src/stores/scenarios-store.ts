@@ -1,7 +1,7 @@
-import { create } from "zustand";
 import { scenariosService } from "../services";
 import type { Scenario } from "../types";
-import { clearStorage, fetchWithRetry, loadFromStorage, saveToStorage, shouldRefetch, type LoadStatus, type StorePersistConfig } from "./store-utils";
+import { createCachedStore, type CachedStoreBase } from "./create-cached-store";
+import type { LoadStatus, StorePersistConfig } from "./store-utils";
 
 const PERSIST_CONFIG: StorePersistConfig = {
   key: "swarm-manager.scenarios.v1",
@@ -18,105 +18,60 @@ const sortScenarios = (items: Scenario[]): Scenario[] => {
   });
 };
 
-interface ScenariosStoreState {
+interface ScenariosStoreState extends CachedStoreBase {
   scenarios: Scenario[];
-  status: LoadStatus;
-  error: Error | null;
-  isRefreshing: boolean;
-  lastFetchedAt: number | null;
   fetchScenarios: (options?: { force?: boolean }) => Promise<void>;
   setScenarios: (scenarios: Scenario[]) => void;
   upsertScenario: (scenario: Scenario) => void;
   removeScenario: (name: string) => void;
-  reset: () => void;
 }
 
-const hydrated = loadFromStorage<Scenario[]>(PERSIST_CONFIG, []);
+const { useStore, initialState } = createCachedStore<Scenario, ScenariosStoreState>({
+  persist: PERSIST_CONFIG,
+  fetchFn: () => scenariosService.list(),
+  sortFn: sortScenarios,
+  errorMessage: "Unable to load scenarios.",
+  getItems: (state) => state.scenarios,
+  setItemsPartial: (scenarios) => ({ scenarios }) as Partial<ScenariosStoreState>,
+  actions: ({ doFetch, set, get, save, sortFn }) => ({
+    scenarios: [] as Scenario[], // placeholder; overridden by initialState spread
+
+    fetchScenarios: (options?: { force?: boolean }) => doFetch(options),
+
+    setScenarios: (scenarios: Scenario[]): void => {
+      const sorted = sortFn(scenarios);
+      set({ scenarios: sorted, status: "success", error: null } as Partial<ScenariosStoreState>);
+      save(sorted, get().lastFetchedAt ?? Date.now());
+    },
+
+    upsertScenario: (scenario: Scenario): void => {
+      set((state) => {
+        const next = state.scenarios.some((item) => item.name === scenario.name)
+          ? state.scenarios.map((item) => (item.name === scenario.name ? scenario : item))
+          : [...state.scenarios, scenario];
+
+        const sorted = sortFn(next);
+        save(sorted, state.lastFetchedAt ?? Date.now());
+        return { scenarios: sorted } as Partial<ScenariosStoreState>;
+      });
+    },
+
+    removeScenario: (name: string): void => {
+      set((state) => {
+        const next = state.scenarios.filter((scenario) => scenario.name !== name);
+        save(next, state.lastFetchedAt ?? Date.now());
+        return { scenarios: next } as Partial<ScenariosStoreState>;
+      });
+    },
+  }),
+});
 
 export const scenariosStoreInitialState = {
-  scenarios: hydrated.data,
-  status: (hydrated.data.length > 0 ? "success" : "idle") as LoadStatus,
-  error: null,
-  isRefreshing: false,
-  lastFetchedAt: hydrated.lastFetchedAt,
+  scenarios: initialState.scenarios as Scenario[],
+  status: initialState.status as LoadStatus,
+  error: initialState.error,
+  isRefreshing: initialState.isRefreshing,
+  lastFetchedAt: initialState.lastFetchedAt,
 };
 
-export const useScenariosStore = create<ScenariosStoreState>((set, get) => ({
-  ...scenariosStoreInitialState,
-
-  fetchScenarios: async ({ force = false } = {}): Promise<void> => {
-    const { status, scenarios, lastFetchedAt, isRefreshing } = get();
-
-    if (status === "loading" || isRefreshing) {
-      return;
-    }
-
-    if (!shouldRefetch({ lastFetchedAt, hasData: scenarios.length > 0, force })) {
-      return;
-    }
-
-    const hasData = scenarios.length > 0;
-
-    set({
-      status: hasData ? "success" : "loading",
-      isRefreshing: hasData,
-      error: null,
-    });
-
-    try {
-      const result = await fetchWithRetry(() => scenariosService.list());
-      const now = Date.now();
-      set({
-        scenarios: sortScenarios(result),
-        status: "success",
-        error: null,
-        isRefreshing: false,
-        lastFetchedAt: now,
-      });
-      saveToStorage(PERSIST_CONFIG, sortScenarios(result), now);
-    } catch (error) {
-      set({
-        error: error instanceof Error ? error : new Error("Unable to load scenarios."),
-        status: hasData ? "success" : "error",
-        isRefreshing: false,
-      });
-    }
-  },
-
-  setScenarios: (scenarios: Scenario[]): void => {
-    const sorted = sortScenarios(scenarios);
-    set({ scenarios: sorted, status: "success", error: null });
-    saveToStorage(PERSIST_CONFIG, sorted, get().lastFetchedAt ?? Date.now());
-  },
-
-  upsertScenario: (scenario: Scenario): void => {
-    set((state) => {
-      const next = state.scenarios.some((item) => item.name === scenario.name)
-        ? state.scenarios.map((item) => (item.name === scenario.name ? scenario : item))
-        : [...state.scenarios, scenario];
-
-      const sorted = sortScenarios(next);
-      saveToStorage(PERSIST_CONFIG, sorted, state.lastFetchedAt ?? Date.now());
-      return { scenarios: sorted };
-    });
-  },
-
-  removeScenario: (name: string): void => {
-    set((state) => {
-      const next = state.scenarios.filter((scenario) => scenario.name !== name);
-      saveToStorage(PERSIST_CONFIG, next, state.lastFetchedAt ?? Date.now());
-      return { scenarios: next };
-    });
-  },
-
-  reset: () => {
-    clearStorage(PERSIST_CONFIG.key);
-    set({
-      scenarios: [],
-      status: "idle" as LoadStatus,
-      error: null,
-      isRefreshing: false,
-      lastFetchedAt: null,
-    });
-  },
-}));
+export const useScenariosStore = useStore;

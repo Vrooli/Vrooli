@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
@@ -130,7 +130,7 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 
 		// At capacity: leave as pending for the poller to drain later.
 		if errors.Is(startErr, errAtCapacity) {
-			log.Printf("[execution] at capacity (%s); leaving %s as pending", record.ExecutionID, itemKey)
+			slog.Info("at capacity, leaving as pending", "execution_id", record.ExecutionID, "item_key", itemKey)
 			s.dispatchStatusUpdate(record)
 			return record, nil
 		}
@@ -203,7 +203,7 @@ func (s *Service) QueueSpecSyncArchive(ctx context.Context, ac ArchiveContext) (
 	}
 	prompt, promptErr := s.promptClient.ReadSkill(ctx, specSyncEntry.SkillID, specSyncVars, false)
 	if promptErr != nil {
-		log.Printf("[execution] spec-sync prompt fetch failed: %v", promptErr)
+		slog.Warn("spec-sync prompt fetch failed, using fallback", "err", promptErr)
 		prompt = "Read the implementation code in this scenario and update all spec artifacts (PRD.md, requirements/, README.md, docs/) to match the actual behavior."
 	}
 	record.PromptTrace = &PromptTrace{

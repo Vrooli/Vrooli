@@ -850,7 +850,7 @@ describe("ScenarioDetailsPage", () => {
       });
 
       const startButtons = screen.getAllByTestId("scenario-details-start");
-      fireEvent.click(startButtons[0]!);
+      fireEvent.click(startButtons[0] as HTMLElement);
 
       await waitFor(() => {
         expect(scenariosService.start).toHaveBeenCalledWith("test-scenario");

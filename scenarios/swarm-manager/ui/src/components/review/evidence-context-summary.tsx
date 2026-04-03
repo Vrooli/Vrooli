@@ -26,7 +26,8 @@ export interface EvidenceContextSummaryProps {
 export function EvidenceContextSummary({ rounds }: EvidenceContextSummaryProps) {
   if (rounds.length === 0) return null;
 
-  const latest = rounds[rounds.length - 1]!;
+  const latest = rounds[rounds.length - 1];
+  if (!latest) return null;
   const classification = latest.classification;
   const isIssue = classification === "needs_work" || classification === "not_assessable";
 

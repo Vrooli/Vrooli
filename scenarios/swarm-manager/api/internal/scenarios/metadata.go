@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -95,7 +95,7 @@ func (h *Handler) loadScenarioFromSource(source ScenarioSource) (Scenario, error
 	// Load metadata for editable fields
 	metadata, metaExists, err := h.loadMetadata(scenarioPath)
 	if err != nil {
-		log.Printf("[scenarios] metadata: failed to load for %q: %v", name, err)
+		slog.Warn("failed to load metadata", "scenario", name, "error", err)
 		metadata = ScenarioMetadata{
 			IsGreenfield: false,
 		}
@@ -143,7 +143,7 @@ func (h *Handler) loadAllScenarios(ctx context.Context) ([]Scenario, error) {
 	for _, source := range sources {
 		scenario, err := h.loadScenarioFromSource(source)
 		if err != nil {
-			log.Printf("[scenarios] load: skipping %q due to error: %v", source.Name, err)
+			slog.Warn("skipping scenario due to load error", "scenario", source.Name, "error", err)
 			continue
 		}
 		applyCompletenessScore(&scenario, scores)
@@ -189,7 +189,7 @@ func (h *Handler) getCompletenessScores(ctx context.Context) map[string]int {
 	}
 	scores, err := h.completeness.Scores(ctx)
 	if err != nil {
-		log.Printf("[scenarios] completeness: failed to load scores: %v", err)
+		slog.Warn("failed to load completeness scores", "error", err)
 		return nil
 	}
 	return scores

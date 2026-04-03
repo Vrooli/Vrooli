@@ -14,10 +14,8 @@ import {
   Eye,
   Loader2,
   MessageSquarePlus,
-  CheckCircle2,
-  Circle,
 } from "lucide-react";
-import type { ReviewRound, EvidenceItem as EvidenceItemType } from "../../services/review-service";
+import type { ReviewRound } from "../../services/review-service";
 import { EvidenceItemCard } from "./evidence-item-card";
 
 export interface EvidencePanelProps {

@@ -6,16 +6,12 @@ import (
 	"time"
 
 	"swarm-manager/internal/backlog"
+	"swarm-manager/internal/dispatch"
 )
 
 // BacklogLoader loads individual backlog items for rollup computation.
 type BacklogLoader interface {
 	LoadItem(kind backlog.BacklogKind, name string) (backlog.BacklogItem, error)
-}
-
-// EventDispatcher emits graph invalidation events for graph projections.
-type EventDispatcher interface {
-	DispatchInvalidate(lenses ...string)
 }
 
 // EventLogger records initiative state-change events for analytics.
@@ -32,7 +28,7 @@ type EventLogger interface {
 type Service struct {
 	store           *Store
 	backlogLoader   BacklogLoader
-	eventDispatcher EventDispatcher
+	eventDispatcher dispatch.Invalidator
 	eventLogger     EventLogger
 }
 
@@ -45,7 +41,7 @@ func NewService(store *Store, backlogLoader BacklogLoader) *Service {
 }
 
 // SetEventDispatcher injects an optional graph invalidation dispatcher.
-func (s *Service) SetEventDispatcher(d EventDispatcher) {
+func (s *Service) SetEventDispatcher(d dispatch.Invalidator) {
 	s.eventDispatcher = d
 }
 

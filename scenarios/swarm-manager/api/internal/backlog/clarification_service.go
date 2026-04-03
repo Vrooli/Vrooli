@@ -10,7 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"mime"
 	"net/http"
 	"os"
@@ -115,12 +115,12 @@ func (h *Handler) buildClarificationPrompt(
 func (h *Handler) saveRound(itemDir string, round *workshop.Round) {
 	data, err := json.MarshalIndent(round, "", "  ")
 	if err != nil {
-		log.Printf("[backlog] saveRound: marshal error: %v", err)
+		slog.Error("saveRound marshal error", "err", err)
 		return
 	}
 	path := filepath.Join(itemDir, "workshop", fmt.Sprintf("round-%03d.json", round.RoundNum))
 	if err := os.WriteFile(path, data, 0o644); err != nil {
-		log.Printf("[backlog] saveRound: write error: %v", err)
+		slog.Error("saveRound write error", "err", err)
 	}
 }
 

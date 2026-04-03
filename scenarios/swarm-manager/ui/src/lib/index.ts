@@ -10,7 +10,6 @@ export {
   defaultApiClient as api,
   createApiClient,
   ApiClient,
-  DEFAULT_API_BASE,
 } from "./api-client";
 export type { IApiClient } from "./api-client";
 
@@ -29,18 +28,15 @@ export { cn } from "./utils";
 export { capitalize, formatDisplayText, formatFileSize, getFileExtension, formatRelativeTime } from "./format-utils";
 
 // Dependency-Aware Sorting
-export { computeDepthMap, dependencyAwareSort, SORT_RESOLVED_STATUSES } from "./dependency-sort";
+export { dependencyAwareSort } from "./dependency-sort";
 
 // Backlog Utilities
 export { sanitizeBacklogName, parseTagsInput, tagsToInput } from "./backlog-utils";
 export {
   LOCKED_STATUSES,
-  QUEUEABLE_BACKLOG_STATUSES,
   TERMINAL_STATUSES,
   getBacklogNotQueueableReason,
-  getBlockingDepKeys,
   getItemActions,
-  hasBlockingDeps,
   isBacklogQueueable,
 } from "./backlog-queue-utils";
 export type { ActionContext, ItemActions, PrimaryCta } from "./backlog-queue-utils";

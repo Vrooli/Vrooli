@@ -945,6 +945,462 @@ func (x *ScenarioReview) GetResult() *ReviewResult {
 	return nil
 }
 
+// EvidenceItem represents a single piece of verification evidence gathered
+// by the review agent.
+type EvidenceItem struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Type: screenshot, api_test, cli_output, config_diff, workflow_recording, custom.
+	Type        string `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	Title       string `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	Description string `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	// Path relative to review/captures/ within the backlog item directory.
+	CapturePath *string `protobuf:"bytes,5,opt,name=capture_path,json=capturePath,proto3,oneof" json:"capture_path,omitempty"`
+	Verified    bool    `protobuf:"varint,6,opt,name=verified,proto3" json:"verified,omitempty"`
+	VerifiedAt  *string `protobuf:"bytes,7,opt,name=verified_at,json=verifiedAt,proto3,oneof" json:"verified_at,omitempty"`
+	// Before-state capture for comparison (future: populated from baseline).
+	BeforeCapturePath *string `protobuf:"bytes,8,opt,name=before_capture_path,json=beforeCapturePath,proto3,oneof" json:"before_capture_path,omitempty"`
+	// Structured test results (for api_test, cli_output types).
+	TestResults   []*EvidenceTestResult `protobuf:"bytes,9,rep,name=test_results,json=testResults,proto3" json:"test_results,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EvidenceItem) Reset() {
+	*x = EvidenceItem{}
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EvidenceItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EvidenceItem) ProtoMessage() {}
+
+func (x *EvidenceItem) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EvidenceItem.ProtoReflect.Descriptor instead.
+func (*EvidenceItem) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *EvidenceItem) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *EvidenceItem) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *EvidenceItem) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *EvidenceItem) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *EvidenceItem) GetCapturePath() string {
+	if x != nil && x.CapturePath != nil {
+		return *x.CapturePath
+	}
+	return ""
+}
+
+func (x *EvidenceItem) GetVerified() bool {
+	if x != nil {
+		return x.Verified
+	}
+	return false
+}
+
+func (x *EvidenceItem) GetVerifiedAt() string {
+	if x != nil && x.VerifiedAt != nil {
+		return *x.VerifiedAt
+	}
+	return ""
+}
+
+func (x *EvidenceItem) GetBeforeCapturePath() string {
+	if x != nil && x.BeforeCapturePath != nil {
+		return *x.BeforeCapturePath
+	}
+	return ""
+}
+
+func (x *EvidenceItem) GetTestResults() []*EvidenceTestResult {
+	if x != nil {
+		return x.TestResults
+	}
+	return nil
+}
+
+// EvidenceTestResult captures a structured test outcome within an evidence item.
+type EvidenceTestResult struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Passed        bool                   `protobuf:"varint,2,opt,name=passed,proto3" json:"passed,omitempty"`
+	OutputSummary *string                `protobuf:"bytes,3,opt,name=output_summary,json=outputSummary,proto3,oneof" json:"output_summary,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EvidenceTestResult) Reset() {
+	*x = EvidenceTestResult{}
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EvidenceTestResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EvidenceTestResult) ProtoMessage() {}
+
+func (x *EvidenceTestResult) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EvidenceTestResult.ProtoReflect.Descriptor instead.
+func (*EvidenceTestResult) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *EvidenceTestResult) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *EvidenceTestResult) GetPassed() bool {
+	if x != nil {
+		return x.Passed
+	}
+	return false
+}
+
+func (x *EvidenceTestResult) GetOutputSummary() string {
+	if x != nil && x.OutputSummary != nil {
+		return *x.OutputSummary
+	}
+	return ""
+}
+
+// EvidenceRequestThread captures a multi-turn conversation about needing
+// more evidence.
+type EvidenceRequestThread struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Which evidence item this request is about (optional).
+	EvidenceId *string `protobuf:"bytes,2,opt,name=evidence_id,json=evidenceId,proto3,oneof" json:"evidence_id,omitempty"`
+	// Status: pending, fulfilled, dismissed.
+	Status    string                    `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	Messages  []*EvidenceRequestMessage `protobuf:"bytes,4,rep,name=messages,proto3" json:"messages,omitempty"`
+	CreatedAt string                    `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// Agent-manager run ID for the targeted evidence request.
+	RunId         *string `protobuf:"bytes,6,opt,name=run_id,json=runId,proto3,oneof" json:"run_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EvidenceRequestThread) Reset() {
+	*x = EvidenceRequestThread{}
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EvidenceRequestThread) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EvidenceRequestThread) ProtoMessage() {}
+
+func (x *EvidenceRequestThread) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EvidenceRequestThread.ProtoReflect.Descriptor instead.
+func (*EvidenceRequestThread) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *EvidenceRequestThread) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *EvidenceRequestThread) GetEvidenceId() string {
+	if x != nil && x.EvidenceId != nil {
+		return *x.EvidenceId
+	}
+	return ""
+}
+
+func (x *EvidenceRequestThread) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *EvidenceRequestThread) GetMessages() []*EvidenceRequestMessage {
+	if x != nil {
+		return x.Messages
+	}
+	return nil
+}
+
+func (x *EvidenceRequestThread) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *EvidenceRequestThread) GetRunId() string {
+	if x != nil && x.RunId != nil {
+		return *x.RunId
+	}
+	return ""
+}
+
+// EvidenceRequestMessage is a single turn in an evidence request thread.
+type EvidenceRequestMessage struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Role: user, assistant.
+	Role      string `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
+	Content   string `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+	Timestamp string `protobuf:"bytes,3,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	// Evidence items added by this message.
+	AddedEvidenceIds []string `protobuf:"bytes,4,rep,name=added_evidence_ids,json=addedEvidenceIds,proto3" json:"added_evidence_ids,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *EvidenceRequestMessage) Reset() {
+	*x = EvidenceRequestMessage{}
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EvidenceRequestMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EvidenceRequestMessage) ProtoMessage() {}
+
+func (x *EvidenceRequestMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EvidenceRequestMessage.ProtoReflect.Descriptor instead.
+func (*EvidenceRequestMessage) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *EvidenceRequestMessage) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *EvidenceRequestMessage) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+func (x *EvidenceRequestMessage) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+func (x *EvidenceRequestMessage) GetAddedEvidenceIds() []string {
+	if x != nil {
+		return x.AddedEvidenceIds
+	}
+	return nil
+}
+
+// ReviewEvidenceRound captures one pass of evidence gathering by the
+// review agent.
+type ReviewEvidenceRound struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Round       int32                  `protobuf:"varint,1,opt,name=round,proto3" json:"round,omitempty"`
+	GeneratedAt string                 `protobuf:"bytes,2,opt,name=generated_at,json=generatedAt,proto3" json:"generated_at,omitempty"`
+	ExecutionId string                 `protobuf:"bytes,3,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	// Status: pending, gathering, complete, failed.
+	Status          string  `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	AgentAssessment *string `protobuf:"bytes,5,opt,name=agent_assessment,json=agentAssessment,proto3,oneof" json:"agent_assessment,omitempty"`
+	// Classification: ready, ready_with_notes, needs_work, not_assessable.
+	Classification *string                  `protobuf:"bytes,6,opt,name=classification,proto3,oneof" json:"classification,omitempty"`
+	Notes          []string                 `protobuf:"bytes,7,rep,name=notes,proto3" json:"notes,omitempty"`
+	Evidence       []*EvidenceItem          `protobuf:"bytes,8,rep,name=evidence,proto3" json:"evidence,omitempty"`
+	RequestThreads []*EvidenceRequestThread `protobuf:"bytes,9,rep,name=request_threads,json=requestThreads,proto3" json:"request_threads,omitempty"`
+	// Agent-manager run ID for the review agent session.
+	RunId         *string `protobuf:"bytes,10,opt,name=run_id,json=runId,proto3,oneof" json:"run_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReviewEvidenceRound) Reset() {
+	*x = ReviewEvidenceRound{}
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReviewEvidenceRound) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReviewEvidenceRound) ProtoMessage() {}
+
+func (x *ReviewEvidenceRound) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReviewEvidenceRound.ProtoReflect.Descriptor instead.
+func (*ReviewEvidenceRound) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ReviewEvidenceRound) GetRound() int32 {
+	if x != nil {
+		return x.Round
+	}
+	return 0
+}
+
+func (x *ReviewEvidenceRound) GetGeneratedAt() string {
+	if x != nil {
+		return x.GeneratedAt
+	}
+	return ""
+}
+
+func (x *ReviewEvidenceRound) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *ReviewEvidenceRound) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ReviewEvidenceRound) GetAgentAssessment() string {
+	if x != nil && x.AgentAssessment != nil {
+		return *x.AgentAssessment
+	}
+	return ""
+}
+
+func (x *ReviewEvidenceRound) GetClassification() string {
+	if x != nil && x.Classification != nil {
+		return *x.Classification
+	}
+	return ""
+}
+
+func (x *ReviewEvidenceRound) GetNotes() []string {
+	if x != nil {
+		return x.Notes
+	}
+	return nil
+}
+
+func (x *ReviewEvidenceRound) GetEvidence() []*EvidenceItem {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
+func (x *ReviewEvidenceRound) GetRequestThreads() []*EvidenceRequestThread {
+	if x != nil {
+		return x.RequestThreads
+	}
+	return nil
+}
+
+func (x *ReviewEvidenceRound) GetRunId() string {
+	if x != nil && x.RunId != nil {
+		return *x.RunId
+	}
+	return ""
+}
+
 // ExecutionPolicy controls default mode, delay, and auto-fixup behavior.
 type ExecutionPolicy struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
@@ -953,13 +1409,15 @@ type ExecutionPolicy struct {
 	AutoFixup bool `protobuf:"varint,3,opt,name=auto_fixup,json=autoFixup,proto3" json:"auto_fixup,omitempty"`
 	// Maximum number of automatic fixup attempts (0-5).
 	MaxFixupAttempts int32 `protobuf:"varint,4,opt,name=max_fixup_attempts,json=maxFixupAttempts,proto3" json:"max_fixup_attempts,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// When true, spawns a review agent after finalization to gather evidence.
+	ReviewAgentEnabled bool `protobuf:"varint,5,opt,name=review_agent_enabled,json=reviewAgentEnabled,proto3" json:"review_agent_enabled,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ExecutionPolicy) Reset() {
 	*x = ExecutionPolicy{}
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[10]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -971,7 +1429,7 @@ func (x *ExecutionPolicy) String() string {
 func (*ExecutionPolicy) ProtoMessage() {}
 
 func (x *ExecutionPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[10]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -984,7 +1442,7 @@ func (x *ExecutionPolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecutionPolicy.ProtoReflect.Descriptor instead.
 func (*ExecutionPolicy) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{10}
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ExecutionPolicy) GetDefaultMode() string {
@@ -1006,6 +1464,13 @@ func (x *ExecutionPolicy) GetMaxFixupAttempts() int32 {
 		return x.MaxFixupAttempts
 	}
 	return 0
+}
+
+func (x *ExecutionPolicy) GetReviewAgentEnabled() bool {
+	if x != nil {
+		return x.ReviewAgentEnabled
+	}
+	return false
 }
 
 var File_swarm_manager_v1_domain_execution_proto protoreflect.FileDescriptor
@@ -1141,12 +1606,63 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\x06result\x18\x04 \x01(\v2\x1e.swarm_manager.v1.ReviewResultH\x02R\x06result\x88\x01\x01B\t\n" +
 	"\a_job_idB\x0e\n" +
 	"\f_skip_reasonB\t\n" +
-	"\a_result\"\xa7\x01\n" +
+	"\a_result\"\x8b\x03\n" +
+	"\fEvidenceItem\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12\x14\n" +
+	"\x05title\x18\x03 \x01(\tR\x05title\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12&\n" +
+	"\fcapture_path\x18\x05 \x01(\tH\x00R\vcapturePath\x88\x01\x01\x12\x1a\n" +
+	"\bverified\x18\x06 \x01(\bR\bverified\x12$\n" +
+	"\vverified_at\x18\a \x01(\tH\x01R\n" +
+	"verifiedAt\x88\x01\x01\x123\n" +
+	"\x13before_capture_path\x18\b \x01(\tH\x02R\x11beforeCapturePath\x88\x01\x01\x12G\n" +
+	"\ftest_results\x18\t \x03(\v2$.swarm_manager.v1.EvidenceTestResultR\vtestResultsB\x0f\n" +
+	"\r_capture_pathB\x0e\n" +
+	"\f_verified_atB\x16\n" +
+	"\x14_before_capture_path\"\x7f\n" +
+	"\x12EvidenceTestResult\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
+	"\x06passed\x18\x02 \x01(\bR\x06passed\x12*\n" +
+	"\x0eoutput_summary\x18\x03 \x01(\tH\x00R\routputSummary\x88\x01\x01B\x11\n" +
+	"\x0f_output_summary\"\x81\x02\n" +
+	"\x15EvidenceRequestThread\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12$\n" +
+	"\vevidence_id\x18\x02 \x01(\tH\x00R\n" +
+	"evidenceId\x88\x01\x01\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12D\n" +
+	"\bmessages\x18\x04 \x03(\v2(.swarm_manager.v1.EvidenceRequestMessageR\bmessages\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x05 \x01(\tR\tcreatedAt\x12\x1a\n" +
+	"\x06run_id\x18\x06 \x01(\tH\x01R\x05runId\x88\x01\x01B\x0e\n" +
+	"\f_evidence_idB\t\n" +
+	"\a_run_id\"\x92\x01\n" +
+	"\x16EvidenceRequestMessage\x12\x12\n" +
+	"\x04role\x18\x01 \x01(\tR\x04role\x12\x18\n" +
+	"\acontent\x18\x02 \x01(\tR\acontent\x12\x1c\n" +
+	"\ttimestamp\x18\x03 \x01(\tR\ttimestamp\x12,\n" +
+	"\x12added_evidence_ids\x18\x04 \x03(\tR\x10addedEvidenceIds\"\xd9\x03\n" +
+	"\x13ReviewEvidenceRound\x12\x14\n" +
+	"\x05round\x18\x01 \x01(\x05R\x05round\x12!\n" +
+	"\fgenerated_at\x18\x02 \x01(\tR\vgeneratedAt\x12!\n" +
+	"\fexecution_id\x18\x03 \x01(\tR\vexecutionId\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\x12.\n" +
+	"\x10agent_assessment\x18\x05 \x01(\tH\x00R\x0fagentAssessment\x88\x01\x01\x12+\n" +
+	"\x0eclassification\x18\x06 \x01(\tH\x01R\x0eclassification\x88\x01\x01\x12\x14\n" +
+	"\x05notes\x18\a \x03(\tR\x05notes\x12:\n" +
+	"\bevidence\x18\b \x03(\v2\x1e.swarm_manager.v1.EvidenceItemR\bevidence\x12P\n" +
+	"\x0frequest_threads\x18\t \x03(\v2'.swarm_manager.v1.EvidenceRequestThreadR\x0erequestThreads\x12\x1a\n" +
+	"\x06run_id\x18\n" +
+	" \x01(\tH\x02R\x05runId\x88\x01\x01B\x13\n" +
+	"\x11_agent_assessmentB\x11\n" +
+	"\x0f_classificationB\t\n" +
+	"\a_run_id\"\xd9\x01\n" +
 	"\x0fExecutionPolicy\x126\n" +
 	"\fdefault_mode\x18\x01 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\vdefaultMode\x12\x1d\n" +
 	"\n" +
 	"auto_fixup\x18\x03 \x01(\bR\tautoFixup\x127\n" +
-	"\x12max_fixup_attempts\x18\x04 \x01(\x05B\t\xbaH\x06\x1a\x04\x18\x05(\x00R\x10maxFixupAttemptsJ\x04\b\x02\x10\x03BOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
+	"\x12max_fixup_attempts\x18\x04 \x01(\x05B\t\xbaH\x06\x1a\x04\x18\x05(\x00R\x10maxFixupAttempts\x120\n" +
+	"\x14review_agent_enabled\x18\x05 \x01(\bR\x12reviewAgentEnabledJ\x04\b\x02\x10\x03BOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
 
 var (
 	file_swarm_manager_v1_domain_execution_proto_rawDescOnce sync.Once
@@ -1160,35 +1676,44 @@ func file_swarm_manager_v1_domain_execution_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_domain_execution_proto_rawDescData
 }
 
-var file_swarm_manager_v1_domain_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_swarm_manager_v1_domain_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_swarm_manager_v1_domain_execution_proto_goTypes = []any{
-	(*ExecutionRecord)(nil),      // 0: swarm_manager.v1.ExecutionRecord
-	(*ArchiveContext)(nil),       // 1: swarm_manager.v1.ArchiveContext
-	(*ReviewResult)(nil),         // 2: swarm_manager.v1.ReviewResult
-	(*ReviewDimension)(nil),      // 3: swarm_manager.v1.ReviewDimension
-	(*Finalization)(nil),         // 4: swarm_manager.v1.Finalization
-	(*FinalizationWarning)(nil),  // 5: swarm_manager.v1.FinalizationWarning
-	(*ScenarioFinalization)(nil), // 6: swarm_manager.v1.ScenarioFinalization
-	(*RestartResult)(nil),        // 7: swarm_manager.v1.RestartResult
-	(*HealthCheckResult)(nil),    // 8: swarm_manager.v1.HealthCheckResult
-	(*ScenarioReview)(nil),       // 9: swarm_manager.v1.ScenarioReview
-	(*ExecutionPolicy)(nil),      // 10: swarm_manager.v1.ExecutionPolicy
+	(*ExecutionRecord)(nil),        // 0: swarm_manager.v1.ExecutionRecord
+	(*ArchiveContext)(nil),         // 1: swarm_manager.v1.ArchiveContext
+	(*ReviewResult)(nil),           // 2: swarm_manager.v1.ReviewResult
+	(*ReviewDimension)(nil),        // 3: swarm_manager.v1.ReviewDimension
+	(*Finalization)(nil),           // 4: swarm_manager.v1.Finalization
+	(*FinalizationWarning)(nil),    // 5: swarm_manager.v1.FinalizationWarning
+	(*ScenarioFinalization)(nil),   // 6: swarm_manager.v1.ScenarioFinalization
+	(*RestartResult)(nil),          // 7: swarm_manager.v1.RestartResult
+	(*HealthCheckResult)(nil),      // 8: swarm_manager.v1.HealthCheckResult
+	(*ScenarioReview)(nil),         // 9: swarm_manager.v1.ScenarioReview
+	(*EvidenceItem)(nil),           // 10: swarm_manager.v1.EvidenceItem
+	(*EvidenceTestResult)(nil),     // 11: swarm_manager.v1.EvidenceTestResult
+	(*EvidenceRequestThread)(nil),  // 12: swarm_manager.v1.EvidenceRequestThread
+	(*EvidenceRequestMessage)(nil), // 13: swarm_manager.v1.EvidenceRequestMessage
+	(*ReviewEvidenceRound)(nil),    // 14: swarm_manager.v1.ReviewEvidenceRound
+	(*ExecutionPolicy)(nil),        // 15: swarm_manager.v1.ExecutionPolicy
 }
 var file_swarm_manager_v1_domain_execution_proto_depIdxs = []int32{
-	1, // 0: swarm_manager.v1.ExecutionRecord.archive_context:type_name -> swarm_manager.v1.ArchiveContext
-	4, // 1: swarm_manager.v1.ExecutionRecord.finalization:type_name -> swarm_manager.v1.Finalization
-	3, // 2: swarm_manager.v1.ReviewResult.dimensions:type_name -> swarm_manager.v1.ReviewDimension
-	5, // 3: swarm_manager.v1.Finalization.warnings:type_name -> swarm_manager.v1.FinalizationWarning
-	6, // 4: swarm_manager.v1.Finalization.scenarios:type_name -> swarm_manager.v1.ScenarioFinalization
-	7, // 5: swarm_manager.v1.ScenarioFinalization.restart:type_name -> swarm_manager.v1.RestartResult
-	8, // 6: swarm_manager.v1.ScenarioFinalization.health:type_name -> swarm_manager.v1.HealthCheckResult
-	9, // 7: swarm_manager.v1.ScenarioFinalization.review:type_name -> swarm_manager.v1.ScenarioReview
-	2, // 8: swarm_manager.v1.ScenarioReview.result:type_name -> swarm_manager.v1.ReviewResult
-	9, // [9:9] is the sub-list for method output_type
-	9, // [9:9] is the sub-list for method input_type
-	9, // [9:9] is the sub-list for extension type_name
-	9, // [9:9] is the sub-list for extension extendee
-	0, // [0:9] is the sub-list for field type_name
+	1,  // 0: swarm_manager.v1.ExecutionRecord.archive_context:type_name -> swarm_manager.v1.ArchiveContext
+	4,  // 1: swarm_manager.v1.ExecutionRecord.finalization:type_name -> swarm_manager.v1.Finalization
+	3,  // 2: swarm_manager.v1.ReviewResult.dimensions:type_name -> swarm_manager.v1.ReviewDimension
+	5,  // 3: swarm_manager.v1.Finalization.warnings:type_name -> swarm_manager.v1.FinalizationWarning
+	6,  // 4: swarm_manager.v1.Finalization.scenarios:type_name -> swarm_manager.v1.ScenarioFinalization
+	7,  // 5: swarm_manager.v1.ScenarioFinalization.restart:type_name -> swarm_manager.v1.RestartResult
+	8,  // 6: swarm_manager.v1.ScenarioFinalization.health:type_name -> swarm_manager.v1.HealthCheckResult
+	9,  // 7: swarm_manager.v1.ScenarioFinalization.review:type_name -> swarm_manager.v1.ScenarioReview
+	2,  // 8: swarm_manager.v1.ScenarioReview.result:type_name -> swarm_manager.v1.ReviewResult
+	11, // 9: swarm_manager.v1.EvidenceItem.test_results:type_name -> swarm_manager.v1.EvidenceTestResult
+	13, // 10: swarm_manager.v1.EvidenceRequestThread.messages:type_name -> swarm_manager.v1.EvidenceRequestMessage
+	10, // 11: swarm_manager.v1.ReviewEvidenceRound.evidence:type_name -> swarm_manager.v1.EvidenceItem
+	12, // 12: swarm_manager.v1.ReviewEvidenceRound.request_threads:type_name -> swarm_manager.v1.EvidenceRequestThread
+	13, // [13:13] is the sub-list for method output_type
+	13, // [13:13] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_domain_execution_proto_init() }
@@ -1204,13 +1729,17 @@ func file_swarm_manager_v1_domain_execution_proto_init() {
 	file_swarm_manager_v1_domain_execution_proto_msgTypes[7].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_execution_proto_msgTypes[8].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_execution_proto_msgTypes[9].OneofWrappers = []any{}
+	file_swarm_manager_v1_domain_execution_proto_msgTypes[10].OneofWrappers = []any{}
+	file_swarm_manager_v1_domain_execution_proto_msgTypes[11].OneofWrappers = []any{}
+	file_swarm_manager_v1_domain_execution_proto_msgTypes[12].OneofWrappers = []any{}
+	file_swarm_manager_v1_domain_execution_proto_msgTypes[14].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_domain_execution_proto_rawDesc), len(file_swarm_manager_v1_domain_execution_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

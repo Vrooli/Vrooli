@@ -17,6 +17,7 @@ export type SimulationPayload = {
   item_folder: string;
 };
 
+// eslint-disable-next-line react-refresh/only-export-components -- factory shared with PromptsPage
 export const defaultSimulationPayload = (): SimulationPayload => ({
   kind: "idea",
   mode: "workshop",

@@ -11,9 +11,7 @@ import { backlogService, graphService, type GraphProjectionMeta } from "../../..
 import { computeNodeAttention, type NodeEnrichment } from "../lib/attention";
 import {
   cloneGraphsByLens,
-  cloneLensSnapshot,
   createEmptyGraphsByLens,
-  createEmptyLensSnapshot,
   type GraphLensSnapshot,
 } from "../lib/snapshot-utils";
 import { useSnoozeStore } from "../../../stores/snooze-store";

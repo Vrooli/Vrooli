@@ -14,6 +14,7 @@ import (
 	"context"
 	"database/sql"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -148,7 +149,7 @@ func (s *Server) registerBacklogRoutes(scenarioRoot string) *backlog.Handler {
 func (s *Server) registerInitiativeRoutes(scenarioRoot string, backlogHandler *backlog.Handler) *initiatives.Service {
 	initStore := initiatives.NewStore(scenarioRoot)
 	if err := initStore.Migrate(); err != nil {
-		log.Printf("[initiatives] migration warning: %v", err)
+		slog.Warn("initiatives migration warning", "error", err)
 	}
 	s.initStore = initStore
 	initService := initiatives.NewService(initStore, backlogHandler.Store())
@@ -233,7 +234,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		next.ServeHTTP(w, r)
-		log.Printf("[%s] %s %s", r.Method, r.RequestURI, time.Since(start))
+		slog.Info("request", "method", r.Method, "uri", r.RequestURI, "duration", time.Since(start))
 	})
 }
 
@@ -245,7 +246,7 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	log.Printf("Running in filesystem-only mode")
+	slog.Info("running in filesystem-only mode")
 
 	srv := NewServer()
 	srv.initEventLog()
@@ -264,7 +265,7 @@ func main() {
 	if srv.agentSvc != nil && srv.agentSvc.IsEnabled() {
 		initCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		if err := srv.agentSvc.Initialize(initCtx, nil); err != nil {
-			log.Printf("[agent-manager] Warning: failed to initialize profile: %v", err)
+			slog.Warn("failed to initialize agent-manager profile", "error", err)
 		}
 		cancel()
 	}

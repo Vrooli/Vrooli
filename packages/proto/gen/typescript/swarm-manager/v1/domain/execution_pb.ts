@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/domain/execution.proto.
  */
 export const file_swarm_manager_v1_domain_execution: GenFile = /*@__PURE__*/
-  fileDesc("Cidzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9leGVjdXRpb24ucHJvdG8SEHN3YXJtX21hbmFnZXIudjEi/wYKD0V4ZWN1dGlvblJlY29yZBIdCgxleGVjdXRpb25faWQYASABKAlCB7pIBHICEAESSwoMYmFja2xvZ19raW5kGAIgASgJQjW6SDJyMFIEaWRlYVIDZml4UgdleGVjdXRlUghyZXNlYXJjaFIFY2hvcmVSCXNwZWMtc3luYxIdCgxiYWNrbG9nX25hbWUYAyABKAlCB7pIBHICEAESFAoHdGFza19pZBgEIAEoCUgAiAEBEhMKBnJ1bl9pZBgFIAEoCUgBiAEBEnUKBnN0YXR1cxgGIAEoCUJlukhicmBSB3BlbmRpbmdSCHN0YXJ0aW5nUgdydW5uaW5nUgxuZWVkc19yZXZpZXdSCnZhbGlkYXRpbmdSC25lZWRzX2ZpeHVwUgljb21wbGV0ZWRSBmZhaWxlZFIIY2FuY2VsZWQSIQoEbW9kZRgHIAEoCUITukgQcg5SBm1hbnVhbFIEeW9sbxIXCgpzdGFydGVkX2F0GAkgASgJSAKIAQESGAoLZmluaXNoZWRfYXQYCiABKAlIA4gBARIbCg5mYWlsdXJlX3JlYXNvbhgLIAEoCUgEiAEBEhcKCnN0YXJ0ZWRfYnkYDCABKAlIBYgBARIWCglvcGVyYXRpb24YDSABKAlIBogBARIbCgpjcmVhdGVkX2F0GA4gASgJQge6SARyAhABEhsKCnVwZGF0ZWRfYXQYDyABKAlCB7pIBHICEAESPgoPYXJjaGl2ZV9jb250ZXh0GBAgASgLMiAuc3dhcm1fbWFuYWdlci52MS5BcmNoaXZlQ29udGV4dEgHiAEBEiAKE3BhcmVudF9leGVjdXRpb25faWQYESABKAlICIgBARIVCg1maXh1cF9hdHRlbXB0GBIgASgFEjkKDGZpbmFsaXphdGlvbhgXIAEoCzIeLnN3YXJtX21hbmFnZXIudjEuRmluYWxpemF0aW9uSAmIAQFCCgoIX3Rhc2tfaWRCCQoHX3J1bl9pZEINCgtfc3RhcnRlZF9hdEIOCgxfZmluaXNoZWRfYXRCEQoPX2ZhaWx1cmVfcmVhc29uQg0KC19zdGFydGVkX2J5QgwKCl9vcGVyYXRpb25CEgoQX2FyY2hpdmVfY29udGV4dEIWChRfcGFyZW50X2V4ZWN1dGlvbl9pZEIPCg1fZmluYWxpemF0aW9uSgQICBAJSgQIExAXIs4BCg5BcmNoaXZlQ29udGV4dBIeCg1zY2VuYXJpb19uYW1lGAEgASgJQge6SARyAhABEh4KDXNjZW5hcmlvX3BhdGgYAiABKAlCB7pIBHICEAESHQoQcHJlc2V0X29yX2N1c3RvbRgDIAEoCUgAiAEBEhYKDnByZXNlcnZlX3BhdGhzGAQgAygJEhwKD3ByZXNlcnZlX3ByZXNldBgFIAEoCUgBiAEBQhMKEV9wcmVzZXRfb3JfY3VzdG9tQhIKEF9wcmVzZXJ2ZV9wcmVzZXQikwEKDFJldmlld1Jlc3VsdBIOCgZqb2JfaWQYASABKAkSFgoOY2xhc3NpZmljYXRpb24YAiABKAkSNQoKZGltZW5zaW9ucxgDIAMoCzIhLnN3YXJtX21hbmFnZXIudjEuUmV2aWV3RGltZW5zaW9uEg8KB3N1bW1hcnkYBCABKAkSEwoLcmV2aWV3ZWRfYXQYBSABKAkiUQoPUmV2aWV3RGltZW5zaW9uEgwKBG5hbWUYASABKAkSDgoGc3RhdHVzGAIgASgJEhQKB2RldGFpbHMYAyABKAlIAIgBAUIKCghfZGV0YWlscyK7AwoMRmluYWxpemF0aW9uEhAKCGVsaWdpYmxlGAEgASgIEg4KBnN0YXR1cxgCIAEoCRINCgVwaGFzZRgDIAEoCRIUCgxzY29wZV9zb3VyY2UYBCABKAkSGAoLc2tpcF9yZWFzb24YBSABKAlIAIgBARIXCgpzdGFydGVkX2F0GAYgASgJSAGIAQESGQoMY29tcGxldGVkX2F0GAcgASgJSAKIAQESNwoId2FybmluZ3MYCCADKAsyJS5zd2FybV9tYW5hZ2VyLnYxLkZpbmFsaXphdGlvbldhcm5pbmcSGgoSYWZmZWN0ZWRfc2NlbmFyaW9zGAkgAygJEiAKGGFnZ3JlZ2F0ZV9jbGFzc2lmaWNhdGlvbhgKIAEoCRIeChFhZ2dyZWdhdGVfc3VtbWFyeRgLIAEoCUgDiAEBEjkKCXNjZW5hcmlvcxgMIAMoCzImLnN3YXJtX21hbmFnZXIudjEuU2NlbmFyaW9GaW5hbGl6YXRpb25CDgoMX3NraXBfcmVhc29uQg0KC19zdGFydGVkX2F0Qg8KDV9jb21wbGV0ZWRfYXRCFAoSX2FnZ3JlZ2F0ZV9zdW1tYXJ5IokBChNGaW5hbGl6YXRpb25XYXJuaW5nEgwKBGNvZGUYASABKAkSGgoNc2NlbmFyaW9fbmFtZRgCIAEoCUgAiAEBEg8KB21lc3NhZ2UYAyABKAkSEQoJcmV0cnlhYmxlGAQgASgIEhIKCmNyZWF0ZWRfYXQYBSABKAlCEAoOX3NjZW5hcmlvX25hbWUi3QEKFFNjZW5hcmlvRmluYWxpemF0aW9uEhUKDXNjZW5hcmlvX25hbWUYASABKAkSFQoNY2hhbmdlZF9wYXRocxgCIAMoCRIwCgdyZXN0YXJ0GAMgASgLMh8uc3dhcm1fbWFuYWdlci52MS5SZXN0YXJ0UmVzdWx0EjMKBmhlYWx0aBgEIAEoCzIjLnN3YXJtX21hbmFnZXIudjEuSGVhbHRoQ2hlY2tSZXN1bHQSMAoGcmV2aWV3GAUgASgLMiAuc3dhcm1fbWFuYWdlci52MS5TY2VuYXJpb1JldmlldyKrAQoNUmVzdGFydFJlc3VsdBIOCgZzdGF0dXMYASABKAkSEAoIYXR0ZW1wdHMYAiABKAUSFwoKbGFzdF9lcnJvchgDIAEoCUgAiAEBEhcKCnN0YXJ0ZWRfYXQYBCABKAlIAYgBARIYCgtmaW5pc2hlZF9hdBgFIAEoCUgCiAEBQg0KC19sYXN0X2Vycm9yQg0KC19zdGFydGVkX2F0Qg4KDF9maW5pc2hlZF9hdCLjAQoRSGVhbHRoQ2hlY2tSZXN1bHQSDgoGc3RhdHVzGAEgASgJEhwKD3NjZW5hcmlvX3N0YXR1cxgCIAEoCUgAiAEBEhoKDWhlYWx0aF9zdGF0dXMYAyABKAlIAYgBARIUCgxzY2hlbWFfdmFsaWQYBCABKAgSFAoHZGV0YWlscxgFIAEoCUgCiAEBEhcKCmNoZWNrZWRfYXQYBiABKAlIA4gBAUISChBfc2NlbmFyaW9fc3RhdHVzQhAKDl9oZWFsdGhfc3RhdHVzQgoKCF9kZXRhaWxzQg0KC19jaGVja2VkX2F0IqoBCg5TY2VuYXJpb1JldmlldxIOCgZzdGF0dXMYASABKAkSEwoGam9iX2lkGAIgASgJSACIAQESGAoLc2tpcF9yZWFzb24YAyABKAlIAYgBARIzCgZyZXN1bHQYBCABKAsyHi5zd2FybV9tYW5hZ2VyLnYxLlJldmlld1Jlc3VsdEgCiAEBQgkKB19qb2JfaWRCDgoMX3NraXBfcmVhc29uQgkKB19yZXN1bHQifQoPRXhlY3V0aW9uUG9saWN5EikKDGRlZmF1bHRfbW9kZRgBIAEoCUITukgQcg5SBm1hbnVhbFIEeW9sbxISCgphdXRvX2ZpeHVwGAMgASgIEiUKEm1heF9maXh1cF9hdHRlbXB0cxgEIAEoBUIJukgGGgQYBSgASgQIAhADQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM", [file_buf_validate_validate]);
+  fileDesc("Cidzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9leGVjdXRpb24ucHJvdG8SEHN3YXJtX21hbmFnZXIudjEi/wYKD0V4ZWN1dGlvblJlY29yZBIdCgxleGVjdXRpb25faWQYASABKAlCB7pIBHICEAESSwoMYmFja2xvZ19raW5kGAIgASgJQjW6SDJyMFIEaWRlYVIDZml4UgdleGVjdXRlUghyZXNlYXJjaFIFY2hvcmVSCXNwZWMtc3luYxIdCgxiYWNrbG9nX25hbWUYAyABKAlCB7pIBHICEAESFAoHdGFza19pZBgEIAEoCUgAiAEBEhMKBnJ1bl9pZBgFIAEoCUgBiAEBEnUKBnN0YXR1cxgGIAEoCUJlukhicmBSB3BlbmRpbmdSCHN0YXJ0aW5nUgdydW5uaW5nUgxuZWVkc19yZXZpZXdSCnZhbGlkYXRpbmdSC25lZWRzX2ZpeHVwUgljb21wbGV0ZWRSBmZhaWxlZFIIY2FuY2VsZWQSIQoEbW9kZRgHIAEoCUITukgQcg5SBm1hbnVhbFIEeW9sbxIXCgpzdGFydGVkX2F0GAkgASgJSAKIAQESGAoLZmluaXNoZWRfYXQYCiABKAlIA4gBARIbCg5mYWlsdXJlX3JlYXNvbhgLIAEoCUgEiAEBEhcKCnN0YXJ0ZWRfYnkYDCABKAlIBYgBARIWCglvcGVyYXRpb24YDSABKAlIBogBARIbCgpjcmVhdGVkX2F0GA4gASgJQge6SARyAhABEhsKCnVwZGF0ZWRfYXQYDyABKAlCB7pIBHICEAESPgoPYXJjaGl2ZV9jb250ZXh0GBAgASgLMiAuc3dhcm1fbWFuYWdlci52MS5BcmNoaXZlQ29udGV4dEgHiAEBEiAKE3BhcmVudF9leGVjdXRpb25faWQYESABKAlICIgBARIVCg1maXh1cF9hdHRlbXB0GBIgASgFEjkKDGZpbmFsaXphdGlvbhgXIAEoCzIeLnN3YXJtX21hbmFnZXIudjEuRmluYWxpemF0aW9uSAmIAQFCCgoIX3Rhc2tfaWRCCQoHX3J1bl9pZEINCgtfc3RhcnRlZF9hdEIOCgxfZmluaXNoZWRfYXRCEQoPX2ZhaWx1cmVfcmVhc29uQg0KC19zdGFydGVkX2J5QgwKCl9vcGVyYXRpb25CEgoQX2FyY2hpdmVfY29udGV4dEIWChRfcGFyZW50X2V4ZWN1dGlvbl9pZEIPCg1fZmluYWxpemF0aW9uSgQICBAJSgQIExAXIs4BCg5BcmNoaXZlQ29udGV4dBIeCg1zY2VuYXJpb19uYW1lGAEgASgJQge6SARyAhABEh4KDXNjZW5hcmlvX3BhdGgYAiABKAlCB7pIBHICEAESHQoQcHJlc2V0X29yX2N1c3RvbRgDIAEoCUgAiAEBEhYKDnByZXNlcnZlX3BhdGhzGAQgAygJEhwKD3ByZXNlcnZlX3ByZXNldBgFIAEoCUgBiAEBQhMKEV9wcmVzZXRfb3JfY3VzdG9tQhIKEF9wcmVzZXJ2ZV9wcmVzZXQikwEKDFJldmlld1Jlc3VsdBIOCgZqb2JfaWQYASABKAkSFgoOY2xhc3NpZmljYXRpb24YAiABKAkSNQoKZGltZW5zaW9ucxgDIAMoCzIhLnN3YXJtX21hbmFnZXIudjEuUmV2aWV3RGltZW5zaW9uEg8KB3N1bW1hcnkYBCABKAkSEwoLcmV2aWV3ZWRfYXQYBSABKAkiUQoPUmV2aWV3RGltZW5zaW9uEgwKBG5hbWUYASABKAkSDgoGc3RhdHVzGAIgASgJEhQKB2RldGFpbHMYAyABKAlIAIgBAUIKCghfZGV0YWlscyK7AwoMRmluYWxpemF0aW9uEhAKCGVsaWdpYmxlGAEgASgIEg4KBnN0YXR1cxgCIAEoCRINCgVwaGFzZRgDIAEoCRIUCgxzY29wZV9zb3VyY2UYBCABKAkSGAoLc2tpcF9yZWFzb24YBSABKAlIAIgBARIXCgpzdGFydGVkX2F0GAYgASgJSAGIAQESGQoMY29tcGxldGVkX2F0GAcgASgJSAKIAQESNwoId2FybmluZ3MYCCADKAsyJS5zd2FybV9tYW5hZ2VyLnYxLkZpbmFsaXphdGlvbldhcm5pbmcSGgoSYWZmZWN0ZWRfc2NlbmFyaW9zGAkgAygJEiAKGGFnZ3JlZ2F0ZV9jbGFzc2lmaWNhdGlvbhgKIAEoCRIeChFhZ2dyZWdhdGVfc3VtbWFyeRgLIAEoCUgDiAEBEjkKCXNjZW5hcmlvcxgMIAMoCzImLnN3YXJtX21hbmFnZXIudjEuU2NlbmFyaW9GaW5hbGl6YXRpb25CDgoMX3NraXBfcmVhc29uQg0KC19zdGFydGVkX2F0Qg8KDV9jb21wbGV0ZWRfYXRCFAoSX2FnZ3JlZ2F0ZV9zdW1tYXJ5IokBChNGaW5hbGl6YXRpb25XYXJuaW5nEgwKBGNvZGUYASABKAkSGgoNc2NlbmFyaW9fbmFtZRgCIAEoCUgAiAEBEg8KB21lc3NhZ2UYAyABKAkSEQoJcmV0cnlhYmxlGAQgASgIEhIKCmNyZWF0ZWRfYXQYBSABKAlCEAoOX3NjZW5hcmlvX25hbWUi3QEKFFNjZW5hcmlvRmluYWxpemF0aW9uEhUKDXNjZW5hcmlvX25hbWUYASABKAkSFQoNY2hhbmdlZF9wYXRocxgCIAMoCRIwCgdyZXN0YXJ0GAMgASgLMh8uc3dhcm1fbWFuYWdlci52MS5SZXN0YXJ0UmVzdWx0EjMKBmhlYWx0aBgEIAEoCzIjLnN3YXJtX21hbmFnZXIudjEuSGVhbHRoQ2hlY2tSZXN1bHQSMAoGcmV2aWV3GAUgASgLMiAuc3dhcm1fbWFuYWdlci52MS5TY2VuYXJpb1JldmlldyKrAQoNUmVzdGFydFJlc3VsdBIOCgZzdGF0dXMYASABKAkSEAoIYXR0ZW1wdHMYAiABKAUSFwoKbGFzdF9lcnJvchgDIAEoCUgAiAEBEhcKCnN0YXJ0ZWRfYXQYBCABKAlIAYgBARIYCgtmaW5pc2hlZF9hdBgFIAEoCUgCiAEBQg0KC19sYXN0X2Vycm9yQg0KC19zdGFydGVkX2F0Qg4KDF9maW5pc2hlZF9hdCLjAQoRSGVhbHRoQ2hlY2tSZXN1bHQSDgoGc3RhdHVzGAEgASgJEhwKD3NjZW5hcmlvX3N0YXR1cxgCIAEoCUgAiAEBEhoKDWhlYWx0aF9zdGF0dXMYAyABKAlIAYgBARIUCgxzY2hlbWFfdmFsaWQYBCABKAgSFAoHZGV0YWlscxgFIAEoCUgCiAEBEhcKCmNoZWNrZWRfYXQYBiABKAlIA4gBAUISChBfc2NlbmFyaW9fc3RhdHVzQhAKDl9oZWFsdGhfc3RhdHVzQgoKCF9kZXRhaWxzQg0KC19jaGVja2VkX2F0IqoBCg5TY2VuYXJpb1JldmlldxIOCgZzdGF0dXMYASABKAkSEwoGam9iX2lkGAIgASgJSACIAQESGAoLc2tpcF9yZWFzb24YAyABKAlIAYgBARIzCgZyZXN1bHQYBCABKAsyHi5zd2FybV9tYW5hZ2VyLnYxLlJldmlld1Jlc3VsdEgCiAEBQgkKB19qb2JfaWRCDgoMX3NraXBfcmVhc29uQgkKB19yZXN1bHQiqgIKDEV2aWRlbmNlSXRlbRIKCgJpZBgBIAEoCRIMCgR0eXBlGAIgASgJEg0KBXRpdGxlGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEhkKDGNhcHR1cmVfcGF0aBgFIAEoCUgAiAEBEhAKCHZlcmlmaWVkGAYgASgIEhgKC3ZlcmlmaWVkX2F0GAcgASgJSAGIAQESIAoTYmVmb3JlX2NhcHR1cmVfcGF0aBgIIAEoCUgCiAEBEjoKDHRlc3RfcmVzdWx0cxgJIAMoCzIkLnN3YXJtX21hbmFnZXIudjEuRXZpZGVuY2VUZXN0UmVzdWx0Qg8KDV9jYXB0dXJlX3BhdGhCDgoMX3ZlcmlmaWVkX2F0QhYKFF9iZWZvcmVfY2FwdHVyZV9wYXRoImIKEkV2aWRlbmNlVGVzdFJlc3VsdBIMCgRuYW1lGAEgASgJEg4KBnBhc3NlZBgCIAEoCBIbCg5vdXRwdXRfc3VtbWFyeRgDIAEoCUgAiAEBQhEKD19vdXRwdXRfc3VtbWFyeSLNAQoVRXZpZGVuY2VSZXF1ZXN0VGhyZWFkEgoKAmlkGAEgASgJEhgKC2V2aWRlbmNlX2lkGAIgASgJSACIAQESDgoGc3RhdHVzGAMgASgJEjoKCG1lc3NhZ2VzGAQgAygLMiguc3dhcm1fbWFuYWdlci52MS5FdmlkZW5jZVJlcXVlc3RNZXNzYWdlEhIKCmNyZWF0ZWRfYXQYBSABKAkSEwoGcnVuX2lkGAYgASgJSAGIAQFCDgoMX2V2aWRlbmNlX2lkQgkKB19ydW5faWQiZgoWRXZpZGVuY2VSZXF1ZXN0TWVzc2FnZRIMCgRyb2xlGAEgASgJEg8KB2NvbnRlbnQYAiABKAkSEQoJdGltZXN0YW1wGAMgASgJEhoKEmFkZGVkX2V2aWRlbmNlX2lkcxgEIAMoCSLnAgoTUmV2aWV3RXZpZGVuY2VSb3VuZBINCgVyb3VuZBgBIAEoBRIUCgxnZW5lcmF0ZWRfYXQYAiABKAkSFAoMZXhlY3V0aW9uX2lkGAMgASgJEg4KBnN0YXR1cxgEIAEoCRIdChBhZ2VudF9hc3Nlc3NtZW50GAUgASgJSACIAQESGwoOY2xhc3NpZmljYXRpb24YBiABKAlIAYgBARINCgVub3RlcxgHIAMoCRIwCghldmlkZW5jZRgIIAMoCzIeLnN3YXJtX21hbmFnZXIudjEuRXZpZGVuY2VJdGVtEkAKD3JlcXVlc3RfdGhyZWFkcxgJIAMoCzInLnN3YXJtX21hbmFnZXIudjEuRXZpZGVuY2VSZXF1ZXN0VGhyZWFkEhMKBnJ1bl9pZBgKIAEoCUgCiAEBQhMKEV9hZ2VudF9hc3Nlc3NtZW50QhEKD19jbGFzc2lmaWNhdGlvbkIJCgdfcnVuX2lkIpsBCg9FeGVjdXRpb25Qb2xpY3kSKQoMZGVmYXVsdF9tb2RlGAEgASgJQhO6SBByDlIGbWFudWFsUgR5b2xvEhIKCmF1dG9fZml4dXAYAyABKAgSJQoSbWF4X2ZpeHVwX2F0dGVtcHRzGAQgASgFQgm6SAYaBBgFKAASHAoUcmV2aWV3X2FnZW50X2VuYWJsZWQYBSABKAhKBAgCEANCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_buf_validate_validate]);
 
 /**
  * ExecutionRecord captures one backlog execution lifecycle entry.
@@ -509,6 +509,263 @@ export const ScenarioReviewSchema: GenMessage<ScenarioReview> = /*@__PURE__*/
   messageDesc(file_swarm_manager_v1_domain_execution, 9);
 
 /**
+ * EvidenceItem represents a single piece of verification evidence gathered
+ * by the review agent.
+ *
+ * @generated from message swarm_manager.v1.EvidenceItem
+ */
+export type EvidenceItem = Message<"swarm_manager.v1.EvidenceItem"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * Type: screenshot, api_test, cli_output, config_diff, workflow_recording, custom.
+   *
+   * @generated from field: string type = 2;
+   */
+  type: string;
+
+  /**
+   * @generated from field: string title = 3;
+   */
+  title: string;
+
+  /**
+   * @generated from field: string description = 4;
+   */
+  description: string;
+
+  /**
+   * Path relative to review/captures/ within the backlog item directory.
+   *
+   * @generated from field: optional string capture_path = 5;
+   */
+  capturePath?: string;
+
+  /**
+   * @generated from field: bool verified = 6;
+   */
+  verified: boolean;
+
+  /**
+   * @generated from field: optional string verified_at = 7;
+   */
+  verifiedAt?: string;
+
+  /**
+   * Before-state capture for comparison (future: populated from baseline).
+   *
+   * @generated from field: optional string before_capture_path = 8;
+   */
+  beforeCapturePath?: string;
+
+  /**
+   * Structured test results (for api_test, cli_output types).
+   *
+   * @generated from field: repeated swarm_manager.v1.EvidenceTestResult test_results = 9;
+   */
+  testResults: EvidenceTestResult[];
+};
+
+/**
+ * Describes the message swarm_manager.v1.EvidenceItem.
+ * Use `create(EvidenceItemSchema)` to create a new message.
+ */
+export const EvidenceItemSchema: GenMessage<EvidenceItem> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_domain_execution, 10);
+
+/**
+ * EvidenceTestResult captures a structured test outcome within an evidence item.
+ *
+ * @generated from message swarm_manager.v1.EvidenceTestResult
+ */
+export type EvidenceTestResult = Message<"swarm_manager.v1.EvidenceTestResult"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: bool passed = 2;
+   */
+  passed: boolean;
+
+  /**
+   * @generated from field: optional string output_summary = 3;
+   */
+  outputSummary?: string;
+};
+
+/**
+ * Describes the message swarm_manager.v1.EvidenceTestResult.
+ * Use `create(EvidenceTestResultSchema)` to create a new message.
+ */
+export const EvidenceTestResultSchema: GenMessage<EvidenceTestResult> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_domain_execution, 11);
+
+/**
+ * EvidenceRequestThread captures a multi-turn conversation about needing
+ * more evidence.
+ *
+ * @generated from message swarm_manager.v1.EvidenceRequestThread
+ */
+export type EvidenceRequestThread = Message<"swarm_manager.v1.EvidenceRequestThread"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * Which evidence item this request is about (optional).
+   *
+   * @generated from field: optional string evidence_id = 2;
+   */
+  evidenceId?: string;
+
+  /**
+   * Status: pending, fulfilled, dismissed.
+   *
+   * @generated from field: string status = 3;
+   */
+  status: string;
+
+  /**
+   * @generated from field: repeated swarm_manager.v1.EvidenceRequestMessage messages = 4;
+   */
+  messages: EvidenceRequestMessage[];
+
+  /**
+   * @generated from field: string created_at = 5;
+   */
+  createdAt: string;
+
+  /**
+   * Agent-manager run ID for the targeted evidence request.
+   *
+   * @generated from field: optional string run_id = 6;
+   */
+  runId?: string;
+};
+
+/**
+ * Describes the message swarm_manager.v1.EvidenceRequestThread.
+ * Use `create(EvidenceRequestThreadSchema)` to create a new message.
+ */
+export const EvidenceRequestThreadSchema: GenMessage<EvidenceRequestThread> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_domain_execution, 12);
+
+/**
+ * EvidenceRequestMessage is a single turn in an evidence request thread.
+ *
+ * @generated from message swarm_manager.v1.EvidenceRequestMessage
+ */
+export type EvidenceRequestMessage = Message<"swarm_manager.v1.EvidenceRequestMessage"> & {
+  /**
+   * Role: user, assistant.
+   *
+   * @generated from field: string role = 1;
+   */
+  role: string;
+
+  /**
+   * @generated from field: string content = 2;
+   */
+  content: string;
+
+  /**
+   * @generated from field: string timestamp = 3;
+   */
+  timestamp: string;
+
+  /**
+   * Evidence items added by this message.
+   *
+   * @generated from field: repeated string added_evidence_ids = 4;
+   */
+  addedEvidenceIds: string[];
+};
+
+/**
+ * Describes the message swarm_manager.v1.EvidenceRequestMessage.
+ * Use `create(EvidenceRequestMessageSchema)` to create a new message.
+ */
+export const EvidenceRequestMessageSchema: GenMessage<EvidenceRequestMessage> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_domain_execution, 13);
+
+/**
+ * ReviewEvidenceRound captures one pass of evidence gathering by the
+ * review agent.
+ *
+ * @generated from message swarm_manager.v1.ReviewEvidenceRound
+ */
+export type ReviewEvidenceRound = Message<"swarm_manager.v1.ReviewEvidenceRound"> & {
+  /**
+   * @generated from field: int32 round = 1;
+   */
+  round: number;
+
+  /**
+   * @generated from field: string generated_at = 2;
+   */
+  generatedAt: string;
+
+  /**
+   * @generated from field: string execution_id = 3;
+   */
+  executionId: string;
+
+  /**
+   * Status: pending, gathering, complete, failed.
+   *
+   * @generated from field: string status = 4;
+   */
+  status: string;
+
+  /**
+   * @generated from field: optional string agent_assessment = 5;
+   */
+  agentAssessment?: string;
+
+  /**
+   * Classification: ready, ready_with_notes, needs_work, not_assessable.
+   *
+   * @generated from field: optional string classification = 6;
+   */
+  classification?: string;
+
+  /**
+   * @generated from field: repeated string notes = 7;
+   */
+  notes: string[];
+
+  /**
+   * @generated from field: repeated swarm_manager.v1.EvidenceItem evidence = 8;
+   */
+  evidence: EvidenceItem[];
+
+  /**
+   * @generated from field: repeated swarm_manager.v1.EvidenceRequestThread request_threads = 9;
+   */
+  requestThreads: EvidenceRequestThread[];
+
+  /**
+   * Agent-manager run ID for the review agent session.
+   *
+   * @generated from field: optional string run_id = 10;
+   */
+  runId?: string;
+};
+
+/**
+ * Describes the message swarm_manager.v1.ReviewEvidenceRound.
+ * Use `create(ReviewEvidenceRoundSchema)` to create a new message.
+ */
+export const ReviewEvidenceRoundSchema: GenMessage<ReviewEvidenceRound> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_domain_execution, 14);
+
+/**
  * ExecutionPolicy controls default mode, delay, and auto-fixup behavior.
  *
  * @generated from message swarm_manager.v1.ExecutionPolicy
@@ -532,6 +789,13 @@ export type ExecutionPolicy = Message<"swarm_manager.v1.ExecutionPolicy"> & {
    * @generated from field: int32 max_fixup_attempts = 4;
    */
   maxFixupAttempts: number;
+
+  /**
+   * When true, spawns a review agent after finalization to gather evidence.
+   *
+   * @generated from field: bool review_agent_enabled = 5;
+   */
+  reviewAgentEnabled: boolean;
 };
 
 /**
@@ -539,5 +803,5 @@ export type ExecutionPolicy = Message<"swarm_manager.v1.ExecutionPolicy"> & {
  * Use `create(ExecutionPolicySchema)` to create a new message.
  */
 export const ExecutionPolicySchema: GenMessage<ExecutionPolicy> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_execution, 10);
+  messageDesc(file_swarm_manager_v1_domain_execution, 15);
 

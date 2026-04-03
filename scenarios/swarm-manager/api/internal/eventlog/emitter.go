@@ -3,7 +3,7 @@ package eventlog
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"time"
 )
 
@@ -254,7 +254,7 @@ func (e *Emitter) emit(entityType EntityType, entityID string, eventType EventTy
 	if payload != nil {
 		data, err := json.Marshal(payload)
 		if err != nil {
-			log.Printf("[eventlog] failed to marshal payload for %s: %v", eventType, err)
+			slog.Error("failed to marshal payload", "event_type", eventType, "error", err)
 			return
 		}
 		metadata = data
@@ -270,6 +270,6 @@ func (e *Emitter) emit(entityType EntityType, entityID string, eventType EventTy
 	}
 
 	if _, err := e.repo.Append(context.Background(), event); err != nil {
-		log.Printf("[eventlog] failed to append %s event for %s/%s: %v", eventType, entityType, entityID, err)
+		slog.Error("failed to append event", "event_type", eventType, "entity_type", entityType, "entity_id", entityID, "error", err)
 	}
 }

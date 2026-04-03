@@ -44,4 +44,3 @@ func (s *FileStore) Load() ([]Record, error) {
 func (s *FileStore) Save(records []Record) error {
 	return storage.WriteJSONAtomic(s.path, records)
 }
-

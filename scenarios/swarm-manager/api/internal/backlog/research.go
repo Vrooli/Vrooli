@@ -6,7 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -246,7 +246,7 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 	selection, promptErr := h.fetchResearchPrompt(r.Context(), item, mode)
 	prompt := selection.Prompt
 	if promptErr != nil {
-		log.Printf("[backlog] research: prompt fetch failed: %v", promptErr)
+		slog.Warn("research prompt fetch failed, using fallback", "err", promptErr)
 		prompt = "Use the backlog item folder as context and perform the requested research."
 	}
 	trace := prompttrace.Trace{
@@ -267,7 +267,7 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		prompt += "\n\nAttached files for reference:\n"
 		for _, p := range req.ContextPaths {
 			if _, statErr := os.Stat(p); statErr != nil {
-				log.Printf("[backlog] research: warning: context path %q does not exist, skipping", p)
+				slog.Warn("research context path does not exist, skipping", "path", p)
 				continue
 			}
 			prompt += "- " + p + "\n"
@@ -383,6 +383,6 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 	}
 	tracePath := prompttrace.ResearchTracePath(h.store.ItemDir(kind, item.Name))
 	if err := prompttrace.Save(tracePath, trace); err != nil {
-		log.Printf("[backlog] research: failed to save prompt trace: %v", err)
+		slog.Warn("failed to save prompt trace", "err", err)
 	}
 }

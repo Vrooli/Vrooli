@@ -4,11 +4,9 @@ package backlog
 
 import (
 	"errors"
-	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
-	"sort"
 	"strings"
 	"time"
 
@@ -334,7 +332,7 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 	// Phase 3: Build dependency graph (batch + existing items) and check for cycles.
 	existingItems, err := h.store.LoadAll(nil)
 	if err != nil {
-		log.Printf("[backlog] batch-create: failed to load existing items: %v", err)
+		slog.Error("failed to load existing items", "err", err)
 		apierr.MapError(w, "[backlog] batch-create", apierr.Internal("failed to load existing items for cycle check"))
 		return
 	}
@@ -379,13 +377,13 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 		switch plan.action {
 		case "create":
 			if createErr := h.initiativeAssigner.Create(plan.spec); createErr != nil {
-				log.Printf("[backlog] batch-create: failed to create initiative %q: %v", name, createErr)
+				slog.Error("failed to create initiative", "initiative", name, "err", createErr)
 				apierr.MapError(w, "[backlog] batch-create", apierr.Internal("%s", "failed to create initiative: "+httputil.TruncateErrorMessage(createErr, 240)))
 				return
 			}
 		case "update":
 			if updateErr := h.initiativeAssigner.Update(plan.spec); updateErr != nil {
-				log.Printf("[backlog] batch-create: failed to update initiative %q: %v", name, updateErr)
+				slog.Error("failed to update initiative", "initiative", name, "err", updateErr)
 				apierr.MapError(w, "[backlog] batch-create", apierr.Internal("%s", "failed to update initiative: "+httputil.TruncateErrorMessage(updateErr, 240)))
 				return
 			}
@@ -401,7 +399,7 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 		itemDir := h.store.ItemDir(v.kind, v.item.Name)
 		if mkErr := os.MkdirAll(itemDir, 0o755); mkErr != nil {
 			rollbackBatchCreate(createdDirs, appliedInitiatives, h.initiativeAssigner)
-			log.Printf("[backlog] batch-create: failed to create directory for %q: %v", v.item.Name, mkErr)
+			slog.Error("failed to create directory", "item", v.item.Name, "err", mkErr)
 			apierr.MapError(w, "[backlog] batch-create", apierr.Internal("failed to create item directory"))
 			return
 		}
@@ -409,7 +407,7 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 
 		if saveErr := h.store.SaveItem(v.item); saveErr != nil {
 			rollbackBatchCreate(createdDirs, appliedInitiatives, h.initiativeAssigner)
-			log.Printf("[backlog] batch-create: failed to save %q: %v", v.item.Name, saveErr)
+			slog.Error("failed to save item", "item", v.item.Name, "err", saveErr)
 			apierr.MapError(w, "[backlog] batch-create", apierr.Internal("failed to save item"))
 			return
 		}
@@ -422,7 +420,7 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 	for name, refs := range groupItemRefsByInitiative(createdItems) {
 		if addErr := h.initiativeAssigner.AddItems(name, refs); addErr != nil {
 			rollbackBatchCreate(createdDirs, appliedInitiatives, h.initiativeAssigner)
-			log.Printf("[backlog] batch-create: failed to add items to initiative %q: %v", name, addErr)
+			slog.Error("failed to add items to initiative", "initiative", name, "err", addErr)
 			apierr.MapError(w, "[backlog] batch-create", apierr.Internal("%s", "failed to assign items to initiative: "+httputil.TruncateErrorMessage(addErr, 240)))
 			return
 		}
@@ -433,7 +431,7 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 		h.maybeAutoWorkshop(item, false)
 	}
 
-	log.Printf("[backlog] batch-created %d items", len(createdItems))
+	slog.Info("batch-created items", "count", len(createdItems))
 	h.invalidateAllGraphLenses()
 
 	resp := batchCreateResponse{
@@ -444,141 +442,4 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 	if err := httputil.JSONWithStatus(w, http.StatusCreated, resp); err != nil {
 		apierr.MapError(w, "[backlog] batch-create", apierr.Internal("failed to encode response"))
 	}
-}
-
-func isValidInitiativeStatus(status string) bool {
-	switch status {
-	case "active", "completed", "archived":
-		return true
-	default:
-		return false
-	}
-}
-
-func orderedInitiativeNames(plans map[string]resolvedInitiativePlan) []string {
-	names := make([]string, 0, len(plans))
-	for name := range plans {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
-}
-
-func groupItemRefsByInitiative(items []BacklogItem) map[string][]string {
-	grouped := make(map[string][]string)
-	for _, item := range items {
-		if strings.TrimSpace(item.Initiative) == "" {
-			continue
-		}
-		ref := string(item.Kind) + "/" + item.Name
-		grouped[item.Initiative] = append(grouped[item.Initiative], ref)
-	}
-	return grouped
-}
-
-func rollbackBatchCreate(createdDirs []string, appliedInitiatives []resolvedInitiativePlan, assigner InitiativeAssigner) {
-	for _, dir := range createdDirs {
-		_ = os.RemoveAll(dir)
-	}
-	if assigner == nil {
-		return
-	}
-	for i := len(appliedInitiatives) - 1; i >= 0; i-- {
-		plan := appliedInitiatives[i]
-		switch plan.action {
-		case "create":
-			_ = assigner.Delete(plan.spec.Name)
-		default:
-			if plan.existing != nil {
-				_ = assigner.Replace(*plan.existing)
-			}
-		}
-	}
-}
-
-func (h *Handler) resolveInitiativePlans(
-	referenced map[string]bool,
-	provided map[string]batchCreateInitiative,
-) (map[string]resolvedInitiativePlan, []batchCreateInitiativeResult, error) {
-	plans := make(map[string]resolvedInitiativePlan, len(referenced))
-	results := make([]batchCreateInitiativeResult, 0, len(referenced))
-
-	for name := range referenced {
-		providedSpec, hasProvided := provided[name]
-		existing, err := h.initiativeAssigner.Get(name)
-		if err != nil && !strings.Contains(err.Error(), "not found") {
-			return nil, nil, fmt.Errorf("failed to load initiative %q: %w", name, err)
-		}
-
-		if !hasProvided {
-			if existing == nil {
-				return nil, nil, fmt.Errorf("initiative %q does not exist; include it in the initiatives list with metadata", name)
-			}
-			plans[name] = resolvedInitiativePlan{
-				spec: InitiativeSpec{
-					Name:        existing.Name,
-					Title:       existing.Title,
-					Description: existing.Description,
-					Status:      existing.Status,
-				},
-				existing: existing,
-				action:   "reuse",
-			}
-			results = append(results, batchCreateInitiativeResult{
-				Name:        existing.Name,
-				Title:       existing.Title,
-				Description: existing.Description,
-				Status:      existing.Status,
-				Action:      "reuse",
-			})
-			continue
-		}
-
-		description := ""
-		if providedSpec.Description != nil {
-			description = *providedSpec.Description
-		} else if existing != nil {
-			description = existing.Description
-		}
-		status := "active"
-		switch {
-		case providedSpec.Status != nil:
-			status = *providedSpec.Status
-		case existing != nil:
-			status = existing.Status
-		}
-		spec := InitiativeSpec{
-			Name:        name,
-			Title:       providedSpec.Title,
-			Description: description,
-			Status:      status,
-		}
-		action := "create"
-		if existing != nil {
-			action = "reuse"
-			if existing.Title != spec.Title || existing.Description != spec.Description || existing.Status != spec.Status {
-				action = "update"
-			}
-		}
-
-		plans[name] = resolvedInitiativePlan{
-			spec: InitiativeSpec{
-				Name:        spec.Name,
-				Title:       spec.Title,
-				Description: spec.Description,
-				Status:      spec.Status,
-			},
-			existing: existing,
-			action:   action,
-		}
-		results = append(results, batchCreateInitiativeResult{
-			Name:        spec.Name,
-			Title:       spec.Title,
-			Description: spec.Description,
-			Status:      spec.Status,
-			Action:      action,
-		})
-	}
-
-	return plans, results, nil
 }

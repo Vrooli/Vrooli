@@ -28,7 +28,7 @@ export type { ISettingsService } from "./settings-service";
 
 // Agent Manager
 export { agentManagerService, createAgentManagerService } from "./agent-manager-service";
-export type { IAgentManagerService } from "./agent-manager-service";
+export type { IAgentManagerService, AgentRunDetails } from "./agent-manager-service";
 
 // Agent Activity
 export { agentActivityService, createAgentActivityService } from "./agent-activity-service";
@@ -73,3 +73,7 @@ export type {
   EvidenceType,
   RequestThread,
 } from "./review-service";
+
+// Embedded Services
+export { embeddedService, createEmbeddedService } from "./embedded-service";
+export type { IEmbeddedService } from "./embedded-service";

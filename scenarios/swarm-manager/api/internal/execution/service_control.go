@@ -2,7 +2,7 @@ package execution
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -58,7 +58,7 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 	deliverableContent := workshop.LoadPlanContentByName(itemDir, deliverablePath)
 	usedFallback := strings.TrimSpace(deliverableContent) == ""
 	if usedFallback {
-		log.Printf("[execution] %s empty or missing in %s", deliverablePath, itemDir)
+		slog.Warn("deliverable empty or missing", "path", deliverablePath, "dir", itemDir)
 	}
 	ideaHandoff, handoffErr := s.buildIdeaHandoffPackage(item, itemDir, preflight)
 	if handoffErr != nil {

@@ -12,7 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -78,7 +78,7 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 	itemDir := h.store.ItemDir(kind, name)
 	workshopDir := filepath.Join(itemDir, "workshop")
 	if err := os.MkdirAll(workshopDir, 0o755); err != nil {
-		log.Printf("[backlog] workshop-save: failed to create workshop dir: %v", err)
+		slog.Error("failed to create workshop dir", "err", err)
 		apierr.MapError(w, "[backlog] workshop-save", apierr.Internal("failed to create workshop directory"))
 		return
 	}
@@ -86,7 +86,7 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 	roundFile := fmt.Sprintf("round-%03d.json", req.RoundNumber)
 	roundPath := filepath.Join(workshopDir, roundFile)
 	if err := os.WriteFile(roundPath, content, 0o644); err != nil {
-		log.Printf("[backlog] workshop-save: failed to write %s: %v", roundPath, err)
+		slog.Error("failed to write round file", "path", roundPath, "err", err)
 		apierr.MapError(w, "[backlog] workshop-save", apierr.Internal("failed to save round file"))
 		return
 	}
@@ -103,7 +103,7 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 		Size: fileSize,
 	})
 
-	log.Printf("[backlog] workshop-save: saved %s/%s %s (%d bytes)", kind, name, roundFile, fileSize)
+	slog.Info("workshop round saved", "kind", kind, "name", name, "file", roundFile, "bytes", fileSize)
 
 	// Determine auto-advance.
 	autoAdvance := &apipb.WorkshopAutoAdvance{Triggered: false, Reason: "disabled"}
@@ -111,13 +111,13 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 	// Load settings to check auto_advance_workshop and maxAutoRounds.
 	cfg, cfgErr := settings.NewStore("").Load()
 	if cfgErr != nil {
-		log.Printf("[backlog] workshop-save: failed to load settings for auto-advance: %v", cfgErr)
+		slog.Warn("failed to load settings for auto-advance", "err", cfgErr)
 		cfg = settings.DefaultSettings()
 	}
 	// Load rounds to get the accurate count after save.
 	_, roundCount, loadErr := workshop.LoadLatestRound(itemDir)
 	if loadErr != nil {
-		log.Printf("[backlog] workshop-save: failed to load rounds for auto-advance check: %v", loadErr)
+		slog.Warn("failed to load rounds for auto-advance check", "err", loadErr)
 		autoAdvance.Reason = "error"
 	} else {
 		result := workshop.ShouldAutoAdvance(cfg.AutoAdvanceWorkshop, &round, roundCount, string(kind), cfg.MaxAutoRounds)
@@ -136,7 +136,7 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 			}
 			runID, taskID, spawnErr := h.spawnWorkshopAsync(item, runMode)
 			if spawnErr != nil {
-				log.Printf("[backlog] workshop-save: auto-advance spawn failed for %s/%s: %v", kind, name, spawnErr)
+				slog.Error("auto-advance spawn failed", "kind", kind, "name", name, "err", spawnErr)
 				autoAdvance.Reason = "error"
 			} else {
 				autoAdvance.Triggered = true
@@ -203,7 +203,7 @@ func (h *Handler) spawnWorkshopAsync(item BacklogItem, mode ResearchMode) (runID
 	selection, promptErr := h.fetchResearchPrompt(ctx, item, mode)
 	prompt := selection.Prompt
 	if promptErr != nil {
-		log.Printf("[backlog] auto-workshop: prompt fetch failed for %s/%s: %v", item.Kind, item.Name, promptErr)
+		slog.Warn("auto-workshop prompt fetch failed, using fallback", "kind", item.Kind, "name", item.Name, "err", promptErr)
 		prompt = "Use the backlog item folder as context and perform the requested workshop refinement."
 	}
 
@@ -314,12 +314,12 @@ func (h *Handler) WorkshopDeleteRound(w http.ResponseWriter, r *http.Request) {
 			apierr.MapError(w, "[backlog] workshop-delete-round", apierr.NotFound("%s", err.Error()))
 			return
 		}
-		log.Printf("[backlog] workshop-delete-round: %v", err)
+		slog.Error("workshop-delete-round failed", "err", err)
 		apierr.MapError(w, "[backlog] workshop-delete-round", apierr.Internal("failed to delete workshop round"))
 		return
 	}
 
-	log.Printf("[backlog] workshop-delete-round: deleted round %d from %s/%s (%d remaining)", req.RoundNumber, kind, name, remaining)
+	slog.Info("workshop round deleted", "round", req.RoundNumber, "kind", kind, "name", name, "remaining", remaining)
 
 	resp := &apipb.WorkshopDeleteRoundResponse{
 		DeletedRound:    req.RoundNumber,
@@ -364,7 +364,7 @@ func (h *Handler) WorkshopReset(w http.ResponseWriter, r *http.Request) {
 
 	deleted, err := workshop.ResetWorkshop(itemDir, deliverableFile)
 	if err != nil {
-		log.Printf("[backlog] workshop-reset: %v", err)
+		slog.Error("workshop-reset failed", "err", err)
 		apierr.MapError(w, "[backlog] workshop-reset", apierr.Internal("failed to reset workshop"))
 		return
 	}
@@ -375,14 +375,14 @@ func (h *Handler) WorkshopReset(w http.ResponseWriter, r *http.Request) {
 	if item.Status == StatusReady {
 		item.Status = StatusBacklog
 		if err := h.store.SaveItem(item); err != nil {
-			log.Printf("[backlog] workshop-reset: failed to revert status: %v", err)
+			slog.Error("workshop-reset failed to revert status", "err", err)
 			apierr.MapError(w, "[backlog] workshop-reset", apierr.Internal("failed to revert status"))
 			return
 		}
 		statusReverted = true
 	}
 
-	log.Printf("[backlog] workshop-reset: reset %s/%s (%d rounds deleted, status_reverted=%v)", kind, name, deleted, statusReverted)
+	slog.Info("workshop reset", "kind", kind, "name", name, "deleted_rounds", deleted, "status_reverted", statusReverted)
 
 	resp := &apipb.WorkshopResetResponse{
 		DeletedRounds:  int32(deleted),

@@ -1,4 +1,3 @@
-import type { KeyboardEvent } from "react";
 import { selectors } from "../../consts/selectors";
 import type { PromptSkillSummary } from "../../types";
 

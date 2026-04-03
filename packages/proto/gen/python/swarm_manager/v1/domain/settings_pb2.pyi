@@ -6,11 +6,12 @@ from typing import ClassVar as _ClassVar, Optional as _Optional
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Settings(_message.Message):
-    __slots__ = ("theme", "default_mode", "auto_fixup", "max_fixup_attempts", "max_auto_rounds", "auto_initialize_workshop", "auto_advance_workshop", "auto_cascade_workshop", "agent_max_turns", "agent_timeout_seconds", "agent_requires_approval", "search_debounce_ms", "toast_duration_ms", "confirm_destructive_actions", "review_code_quality_min_score", "review_test_min_pass_rate", "review_max_blocking_violations", "review_max_warnings", "review_require_screenshots", "review_require_tests", "max_concurrent_executions", "max_queue_depth", "circuit_breaker_threshold", "circuit_breaker_cooldown_minutes", "execution_cost_cap_per_run", "cost_per_turn_estimate")
+    __slots__ = ("theme", "default_mode", "auto_fixup", "max_fixup_attempts", "review_agent_enabled", "max_auto_rounds", "auto_initialize_workshop", "auto_advance_workshop", "auto_cascade_workshop", "agent_max_turns", "agent_timeout_seconds", "agent_requires_approval", "search_debounce_ms", "toast_duration_ms", "confirm_destructive_actions", "review_code_quality_min_score", "review_test_min_pass_rate", "review_max_blocking_violations", "review_max_warnings", "review_require_screenshots", "review_require_tests", "max_concurrent_executions", "max_queue_depth", "circuit_breaker_threshold", "circuit_breaker_cooldown_minutes", "execution_cost_cap_per_run", "cost_per_turn_estimate")
     THEME_FIELD_NUMBER: _ClassVar[int]
     DEFAULT_MODE_FIELD_NUMBER: _ClassVar[int]
     AUTO_FIXUP_FIELD_NUMBER: _ClassVar[int]
     MAX_FIXUP_ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
+    REVIEW_AGENT_ENABLED_FIELD_NUMBER: _ClassVar[int]
     MAX_AUTO_ROUNDS_FIELD_NUMBER: _ClassVar[int]
     AUTO_INITIALIZE_WORKSHOP_FIELD_NUMBER: _ClassVar[int]
     AUTO_ADVANCE_WORKSHOP_FIELD_NUMBER: _ClassVar[int]
@@ -37,6 +38,7 @@ class Settings(_message.Message):
     default_mode: str
     auto_fixup: bool
     max_fixup_attempts: int
+    review_agent_enabled: bool
     max_auto_rounds: int
     auto_initialize_workshop: bool
     auto_advance_workshop: bool
@@ -59,4 +61,4 @@ class Settings(_message.Message):
     circuit_breaker_cooldown_minutes: int
     execution_cost_cap_per_run: float
     cost_per_turn_estimate: float
-    def __init__(self, theme: _Optional[str] = ..., default_mode: _Optional[str] = ..., auto_fixup: _Optional[bool] = ..., max_fixup_attempts: _Optional[int] = ..., max_auto_rounds: _Optional[int] = ..., auto_initialize_workshop: _Optional[bool] = ..., auto_advance_workshop: _Optional[bool] = ..., auto_cascade_workshop: _Optional[bool] = ..., agent_max_turns: _Optional[int] = ..., agent_timeout_seconds: _Optional[int] = ..., agent_requires_approval: _Optional[bool] = ..., search_debounce_ms: _Optional[int] = ..., toast_duration_ms: _Optional[int] = ..., confirm_destructive_actions: _Optional[bool] = ..., review_code_quality_min_score: _Optional[float] = ..., review_test_min_pass_rate: _Optional[float] = ..., review_max_blocking_violations: _Optional[int] = ..., review_max_warnings: _Optional[int] = ..., review_require_screenshots: _Optional[bool] = ..., review_require_tests: _Optional[bool] = ..., max_concurrent_executions: _Optional[int] = ..., max_queue_depth: _Optional[int] = ..., circuit_breaker_threshold: _Optional[int] = ..., circuit_breaker_cooldown_minutes: _Optional[int] = ..., execution_cost_cap_per_run: _Optional[float] = ..., cost_per_turn_estimate: _Optional[float] = ...) -> None: ...
+    def __init__(self, theme: _Optional[str] = ..., default_mode: _Optional[str] = ..., auto_fixup: _Optional[bool] = ..., max_fixup_attempts: _Optional[int] = ..., review_agent_enabled: _Optional[bool] = ..., max_auto_rounds: _Optional[int] = ..., auto_initialize_workshop: _Optional[bool] = ..., auto_advance_workshop: _Optional[bool] = ..., auto_cascade_workshop: _Optional[bool] = ..., agent_max_turns: _Optional[int] = ..., agent_timeout_seconds: _Optional[int] = ..., agent_requires_approval: _Optional[bool] = ..., search_debounce_ms: _Optional[int] = ..., toast_duration_ms: _Optional[int] = ..., confirm_destructive_actions: _Optional[bool] = ..., review_code_quality_min_score: _Optional[float] = ..., review_test_min_pass_rate: _Optional[float] = ..., review_max_blocking_violations: _Optional[int] = ..., review_max_warnings: _Optional[int] = ..., review_require_screenshots: _Optional[bool] = ..., review_require_tests: _Optional[bool] = ..., max_concurrent_executions: _Optional[int] = ..., max_queue_depth: _Optional[int] = ..., circuit_breaker_threshold: _Optional[int] = ..., circuit_breaker_cooldown_minutes: _Optional[int] = ..., execution_cost_cap_per_run: _Optional[float] = ..., cost_per_turn_estimate: _Optional[float] = ...) -> None: ...

@@ -18,16 +18,14 @@ import {
   Square,
   ChevronDown,
   ChevronRight,
-  ExternalLink,
-  Loader2,
   MessageSquarePlus,
 } from "lucide-react";
 import type { EvidenceItem, EvidenceType } from "../../services/review-service";
 import { buildApiUrl } from "@vrooli/api-base";
 import { API_ENDPOINTS } from "../../lib/api-endpoints";
-import { useCaptureContent } from "../../hooks/useCaptureContent";
 import { MediaLightbox } from "../ui/media-lightbox";
 import { selectors } from "../../consts/selectors";
+import { CaptureContentViewer } from "./capture-content-viewer";
 
 export interface EvidenceItemCardProps {
   item: EvidenceItem;
@@ -255,47 +253,20 @@ function CLIOutputEvidence({
   backlogName: string;
   capturePath: string;
 }) {
-  const { content, isLoading, error, isTruncated, captureUrl } = useCaptureContent(
-    backlogKind,
-    backlogName,
-    capturePath,
-  );
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center gap-2 rounded bg-slate-900 p-3 text-xs text-slate-400 dark:bg-slate-950">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-        Loading output...
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="rounded bg-slate-900 p-3 text-xs text-red-400 dark:bg-slate-950">
-        {error}
-      </div>
-    );
-  }
-
   return (
-    <div data-testid={selectors.evidence.cliOutput}>
-      <pre className="max-h-64 overflow-auto rounded bg-slate-900 p-2 text-xs font-mono text-slate-300 dark:bg-slate-950">
-        {content}
-      </pre>
-      {isTruncated && (
-        <a
-          href={captureUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-1 inline-flex items-center gap-1 text-xs text-violet-400 hover:text-violet-300"
-          data-testid={selectors.evidence.truncatedLink}
-        >
-          <ExternalLink className="h-3 w-3" />
-          Open full output
-        </a>
+    <CaptureContentViewer
+      backlogKind={backlogKind}
+      backlogName={backlogName}
+      capturePath={capturePath}
+      loadingLabel="Loading output..."
+      openLabel="Open full output"
+      testId={selectors.evidence.cliOutput}
+      renderContent={(content) => (
+        <pre className="max-h-64 overflow-auto rounded bg-slate-900 p-2 text-xs font-mono text-slate-300 dark:bg-slate-950">
+          {content}
+        </pre>
       )}
-    </div>
+    />
   );
 }
 
@@ -308,51 +279,24 @@ function ConfigDiffEvidence({
   backlogName: string;
   capturePath: string;
 }) {
-  const { content, isLoading, error, isTruncated, captureUrl } = useCaptureContent(
-    backlogKind,
-    backlogName,
-    capturePath,
-  );
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center gap-2 rounded bg-slate-900 p-3 text-xs text-slate-400 dark:bg-slate-950">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-        Loading diff...
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="rounded bg-slate-900 p-3 text-xs text-red-400 dark:bg-slate-950">
-        {error}
-      </div>
-    );
-  }
-
   return (
-    <div data-testid={selectors.evidence.configDiff}>
-      <pre className="max-h-64 overflow-auto rounded bg-slate-900 p-2 text-xs font-mono dark:bg-slate-950">
-        {(content ?? "").split("\n").map((line, i) => (
-          <div key={i} className={diffLineClass(line)}>
-            {line}
-          </div>
-        ))}
-      </pre>
-      {isTruncated && (
-        <a
-          href={captureUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-1 inline-flex items-center gap-1 text-xs text-violet-400 hover:text-violet-300"
-          data-testid={selectors.evidence.truncatedLink}
-        >
-          <ExternalLink className="h-3 w-3" />
-          Open full diff
-        </a>
+    <CaptureContentViewer
+      backlogKind={backlogKind}
+      backlogName={backlogName}
+      capturePath={capturePath}
+      loadingLabel="Loading diff..."
+      openLabel="Open full diff"
+      testId={selectors.evidence.configDiff}
+      renderContent={(content) => (
+        <pre className="max-h-64 overflow-auto rounded bg-slate-900 p-2 text-xs font-mono dark:bg-slate-950">
+          {content.split("\n").map((line, i) => (
+            <div key={i} className={diffLineClass(line)}>
+              {line}
+            </div>
+          ))}
+        </pre>
       )}
-    </div>
+    />
   );
 }
 

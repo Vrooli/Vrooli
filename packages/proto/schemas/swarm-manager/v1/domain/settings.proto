@@ -36,6 +36,7 @@ message Settings {
   reserved 6;
   bool auto_fixup = 7;
   int32 max_fixup_attempts = 8 [(buf.validate.field).int32 = { gte: 0, lte: 5 }];
+  bool review_agent_enabled = 31;
 
   // Workshop settings.
   int32 max_auto_rounds = 9 [(buf.validate.field).int32 = { gte: 0, lte: 50 }];

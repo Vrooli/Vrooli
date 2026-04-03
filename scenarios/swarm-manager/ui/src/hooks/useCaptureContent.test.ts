@@ -118,6 +118,6 @@ describe("useCaptureContent", () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.isTruncated).toBe(true);
-    expect(result.current.content!.length).toBe(50_000);
+    expect(result.current.content?.length).toBe(50_000);
   });
 });

@@ -1,5 +1,6 @@
 from buf.validate import validate_pb2 as _validate_pb2
 from swarm_manager.v1.domain import backlog_pb2 as _backlog_pb2
+from swarm_manager.v1.domain import execution_pb2 as _execution_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -335,3 +336,35 @@ class ClarificationActionResponse(_message.Message):
     run_id: str
     task_id: str
     def __init__(self, action: _Optional[str] = ..., success: _Optional[bool] = ..., message: _Optional[str] = ..., run_id: _Optional[str] = ..., task_id: _Optional[str] = ...) -> None: ...
+
+class ListReviewRoundsResponse(_message.Message):
+    __slots__ = ("rounds",)
+    ROUNDS_FIELD_NUMBER: _ClassVar[int]
+    rounds: _containers.RepeatedCompositeFieldContainer[_execution_pb2.ReviewEvidenceRound]
+    def __init__(self, rounds: _Optional[_Iterable[_Union[_execution_pb2.ReviewEvidenceRound, _Mapping]]] = ...) -> None: ...
+
+class VerifyEvidenceRequest(_message.Message):
+    __slots__ = ("verified",)
+    VERIFIED_FIELD_NUMBER: _ClassVar[int]
+    verified: bool
+    def __init__(self, verified: _Optional[bool] = ...) -> None: ...
+
+class RequestMoreEvidenceRequest(_message.Message):
+    __slots__ = ("message", "evidence_id")
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_ID_FIELD_NUMBER: _ClassVar[int]
+    message: str
+    evidence_id: str
+    def __init__(self, message: _Optional[str] = ..., evidence_id: _Optional[str] = ...) -> None: ...
+
+class RequestMoreEvidenceResponse(_message.Message):
+    __slots__ = ("thread_id",)
+    THREAD_ID_FIELD_NUMBER: _ClassVar[int]
+    thread_id: str
+    def __init__(self, thread_id: _Optional[str] = ...) -> None: ...
+
+class ContinueEvidenceRequestRequest(_message.Message):
+    __slots__ = ("message",)
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    message: str
+    def __init__(self, message: _Optional[str] = ...) -> None: ...

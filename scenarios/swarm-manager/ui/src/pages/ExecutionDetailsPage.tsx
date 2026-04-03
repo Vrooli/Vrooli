@@ -13,7 +13,7 @@
  * DOC: docs/plans/navigation-header-unification-plan.md#phase-5
  */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   CircleHelp,
   ClipboardCheck,
@@ -34,6 +34,7 @@ import { ExecutionOverviewTab } from "../components/execution/execution-overview
 import { ExecutionChangesTab } from "../components/execution/execution-changes-tab";
 import { ExecutionReviewTab } from "../components/execution/execution-review-tab";
 import { ExecutionPromptTab } from "../components/execution/execution-prompt-tab";
+import { useEmbeddedServiceUrl } from "../hooks/useEmbeddedServiceUrl";
 import { useExecutionDetailData } from "../hooks/useExecutionDetailData";
 import { useUrlState } from "../hooks/use-url-state";
 import { useDetailSelectionStore, selectionToNodeId } from "../stores/detail-selection-store";
@@ -87,19 +88,7 @@ export function ExecutionDetailsPage() {
   } = data;
 
   // --- Agent manager URL ---
-  const [agentManagerUiUrl, setAgentManagerUiUrl] = useState<string | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`/embedded/${encodeURIComponent("agent-manager")}/external-url`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: { url?: string } | null) => {
-        if (!cancelled && data?.url) {
-          setAgentManagerUiUrl(data.url);
-        }
-      })
-      .catch(() => { /* agent-manager not available */ });
-    return () => { cancelled = true; };
-  }, []);
+  const { url: agentManagerUiUrl } = useEmbeddedServiceUrl("agent-manager");
 
   // --- Follow-up dialog state ---
   const [followUpTarget, setFollowUpTarget] = useState<ExecutionRecord | null>(null);

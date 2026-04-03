@@ -3,7 +3,7 @@ package graph
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 
 	"swarm-manager/internal/agentactivity"
@@ -190,7 +190,7 @@ func (p *ProjectionService) buildOperations(ctx context.Context, focusNodeID str
 	if p.execution != nil {
 		records, err := p.execution.List(ctx, execution.ListFilters{})
 		if err != nil {
-			log.Printf("[graph] operations: execution list error: %v", err)
+			slog.Error("operations: execution list error", "error", err)
 		} else {
 			for _, rec := range records {
 				if activeExecutionStatuses[rec.Status] {
@@ -237,7 +237,7 @@ func (p *ProjectionService) buildOperations(ctx context.Context, focusNodeID str
 	if p.initiative != nil {
 		inits, err := p.initiative.List()
 		if err != nil {
-			log.Printf("[graph] operations: initiatives error: %v", err)
+			slog.Error("operations: initiatives error", "error", err)
 		} else {
 			for _, init := range inits {
 				if init.Status == "archived" {
@@ -280,7 +280,7 @@ func (p *ProjectionService) buildOperations(ctx context.Context, focusNodeID str
 	if p.activity != nil {
 		allActivities, err := p.activity.List(ctx, agentactivity.ListFilters{ActiveOnly: true})
 		if err != nil {
-			log.Printf("[graph] operations: activity list error: %v", err)
+			slog.Error("operations: activity list error", "error", err)
 		} else {
 			// Build owner and execution ID sets from nodes already in the graph.
 			ownerNodeIDs := make(map[string]struct{}, len(nodes))

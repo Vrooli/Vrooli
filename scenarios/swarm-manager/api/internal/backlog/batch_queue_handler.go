@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -184,7 +184,7 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 		// Run preflight check.
 		preflight, preflightErr := eq.ProcessPreflight(r.Context(), string(item.Kind), item.Name)
 		if preflightErr != nil {
-			log.Printf("[backlog] batch-queue: preflight failed for %s: %v", ref, preflightErr)
+			slog.Error("batch-queue preflight failed", "item", ref, "err", preflightErr)
 			result.Message = "Preflight check failed: " + httputil.TruncateErrorMessage(preflightErr, 240)
 			results = append(results, result)
 			continue
@@ -218,7 +218,7 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 			Force:       req.Force,
 		})
 		if queueErr != nil {
-			log.Printf("[backlog] batch-queue: failed to queue %s: %v", ref, queueErr)
+			slog.Error("batch-queue failed to queue item", "item", ref, "err", queueErr)
 			result.Message = "Queue failed: " + httputil.TruncateErrorMessage(queueErr, 240)
 			results = append(results, result)
 			continue
@@ -230,7 +230,7 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 		results = append(results, result)
 		queuedInBatch[ref] = true
 
-		log.Printf("[backlog] batch-queue: queued %s (execution_id=%s)", ref, record.ExecutionID)
+		slog.Info("batch-queue item queued", "item", ref, "execution_id", record.ExecutionID)
 	}
 
 	resp := batchQueueResponse{

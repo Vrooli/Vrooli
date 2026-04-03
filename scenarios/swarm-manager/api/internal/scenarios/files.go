@@ -1,7 +1,7 @@
 package scenarios
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -48,7 +48,7 @@ func (h *Handler) ListFiles(w http.ResponseWriter, r *http.Request) {
 
 	files, err := h.buildScenarioFileTree(scenarioPath, "")
 	if err != nil {
-		log.Printf("[scenarios] list files: failed to build file tree for %q: %v", name, err)
+		slog.Error("failed to build file tree", "scenario", name, "error", err)
 		apierr.MapError(w, "[scenarios] list files", apierr.Internal("failed to read file tree"))
 		return
 	}

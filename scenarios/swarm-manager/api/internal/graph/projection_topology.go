@@ -3,7 +3,7 @@ package graph
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 
 	"swarm-manager/internal/backlog"
@@ -67,7 +67,7 @@ func (p *ProjectionService) buildTopology(ctx context.Context) (GraphResponse, e
 	if p.initiative != nil {
 		inits, err := p.initiative.List()
 		if err != nil {
-			log.Printf("[graph] topology: initiatives error: %v", err)
+			slog.Error("topology: initiatives error", "error", err)
 		} else {
 			for _, init := range inits {
 				if init.Status == "archived" {
@@ -117,7 +117,7 @@ func (p *ProjectionService) buildTopology(ctx context.Context) (GraphResponse, e
 	if p.capture != nil {
 		caps, err := p.capture.ListCaptures()
 		if err != nil {
-			log.Printf("[graph] topology: captures error: %v", err)
+			slog.Error("topology: captures error", "error", err)
 		} else {
 			for _, cap := range caps {
 				if len(cap.Items) == 0 {
@@ -155,7 +155,7 @@ func (p *ProjectionService) buildTopology(ctx context.Context) (GraphResponse, e
 	if p.scenario != nil {
 		scens, err := p.scenario.List(ctx)
 		if err != nil {
-			log.Printf("[graph] topology: scenarios error: %v", err)
+			slog.Error("topology: scenarios error", "error", err)
 		} else {
 			scenByName := make(map[string]ScenarioEntry, len(scens))
 			for _, s := range scens {

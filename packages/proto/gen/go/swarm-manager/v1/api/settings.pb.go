@@ -74,9 +74,10 @@ type UpdateSettingsRequest struct {
 	// Optional theme override.
 	Theme *string `protobuf:"bytes,1,opt,name=theme,proto3,oneof" json:"theme,omitempty"`
 	// Execution defaults.
-	DefaultMode      *string `protobuf:"bytes,5,opt,name=default_mode,json=defaultMode,proto3,oneof" json:"default_mode,omitempty"`
-	AutoFixup        *bool   `protobuf:"varint,7,opt,name=auto_fixup,json=autoFixup,proto3,oneof" json:"auto_fixup,omitempty"`
-	MaxFixupAttempts *int32  `protobuf:"varint,8,opt,name=max_fixup_attempts,json=maxFixupAttempts,proto3,oneof" json:"max_fixup_attempts,omitempty"`
+	DefaultMode        *string `protobuf:"bytes,5,opt,name=default_mode,json=defaultMode,proto3,oneof" json:"default_mode,omitempty"`
+	AutoFixup          *bool   `protobuf:"varint,7,opt,name=auto_fixup,json=autoFixup,proto3,oneof" json:"auto_fixup,omitempty"`
+	MaxFixupAttempts   *int32  `protobuf:"varint,8,opt,name=max_fixup_attempts,json=maxFixupAttempts,proto3,oneof" json:"max_fixup_attempts,omitempty"`
+	ReviewAgentEnabled *bool   `protobuf:"varint,31,opt,name=review_agent_enabled,json=reviewAgentEnabled,proto3,oneof" json:"review_agent_enabled,omitempty"`
 	// Workshop settings.
 	MaxAutoRounds          *int32 `protobuf:"varint,9,opt,name=max_auto_rounds,json=maxAutoRounds,proto3,oneof" json:"max_auto_rounds,omitempty"`
 	AutoInitializeWorkshop *bool  `protobuf:"varint,16,opt,name=auto_initialize_workshop,json=autoInitializeWorkshop,proto3,oneof" json:"auto_initialize_workshop,omitempty"`
@@ -164,6 +165,13 @@ func (x *UpdateSettingsRequest) GetMaxFixupAttempts() int32 {
 		return *x.MaxFixupAttempts
 	}
 	return 0
+}
+
+func (x *UpdateSettingsRequest) GetReviewAgentEnabled() bool {
+	if x != nil && x.ReviewAgentEnabled != nil {
+		return *x.ReviewAgentEnabled
+	}
+	return false
 }
 
 func (x *UpdateSettingsRequest) GetMaxAutoRounds() int32 {
@@ -326,41 +334,43 @@ const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	"\n" +
 	"#swarm-manager/v1/api/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a&swarm-manager/v1/domain/settings.proto\"J\n" +
 	"\x10SettingsResponse\x126\n" +
-	"\bsettings\x18\x01 \x01(\v2\x1a.swarm_manager.v1.SettingsR\bsettings\"\xbe\x11\n" +
+	"\bsettings\x18\x01 \x01(\v2\x1a.swarm_manager.v1.SettingsR\bsettings\"\x8e\x12\n" +
 	"\x15UpdateSettingsRequest\x127\n" +
 	"\x05theme\x18\x01 \x01(\tB\x1c\xbaH\x19r\x17R\x00R\x04darkR\x05lightR\x06systemH\x00R\x05theme\x88\x01\x01\x12=\n" +
 	"\fdefault_mode\x18\x05 \x01(\tB\x15\xbaH\x12r\x10R\x00R\x06manualR\x04yoloH\x01R\vdefaultMode\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"auto_fixup\x18\a \x01(\bH\x02R\tautoFixup\x88\x01\x01\x121\n" +
-	"\x12max_fixup_attempts\x18\b \x01(\x05H\x03R\x10maxFixupAttempts\x88\x01\x01\x12+\n" +
-	"\x0fmax_auto_rounds\x18\t \x01(\x05H\x04R\rmaxAutoRounds\x88\x01\x01\x12=\n" +
-	"\x18auto_initialize_workshop\x18\x10 \x01(\bH\x05R\x16autoInitializeWorkshop\x88\x01\x01\x127\n" +
-	"\x15auto_advance_workshop\x18\x11 \x01(\bH\x06R\x13autoAdvanceWorkshop\x88\x01\x01\x127\n" +
-	"\x15auto_cascade_workshop\x18\x12 \x01(\bH\aR\x13autoCascadeWorkshop\x88\x01\x01\x12+\n" +
+	"\x12max_fixup_attempts\x18\b \x01(\x05H\x03R\x10maxFixupAttempts\x88\x01\x01\x125\n" +
+	"\x14review_agent_enabled\x18\x1f \x01(\bH\x04R\x12reviewAgentEnabled\x88\x01\x01\x12+\n" +
+	"\x0fmax_auto_rounds\x18\t \x01(\x05H\x05R\rmaxAutoRounds\x88\x01\x01\x12=\n" +
+	"\x18auto_initialize_workshop\x18\x10 \x01(\bH\x06R\x16autoInitializeWorkshop\x88\x01\x01\x127\n" +
+	"\x15auto_advance_workshop\x18\x11 \x01(\bH\aR\x13autoAdvanceWorkshop\x88\x01\x01\x127\n" +
+	"\x15auto_cascade_workshop\x18\x12 \x01(\bH\bR\x13autoCascadeWorkshop\x88\x01\x01\x12+\n" +
 	"\x0fagent_max_turns\x18\n" +
-	" \x01(\x05H\bR\ragentMaxTurns\x88\x01\x01\x127\n" +
-	"\x15agent_timeout_seconds\x18\v \x01(\x05H\tR\x13agentTimeoutSeconds\x88\x01\x01\x12;\n" +
-	"\x17agent_requires_approval\x18\f \x01(\bH\n" +
-	"R\x15agentRequiresApproval\x88\x01\x01\x121\n" +
-	"\x12search_debounce_ms\x18\r \x01(\x05H\vR\x10searchDebounceMs\x88\x01\x01\x12/\n" +
-	"\x11toast_duration_ms\x18\x0e \x01(\x05H\fR\x0ftoastDurationMs\x88\x01\x01\x12C\n" +
-	"\x1bconfirm_destructive_actions\x18\x0f \x01(\bH\rR\x19confirmDestructiveActions\x88\x01\x01\x12E\n" +
-	"\x1dreview_code_quality_min_score\x18\x13 \x01(\x01H\x0eR\x19reviewCodeQualityMinScore\x88\x01\x01\x12=\n" +
-	"\x19review_test_min_pass_rate\x18\x14 \x01(\x01H\x0fR\x15reviewTestMinPassRate\x88\x01\x01\x12H\n" +
-	"\x1ereview_max_blocking_violations\x18\x15 \x01(\x05H\x10R\x1breviewMaxBlockingViolations\x88\x01\x01\x123\n" +
-	"\x13review_max_warnings\x18\x16 \x01(\x05H\x11R\x11reviewMaxWarnings\x88\x01\x01\x12A\n" +
-	"\x1areview_require_screenshots\x18\x17 \x01(\bH\x12R\x18reviewRequireScreenshots\x88\x01\x01\x125\n" +
-	"\x14review_require_tests\x18\x18 \x01(\bH\x13R\x12reviewRequireTests\x88\x01\x01\x12?\n" +
-	"\x19max_concurrent_executions\x18\x19 \x01(\x05H\x14R\x17maxConcurrentExecutions\x88\x01\x01\x12+\n" +
-	"\x0fmax_queue_depth\x18\x1a \x01(\x05H\x15R\rmaxQueueDepth\x88\x01\x01\x12?\n" +
-	"\x19circuit_breaker_threshold\x18\x1b \x01(\x05H\x16R\x17circuitBreakerThreshold\x88\x01\x01\x12L\n" +
-	" circuit_breaker_cooldown_minutes\x18\x1c \x01(\x05H\x17R\x1dcircuitBreakerCooldownMinutes\x88\x01\x01\x12?\n" +
-	"\x1aexecution_cost_cap_per_run\x18\x1d \x01(\x01H\x18R\x16executionCostCapPerRun\x88\x01\x01\x128\n" +
-	"\x16cost_per_turn_estimate\x18\x1e \x01(\x01H\x19R\x13costPerTurnEstimate\x88\x01\x01B\b\n" +
+	" \x01(\x05H\tR\ragentMaxTurns\x88\x01\x01\x127\n" +
+	"\x15agent_timeout_seconds\x18\v \x01(\x05H\n" +
+	"R\x13agentTimeoutSeconds\x88\x01\x01\x12;\n" +
+	"\x17agent_requires_approval\x18\f \x01(\bH\vR\x15agentRequiresApproval\x88\x01\x01\x121\n" +
+	"\x12search_debounce_ms\x18\r \x01(\x05H\fR\x10searchDebounceMs\x88\x01\x01\x12/\n" +
+	"\x11toast_duration_ms\x18\x0e \x01(\x05H\rR\x0ftoastDurationMs\x88\x01\x01\x12C\n" +
+	"\x1bconfirm_destructive_actions\x18\x0f \x01(\bH\x0eR\x19confirmDestructiveActions\x88\x01\x01\x12E\n" +
+	"\x1dreview_code_quality_min_score\x18\x13 \x01(\x01H\x0fR\x19reviewCodeQualityMinScore\x88\x01\x01\x12=\n" +
+	"\x19review_test_min_pass_rate\x18\x14 \x01(\x01H\x10R\x15reviewTestMinPassRate\x88\x01\x01\x12H\n" +
+	"\x1ereview_max_blocking_violations\x18\x15 \x01(\x05H\x11R\x1breviewMaxBlockingViolations\x88\x01\x01\x123\n" +
+	"\x13review_max_warnings\x18\x16 \x01(\x05H\x12R\x11reviewMaxWarnings\x88\x01\x01\x12A\n" +
+	"\x1areview_require_screenshots\x18\x17 \x01(\bH\x13R\x18reviewRequireScreenshots\x88\x01\x01\x125\n" +
+	"\x14review_require_tests\x18\x18 \x01(\bH\x14R\x12reviewRequireTests\x88\x01\x01\x12?\n" +
+	"\x19max_concurrent_executions\x18\x19 \x01(\x05H\x15R\x17maxConcurrentExecutions\x88\x01\x01\x12+\n" +
+	"\x0fmax_queue_depth\x18\x1a \x01(\x05H\x16R\rmaxQueueDepth\x88\x01\x01\x12?\n" +
+	"\x19circuit_breaker_threshold\x18\x1b \x01(\x05H\x17R\x17circuitBreakerThreshold\x88\x01\x01\x12L\n" +
+	" circuit_breaker_cooldown_minutes\x18\x1c \x01(\x05H\x18R\x1dcircuitBreakerCooldownMinutes\x88\x01\x01\x12?\n" +
+	"\x1aexecution_cost_cap_per_run\x18\x1d \x01(\x01H\x19R\x16executionCostCapPerRun\x88\x01\x01\x128\n" +
+	"\x16cost_per_turn_estimate\x18\x1e \x01(\x01H\x1aR\x13costPerTurnEstimate\x88\x01\x01B\b\n" +
 	"\x06_themeB\x0f\n" +
 	"\r_default_modeB\r\n" +
 	"\v_auto_fixupB\x15\n" +
-	"\x13_max_fixup_attemptsB\x12\n" +
+	"\x13_max_fixup_attemptsB\x17\n" +
+	"\x15_review_agent_enabledB\x12\n" +
 	"\x10_max_auto_roundsB\x1b\n" +
 	"\x19_auto_initialize_workshopB\x18\n" +
 	"\x16_auto_advance_workshopB\x18\n" +

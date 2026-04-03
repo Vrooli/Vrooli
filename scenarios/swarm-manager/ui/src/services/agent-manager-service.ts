@@ -19,9 +19,20 @@ interface AgentRunStateResponse {
   active?: boolean;
 }
 
+interface AgentRunDetailsResponse {
+  run?: {
+    sandboxId?: string;
+  };
+}
+
+export interface AgentRunDetails {
+  sandboxId?: string;
+}
+
 export interface IAgentManagerService {
   getStatus(): Promise<AgentManagerStatus>;
   getRunState(runId: string): Promise<AgentRunState>;
+  getRunDetails(runId: string): Promise<AgentRunDetails>;
   stopRun(runId: string): Promise<void>;
 }
 
@@ -61,6 +72,12 @@ export function createAgentManagerService(apiClient: IApiClient = defaultApiClie
             ? data.duration_seconds
             : undefined,
         active: Boolean(data.active),
+      };
+    },
+    async getRunDetails(runId: string): Promise<AgentRunDetails> {
+      const data = await apiClient.get<AgentRunDetailsResponse>(API_ENDPOINTS.agentManagerRun(runId));
+      return {
+        sandboxId: typeof data?.run?.sandboxId === "string" ? data.run.sandboxId : undefined,
       };
     },
     async stopRun(runId: string): Promise<void> {

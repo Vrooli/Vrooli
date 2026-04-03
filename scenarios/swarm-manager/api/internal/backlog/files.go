@@ -5,7 +5,7 @@ package backlog
 import (
 	"errors"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -102,7 +102,7 @@ func (h *Handler) GetFileContent(w http.ResponseWriter, r *http.Request) {
 			apierr.MapError(w, "", apierr.NotFound("file not found"))
 			return
 		}
-		log.Printf("[backlog] get file content: failed to read %s/%s: %v", name, filePath, err)
+		slog.Error("failed to read file content", "name", name, "path", filePath, "err", err)
 		apierr.MapError(w, "[backlog] get file content", apierr.Internal("failed to read file"))
 		return
 	}
@@ -154,14 +154,14 @@ func (h *Handler) UploadFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
-		log.Printf("[backlog] upload file: failed to create directory %s: %v", fullPath, err)
+		slog.Error("failed to create upload directory", "path", fullPath, "err", err)
 		apierr.MapError(w, "[backlog] upload file", apierr.Internal("failed to create directory"))
 		return
 	}
 
 	out, err := os.Create(fullPath)
 	if err != nil {
-		log.Printf("[backlog] upload file: failed to create file %s: %v", fullPath, err)
+		slog.Error("failed to create file", "path", fullPath, "err", err)
 		apierr.MapError(w, "[backlog] upload file", apierr.Internal("failed to save file"))
 		return
 	}
@@ -169,12 +169,12 @@ func (h *Handler) UploadFile(w http.ResponseWriter, r *http.Request) {
 
 	written, err := out.ReadFrom(file)
 	if err != nil {
-		log.Printf("[backlog] upload file: failed to write file %s: %v", fullPath, err)
+		slog.Error("failed to write file", "path", fullPath, "err", err)
 		apierr.MapError(w, "[backlog] upload file", apierr.Internal("failed to save file"))
 		return
 	}
 
-	log.Printf("[backlog] uploaded: %s/%s (%d bytes)", name, targetPath, written)
+	slog.Info("file uploaded", "name", name, "path", targetPath, "bytes", written)
 
 	fileNode := BacklogFile{
 		Name: header.Filename,

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -105,7 +105,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 			apierr.MapError(w, "[backlog] queue", apierr.NotFound("backlog item not found"))
 			return
 		}
-		log.Printf("[backlog] queue: failed to load %q: %v", name, err)
+		slog.Error("failed to load item for queue", "name", name, "err", err)
 		apierr.MapError(w, "[backlog] queue", apierr.Internal("%s", httputil.TruncateErrorMessage(err, 240)))
 		return
 	}
@@ -166,7 +166,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 			apierr.MapError(w, "[backlog] queue", apierr.NotFound("backlog item not found"))
 			return
 		}
-		log.Printf("[backlog] queue: process preflight failed for %s/%s: %v", kind, name, preflightErr)
+		slog.Error("process preflight failed", "kind", kind, "name", name, "err", preflightErr)
 		apierr.MapError(w, "[backlog] queue", apierr.Internal("failed to evaluate process preflight"))
 		return
 	}
@@ -187,7 +187,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 	var depErr error
 	blockingReasons, depErr = appendDependencyBlockingReasons(item, h.store, blockingReasons)
 	if depErr != nil {
-		log.Printf("[backlog] queue: dependency check failed for %s/%s: %v", kind, name, depErr)
+		slog.Error("dependency check failed", "kind", kind, "name", name, "err", depErr)
 		apierr.MapError(w, "[backlog] queue", apierr.Internal("failed to check dependencies"))
 		return
 	}
@@ -261,12 +261,12 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 
 	item, err = h.store.LoadItem(kind, name)
 	if err != nil {
-		log.Printf("[backlog] queue: failed to reload %q after queue: %v", name, err)
+		slog.Error("failed to reload item after queue", "name", name, "err", err)
 		apierr.MapError(w, "[backlog] queue", apierr.Internal("failed to load updated backlog item"))
 		return
 	}
 
-	log.Printf("[backlog] queued: %q (kind=%s, status=%s, taskId=%s, executionId=%s)", name, kind, item.Status, record.TaskID, record.ExecutionID)
+	slog.Info("item queued", "name", name, "kind", kind, "status", item.Status, "task_id", record.TaskID, "execution_id", record.ExecutionID)
 
 	resp := &apipb.QueueBacklogItemResponse{
 		Item:                backlogToProto(item),

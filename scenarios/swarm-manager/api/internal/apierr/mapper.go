@@ -2,7 +2,7 @@ package apierr
 
 import (
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 )
@@ -17,7 +17,7 @@ func MapError(w http.ResponseWriter, logPrefix string, err error) {
 	var domainErr *DomainError
 	if errors.As(err, &domainErr) {
 		if logPrefix != "" {
-			log.Printf("%s: %s (status=%d)", logPrefix, domainErr.Message, domainErr.Status)
+			slog.Error("domain error", "prefix", logPrefix, "message", domainErr.Message, "status", domainErr.Status)
 		}
 		http.Error(w, domainErr.Message, domainErr.Status)
 		return
@@ -26,7 +26,7 @@ func MapError(w http.ResponseWriter, logPrefix string, err error) {
 	// Fallback: untyped error → 500.
 	msg := truncateMessage(err, 240)
 	if logPrefix != "" {
-		log.Printf("%s: unexpected error: %v", logPrefix, err)
+		slog.Error("unexpected error", "prefix", logPrefix, "error", err)
 	}
 	http.Error(w, msg, http.StatusInternalServerError)
 }

@@ -3,7 +3,7 @@ package review
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -19,8 +19,8 @@ type AgentSpawner interface {
 	SpawnBacklog(ctx context.Context, req agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error)
 }
 
-// EventEmitter records review events for analytics.
-type EventEmitter interface {
+// EventLogger records review events for analytics.
+type EventLogger interface {
 	EmitReviewStarted(executionID string, roundNumber int)
 	EmitReviewEvidenceVerified(executionID, evidenceID string)
 	EmitReviewRequestCreated(executionID, requestID, description string)
@@ -46,7 +46,7 @@ type Service struct {
 	rootDir      string
 	agentService AgentSpawner
 	promptClient promptmanager.Client
-	eventEmitter EventEmitter
+	eventLogger  EventLogger
 	itemDirFn    func(kind, name string) string
 }
 
@@ -64,9 +64,9 @@ func NewService(cfg ServiceConfig) *Service {
 	}
 }
 
-// SetEventEmitter injects an optional event emitter for analytics.
-func (s *Service) SetEventEmitter(e EventEmitter) {
-	s.eventEmitter = e
+// SetEventLogger injects an optional event logger for analytics.
+func (s *Service) SetEventLogger(e EventLogger) {
+	s.eventLogger = e
 }
 
 // StartReviewForExecution is called by the execution service during finalization
@@ -162,11 +162,11 @@ func (s *Service) startReview(ctx context.Context, params startReviewParams) err
 		return fmt.Errorf("save review round: %w", err)
 	}
 
-	if s.eventEmitter != nil {
-		s.eventEmitter.EmitReviewStarted(params.ExecutionID, roundNum)
+	if s.eventLogger != nil {
+		s.eventLogger.EmitReviewStarted(params.ExecutionID, roundNum)
 	}
 
-	log.Printf("[review] started round %d for execution %s (run %s)", roundNum, params.ExecutionID, runResult.RunID)
+	slog.Info("review round started", "round", roundNum, "execution_id", params.ExecutionID, "run_id", runResult.RunID)
 	return nil
 }
 
@@ -214,8 +214,8 @@ func (s *Service) VerifyEvidence(kind, name string, roundNum int, evidenceID str
 		return fmt.Errorf("save round: %w", err)
 	}
 
-	if s.eventEmitter != nil && executionID != "" {
-		s.eventEmitter.EmitReviewEvidenceVerified(executionID, evidenceID)
+	if s.eventLogger != nil && executionID != "" {
+		s.eventLogger.EmitReviewEvidenceVerified(executionID, evidenceID)
 	}
 	return nil
 }
@@ -252,8 +252,8 @@ func (s *Service) RequestMoreEvidence(ctx context.Context, kind, name string, ro
 		return "", fmt.Errorf("save round: %w", err)
 	}
 
-	if s.eventEmitter != nil && round.ExecutionID != "" {
-		s.eventEmitter.EmitReviewRequestCreated(round.ExecutionID, threadID, message)
+	if s.eventLogger != nil && round.ExecutionID != "" {
+		s.eventLogger.EmitReviewRequestCreated(round.ExecutionID, threadID, message)
 	}
 
 	return threadID, nil

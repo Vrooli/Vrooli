@@ -2,7 +2,7 @@ package initiatives
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -135,14 +135,14 @@ func (s *Store) Migrate() error {
 		newPath := filepath.Join(newDir, initiativeFileName)
 
 		if err := os.MkdirAll(newDir, 0o755); err != nil {
-			log.Printf("[initiatives] migrate: failed to create directory for %q: %v", name, err)
+			slog.Warn("migrate: failed to create directory", "initiative", name, "error", err)
 			continue
 		}
 		if err := os.Rename(oldPath, newPath); err != nil {
-			log.Printf("[initiatives] migrate: failed to move %q: %v", name, err)
+			slog.Warn("migrate: failed to move initiative", "initiative", name, "error", err)
 			continue
 		}
-		log.Printf("[initiatives] migrated %q to folder layout", name)
+		slog.Info("migrated initiative to folder layout", "initiative", name)
 	}
 	return nil
 }

@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -23,7 +23,7 @@ func resolveEventDBPath() string {
 		Profile: storage.ProfileAuto,
 	})
 	if err != nil {
-		log.Printf("[eventlog] storage resolver error, using fallback: %v", err)
+		slog.Warn("storage resolver error, using fallback", "error", err)
 		home, _ := os.UserHomeDir()
 		p := filepath.Join(home, ".vrooli", "data", "swarm-manager", "events.db")
 		return "file:" + p + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=synchronous(NORMAL)"
@@ -34,12 +34,12 @@ func resolveEventDBPath() string {
 		"events.db",
 	)
 	if err != nil {
-		log.Printf("[eventlog] path resolution error, using fallback: %v", err)
+		slog.Warn("path resolution error, using fallback", "error", err)
 		home, _ := os.UserHomeDir()
 		dbPath = filepath.Join(home, ".vrooli", "data", "swarm-manager", "events.db")
 	}
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
-		log.Printf("[eventlog] mkdir error: %v", err)
+		slog.Warn("mkdir error for event log", "error", err)
 	}
 	return "file:" + dbPath + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=synchronous(NORMAL)"
 }
@@ -49,14 +49,14 @@ func (s *Server) initEventLog() {
 	dsn := resolveEventDBPath()
 	eventDB, err := sql.Open("sqlite", dsn)
 	if err != nil {
-		log.Printf("[eventlog] failed to open database: %v (stats will be unavailable)", err)
+		slog.Warn("failed to open event database, stats will be unavailable", "error", err)
 		return
 	}
 	eventDB.SetMaxOpenConns(1)
 	eventDB.SetMaxIdleConns(1)
 	repo := eventlog.NewSQLiteRepository(eventDB)
 	if err := repo.InitSchema(context.Background()); err != nil {
-		log.Printf("[eventlog] schema init error: %v", err)
+		slog.Error("event log schema init error", "error", err)
 		s.eventDB = eventDB
 		return
 	}
@@ -64,9 +64,9 @@ func (s *Server) initEventLog() {
 	s.emitter = eventlog.NewEmitter(repo)
 	s.statsEngine = stats.NewEngine(repo)
 	if err := s.statsEngine.Rebuild(context.Background()); err != nil {
-		log.Printf("[stats] rebuild error: %v", err)
+		slog.Error("stats rebuild error", "error", err)
 	} else {
-		log.Printf("[stats] engine initialized, replayed events")
+		slog.Info("stats engine initialized, replayed events")
 	}
 }
 
@@ -91,6 +91,6 @@ func (s *Server) wireEventLoggers() {
 		s.capturesHandler.SetEventLogger(s.emitter)
 	}
 	if s.reviewSvc != nil {
-		s.reviewSvc.SetEventEmitter(s.emitter)
+		s.reviewSvc.SetEventLogger(s.emitter)
 	}
 }

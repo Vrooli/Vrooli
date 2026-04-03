@@ -297,7 +297,7 @@ func (c *HTTPClient) doRequest(ctx context.Context, method, path string, body []
 
 	resp, err := c.httpClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrNotAvailable, err)
+		return nil, fmt.Errorf("%w: %w", ErrNotAvailable, err)
 	}
 	return resp, nil
 }
@@ -332,7 +332,7 @@ func decodeProtoResponse(resp *http.Response, msg proto.Message) error {
 func resolveAgentManagerBaseURL(ctx context.Context) (string, error) {
 	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "agent-manager")
 	if err != nil {
-		return "", fmt.Errorf("%w: %v", ErrNotAvailable, err)
+		return "", fmt.Errorf("%w: %w", ErrNotAvailable, err)
 	}
 	return baseURL, nil
 }

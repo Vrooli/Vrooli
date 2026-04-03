@@ -5,7 +5,7 @@ package initiatives
 import (
 	"errors"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -120,7 +120,7 @@ func (h *Handler) GetInitiativeFileContent(w http.ResponseWriter, r *http.Reques
 			apierr.MapError(w, "", apierr.NotFound("file not found"))
 			return
 		}
-		log.Printf("[initiatives] get file: failed to read %s/%s: %v", name, filePath, err)
+		slog.Error("failed to read file", "initiative", name, "path", filePath, "error", err)
 		apierr.MapError(w, "[initiatives] get file", apierr.Internal("failed to read file"))
 		return
 	}
@@ -177,14 +177,14 @@ func (h *Handler) UploadInitiativeFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
-		log.Printf("[initiatives] upload file: failed to create directory %s: %v", fullPath, err)
+		slog.Error("failed to create directory", "path", fullPath, "error", err)
 		apierr.MapError(w, "[initiatives] upload file", apierr.Internal("failed to create directory"))
 		return
 	}
 
 	out, err := os.Create(fullPath)
 	if err != nil {
-		log.Printf("[initiatives] upload file: failed to create file %s: %v", fullPath, err)
+		slog.Error("failed to create file", "path", fullPath, "error", err)
 		apierr.MapError(w, "[initiatives] upload file", apierr.Internal("failed to save file"))
 		return
 	}
@@ -192,12 +192,12 @@ func (h *Handler) UploadInitiativeFile(w http.ResponseWriter, r *http.Request) {
 
 	written, err := out.ReadFrom(file)
 	if err != nil {
-		log.Printf("[initiatives] upload file: failed to write file %s: %v", fullPath, err)
+		slog.Error("failed to write file", "path", fullPath, "error", err)
 		apierr.MapError(w, "[initiatives] upload file", apierr.Internal("failed to save file"))
 		return
 	}
 
-	log.Printf("[initiatives] uploaded: %s/%s (%d bytes)", name, targetPath, written)
+	slog.Info("file uploaded", "initiative", name, "path", targetPath, "bytes", written)
 
 	node := fileops.FileNode{
 		Name: header.Filename,

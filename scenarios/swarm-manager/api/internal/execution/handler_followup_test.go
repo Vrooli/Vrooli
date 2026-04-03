@@ -9,7 +9,7 @@ import (
 	"swarm-manager/internal/promptmanager"
 )
 
-// stubContinuer implements the runContinuer interface for testing follow-up continuation.
+// stubContinuer implements the RunContinuer interface for testing follow-up continuation.
 type stubContinuer struct {
 	calls   int
 	lastRun string
@@ -25,7 +25,7 @@ func (s *stubContinuer) ContinueRun(_ context.Context, runID string, message str
 }
 
 // followUpTestService creates a Service with seeded records, returning the service and store path.
-func followUpTestService(t *testing.T, root string, records []Record, agent agentSpawner) *Service {
+func followUpTestService(t *testing.T, root string, records []Record, agent AgentSpawner) *Service {
 	t.Helper()
 	storePath := filepath.Join(root, ".vrooli", "execution-runs.json")
 	store := NewStore(storePath)

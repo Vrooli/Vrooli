@@ -226,6 +226,11 @@
         "enabled": true,
         "required": true,
         "description": "Skill prompt templates for backlog research and processing"
+      },
+      "git-control-tower": {
+        "enabled": false,
+        "required": false,
+        "description": "Post-execution code review and readiness validation"
       }
     }
   }

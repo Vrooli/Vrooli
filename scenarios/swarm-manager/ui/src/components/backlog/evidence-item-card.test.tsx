@@ -61,7 +61,7 @@ function renderCard(item: EvidenceItem) {
 /** Click the expand/collapse chevron button (last button in the card). */
 function expandCard() {
   const buttons = screen.getAllByRole("button");
-  const expandBtn = buttons[buttons.length - 1]!;
+  const expandBtn = buttons[buttons.length - 1] as HTMLElement;
   fireEvent.click(expandBtn);
 }
 
@@ -135,17 +135,17 @@ describe("EvidenceItemCard", () => {
       const lines = Array.from(diffBlock.querySelectorAll("pre div"));
       expect(lines.length).toBe(6);
       // --- → text-slate-400
-      expect(lines[0]!.className).toContain("text-slate-400");
+      expect((lines[0] as HTMLElement).className).toContain("text-slate-400");
       // +++ → text-slate-400
-      expect(lines[1]!.className).toContain("text-slate-400");
+      expect((lines[1] as HTMLElement).className).toContain("text-slate-400");
       // @@ → text-cyan-400
-      expect(lines[2]!.className).toContain("text-cyan-400");
+      expect((lines[2] as HTMLElement).className).toContain("text-cyan-400");
       // unchanged → text-slate-300
-      expect(lines[3]!.className).toContain("text-slate-300");
+      expect((lines[3] as HTMLElement).className).toContain("text-slate-300");
       // -old → bg-red
-      expect(lines[4]!.className).toContain("bg-red");
+      expect((lines[4] as HTMLElement).className).toContain("bg-red");
       // +new → bg-emerald
-      expect(lines[5]!.className).toContain("bg-emerald");
+      expect((lines[5] as HTMLElement).className).toContain("bg-emerald");
     });
   });
 
@@ -157,15 +157,15 @@ describe("EvidenceItemCard", () => {
       const container = screen.getByTestId("evidence-workflow-recording");
       const video = container.querySelector("video");
       expect(video).toBeTruthy();
-      expect(video!.hasAttribute("controls")).toBe(true);
-      expect(video!.getAttribute("src")).toContain("recording.webm");
+      expect((video as HTMLVideoElement).hasAttribute("controls")).toBe(true);
+      expect((video as HTMLVideoElement).getAttribute("src")).toContain("recording.webm");
     });
 
     it("opens lightbox when video is clicked", () => {
       renderCard(makeEvidence({ type: "workflow_recording", capture_path: "recording.webm" }));
       expandCard();
 
-      const video = screen.getByTestId("evidence-workflow-recording").querySelector("video")!;
+      const video = screen.getByTestId("evidence-workflow-recording").querySelector("video") as HTMLVideoElement;
       fireEvent.click(video);
 
       expect(screen.getByTestId("media-lightbox")).toBeTruthy();

@@ -1,7 +1,7 @@
 package graph
 
 import (
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -50,7 +50,7 @@ func (b *Broker) BroadcastUpdate(event string, payload any) {
 	select {
 	case b.broadcast <- msg:
 	default:
-		log.Printf("[graph-ws] broadcast channel full, dropping %s event", event)
+		slog.Warn("broadcast channel full, dropping event", "event", event)
 	}
 }
 
@@ -96,7 +96,7 @@ func (b *Broker) broadcastToAll(msg WSMessage) {
 
 	for _, conn := range clients {
 		if err := conn.WriteJSON(msg); err != nil {
-			log.Printf("[graph-ws] write error, removing client: %v", err)
+			slog.Warn("write error, removing client", "error", err)
 			b.RemoveClient(conn)
 			conn.Close()
 		}

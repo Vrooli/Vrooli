@@ -11,27 +11,12 @@
  * [REQ:REQ-P0-004] File preview for backlog details page
  */
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import Editor, { DiffEditor } from "@monaco-editor/react";
-import {
-  Check,
-  Code,
-  Copy,
-  Diff,
-  Eye,
-  Info,
-  Loader2,
-  RotateCcw,
-  Save,
-} from "lucide-react";
+import { useCallback, type ReactNode } from "react";
 import { cn } from "../../lib/utils";
-import { defaultQueryOptions, useResolvedTheme } from "../../lib";
-import { getContentTypeForFile, getFileType, getFileTypeIcon, getFileTypeIconClass, getMonacoLanguage } from "../../lib/file-type-utils";
-import { renderMarkdown } from "../../lib/render-markdown";
-import { backlogService } from "../../services";
 import type { BacklogKind } from "../../types";
-import { ErrorState } from "./error-state";
+import { useFilePreviewState } from "./useFilePreviewState";
+import { FilePreviewHeader } from "./FilePreviewHeader";
+import { FilePreviewContent } from "./FilePreviewContent";
 
 export interface FilePreviewProps {
   /** Backlog kind containing the file */
@@ -60,36 +45,6 @@ export interface FilePreviewProps {
   "data-testid"?: string;
 }
 
-const DEFAULT_EDITOR_OPTIONS = {
-  minimap: { enabled: false },
-  wordWrap: "on",
-  lineNumbers: "on",
-  fontSize: 13,
-  fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-  tabSize: 2,
-  scrollBeyondLastLine: false,
-  padding: { top: 12, bottom: 12 },
-  renderLineHighlight: "line",
-  cursorBlinking: "smooth",
-  smoothScrolling: true,
-  scrollbar: {
-    vertical: "auto",
-    horizontal: "auto",
-    verticalScrollbarSize: 8,
-    horizontalScrollbarSize: 8,
-  },
-  overviewRulerBorder: false,
-  hideCursorInOverviewRuler: true,
-  folding: true,
-  foldingStrategy: "indentation",
-  automaticLayout: true,
-} as const;
-
-type FileDraftState = {
-  original: string;
-  draft: string;
-};
-
 /**
  * FilePreview component that fetches and renders file content.
  */
@@ -108,426 +63,86 @@ export function FilePreview({
   readOnly = false,
   "data-testid": testId,
 }: FilePreviewProps) {
-  const queryClient = useQueryClient();
-  const resolvedTheme = useResolvedTheme();
-  const isLight = resolvedTheme === "light";
-  const editorTheme = isLight ? "vs" : "vs-dark";
-  const fileType = getFileType(fileName);
-  const isImage = fileType === "image";
-  const isEditable = fileType !== "image" && !readOnly;
-  const editorLanguage = useMemo(() => getMonacoLanguage(fileName), [fileName]);
-  const contentQueryKey = useMemo(
-    () => ["backlog", backlogKind, backlogName, "files", filePath, "content"],
-    [backlogKind, backlogName, filePath]
-  );
-  const [fileStateByPath, setFileStateByPath] = useState<Record<string, FileDraftState>>({});
-  const [showMobilePath, setShowMobilePath] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [markdownView, setMarkdownView] = useState<"rendered" | "raw">("raw");
-  const [isDiffMode, setIsDiffMode] = useState(false);
-  const fileState = fileStateByPath[filePath];
-  const isDirty = Boolean(fileState && fileState.draft !== fileState.original);
-
-  useEffect(() => {
-    setShowMobilePath(false);
-    setMarkdownView("raw");
-    setIsDiffMode(false);
-  }, [filePath]);
-
-  useEffect(() => {
-    if (!copied) return;
-    const timeout = setTimeout(() => setCopied(false), 1600);
-    return () => clearTimeout(timeout);
-  }, [copied]);
-
-  const {
-    data: fetchedContent,
-    isLoading,
-    error,
-    refetch,
-  } = useQuery({
-    queryKey: contentQueryKey,
-    queryFn: () => backlogService.getFileContent(backlogKind, backlogName, filePath),
-    enabled: !isImage && externalContent === undefined,
-    ...defaultQueryOptions,
-    refetchOnWindowFocus: defaultQueryOptions.refetchOnWindowFocus && !isDirty,
-  });
-  const content = externalContent ?? fetchedContent;
-
-  useEffect(() => {
-    if (typeof content !== "string") return;
-    setFileStateByPath((prev) => {
-      const existing = prev[filePath];
-      if (!existing) {
-        return { ...prev, [filePath]: { original: content, draft: content } };
-      }
-      if (existing.original === content) return prev;
-      if (existing.draft !== existing.original) return prev;
-      return { ...prev, [filePath]: { original: content, draft: content } };
-    });
-  }, [content, filePath]);
-
-  const draftContent = fileState?.draft ?? content ?? "";
-  const originalContent = fileState?.original ?? content ?? "";
-
-  useEffect(() => {
-    if (!isDirty) {
-      setIsDiffMode(false);
-    }
-  }, [isDirty]);
-
-  const saveMutation = useMutation({
-    mutationFn: async (nextContent: string) =>
-      backlogService.saveFileContent(
-        backlogKind,
-        backlogName,
-        filePath,
-        nextContent,
-        getContentTypeForFile(fileName)
-      ),
-    onSuccess: (_result, nextContent) => {
-      setFileStateByPath((prev) => {
-        return {
-          ...prev,
-          [filePath]: {
-            original: nextContent,
-            draft: nextContent,
-          },
-        };
-      });
-      queryClient.setQueryData(contentQueryKey, nextContent);
-      queryClient.invalidateQueries({
-        queryKey: ["backlog", backlogKind, backlogName, "files"],
-      });
-      if (filePath.endsWith("spec.json")) {
-        queryClient.invalidateQueries({
-          queryKey: ["backlog", backlogKind, backlogName],
-        });
-      }
-    },
+  const state = useFilePreviewState({
+    backlogKind,
+    backlogName,
+    filePath,
+    fileName,
+    externalContent,
+    readOnly,
   });
 
-  useEffect(() => {
-    saveMutation.reset();
-  }, [filePath, saveMutation]);
+  const { setIsDiffMode, setMarkdownView, setShowMobilePath } = state;
 
-  const isSaving = saveMutation.isPending;
-  const saveErrorMessage =
-    saveMutation.error instanceof Error
-      ? saveMutation.error.message
-      : saveMutation.error
-        ? "Unable to save file."
-        : "";
-
-  const handleDraftChange = useCallback(
-    (nextValue?: string) => {
-      const normalized = nextValue ?? "";
-      setFileStateByPath((prev) => {
-        const existing =
-          prev[filePath] ??
-          (typeof content === "string"
-            ? { original: content, draft: content }
-            : { original: "", draft: "" });
-        if (existing.draft === normalized) {
-          return prev;
-        }
-        return {
-          ...prev,
-          [filePath]: {
-            original: existing.original,
-            draft: normalized,
-          },
-        };
-      });
-    },
-    [content, filePath]
+  const handleToggleDiff = useCallback(
+    () => setIsDiffMode((prev) => !prev),
+    [setIsDiffMode],
   );
-
-  const handleDiscard = useCallback(() => {
-    setFileStateByPath((prev) => {
-      const existing = prev[filePath];
-      if (existing) {
-        return {
-          ...prev,
-          [filePath]: {
-            original: existing.original,
-            draft: existing.original,
-          },
-        };
-      }
-      if (typeof content === "string") {
-        return {
-          ...prev,
-          [filePath]: {
-            original: content,
-            draft: content,
-          },
-        };
-      }
-      return prev;
-    });
-    setIsDiffMode(false);
-  }, [content, filePath]);
-
-  const handleSave = useCallback(() => {
-    if (!isEditable || !isDirty || isSaving) return;
-    saveMutation.mutate(draftContent);
-  }, [draftContent, isDirty, isEditable, isSaving, saveMutation]);
-
-  const handleCopyPath = async () => {
-    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-      try {
-        await navigator.clipboard.writeText(filePath);
-        setCopied(true);
-        return;
-      } catch {
-        // Fall through to showing the path if copy fails.
-      }
-    }
-    setShowMobilePath(true);
-  };
-
-  const showMarkdownToggle = fileType === "markdown" && !isDiffMode;
-  const markdownToggleLabel =
-    markdownView === "rendered" ? "Show raw markdown" : "Show rendered markdown";
-  const showEditor = isEditable && !isDiffMode && (fileType !== "markdown" || markdownView === "raw");
-  const showRenderedMarkdown =
-    fileType === "markdown" && markdownView === "rendered" && !isDiffMode;
-  const showDiff = isEditable && isDiffMode && !isLoading && !error;
-  const canSave = isEditable && isDirty && !isSaving && !isLoading && !error;
-  const canDiscard = isEditable && isDirty && !isSaving;
-  const canToggleDiff = isEditable && isDirty && !isSaving;
-
-  const actionButtonClass = (enabled: boolean, active = false, tone: "default" | "accent" = "default") =>
-    cn(
-      "inline-flex h-8 w-8 items-center justify-center transition-colors",
-      compactHeader
-        ? "rounded-md bg-transparent"
-        : "rounded-full",
-      enabled
-        ? tone === "accent"
-          ? "text-cyan-200 hover:bg-cyan-500/20 hover:text-cyan-100"
-          : "text-slate-300 hover:bg-slate-700/60 hover:text-white"
-        : "text-slate-600 cursor-not-allowed",
-      active && enabled && (tone === "accent" ? "bg-cyan-500/20 text-cyan-100" : "bg-slate-700/60 text-white")
-    );
+  const handleToggleMarkdownView = useCallback(
+    () => setMarkdownView((prev) => (prev === "rendered" ? "raw" : "rendered")),
+    [setMarkdownView],
+  );
+  const handleToggleMobilePath = useCallback(
+    () => setShowMobilePath((prev) => !prev),
+    [setShowMobilePath],
+  );
 
   return (
     <div
       className={cn(
         "rounded-lg border border-white/10 bg-slate-800/30 overflow-hidden flex flex-col",
-        className
+        className,
       )}
       data-testid={testId ?? "file-preview"}
     >
       {/* Header */}
-      <div
-        className={cn(
-          "flex items-center gap-2 border-b border-white/10 bg-slate-800/50",
-          compactHeader ? "px-3 py-2 sm:px-4 sm:py-3" : "px-4 py-3",
-          stickyHeader && "sticky top-0 z-20 backdrop-blur"
-        )}
-      >
-        {(() => { const Icon = getFileTypeIcon(fileType); return <Icon className={getFileTypeIconClass(fileType)} />; })()}
-        <span className="font-medium text-slate-200 truncate" data-testid="file-preview-name">
-          {fileName}
-        </span>
-        <div className="ml-auto flex items-center gap-2">
-          <span
-            className={cn(
-              "text-xs text-slate-500 max-w-[220px] truncate",
-              compactHeader && "hidden sm:inline"
-            )}
-          >
-            {filePath}
-          </span>
-          {isEditable && (
-            <>
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={!canSave}
-                className={actionButtonClass(canSave, false, "accent")}
-                aria-label="Save changes"
-                title={canSave ? "Save changes" : "No changes to save"}
-                data-testid="file-preview-save"
-              >
-                {isSaving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={handleDiscard}
-                disabled={!canDiscard}
-                className={actionButtonClass(canDiscard)}
-                aria-label="Discard changes"
-                title={canDiscard ? "Discard changes" : "No changes to discard"}
-                data-testid="file-preview-discard"
-              >
-                <RotateCcw className="h-4 w-4" />
-              </button>
-              {isDirty && (
-                <button
-                  type="button"
-                  onClick={() => setIsDiffMode((prev) => !prev)}
-                  disabled={!canToggleDiff}
-                  className={actionButtonClass(canToggleDiff, isDiffMode)}
-                  aria-label="Toggle diff"
-                  aria-pressed={isDiffMode}
-                  title={isDiffMode ? "Hide diff" : "Show diff"}
-                  data-testid="file-preview-diff-toggle"
-                >
-                  <Diff className="h-4 w-4" />
-                </button>
-              )}
-            </>
-          )}
-          {showMarkdownToggle && (
-            <button
-              type="button"
-              onClick={() =>
-                setMarkdownView((prev) => (prev === "rendered" ? "raw" : "rendered"))
-              }
-              className={actionButtonClass(true)}
-              aria-label={markdownToggleLabel}
-              title={markdownToggleLabel}
-            >
-              {markdownView === "rendered" ? (
-                <Code className="h-4 w-4" />
-              ) : (
-                <Eye className="h-4 w-4" />
-              )}
-            </button>
-          )}
-          {compactHeader && (
-            <button
-              type="button"
-              onClick={() => setShowMobilePath((prev) => !prev)}
-              className="sm:hidden inline-flex h-8 w-8 items-center justify-center rounded-md bg-transparent text-slate-400 transition-colors hover:bg-slate-700/60 hover:text-slate-200"
-              aria-label="Toggle file path"
-              title="Show file path"
-            >
-              <Info className="h-4 w-4" />
-            </button>
-          )}
-          {headerActions}
-        </div>
-      </div>
-      {saveErrorMessage && (
-        <div className="border-b border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
-          {saveErrorMessage}
-        </div>
-      )}
-      {compactHeader && showMobilePath && (
-        <div className="sm:hidden flex items-center justify-between gap-2 border-b border-white/10 bg-slate-900/60 px-3 py-2 text-xs text-slate-400">
-          <span className="truncate">{filePath}</span>
-          <button
-            type="button"
-            onClick={handleCopyPath}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-transparent text-slate-300 transition-colors hover:bg-slate-800/70 hover:text-white"
-            aria-label="Copy file path"
-            title={copied ? "Copied" : "Copy file path"}
-          >
-            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-          </button>
-        </div>
-      )}
+      <FilePreviewHeader
+        fileType={state.fileType}
+        fileName={fileName}
+        filePath={filePath}
+        compactHeader={compactHeader}
+        stickyHeader={stickyHeader}
+        isEditable={state.isEditable}
+        isDirty={state.isDirty}
+        isSaving={state.isSaving}
+        saveErrorMessage={state.saveErrorMessage}
+        markdownView={state.markdownView}
+        isDiffMode={state.isDiffMode}
+        showMobilePath={state.showMobilePath}
+        copied={state.copied}
+        showMarkdownToggle={state.showMarkdownToggle}
+        canSave={state.canSave}
+        canDiscard={state.canDiscard}
+        canToggleDiff={state.canToggleDiff}
+        onSave={state.handleSave}
+        onDiscard={state.handleDiscard}
+        onToggleDiff={handleToggleDiff}
+        onToggleMarkdownView={handleToggleMarkdownView}
+        onToggleMobilePath={handleToggleMobilePath}
+        onCopyPath={state.handleCopyPath}
+        headerActions={headerActions}
+      />
 
       {/* Content */}
-      <div
-        className={cn(
-          "relative flex-1 min-h-[200px] sm:min-h-[300px] overflow-hidden",
-          contentClassName
-        )}
-      >
-        {isLoading && (
-          <div
-            className="absolute inset-0 flex flex-col justify-center gap-3 bg-slate-900/70 p-4 backdrop-blur-[1px]"
-            data-testid="file-preview-loading-state"
-            role="status"
-            aria-live="polite"
-            aria-busy="true"
-          >
-            <div className="inline-flex items-center gap-2 text-sm text-slate-300">
-              <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
-              <span>Loading file preview...</span>
-            </div>
-            <div className="space-y-2">
-              <div className="h-3 w-full animate-pulse rounded bg-slate-700/60" />
-              <div className="h-3 w-11/12 animate-pulse rounded bg-slate-700/60" />
-              <div className="h-3 w-9/12 animate-pulse rounded bg-slate-700/60" />
-            </div>
-          </div>
-        )}
-
-        {error && (
-          <div className="p-4">
-            <ErrorState
-              error={error}
-              title="Unable to load file"
-              onRetry={() => refetch()}
-            />
-          </div>
-        )}
-
-        {/* Image preview */}
-        {isImage && (
-          <div className="flex items-center justify-center p-4 bg-slate-900/50">
-            <img
-              src={`/api/v1/backlog/${backlogKind}/${backlogName}/files/${filePath}`}
-              alt={fileName}
-              className="max-w-full max-h-full object-contain"
-              data-testid="file-preview-image"
-            />
-          </div>
-        )}
-
-        {!isImage && !isLoading && !error && showDiff && (
-          <DiffEditor
-            height="100%"
-            language={editorLanguage}
-            original={originalContent}
-            modified={draftContent}
-            theme={editorTheme}
-            data-testid="file-preview-diff"
-            options={{
-              ...DEFAULT_EDITOR_OPTIONS,
-              readOnly: true,
-              renderSideBySide: !compactHeader,
-            }}
-          />
-        )}
-
-        {!isImage && !isLoading && !error && showRenderedMarkdown && (
-          <div
-            className={cn(
-              "h-full overflow-auto p-4 prose max-w-none",
-              isLight ? "prose-slate" : "prose-invert"
-            )}
-            data-testid="file-preview-markdown"
-            dangerouslySetInnerHTML={{ __html: renderMarkdown(draftContent) }}
-          />
-        )}
-
-        {!isImage && !isLoading && !error && showEditor && (
-          <Editor
-            height="100%"
-            language={editorLanguage}
-            value={draftContent}
-            onChange={handleDraftChange}
-            path={filePath}
-            theme={editorTheme}
-            data-testid="file-preview-editor"
-            options={{
-              ...DEFAULT_EDITOR_OPTIONS,
-              readOnly: !isEditable,
-            }}
-          />
-        )}
-      </div>
+      <FilePreviewContent
+        backlogKind={backlogKind}
+        backlogName={backlogName}
+        filePath={filePath}
+        fileName={fileName}
+        contentClassName={contentClassName}
+        compactHeader={compactHeader}
+        isImage={state.isImage}
+        isEditable={state.isEditable}
+        isLoading={state.isLoading}
+        error={state.error}
+        onRetry={() => state.refetch()}
+        draftContent={state.draftContent}
+        originalContent={state.originalContent}
+        showEditor={state.showEditor}
+        showRenderedMarkdown={state.showRenderedMarkdown}
+        showDiff={state.showDiff}
+        onDraftChange={state.handleDraftChange}
+      />
     </div>
   );
 }

@@ -100,7 +100,7 @@ export function ExecutionOverviewTab({
                 <p className="text-xs text-slate-500 uppercase tracking-wider">Parent Execution</p>
                 <button
                   type="button"
-                  onClick={() => onSelectExecution(execution.parentExecutionId!)}
+                  onClick={() => onSelectExecution(execution.parentExecutionId as string)}
                   className="text-cyan-400 hover:text-cyan-300 text-sm"
                 >
                   {execution.parentExecutionId}

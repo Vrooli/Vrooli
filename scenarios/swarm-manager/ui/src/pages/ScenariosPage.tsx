@@ -22,21 +22,21 @@
 import { useState, useMemo, useEffect, type MouseEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Filter, Package, ArrowRight, Circle, X, Play, Square, RefreshCw, Loader2 } from "lucide-react";
+import { Filter, Package, X } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { ErrorState } from "../components/ui/error-state";
 import { InlineLoadingIndicator, PageLoadingState } from "../components/ui/loading-states";
-import { ResponsiveList, ResponsiveListItem } from "../components/ui/responsive-list";
+import { ResponsiveList } from "../components/ui/responsive-list";
 import { SearchBar } from "../components/ui/search-bar";
 import { Select } from "../components/ui/select";
-import { TagList } from "../components/ui/tag-list";
 import { capitalize } from "../lib";
 import { scenariosService } from "../services";
 import { selectors } from "../consts/selectors";
-import { SCENARIO_STATUS_ICONS, SCENARIO_STATUS_COLORS, type ScenarioStatus } from "../types";
-import { displayLimitsConfig } from "../config";
+import type { ScenarioStatus } from "../types";
 import { useScenariosStore } from "../stores";
+import { ScenarioCard, type ScenarioAction } from "./ScenarioCard";
+import { ScenarioStatusSummary } from "./ScenarioStatusSummary";
 
 /** Available status values for filtering */
 const STATUS_OPTIONS: ScenarioStatus[] = ["running", "stopped", "error", "unknown"];
@@ -90,8 +90,6 @@ export function ScenariosPage() {
       return a.name.localeCompare(b.name);
     });
   }, [scenarios, searchTerm, statusFilter]);
-
-  type ScenarioAction = "start" | "stop" | "restart";
 
   const actionMutation = useMutation({
     mutationFn: ({ name, action }: { name: string; action: ScenarioAction }) => {
@@ -256,50 +254,11 @@ export function ScenariosPage() {
           )}
           {/* Quick status filters - one-click filtering for common jobs (Phase 29 iter 4) */}
           {scenarios && scenarios.length > 0 && (
-            <div className="flex items-center gap-1" data-testid={selectors.scenarios.statusSummary}>
-              {statusSummary.running > 0 && (
-                <button
-                  onClick={() => setStatusFilter(statusFilter === "running" ? "" : "running")}
-                  className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-colors ${
-                    statusFilter === "running"
-                      ? "bg-green-500/20 text-green-300 ring-1 ring-green-500/50"
-                      : "text-green-400 hover:bg-green-500/10"
-                  }`}
-                  data-testid={selectors.scenarios.runningCount}
-                  title="Click to filter by running status"
-                >
-                  {statusSummary.running} running
-                </button>
-              )}
-              {statusSummary.stopped > 0 && (
-                <button
-                  onClick={() => setStatusFilter(statusFilter === "stopped" ? "" : "stopped")}
-                  className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-colors ${
-                    statusFilter === "stopped"
-                      ? "bg-slate-500/30 text-slate-200 ring-1 ring-slate-400/50"
-                      : "text-slate-400 hover:bg-slate-500/10"
-                  }`}
-                  data-testid={selectors.scenarios.stoppedCount}
-                  title="Click to filter by stopped status"
-                >
-                  {statusSummary.stopped} stopped
-                </button>
-              )}
-              {statusSummary.error > 0 && (
-                <button
-                  onClick={() => setStatusFilter(statusFilter === "error" ? "" : "error")}
-                  className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-colors ${
-                    statusFilter === "error"
-                      ? "bg-red-500/20 text-red-300 ring-1 ring-red-500/50"
-                      : "text-red-400 hover:bg-red-500/10"
-                  }`}
-                  data-testid={selectors.scenarios.errorCount}
-                  title="Click to filter by error status"
-                >
-                  {statusSummary.error} error{statusSummary.error !== 1 ? 's' : ''}
-                </button>
-              )}
-            </div>
+            <ScenarioStatusSummary
+              summary={statusSummary}
+              activeFilter={statusFilter}
+              onFilterToggle={setStatusFilter}
+            />
           )}
         </div>
       </div>
@@ -365,112 +324,23 @@ export function ScenariosPage() {
             data-testid={selectors.scenarios.list}
             columns="md:grid-cols-2 xl:grid-cols-3"
           >
-            {filteredScenarios.map((scenario) => {
-              const StatusIcon = SCENARIO_STATUS_ICONS[scenario.status] || Circle;
-              return (
-                <ResponsiveListItem
-                  key={scenario.name}
-                  className="group cursor-pointer"
-                  interactive
-                  data-testid={selectors.scenarios.cardByName({ name: scenario.name })}
-                  role="link"
-                  tabIndex={0}
-                  onClick={() => navigate(`/scenarios/${scenario.name}`)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      navigate(`/scenarios/${scenario.name}`);
-                    }
-                  }}
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3">
-                        <StatusIcon
-                          className={`h-4 w-4 ${SCENARIO_STATUS_COLORS[scenario.status]}`}
-                        />
-                        <h3 className="font-medium text-slate-100">{scenario.displayName}</h3>
-                        {scenario.isGreenfield && (
-                          <span className="rounded-full bg-cyan-500/20 px-2 py-0.5 text-xs text-cyan-400">
-                            Greenfield
-                          </span>
-                        )}
-                      </div>
-                      <p className="mt-1 text-sm text-slate-400">{scenario.description}</p>
-                      <TagList
-                        tags={scenario.tags}
-                        maxTags={displayLimitsConfig.scenarioCardMaxTags}
-                        className="mt-2"
-                      />
-                    </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
-                      P{scenario.priority}
-                    </span>
-                    {scenario.completenessScore !== undefined && (
-                        <div className="flex items-center gap-1">
-                          <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-700">
-                            <div
-                              className="h-full bg-gradient-to-r from-cyan-500 to-purple-500"
-                              style={{ width: `${scenario.completenessScore}%` }}
-                            />
-                          </div>
-                          <span className="text-xs text-slate-400">{scenario.completenessScore}%</span>
-                        </div>
-                      )}
-                      <div className="flex flex-wrap items-center justify-end gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 px-2 text-xs"
-                          onClick={(event) => handleAction(event, scenario.name, "start")}
-                          disabled={actionMutation.isPending || scenario.status === "running"}
-                          data-testid={selectors.scenarios.actionStart({ name: scenario.name })}
-                        >
-                          {isActionPending(scenario.name, "start") ? (
-                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                          ) : (
-                            <Play className="mr-1 h-3 w-3" />
-                          )}
-                          Start
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 px-2 text-xs"
-                          onClick={(event) => handleAction(event, scenario.name, "stop")}
-                          disabled={actionMutation.isPending || scenario.status === "stopped"}
-                          data-testid={selectors.scenarios.actionStop({ name: scenario.name })}
-                        >
-                          {isActionPending(scenario.name, "stop") ? (
-                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                          ) : (
-                            <Square className="mr-1 h-3 w-3" />
-                          )}
-                          Stop
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 px-2 text-xs"
-                          onClick={(event) => handleAction(event, scenario.name, "restart")}
-                          disabled={actionMutation.isPending}
-                          data-testid={selectors.scenarios.actionRestart({ name: scenario.name })}
-                        >
-                          {isActionPending(scenario.name, "restart") ? (
-                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                          ) : (
-                            <RefreshCw className="mr-1 h-3 w-3" />
-                          )}
-                          Restart
-                        </Button>
-                      </div>
-                      <ArrowRight className="h-4 w-4 text-slate-500 opacity-0 transition group-hover:opacity-100" />
-                    </div>
-                  </div>
-                </ResponsiveListItem>
-              );
-            })}
+            {filteredScenarios.map((scenario) => (
+              <ScenarioCard
+                key={scenario.name}
+                name={scenario.name}
+                displayName={scenario.displayName}
+                description={scenario.description}
+                status={scenario.status}
+                priority={scenario.priority}
+                isGreenfield={scenario.isGreenfield}
+                tags={scenario.tags}
+                completenessScore={scenario.completenessScore}
+                isAnyActionPending={actionMutation.isPending}
+                isActionPending={(action) => isActionPending(scenario.name, action)}
+                onAction={(event, action) => handleAction(event, scenario.name, action)}
+                onNavigate={() => navigate(`/scenarios/${scenario.name}`)}
+              />
+            ))}
           </ResponsiveList>
         )}
       </div>

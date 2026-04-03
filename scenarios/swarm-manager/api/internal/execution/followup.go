@@ -3,7 +3,7 @@ package execution
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -18,7 +18,7 @@ import (
 // handleSpecSyncComplete performs the archive after a successful spec-sync run.
 func (s *Service) handleSpecSyncComplete(ctx context.Context, record *Record) {
 	if s.archiver == nil {
-		log.Printf("[execution] spec-sync completed but no archiver configured for %s", record.BacklogName)
+		slog.Error("spec-sync completed but no archiver configured", "backlog_name", record.BacklogName)
 		record.FailureReason = "archiver not configured"
 		record.Status = StatusFailed
 		return
@@ -26,14 +26,14 @@ func (s *Service) handleSpecSyncComplete(ctx context.Context, record *Record) {
 
 	ac := record.ArchiveContext
 	if _, err := os.Stat(ac.ScenarioPath); err != nil {
-		log.Printf("[execution] spec-sync completed but scenario dir missing: %s", ac.ScenarioPath)
+		slog.Error("spec-sync completed but scenario dir missing", "scenario_path", ac.ScenarioPath)
 		record.FailureReason = "scenario directory no longer exists"
 		record.Status = StatusFailed
 		return
 	}
 
 	if err := s.archiver.ArchiveScenario(ctx, *ac); err != nil {
-		log.Printf("[execution] post-spec-sync archive failed for %s: %v", ac.ScenarioName, err)
+		slog.Error("post-spec-sync archive failed", "scenario_name", ac.ScenarioName, "err", err)
 		record.FailureReason = "archive failed after spec-sync: " + err.Error()
 		record.Status = StatusFailed
 		return
@@ -41,13 +41,13 @@ func (s *Service) handleSpecSyncComplete(ctx context.Context, record *Record) {
 
 	// Delete the scenario directory after successful archive
 	if err := os.RemoveAll(ac.ScenarioPath); err != nil {
-		log.Printf("[execution] post-archive scenario deletion failed for %s: %v", ac.ScenarioName, err)
+		slog.Error("post-archive scenario deletion failed", "scenario_name", ac.ScenarioName, "err", err)
 		record.FailureReason = "scenario deletion failed after archive: " + err.Error()
 		record.Status = StatusFailed
 		return
 	}
 
-	log.Printf("[execution] spec-sync-archive completed for %s", ac.ScenarioName)
+	slog.Info("spec-sync-archive completed", "scenario_name", ac.ScenarioName)
 }
 
 func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlogItem) {
@@ -56,7 +56,7 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 	deliverablePath := deliverableForKind(item.Kind)
 	ideaHandoff, handoffErr := s.buildIdeaHandoffPackage(item, itemDir, s.processPreflightForItem(item, false))
 	if handoffErr != nil {
-		log.Printf("[execution] failed to build idea handoff for fixup %s/%s: %v", item.Kind, item.Name, handoffErr)
+		slog.Warn("failed to build idea handoff for fixup", "kind", item.Kind, "name", item.Name, "err", handoffErr)
 	}
 
 	prompt := buildExecutionPrompt(executionPromptParams{
@@ -95,7 +95,7 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 
 	records, loadErr := s.store.Load()
 	if loadErr != nil {
-		log.Printf("[execution] failed to load records for fixup: %v", loadErr)
+		slog.Error("failed to load records for fixup", "err", loadErr)
 		return
 	}
 	records = append(records, fixupRecord)
@@ -126,7 +126,7 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 		Environment:     map[string]string{"VROOLI_SPAWN_SOURCE": item.Kind + "/" + item.Name},
 	})
 	if err != nil {
-		log.Printf("[execution] failed to spawn fixup run: %v", err)
+		slog.Error("failed to spawn fixup run", "err", err)
 		for i := range records {
 			if records[i].ExecutionID == fixupRecord.ExecutionID {
 				records[i].Status = StatusFailed
@@ -211,7 +211,7 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 	deliverablePath := deliverableForKind(item.Kind)
 	ideaHandoff, handoffErr := s.buildIdeaHandoffPackage(item, itemDir, s.processPreflightForItem(item, false))
 	if handoffErr != nil {
-		log.Printf("[execution] failed to build idea handoff for follow-up %s/%s: %v", item.Kind, item.Name, handoffErr)
+		slog.Warn("failed to build idea handoff for follow-up", "kind", item.Kind, "name", item.Name, "err", handoffErr)
 	}
 	prompt := buildExecutionPrompt(executionPromptParams{
 		Kind:               item.Kind,

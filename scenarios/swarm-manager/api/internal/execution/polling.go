@@ -3,7 +3,7 @@ package execution
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"sort"
 	"strings"
 	"time"
@@ -66,7 +66,7 @@ func (s *Service) drainPendingLocked(ctx context.Context) {
 			if errors.Is(startErr, errAtCapacity) {
 				break
 			}
-			log.Printf("[execution] drain: failed to start %s: %v", p.ExecutionID, startErr)
+			slog.Warn("drain: failed to start execution", "execution_id", p.ExecutionID, "err", startErr)
 			continue
 		}
 		// Refresh records to get updated state after start.

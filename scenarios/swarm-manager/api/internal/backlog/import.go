@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -168,7 +168,7 @@ func (h *Handler) applyCreate(change *importChange) error {
 		return fmt.Errorf("failed to save item: %w", err)
 	}
 
-	log.Printf("[backlog] import: created %s/%s", cd.kind, cd.name)
+	slog.Info("import created item", "kind", cd.kind, "name", cd.name)
 	return nil
 }
 
@@ -213,7 +213,7 @@ func (h *Handler) applyUpdate(change *importChange) error {
 	if len(ud.clarifyAnswers) > 0 || len(ud.clarifyNotes) > 0 {
 		questionsPath := filepath.Join(h.store.ItemDir(ud.kind, ud.name), "clarify", "questions.json")
 		if err := h.applyClarifyChanges(questionsPath, ud.clarifyAnswers, ud.clarifyNotes); err != nil {
-			log.Printf("[backlog] import: failed to apply clarify changes for %s/%s: %v", ud.kind, ud.name, err)
+			slog.Warn("import failed to apply clarify changes", "kind", ud.kind, "name", ud.name, "err", err)
 		}
 	}
 
@@ -221,7 +221,7 @@ func (h *Handler) applyUpdate(change *importChange) error {
 	if len(ud.suggestAccepted) > 0 || len(ud.suggestRejection) > 0 {
 		suggestionsPath := filepath.Join(h.store.ItemDir(ud.kind, ud.name), "suggest", "suggestions.json")
 		if err := h.applySuggestChanges(suggestionsPath, ud.suggestAccepted, ud.suggestRejection); err != nil {
-			log.Printf("[backlog] import: failed to apply suggest changes for %s/%s: %v", ud.kind, ud.name, err)
+			slog.Warn("import failed to apply suggest changes", "kind", ud.kind, "name", ud.name, "err", err)
 		}
 	}
 
@@ -229,11 +229,11 @@ func (h *Handler) applyUpdate(change *importChange) error {
 	if ud.notes != "" {
 		notesPath := filepath.Join(h.store.ItemDir(ud.kind, ud.name), "notes.md")
 		if err := os.WriteFile(notesPath, []byte(ud.notes+"\n"), 0o644); err != nil {
-			log.Printf("[backlog] import: failed to write notes for %s/%s: %v", ud.kind, ud.name, err)
+			slog.Warn("import failed to write notes", "kind", ud.kind, "name", ud.name, "err", err)
 		}
 	}
 
-	log.Printf("[backlog] import: updated %s/%s (%d changes)", ud.kind, ud.name, len(change.details))
+	slog.Info("import updated item", "kind", ud.kind, "name", ud.name, "changes", len(change.details))
 	return nil
 }
 

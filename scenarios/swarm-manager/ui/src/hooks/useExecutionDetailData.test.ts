@@ -114,7 +114,7 @@ describe("useExecutionDetailData", () => {
       expect(result.current.execution).toBeDefined();
     });
 
-    expect(result.current.execution!.executionId).toBe("exec-1");
+    expect(result.current.execution?.executionId).toBe("exec-1");
     expect(executionService.get).toHaveBeenCalledWith("exec-1");
   });
 
@@ -128,7 +128,7 @@ describe("useExecutionDetailData", () => {
       expect(result.current.trace).not.toBeNull();
     });
 
-    expect(result.current.trace!.purpose).toBe("test");
+    expect(result.current.trace?.purpose).toBe("test");
     expect(promptService.getExecutionPromptTrace).toHaveBeenCalledWith("exec-1");
   });
 
@@ -192,7 +192,7 @@ describe("useExecutionDetailData", () => {
       expect(result.current.postRunBadgeExecution).not.toBeNull();
     });
 
-    expect(result.current.postRunBadgeExecution!.finalization).toBe(finalization);
+    expect(result.current.postRunBadgeExecution?.finalization).toBe(finalization);
   });
 
   it("computes postRunBadgeExecution with synthetic for validating", async () => {
@@ -207,7 +207,7 @@ describe("useExecutionDetailData", () => {
       expect(result.current.postRunBadgeExecution).not.toBeNull();
     });
 
-    expect(result.current.postRunBadgeExecution!.finalization!.status).toBe("running");
+    expect(result.current.postRunBadgeExecution?.finalization?.status).toBe("running");
   });
 
   it("returns null postRunBadgeExecution for completed without finalization", async () => {

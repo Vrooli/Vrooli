@@ -57,7 +57,7 @@ export function ScenarioDeleteDialog({
   onArchivePresetChange,
   effectiveArchiveMode,
   customPaths,
-  onCustomPathsChange,
+  onCustomPathsChange: _onCustomPathsChange,
   onArchiveModeChange,
   previewPaths,
   previewList,

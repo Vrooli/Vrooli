@@ -3,16 +3,7 @@ import { Card } from "../ui/card";
 import { selectors } from "../../consts/selectors";
 import type { PromptCatalogEntry } from "../../types";
 
-const GROUP_ORDER = ["capture", "backlog", "execution", "archive", "support"] as const;
-const GROUP_LABELS: Record<(typeof GROUP_ORDER)[number], string> = {
-  capture: "Capture",
-  backlog: "Backlog",
-  execution: "Execution",
-  archive: "Archive",
-  support: "Support",
-};
-
-type PromptGroup = (typeof GROUP_ORDER)[number];
+type PromptGroup = "capture" | "backlog" | "execution" | "archive" | "support";
 
 const formatUsageLabel = (value: string) => value.replace(/_/g, " ");
 const joinParts = (parts?: string[]) => (parts && parts.length > 0 ? parts.join(", ") : "-");

@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -171,7 +171,7 @@ func (s *FileStore) SaveItem(item BacklogItem) error {
 	merged := map[string]any{}
 	if existing, err := os.ReadFile(specPath); err == nil {
 		if unmarshalErr := json.Unmarshal(existing, &merged); unmarshalErr != nil {
-			log.Printf("[backlog] SaveItem: warning: existing spec.json for %s/%s has malformed JSON, metadata may be lost: %v", item.Kind, item.Name, unmarshalErr)
+			slog.Warn("existing spec.json has malformed JSON, metadata may be lost", "kind", item.Kind, "name", item.Name, "err", unmarshalErr)
 		}
 	} else if !os.IsNotExist(err) {
 		return err

@@ -12,6 +12,7 @@ import (
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/dispatch"
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/promptmanager"
 )
@@ -37,43 +38,6 @@ const (
 // DOC: docs/concepts/ARCHITECTURE.md#key-flows
 // DOC: docs/reference/operational-targets.md
 // DOC: docs/internal/TEMPORAL-FLOWS.md
-
-type agentSpawner interface {
-	IsEnabled() bool
-	SpawnBacklog(ctx context.Context, req agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error)
-}
-
-type runInspector interface {
-	GetRunState(ctx context.Context, runID string) (agentmanager.RunState, error)
-}
-
-type runStopper interface {
-	StopRun(ctx context.Context, runID string) error
-}
-
-type runContinuer interface {
-	ContinueRun(ctx context.Context, runID string, message string) error
-}
-
-// Archiver performs scenario archive operations after spec-sync completes.
-type Archiver interface {
-	ArchiveScenario(ctx context.Context, ac ArchiveContext) error
-}
-
-// PolicyProvider reads execution policy defaults from the unified settings store.
-type PolicyProvider interface {
-	LoadPolicy() (Policy, error)
-}
-
-// ReviewThresholdsProvider reads review threshold settings.
-type ReviewThresholdsProvider interface {
-	LoadReviewThresholds() (*ReviewThresholds, error)
-}
-
-// GovernanceProvider reads governance settings from the unified settings store.
-type GovernanceProvider interface {
-	LoadGovernance() (GovernanceSettings, error)
-}
 
 // defaultPolicyProvider returns hardcoded defaults when no provider is configured.
 type defaultPolicyProvider struct{}
@@ -161,36 +125,13 @@ type ServiceConfig struct {
 	PolicyProvider           PolicyProvider
 	GovernanceProvider       GovernanceProvider
 	ReviewThresholdsProvider ReviewThresholdsProvider
-	AgentService             agentSpawner
+	AgentService             AgentSpawner
 	ScenarioLifecycle        ScenarioLifecycle
 	ScenarioHealthChecker    ScenarioHealthChecker
 	PromptClient             promptmanager.Client
 	Archiver                 Archiver
 	ReviewClient             ReviewClient
 	Finalization             FinalizationConfig
-}
-
-// EventDispatcher emits graph change events for real-time WebSocket updates.
-type EventDispatcher interface {
-	DispatchNodeUpdate(nodeType, nodeID string, data any)
-	DispatchInvalidate(lenses ...string)
-}
-
-// ReviewServiceIntegration is the subset of the review service that finalization
-// needs to trigger evidence gathering. Uses a callback signature to avoid
-// import cycles between the execution and review packages.
-type ReviewServiceIntegration interface {
-	StartReviewForExecution(ctx context.Context, executionID, backlogKind, backlogName, itemTitle, itemDir string, affectedScenarios []string, changedPathsByScenario map[string][]string) error
-}
-
-// EventLogger records execution state-change events for analytics.
-type EventLogger interface {
-	EmitExecutionCreated(execID, backlogKind, backlogName, mode string)
-	EmitExecutionStatusChanged(execID, from, to string)
-	EmitExecutionCompleted(execID string, durationSecs float64, hadFixups bool)
-	EmitExecutionFailed(execID, reason string, durationSecs float64)
-	EmitExecutionCanceled(execID, reason string)
-	EmitExecutionViewed(execID string)
 }
 
 // Service owns execution lifecycle logic.
@@ -201,18 +142,18 @@ type Service struct {
 	policyProvider           PolicyProvider
 	governanceProvider       GovernanceProvider
 	reviewThresholdsProvider ReviewThresholdsProvider
-	agentService             agentSpawner
+	agentService             AgentSpawner
 	promptClient             promptmanager.Client
 	archiver                 Archiver
 	reviewClient             ReviewClient
-	inspector                runInspector
+	inspector                RunInspector
 	differ                   RunDiffer
-	stopper                  runStopper
-	continuer                runContinuer
+	stopper                  RunStopper
+	continuer                RunContinuer
 	scenarioLifecycle        ScenarioLifecycle
 	scenarioHealth           ScenarioHealthChecker
 	reviewService            ReviewServiceIntegration
-	eventDispatcher          EventDispatcher
+	eventDispatcher          dispatch.NodeDispatcher
 	eventLogger              EventLogger
 	circuitBreaker           *CircuitBreaker
 	processingFinalizations  map[string]struct{}
@@ -259,23 +200,23 @@ func NewService(cfg ServiceConfig) *Service {
 		circuitBreaker:           NewCircuitBreaker(filepath.Join(rootDir, ".vrooli", "circuit-breaker.json")),
 		processingFinalizations:  map[string]struct{}{},
 	}
-	if inspector, ok := cfg.AgentService.(runInspector); ok {
+	if inspector, ok := cfg.AgentService.(RunInspector); ok {
 		service.inspector = inspector
 	}
 	if differ, ok := cfg.AgentService.(RunDiffer); ok {
 		service.differ = differ
 	}
-	if continuer, ok := cfg.AgentService.(runContinuer); ok {
+	if continuer, ok := cfg.AgentService.(RunContinuer); ok {
 		service.continuer = continuer
 	}
-	if stopper, ok := cfg.AgentService.(runStopper); ok {
+	if stopper, ok := cfg.AgentService.(RunStopper); ok {
 		service.stopper = stopper
 	}
 	return service
 }
 
 // SetEventDispatcher sets an optional event dispatcher for real-time graph updates.
-func (s *Service) SetEventDispatcher(d EventDispatcher) {
+func (s *Service) SetEventDispatcher(d dispatch.NodeDispatcher) {
 	s.eventDispatcher = d
 }
 

@@ -8,12 +8,10 @@
  * - Bottom-right: MiniMap (rendered inside GraphCanvas)
  */
 
-import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, BarChart3, HelpCircle, Menu, MessageSquarePlus, RefreshCw, Settings } from "lucide-react";
-import { ErrorDiagnostics } from "../../../components/ui/error-diagnostics";
-import { categorizeError, generateUniqueId } from "../../../lib/error-utils";
+import { MessageSquarePlus } from "lucide-react";
 import { defaultQueryOptions } from "../../../lib";
 import { applyTheme, watchSystemTheme } from "../../../lib/theme-utils";
 import { buildFeed } from "../../../lib/feed";
@@ -26,7 +24,6 @@ import { buildActivityNodeId, parseNodeId } from "../lib/node-id-parser";
 import { useDetailSelectionStore } from "../../../stores/detail-selection-store";
 import { useDetailUrlSync } from "../../../hooks/useDetailUrlSync";
 import { useDetailNavigation } from "../../../hooks/useDetailNavigation";
-import { AgentsDropdown } from "../../../components/agents/AgentsDropdown";
 import { useGraphKeyboardShortcuts } from "../hooks/useGraphKeyboardShortcuts";
 import { useGraphStateSync } from "../hooks/useGraphStateSync";
 import { useGraphWebSocket } from "../hooks/useGraphWebSocket";
@@ -36,9 +33,8 @@ import { useCapturePolling } from "../../../hooks/useCapturePolling";
 import { useStorePolling } from "../../../hooks/useStorePolling";
 
 import { GraphCanvas } from "./GraphCanvas";
-import { GraphNavControls } from "./GraphNavControls";
 import { CapturePanel } from "./CapturePanel";
-import { CommandPostButton, CommandPostOverlay } from "../../../components/command-post";
+import { CommandPostOverlay } from "../../../components/command-post";
 import { useCommandPostBadgeCount } from "../../../hooks/useCommandPostBadgeCount";
 
 const BacklogDetailsPage = lazy(() =>
@@ -61,85 +57,18 @@ const InitiativeDetailsPage = lazy(() =>
     default: m.InitiativeDetailsPage,
   })),
 );
-import { LensNav } from "./LensNav";
 import { Sidebar } from "./Sidebar";
 import { SettingsDrawer } from "./SettingsDrawer";
 import { StatsPanel } from "./StatsPanel";
 import { NodeInspectorPanel } from "./NodeInspectorPanel";
 import { GraphHelpPanel } from "./GraphHelpPanel";
+import { CanvasErrorBoundary } from "./CanvasErrorBoundary";
+import { GraphWorkspaceHUD } from "./GraphWorkspaceHUD";
 import type { GraphLens } from "../stores/graph-data-store";
 import type { FeedbackItem, MaturityItem } from "../../../lib/feed";
 
-/** Canvas error boundary prefix for correlation IDs */
-const CANVAS_ERROR_ID_PREFIX = "canvas_err";
-
-interface CanvasErrorBoundaryState {
-  hasError: boolean;
-  errorId: string | null;
-  error: Error | null;
-  componentStack: string | null;
-  timestamp: string | null;
-}
-
-/** Error boundary that wraps only the graph canvas, keeping HUD + sidebar alive. */
-class CanvasErrorBoundary extends Component<
-  { children: ReactNode },
-  CanvasErrorBoundaryState
-> {
-  constructor(props: { children: ReactNode }) {
-    super(props);
-    this.state = { hasError: false, errorId: null, error: null, componentStack: null, timestamp: null };
-  }
-
-  static getDerivedStateFromError(error: Error): CanvasErrorBoundaryState {
-    return {
-      hasError: true,
-      errorId: generateUniqueId(CANVAS_ERROR_ID_PREFIX),
-      error,
-      componentStack: null,
-      timestamp: new Date().toISOString(),
-    };
-  }
-
-  componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error("[GraphCanvas] Render crash:", error.message, info.componentStack);
-    this.setState({ componentStack: info.componentStack ?? null });
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-4 overflow-y-auto px-6 py-4 text-slate-400">
-          <AlertTriangle className="h-10 w-10 text-amber-400" />
-          <p className="text-sm">Graph canvas encountered an error.</p>
-          <button
-            type="button"
-            className="flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700"
-            onClick={() => this.setState({ hasError: false, errorId: null, error: null, componentStack: null, timestamp: null })}
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            Retry
-          </button>
-          {this.state.error && this.state.timestamp && (
-            <ErrorDiagnostics
-              error={this.state.error}
-              componentStack={this.state.componentStack}
-              errorId={this.state.errorId}
-              category={categorizeError(this.state.error)}
-              timestamp={this.state.timestamp}
-              compact
-              className="max-w-full"
-            />
-          )}
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
 export function GraphWorkspace() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [_searchParams, setSearchParams] = useSearchParams();
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
   const [showStatsPanel, setShowStatsPanel] = useState(false);
   const [showHelpPanel, setShowHelpPanel] = useState(false);
@@ -149,7 +78,7 @@ export function GraphWorkspace() {
   const commandPostBadgeCount = useCommandPostBadgeCount();
 
   // --- Graph state sync (URL ↔ store) ---
-  const { urlLens, handleLensChange, handleReturnToAtlas, handleDeselectNode } = useGraphStateSync();
+  const { urlLens: _urlLens, handleLensChange, handleReturnToAtlas, handleDeselectNode } = useGraphStateSync();
 
   const fetchBacklog = useBacklogStore((s) => s.fetchBacklog);
   const backlogItems = useBacklogStore((s) => s.items);
@@ -306,83 +235,24 @@ export function GraphWorkspace() {
         </CanvasErrorBoundary>
 
         {/* HUD — two rows at top */}
-        <div
-          className="pointer-events-auto absolute left-3 right-3 top-3 z-20 flex flex-col gap-1.5"
-          data-testid="graph-hud"
-        >
-          {/* Row 1: Sidebar toggle + Settings/Help/Agents */}
-          <div className="flex h-10 items-center justify-between">
-            {/* Left: Sidebar toggle (only when collapsed) */}
-            {sidebarCollapsed ? (
-              <button
-                type="button"
-                onClick={toggleSidebar}
-                className="rounded-lg border border-slate-700/60 bg-slate-900/80 p-2 text-slate-400 transition-colors hover:bg-slate-800/80 hover:text-slate-200"
-                aria-label="Open sidebar"
-                data-testid="sidebar-toggle-open"
-              >
-                <Menu className="h-4 w-4" />
-              </button>
-            ) : (
-              <div />
-            )}
-
-            {/* Right: Command Post + Stats + Settings + Help + Agents */}
-            <div className="flex items-center gap-1.5">
-              <CommandPostButton
-                count={commandPostBadgeCount}
-                onClick={() => setShowCommandPost((prev) => !prev)}
-              />
-              <button
-                type="button"
-                onClick={() => setShowStatsPanel((prev) => !prev)}
-                className="rounded-lg border border-slate-700/60 bg-slate-900/80 p-2 text-slate-400 transition-colors hover:bg-slate-800/80 hover:text-slate-200"
-                aria-label="Open stats"
-                data-testid="stats-button"
-              >
-                <BarChart3 className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowSettingsDrawer((prev) => !prev)}
-                className="rounded-lg border border-slate-700/60 bg-slate-900/80 p-2 text-slate-400 transition-colors hover:bg-slate-800/80 hover:text-slate-200"
-                aria-label="Open graph controls"
-                data-testid="settings-gear"
-              >
-                <Settings className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowHelpPanel((prev) => !prev)}
-                className="rounded-lg border border-slate-700/60 bg-slate-900/80 p-2 text-slate-400 transition-colors hover:bg-slate-800/80 hover:text-slate-200"
-                aria-label="Graph help"
-                data-testid="help-button"
-              >
-                <HelpCircle className="h-4 w-4" />
-              </button>
-              {/* Show HUD agents button on mobile always, desktop only when sidebar collapsed */}
-              <AgentsDropdown
-                activities={agentActivities}
-                onViewActivity={handleViewActivity}
-                onViewBacklog={handleViewBacklog}
-                onStopRun={(runId) => void stopRun(runId)}
-                variant="button"
-                className={sidebarCollapsed ? "" : "md:hidden"}
-              />
-            </div>
-          </div>
-
-          {/* Row 2: Lens navigation */}
-          <LensNav
-            activeLens={lens}
-            focusNodeLabel={focusNodeLabel}
-            onLensChange={handleLensChange}
-            onReturnToAtlas={handleReturnToAtlas}
-          />
-
-          {/* Row 3: On-screen pan/zoom for TV and accessibility (toggled via Settings) */}
-          {showNavControls && <GraphNavControls />}
-        </div>
+        <GraphWorkspaceHUD
+          lens={lens}
+          focusNodeLabel={focusNodeLabel}
+          sidebarCollapsed={sidebarCollapsed}
+          showNavControls={showNavControls}
+          commandPostBadgeCount={commandPostBadgeCount}
+          agentActivities={agentActivities}
+          onToggleSidebar={toggleSidebar}
+          onToggleCommandPost={() => setShowCommandPost((prev) => !prev)}
+          onToggleStats={() => setShowStatsPanel((prev) => !prev)}
+          onToggleSettings={() => setShowSettingsDrawer((prev) => !prev)}
+          onToggleHelp={() => setShowHelpPanel((prev) => !prev)}
+          onLensChange={handleLensChange}
+          onReturnToAtlas={handleReturnToAtlas}
+          onViewActivity={handleViewActivity}
+          onViewBacklog={handleViewBacklog}
+          onStopRun={(runId) => void stopRun(runId)}
+        />
 
         {/* Floating panels */}
 

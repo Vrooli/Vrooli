@@ -13,6 +13,8 @@ import (
 	"buf.build/go/protovalidate"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+
+	"swarm-manager/internal/apierr"
 )
 
 var (
@@ -80,9 +82,9 @@ func IsValidationError(err error) bool {
 func ValidateProtoRequest(w http.ResponseWriter, logPrefix, badRequestMessage string, msg proto.Message) bool {
 	if err := ValidateProto(msg); err != nil {
 		if IsValidationError(err) {
-			http.Error(w, badRequestMessage, http.StatusBadRequest)
+			apierr.MapError(w, logPrefix, apierr.BadRequest("%s", badRequestMessage))
 		} else {
-			http.Error(w, "failed to validate request", http.StatusInternalServerError)
+			apierr.MapError(w, logPrefix, apierr.Internal("failed to validate request"))
 		}
 		return false
 	}
