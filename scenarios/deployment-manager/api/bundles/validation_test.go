@@ -13,7 +13,7 @@ func TestBundleSchemaSamplesValidate(t *testing.T) {
 	}
 	for _, sample := range samples {
 		t.Run(sample, func(t *testing.T) {
-			path := filepath.Join("..", "..", "..", "..", "docs", "deployment", "examples", "manifests", sample)
+			path := filepath.Join("..", "..", "docs", "examples", "manifests", sample)
 			data, err := os.ReadFile(path)
 			if err != nil {
 				t.Fatalf("failed to read sample %s: %v", sample, err)

@@ -8,6 +8,7 @@ import "time"
 type Request struct {
 	ProfileID     string `json:"profile_id"`
 	Platform      string `json:"platform,omitempty"`
+	GitCommitHash string `json:"git_commit_hash"`
 	RecordVideo   bool   `json:"record_video"`
 	DisplayWidth  int    `json:"display_width,omitempty"`
 	DisplayHeight int    `json:"display_height,omitempty"`
@@ -24,10 +25,10 @@ type Record struct {
 	VideoSizeBytes  int64      `json:"video_size_bytes,omitempty"`
 	VideoDurationMs int64      `json:"video_duration_ms,omitempty"`
 	Platform        string     `json:"platform,omitempty"`
+	GitCommitHash   string     `json:"git_commit_hash,omitempty"`
 	ReviewDecision  string     `json:"review_decision,omitempty"` // approved, rejected
 	ReviewedBy      string     `json:"reviewed_by,omitempty"`
 	ReviewNotes     string     `json:"review_notes,omitempty"`
-	ApprovalID      string     `json:"approval_id,omitempty"` // links to deployment_approvals
 	CreatedAt       time.Time  `json:"created_at"`
 	CompletedAt     *time.Time `json:"completed_at,omitempty"`
 	ReviewedAt      *time.Time `json:"reviewed_at,omitempty"`
@@ -38,4 +39,13 @@ type ReviewRequest struct {
 	Decision string `json:"decision"` // approved, rejected
 	Reviewer string `json:"reviewed_by"`
 	Notes    string `json:"notes,omitempty"`
+}
+
+// ReviewResponse is the enriched response from SubmitReview, including
+// any bridged deployment approval state.
+type ReviewResponse struct {
+	Status         string `json:"status"`
+	Decision       string `json:"decision"`
+	ApprovalID     string `json:"approval_id,omitempty"`
+	ApprovalStatus string `json:"approval_status,omitempty"`
 }

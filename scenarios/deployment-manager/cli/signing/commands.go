@@ -316,16 +316,16 @@ func (c *Commands) Set(args []string) error {
 			return errors.New("macOS signing requires --identity and --team-id")
 		}
 		payload = MacOSSigningConfig{
-			Identity:            *identity,
-			TeamID:              *teamID,
-			HardenedRuntime:     *hardenedRuntime,
-			Notarize:            *notarize,
-			EntitlementsFile:    *entitlements,
-			AppleIDEnv:          *appleIDEnv,
-			AppleIDPasswordEnv:  *applePasswordEnv,
-			AppleAPIKeyID:       *apiKeyID,
-			AppleAPIKeyFile:     *apiKeyFile,
-			AppleAPIIssuerID:    *apiIssuer,
+			Identity:           *identity,
+			TeamID:             *teamID,
+			HardenedRuntime:    *hardenedRuntime,
+			Notarize:           *notarize,
+			EntitlementsFile:   *entitlements,
+			AppleIDEnv:         *appleIDEnv,
+			AppleIDPasswordEnv: *applePasswordEnv,
+			AppleAPIKeyID:      *apiKeyID,
+			AppleAPIKeyFile:    *apiKeyFile,
+			AppleAPIIssuerID:   *apiIssuer,
 		}
 	case "linux":
 		payload = LinuxSigningConfig{
@@ -396,10 +396,10 @@ func (c *Commands) Validate(args []string) error {
 	}
 
 	var result struct {
-		Valid    bool                            `json:"valid"`
-		Message  string                          `json:"message,omitempty"`
-		Errors   []map[string]string             `json:"errors,omitempty"`
-		Warnings []map[string]string             `json:"warnings,omitempty"`
+		Valid     bool                              `json:"valid"`
+		Message   string                            `json:"message,omitempty"`
+		Errors    []map[string]string               `json:"errors,omitempty"`
+		Warnings  []map[string]string               `json:"warnings,omitempty"`
 		Platforms map[string]map[string]interface{} `json:"platforms,omitempty"`
 	}
 
@@ -481,7 +481,8 @@ func (c *Commands) Prerequisites(args []string) error {
 	}
 
 	// Table format
-	fmt.Println("Signing Tool Prerequisites:\n")
+	fmt.Println("Signing Tool Prerequisites:")
+	fmt.Println()
 
 	rows := [][]string{}
 	for _, t := range result.Tools {
@@ -564,7 +565,7 @@ func (c *Commands) Discover(args []string) error {
 	}
 
 	// Table format
-	platformName := strings.Title(platformLower)
+	platformName := strings.ToUpper(platformLower[:1]) + platformLower[1:]
 	if platformLower == "macos" {
 		platformName = "macOS"
 	}

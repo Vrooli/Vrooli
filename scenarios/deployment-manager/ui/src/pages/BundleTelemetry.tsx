@@ -21,7 +21,7 @@ import { TelemetryEntry } from "../components/TelemetryEntry";
 import { listTelemetry, uploadTelemetry, type TelemetrySummary } from "../lib/api";
 
 /** Known failure event types from the desktop runtime */
-const FAILURE_EVENT_TYPES = [
+const _FAILURE_EVENT_TYPES = [
   "dependency_unreachable",
   "swap_missing_asset",
   "asset_missing",

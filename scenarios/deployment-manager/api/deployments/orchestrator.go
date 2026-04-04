@@ -296,31 +296,26 @@ func (o *Orchestrator) DeployDesktop(w http.ResponseWriter, r *http.Request) {
 
 	// Step 3.5: Omit non-cross-platform CLI services with a warning
 	step = o.startStep("Normalize CLI services")
-	if manifest != nil {
-		pruned, err := pruneNonCrossPlatformCLIs(manifest, filepath.Join(scenarioBaseDir, profile.Scenario))
-		if err != nil {
-			step.Status = "warning"
-			step.Message = fmt.Sprintf("failed to normalize CLI services: %v", err)
-			o.log("warn", map[string]interface{}{
-				"msg":      "normalize cli services failed",
-				"scenario": profile.Scenario,
-				"error":    err.Error(),
-			})
-		} else if len(pruned) > 0 {
-			step.Status = "warning"
-			step.Message = fmt.Sprintf("omitted %d CLI service(s) not cross-platform: %s", len(pruned), strings.Join(pruned, ", "))
-			o.log("warn", map[string]interface{}{
-				"msg":       "omitted non-cross-platform cli services",
-				"scenario":  profile.Scenario,
-				"services":  strings.Join(pruned, ","),
-				"remediate": "make cli cross-platform (see test-genie) to include in bundle",
-			})
-		} else {
-			o.successStep(&step, "CLI services are cross-platform or none present")
-		}
-	} else {
+	pruned, err := pruneNonCrossPlatformCLIs(manifest, filepath.Join(scenarioBaseDir, profile.Scenario))
+	if err != nil {
 		step.Status = "warning"
-		step.Message = "manifest unavailable for CLI normalization"
+		step.Message = fmt.Sprintf("failed to normalize CLI services: %v", err)
+		o.log("warn", map[string]interface{}{
+			"msg":      "normalize cli services failed",
+			"scenario": profile.Scenario,
+			"error":    err.Error(),
+		})
+	} else if len(pruned) > 0 {
+		step.Status = "warning"
+		step.Message = fmt.Sprintf("omitted %d CLI service(s) not cross-platform: %s", len(pruned), strings.Join(pruned, ", "))
+		o.log("warn", map[string]interface{}{
+			"msg":       "omitted non-cross-platform cli services",
+			"scenario":  profile.Scenario,
+			"services":  strings.Join(pruned, ","),
+			"remediate": "make cli cross-platform (see test-genie) to include in bundle",
+		})
+	} else {
+		o.successStep(&step, "CLI services are cross-platform or none present")
 	}
 	response.Steps = append(response.Steps, step)
 

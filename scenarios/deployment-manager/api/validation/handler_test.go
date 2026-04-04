@@ -75,9 +75,9 @@ func noopLog(_ string, _ map[string]interface{}) {}
 
 func TestCreate(t *testing.T) {
 	repo := newInMemoryRepo()
-	h := NewHandler(repo, "/tmp/videos", noopLog)
+	h := NewHandlerForTest(repo, "/tmp/videos", noopLog)
 
-	body, _ := json.Marshal(Request{ProfileID: "prof-1", RecordVideo: true})
+	body, _ := json.Marshal(Request{ProfileID: "prof-1", GitCommitHash: "abc123", RecordVideo: true})
 	req := httptest.NewRequest("POST", "/api/v1/validations", bytes.NewReader(body))
 	w := httptest.NewRecorder()
 
@@ -94,15 +94,18 @@ func TestCreate(t *testing.T) {
 	if rec.ProfileID != "prof-1" {
 		t.Fatalf("expected profile_id prof-1, got %s", rec.ProfileID)
 	}
+	if rec.GitCommitHash != "abc123" {
+		t.Fatalf("expected git_commit_hash abc123, got %s", rec.GitCommitHash)
+	}
 	if rec.Status != "pending" {
 		t.Fatalf("expected status pending, got %s", rec.Status)
 	}
 }
 
 func TestCreate_MissingProfileID(t *testing.T) {
-	h := NewHandler(newInMemoryRepo(), "/tmp", noopLog)
+	h := NewHandlerForTest(newInMemoryRepo(), "/tmp", noopLog)
 
-	body, _ := json.Marshal(Request{})
+	body, _ := json.Marshal(Request{GitCommitHash: "abc123"})
 	req := httptest.NewRequest("POST", "/api/v1/validations", bytes.NewReader(body))
 	w := httptest.NewRecorder()
 
@@ -112,10 +115,23 @@ func TestCreate_MissingProfileID(t *testing.T) {
 	}
 }
 
+func TestCreate_MissingCommitHash(t *testing.T) {
+	h := NewHandlerForTest(newInMemoryRepo(), "/tmp", noopLog)
+
+	body, _ := json.Marshal(Request{ProfileID: "prof-1"})
+	req := httptest.NewRequest("POST", "/api/v1/validations", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
 func TestGet(t *testing.T) {
 	repo := newInMemoryRepo()
 	repo.records["val-1"] = &Record{ID: "val-1", ProfileID: "p1", Status: "pending", CreatedAt: time.Now()}
-	h := NewHandler(repo, "/tmp", noopLog)
+	h := NewHandlerForTest(repo, "/tmp", noopLog)
 
 	req := httptest.NewRequest("GET", "/api/v1/validations/val-1", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "val-1"})
@@ -128,7 +144,7 @@ func TestGet(t *testing.T) {
 }
 
 func TestGet_NotFound(t *testing.T) {
-	h := NewHandler(newInMemoryRepo(), "/tmp", noopLog)
+	h := NewHandlerForTest(newInMemoryRepo(), "/tmp", noopLog)
 
 	req := httptest.NewRequest("GET", "/api/v1/validations/missing", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "missing"})
@@ -143,7 +159,7 @@ func TestGet_NotFound(t *testing.T) {
 func TestSubmitReview(t *testing.T) {
 	repo := newInMemoryRepo()
 	repo.records["val-1"] = &Record{ID: "val-1", ProfileID: "p1", Status: "review_required", CreatedAt: time.Now()}
-	h := NewHandler(repo, "/tmp", noopLog)
+	h := NewHandlerForTest(repo, "/tmp", noopLog)
 
 	body, _ := json.Marshal(ReviewRequest{Decision: "approved", Reviewer: "admin"})
 	req := httptest.NewRequest("POST", "/api/v1/validations/val-1/review", bytes.NewReader(body))
@@ -158,10 +174,84 @@ func TestSubmitReview(t *testing.T) {
 	if repo.records["val-1"].ReviewDecision != "approved" {
 		t.Fatal("expected review decision to be approved")
 	}
+
+	var resp ReviewResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp.Status != "ok" {
+		t.Fatalf("expected status ok, got %s", resp.Status)
+	}
+	if resp.Decision != "approved" {
+		t.Fatalf("expected decision approved, got %s", resp.Decision)
+	}
+}
+
+func TestSubmitReview_DefaultsReviewerToOperator(t *testing.T) {
+	repo := newInMemoryRepo()
+	repo.records["val-1"] = &Record{ID: "val-1", ProfileID: "p1", Status: "review_required", CreatedAt: time.Now()}
+	h := NewHandlerForTest(repo, "/tmp", noopLog)
+
+	// Send review with no reviewer field.
+	body, _ := json.Marshal(ReviewRequest{Decision: "approved"})
+	req := httptest.NewRequest("POST", "/api/v1/validations/val-1/review", bytes.NewReader(body))
+	req = mux.SetURLVars(req, map[string]string{"id": "val-1"})
+	w := httptest.NewRecorder()
+
+	h.SubmitReview(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	if repo.records["val-1"].ReviewedBy != "operator" {
+		t.Fatalf("expected reviewed_by 'operator', got %q", repo.records["val-1"].ReviewedBy)
+	}
+}
+
+func TestSubmitReview_NoBridgingWithoutCommitHash(t *testing.T) {
+	repo := newInMemoryRepo()
+	// Record has no GitCommitHash (legacy).
+	repo.records["val-1"] = &Record{ID: "val-1", ProfileID: "p1", Status: "review_required", CreatedAt: time.Now()}
+	h := NewHandlerForTest(repo, "/tmp", noopLog)
+
+	body, _ := json.Marshal(ReviewRequest{Decision: "approved", Reviewer: "admin"})
+	req := httptest.NewRequest("POST", "/api/v1/validations/val-1/review", bytes.NewReader(body))
+	req = mux.SetURLVars(req, map[string]string{"id": "val-1"})
+	w := httptest.NewRecorder()
+
+	h.SubmitReview(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp ReviewResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp.ApprovalID != "" {
+		t.Fatalf("expected empty approval_id for legacy validation, got %q", resp.ApprovalID)
+	}
+	if resp.ApprovalStatus != "" {
+		t.Fatalf("expected empty approval_status for legacy validation, got %q", resp.ApprovalStatus)
+	}
+}
+
+func TestSubmitReview_NotFound(t *testing.T) {
+	h := NewHandlerForTest(newInMemoryRepo(), "/tmp", noopLog)
+
+	body, _ := json.Marshal(ReviewRequest{Decision: "approved"})
+	req := httptest.NewRequest("POST", "/api/v1/validations/missing/review", bytes.NewReader(body))
+	req = mux.SetURLVars(req, map[string]string{"id": "missing"})
+	w := httptest.NewRecorder()
+
+	h.SubmitReview(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", w.Code)
+	}
 }
 
 func TestSubmitReview_InvalidDecision(t *testing.T) {
-	h := NewHandler(newInMemoryRepo(), "/tmp", noopLog)
+	h := NewHandlerForTest(newInMemoryRepo(), "/tmp", noopLog)
 
 	body, _ := json.Marshal(ReviewRequest{Decision: "maybe"})
 	req := httptest.NewRequest("POST", "/api/v1/validations/val-1/review", bytes.NewReader(body))
@@ -179,7 +269,7 @@ func TestListByProfile(t *testing.T) {
 	repo.records["v1"] = &Record{ID: "v1", ProfileID: "p1", Status: "passed", CreatedAt: time.Now()}
 	repo.records["v2"] = &Record{ID: "v2", ProfileID: "p1", Status: "failed", CreatedAt: time.Now()}
 	repo.records["v3"] = &Record{ID: "v3", ProfileID: "p2", Status: "pending", CreatedAt: time.Now()}
-	h := NewHandler(repo, "/tmp", noopLog)
+	h := NewHandlerForTest(repo, "/tmp", noopLog)
 
 	req := httptest.NewRequest("GET", "/api/v1/profiles/p1/validations", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "p1"})

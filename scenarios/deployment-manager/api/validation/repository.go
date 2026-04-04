@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+
+	"deployment-manager/shared"
 )
 
 // Repository persists visual validation records.
@@ -19,7 +21,7 @@ type Repository interface {
 
 // SQLRepository implements Repository with PostgreSQL.
 type SQLRepository struct {
-	db *sql.DB
+	db shared.DBTX
 }
 
 // NewSQLRepository creates a new SQL-backed repository.
@@ -27,34 +29,47 @@ func NewSQLRepository(db *sql.DB) *SQLRepository {
 	return &SQLRepository{db: db}
 }
 
+// WithTx returns a new repository instance backed by the given transaction.
+func (r *SQLRepository) WithTx(tx *sql.Tx) *SQLRepository {
+	return &SQLRepository{db: tx}
+}
+
 func (r *SQLRepository) Create(ctx context.Context, record *Record) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO visual_validations (id, profile_id, deployment_id, smoke_test_id, status, platform, created_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		`INSERT INTO visual_validations (id, profile_id, deployment_id, smoke_test_id, status, platform, git_commit_hash, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		record.ID, record.ProfileID, record.DeploymentID, record.SmokeTestID,
-		record.Status, record.Platform, record.CreatedAt,
+		record.Status, record.Platform, nullStr(record.GitCommitHash), record.CreatedAt,
 	)
 	return err
+}
+
+// nullStr converts an empty string to sql.NullString.
+func nullStr(s string) sql.NullString {
+	if s == "" {
+		return sql.NullString{}
+	}
+	return sql.NullString{String: s, Valid: true}
 }
 
 func (r *SQLRepository) Get(ctx context.Context, id string) (*Record, error) {
 	row := r.db.QueryRowContext(ctx,
 		`SELECT id, profile_id, deployment_id, smoke_test_id, status,
 		        video_path, video_size_bytes, video_duration_ms, platform,
-		        review_decision, reviewed_by, review_notes,
+		        git_commit_hash, review_decision, reviewed_by, review_notes,
 		        created_at, completed_at, reviewed_at
 		 FROM visual_validations WHERE id = $1`, id)
 
 	rec := &Record{}
 	var videoPath sql.NullString
 	var videoSize, videoDuration sql.NullInt64
-	var deploymentID, reviewDecision, reviewedBy, reviewNotes sql.NullString
+	var deploymentID, gitCommitHash, reviewDecision, reviewedBy, reviewNotes sql.NullString
 	var completedAt, reviewedAt sql.NullTime
 
 	err := row.Scan(
 		&rec.ID, &rec.ProfileID, &deploymentID, &rec.SmokeTestID, &rec.Status,
 		&videoPath, &videoSize, &videoDuration, &rec.Platform,
-		&reviewDecision, &reviewedBy, &reviewNotes,
+		&gitCommitHash, &reviewDecision, &reviewedBy, &reviewNotes,
 		&rec.CreatedAt, &completedAt, &reviewedAt,
 	)
 	if err == sql.ErrNoRows {
@@ -68,6 +83,7 @@ func (r *SQLRepository) Get(ctx context.Context, id string) (*Record, error) {
 	rec.VideoURL = videoPath.String
 	rec.VideoSizeBytes = videoSize.Int64
 	rec.VideoDurationMs = videoDuration.Int64
+	rec.GitCommitHash = gitCommitHash.String
 	rec.ReviewDecision = reviewDecision.String
 	rec.ReviewedBy = reviewedBy.String
 	rec.ReviewNotes = reviewNotes.String
@@ -85,7 +101,7 @@ func (r *SQLRepository) ListByProfile(ctx context.Context, profileID string) ([]
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, profile_id, deployment_id, smoke_test_id, status,
 		        video_path, video_size_bytes, video_duration_ms, platform,
-		        review_decision, reviewed_by, review_notes,
+		        git_commit_hash, review_decision, reviewed_by, review_notes,
 		        created_at, completed_at, reviewed_at
 		 FROM visual_validations WHERE profile_id = $1
 		 ORDER BY created_at DESC`, profileID)
@@ -99,13 +115,13 @@ func (r *SQLRepository) ListByProfile(ctx context.Context, profileID string) ([]
 		rec := &Record{}
 		var videoPath sql.NullString
 		var videoSize, videoDuration sql.NullInt64
-		var deploymentID, reviewDecision, reviewedBy, reviewNotes sql.NullString
+		var deploymentID, gitCommitHash, reviewDecision, reviewedBy, reviewNotes sql.NullString
 		var completedAt, reviewedAt sql.NullTime
 
 		if err := rows.Scan(
 			&rec.ID, &rec.ProfileID, &deploymentID, &rec.SmokeTestID, &rec.Status,
 			&videoPath, &videoSize, &videoDuration, &rec.Platform,
-			&reviewDecision, &reviewedBy, &reviewNotes,
+			&gitCommitHash, &reviewDecision, &reviewedBy, &reviewNotes,
 			&rec.CreatedAt, &completedAt, &reviewedAt,
 		); err != nil {
 			return nil, err
@@ -115,6 +131,7 @@ func (r *SQLRepository) ListByProfile(ctx context.Context, profileID string) ([]
 		rec.VideoURL = videoPath.String
 		rec.VideoSizeBytes = videoSize.Int64
 		rec.VideoDurationMs = videoDuration.Int64
+		rec.GitCommitHash = gitCommitHash.String
 		rec.ReviewDecision = reviewDecision.String
 		rec.ReviewedBy = reviewedBy.String
 		rec.ReviewNotes = reviewNotes.String

@@ -3,8 +3,6 @@ package validation
 import (
 	"context"
 	"crypto/x509"
-	"encoding/pem"
-	"errors"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -19,10 +17,10 @@ import (
 
 // prerequisiteChecker implements PrerequisiteChecker using injected dependencies.
 type prerequisiteChecker struct {
-	fs      codesigning.FileSystem
-	cmd     codesigning.CommandRunner
-	env     codesigning.EnvironmentReader
-	time    codesigning.TimeProvider
+	fs   codesigning.FileSystem
+	cmd  codesigning.CommandRunner
+	env  codesigning.EnvironmentReader
+	time codesigning.TimeProvider
 }
 
 // PrerequisiteCheckerOption configures a prerequisite checker.
@@ -807,13 +805,8 @@ func (c *prerequisiteChecker) checkGPGKey(ctx context.Context, keyID, homedir st
 		args = append([]string{"--homedir", homedir}, args...)
 	}
 
-	_, stderr, err := c.cmd.Run(ctx, "gpg", args...)
+	_, _, err := c.cmd.Run(ctx, "gpg", args...)
 	if err != nil {
-		errMsg := strings.TrimSpace(string(stderr))
-		if errMsg == "" {
-			errMsg = err.Error()
-		}
-
 		result.AddError(codesigning.ValidationError{
 			Code:        "LINUX_KEY_NOT_FOUND",
 			Platform:    codesigning.PlatformLinux,
@@ -860,20 +853,6 @@ func (c *prerequisiteChecker) parsePKCS12Certificate(data []byte, password strin
 	_, cert, err := pkcs12.Decode(data, password)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode PKCS#12: %w", err)
-	}
-
-	return c.extractCertificateInfo(cert), nil
-}
-
-func (c *prerequisiteChecker) parsePEMCertificate(data []byte) (*codesigning.CertificateInfo, error) {
-	block, _ := pem.Decode(data)
-	if block == nil {
-		return nil, errors.New("failed to decode PEM block")
-	}
-
-	cert, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse certificate: %w", err)
 	}
 
 	return c.extractCertificateInfo(cert), nil

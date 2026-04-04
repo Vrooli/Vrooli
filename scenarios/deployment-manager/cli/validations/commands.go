@@ -1,6 +1,7 @@
 package validations
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -48,6 +49,7 @@ func (c *Commands) runValidation(args []string) error {
 	fs := flag.NewFlagSet("validations run", flag.ContinueOnError)
 	record := fs.Bool("record", false, "Enable video recording")
 	platform := fs.String("platform", "linux", "Target platform")
+	commit := fs.String("commit", "", "Git commit hash (required)")
 	format := fs.String("format", "", "Output format (json)")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -56,11 +58,15 @@ func (c *Commands) runValidation(args []string) error {
 	if len(remaining) == 0 {
 		return errors.New("profile ID is required")
 	}
+	if *commit == "" {
+		return errors.New("--commit is required for new validations")
+	}
 
 	payload := map[string]interface{}{
-		"profile_id":   remaining[0],
-		"record_video": *record,
-		"platform":     *platform,
+		"profile_id":      remaining[0],
+		"record_video":    *record,
+		"platform":        *platform,
+		"git_commit_hash": *commit,
 	}
 
 	body, err := c.api.Request("POST", "/api/v1/validations", nil, payload)
@@ -128,8 +134,14 @@ func (c *Commands) review(args []string) error {
 		return errors.New("--decision must be 'approve' or 'reject'")
 	}
 
+	// Map CLI decision names to API values.
+	apiDecision := *decision + "d" // "approve" -> "approved", "reject" -> "rejected"
+	if *decision == "reject" {
+		apiDecision = "rejected"
+	}
+
 	payload := map[string]interface{}{
-		"decision": *decision,
+		"decision": apiDecision,
 		"notes":    *notes,
 	}
 
@@ -137,13 +149,29 @@ func (c *Commands) review(args []string) error {
 	if err != nil {
 		return err
 	}
-	cmdutil.PrintByFormat(*format, body)
+
+	if *format == "json" {
+		cmdutil.PrintByFormat(*format, body)
+		return nil
+	}
+
+	// Parse response to show approval info in human-readable output.
+	var resp map[string]interface{}
+	if jsonErr := json.Unmarshal(body, &resp); jsonErr == nil {
+		fmt.Fprintf(os.Stdout, "Review submitted: %s\n", apiDecision)
+		if aid, ok := resp["approval_id"].(string); ok && aid != "" {
+			fmt.Fprintf(os.Stdout, "Deployment approval: %s (status: %v)\n", aid, resp["approval_status"])
+		}
+	} else {
+		cmdutil.PrintByFormat(*format, body)
+	}
 	return nil
 }
 
 func (c *Commands) list(args []string) error {
 	fs := flag.NewFlagSet("validations list", flag.ContinueOnError)
 	profile := fs.String("profile", "", "Filter by profile ID")
+	commit := fs.String("commit", "", "Filter by git commit hash")
 	format := fs.String("format", "", "Output format (json)")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -153,7 +181,12 @@ func (c *Commands) list(args []string) error {
 		return errors.New("--profile is required")
 	}
 
-	body, err := c.api.Request("GET", "/api/v1/profiles/"+*profile+"/validations", nil, nil)
+	path := "/api/v1/profiles/" + *profile + "/validations"
+	if *commit != "" {
+		path += "?commit=" + *commit
+	}
+
+	body, err := c.api.Request("GET", path, nil, nil)
 	if err != nil {
 		return err
 	}

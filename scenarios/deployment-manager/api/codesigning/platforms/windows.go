@@ -121,13 +121,14 @@ func (d *WindowsDetector) listStoreCertificates(ctx context.Context) ([]Discover
 		Write-Output ("CERT:" + $cert.Thumbprint + "|" + $cert.Subject + "|" + $cert.Issuer + "|" + $cert.NotAfter.ToString("yyyy-MM-dd") + "|" + $cert.FriendlyName)
 	}`
 
-	stdout, stderr, err := d.cmd.Run(ctx, "powershell", "-NoProfile", "-NonInteractive", "-Command", psScript)
+	stdout, _, err := d.cmd.Run(ctx, "powershell", "-NoProfile", "-NonInteractive", "-Command", psScript)
 	if err != nil {
 		// Also try the local machine store
 		psScriptMachine := `Get-ChildItem Cert:\LocalMachine\My -CodeSigningCert | ForEach-Object {
 			$cert = $_
 			Write-Output ("CERT:" + $cert.Thumbprint + "|" + $cert.Subject + "|" + $cert.Issuer + "|" + $cert.NotAfter.ToString("yyyy-MM-dd") + "|" + $cert.FriendlyName)
 		}`
+		var stderr []byte
 		stdout, stderr, err = d.cmd.Run(ctx, "powershell", "-NoProfile", "-NonInteractive", "-Command", psScriptMachine)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list certificates: %v (stderr: %s)", err, string(stderr))

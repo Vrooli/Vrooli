@@ -216,7 +216,7 @@ func calculateDaysToExpiry(dateStr string) int {
 	// Use current time's date for comparison
 	// This is a simplified calculation
 	var year, month, day int
-	fmt.Sscanf(dateStr, "%d-%d-%d", &year, &month, &day)
+	_, _ = fmt.Sscanf(dateStr, "%d-%d-%d", &year, &month, &day)
 
 	// Simple approximation: assume 30 days per month, 365 days per year
 	// For more accuracy, would need proper date parsing

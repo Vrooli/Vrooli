@@ -55,6 +55,25 @@ func (m *mockRepository) Delete(ctx context.Context, profileID string) error {
 	return nil
 }
 
+func (m *mockRepository) DeleteForPlatform(ctx context.Context, profileID string, platform string) error {
+	if m.deleteError != nil {
+		return m.deleteError
+	}
+	config := m.configs[profileID]
+	if config == nil {
+		return nil
+	}
+	switch platform {
+	case PlatformWindows:
+		config.Windows = nil
+	case PlatformMacOS:
+		config.MacOS = nil
+	case PlatformLinux:
+		config.Linux = nil
+	}
+	return nil
+}
+
 func (m *mockRepository) GetForPlatform(ctx context.Context, profileID string, platform string) (interface{}, error) {
 	config, err := m.Get(ctx, profileID)
 	if err != nil {

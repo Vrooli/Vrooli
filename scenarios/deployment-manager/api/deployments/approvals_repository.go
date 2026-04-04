@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+
+	"deployment-manager/shared"
 )
 
 // ApprovalsRepository persists deployment approval records.
@@ -22,12 +24,20 @@ type ApprovalsRepository interface {
 
 // SQLApprovalsRepository implements ApprovalsRepository with PostgreSQL.
 type SQLApprovalsRepository struct {
-	db *sql.DB
+	conn shared.DBTX // used for regular queries (may be *sql.DB or *sql.Tx)
+	db   *sql.DB     // retained for EnsureSchema and SetRequiredPlatforms (need BeginTx)
 }
 
 // NewSQLApprovalsRepository creates a new SQL-backed approvals repository.
 func NewSQLApprovalsRepository(db *sql.DB) *SQLApprovalsRepository {
-	return &SQLApprovalsRepository{db: db}
+	return &SQLApprovalsRepository{conn: db, db: db}
+}
+
+// WithTx returns a new repository instance backed by the given transaction.
+// Operations that start their own transactions (EnsureSchema, SetRequiredPlatforms)
+// are not available on the returned instance.
+func (r *SQLApprovalsRepository) WithTx(tx *sql.Tx) *SQLApprovalsRepository {
+	return &SQLApprovalsRepository{conn: tx, db: nil}
 }
 
 // EnsureSchema creates the approval tables if they don't exist.
@@ -66,7 +76,7 @@ func (r *SQLApprovalsRepository) Create(ctx context.Context, approval *Deploymen
 		return fmt.Errorf("mark stale: %w", err)
 	}
 
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.conn.ExecContext(ctx,
 		`INSERT INTO deployment_approvals
 			(id, profile_id, git_commit_hash, platform, status, validation_id, created_at, updated_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $7)`,
@@ -78,7 +88,7 @@ func (r *SQLApprovalsRepository) Create(ctx context.Context, approval *Deploymen
 }
 
 func (r *SQLApprovalsRepository) Get(ctx context.Context, id string) (*DeploymentApproval, error) {
-	row := r.db.QueryRowContext(ctx,
+	row := r.conn.QueryRowContext(ctx,
 		`SELECT id, profile_id, git_commit_hash, platform, status,
 		        approved_by, approved_at, notes, validation_id, created_at, updated_at
 		 FROM deployment_approvals WHERE id = $1`, id)
@@ -86,7 +96,7 @@ func (r *SQLApprovalsRepository) Get(ctx context.Context, id string) (*Deploymen
 }
 
 func (r *SQLApprovalsRepository) ListByCommit(ctx context.Context, profileID, commitHash string) ([]*DeploymentApproval, error) {
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := r.conn.QueryContext(ctx,
 		`SELECT id, profile_id, git_commit_hash, platform, status,
 		        approved_by, approved_at, notes, validation_id, created_at, updated_at
 		 FROM deployment_approvals
@@ -103,7 +113,7 @@ func (r *SQLApprovalsRepository) ListByProfile(ctx context.Context, profileID st
 	if limit <= 0 {
 		limit = 50
 	}
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := r.conn.QueryContext(ctx,
 		`SELECT id, profile_id, git_commit_hash, platform, status,
 		        approved_by, approved_at, notes, validation_id, created_at, updated_at
 		 FROM deployment_approvals
@@ -119,7 +129,7 @@ func (r *SQLApprovalsRepository) ListByProfile(ctx context.Context, profileID st
 
 func (r *SQLApprovalsRepository) UpdateDecision(ctx context.Context, id, decision, reviewer, notes string) error {
 	now := time.Now()
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.conn.ExecContext(ctx,
 		`UPDATE deployment_approvals
 		 SET status = $2, approved_by = $3, approved_at = $4, notes = $5, updated_at = $4
 		 WHERE id = $1`,
@@ -128,7 +138,7 @@ func (r *SQLApprovalsRepository) UpdateDecision(ctx context.Context, id, decisio
 }
 
 func (r *SQLApprovalsRepository) MarkStale(ctx context.Context, profileID, platform, exceptCommit string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.conn.ExecContext(ctx,
 		`UPDATE deployment_approvals
 		 SET status = 'stale', updated_at = NOW()
 		 WHERE profile_id = $1 AND platform = $2
@@ -139,7 +149,7 @@ func (r *SQLApprovalsRepository) MarkStale(ctx context.Context, profileID, platf
 }
 
 func (r *SQLApprovalsRepository) GetRequiredPlatforms(ctx context.Context, profileID string) ([]string, error) {
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := r.conn.QueryContext(ctx,
 		`SELECT platform FROM profile_required_platforms WHERE profile_id = $1 ORDER BY platform`,
 		profileID)
 	if err != nil {

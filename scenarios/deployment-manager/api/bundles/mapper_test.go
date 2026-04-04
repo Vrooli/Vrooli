@@ -11,7 +11,7 @@ import (
 )
 
 func TestApplyBundleSecrets(t *testing.T) {
-	path := filepath.Join("..", "..", "..", "..", "docs", "deployment", "examples", "manifests", "desktop-happy.json")
+	path := filepath.Join("..", "..", "docs", "examples", "manifests", "desktop-happy.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("failed to read sample manifest: %v", err)
@@ -83,7 +83,7 @@ func TestApplyBundleSecrets_NilManifest(t *testing.T) {
 }
 
 func TestApplyBundleSecrets_EmptySecrets(t *testing.T) {
-	path := filepath.Join("..", "..", "..", "..", "docs", "deployment", "examples", "manifests", "desktop-happy.json")
+	path := filepath.Join("..", "..", "docs", "examples", "manifests", "desktop-happy.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("failed to read sample manifest: %v", err)
@@ -107,7 +107,7 @@ func TestApplyBundleSecrets_EmptySecrets(t *testing.T) {
 }
 
 func TestApplyBundleSecrets_InvalidTargetType(t *testing.T) {
-	path := filepath.Join("..", "..", "..", "..", "docs", "deployment", "examples", "manifests", "desktop-happy.json")
+	path := filepath.Join("..", "..", "docs", "examples", "manifests", "desktop-happy.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("failed to read sample manifest: %v", err)
@@ -136,7 +136,7 @@ func TestApplyBundleSecrets_InvalidTargetType(t *testing.T) {
 }
 
 func TestApplyBundleSecrets_FileTargetType(t *testing.T) {
-	path := filepath.Join("..", "..", "..", "..", "docs", "deployment", "examples", "manifests", "desktop-happy.json")
+	path := filepath.Join("..", "..", "docs", "examples", "manifests", "desktop-happy.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("failed to read sample manifest: %v", err)
@@ -171,7 +171,7 @@ func TestApplyBundleSecrets_FileTargetType(t *testing.T) {
 }
 
 func TestApplyBundleSecrets_WithoutPrompt(t *testing.T) {
-	path := filepath.Join("..", "..", "..", "..", "docs", "deployment", "examples", "manifests", "desktop-happy.json")
+	path := filepath.Join("..", "..", "docs", "examples", "manifests", "desktop-happy.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("failed to read sample manifest: %v", err)
@@ -208,7 +208,7 @@ func TestApplyBundleSecrets_WithoutPrompt(t *testing.T) {
 }
 
 func TestApplyBundleSecrets_PreservesExistingFields(t *testing.T) {
-	path := filepath.Join("..", "..", "..", "..", "docs", "deployment", "examples", "manifests", "desktop-happy.json")
+	path := filepath.Join("..", "..", "docs", "examples", "manifests", "desktop-happy.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("failed to read sample manifest: %v", err)
@@ -245,7 +245,7 @@ func TestApplyBundleSecrets_PreservesExistingFields(t *testing.T) {
 }
 
 func TestApplyBundleSecrets_FiltersInfrastructureSecrets(t *testing.T) {
-	path := filepath.Join("..", "..", "..", "..", "docs", "deployment", "examples", "manifests", "desktop-happy.json")
+	path := filepath.Join("..", "..", "docs", "examples", "manifests", "desktop-happy.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("failed to read sample manifest: %v", err)
@@ -320,7 +320,7 @@ func TestApplyBundleSecrets_FiltersInfrastructureSecrets(t *testing.T) {
 }
 
 func TestApplyBundleSecrets_AllInfrastructureSecretsFiltered(t *testing.T) {
-	path := filepath.Join("..", "..", "..", "..", "docs", "deployment", "examples", "manifests", "desktop-happy.json")
+	path := filepath.Join("..", "..", "docs", "examples", "manifests", "desktop-happy.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("failed to read sample manifest: %v", err)
@@ -356,7 +356,7 @@ func TestApplyBundleSecrets_AllInfrastructureSecretsFiltered(t *testing.T) {
 }
 
 func TestApplyBundleSecrets_RequiredFlag(t *testing.T) {
-	path := filepath.Join("..", "..", "..", "..", "docs", "deployment", "examples", "manifests", "desktop-happy.json")
+	path := filepath.Join("..", "..", "docs", "examples", "manifests", "desktop-happy.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("failed to read sample manifest: %v", err)

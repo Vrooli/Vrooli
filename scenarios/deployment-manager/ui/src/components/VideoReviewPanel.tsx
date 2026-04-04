@@ -9,12 +9,20 @@ interface ValidationRecord {
   video_size_bytes: number;
   video_duration_ms: number;
   platform: string;
+  git_commit_hash: string;
   review_decision: string;
   reviewed_by: string;
   review_notes: string;
   created_at: string;
   completed_at: string | null;
   reviewed_at: string | null;
+}
+
+interface ReviewResponse {
+  status: string;
+  decision: string;
+  approval_id?: string;
+  approval_status?: string;
 }
 
 interface VideoReviewPanelProps {
@@ -28,6 +36,7 @@ export function VideoReviewPanel({ validationId, apiBase = "" }: VideoReviewPane
   const [error, setError] = useState<string | null>(null);
   const [reviewNotes, setReviewNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [approvalStatus, setApprovalStatus] = useState<{ id: string; status: string } | null>(null);
 
   useEffect(() => {
     fetch(`${apiBase}/api/v1/validations/${validationId}`)
@@ -40,6 +49,23 @@ export function VideoReviewPanel({ validationId, apiBase = "" }: VideoReviewPane
       .finally(() => setLoading(false));
   }, [validationId, apiBase]);
 
+  // Fetch approval status on mount if already reviewed and has commit hash.
+  useEffect(() => {
+    if (!validation?.review_decision || !validation?.git_commit_hash || !validation?.profile_id) return;
+    fetch(`${apiBase}/api/v1/profiles/${validation.profile_id}/approvals?commit=${validation.git_commit_hash}`)
+      .then((res) => {
+        if (!res.ok) return [];
+        return res.json();
+      })
+      .then((approvals: Array<{ id: string; status: string; platform: string; validation_id?: string }>) => {
+        const match = approvals.find((a) => a.validation_id === validationId);
+        if (match) {
+          setApprovalStatus({ id: match.id, status: match.status });
+        }
+      })
+      .catch(() => {});
+  }, [validation?.review_decision, validation?.git_commit_hash, validation?.profile_id, validationId, apiBase]);
+
   const submitReview = async (decision: "approved" | "rejected") => {
     setSubmitting(true);
     try {
@@ -49,7 +75,14 @@ export function VideoReviewPanel({ validationId, apiBase = "" }: VideoReviewPane
         body: JSON.stringify({ decision, notes: reviewNotes }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      // Refresh validation data
+      const reviewResp: ReviewResponse = await res.json();
+
+      // Capture approval status from enriched response.
+      if (reviewResp.approval_id) {
+        setApprovalStatus({ id: reviewResp.approval_id, status: reviewResp.approval_status || decision });
+      }
+
+      // Refresh validation data.
       const updated = await fetch(`${apiBase}/api/v1/validations/${validationId}`).then((r) => r.json());
       setValidation(updated);
     } catch (err) {
@@ -70,17 +103,32 @@ export function VideoReviewPanel({ validationId, apiBase = "" }: VideoReviewPane
     <div className="flex flex-col gap-4 p-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Visual Validation</h2>
-        <span
-          className={`rounded px-2 py-1 text-sm font-medium ${
-            validation.status === "passed" || validation.review_decision === "approved"
-              ? "bg-green-100 text-green-800"
-              : validation.status === "failed" || validation.review_decision === "rejected"
-                ? "bg-red-100 text-red-800"
-                : "bg-yellow-100 text-yellow-800"
-          }`}
-        >
-          {validation.review_decision || validation.status}
-        </span>
+        <div className="flex items-center gap-2">
+          {approvalStatus && (
+            <span
+              className={`rounded px-2 py-1 text-xs font-medium ${
+                approvalStatus.status === "approved"
+                  ? "bg-blue-100 text-blue-800"
+                  : approvalStatus.status === "rejected"
+                    ? "bg-red-100 text-red-800"
+                    : "bg-gray-100 text-gray-800"
+              }`}
+            >
+              Approval: {approvalStatus.status}
+            </span>
+          )}
+          <span
+            className={`rounded px-2 py-1 text-sm font-medium ${
+              validation.status === "passed" || validation.review_decision === "approved"
+                ? "bg-green-100 text-green-800"
+                : validation.status === "failed" || validation.review_decision === "rejected"
+                  ? "bg-red-100 text-red-800"
+                  : "bg-yellow-100 text-yellow-800"
+            }`}
+          >
+            {validation.review_decision || validation.status}
+          </span>
+        </div>
       </div>
 
       {/* Metadata */}
@@ -91,6 +139,11 @@ export function VideoReviewPanel({ validationId, apiBase = "" }: VideoReviewPane
         <div>
           <span className="font-medium">Created:</span> {new Date(validation.created_at).toLocaleString()}
         </div>
+        {validation.git_commit_hash && (
+          <div>
+            <span className="font-medium">Commit:</span> {validation.git_commit_hash.substring(0, 12)}
+          </div>
+        )}
         {validation.video_duration_ms > 0 && (
           <div>
             <span className="font-medium">Duration:</span> {(validation.video_duration_ms / 1000).toFixed(1)}s

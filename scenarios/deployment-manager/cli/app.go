@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"deployment-manager/cli/approvals"
 	"deployment-manager/cli/bundles"
 	"deployment-manager/cli/cmdutil"
 	"deployment-manager/cli/deployments"
@@ -42,6 +43,7 @@ type App struct {
 	bundles      *bundles.Commands
 	signing      *signing.Commands
 	validations  *validations.Commands
+	approvals    *approvals.Commands
 }
 
 // NewApp constructs the CLI application.
@@ -81,6 +83,7 @@ func NewApp() (*App, error) {
 		bundles:     bundles.New(core.APIClient),
 		signing:     signing.New(core.APIClient),
 		validations: validations.New(core.APIClient),
+		approvals:   approvals.New(core.APIClient),
 	}
 	app.core.SetCommands(app.registerCommands())
 	return app, nil
@@ -201,7 +204,14 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	return []cliapp.CommandGroup{overview, profiles, swaps, deployments, secrets, signing, validationsGroup, config}
+	approvalsGroup := cliapp.CommandGroup{
+		Title: "Approvals",
+		Commands: []cliapp.Command{
+			{Name: "approvals", NeedsAPI: true, Description: "Deployment approval gate (list, get, create, decide, gate, platforms)", Run: a.approvals.Run},
+		},
+	}
+
+	return []cliapp.CommandGroup{overview, profiles, swaps, deployments, secrets, signing, validationsGroup, approvalsGroup, config}
 }
 
 // applyGlobalFormat consumes leading global format flags (--json, --format <fmt>)

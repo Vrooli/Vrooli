@@ -1,16 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import { Layout } from './Layout';
 
 describe('Layout', () => {
   it('renders the layout with header', () => {
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <Layout>
           <div>Test Content</div>
         </Layout>
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     // Check that the header title is present
@@ -19,11 +19,11 @@ describe('Layout', () => {
 
   it('renders navigation items', () => {
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <Layout>
           <div>Test Content</div>
         </Layout>
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     // Check that navigation items are present
@@ -35,11 +35,11 @@ describe('Layout', () => {
 
   it('renders children content', () => {
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <Layout>
           <div>Test Content</div>
         </Layout>
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     // Check that children are rendered

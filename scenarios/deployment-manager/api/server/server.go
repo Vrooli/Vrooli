@@ -135,7 +135,7 @@ func New() (*Server, error) {
 		ProfilesHandler:     profiles.NewHandler(profilesRepo, logFn),
 		SigningHandler:      codesigning.NewHandler(signingRepo, signingValidator, signingChecker, logFn),
 		BuildHandler:        build.NewHandler(profilesRepo, logFn),
-		ValidationHandler:   visualvalidation.NewHandler(visualvalidation.NewSQLRepository(db), validationVideoDir(), logFn),
+		ValidationHandler:   visualvalidation.NewHandler(visualvalidation.NewSQLRepository(db), approvalsRepo, db, validationVideoDir(), logFn),
 		ApprovalsHandler:         deployments.NewApprovalsHandler(approvalsRepo, logFn),
 		PublishedVersionsHandler: deployments.NewPublishedVersionsHandler(publishedVersionsRepo, logFn),
 		Orchestrator:             deployments.NewOrchestratorFull(profilesRepo, approvalsRepo, publishedVersionsRepo, logFn),

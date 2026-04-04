@@ -12,7 +12,7 @@ import (
 func TestHandleValidateBundleAcceptsSampleManifest(t *testing.T) {
 	h := NewHandler(nil, nil, func(msg string, fields map[string]interface{}) {})
 
-	samplePath := filepath.Join("..", "..", "..", "..", "docs", "deployment", "examples", "manifests", "desktop-happy.json")
+	samplePath := filepath.Join("..", "..", "docs", "examples", "manifests", "desktop-happy.json")
 	data, err := os.ReadFile(samplePath)
 	if err != nil {
 		t.Fatalf("failed to read sample manifest: %v", err)

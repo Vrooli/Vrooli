@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import { Dashboard } from './Dashboard';
 import * as api from '../lib/api';
 
@@ -17,11 +17,11 @@ const createWrapper = () => {
     },
   });
   return ({ children }: { children: React.ReactNode }) => (
-    <BrowserRouter>
+    <MemoryRouter>
       <QueryClientProvider client={queryClient}>
         {children}
       </QueryClientProvider>
-    </BrowserRouter>
+    </MemoryRouter>
   );
 };
 

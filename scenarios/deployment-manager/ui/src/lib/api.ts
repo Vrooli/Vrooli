@@ -186,6 +186,54 @@ export interface TelemetrySummary {
 }
 
 // ============================================================================
+// Approval Types
+// ============================================================================
+
+export interface DeploymentApproval {
+  id: string;
+  profile_id: string;
+  git_commit_hash: string;
+  platform: string;
+  status: "pending" | "approved" | "rejected" | "stale";
+  approved_by?: string;
+  approved_at?: string;
+  notes?: string;
+  validation_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApprovalDecisionRequest {
+  decision: "approved" | "rejected";
+  reviewer: string;
+  notes?: string;
+}
+
+export interface CreateApprovalRequest {
+  git_commit_hash: string;
+  platform: string;
+  validation_id?: string;
+}
+
+export interface ReleaseGateStatus {
+  profile_id: string;
+  git_commit_hash: string;
+  ready: boolean;
+  platforms: PlatformGateStatus[];
+}
+
+export interface PlatformGateStatus {
+  platform: string;
+  required: boolean;
+  status: "pending" | "approved" | "rejected" | "stale" | "missing";
+}
+
+export interface RequiredPlatformsResponse {
+  profile_id: string;
+  platforms: string[];
+}
+
+// ============================================================================
 // API Client
 // ============================================================================
 
@@ -266,4 +314,37 @@ export async function uploadTelemetry(scenario: string | undefined, file: File):
 
 export function listTelemetry(): Promise<TelemetrySummary[]> {
   return apiFetch("/telemetry", { errorPrefix: "Failed to list telemetry" });
+}
+
+// ============================================================================
+// Approval API Client
+// ============================================================================
+
+export function listApprovals(profileId: string, commit?: string): Promise<DeploymentApproval[]> {
+  const query = commit ? `?commit=${encodeURIComponent(commit)}` : "";
+  return apiFetch(`/profiles/${profileId}/approvals${query}`, { errorPrefix: "Failed to list approvals" });
+}
+
+export function getApproval(id: string): Promise<DeploymentApproval> {
+  return apiFetch(`/approvals/${id}`, { errorPrefix: "Failed to get approval" });
+}
+
+export function createApproval(profileId: string, req: CreateApprovalRequest): Promise<DeploymentApproval> {
+  return apiFetch(`/profiles/${profileId}/approvals`, { method: "POST", body: req, errorPrefix: "Failed to create approval" });
+}
+
+export function decideApproval(id: string, req: ApprovalDecisionRequest): Promise<DeploymentApproval> {
+  return apiFetch(`/approvals/${id}/decide`, { method: "POST", body: req, errorPrefix: "Failed to decide approval" });
+}
+
+export function checkReleaseGate(profileId: string, commit: string): Promise<ReleaseGateStatus> {
+  return apiFetch(`/profiles/${profileId}/release-gate?commit=${encodeURIComponent(commit)}`, { errorPrefix: "Failed to check release gate" });
+}
+
+export function setRequiredPlatforms(profileId: string, platforms: string[]): Promise<RequiredPlatformsResponse> {
+  return apiFetch(`/profiles/${profileId}/required-platforms`, { method: "PUT", body: { platforms }, errorPrefix: "Failed to set required platforms" });
+}
+
+export function getRequiredPlatforms(profileId: string): Promise<RequiredPlatformsResponse> {
+  return apiFetch(`/profiles/${profileId}/required-platforms`, { errorPrefix: "Failed to get required platforms" });
 }
