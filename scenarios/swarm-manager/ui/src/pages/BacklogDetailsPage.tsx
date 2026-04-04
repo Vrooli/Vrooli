@@ -42,6 +42,7 @@ import {
   useDetailSelectionStore,
 } from "../stores";
 import { BACKLOG_LENSES } from "../components/detail/lens-options";
+import { backlogService } from "../services/backlog-service";
 import { reviewService } from "../services/review-service";
 import { useReviewStore } from "../stores/review-store";
 import { EvidenceRequestPanel } from "../components/backlog/evidence-request-panel";
@@ -291,6 +292,10 @@ export function BacklogDetailsPage() {
       onDepStatusChange={(dep, newStatus) =>
         data.updateDepStatus({ kind: dep.kind, depName: dep.name, newStatus })
       }
+      onSaveNote={async (note) => {
+        await backlogService.update(item.kind, item.name, { note });
+        data.refetchItem();
+      }}
     />
   ) : null;
 

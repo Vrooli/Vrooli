@@ -17,6 +17,7 @@ import { applyTheme, watchSystemTheme } from "../../../lib/theme-utils";
 import { buildFeed } from "../../../lib/feed";
 import { settingsService } from "../../../services";
 import { useAgentActivitiesStore, useBacklogStore, useCaptureStore, useExecutionStore } from "../../../stores";
+import { useGovernanceStore } from "../../../stores/governance-store";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphSettingsStore } from "../stores/graph-settings-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
@@ -57,6 +58,11 @@ const InitiativeDetailsPage = lazy(() =>
     default: m.InitiativeDetailsPage,
   })),
 );
+const CaptureDetailsPage = lazy(() =>
+  import("../../../pages/CaptureDetailsPage").then((m) => ({
+    default: m.CaptureDetailsPage,
+  })),
+);
 import { Sidebar } from "./Sidebar";
 import { SettingsDrawer } from "./SettingsDrawer";
 import { StatsPanel } from "./StatsPanel";
@@ -88,6 +94,7 @@ export function GraphWorkspace() {
   const agentActivities = useAgentActivitiesStore((s) => s.activities);
   const stopRun = useAgentActivitiesStore((s) => s.stopRun);
   const refreshActivities = useAgentActivitiesStore((s) => s.refreshActivities);
+  const refreshGovernance = useGovernanceStore((s) => s.refreshGovernance);
   const sidebarCollapsed = useGraphUIStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useGraphUIStore((s) => s.toggleSidebar);
 
@@ -130,6 +137,13 @@ export function GraphWorkspace() {
     enabled: true,
     intervalMs: 5000,
     pollFn: () => void refreshActivities(true),
+    immediate: true,
+  });
+
+  useStorePolling({
+    enabled: true,
+    intervalMs: 15000,
+    pollFn: () => void refreshGovernance(),
     immediate: true,
   });
 
@@ -242,6 +256,7 @@ export function GraphWorkspace() {
           showNavControls={showNavControls}
           commandPostBadgeCount={commandPostBadgeCount}
           agentActivities={agentActivities}
+          maxConcurrent={settings?.maxConcurrentExecutions}
           onToggleSidebar={toggleSidebar}
           onToggleCommandPost={() => setShowCommandPost((prev) => !prev)}
           onToggleStats={() => setShowStatsPanel((prev) => !prev)}
@@ -294,6 +309,7 @@ export function GraphWorkspace() {
               {detailSelection.entityType === "scenario" && <ScenarioDetailsPage />}
               {detailSelection.entityType === "execution" && <ExecutionDetailsPage />}
               {detailSelection.entityType === "initiative" && <InitiativeDetailsPage />}
+              {detailSelection.entityType === "capture" && <CaptureDetailsPage />}
             </Suspense>
           </div>
         )}

@@ -129,7 +129,7 @@ describe("ExecutionCard", () => {
       />,
     );
 
-    expect(screen.getByText("by swarm-manager-ui")).toBeInTheDocument();
+    expect(screen.getByText("swarm-manager-ui")).toBeInTheDocument();
   });
 
   it("shows timestamps", () => {

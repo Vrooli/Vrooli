@@ -8,20 +8,22 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Capture(_message.Message):
-    __slots__ = ("id", "text", "attachments", "created", "status", "classification")
+    __slots__ = ("id", "text", "attachments", "created", "status", "classification", "note")
     ID_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     ATTACHMENTS_FIELD_NUMBER: _ClassVar[int]
     CREATED_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     CLASSIFICATION_FIELD_NUMBER: _ClassVar[int]
+    NOTE_FIELD_NUMBER: _ClassVar[int]
     id: str
     text: str
     attachments: _containers.RepeatedScalarFieldContainer[str]
     created: str
     status: str
     classification: CaptureClassification
-    def __init__(self, id: _Optional[str] = ..., text: _Optional[str] = ..., attachments: _Optional[_Iterable[str]] = ..., created: _Optional[str] = ..., status: _Optional[str] = ..., classification: _Optional[_Union[CaptureClassification, _Mapping]] = ...) -> None: ...
+    note: str
+    def __init__(self, id: _Optional[str] = ..., text: _Optional[str] = ..., attachments: _Optional[_Iterable[str]] = ..., created: _Optional[str] = ..., status: _Optional[str] = ..., classification: _Optional[_Union[CaptureClassification, _Mapping]] = ..., note: _Optional[str] = ...) -> None: ...
 
 class CaptureClassification(_message.Message):
     __slots__ = ("items", "classified_at")

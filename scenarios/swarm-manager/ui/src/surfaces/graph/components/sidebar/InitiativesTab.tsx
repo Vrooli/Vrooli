@@ -10,6 +10,7 @@ import { useInitiativeStore } from "../../../../stores/initiative-store";
 import { matchesSearch } from "./useSidebarSearch";
 import type { InitiativeWithRollup } from "../../../../types";
 import type { InitiativeFilters, SortConfig } from "./types";
+import { NoteIndicator } from "../../../../components/ui/note-indicator";
 
 interface InitiativesTabProps {
   searchQuery: string;
@@ -112,9 +113,12 @@ export function InitiativesTab({ searchQuery, filters, sort, onItemClick }: Init
               <p className="line-clamp-2 text-[13px] font-medium leading-snug text-slate-100">
                 {initiative.title || initiative.name}
               </p>
-              <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium", STATUS_COLORS[initiative.status] ?? "bg-slate-700/60 text-slate-300")}>
-                {initiative.status}
-              </span>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <NoteIndicator note={initiative.note} />
+                <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", STATUS_COLORS[initiative.status] ?? "bg-slate-700/60 text-slate-300")}>
+                  {initiative.status}
+                </span>
+              </div>
             </div>
             <div className="mt-1.5 flex flex-wrap gap-2 text-[11px]">
               <span className="text-green-400">{rollup.completed} done</span>

@@ -21,6 +21,12 @@ vi.mock("../../../../hooks/useCommandPostBadgeCount", () => ({
   useCommandPostBadgeCount: () => 0,
 }));
 
+// Mock react-query to avoid QueryClientProvider dependency.
+vi.mock("@tanstack/react-query", async () => {
+  const actual = await vi.importActual("@tanstack/react-query");
+  return { ...actual, useQuery: () => ({ data: undefined, isLoading: false }) };
+});
+
 beforeEach(() => {
   useDetailSelectionStore.setState({ selection: null });
   useGraphUIStore.setState({ sidebarCollapsed: false });

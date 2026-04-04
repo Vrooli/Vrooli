@@ -79,6 +79,7 @@ export function BacklogActionButtons({
           className={itemActions.primaryCta === "finalize" ? primaryRowButtonClass : rowButtonClass}
           onClick={onFinalizeWorkshop}
           disabled={itemActions.finalizeDisabled || isRunningAgent}
+          title={(itemActions.finalizeDisabled || isRunningAgent) && itemActions.disabledReason ? itemActions.disabledReason : undefined}
         >
           <Sparkles className="mr-2 h-4 w-4" />
           {itemActions.agentRunning ? agentRunningLabel : isRunningAgent ? "Starting..." : `Finalize ${deliverableLabel}`}
@@ -91,6 +92,7 @@ export function BacklogActionButtons({
           className={itemActions.primaryCta === "run" ? primaryRowButtonClass : rowButtonClass}
           onClick={onStartRun}
           disabled={itemActions.runDisabled}
+          title={itemActions.runDisabled && itemActions.disabledReason ? itemActions.disabledReason : undefined}
         >
           <Play className="mr-2 h-4 w-4" />
           {itemActions.agentRunning ? agentRunningLabel : "Run"}
@@ -103,11 +105,15 @@ export function BacklogActionButtons({
           className={itemActions.primaryCta === "workshop" ? primaryRowButtonClass : rowButtonClass}
           onClick={onRunWorkshop}
           disabled={itemActions.workshopDisabled || isRunningAgent}
+          title={(itemActions.workshopDisabled || isRunningAgent) && itemActions.disabledReason ? itemActions.disabledReason : undefined}
         >
           <MessageSquareText className="mr-2 h-4 w-4" />
           {itemActions.agentRunning ? agentRunningLabel : isRunningAgent ? "Starting..." : workshopActionLabel}
         </Button>
       )}
+      {itemActions.disabledReason && (itemActions.runDisabled || itemActions.workshopDisabled || itemActions.finalizeDisabled) ? (
+        <p className="text-xs text-amber-400/80">{itemActions.disabledReason}</p>
+      ) : null}
       {itemActions.notQueueableReason && !itemActions.locked && !itemActions.terminal && !itemActions.canRun && !itemActions.runDisabled && !itemActions.canWorkshop && !itemActions.workshopDisabled && !itemActions.canFinalize && !itemActions.finalizeDisabled ? (
         <p className="text-xs text-slate-500">{itemActions.notQueueableReason}</p>
       ) : null}

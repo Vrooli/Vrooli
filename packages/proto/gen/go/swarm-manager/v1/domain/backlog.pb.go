@@ -60,7 +60,9 @@ type BacklogItem struct {
 	// Used as sandbox acceptance denylist.
 	AcceptanceDeny []string `protobuf:"bytes,16,rep,name=acceptance_deny,json=acceptanceDeny,proto3" json:"acceptance_deny,omitempty"`
 	// Origin reference in "kind/name" format, tracking which item spawned this one.
-	SpawnedFrom   *string `protobuf:"bytes,17,opt,name=spawned_from,json=spawnedFrom,proto3,oneof" json:"spawned_from,omitempty"`
+	SpawnedFrom *string `protobuf:"bytes,17,opt,name=spawned_from,json=spawnedFrom,proto3,oneof" json:"spawned_from,omitempty"`
+	// Personal annotation — a user note for tracking context (e.g., why the item is paused).
+	Note          *string `protobuf:"bytes,18,opt,name=note,proto3,oneof" json:"note,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -196,6 +198,13 @@ func (x *BacklogItem) GetAcceptanceDeny() []string {
 func (x *BacklogItem) GetSpawnedFrom() string {
 	if x != nil && x.SpawnedFrom != nil {
 		return *x.SpawnedFrom
+	}
+	return ""
+}
+
+func (x *BacklogItem) GetNote() string {
+	if x != nil && x.Note != nil {
+		return *x.Note
 	}
 	return ""
 }
@@ -558,7 +567,7 @@ var File_swarm_manager_v1_domain_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\n" +
-	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xd0\x05\n" +
+	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xf2\x05\n" +
 	"\vBacklogItem\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
@@ -578,10 +587,12 @@ const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\x06effort\x18\r \x01(\tB\x16\xbaH\x13r\x11R\x02XSR\x01SR\x01MR\x01LR\x02XLH\x01R\x06effort\x88\x01\x01\x12)\n" +
 	"\x10acceptance_allow\x18\x0f \x03(\tR\x0facceptanceAllow\x12'\n" +
 	"\x0facceptance_deny\x18\x10 \x03(\tR\x0eacceptanceDeny\x12&\n" +
-	"\fspawned_from\x18\x11 \x01(\tH\x02R\vspawnedFrom\x88\x01\x01B\r\n" +
+	"\fspawned_from\x18\x11 \x01(\tH\x02R\vspawnedFrom\x88\x01\x01\x12\x17\n" +
+	"\x04note\x18\x12 \x01(\tH\x03R\x04note\x88\x01\x01B\r\n" +
 	"\v_initiativeB\t\n" +
 	"\a_effortB\x0f\n" +
-	"\r_spawned_fromJ\x04\b\n" +
+	"\r_spawned_fromB\a\n" +
+	"\x05_noteJ\x04\b\n" +
 	"\x10\vJ\x04\b\x0e\x10\x0f\"\xd9\x01\n" +
 	"\vBacklogFile\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1b\n" +

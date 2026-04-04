@@ -215,6 +215,8 @@ export interface ItemActions {
   agentRunning: boolean;
   /** Human-readable reason why the item can't be queued, if applicable. */
   notQueueableReason: string | null;
+  /** Human-readable reason why the primary CTA is disabled, shown as tooltip/helper text. */
+  disabledReason: string | null;
 }
 
 /**
@@ -259,6 +261,7 @@ export function getItemActions(ctx: ActionContext): ItemActions {
     showDecisionStepper: false,
     agentRunning,
     notQueueableReason,
+    disabledReason: null,
   };
 
   // Step -1: Locked — no CTAs at all.
@@ -289,6 +292,7 @@ export function getItemActions(ctx: ActionContext): ItemActions {
       canRun: false,
       runDisabled: !needsWorkshop && !needsFinalize,
       primaryCta: needsFinalize ? "finalize" : needsWorkshop ? "workshop" : "run",
+      disabledReason: "Blocked by incomplete dependencies. Resolve them first.",
     };
   }
 
@@ -316,6 +320,7 @@ export function getItemActions(ctx: ActionContext): ItemActions {
         canWorkshop: !agentRunning,
         workshopDisabled: agentRunning,
         primaryCta: "finalize",
+        disabledReason: agentRunning ? "An agent is already running for this item." : null,
       };
     }
     return {
@@ -323,6 +328,7 @@ export function getItemActions(ctx: ActionContext): ItemActions {
       canWorkshop: !agentRunning,
       workshopDisabled: agentRunning,
       primaryCta: "workshop",
+      disabledReason: agentRunning ? "An agent is already running for this item." : null,
     };
   }
 
@@ -333,6 +339,7 @@ export function getItemActions(ctx: ActionContext): ItemActions {
       canWorkshop: !agentRunning,
       workshopDisabled: agentRunning,
       primaryCta: "workshop",
+      disabledReason: agentRunning ? "An agent is already running for this item." : null,
     };
   }
 
@@ -345,6 +352,7 @@ export function getItemActions(ctx: ActionContext): ItemActions {
       canWorkshop: !agentRunning,
       workshopDisabled: agentRunning,
       primaryCta: "run",
+      disabledReason: agentRunning ? "An agent is already running for this item." : null,
     };
   }
 

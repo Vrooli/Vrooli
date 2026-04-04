@@ -32,6 +32,7 @@ export interface ICaptureService {
   create(text: string, files?: File[]): Promise<CreateCaptureResponse>;
   remove(id: string): Promise<void>;
   classify(id: string): Promise<ClassifyResponse>;
+  updateNote(id: string, note: string): Promise<Capture>;
 }
 
 function mapCapture(raw: Record<string, unknown>): Capture {
@@ -42,6 +43,7 @@ function mapCapture(raw: Record<string, unknown>): Capture {
     attachments: (raw.attachments as string[]) ?? [],
     created: (raw.created as string) ?? "",
     status: (raw.status as Capture["status"]) ?? "classifying",
+    note: (raw.note as string) ?? "",
     classification: cls
       ? {
           items: ((cls.items as Record<string, unknown>[]) ?? []).map((item) => ({
@@ -109,6 +111,14 @@ export function createCaptureService(apiClient: IApiClient = defaultApiClient): 
         baseUrl: data.base_url,
         created: data.created,
       };
+    },
+
+    async updateNote(id: string, note: string): Promise<Capture> {
+      const data = await apiClient.patch<{ capture: Record<string, unknown> }>(
+        API_ENDPOINTS.captureById(id),
+        { note },
+      );
+      return mapCapture(data.capture);
     },
   };
 }

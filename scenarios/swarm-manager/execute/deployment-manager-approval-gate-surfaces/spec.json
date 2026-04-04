@@ -14,8 +14,9 @@
   "initiative": "desktop-release-governance",
   "kind": "execute",
   "name": "deployment-manager-approval-gate-surfaces",
+  "note": "Wait until test genie failures are all fixed for deployment manager",
   "priority": 1,
-  "status": "backlog",
+  "status": "completed",
   "tags": [
     "deployment-manager",
     "approval-gating",
@@ -24,5 +25,5 @@
     "desktop-release"
   ],
   "title": "Expose Approval Gate Controls In Deployment Manager",
-  "updated": "2026-03-26T16:35:48Z"
+  "updated": "2026-04-04T16:55:49Z"
 }

@@ -102,7 +102,7 @@ describe("PostRunStatusBadge", () => {
     // Not visible before expand
     expect(screen.queryByText("Restarted twice")).not.toBeInTheDocument();
     // Click to expand
-    fireEvent.click(screen.getByTestId("post-run-status-badge").querySelector("button")!);
+    fireEvent.click(screen.getByTestId("post-run-status-badge").querySelector("button") as HTMLElement);
     expect(screen.getByText("Restarted twice")).toBeInTheDocument();
   });
 
@@ -128,7 +128,7 @@ describe("PostRunStatusBadge", () => {
     // Other warning hidden
     expect(screen.queryByText("Restart warning")).not.toBeInTheDocument();
     // Expand to see other warning
-    fireEvent.click(screen.getByTestId("post-run-status-badge").querySelector("button")!);
+    fireEvent.click(screen.getByTestId("post-run-status-badge").querySelector("button") as HTMLElement);
     expect(screen.getByText("Restart warning")).toBeInTheDocument();
   });
 

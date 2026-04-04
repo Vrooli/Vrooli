@@ -38,8 +38,10 @@ type Capture struct {
 	Status string `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
 	// Classification result (populated after agent completes).
 	Classification *CaptureClassification `protobuf:"bytes,6,opt,name=classification,proto3,oneof" json:"classification,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Personal annotation — a user note for tracking context.
+	Note          *string `protobuf:"bytes,7,opt,name=note,proto3,oneof" json:"note,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Capture) Reset() {
@@ -112,6 +114,13 @@ func (x *Capture) GetClassification() *CaptureClassification {
 		return x.Classification
 	}
 	return nil
+}
+
+func (x *Capture) GetNote() string {
+	if x != nil && x.Note != nil {
+		return *x.Note
+	}
+	return ""
 }
 
 // CaptureClassification contains the AI-generated classification of a capture.
@@ -266,7 +275,7 @@ var File_swarm_manager_v1_domain_capture_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_capture_proto_rawDesc = "" +
 	"\n" +
-	"%swarm-manager/v1/domain/capture.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xad\x02\n" +
+	"%swarm-manager/v1/domain/capture.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xcf\x02\n" +
 	"\aCapture\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12\x1b\n" +
 	"\x04text\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04text\x12 \n" +
@@ -274,8 +283,10 @@ const file_swarm_manager_v1_domain_capture_proto_rawDesc = "" +
 	"\acreated\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\acreated\x12>\n" +
 	"\x06status\x18\x05 \x01(\tB&\xbaH#r!R\vclassifyingR\n" +
 	"classifiedR\x06failedR\x06status\x12T\n" +
-	"\x0eclassification\x18\x06 \x01(\v2'.swarm_manager.v1.CaptureClassificationH\x00R\x0eclassification\x88\x01\x01B\x11\n" +
-	"\x0f_classification\"\x88\x01\n" +
+	"\x0eclassification\x18\x06 \x01(\v2'.swarm_manager.v1.CaptureClassificationH\x00R\x0eclassification\x88\x01\x01\x12\x17\n" +
+	"\x04note\x18\a \x01(\tH\x01R\x04note\x88\x01\x01B\x11\n" +
+	"\x0f_classificationB\a\n" +
+	"\x05_note\"\x88\x01\n" +
 	"\x15CaptureClassification\x12A\n" +
 	"\x05items\x18\x01 \x03(\v2+.swarm_manager.v1.CaptureClassificationItemR\x05items\x12,\n" +
 	"\rclassified_at\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fclassifiedAt\"\xf7\x01\n" +

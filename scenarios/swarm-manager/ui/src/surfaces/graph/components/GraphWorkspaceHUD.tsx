@@ -27,6 +27,8 @@ export interface GraphWorkspaceHUDProps {
   commandPostBadgeCount: number;
   /** Agent activities for the dropdown */
   agentActivities: AgentActivityRecord[];
+  /** Max concurrent executions from governance settings. */
+  maxConcurrent?: number;
   onToggleSidebar: () => void;
   onToggleCommandPost: () => void;
   onToggleStats: () => void;
@@ -46,6 +48,7 @@ export function GraphWorkspaceHUD({
   showNavControls,
   commandPostBadgeCount,
   agentActivities,
+  maxConcurrent,
   onToggleSidebar,
   onToggleCommandPost,
   onToggleStats,
@@ -118,6 +121,7 @@ export function GraphWorkspaceHUD({
             onViewActivity={onViewActivity}
             onViewBacklog={onViewBacklog}
             onStopRun={(runId) => void onStopRun(runId)}
+            maxConcurrent={maxConcurrent}
             variant="button"
             className={sidebarCollapsed ? "" : "md:hidden"}
           />

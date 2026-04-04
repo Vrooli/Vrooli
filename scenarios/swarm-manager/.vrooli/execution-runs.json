@@ -1515,7 +1515,7 @@
     "status": "needs_fixup",
     "mode": "yolo",
     "started_at": "2026-04-02T16:38:10Z",
-    "finished_at": "2026-04-02T17:44:21Z",
+    "finished_at": "2026-04-03T20:21:10Z",
     "started_by": "swarm-manager-ui",
     "operation": "generator",
     "prompt_trace": {
@@ -1530,52 +1530,832 @@
       "status": "completed",
       "phase": "completed",
       "scope_source": "acceptance_allow",
-      "started_at": "2026-04-02T16:58:38Z",
-      "completed_at": "2026-04-02T17:44:21Z",
+      "started_at": "2026-04-03T19:32:13Z",
+      "completed_at": "2026-04-03T20:21:10Z",
       "warnings": [
         {
-          "code": "restart_retry",
+          "code": "self_restart_skipped",
           "scenario_name": "swarm-manager",
-          "message": "restart attempt 1 failed: vrooli scenario restart swarm-manager failed: exit status 1 (output: /home/matthalloran8/.local/bin/vrooli: line 44: /home/matthalloran8/Vrooli/scenarios/swarm-manager/scripts/lib/utils/log.sh: No such file or directory); retrying once",
-          "retryable": true,
-          "created_at": "2026-04-02T17:44:21Z"
-        },
-        {
-          "code": "review_skipped",
-          "scenario_name": "swarm-manager",
-          "message": "review skipped because restart/health checks did not pass",
-          "created_at": "2026-04-02T17:44:21Z"
+          "message": "Scenario \"swarm-manager\" was in scope but skipped because restarting it would kill this running process. If changes to swarm-manager require a restart, restart it manually after finalization completes.",
+          "created_at": "2026-04-03T20:21:09Z"
         }
       ],
       "affected_scenarios": [
         "swarm-manager"
       ],
       "aggregate_classification": "needs_work",
-      "aggregate_summary": "swarm-manager restart failed; 2 warning(s)",
+      "aggregate_summary": "swarm-manager restart failed; 1 warning(s)",
       "scenarios": [
         {
           "scenario_name": "swarm-manager",
           "restart": {
-            "status": "failed",
-            "attempts": 2,
-            "last_error": "vrooli scenario restart swarm-manager failed: exit status 1 (output: /home/matthalloran8/.local/bin/vrooli: line 44: /home/matthalloran8/Vrooli/scenarios/swarm-manager/scripts/lib/utils/log.sh: No such file or directory)",
-            "started_at": "2026-04-02T17:44:21Z",
-            "finished_at": "2026-04-02T17:44:21Z"
+            "status": "pending"
           },
           "health": {
-            "status": "failed",
-            "schema_valid": false,
-            "details": "restart command failed; health check skipped",
-            "checked_at": "2026-04-02T17:44:21Z"
+            "status": "pending",
+            "schema_valid": false
           },
           "review": {
-            "status": "skipped",
-            "skip_reason": "restart/health checks did not pass"
+            "status": "pending"
           }
         }
       ]
     },
     "created_at": "2026-04-02T16:38:10Z",
-    "updated_at": "2026-04-02T17:44:21Z"
+    "updated_at": "2026-04-03T20:21:10Z"
+  },
+  {
+    "execution_id": "cfdebb5e0e96fdf7",
+    "backlog_kind": "execute",
+    "backlog_name": "swarm-manager-concurrency-guardrails",
+    "previous_status": "needs_fixup",
+    "task_id": "b0cb3a8b-9d5c-4e78-85f7-7da70cd93290",
+    "run_id": "30cc0f21-32d3-499b-8c4b-95ff7622edc9",
+    "status": "needs_fixup",
+    "mode": "yolo",
+    "started_at": "2026-04-03T20:26:46Z",
+    "finished_at": "2026-04-03T20:36:50Z",
+    "started_by": "swarm-manager:follow-up",
+    "operation": "fixup",
+    "prompt_trace": {
+      "purpose": "fixup",
+      "prompt": "\u003cexecution-context\u003e\nBacklog item: execute/swarm-manager-concurrency-guardrails\nTitle: Add Concurrency Controls, Rate Limiting, and Cost Awareness to Swarm-Manager Executions\nItem folder: /home/matthalloran8/Vrooli/scenarios/swarm-manager/execute/swarm-manager-concurrency-guardrails\nRun type: fixup\n\u003c/execution-context\u003e\n\n\u003creview-feedback\u003e\nswarm-manager restart failed; 1 warning(s)\n- warning [self_restart_skipped] swarm-manager: Scenario \"swarm-manager\" was in scope but skipped because restarting it would kill this running process. If changes to swarm-manager require a restart, restart it manually after finalization completes.\n- swarm-manager restart: \n- swarm-manager health: \n\u003c/review-feedback\u003e\n\n\u003cfollow-up-context\u003e\nswarm-manager restart failed; 1 warning(s)\n- warning [self_restart_skipped] swarm-manager: Scenario \"swarm-manager\" was in scope but skipped because restarting it would kill this running process. If changes to swarm-manager require a restart, restart it manually after finalization completes.\n\n--- Referenced Evidence ---\n- [custom] Go build verification: go build ./... completes with zero errors for swarm-manager API\n- [custom] Test suite passes: go test ./internal/execution/ ./internal/settings/ passes all tests (execution: 0.527s, settings: 0.088s)\n- [custom] Settings proto fields 25-30 present: All 6 settings defined in settings.proto with correct field numbers (25-30), buf.validate constraints matching plan ranges, and corresponding API proto optional fields\n- [custom] Go settings struct complete: Settings struct in model.go has all 6 fields, DefaultSettings() returns correct defaults (3, 50, 3, 60, 0, 0.10), normalizeSettings() clamps all 6 fields, settingsToProto()/settingsPatchFromProto() handle all fields\n- [custom] Concurrency enforcement in startLocked(): service_control.go gates startLocked() with countActiveExecutions() check against MaxConcurrentExecutions, returning errAtCapacity sentinel. countActiveExecutions() counts only StatusStarting + StatusRunning as specified. TestConcurrencyGate_StartLocked covers this.\n- [custom] Queue depth enforcement in QueueBacklog(): service_queue.go checks countQueuedExecutions() against MaxQueueDepth before record creation, returns HTTP 409 when exceeded. TestQueueDepthEnforcement covers this.\n- [custom] Yolo at-capacity leaves pending: service_queue.go yolo path catches errAtCapacity and leaves record as StatusPending instead of rolling back. TestYoloAtCapacity_LeavesPending covers this.\n- [custom] Circuit breaker implementation: circuit_breaker.go (179 lines) manages .vrooli/circuit-breaker.json with RecordFailure/RecordSuccess/Reset/IsBroken/BrokenItems. Uses storage.WriteJSONAtomic(). Tests cover threshold tripping, success clearing, explicit reset, cooldown expiry, and broken item listing.\n- [custom] Circuit breaker reset endpoint: POST /api/v1/execution/circuit-breaker/reset registered in handler.go, handled in handler_lifecycle.go. Accepts {\"item\": \"kind/name\"}, returns 200 with {\"ok\":true} or 404.\n- [custom] Cost cap enforcement: service_queue.go checks costPerTurnEstimate * agentMaxTurns against executionCostCapPerRun. Returns HTTP 409 if exceeded unless force=true. TestCostCapEnforcement covers default case ($0.10 * 60 = $6.00 vs $2.00 cap).\n- [custom] Pending drain in background poller: polling.go ProcessActiveExecutions() calls drainPendingLocked() which sorts pending by CreatedAt, checks concurrency before each start, stops at capacity. Scheduled starts processed first (priority over pending).\n- [custom] Governance status in overview: GovernanceStatus() in governance.go returns ActiveExecutions, MaxConcurrent, QueueDepth, MaxQueueDepth, CircuitBrokenItems, EstimatedQueuedCost. Wired into OverviewResponse via GovernanceProvider interface.\n- [custom] CLI circuit-breaker-reset command: cmd_execution.go cmdCircuitBreakerReset (lines 428-446) registered in app.go. Accepts --item flag, posts to /execution/circuit-breaker/reset.\n- [custom] Settings UI ExecutionTab: ExecutionTab.tsx renders all 6 governance settings with inputs, validation (clamped ranges), and reset buttons. TypeScript types in settings.ts match Go struct.\n- [custom] GAP: AgentsDropdown maxConcurrent not wired: AgentsDropdown.tsx accepts maxConcurrent prop and renders N/M label (line 41), but neither GraphWorkspaceHUD.tsx nor SidebarHeader.tsx passes this prop. The badge format works but is unreachable in production.\n- [custom] GAP: No circuit-broken UI indicators: No references to circuitBroken or circuit-broken in UI component files. The API returns CircuitBrokenItems in governance status but no UI component consumes this data for visual indicators in sidebar or graph nodes.\n- [custom] GAP: Missing settings normalization tests: normalize_test.go only has TestNormalizeSettingsDefaultsTheme. No tests validate clamping for the 6 new fields (e.g., maxConcurrentExecutions outside 1-20 gets clamped).\n\u003c/follow-up-context\u003e\n\n\u003cimplementation-plan path=\"plan.md\"\u003e\n# Implementation Plan: Concurrency Controls, Rate Limiting, and Cost Awareness\n\n## 1. Purpose\n\nAdd execution governance to swarm-manager that prevents runaway agent spawning, enforces configurable concurrency limits, provides circuit-breaker protection for repeatedly failing items, and offers basic cost awareness before execution.\n\n## 2. Required Reading\n\n```bash\nprompt-manager skill read api-steer cli-steer test implementation-plan-authoring\n```\n\n**Key source files:**\n- `scenarios/swarm-manager/api/internal/settings/handler.go` — Settings struct, normalization, proto mapping, HTTP handlers\n- `scenarios/swarm-manager/api/internal/execution/service.go` — `QueueBacklog()`, `startLocked()`, `ProcessScheduledStarts()`, `refreshRunningLocked()`\n- `scenarios/swarm-manager/api/internal/execution/model.go` — Status/Mode types, Record struct, Policy struct\n- `scenarios/swarm-manager/api/internal/execution/handler.go` — HTTP handlers, `StartScheduler()`\n- `scenarios/swarm-manager/api/internal/overview/service.go` — `GetOverview()`, `OverviewResponse`\n- `packages/proto/schemas/swarm-manager/v1/domain/settings.proto` — Settings message\n- `packages/proto/schemas/swarm-manager/v1/api/settings.proto` — UpdateSettingsRequest\n- `scenarios/swarm-manager/ui/src/surfaces/graph/components/GraphWorkspace.tsx` — HUD bar layout\n- `scenarios/swarm-manager/cli/cmd_execution.go` — Execution CLI commands\n\n## 3. Problem Statement\n\nSwarm-manager has zero concurrency controls. In yolo mode, every ready backlog item can spawn an agent simultaneously, potentially:\n- Exhausting API credits (each agent uses Claude Code, which costs real money)\n- Overwhelming system resources (CPU, memory, file I/O)\n- Creating agent thrashing loops where a broken item keeps getting retried\n- Growing an unbounded queue when batch operations queue many items at once\n\nThe system needs configurable guardrails that are consistent with the existing settings architecture (proto → Go struct → normalization → HTTP API → UI).\n\n## 4. Scope\n\n### In Scope\n- 6 new settings: `maxConcurrentExecutions`, `maxQueueDepth`, `circuitBreakerThreshold`, `circuitBreakerCooldownMinutes`, `executionCostCapPerRun`, `costPerTurnEstimate`\n- Concurrency enforcement in execution service (gate `startLocked()`)\n- Queue depth enforcement in `QueueBacklog()`\n- Circuit breaker state tracking per backlog item (dedicated state file)\n- Explicit circuit breaker reset via dedicated API endpoint and CLI command\n- Governance status in overview endpoint\n- Settings UI additions (Execution tab)\n- Concurrency count badge in AgentsDropdown trigger ('N/M' format)\n- Circuit-broken visual indicators in sidebar/graph\n- CLI parity for new status visibility\n\n### Out of Scope\n- Hard cost kill (actual token metering) — only soft estimates\n- Per-agent rate limiting with automatic lockout (app-issue-tracker pattern) — future enhancement\n- Priority-based queue ordering — items start FIFO\n- Multi-server coordination — single server only\n\n## 5. Current Technical Context\n\n### Settings Pipeline\n1. **Proto** (`settings.proto`): Defines `Settings` message with buf.validate constraints. Currently 24 fields (field numbers 1-24, with 2-4 reserved).\n2. **Go struct** (`handler.go:Settings`): Mirrors proto with JSON tags. 24 fields covering execution defaults, workshop automation, agent behavior, UI preferences, and review thresholds. `normalizeSettings()` clamps values to valid ranges. `validateSettings()` checks enums.\n3. **Patch struct** (`handler.go:SettingsPatch`): All pointer-to-type fields for null-aware sparse updates.\n4. **Proto mapping**: `settingsToProto()` / `settingsPatchFromProto()` convert between Go and proto types.\n5. **HTTP**: `GET/PUT /api/v1/settings` with proto-JSON encoding.\n6. **API proto** (`api/settings.proto`): `UpdateSettingsRequest` with all optional fields.\n\n### Execution Service\n- `QueueBacklog()` (line ~238): Validates inputs, checks preflight, creates `Record` with `StatusPending`. In yolo mode, immediately calls `startLocked()` and rolls back on failure.\n- `startLocked()` (line ~461): Loads record, checks agent availability, builds prompt, spawns agent. Transitions to `StatusStarting`.\n- `ProcessScheduledStarts()` (line ~770): 2-second ticker, iterates records for `StatusScheduled`, calls `startLocked()` when due. Fire-and-forget (returns nil regardless).\n- `refreshRunningLocked()`: Polls agent-manager for status updates on running executions.\n- All methods operate under `s.mu.Lock()` (single mutex).\n\n### Key Integration Points\n- `startLocked()` is the choke point — all execution starts flow through it (yolo, manual, scheduled, retry, fixup).\n- `QueueBacklog()` is where queue depth enforcement should go.\n- `ProcessScheduledStarts()` is the existing poller that will be renamed to `ProcessPendingStarts()` and expanded to drain pending items after processing scheduled starts.\n- The overview service aggregates backlog items into `OverviewResponse` with items, initiatives, dependency graph, and summary. Has no execution awareness currently.\n\n### UI HUD Bar\n- Right section: Settings gear → Help button → AgentsDropdown (shows running activities)\n- AgentsDropdown already owns the \"running agents\" concept — confirmed as the integration point for concurrency count badge\n- StatusBadge.tsx: colored dots (cyan=running, gray=pending, amber=review, red=failed)\n\n## 6. Target End State\n\n### Settings\n| Setting | Type | Range | Default | Proto Field # |\n|---------|------|-------|---------|---------------|\n| `maxConcurrentExecutions` | int32 | 1-20 | 3 | 25 |\n| `maxQueueDepth` | int32 | 0-100 (0=unlimited) | 50 | 26 |\n| `circuitBreakerThreshold` | int32 | 1-10 | 3 | 27 |\n| `circuitBreakerCooldownMinutes` | int32 | 5-1440 | 60 | 28 |\n| `executionCostCapPerRun` | double | 0.0+ (0=unlimited) | 0.0 | 29 |\n| `costPerTurnEstimate` | double | 0.00-5.00 | 0.10 | 30 |\n\n### Enforcement Behavior\n\n**Concurrency**: `startLocked()` counts active executions where active = `StatusStarting` + `StatusRunning` only (tightest definition — slots open as soon as agent work finishes, even if pending review). If active count \u003e= `maxConcurrentExecutions`, returns a sentinel error. The caller handles gracefully — yolo mode leaves the item as pending, manual mode returns error to user.\n\n**Queue depth**: `QueueBacklog()` counts pending + scheduled records. Rejects with HTTP 409 and clear error when limit exceeded.\n\n**Circuit breaker**: Dedicated state file at `.vrooli/circuit-breaker.json`:\n```json\n{\n  \"items\": {\n    \"execute/broken-thing\": {\n      \"consecutive_failures\": 3,\n      \"last_failure\": \"2026-03-30T12:00:00Z\",\n      \"broken_at\": \"2026-03-30T12:00:00Z\"\n    }\n  }\n}\n```\nOn execution failure: increment counter. On threshold breach: set `broken_at`. On queue/retry of broken item: check cooldown, block if broken and cooldown not expired. On explicit reset (via dedicated API/CLI): clear the breaker entry for that item regardless of cooldown. On cooldown expiry: auto-reset (checked in poller).\n\n**Cost cap**: Before starting, estimate = `costPerTurnEstimate * agentMaxTurns`. With default values: $0.10 * 60 = $6.00. If `executionCostCapPerRun \u003e 0` and estimate \u003e cap: require `force: true` or return HTTP 409 with cost warning.\n\n### Governance Status\nExtend overview response with:\n```json\n{\n  \"governance\": {\n    \"active_executions\": 2,\n    \"max_concurrent\": 3,\n    \"queue_depth\": 5,\n    \"max_queue_depth\": 50,\n    \"circuit_broken_items\": [\"execute/broken-thing\"],\n    \"estimated_queued_cost\": 12.50\n  }\n}\n```\n\n## 7. Implementation Strategy\n\n### Phase 1: Settings Foundation\n1. Add 6 new fields to `settings.proto` (field numbers 25-30)\n2. Add fields to Go `Settings` struct, `SettingsPatch`, defaults, normalization, proto mapping\n3. Add fields to `api/settings.proto` `UpdateSettingsRequest`\n4. Regenerate proto\n5. Add settings UI controls to Execution tab\n\n### Phase 2: Concurrency Enforcement\n1. Add `countActiveExecutions()` helper to execution service — counts records with status `starting` or `running` only\n2. Gate `startLocked()` — if active count \u003e= `maxConcurrentExecutions`, return a sentinel error (e.g., `errAtCapacity`)\n3. Modify `QueueBacklog()` yolo path: on `errAtCapacity`, leave record as `StatusPending` instead of rolling back\n4. Rename `ProcessScheduledStarts()` to `ProcessPendingStarts()`. After the existing scheduled-start loop, add a second loop over pending records sorted by `CreatedAt`. Check concurrency limit before each start. Scheduled starts have priority over pending items.\n5. Add concurrency tests\n\n### Phase 3: Queue Depth Enforcement\n1. Add `countQueuedExecutions()` helper (counts pending + scheduled)\n2. Add queue depth check at top of `QueueBacklog()`, before record creation\n3. Return clear error: \"queue depth limit exceeded (N/M)\"\n4. Add queue depth tests\n\n### Phase 4: Circuit Breaker\n1. Add circuit breaker service managing `.vrooli/circuit-breaker.json` with atomic writes\n2. On execution failure: increment counter. On threshold breach: set `broken_at`.\n3. On `QueueBacklog()`: check circuit breaker state. Block if broken and cooldown not expired.\n4. Add explicit reset endpoint: `POST /api/v1/execution/circuit-breaker/reset` with `{\"item\": \"kind/name\"}`. Clears the breaker entry for that item regardless of cooldown.\n5. Add CLI command: `swarm-manager execution circuit-breaker-reset \u003ckind/name\u003e`.\n6. On cooldown expiry: auto-reset (checked in poller).\n7. Add circuit breaker tests\n\n### Phase 5: Cost Awareness\n1. `costPerTurnEstimate` setting: range 0.00-5.00 $/turn, default 0.10\n2. Before starting: estimate = `costPerTurnEstimate * agentMaxTurns`\n3. If `executionCostCapPerRun \u003e 0` and estimate \u003e cap: require `force: true` or return error\n4. Track estimated cost in governance status for queued items\n5. Add cost estimation tests\n\n### Phase 6: Status Visibility\n1. Extend `OverviewResponse` with `Governance` field\n2. Populate from execution service + circuit breaker state + settings\n3. Update CLI overview command to display governance info\n4. Add concurrency count badge to AgentsDropdown trigger — display 'N/M' format (e.g., '2/3') with colored indicator matching current status semantics\n5. Add circuit-broken visual indicator to sidebar items and graph nodes\n\n## 8. Contract Decisions\n\n### API Changes\n- `GET /api/v1/settings` — returns 6 new fields\n- `PUT /api/v1/settings` — accepts 6 new optional fields\n- `GET /api/v1/overview` — adds `governance` object to response\n- `POST /api/v1/execution` — returns HTTP 409 when queue depth exceeded, circuit-broken, or cost cap exceeded\n- `POST /api/v1/execution/circuit-breaker/reset` — new endpoint to explicitly reset circuit breaker for a specific item. Body: `{\"item\": \"kind/name\"}`. Returns 200 on success, 404 if item has no breaker state.\n\n### CLI Changes\n- `swarm-manager execution create` — shows governance errors clearly\n- `swarm-manager overview` — displays governance section\n- `swarm-manager execution circuit-breaker-reset \u003ckind/name\u003e` — new command to explicitly reset circuit breaker for an item\n\n### Error Codes\n- Queue depth exceeded: HTTP 409 Conflict with structured error\n- Circuit broken: HTTP 409 Conflict with structured error including cooldown remaining\n- Cost cap exceeded: HTTP 409 Conflict with message suggesting `--force`\n- At capacity (internal): sentinel error handled by caller, not returned to user\n\n## 9. Testing Plan\n\n### Unit Tests\n- Settings normalization for 6 new fields (clamping, defaults, edge cases)\n- `countActiveExecutions()` with various status combinations — verify only starting+running count\n- `countQueuedExecutions()` accuracy\n- Circuit breaker state transitions (increment, breach, cooldown, reset, atomic write/read)\n- Explicit circuit breaker reset clears entry regardless of cooldown\n- Cost estimation calculation (costPerTurnEstimate * agentMaxTurns vs cap) — default: $0.10 * 60 = $6.00\n- Concurrency gate in `startLocked()` — returns errAtCapacity when at limit\n- Queue depth gate in `QueueBacklog()` — rejects when at max depth\n- Yolo path at capacity: record stays pending, not rolled back\n\n### Integration Tests\n- Queue 4 items when maxConcurrent=3: verify 4th stays pending\n- Complete 1 execution: verify pending item auto-starts on next poll cycle (via renamed `ProcessPendingStarts()`)\n- Queue items to max depth: verify rejection with 409\n- Fail item N times (N=threshold): verify circuit breaker trips\n- Reset circuit-broken item via explicit reset endpoint: verify breaker clears and item can be re-queued\n- Wait for cooldown: verify auto-reset\n- Set cost cap below estimate: verify force required\n- Update settings mid-flight: verify enforcement changes immediately (new limit applies on next start attempt)\n\n## 10. Rollout / Validation Checklist\n\n- [ ] Proto compiles cleanly (`buf lint \u0026\u0026 buf generate`)\n- [ ] Go builds with no errors (`go build ./...`)\n- [ ] All existing tests pass (`go test ./... -timeout 300s`)\n- [ ] New tests pass for each phase\n- [ ] Settings UI renders new controls correctly\n- [ ] CLI displays governance info in overview\n- [ ] Circuit breaker reset CLI command works\n- [ ] Manual test: set maxConcurrent=1, queue 2 items, verify queuing behavior\n\n## 11. Risks + Mitigations\n\n| Risk | Impact | Mitigation |\n|------|--------|------------|\n| Mutex contention with concurrent slot counting | Medium | Already single-mutex design; counting is O(n) where n is small (max 20 active) |\n| Circuit breaker state file corruption | Low | Use atomic writes (write-to-temp + rename, existing pattern in codebase) |\n| Cost estimates wildly inaccurate | Low | Explicitly labeled as estimates, soft guardrail only, user-configurable per-turn rate ($0.10 default) |\n| Existing tests break from new defaults | Medium | New settings have safe defaults (3 concurrent, 50 queue, no cost cap) |\n| Poller frequency (2s) too slow for slot draining | Low | 2s is reasonable for backfill; event-driven drain is a future optimization |\n| Active=starting+running misses review backlog | Low | User chose tight definition. If review floods become an issue, can expand later without breaking changes |\n| Explicit reset adds API surface | Low | Clean separation of concerns worth the small surface area; rare operation but important for operator control |\n\n## 12. Non-goals / Prohibited Patterns\n\n- No hard token kill switches (can't know actual cost in advance)\n- No per-agent rate limiting (future enhancement)\n- No priority queue ordering\n- No backward compatibility shims — new fields with safe defaults\n- No new execution statuses — use existing pending/failed + circuit breaker state file\n- No implicit circuit breaker reset on queue — reset is an explicit, intentional action via dedicated endpoint/CLI\n\n## 13. Definition of Done\n\n- All 6 settings configurable via API, CLI, and UI (costPerTurnEstimate defaults to $0.10/turn)\n- Concurrency enforcement prevents exceeding maxConcurrentExecutions (active = starting + running)\n- Yolo mode at capacity leaves items pending; `ProcessPendingStarts()` drains them when slots open (scheduled first, then pending by CreatedAt)\n- Queue depth enforcement rejects when exceeded\n- Circuit breaker trips after threshold failures, auto-resets after cooldown\n- Explicit circuit breaker reset via `POST /api/v1/execution/circuit-breaker/reset` and `swarm-manager execution circuit-breaker-reset \u003ckind/name\u003e`\n- Cost cap provides soft warning before execution ($0.10/turn * maxTurns vs cap), overridable with force\n- Governance status visible in overview endpoint, CLI, and AgentsDropdown trigger ('N/M' badge)\n- All new code has unit tests\n- All existing tests continue to pass\n- Proto changes are clean and backward-compatible (new field numbers only)\n\n\u003c/implementation-plan\u003e\n",
+      "prompt_revision": "sha256:fc546f534ba6f552",
+      "used_fallback": false,
+      "captured_at": "2026-04-03T20:26:46Z"
+    },
+    "parent_execution_id": "e43db37cb7e23434",
+    "fixup_attempt": 1,
+    "finalization": {
+      "eligible": true,
+      "status": "completed",
+      "phase": "completed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-04-03T20:36:49Z",
+      "completed_at": "2026-04-03T20:36:50Z",
+      "warnings": [
+        {
+          "code": "self_restart_skipped",
+          "scenario_name": "swarm-manager",
+          "message": "Scenario \"swarm-manager\" was in scope but skipped because restarting it would kill this running process. If changes to swarm-manager require a restart, restart it manually after finalization completes.",
+          "created_at": "2026-04-03T20:36:49Z"
+        }
+      ],
+      "affected_scenarios": [
+        "swarm-manager"
+      ],
+      "aggregate_classification": "needs_work",
+      "aggregate_summary": "swarm-manager restart failed; 1 warning(s)",
+      "scenarios": [
+        {
+          "scenario_name": "swarm-manager",
+          "restart": {
+            "status": "pending"
+          },
+          "health": {
+            "status": "pending",
+            "schema_valid": false
+          },
+          "review": {
+            "status": "pending"
+          }
+        }
+      ]
+    },
+    "created_at": "2026-04-03T20:26:46Z",
+    "updated_at": "2026-04-03T20:36:50Z"
+  },
+  {
+    "execution_id": "1be8117714012168",
+    "backlog_kind": "execute",
+    "backlog_name": "deployment-manager-approval-gate-surfaces",
+    "previous_status": "backlog",
+    "task_id": "ad0f4448-6249-4ac1-a085-f9775ab90c1e",
+    "run_id": "3428afde-aaaa-4e88-810d-ad3cab4338c9",
+    "status": "completed",
+    "mode": "yolo",
+    "started_at": "2026-04-03T20:46:31Z",
+    "finished_at": "2026-04-03T20:58:08Z",
+    "started_by": "swarm-manager-ui",
+    "operation": "generator",
+    "prompt_trace": {
+      "purpose": "process",
+      "prompt": "\u003cexecution-context\u003e\nBacklog item: execute/deployment-manager-approval-gate-surfaces\nTitle: Expose Approval Gate Controls In Deployment Manager\nItem folder: /home/matthalloran8/Vrooli/scenarios/swarm-manager/execute/deployment-manager-approval-gate-surfaces\nRun type: process\n\u003c/execution-context\u003e\n\n\u003cimplementation-plan path=\"plan.md\"\u003e\n# Implementation Plan: Expose Approval Gate Controls in Deployment Manager\n\n## 1. Purpose\n\nSurface the existing deployment-manager approval-gating backend (7 API endpoints, full DB schema, orchestrator integration) through operator-facing CLI commands and UI pages. This closes the gap where approval state is only accessible via raw API calls.\n\n## 2. Required Reading\n\n```bash\nprompt-manager skill read cli-steer api-steer implementation-plan-authoring seam-discovery-and-enforcement react-coherence\n```\n\n**Research dependency:** `research/desktop-release-control-plane-audit` (completed) — provides the system contract and dependency map. Key findings:\n- deployment-manager owns canonical approval state (Finding 1)\n- Release gate check is `GET /profiles/{id}/release-gate?commit={hash}` (Finding 1)\n- 7 approval API endpoints already exist and are fully implemented (Finding 2)\n- CLI and UI have zero approval coverage currently\n- deployment-manager never talks to LPBS directly; flow is deployment-manager → scenario-to-desktop → LPBS (Finding 3)\n\n## 3. Problem Statement\n\nThe approval-gating backend is production-ready at the API level:\n- `deployment_approvals` and `profile_required_platforms` tables with indexes\n- 7 REST endpoints: create, list, get, decide, release-gate check, set/get required platforms\n- Orchestrator integration that blocks deployment when gate is not satisfied (HTTP 412)\n\nHowever, operators cannot use this system without crafting raw HTTP requests. There are:\n- **No CLI commands** for any approval operation\n- **No UI pages or components** for viewing/managing approvals\n- **No TypeScript types** in the UI api client for approval data\n\n## 4. Scope\n\n**In scope:**\n- New `approvals` CLI command group with subcommands mirroring all 7 API endpoints\n- New Approvals UI page for listing, filtering, and deciding approvals (standalone `/approvals` route)\n- Gate status badge integrated into ProfileDetail page (defaulting to latest deployment commit)\n- Required platforms configuration as a checkbox Card section on ProfileDetail\n- TypeScript types and API client functions for all approval endpoints\n- Automated tests for CLI subcommands and UI components\n\n**Out of scope:**\n- Modifying the existing API endpoints or database schema\n- Approval-to-deploy automation (separate backlog item: Action 5 from research)\n- Webhook/event notifications (separate backlog item: Action 4 from research)\n- Rollback API (separate backlog item: Action 3 from research)\n- Visual validation integration (existing separate workflow)\n- Real-time polling or WebSocket updates (use React Query defaults + manual refresh)\n\n## 5. Current Technical Context\n\n### Backend (complete, no changes needed)\n- **Schema:** `initialization/postgres/schema.sql:51-71` — `deployment_approvals`, `profile_required_platforms`\n- **Migration:** `api/migrations/003_add_deployment_approvals.sql`\n- **Types:** `api/deployments/approvals_types.go` — `DeploymentApproval`, `ReleaseGateStatus`, `PlatformGateStatus`, etc.\n- **Handler:** `api/deployments/approvals_handler.go` — 7 handler methods\n- **Repository:** `api/deployments/approvals_repository.go` — full CRUD + gate check\n- **Routes:** `api/server/routes.go:70-79` — all 7 endpoints registered (conditional on `ApprovalsHandler != nil`)\n- **Orchestrator:** `api/deployments/orchestrator.go:165-192` — gate check blocks deploys (HTTP 412)\n\n### CLI (no approval coverage)\n- Uses cli-core pattern with domain-specific command packages\n- Existing groups: overview, profiles, swaps, deployments, secrets, signing, validations, config, bundles\n- Pattern: each group is a package under `cli/` with `commands.go`, `Commands` struct, `New(api *cliutil.APIClient)` constructor, `Run(args []string) error` dispatcher\n- Flag parsing: `flag.NewFlagSet` + `cliutil.ParseInterspersed(fs, args)`\n- Format system: global `cmdutil.SetGlobalFormat`/`ResolveFormat` with `--json` consumed in `app.go`; default output is human-readable\n- Output: `cmdutil.PrintByFormat(format, body)` dispatches to JSON or plain text\n\n### UI (no approval coverage)\n- React + Vite, uses `@vrooli/api-base` for URL resolution\n- `ui/src/lib/api.ts` — typed fetch wrapper with `apiFetch\u003cT\u003e()` helper\n- Existing pages: Dashboard, Profiles, ProfileDetail, Deployments, Validation, Analyze, BundleTelemetry\n- Routing: `ui/src/App.tsx` with `react-router-dom` `\u003cRoutes\u003e` / `\u003cRoute\u003e`\n- Navigation: `ui/src/components/Layout.tsx` `navItems` array (path, label, icon from lucide-react)\n- State: React Query (`useQuery`/`useMutation`) for server state; local `useState` for UI state\n- Components: shadcn UI (Card, Button, Badge, etc.)\n- Tests: Vitest + React Testing Library, `vi.mock('../lib/api')`, `createWrapper()` with QueryClient + BrowserRouter\n\n### API Types (for reference in CLI/UI implementation)\n\n```go\n// Request types\nCreateApprovalRequest { GitCommitHash, Platform, ValidationID? }\nApprovalDecisionRequest { Decision (\"approved\"|\"rejected\"), Reviewer, Notes? }\nSetRequiredPlatformsRequest { Platforms []string }\n\n// Response types\nDeploymentApproval { ID, ProfileID, GitCommitHash, Platform, Status, ApprovedBy?, ApprovedAt?, Notes?, ValidationID?, CreatedAt, UpdatedAt }\nReleaseGateStatus { ProfileID, GitCommitHash, Ready bool, Platforms []PlatformGateStatus }\nPlatformGateStatus { Platform, Required bool, Status (\"pending\"|\"approved\"|\"rejected\"|\"stale\"|\"missing\") }\n```\n\n## 6. Target End State\n\nAfter implementation:\n1. `deployment-manager approvals list \u003cprofile-id\u003e` — shows approval history\n2. `deployment-manager approvals get \u003cid\u003e` — shows single approval detail\n3. `deployment-manager approvals create \u003cprofile-id\u003e --commit \u003chash\u003e --platform \u003cplat\u003e` — creates pending approval\n4. `deployment-manager approvals decide \u003cid\u003e --decision approved --reviewer \u003cname\u003e` — approves/rejects\n5. `deployment-manager approvals gate \u003cprofile-id\u003e --commit \u003chash\u003e` — checks release gate (operational output: Status → Triage → Next Steps)\n6. `deployment-manager approvals platforms set \u003cprofile-id\u003e --platforms win,mac,linux` — configures required platforms\n7. `deployment-manager approvals platforms get \u003cprofile-id\u003e` — shows required platforms\n8. UI ProfileDetail page shows release gate status badge (defaults to latest deployment commit, with commit selector) and required platforms config (checkbox Card section)\n9. New `/approvals` UI page for listing, filtering, and deciding approvals (inline quick-action buttons + detail view with validation link)\n10. All approval TypeScript types and API client functions defined\n11. Navigation sidebar includes Approvals link\n\n## 7. Implementation Strategy\n\n### Phase 1: CLI — `approvals` command group\n- Create `cli/approvals/` package following the validations pattern\n- Register as new CommandGroup in `app.go`\n- Wire `App.approvals` field with `approvals.New(core.APIClient)`\n- Implement subcommand routing in `commands.go` with nested `platforms` sub-dispatch\n\n**Commands:**\n| Subcommand | API Endpoint | Key Flags | Output Contract |\n|------------|-------------|-----------|-----------------|\n| `list \u003cprofile-id\u003e` | `GET /profiles/{id}/approvals` | `--commit` (optional filter) | Data retrieval |\n| `get \u003cid\u003e` | `GET /approvals/{id}` | — | Data retrieval |\n| `create \u003cprofile-id\u003e` | `POST /profiles/{id}/approvals` | `--commit`, `--platform`, `--validation-id` | Mutation |\n| `decide \u003cid\u003e` | `POST /approvals/{id}/decide` | `--decision`, `--reviewer`, `--notes` | Mutation |\n| `gate \u003cprofile-id\u003e` | `GET /profiles/{id}/release-gate` | `--commit` | Operational (Status → Triage → Next Steps) |\n| `platforms set \u003cprofile-id\u003e` | `PUT /profiles/{id}/required-platforms` | `--platforms` (CSV) | Mutation |\n| `platforms get \u003cprofile-id\u003e` | `GET /profiles/{id}/required-platforms` | — | Data retrieval |\n\n### Phase 2: CLI tests\n- Unit tests for all 7 subcommands using `httptest.NewServer` mocking\n- Test flag parsing, output format (human default + `--json`), error handling\n- Follow table-driven pattern from `cli/deployments/commands_test.go`\n\n### Phase 3: UI — TypeScript types + API client\n- Add approval types to `ui/src/lib/api.ts` matching Go types\n- Add API client functions for all 7 endpoints:\n  - `listApprovals(profileId, commit?)`, `getApproval(id)`, `createApproval(profileId, req)`, `decideApproval(id, req)`\n  - `checkReleaseGate(profileId, commit)`, `setRequiredPlatforms(profileId, platforms)`, `getRequiredPlatforms(profileId)`\n\n### Phase 4: UI — ProfileDetail integration\n- Gate status badge Card section: queries release gate for latest deployment commit, shows Ready/Blocked with per-platform status\n- Commit selector dropdown to check other commits\n- Required platforms checkbox Card section (collapsible): three checkboxes (Windows, macOS, Linux) with Save button\n\n### Phase 5: UI — Standalone Approvals page\n- Route: `/approvals`\n- Sidebar nav item with appropriate lucide-react icon\n- Approval list table with filtering (by profile, commit, status)\n- Inline approve/reject quick-action buttons in table rows\n- Detail view on row click: notes field, reviewer attribution, validation link (if validation_id set)\n- React Query for data fetching (defaults: refetch on focus/mount) + manual Refresh button\n\n### Phase 6: UI tests\n- Component tests for Approvals page (list rendering, filter interaction, approve/reject actions)\n- Component tests for ProfileDetail gate badge and required platforms config\n- Follow Vitest + React Testing Library pattern from `ui/src/pages/Profiles.test.tsx`\n\n## 8. Contract Decisions (Settled)\n\n- **CLI output:** Human-friendly default output. Gate check uses operational contract (Status → Triage → Next Steps). List/get use data-retrieval contract. Create/decide use mutation contract.\n- **CLI subcommand routing:** Single `approvals` top-level command with nested `platforms` sub-dispatch for set/get.\n- **UI page structure:** Standalone `/approvals` page + gate status badge and required-platforms config integrated into ProfileDetail.\n- **UI approval decide UX:** Inline quick-action buttons in list table + detail view with notes, reviewer attribution, and validation link.\n- **UI data freshness:** React Query defaults (refetch on focus/mount) + manual refresh button. No polling.\n- **No new API endpoints needed** — everything uses the existing 7 endpoints.\n\n## 9. Testing Plan\n\n### CLI automated tests (Phase 2)\n- **Per-subcommand tests** using `httptest.NewServer`:\n  - `list`: verify query param forwarding (`?commit=`), output includes approval summary table\n  - `get`: verify path param, output includes all approval fields\n  - `create`: verify POST body marshaling, required flags validation\n  - `decide`: verify decision and reviewer flags, error on missing required flags\n  - `gate`: verify operational output format (status, triage, next steps), both ready and blocked states\n  - `platforms set`: verify CSV parsing and PUT body, error on empty platforms\n  - `platforms get`: verify output lists platform names\n- **Format tests**: verify `--json` produces valid JSON for each subcommand\n- **Error tests**: verify HTTP error responses produce user-friendly messages\n\n### UI automated tests (Phase 6)\n- **Approvals page:**\n  - Renders approval list with mock data\n  - Filter by status works\n  - Approve/reject inline buttons trigger correct API calls\n  - Error state renders error message\n  - Empty state renders helpful message\n- **ProfileDetail gate badge:**\n  - Renders \"Ready\" badge when all platforms approved\n  - Renders \"Blocked\" badge with platform breakdown when not ready\n  - Commit selector triggers new gate check\n- **Required platforms config:**\n  - Renders checkboxes matching current required platforms\n  - Save button calls setRequiredPlatforms with correct array\n  - Success feedback on save\n\n## 10. Rollout / Validation Checklist\n\n- [ ] CLI builds without errors: `cd cli \u0026\u0026 go build ./...`\n- [ ] CLI tests pass: `cd cli \u0026\u0026 go test ./... -timeout 300s`\n- [ ] UI builds without errors: `cd ui \u0026\u0026 npm run build`\n- [ ] UI tests pass: `cd ui \u0026\u0026 npm test`\n- [ ] All 7 approval operations work via CLI (human-readable and --json output)\n- [ ] Gate check shows operational output with triage and next steps\n- [ ] ProfileDetail shows gate status badge defaulting to latest deployment commit\n- [ ] ProfileDetail shows required platforms config with checkboxes\n- [ ] Approvals page lists and filters approvals\n- [ ] Approval decide action works from both inline buttons and detail view\n- [ ] Sidebar navigation includes Approvals link\n\n## 11. Risks + Mitigations\n\n| Risk | Likelihood | Impact | Mitigation |\n|------|-----------|--------|------------|\n| API endpoint behavior differs from handler code reading | Low | Medium | CLI integration tests against mock server verify request/response shapes |\n| UI build time (5-10 min) slows iteration | Medium | Low | Test components in isolation first; use `npm test` for fast feedback |\n| Existing CLI tests break from new command group | Low | Low | New group is additive; run full test suite before merging |\n| ProfileDetail gate badge depends on deployment history for default commit | Low | Medium | Graceful fallback: show \"No deployments yet\" with commit input field if no deployment history |\n| Multiple operators deciding same approval concurrently | Low | Medium | API handles this (last write wins with status update); UI refetches on mutation success |\n\n## 12. Non-goals / Prohibited Patterns\n\n- Do NOT modify existing API endpoints or database schema\n- Do NOT implement business logic in CLI (thin wrapper only)\n- Do NOT add approval-to-deploy automation (separate backlog item)\n- Do NOT bypass cli-core patterns (use ScenarioApp, APIClient, ParseInterspersed)\n- Do NOT add bash scripts for CLI functionality\n- Do NOT introduce polling/WebSocket for the approvals page (use React Query defaults)\n- Do NOT add a new state management pattern — use React Query for server state, useState for local UI state\n\n## 13. Definition of Done\n\n1. All 7 approval API endpoints have corresponding CLI commands with human-friendly default output\n2. All CLI commands support `--json` flag for machine-readable output\n3. CLI automated tests cover all 7 subcommands (flag parsing, output format, error handling)\n4. UI has TypeScript types for all approval models\n5. UI has API client functions for all approval endpoints\n6. ProfileDetail page displays release gate status badge (with commit selector) and required platforms config (checkboxes)\n7. Standalone Approvals page allows listing, filtering, and deciding approvals (inline + detail view)\n8. Sidebar navigation includes Approvals link\n9. UI automated tests cover Approvals page and ProfileDetail approval integration\n10. `go build ./...` and `go test ./...` pass in `cli/`\n11. `npm run build` and `npm test` pass in `ui/`\n\n\u003c/implementation-plan\u003e\n",
+      "prompt_revision": "sha256:f7b179ab4152a6d9",
+      "used_fallback": false,
+      "captured_at": "2026-04-03T20:46:30Z"
+    },
+    "finalization": {
+      "eligible": true,
+      "status": "completed",
+      "phase": "completed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-04-03T20:57:02Z",
+      "completed_at": "2026-04-03T20:58:08Z",
+      "affected_scenarios": [
+        "deployment-manager"
+      ],
+      "aggregate_classification": "ready_with_notes",
+      "aggregate_summary": "deployment-manager ready with notes",
+      "scenarios": [
+        {
+          "scenario_name": "deployment-manager",
+          "restart": {
+            "status": "completed",
+            "attempts": 1,
+            "started_at": "2026-04-03T20:57:02Z",
+            "finished_at": "2026-04-03T20:57:31Z"
+          },
+          "health": {
+            "status": "completed",
+            "scenario_status": "running",
+            "health_status": "healthy",
+            "schema_valid": true,
+            "details": "scenario is healthy",
+            "checked_at": "2026-04-03T20:57:33Z"
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "85be9be7-d8dc-4db9-bed8-6ecacd314a91",
+            "result": {
+              "job_id": "85be9be7-d8dc-4db9-bed8-6ecacd314a91",
+              "classification": "ready_with_notes",
+              "dimensions": [
+                {
+                  "name": "codeQuality",
+                  "status": "red",
+                  "details": "0.0 score, 25 violations"
+                },
+                {
+                  "name": "tests",
+                  "status": "yellow",
+                  "details": "5/11 passed"
+                },
+                {
+                  "name": "standards",
+                  "status": "yellow",
+                  "details": "48 warnings"
+                },
+                {
+                  "name": "visual",
+                  "status": "red"
+                },
+                {
+                  "name": "provenance",
+                  "status": "green"
+                }
+              ],
+              "raw_dimensions": {
+                "codeQuality": {
+                  "available": true,
+                  "score": 0,
+                  "violations": 25,
+                  "stale": false
+                },
+                "tests": {
+                  "available": true,
+                  "passed": false,
+                  "total": 11,
+                  "passedCount": 5,
+                  "failedCount": 6,
+                  "lastRun": "2026-04-03T20:58:05.134765384Z"
+                },
+                "standards": {
+                  "available": true,
+                  "blockingViolations": 0,
+                  "warnings": 48,
+                  "totalViolations": 48
+                },
+                "visual": {
+                  "available": true,
+                  "screenshotCount": 0,
+                  "stale": false
+                },
+                "provenance": {
+                  "available": true,
+                  "tracedFiles": 1
+                }
+              },
+              "summary": "Scenario deployment-manager readiness: yellow",
+              "reviewed_at": "2026-04-03T20:58:08Z"
+            }
+          }
+        }
+      ]
+    },
+    "created_at": "2026-04-03T20:46:30Z",
+    "updated_at": "2026-04-03T20:58:08Z"
+  },
+  {
+    "execution_id": "643182d36815e684",
+    "backlog_kind": "execute",
+    "backlog_name": "cli-core-identity-consumer",
+    "previous_status": "backlog",
+    "task_id": "c1ffadd0-4ad9-4176-88eb-608bd2c6b640",
+    "run_id": "27ecc18e-01db-422d-a94d-00613a8c4786",
+    "status": "completed",
+    "mode": "yolo",
+    "started_at": "2026-04-03T21:35:42Z",
+    "finished_at": "2026-04-03T21:37:28Z",
+    "started_by": "swarm-manager-ui",
+    "operation": "generator",
+    "prompt_trace": {
+      "purpose": "process",
+      "prompt": "\u003cexecution-context\u003e\nBacklog item: execute/cli-core-identity-consumer\nTitle: Implement Identity Consumer Interface in cli-core\nItem folder: /home/matthalloran8/Vrooli/scenarios/swarm-manager/execute/cli-core-identity-consumer\nRun type: process\n\u003c/execution-context\u003e\n\n\u003cimplementation-plan path=\"plan.md\"\u003e\n# Implementation Plan: cli-core Identity Consumer Interface\n\n## Required Reading\n\n- `prompt-manager skill read cli-steer` — CLI architecture, cli-core patterns, cross-platform conventions\n- `prompt-manager skill read test` — Testing patterns and conventions\n- Review `packages/cli-core/cliutil/sandbox.go` — The pattern this implementation mirrors\n- Review `packages/cli-core/cliutil/sandbox_test.go` — Test pattern to follow\n- Review `packages/cli-core/cliutil/httpclient.go` — HTTPClient used for verification calls\n- Review `packages/cli-core/cliutil/cliutil.go` — `APIBaseOptions` and `DetermineAPIBase` for URL resolution\n- Review `scenarios/agent-manager/api/internal/identity/claims.go` — Canonical claims struct (source of truth for field names)\n- Review `scenarios/agent-manager/api/internal/orchestration/service.go` — `IdentityVerifyResult` response shape\n\n## Problem Statement\n\nScenario CLIs running inside agent-managed runs need to detect and verify agent identity tokens. The agent-manager already generates HMAC-SHA256 tokens and injects them as `VROOLI_AGENT_IDENTITY_TOKEN`, and exposes `POST /api/v1/identity/verify` for server-side verification. cli-core needs a consumer interface so any scenario can detect presence and verify tokens without each scenario reimplementing the HTTP call and parsing logic.\n\n## Scope\n\n### Acceptance Allow\n- `packages/cli-core/**`\n\n### What's In Scope\n- `cliutil/identity.go` — Detection and verification functions\n- `cliutil/identity_test.go` — Unit and integration-style tests\n- Zero new dependencies (stdlib only + existing HTTPClient)\n\n### What's Out of Scope\n- Token generation/signing (agent-manager only)\n- HMAC secret management (agent-manager only)\n- Revocation tracking (agent-manager only)\n- Changes to agent-manager or any scenario\n- CLI command wiring (consuming scenarios do that themselves)\n\n## Design Decisions (Settled)\n\n### D1: Agent-manager base URL via env var `VROOLI_AGENT_MANAGER_API_BASE`\nAgent-manager already injects env vars for runs. `VerifyIdentity()` reads `VROOLI_AGENT_MANAGER_API_BASE` internally using `DetermineAPIBase(APIBaseOptions{EnvVars: []string{\"VROOLI_AGENT_MANAGER_API_BASE\"}})`. No caller configuration needed.\n\n### D2: VerifyIdentity is a zero-parameter method on IdentityEnv\n`env.VerifyIdentity() (*VerifyResult, error)` — mirrors how `SandboxEnv.IsSandboxActive()` works. The token is encapsulated in the struct. Base URL comes from env var (D1).\n\n### D3: Token-only IdentityEnv struct\n`IdentityEnv` holds only the raw token string. All claims come from `VerifyResult` after calling the verification endpoint. This is honest — pre-verification, only the token is available.\n\n### D4: Error semantics — transport vs. auth separation\n- Transport errors (network down, timeout) → return Go `error`\n- Auth errors (invalid/expired/revoked token) → return `*VerifyResult` with `Valid=false` and `Error` populated\n- Callers use `if err != nil` for network issues and `if !result.Valid` for bad tokens\n\n### D5: Fresh HTTPClient per call\n`VerifyIdentity()` creates a new `HTTPClient` via `NewHTTPClient` with `APIBaseOptions{EnvVars: []string{\"VROOLI_AGENT_MANAGER_API_BASE\"}}` and a 10-second timeout on each invocation. Since verification is called at most once per CLI invocation, per-call construction is simpler than caching and avoids mutable global state. Tests use `t.Setenv(\"VROOLI_AGENT_MANAGER_API_BASE\", server.URL)` to point at httptest servers.\n\n### D6: 401 handling via APIError.RawResponse\nWhen agent-manager returns 401, `HTTPClient.Do` wraps the response as `*APIError` (via `ParseAPIError`). `VerifyIdentity` type-asserts `errors.As(*APIError)` for status 401, then `json.Unmarshal(apiErr.RawResponse, \u0026verifyResult)` to extract the structured `{valid: false, error: \"...\"}` body. This reuses existing HTTPClient infrastructure without duplicating request logic.\n\n### D7: Exported constants for env var names\n`EnvIdentityToken` and `EnvAgentManagerBase` are exported `const` values at the top of `identity.go`. Tests and consuming scenarios can reference them directly, improving maintainability over inline string literals (a refinement over the sandbox.go pattern).\n\n## Approach\n\n### Phase 1: Constants and Types\n\n1. **Exported constants**:\n   - `EnvIdentityToken = \"VROOLI_AGENT_IDENTITY_TOKEN\"`\n   - `EnvAgentManagerBase = \"VROOLI_AGENT_MANAGER_API_BASE\"`\n\n2. **`IdentityEnv` struct** — Single field: `Token string`\n\n3. **`VerifiedClaims` struct** — Standalone type mirroring `identity.Claims` from agent-manager:\n   - `RunID string` `json:\"run_id\"` (string, not UUID — cli-core has zero external deps)\n   - `TaskID string` `json:\"task_id\"`\n   - `ProfileKey string` `json:\"profile_key\"`\n   - `ScopePath string` `json:\"scope_path\"`\n   - `IssuedAt int64` `json:\"iat\"`\n   - `ExpiresAt int64` `json:\"exp\"`\n   - `Meta map[string]string` `json:\"meta\"`\n\n4. **`VerifyResult` struct** — Mirrors `IdentityVerifyResult`:\n   - `Valid bool` `json:\"valid\"`\n   - `Claims *VerifiedClaims` `json:\"claims\"`\n   - `RunStatus string` `json:\"run_status\"`\n   - `Error string` `json:\"error\"`\n\n### Phase 2: Detection Functions\n\n1. **`DetectIdentity() IdentityEnv`** — Reads `EnvIdentityToken` from env, returns zero-value if absent\n2. **`(env IdentityEnv) IsIdentityPresent() bool`** — Convenience method: returns `env.Token != \"\"`\n\n### Phase 3: Verification Function\n\n1. **`(env IdentityEnv) VerifyIdentity() (*VerifyResult, error)`**\n   - Returns error immediately if `Token` is empty\n   - Resolves agent-manager base URL via `DetermineAPIBase(APIBaseOptions{EnvVars: []string{EnvAgentManagerBase}})`\n   - Returns error if base URL is empty (agent-manager not configured)\n   - Creates a fresh `HTTPClient` with the resolved base options and 10-second timeout (D5)\n   - POST `{\"token\": \"\u003ctoken\u003e\"}` to `/api/v1/identity/verify`\n   - On success (200): deserialize response into `VerifyResult`, return it\n   - On 401: type-assert `errors.As(*APIError)`, `json.Unmarshal(apiErr.RawResponse)` into `VerifyResult` with `Valid=false` (D6)\n   - On other errors: return Go error (transport failure)\n\n### Phase 4: Tests\n\n1. **`TestDetectIdentity`** — Env var present/absent (mirrors `TestDetectSandbox`)\n2. **`TestIsIdentityPresent`** — Token set/empty\n3. **`TestVerifyIdentity_Success`** — httptest.Server returning 200 with valid claims\n4. **`TestVerifyIdentity_InvalidToken`** — httptest.Server returning 401 with error JSON\n5. **`TestVerifyIdentity_NetworkError`** — Closed server → Go error\n6. **`TestVerifyIdentity_MalformedResponse`** — Server returns invalid JSON → Go error\n7. **`TestVerifyIdentity_EmptyToken`** — Returns error without making HTTP call\n8. **`TestVerifyIdentity_NoBaseURL`** — No env var set → returns error about missing config\n\n## File Changes\n\n| File | Action | Description |\n|------|--------|-------------|\n| `packages/cli-core/cliutil/identity.go` | Create | Constants, `IdentityEnv`, `VerifiedClaims`, `VerifyResult`, `DetectIdentity()`, `IsIdentityPresent()`, `VerifyIdentity()` |\n| `packages/cli-core/cliutil/identity_test.go` | Create | Unit tests for detection, httptest-based tests for verification |\n\n## Risks\n\n| Risk | Likelihood | Impact | Mitigation |\n|------|-----------|--------|------------|\n| Agent-manager verify endpoint contract changes | Low | Medium | Types mirror the current response shape; changes caught by integration tests |\n| cli-core gains an external dependency accidentally | Low | High | PR review; go.mod has no external requires |\n| Env var name changes | Very Low | Medium | Single exported constant, easy to update |\n| HTTPClient internal construction leaks resources | Very Low | Low | Client is short-lived per call; Go's http.Client handles connection pooling |\n| Timeout too short for slow networks | Low | Low | 10s is generous for a local loopback call; agent-manager runs on same host |\n\n## Test Plan\n\n1. `go test ./packages/cli-core/cliutil/ -run TestDetectIdentity -v` — Detection tests\n2. `go test ./packages/cli-core/cliutil/ -run TestIsIdentityPresent -v` — Presence check tests\n3. `go test ./packages/cli-core/cliutil/ -run TestVerifyIdentity -v` — All verification tests (success, invalid, network, malformed, empty token, no base URL)\n4. `go build ./packages/cli-core/...` — Verify no new dependencies introduced\n5. Verify `go.mod` unchanged (no new `require` lines)\n\n## Implementation Notes\n\n- Tests use `t.Setenv(EnvAgentManagerBase, server.URL)` to point at httptest servers — clean, no mocking needed\n- `VerifyIdentity` creates an `HTTPClient` internally per call. For a verification call that happens once per CLI invocation, this is fine — no need to cache or pool\n- JSON tags on `VerifiedClaims` must match the agent-manager response exactly: `run_id`, `task_id`, `profile_key`, `scope_path`, `iat`, `exp`, `meta`\n- The 401 handling uses `errors.As` to extract `*APIError`, then `json.Unmarshal(apiErr.RawResponse, \u0026result)` to parse the verification-specific response body\n- Exported constants (`EnvIdentityToken`, `EnvAgentManagerBase`) improve maintainability over inline strings and can be referenced by consuming scenarios\n\n\u003c/implementation-plan\u003e\n",
+      "prompt_revision": "sha256:997765aa3f599327",
+      "used_fallback": false,
+      "captured_at": "2026-04-03T21:35:42Z"
+    },
+    "finalization": {
+      "eligible": true,
+      "status": "skipped",
+      "phase": "skipped",
+      "scope_source": "acceptance_allow",
+      "skip_reason": "no affected scenarios could be resolved from sandbox diff or acceptance_allow",
+      "started_at": "2026-04-03T21:37:28Z",
+      "completed_at": "2026-04-03T21:37:28Z",
+      "aggregate_classification": "skipped",
+      "aggregate_summary": "no affected scenarios could be resolved from sandbox diff or acceptance_allow"
+    },
+    "created_at": "2026-04-03T21:35:42Z",
+    "updated_at": "2026-04-03T21:37:28Z"
+  },
+  {
+    "execution_id": "60ec3e27cbc1e6d2",
+    "backlog_kind": "execute",
+    "backlog_name": "swarm-manager-identity-adoption",
+    "previous_status": "backlog",
+    "task_id": "bf9ce685-0265-40ff-bfae-f44a2e98138a",
+    "run_id": "2e2022d5-1eb5-430e-bc78-94f38dc6185c",
+    "status": "needs_fixup",
+    "mode": "yolo",
+    "started_at": "2026-04-04T00:52:45Z",
+    "finished_at": "2026-04-04T01:02:24Z",
+    "started_by": "swarm-manager-ui",
+    "operation": "generator",
+    "prompt_trace": {
+      "purpose": "process",
+      "prompt": "\u003cexecution-context\u003e\nBacklog item: execute/swarm-manager-identity-adoption\nTitle: Adopt Agent Identity Standard in Swarm-Manager for Provenance Tracking\nItem folder: /home/matthalloran8/Vrooli/scenarios/swarm-manager/execute/swarm-manager-identity-adoption\nRun type: process\n\u003c/execution-context\u003e\n\n\u003cimplementation-plan path=\"plan.md\"\u003e\n# Implementation Plan: Adopt Agent Identity Standard in Swarm-Manager\n\n## 1. Purpose\n\nIntegrate the agent identity standard into swarm-manager so that backlog mutations, execution attribution, and agent activity records carry verified provenance. This enables distinguishing operator-created from agent-created items and tracing changes back to specific agent runs.\n\n## Required Reading\n\n```bash\nprompt-manager skill read cli-steer api-steer seam-discovery-and-enforcement test\n```\n\n- Review `packages/cli-core/cliutil/identity.go` — `DetectIdentity()`, `VerifyIdentity()`, `IdentityEnv`, `VerifyResult`, `VerifiedClaims`\n- Review `packages/cli-core/cliutil/identity_test.go` — Test patterns for identity detection/verification\n- Review `packages/cli-core/cliutil/httpclient.go` — `HTTPClient` struct, `DoWithContext()`, header injection points\n- Review `packages/cli-core/cliutil/apiclient.go` — `APIClient.Request()`, `AuthHeaders()`\n- Review `scenarios/swarm-manager/api/internal/execution/model.go` — `Record.StartedBy`, `CreateRequest`\n- Review `scenarios/swarm-manager/api/internal/agentactivity/types.go` — `Record.RequestedBy`, `Spec.normalized()`, context pattern\n- Review `scenarios/swarm-manager/api/internal/backlog/types.go` — `BacklogItem` struct, `SpawnedFrom` field\n- Review `scenarios/swarm-manager/api/internal/backlog/store.go` — `SaveItem()` read-modify-write pattern, field preservation\n- Review `scenarios/swarm-manager/cli/helpers.go` — `requestV1()`, `requestMultipartV1()`, `AuthHeaders()` iteration\n- Review `scenarios/swarm-manager/api/main.go` — `loggingMiddleware` global middleware pattern, `setupRoutes()`\n- Review `scenarios/swarm-manager/api/internal/testutil/helpers.go` — shared test utilities\n\n## 2. Problem Statement\n\nSwarm-manager currently has unverified free-form `started_by` / `requested_by` strings on execution records and agent activity entries. These are hardcoded to values like `\"swarm-manager\"` or `\"swarm-manager-ui\"`. When agents create or modify backlog items via the CLI, there is no way to:\n\n1. Distinguish agent-created items from human-created ones\n2. Trace which specific agent run produced a change\n3. Verify that the claimed identity is authentic\n\nThe cli-core identity consumer interface (`execute/cli-core-identity-consumer`, now completed) provides `DetectIdentity()` and `VerifyIdentity()`. This item adopts those primitives across swarm-manager's CLI, API, and UI.\n\n## 3. Scope\n\n### In Scope (acceptance_allow)\n- `scenarios/swarm-manager/api/**` — API middleware, provenance extraction, storage\n- `scenarios/swarm-manager/cli/**` — Identity detection, header injection\n- `scenarios/swarm-manager/ui/**` — Provenance display in execution cards and backlog views\n\n### Out of Scope\n- Token generation/signing (agent-manager responsibility)\n- Changes to `packages/cli-core/` (already completed)\n- Changes to `packages/proto/` (existing proto fields sufficient)\n- Changes to agent-manager\n- Backlog item access control based on identity (future work)\n\n## 4. Current Technical Context\n\n### CLI Side\n- `cli/helpers.go`: `requestV1()` delegates to `a.core.APIClient.Request()` → `HTTPClient.DoWithContext()`. No hook for extra headers.\n- `cli/helpers.go`: `requestMultipartV1()` manually constructs HTTP requests and iterates `AuthHeaders()` to set headers.\n- `cli/cmd_execution.go`: Already has `--started-by` flag (default: `\"swarm-manager\"`).\n- `cli/app.go`: `App` struct has `core *cliapp.ScenarioApp` and `globalDry bool`.\n- **Key constraint**: `HTTPClient` only sets `Authorization` and `X-Dry-Run` headers. It has no `ExtraHeaders` map or `SetExtraHeaders()` method. Identity header injection requires wrapping the transport (see Phase 1).\n\n### API Side\n- `api/internal/execution/model.go`: `Record.StartedBy` (string) and `CreateRequest.StartedBy` (string) already exist.\n- `api/internal/execution/service_queue.go`: `QueueBacklog()` defaults `StartedBy` to `\"swarm-manager\"` if empty (line 109).\n- `api/internal/agentactivity/types.go`: `Record.RequestedBy` and `Spec.RequestedBy` (string) — defaults to `\"swarm-manager\"` in `Spec.normalized()` (line 128).\n- `api/internal/backlog/types.go`: `BacklogItem` has `SpawnedFrom` but no `CreatedBy` field.\n- `api/internal/backlog/store.go`: Read-modify-write pattern in `SaveItem()` — reads existing JSON, merges known fields, preserves unknown fields.\n- `api/main.go`: Global `loggingMiddleware` shows the middleware registration pattern (`s.router.Use(loggingMiddleware)` at line 102).\n- No identity/auth middleware exists.\n\n### UI Side\n- `ui/src/components/execution/execution-card.tsx`: Displays `item.startedBy` as plain text `\"by {startedBy}\"` (line 122).\n- `ui/src/services/execution-service.ts`: `CreateExecutionRequest` already includes optional `startedBy`.\n- Reusable badge patterns: `InitiativeBadge` (pill with color), `AgentRunningBadge` (animated dot + label).\n\n### cli-core Identity API (Dependency — Completed)\n- `DetectIdentity() IdentityEnv` — reads `VROOLI_AGENT_IDENTITY_TOKEN` from env\n- `(env IdentityEnv) IsIdentityPresent() bool`\n- `(env IdentityEnv) VerifyIdentity() (*VerifyResult, error)` — calls agent-manager `POST /api/v1/identity/verify`\n- `VerifyResult{Valid, Claims *VerifiedClaims, RunStatus, Error}`\n- `VerifiedClaims{RunID, TaskID, ProfileKey, ScopePath, IssuedAt, ExpiresAt, Meta}`\n\n## 5. Target End State\n\n1. **CLI**: When `VROOLI_AGENT_IDENTITY_TOKEN` is present, the CLI automatically includes it in API requests via an `X-Agent-Identity-Token` header. No manual `--started-by` needed for agent runs.\n2. **API**: Identity middleware extracts the token from the header, verifies it via a `Verifier` interface (backed by cli-core's `VerifyIdentity()`), and injects a `Provenance` struct into the request context. Downstream handlers use provenance to populate `started_by`, `requested_by`, and `created_by` fields.\n3. **Backlog items**: `spec.json` gains an immutable `created_by` field set at creation time — structured object: `{\"type\":\"operator\"}` or `{\"type\":\"agent\",\"run_id\":\"...\",\"task_id\":\"...\",\"profile_key\":\"...\"}`. Immutability enforced at the store level.\n4. **Execution records**: `started_by` field carries structured provenance as a string (backward-compatible: `\"operator\"` or `\"agent:\u003cprofile_key\u003e/\u003crun_id\u003e\"`).\n5. **Agent activity**: `requested_by` automatically populated from context provenance when not explicitly set by handlers.\n6. **UI**: Inline provenance badges with icons visually distinguish operator vs agent attribution. Agent-created items show bot icon + profile_key, clickable to originating run.\n7. **Graceful fallback**: Missing/invalid token = `{\"type\":\"operator\"}` attribution. Requests never fail due to identity issues.\n\n## 6. Implementation Strategy\n\n### Phase 1: CLI Identity Detection \u0026 Header Injection\n\n**Files:**\n- `scenarios/swarm-manager/cli/app.go` — Call `DetectIdentity()` at startup, store on `App`\n- `scenarios/swarm-manager/cli/helpers.go` — Inject `X-Agent-Identity-Token` header via custom RoundTripper\n- `scenarios/swarm-manager/cli/identity_transport.go` (new) — `identityTransport` wrapping `http.DefaultTransport`\n\n**Approach — Custom RoundTripper (Workshop d1-r2: option A confirmed):**\n1. In `App` initialization, call `cliutil.DetectIdentity()` and store the `IdentityEnv` on the `App` struct\n2. Create `identityTransport` implementing `http.RoundTripper` that wraps the default transport and injects `X-Agent-Identity-Token` on every request when the token is present\n3. Set this transport on the `http.Client` used by `APIClient` before any requests are made\n4. This transparently covers both `requestV1()` and `requestMultipartV1()` paths\n5. When identity is present, auto-set `--started-by` default to `\"agent:\u003cprofile_key\u003e\"` instead of `\"swarm-manager\"`\n\n**Why RoundTripper**: Go-idiomatic pattern. Works transparently for all HTTP paths without modifying cli-core. The `HTTPClient` uses a standard `*http.Client` internally — wrapping its `Transport` injects headers at the transport layer.\n\n### Phase 2: API Identity Middleware\n\n**Files:**\n- `scenarios/swarm-manager/api/internal/identity/` (new package) — `middleware.go`, `provenance.go`, `middleware_test.go`\n- `scenarios/swarm-manager/api/main.go` — Register identity middleware\n\n**Approach — Interface-based Verifier (Workshop d2-r2: option A confirmed):**\n1. Define `Provenance` struct: `{Type string, RunID string, TaskID string, ProfileKey string}`\n2. Define `Verifier` interface: `Verify(token string) (*cliutil.VerifyResult, error)` — production implementation wraps cli-core's `VerifyIdentity()`, tests use a stub\n3. Create `Middleware(verifier Verifier) func(http.Handler) http.Handler` that:\n   a. Reads `X-Agent-Identity-Token` header\n   b. If absent → set `Provenance{Type: \"operator\"}` in context, continue\n   c. If present → call `verifier.Verify(token)`\n   d. On success (Valid=true) → set `Provenance{Type: \"agent\", ...claims}` in context\n   e. On failure → log warning, set `Provenance{Type: \"operator\"}` (fail open)\n4. Provide `FromContext(ctx) Provenance` helper\n5. Register as global middleware in `main.go` after `loggingMiddleware`: `s.router.Use(identity.Middleware(realVerifier))` (Workshop d3-r1: option A confirmed — global middleware, verify once per request)\n\n### Phase 3: Backlog Item Provenance\n\n**Files:**\n- `scenarios/swarm-manager/api/internal/backlog/types.go` — Add `CreatedBy` field to `BacklogItem`\n- `scenarios/swarm-manager/api/internal/backlog/store.go` — Persist and protect `created_by` in `SaveItem()`\n- `scenarios/swarm-manager/api/internal/backlog/handler_create.go` — Set `CreatedBy` from context provenance\n\n**Approach — Store-level immutability (Workshop d3-r2: option A confirmed):**\n1. Add `CreatedBy *Provenance` field to `BacklogItem` (pointer so omitempty works for existing items without the field)\n2. In `SaveItem()` read-modify-write: read existing `created_by` from disk first; if already set, preserve the existing value regardless of what the struct says — defense in depth, the invariant is impossible to violate regardless of caller\n3. In create handler, extract provenance from context via `identity.FromContext(r.Context())` and set `CreatedBy`\n4. Update handlers never need to touch `created_by` — the store protects it\n\n### Phase 4: Execution \u0026 Activity Record Provenance\n\n**Files:**\n- `scenarios/swarm-manager/api/internal/execution/service_queue.go` — Use context provenance for `StartedBy`\n- `scenarios/swarm-manager/api/internal/agentactivity/types.go` — Enhance `Spec.normalized()` to read provenance from context\n\n**Approach — Context-based propagation (Workshop d4-r2: option A confirmed):**\n1. In `QueueBacklog()`, if `req.StartedBy` is empty, check context provenance before defaulting to `\"swarm-manager\"`. If provenance is agent type, format as `\"agent:\u003cprofile_key\u003e/\u003crun_id\u003e\"`.\n2. In agent activity `Spec.normalized()`, if `RequestedBy` is empty, check context provenance. If agent type, format similarly. Otherwise keep `\"swarm-manager\"` default.\n3. Internal API callers that hardcode `RequestedBy: \"swarm-manager\"` stay unchanged — these are server-initiated, not agent-initiated.\n\n**Note on `started_by` format (Workshop d2-r1: option A confirmed):** Kept as string for backward compatibility. Convention: `\"operator\"` or `\"agent:\u003cprofile_key\u003e/\u003crun_id\u003e\"`. No proto changes needed — old records keep their existing values, UI parses the string.\n\n### Phase 5: UI Provenance Display\n\n**Files:**\n- `scenarios/swarm-manager/ui/src/components/execution/execution-card.tsx` — Replace plain text with provenance badge\n- `scenarios/swarm-manager/ui/src/components/shared/identity-badge.tsx` (new) — Reusable provenance badge component\n\n**Approach — Inline badge with icon (Workshop d4-r1: option A confirmed):**\n1. Create `IdentityBadge` component following the `InitiativeBadge` pattern:\n   - Parse `startedBy` / `createdBy` to determine operator vs agent\n   - Operator: user icon + \"operator\" label\n   - Agent: bot icon + `profile_key` label, clickable to run if `run_id` available\n2. Replace `execution-card.tsx` line 122 (`\u003cspan\u003eby {item.startedBy}\u003c/span\u003e`) with `\u003cIdentityBadge value={item.startedBy} /\u003e`\n3. For `created_by` on backlog views: if the field exists in the response, show the badge; otherwise omit (backward compatible)\n\n### Phase 6: Tests\n\n**Files:**\n- `scenarios/swarm-manager/api/internal/identity/middleware_test.go` — Middleware unit tests\n- `scenarios/swarm-manager/cli/identity_transport_test.go` — RoundTripper unit tests\n\n**Test Cases:**\n1. Middleware: no header → `Provenance{Type: \"operator\"}` in context\n2. Middleware: valid token → `Provenance{Type: \"agent\", RunID: ..., ProfileKey: ...}` in context\n3. Middleware: invalid token (Valid=false) → `Provenance{Type: \"operator\"}` + warning log\n4. Middleware: verification error (network) → `Provenance{Type: \"operator\"}` + warning log\n5. CLI transport: identity present → `X-Agent-Identity-Token` header set on outgoing requests\n6. CLI transport: identity absent → no identity header\n7. Backlog create with agent provenance → `created_by` persisted in spec.json\n8. Backlog update → `created_by` immutable (store preserves original)\n9. Execution create with provenance → `started_by` has structured agent format\n\n**Testing approach (Workshop d2-r2: option A confirmed):** Interface-based `Verifier` with stub implementation in tests. No running agent-manager or httptest server needed for unit tests. Clean testing seam that matches existing testutil patterns.\n\n## 7. Contract Decisions\n\n### HTTP Header\n- Header name: `X-Agent-Identity-Token`\n- Value: raw token string (opaque to transport layer)\n\n### Provenance JSON Shape (in spec.json `created_by`) — Workshop d1-r1: option A confirmed\n```json\n{\"type\": \"operator\"}\n// or\n{\"type\": \"agent\", \"run_id\": \"...\", \"task_id\": \"...\", \"profile_key\": \"...\"}\n```\nStructured object chosen over compact string for rich queryability and direct display without parsing.\n\n### Execution `started_by` String Format (backward compatible) — Workshop d2-r1: option A confirmed\n- Operator: `\"operator\"` or legacy value (e.g., `\"swarm-manager\"`)\n- Agent: `\"agent:\u003cprofile_key\u003e/\u003crun_id\u003e\"`\nString convention chosen to avoid proto breaking changes.\n\n### Fail-Open Behavior\n- Missing token → operator attribution, no warning\n- Invalid/expired token → operator attribution + warning log\n- Agent-manager unreachable → operator attribution + warning log\n- Never return 401/403 for identity issues\n\n## 8. Testing Plan\n\n### Unit Tests\n- Identity middleware: 4 test cases via mock `Verifier` interface\n- CLI identity transport: 2 test cases (RoundTripper injects/omits header)\n- Provenance serialization/deserialization round-trip\n- Store-level `created_by` immutability\n\n### Integration Tests\n- Full flow: CLI with identity env → API middleware → backlog creation → verify spec.json\n- Full flow: execution creation with identity → verify `started_by` format\n- Backward compatibility: old records without `created_by` load correctly\n\n## 9. Rollout/Validation Checklist\n\n- [ ] CLI builds and passes tests\n- [ ] API builds and passes tests\n- [ ] UI builds successfully\n- [ ] Existing backlog items load without errors (no `created_by` = nil)\n- [ ] New backlog items get `created_by = operator` when no identity present\n- [ ] Agent-initiated backlog items get `created_by` with agent claims\n- [ ] Execution records show structured `started_by` for new runs\n- [ ] Legacy execution records display correctly in UI\n- [ ] Agent-manager being down does not break any swarm-manager operations\n\n## 10. Risks + Mitigations\n\n| Risk | Likelihood | Impact | Mitigation |\n|------|-----------|--------|------------|\n| Agent-manager down during verification | Medium | Low | Fail open — operator attribution, warning log |\n| Backward compatibility with existing records | Medium | Medium | Nil/missing `created_by` treated as operator; legacy `started_by` strings displayed as-is |\n| HTTPClient transport wrapping breaks assumptions | Low | Medium | Unit test the RoundTripper; verify it composes with existing Authorization header |\n| Performance overhead of verification HTTP call | Low | Low | Single call per request; agent-manager is localhost; 10s timeout |\n| cli-core VerifyIdentity API changes | Low | Medium | Pin to current interface; integration tests catch drift |\n| Proto changes needed for structured provenance | Low | Medium | Avoided — string encoding for `started_by`, JSON for `created_by` in spec.json |\n\n## 11. Non-goals / Prohibited Patterns\n\n- Do NOT add authentication/authorization to swarm-manager (identity ≠ auth)\n- Do NOT parse tokens directly — always use cli-core's `VerifyIdentity()`\n- Do NOT fail requests when identity is missing or invalid\n- Do NOT modify `packages/cli-core/` or `packages/proto/`\n- Do NOT add backward-compatibility shims for old `started_by` values — display as-is\n- Do NOT add identity to internal server-initiated operations (only external CLI/API requests)\n\n## 12. Definition of Done\n\n1. CLI auto-detects identity and injects token header via custom RoundTripper\n2. API middleware verifies tokens via `Verifier` interface and sets context provenance\n3. New backlog items have immutable `created_by` in spec.json (store-enforced)\n4. New execution records have structured `started_by`\n5. Agent activity records auto-populate `requested_by` from context provenance\n6. UI shows provenance badges with operator/agent distinction\n7. All tests pass (unit + integration)\n8. Graceful degradation when agent-manager is unavailable\n9. Existing data loads and displays without errors\n\n\u003c/implementation-plan\u003e\n",
+      "prompt_revision": "sha256:ca0d8d2ac50005ce",
+      "used_fallback": false,
+      "captured_at": "2026-04-04T00:52:45Z"
+    },
+    "finalization": {
+      "eligible": true,
+      "status": "completed",
+      "phase": "completed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-04-04T01:02:23Z",
+      "completed_at": "2026-04-04T01:02:24Z",
+      "warnings": [
+        {
+          "code": "self_restart_skipped",
+          "scenario_name": "swarm-manager",
+          "message": "Scenario \"swarm-manager\" was in scope but skipped because restarting it would kill this running process. If changes to swarm-manager require a restart, restart it manually after finalization completes.",
+          "created_at": "2026-04-04T01:02:23Z"
+        }
+      ],
+      "affected_scenarios": [
+        "swarm-manager"
+      ],
+      "aggregate_classification": "needs_work",
+      "aggregate_summary": "swarm-manager restart failed; 1 warning(s)",
+      "scenarios": [
+        {
+          "scenario_name": "swarm-manager",
+          "restart": {
+            "status": "pending"
+          },
+          "health": {
+            "status": "pending",
+            "schema_valid": false
+          },
+          "review": {
+            "status": "pending"
+          }
+        }
+      ]
+    },
+    "created_at": "2026-04-04T00:52:45Z",
+    "updated_at": "2026-04-04T01:02:24Z"
+  },
+  {
+    "execution_id": "1aaf9a73490c9805",
+    "backlog_kind": "fix",
+    "backlog_name": "brand-manager-integration-status",
+    "previous_status": "backlog",
+    "task_id": "ec3a57b0-595c-47e0-a4f8-39f0f4ddf523",
+    "run_id": "f4274b82-7dcc-446b-b90c-7cca22b82993",
+    "status": "completed",
+    "mode": "yolo",
+    "started_at": "2026-04-04T01:10:13Z",
+    "finished_at": "2026-04-04T01:12:32Z",
+    "started_by": "swarm-manager-ui",
+    "operation": "generator",
+    "prompt_trace": {
+      "purpose": "process",
+      "prompt": "\u003cexecution-context\u003e\nBacklog item: fix/brand-manager-integration-status\nTitle: Fix GenerateOptions Endpoint to Report Actual Integration Availability\nItem folder: /home/matthalloran8/Vrooli/scenarios/swarm-manager/fix/brand-manager-integration-status\nRun type: process\n\u003c/execution-context\u003e\n\n\u003cimplementation-plan path=\"plan.md\"\u003e\n# Fix GenerateOptions Endpoint to Report Actual Integration Availability\n\n## Required Reading\n\n```bash\nprompt-manager skill read api-steer test\n```\n\n## 1. Purpose\n\nAlign the `GET /api/v1/brands/generate/options` endpoint with the actual provider configuration so the UI accurately reports which AI integrations (Ollama, OpenRouter) are available.\n\n## 2. Problem Statement\n\nThe `GenerateOptions` handler in `scenarios/brand-manager/api/handlers/scanner_plugin.go` (lines 304-339) hardcodes `available: false` for Ollama and OpenRouter providers. This contradicts the actual runtime configuration — the generation endpoints (`POST /api/v1/brands/{id}/generate`) correctly detect providers via `h.aiChain()` using config checks (`h.cfg.OllamaURL != \"\"`, `h.cfg.OpenRouterAPIKey != \"\"`). The options endpoint needs the same logic.\n\n**Impact:** Users see \"Not configured\" in the UI even when providers are properly set up, leading to confusion and support burden.\n\n## 3. Scope\n\n**In scope:**\n- Update `GenerateOptions` handler to check `h.cfg.OllamaURL` and `h.cfg.OpenRouterAPIKey`\n- Add async Ollama health check (GET `/api/tags`) with 2s timeout to distinguish \"configured\" from \"configured and reachable\"\n- OpenRouter uses config-presence only (no health check)\n- Table-driven tests covering all config permutations\n- No UI changes needed (frontend already handles `available: true/false` correctly)\n\n**Out of scope:**\n- Refactoring the `aiChain()` method\n- Adding new providers\n- Changing the response shape or adding new fields\n- Modifying the actual generation endpoints\n- OpenRouter key validation or health checking\n\n## 4. Current Technical Context\n\n### Key Files\n| File | Role |\n|------|------|\n| `scenarios/brand-manager/api/handlers/scanner_plugin.go` (L304-339) | `GenerateOptions` handler — hardcoded provider list |\n| `scenarios/brand-manager/api/handlers/generate.go` (L51-74) | `aiChain()` — correct config-based provider detection |\n| `scenarios/brand-manager/api/config/config.go` (L94-114) | Config fields: `OllamaURL`, `OpenRouterAPIKey` |\n| `scenarios/brand-manager/api/aigen/provider.go` (L15-28) | Provider interface with `Available(ctx)` method |\n| `scenarios/brand-manager/api/handlers/scanner_plugin_test.go` (L299+) | Existing `TestGenerateOptions` — structure-only, no availability checks |\n| `scenarios/brand-manager/ui/src/components/generate-options.tsx` | UI rendering — already handles dynamic availability |\n\n### Existing Pattern\n`aiChain()` builds a provider list by checking config strings:\n```go\nif h.cfg.OllamaURL != \"\" {\n    providers = append(providers, aigen.NewOllamaProvider(...))\n}\nif h.cfg.OpenRouterAPIKey != \"\" {\n    providers = append(providers, aigen.NewOpenRouterProvider(...))\n}\n```\n\n## 5. Target End State\n\n- `GenerateOptions` returns `available: true` for Ollama when both configured AND reachable (health check passes within 2s)\n- `GenerateOptions` returns `available: true` for OpenRouter when API key is configured (config-presence only)\n- Table-driven tests verify all permutations: both configured, only Ollama, only OpenRouter, neither, plus Ollama configured-but-unreachable\n- UI accurately reflects provider status without any frontend changes\n\n## 6. Implementation Strategy\n\n### Phase 1: Update GenerateOptions Handler\n1. In `scanner_plugin.go`, replace the hardcoded `available: false` values with dynamic checks:\n   - **OpenRouter**: `h.cfg.OpenRouterAPIKey != \"\"` — simple config-presence check\n   - **Ollama**: `h.cfg.OllamaURL != \"\"` AND passes a lightweight HTTP GET to `{OllamaURL}/api/tags` with a 2-second timeout\n2. For the Ollama health check:\n   - Create a `context.WithTimeout(ctx, 2*time.Second)` \n   - Fire an `http.Get` to `{OllamaURL}/api/tags`\n   - If status 200, `available: true`; otherwise `available: false`\n   - Run the health check in a goroutine so it doesn't block OpenRouter's config check (both providers can be evaluated concurrently)\n3. Manual Entry remains always `available: true` (no change)\n\n### Phase 2: Update Tests\n1. Add a new `TestGenerateOptions_Availability` function in `scanner_plugin_test.go` using table-driven subtests with `t.Run()`:\n   - `\"neither configured\"` — default config → both `available: false`\n   - `\"ollama only\"` — OllamaURL set, start a local httptest server to simulate Ollama → Ollama `true`, OpenRouter `false`\n   - `\"openrouter only\"` — OpenRouterAPIKey set → OpenRouter `true`, Ollama `false`\n   - `\"both configured\"` — both set, httptest for Ollama → both `true`\n   - `\"ollama configured but unreachable\"` — OllamaURL points to non-listening address → Ollama `false`, OpenRouter `false`\n2. Use `httptest.NewServer` to simulate a reachable Ollama for the health-check cases\n3. Existing `TestGenerateOptions` (structural test) remains unchanged\n\n### Phase 3: Verify\n1. `go build ./...` — compiles cleanly\n2. `go test ./... -timeout 300s` — all tests pass\n3. `gofumpt -w .` — code formatted\n\n## 7. Testing Plan\n\n| Test Case | Config | Mock Ollama | Expected Ollama | Expected OpenRouter |\n|-----------|--------|-------------|----------------|-------------------|\n| Neither configured | Default | N/A | `false` | `false` |\n| Ollama only | `OllamaURL` set | httptest 200 | `true` | `false` |\n| OpenRouter only | `OpenRouterAPIKey` set | N/A | `false` | `true` |\n| Both configured | Both set | httptest 200 | `true` | `true` |\n| Ollama unreachable | `OllamaURL` set (bad addr) | None | `false` | `false` |\n\n## 8. Risks + Mitigations\n\n| Risk | Likelihood | Mitigation |\n|------|-----------|------------|\n| Ollama health check adds up to 2s latency | Medium | Use goroutine + `context.WithTimeout` so it runs concurrently with other checks; 2s is the worst case (timeout), healthy Ollama responds in \u003c50ms |\n| Ollama cold start causes intermittent false-negatives | Low | 2s timeout accommodates typical cold start; if it times out, user can retry — the endpoint is informational |\n| httptest server in tests adds complexity | Low | Standard Go pattern; minimal setup. Each subtest can share a single httptest server |\n\n## 9. Non-goals / Prohibited Patterns\n- Do not restructure the response format\n- Do not add provider-specific error details to the options response\n- Do not modify `aiChain()` or the generation endpoints\n- Do not validate OpenRouter key format — presence is sufficient\n- Do not add background/cached health checks — direct check per request is sufficient for this S-effort fix\n\n## 10. Definition of Done\n- [ ] `GenerateOptions` returns dynamic `available` based on config presence (OpenRouter) and config + health check (Ollama)\n- [ ] Ollama health check uses 2s timeout, runs async\n- [ ] 5 table-driven test cases covering all config permutations + unreachable case pass\n- [ ] `go build ./...` and `go test ./...` succeed\n- [ ] Code formatted with `gofumpt`\n- [ ] No UI changes required (frontend already handles it)\n\n\u003c/implementation-plan\u003e\n",
+      "prompt_revision": "sha256:40c74130c152854e",
+      "used_fallback": false,
+      "captured_at": "2026-04-04T01:10:13Z"
+    },
+    "finalization": {
+      "eligible": true,
+      "status": "completed",
+      "phase": "completed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-04-04T01:11:45Z",
+      "completed_at": "2026-04-04T01:12:32Z",
+      "affected_scenarios": [
+        "brand-manager"
+      ],
+      "aggregate_classification": "ready_with_notes",
+      "aggregate_summary": "brand-manager ready with notes",
+      "scenarios": [
+        {
+          "scenario_name": "brand-manager",
+          "restart": {
+            "status": "completed",
+            "attempts": 1,
+            "started_at": "2026-04-04T01:11:45Z",
+            "finished_at": "2026-04-04T01:11:55Z"
+          },
+          "health": {
+            "status": "completed",
+            "scenario_status": "running",
+            "health_status": "healthy",
+            "schema_valid": true,
+            "details": "scenario is healthy",
+            "checked_at": "2026-04-04T01:11:57Z"
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "d0dc10ac-5e8e-4564-9616-1c7518e510e1",
+            "result": {
+              "job_id": "d0dc10ac-5e8e-4564-9616-1c7518e510e1",
+              "classification": "ready_with_notes",
+              "dimensions": [
+                {
+                  "name": "codeQuality",
+                  "status": "red",
+                  "details": "0.0 score, 86 violations"
+                },
+                {
+                  "name": "tests",
+                  "status": "yellow",
+                  "details": "8/11 passed"
+                },
+                {
+                  "name": "standards",
+                  "status": "green"
+                },
+                {
+                  "name": "visual",
+                  "status": "red"
+                },
+                {
+                  "name": "provenance",
+                  "status": "green"
+                }
+              ],
+              "raw_dimensions": {
+                "codeQuality": {
+                  "available": true,
+                  "score": 0,
+                  "violations": 86,
+                  "stale": false
+                },
+                "tests": {
+                  "available": true,
+                  "passed": false,
+                  "total": 11,
+                  "passedCount": 8,
+                  "failedCount": 3,
+                  "lastRun": "2026-04-04T01:12:30.174857569Z"
+                },
+                "standards": {
+                  "available": true,
+                  "blockingViolations": 0,
+                  "warnings": 0,
+                  "totalViolations": 0
+                },
+                "visual": {
+                  "available": true,
+                  "screenshotCount": 0,
+                  "stale": false
+                },
+                "provenance": {
+                  "available": true,
+                  "tracedFiles": 1
+                }
+              },
+              "summary": "Scenario brand-manager readiness: yellow",
+              "reviewed_at": "2026-04-04T01:12:32Z"
+            }
+          }
+        }
+      ]
+    },
+    "created_at": "2026-04-04T01:10:13Z",
+    "updated_at": "2026-04-04T01:12:32Z"
+  },
+  {
+    "execution_id": "c48cc0412f087cbf",
+    "backlog_kind": "execute",
+    "backlog_name": "add-detail-pages-for-captures-in-swarm-manager",
+    "previous_status": "backlog",
+    "task_id": "1d31c2c5-da87-4bf6-bdc2-4ec4a202b066",
+    "run_id": "2f45d3d8-9201-4577-88ce-1c538c7c37c4",
+    "status": "completed",
+    "mode": "yolo",
+    "started_at": "2026-04-04T01:12:26Z",
+    "finished_at": "2026-04-04T01:18:37Z",
+    "started_by": "swarm-manager-ui",
+    "operation": "generator",
+    "prompt_trace": {
+      "purpose": "process",
+      "prompt": "\u003cexecution-context\u003e\nBacklog item: execute/add-detail-pages-for-captures-in-swarm-manager\nTitle: Add detail pages for captures in swarm-manager\nItem folder: /home/matthalloran8/Vrooli/scenarios/swarm-manager/execute/add-detail-pages-for-captures-in-swarm-manager\nRun type: process\n\u003c/execution-context\u003e\n\n\u003cimplementation-plan path=\"plan.md\"\u003e\n# Implementation Plan: Add Detail Pages for Captures in Swarm-Manager\n\n## 1. Purpose\n\nAdd full detail/view pages for captures in the swarm-manager UI, consistent with existing detail pages for backlog items, scenarios, executions, and initiatives. Users should be able to click a capture to view its full information in a dedicated overlay page.\n\n## Required Reading\n\n```bash\nprompt-manager skill read react-coherence ux implementation-plan-authoring\n```\n\n**Key files to read before implementing:**\n- `scenarios/swarm-manager/ui/src/pages/BacklogDetailsPage.tsx` — reference detail page pattern\n- `scenarios/swarm-manager/ui/src/components/detail/DetailPageLayout.tsx` — shared layout wrapper\n- `scenarios/swarm-manager/ui/src/components/detail/DetailPageHeader.tsx` — shared header\n- `scenarios/swarm-manager/ui/src/stores/detail-selection-store.ts` — detail selection state\n- `scenarios/swarm-manager/ui/src/hooks/useDetailUrlSync.ts` — URL ↔ store sync\n- `scenarios/swarm-manager/ui/src/surfaces/graph/components/GraphWorkspace.tsx` — overlay rendering (lines ~414-424)\n- `scenarios/swarm-manager/ui/src/components/capture/capture-card.tsx` — existing capture display + triage actions\n- `scenarios/swarm-manager/ui/src/surfaces/graph/components/sidebar/CapturesTab.tsx` — capture list in sidebar\n- `scenarios/swarm-manager/ui/src/services/capture-service.ts` — capture API service layer\n- `scenarios/swarm-manager/ui/src/stores/capture-store.ts` — capture list state + persistence\n\n## 2. Problem Statement\n\nCaptures in the swarm-manager UI are displayed only in the sidebar CapturesTab via inline CaptureCard components. Unlike backlog items, scenarios, executions, and initiatives, captures:\n- Are not clickable to open a detail view\n- Have no dedicated full-page overlay\n- Cannot be deep-linked via URL parameters\n- Have no entry in the detail-selection-store\n\nThis makes it difficult to inspect full capture details, view attachments at full size, review classification results, and share links to specific captures.\n\n## 3. Scope\n\n### In scope\n- New `CaptureDetailsPage` component following existing detail page patterns\n- Extend `detail-selection-store` to support `entityType: \"capture\"`\n- Extend `useDetailUrlSync` to handle capture URL params (`detail=capture\u0026id=...`)\n- Extend `GraphWorkspace` overlay rendering for capture detail pages\n- Make captures clickable in CapturesTab sidebar\n- Display: raw text, attachments (full-size with lightbox), classification results, timestamps, status\n- Triage actions on the detail page via shared CaptureTriage component\n- Extract shared triage component from CaptureCard for reuse\n- Custom lightbox modal for full-resolution attachment viewing\n\n### Out of scope\n- Capture editing (captures are raw input, not meant to be edited after creation)\n- Adding captures as graph nodes\n- Capture search/filtering on the detail page\n- New API endpoints (existing `GET /api/v1/captures/{id}` is sufficient)\n- Third-party lightbox libraries\n\n### acceptance_allow\n```\nscenarios/swarm-manager/ui/**\n```\n\n## 4. Current Technical Context\n\n### Existing detail page architecture\nAll detail pages follow the same pattern:\n1. `detail-selection-store` (Zustand) holds `detailSelection: { entityType, ...identifiers, tab }`\n2. `useDetailUrlSync` syncs store ↔ URL query params bidirectionally\n3. `GraphWorkspace` renders the appropriate page as an absolute overlay (z-40)\n4. Pages use `DetailPageLayout` + `DetailPageHeader` shared components\n5. Pages are lazy-loaded via `React.lazy`\n\n### Detail selection store structure\n```typescript\ntype DetailEntityType = \"backlog\" | \"scenario\" | \"execution\" | \"initiative\" | \"capture\";\n\ninterface DetailSelection {\n  entityType: DetailEntityType;\n  kind?: string;        // Backlog kind\n  name?: string;        // Entity name\n  identifier?: string;  // Execution ID or Capture ID\n  tab?: string;         // Active tab\n}\n```\n\n### selectionToNodeId behavior\n`selectionToNodeId()` returns the graph node ID for highlighting. Since captures are NOT graph nodes, the existing `default: return null` case handles this correctly — no code change needed (settled R2-d2=A).\n\n### Capture data model\n```typescript\ninterface Capture {\n  id: string;\n  text: string;\n  attachments: string[];\n  created: string;\n  status: \"classifying\" | \"classified\" | \"failed\";\n  classification: CaptureClassification | null;\n}\n```\n\n### Existing API (confirmed working)\n- `GET /api/v1/captures/{id}` — returns full capture data\n- `DELETE /api/v1/captures/{id}` — delete capture\n- `POST /api/v1/captures/{id}/classify` — retry classification\n- `POST /api/v1/captures/{id}/create-item` — accept classification → create backlog item\n\n### Capture service layer\n`captureService` (in `capture-service.ts`) already provides:\n- `list()`, `get(id)`, `create()`, `remove(id)`, `classify(id)`\n- `get(id)` returns a fully mapped `Capture` object — ready for detail page use\n\n## 5. Target End State\n\n- Clicking any capture in the sidebar opens `CaptureDetailsPage` as a full overlay\n- URL updates to `/graph?detail=capture\u0026id={captureId}` for deep-linking\n- Detail page shows: full text, full-size attachment gallery with custom lightbox, classification results with triage actions, metadata (created date, status)\n- Back/close returns to graph with sidebar state preserved\n- Mobile-responsive layout following existing detail page patterns\n- Shared `CaptureTriage` component used by both CaptureCard and CaptureDetailsPage\n- Custom lightbox modal (dark backdrop + centered image + close button) for full-resolution attachment viewing, consistent with existing overlay patterns\n\n## 6. Implementation Strategy\n\n### Phase 1: Store \u0026 Routing Infrastructure\n1. **Extend `DetailEntityType`** in `detail-selection-store.ts`:\n   - Add `\"capture\"` to the union type\n   - Add `selectCapture(captureId: string)` action that sets `{ entityType: \"capture\", identifier: captureId }`\n   - Reuse `identifier` field (same as executions) for capture ID\n   - `selectionToNodeId` needs no changes — default case returns null (R2-d2=A)\n2. **Extend `useDetailUrlSync`**:\n   - Add case for `detail=capture` reading `id` param → hydrate as `{ entityType: \"capture\", identifier: id }`\n   - Add serialization case for capture → `detail=capture\u0026id={identifier}`\n3. **Add lazy import** for `CaptureDetailsPage` in `GraphWorkspace.tsx`\n4. **Add render case** in the overlay block: `{detailSelection.entityType === \"capture\" \u0026\u0026 \u003cCaptureDetailsPage /\u003e}`\n\n### Phase 2: Shared Triage Component Extraction\n1. **Create `CaptureTriage.tsx`** in `components/capture/`:\n   - Extract suggestion list rendering + per-item accept/edit/dismiss from CaptureCard (R2-d4=A)\n   - Include \"Accept all\" batch action\n   - Props: `capture: Capture`, `onEditItem`, `onCaptureUpdate` callbacks\n   - Parent components handle delete/retry/dismiss-capture (context-specific)\n2. **Refactor `CaptureCard`** to use `CaptureTriage` internally\n3. Verify CaptureCard behavior is unchanged after extraction\n\n### Phase 3: Detail Page Component\n1. **Create `CaptureDetailsPage.tsx`** in `pages/`:\n   - **Data fetching**: Read capture from store first (instant for sidebar click-through), fall back to `captureService.get(id)` via useQuery for deep-links (R2-d3=A)\n   - Use `DetailPageLayout` + `DetailPageHeader` with entity type \"Capture\"\n   - **Layout** — single scrollable page with stacked sections (R1-d1=A):\n     - **Capture text** — full raw text display\n     - **Attachments** — full-width inline images with click-to-lightbox (R1-d2=A)\n     - **Classification** — `CaptureTriage` component (R1-d3=A, R2-d4=A)\n     - **Status** — classifying spinner, failed state with retry, no-op state\n     - **Metadata** — created timestamp, capture ID\n   - Header actions: delete capture, retry classification (if failed)\n\n### Phase 4: Click-Through Navigation\n1. **Make CaptureCard clickable** in CapturesTab:\n   - Card background click → `selectCapture(capture.id)` (R1-d4=A)\n   - Triage buttons use `event.stopPropagation()` to prevent navigation\n   - Add `cursor-pointer` and hover state to card\n2. Wire up CapturesTab's `onItemClick` or add direct store access\n\n### Phase 5: Lightbox \u0026 Polish\n1. **Custom lightbox modal** (R2-d1=A):\n   - Dark backdrop overlay (consistent with existing z-40+ overlay patterns)\n   - Centered full-resolution image\n   - Close button + click-outside-to-close + Escape key\n   - No third-party dependencies — use existing Dialog/overlay patterns from the codebase\n2. Mobile-responsive layout for the detail page\n3. Test deep-linking: direct URL navigation to capture detail\n4. Ensure virtual keyboard doesn't break layout\n\n## 7. Contract Decisions\n\n### Settled (Round 1)\n| ID | Decision | Choice |\n|----|----------|--------|\n| R1-d1 | Detail page content layout | Single scrollable page with stacked sections |\n| R1-d2 | Attachment viewing experience | Inline full-width images with click-to-lightbox |\n| R1-d3 | Classification triage actions | Extract shared triage component from CaptureCard |\n| R1-d4 | Click target for opening detail | Card background click; triage buttons use stopPropagation |\n\n### Settled (Round 2)\n| ID | Decision | Choice |\n|----|----------|--------|\n| R2-d1 | Lightbox implementation | Custom modal overlay using existing Dialog/overlay patterns (no library) |\n| R2-d2 | selectionToNodeId for captures | Return null via existing default case; no code change needed |\n| R2-d3 | Data fetching strategy | Store-first with captureService.get(id) fallback for deep-links |\n| R2-d4 | Shared triage extraction scope | Single CaptureTriage component (suggestion list + per-item actions + accept all) |\n\n## 8. Testing Plan\n\n### Unit Tests\n- `detail-selection-store`: test `selectCapture()`, verify `selectionToNodeId` returns null for captures\n- `useDetailUrlSync`: test bidirectional sync with `detail=capture\u0026id=...` params\n- `CaptureTriage`: test accept/edit/dismiss per item, \"accept all\", auto-dismiss behavior\n- `CaptureDetailsPage`: test rendering for all 3 capture statuses (classifying, classified, failed)\n- Lightbox: test open/close, Escape key, click-outside-to-close\n\n### Integration Tests\n- Click CaptureCard in sidebar → detail page opens with correct capture\n- Deep-link to `/graph?detail=capture\u0026id=X` → detail page renders\n- Triage action on detail page → capture store updates, UI reflects change\n- Close detail page → returns to graph, sidebar preserved\n\n### Regression Tests\n- Existing detail pages (backlog, scenario, execution, initiative) still work\n- CaptureCard inline triage still works after CaptureTriage extraction\n- CaptureCard triage buttons don't trigger navigation (stopPropagation)\n\n## 9. Rollout/Validation Checklist\n\n- [ ] CaptureDetailsPage renders for all capture statuses (classifying, classified, failed)\n- [ ] URL updates correctly when opening/closing capture detail\n- [ ] Deep-link to capture detail works on fresh page load\n- [ ] Triage actions (accept, edit, dismiss, delete, retry) work from detail page\n- [ ] Attachments display at full size with custom lightbox modal\n- [ ] Mobile layout is usable\n- [ ] CaptureCard still works identically after triage extraction\n- [ ] Existing detail pages (backlog, scenario, execution, initiative) are unaffected\n- [ ] Shared CaptureTriage component renders correctly in both CaptureCard and detail page contexts\n- [ ] Lightbox opens/closes correctly (click, Escape, click-outside)\n\n## 10. Risks + Mitigations\n\n| Risk | Likelihood | Impact | Mitigation |\n|------|-----------|--------|------------|\n| CaptureCard click conflicts with inline triage buttons | Medium | Medium | Use event.stopPropagation on triage buttons; click on card background opens detail |\n| CaptureTriage extraction breaks CaptureCard behavior | Medium | Medium | Extract carefully; run existing tests after refactor; verify identical behavior |\n| Capture polling disrupts detail page | Low | Low | Detail page reads from capture store, which is already updated by polling |\n| Deep-link to deleted capture | Low | Low | Show \"Capture not found\" state, offer return to graph |\n| Identifier field overload (used for both execution ID and capture ID) | Low | Low | EntityType discriminates usage; selectionToNodeId already handles unknown types gracefully |\n| Store-first fetch returns stale data after external mutation | Low | Low | Store is refreshed by polling; deep-link path fetches fresh from API |\n\n## 11. Non-goals / Prohibited Patterns\n\n- Do NOT add captures as graph nodes (separate concern, not in scope)\n- Do NOT create new API endpoints — use existing capture API\n- Do NOT duplicate triage logic — use shared CaptureTriage component\n- Do NOT add capture editing capability\n- Do NOT add new npm dependencies for lightbox — use custom modal with existing patterns\n- Do NOT modify selectionToNodeId — the default null return handles captures correctly\n\n## 12. Definition of Done\n\n- CaptureDetailsPage exists and renders for all capture statuses\n- Captures are clickable in sidebar, opening the detail page\n- URL-based deep-linking works for captures\n- Triage actions work from detail page via shared CaptureTriage component\n- Attachments shown full-size with custom lightbox modal\n- Mobile-responsive\n- CaptureCard still works identically (no regression from triage extraction)\n- No regressions to existing detail pages\n\n## 13. Phased Delivery Summary\n\n| Phase | What | Key Files |\n|-------|------|-----------|\n| 1 | Store + routing | detail-selection-store.ts, useDetailUrlSync.ts, GraphWorkspace.tsx |\n| 2 | Triage extraction | capture-card.tsx → CaptureTriage.tsx (new) |\n| 3 | Detail page | CaptureDetailsPage.tsx (new) |\n| 4 | Click-through | CapturesTab.tsx, capture-card.tsx |\n| 5 | Lightbox + polish | CaptureDetailsPage.tsx, lightbox component |\n\n\u003c/implementation-plan\u003e\n",
+      "prompt_revision": "sha256:d7e87073d33f2396",
+      "used_fallback": false,
+      "captured_at": "2026-04-04T01:12:26Z"
+    },
+    "finalization": {
+      "eligible": true,
+      "status": "skipped",
+      "phase": "skipped",
+      "scope_source": "acceptance_allow",
+      "skip_reason": "no affected scenarios could be resolved from sandbox diff or acceptance_allow",
+      "started_at": "2026-04-04T01:18:37Z",
+      "completed_at": "2026-04-04T01:18:37Z",
+      "aggregate_classification": "skipped",
+      "aggregate_summary": "no affected scenarios could be resolved from sandbox diff or acceptance_allow"
+    },
+    "created_at": "2026-04-04T01:12:26Z",
+    "updated_at": "2026-04-04T01:18:37Z"
+  },
+  {
+    "execution_id": "17cd191860389862",
+    "backlog_kind": "execute",
+    "backlog_name": "deployment-manager-approval-gate-surfaces",
+    "previous_status": "completed",
+    "task_id": "ad0f4448-6249-4ac1-a085-f9775ab90c1e",
+    "run_id": "3428afde-aaaa-4e88-810d-ad3cab4338c9",
+    "status": "completed",
+    "mode": "yolo",
+    "started_at": "2026-04-04T01:34:34Z",
+    "finished_at": "2026-04-04T01:42:16Z",
+    "started_by": "swarm-manager:follow-up",
+    "operation": "followup",
+    "prompt_trace": {
+      "purpose": "followup",
+      "prompt": "\u003cexecution-context\u003e\nBacklog item: execute/deployment-manager-approval-gate-surfaces\nTitle: Expose Approval Gate Controls In Deployment Manager\nItem folder: /home/matthalloran8/Vrooli/scenarios/swarm-manager/execute/deployment-manager-approval-gate-surfaces\nRun type: followup\n\u003c/execution-context\u003e\n\n\u003creview-feedback\u003e\ndeployment-manager ready with notes\n- deployment-manager review summary: Scenario deployment-manager readiness: yellow\n- deployment-manager codeQuality (red): 0.0 score, 25 violations\n- deployment-manager tests (yellow): 5/11 passed\n- deployment-manager standards (yellow): 48 warnings\n- deployment-manager visual (red)\n\u003c/review-feedback\u003e\n\n\u003cfollow-up-context\u003e\nFix any preexisting lint, type, unit test issues 🙏. Make sure scenario is healthy\n\u003c/follow-up-context\u003e\n\n\u003cimplementation-plan path=\"plan.md\"\u003e\n# Implementation Plan: Expose Approval Gate Controls in Deployment Manager\n\n## 1. Purpose\n\nSurface the existing deployment-manager approval-gating backend (7 API endpoints, full DB schema, orchestrator integration) through operator-facing CLI commands and UI pages. This closes the gap where approval state is only accessible via raw API calls.\n\n## 2. Required Reading\n\n```bash\nprompt-manager skill read cli-steer api-steer implementation-plan-authoring seam-discovery-and-enforcement react-coherence\n```\n\n**Research dependency:** `research/desktop-release-control-plane-audit` (completed) — provides the system contract and dependency map. Key findings:\n- deployment-manager owns canonical approval state (Finding 1)\n- Release gate check is `GET /profiles/{id}/release-gate?commit={hash}` (Finding 1)\n- 7 approval API endpoints already exist and are fully implemented (Finding 2)\n- CLI and UI have zero approval coverage currently\n- deployment-manager never talks to LPBS directly; flow is deployment-manager → scenario-to-desktop → LPBS (Finding 3)\n\n## 3. Problem Statement\n\nThe approval-gating backend is production-ready at the API level:\n- `deployment_approvals` and `profile_required_platforms` tables with indexes\n- 7 REST endpoints: create, list, get, decide, release-gate check, set/get required platforms\n- Orchestrator integration that blocks deployment when gate is not satisfied (HTTP 412)\n\nHowever, operators cannot use this system without crafting raw HTTP requests. There are:\n- **No CLI commands** for any approval operation\n- **No UI pages or components** for viewing/managing approvals\n- **No TypeScript types** in the UI api client for approval data\n\n## 4. Scope\n\n**In scope:**\n- New `approvals` CLI command group with subcommands mirroring all 7 API endpoints\n- New Approvals UI page for listing, filtering, and deciding approvals (standalone `/approvals` route)\n- Gate status badge integrated into ProfileDetail page (defaulting to latest deployment commit)\n- Required platforms configuration as a checkbox Card section on ProfileDetail\n- TypeScript types and API client functions for all approval endpoints\n- Automated tests for CLI subcommands and UI components\n\n**Out of scope:**\n- Modifying the existing API endpoints or database schema\n- Approval-to-deploy automation (separate backlog item: Action 5 from research)\n- Webhook/event notifications (separate backlog item: Action 4 from research)\n- Rollback API (separate backlog item: Action 3 from research)\n- Visual validation integration (existing separate workflow)\n- Real-time polling or WebSocket updates (use React Query defaults + manual refresh)\n\n## 5. Current Technical Context\n\n### Backend (complete, no changes needed)\n- **Schema:** `initialization/postgres/schema.sql:51-71` — `deployment_approvals`, `profile_required_platforms`\n- **Migration:** `api/migrations/003_add_deployment_approvals.sql`\n- **Types:** `api/deployments/approvals_types.go` — `DeploymentApproval`, `ReleaseGateStatus`, `PlatformGateStatus`, etc.\n- **Handler:** `api/deployments/approvals_handler.go` — 7 handler methods\n- **Repository:** `api/deployments/approvals_repository.go` — full CRUD + gate check\n- **Routes:** `api/server/routes.go:70-79` — all 7 endpoints registered (conditional on `ApprovalsHandler != nil`)\n- **Orchestrator:** `api/deployments/orchestrator.go:165-192` — gate check blocks deploys (HTTP 412)\n\n### CLI (no approval coverage)\n- Uses cli-core pattern with domain-specific command packages\n- Existing groups: overview, profiles, swaps, deployments, secrets, signing, validations, config, bundles\n- Pattern: each group is a package under `cli/` with `commands.go`, `Commands` struct, `New(api *cliutil.APIClient)` constructor, `Run(args []string) error` dispatcher\n- Flag parsing: `flag.NewFlagSet` + `cliutil.ParseInterspersed(fs, args)`\n- Format system: global `cmdutil.SetGlobalFormat`/`ResolveFormat` with `--json` consumed in `app.go`; default output is human-readable\n- Output: `cmdutil.PrintByFormat(format, body)` dispatches to JSON or plain text\n\n### UI (no approval coverage)\n- React + Vite, uses `@vrooli/api-base` for URL resolution\n- `ui/src/lib/api.ts` — typed fetch wrapper with `apiFetch\u003cT\u003e()` helper\n- Existing pages: Dashboard, Profiles, ProfileDetail, Deployments, Validation, Analyze, BundleTelemetry\n- Routing: `ui/src/App.tsx` with `react-router-dom` `\u003cRoutes\u003e` / `\u003cRoute\u003e`\n- Navigation: `ui/src/components/Layout.tsx` `navItems` array (path, label, icon from lucide-react)\n- State: React Query (`useQuery`/`useMutation`) for server state; local `useState` for UI state\n- Components: shadcn UI (Card, Button, Badge, etc.)\n- Tests: Vitest + React Testing Library, `vi.mock('../lib/api')`, `createWrapper()` with QueryClient + BrowserRouter\n\n### API Types (for reference in CLI/UI implementation)\n\n```go\n// Request types\nCreateApprovalRequest { GitCommitHash, Platform, ValidationID? }\nApprovalDecisionRequest { Decision (\"approved\"|\"rejected\"), Reviewer, Notes? }\nSetRequiredPlatformsRequest { Platforms []string }\n\n// Response types\nDeploymentApproval { ID, ProfileID, GitCommitHash, Platform, Status, ApprovedBy?, ApprovedAt?, Notes?, ValidationID?, CreatedAt, UpdatedAt }\nReleaseGateStatus { ProfileID, GitCommitHash, Ready bool, Platforms []PlatformGateStatus }\nPlatformGateStatus { Platform, Required bool, Status (\"pending\"|\"approved\"|\"rejected\"|\"stale\"|\"missing\") }\n```\n\n## 6. Target End State\n\nAfter implementation:\n1. `deployment-manager approvals list \u003cprofile-id\u003e` — shows approval history\n2. `deployment-manager approvals get \u003cid\u003e` — shows single approval detail\n3. `deployment-manager approvals create \u003cprofile-id\u003e --commit \u003chash\u003e --platform \u003cplat\u003e` — creates pending approval\n4. `deployment-manager approvals decide \u003cid\u003e --decision approved --reviewer \u003cname\u003e` — approves/rejects\n5. `deployment-manager approvals gate \u003cprofile-id\u003e --commit \u003chash\u003e` — checks release gate (operational output: Status → Triage → Next Steps)\n6. `deployment-manager approvals platforms set \u003cprofile-id\u003e --platforms win,mac,linux` — configures required platforms\n7. `deployment-manager approvals platforms get \u003cprofile-id\u003e` — shows required platforms\n8. UI ProfileDetail page shows release gate status badge (defaults to latest deployment commit, with commit selector) and required platforms config (checkbox Card section)\n9. New `/approvals` UI page for listing, filtering, and deciding approvals (inline quick-action buttons + detail view with validation link)\n10. All approval TypeScript types and API client functions defined\n11. Navigation sidebar includes Approvals link\n\n## 7. Implementation Strategy\n\n### Phase 1: CLI — `approvals` command group\n- Create `cli/approvals/` package following the validations pattern\n- Register as new CommandGroup in `app.go`\n- Wire `App.approvals` field with `approvals.New(core.APIClient)`\n- Implement subcommand routing in `commands.go` with nested `platforms` sub-dispatch\n\n**Commands:**\n| Subcommand | API Endpoint | Key Flags | Output Contract |\n|------------|-------------|-----------|-----------------|\n| `list \u003cprofile-id\u003e` | `GET /profiles/{id}/approvals` | `--commit` (optional filter) | Data retrieval |\n| `get \u003cid\u003e` | `GET /approvals/{id}` | — | Data retrieval |\n| `create \u003cprofile-id\u003e` | `POST /profiles/{id}/approvals` | `--commit`, `--platform`, `--validation-id` | Mutation |\n| `decide \u003cid\u003e` | `POST /approvals/{id}/decide` | `--decision`, `--reviewer`, `--notes` | Mutation |\n| `gate \u003cprofile-id\u003e` | `GET /profiles/{id}/release-gate` | `--commit` | Operational (Status → Triage → Next Steps) |\n| `platforms set \u003cprofile-id\u003e` | `PUT /profiles/{id}/required-platforms` | `--platforms` (CSV) | Mutation |\n| `platforms get \u003cprofile-id\u003e` | `GET /profiles/{id}/required-platforms` | — | Data retrieval |\n\n### Phase 2: CLI tests\n- Unit tests for all 7 subcommands using `httptest.NewServer` mocking\n- Test flag parsing, output format (human default + `--json`), error handling\n- Follow table-driven pattern from `cli/deployments/commands_test.go`\n\n### Phase 3: UI — TypeScript types + API client\n- Add approval types to `ui/src/lib/api.ts` matching Go types\n- Add API client functions for all 7 endpoints:\n  - `listApprovals(profileId, commit?)`, `getApproval(id)`, `createApproval(profileId, req)`, `decideApproval(id, req)`\n  - `checkReleaseGate(profileId, commit)`, `setRequiredPlatforms(profileId, platforms)`, `getRequiredPlatforms(profileId)`\n\n### Phase 4: UI — ProfileDetail integration\n- Gate status badge Card section: queries release gate for latest deployment commit, shows Ready/Blocked with per-platform status\n- Commit selector dropdown to check other commits\n- Required platforms checkbox Card section (collapsible): three checkboxes (Windows, macOS, Linux) with Save button\n\n### Phase 5: UI — Standalone Approvals page\n- Route: `/approvals`\n- Sidebar nav item with appropriate lucide-react icon\n- Approval list table with filtering (by profile, commit, status)\n- Inline approve/reject quick-action buttons in table rows\n- Detail view on row click: notes field, reviewer attribution, validation link (if validation_id set)\n- React Query for data fetching (defaults: refetch on focus/mount) + manual Refresh button\n\n### Phase 6: UI tests\n- Component tests for Approvals page (list rendering, filter interaction, approve/reject actions)\n- Component tests for ProfileDetail gate badge and required platforms config\n- Follow Vitest + React Testing Library pattern from `ui/src/pages/Profiles.test.tsx`\n\n## 8. Contract Decisions (Settled)\n\n- **CLI output:** Human-friendly default output. Gate check uses operational contract (Status → Triage → Next Steps). List/get use data-retrieval contract. Create/decide use mutation contract.\n- **CLI subcommand routing:** Single `approvals` top-level command with nested `platforms` sub-dispatch for set/get.\n- **UI page structure:** Standalone `/approvals` page + gate status badge and required-platforms config integrated into ProfileDetail.\n- **UI approval decide UX:** Inline quick-action buttons in list table + detail view with notes, reviewer attribution, and validation link.\n- **UI data freshness:** React Query defaults (refetch on focus/mount) + manual refresh button. No polling.\n- **No new API endpoints needed** — everything uses the existing 7 endpoints.\n\n## 9. Testing Plan\n\n### CLI automated tests (Phase 2)\n- **Per-subcommand tests** using `httptest.NewServer`:\n  - `list`: verify query param forwarding (`?commit=`), output includes approval summary table\n  - `get`: verify path param, output includes all approval fields\n  - `create`: verify POST body marshaling, required flags validation\n  - `decide`: verify decision and reviewer flags, error on missing required flags\n  - `gate`: verify operational output format (status, triage, next steps), both ready and blocked states\n  - `platforms set`: verify CSV parsing and PUT body, error on empty platforms\n  - `platforms get`: verify output lists platform names\n- **Format tests**: verify `--json` produces valid JSON for each subcommand\n- **Error tests**: verify HTTP error responses produce user-friendly messages\n\n### UI automated tests (Phase 6)\n- **Approvals page:**\n  - Renders approval list with mock data\n  - Filter by status works\n  - Approve/reject inline buttons trigger correct API calls\n  - Error state renders error message\n  - Empty state renders helpful message\n- **ProfileDetail gate badge:**\n  - Renders \"Ready\" badge when all platforms approved\n  - Renders \"Blocked\" badge with platform breakdown when not ready\n  - Commit selector triggers new gate check\n- **Required platforms config:**\n  - Renders checkboxes matching current required platforms\n  - Save button calls setRequiredPlatforms with correct array\n  - Success feedback on save\n\n## 10. Rollout / Validation Checklist\n\n- [ ] CLI builds without errors: `cd cli \u0026\u0026 go build ./...`\n- [ ] CLI tests pass: `cd cli \u0026\u0026 go test ./... -timeout 300s`\n- [ ] UI builds without errors: `cd ui \u0026\u0026 npm run build`\n- [ ] UI tests pass: `cd ui \u0026\u0026 npm test`\n- [ ] All 7 approval operations work via CLI (human-readable and --json output)\n- [ ] Gate check shows operational output with triage and next steps\n- [ ] ProfileDetail shows gate status badge defaulting to latest deployment commit\n- [ ] ProfileDetail shows required platforms config with checkboxes\n- [ ] Approvals page lists and filters approvals\n- [ ] Approval decide action works from both inline buttons and detail view\n- [ ] Sidebar navigation includes Approvals link\n\n## 11. Risks + Mitigations\n\n| Risk | Likelihood | Impact | Mitigation |\n|------|-----------|--------|------------|\n| API endpoint behavior differs from handler code reading | Low | Medium | CLI integration tests against mock server verify request/response shapes |\n| UI build time (5-10 min) slows iteration | Medium | Low | Test components in isolation first; use `npm test` for fast feedback |\n| Existing CLI tests break from new command group | Low | Low | New group is additive; run full test suite before merging |\n| ProfileDetail gate badge depends on deployment history for default commit | Low | Medium | Graceful fallback: show \"No deployments yet\" with commit input field if no deployment history |\n| Multiple operators deciding same approval concurrently | Low | Medium | API handles this (last write wins with status update); UI refetches on mutation success |\n\n## 12. Non-goals / Prohibited Patterns\n\n- Do NOT modify existing API endpoints or database schema\n- Do NOT implement business logic in CLI (thin wrapper only)\n- Do NOT add approval-to-deploy automation (separate backlog item)\n- Do NOT bypass cli-core patterns (use ScenarioApp, APIClient, ParseInterspersed)\n- Do NOT add bash scripts for CLI functionality\n- Do NOT introduce polling/WebSocket for the approvals page (use React Query defaults)\n- Do NOT add a new state management pattern — use React Query for server state, useState for local UI state\n\n## 13. Definition of Done\n\n1. All 7 approval API endpoints have corresponding CLI commands with human-friendly default output\n2. All CLI commands support `--json` flag for machine-readable output\n3. CLI automated tests cover all 7 subcommands (flag parsing, output format, error handling)\n4. UI has TypeScript types for all approval models\n5. UI has API client functions for all approval endpoints\n6. ProfileDetail page displays release gate status badge (with commit selector) and required platforms config (checkboxes)\n7. Standalone Approvals page allows listing, filtering, and deciding approvals (inline + detail view)\n8. Sidebar navigation includes Approvals link\n9. UI automated tests cover Approvals page and ProfileDetail approval integration\n10. `go build ./...` and `go test ./...` pass in `cli/`\n11. `npm run build` and `npm test` pass in `ui/`\n\n\u003c/implementation-plan\u003e\n",
+      "prompt_revision": "sha256:001787f13223f2cf",
+      "used_fallback": false,
+      "captured_at": "2026-04-04T01:34:34Z"
+    },
+    "parent_execution_id": "1be8117714012168",
+    "finalization": {
+      "eligible": true,
+      "status": "completed",
+      "phase": "completed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-04-04T01:41:15Z",
+      "completed_at": "2026-04-04T01:42:16Z",
+      "affected_scenarios": [
+        "deployment-manager"
+      ],
+      "aggregate_classification": "ready_with_notes",
+      "aggregate_summary": "deployment-manager ready with notes",
+      "scenarios": [
+        {
+          "scenario_name": "deployment-manager",
+          "restart": {
+            "status": "completed",
+            "attempts": 1,
+            "started_at": "2026-04-04T01:41:15Z",
+            "finished_at": "2026-04-04T01:41:43Z"
+          },
+          "health": {
+            "status": "completed",
+            "scenario_status": "running",
+            "health_status": "healthy",
+            "schema_valid": true,
+            "details": "scenario is healthy",
+            "checked_at": "2026-04-04T01:41:46Z"
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "b82f4501-3ffb-4a1e-8c50-ed75f682f16a",
+            "result": {
+              "job_id": "b82f4501-3ffb-4a1e-8c50-ed75f682f16a",
+              "classification": "ready_with_notes",
+              "dimensions": [
+                {
+                  "name": "codeQuality",
+                  "status": "red",
+                  "details": "0.0 score, 28 violations"
+                },
+                {
+                  "name": "tests",
+                  "status": "yellow",
+                  "details": "5/11 passed"
+                },
+                {
+                  "name": "standards",
+                  "status": "yellow",
+                  "details": "48 warnings"
+                },
+                {
+                  "name": "visual",
+                  "status": "red"
+                },
+                {
+                  "name": "provenance",
+                  "status": "green"
+                }
+              ],
+              "raw_dimensions": {
+                "codeQuality": {
+                  "available": true,
+                  "score": 0,
+                  "violations": 28,
+                  "stale": false
+                },
+                "tests": {
+                  "available": true,
+                  "passed": false,
+                  "total": 11,
+                  "passedCount": 5,
+                  "failedCount": 6,
+                  "lastRun": "2026-04-04T01:42:12.568654857Z"
+                },
+                "standards": {
+                  "available": true,
+                  "blockingViolations": 0,
+                  "warnings": 48,
+                  "totalViolations": 48
+                },
+                "visual": {
+                  "available": true,
+                  "screenshotCount": 0,
+                  "stale": false
+                },
+                "provenance": {
+                  "available": true,
+                  "tracedFiles": 1
+                }
+              },
+              "summary": "Scenario deployment-manager readiness: yellow",
+              "reviewed_at": "2026-04-04T01:42:16Z"
+            }
+          }
+        }
+      ]
+    },
+    "created_at": "2026-04-04T01:34:34Z",
+    "updated_at": "2026-04-04T01:42:16Z"
+  },
+  {
+    "execution_id": "8544df144a15921b",
+    "backlog_kind": "execute",
+    "backlog_name": "deployment-manager-visual-validation-approval-flow",
+    "previous_status": "backlog",
+    "task_id": "4d62a65c-5e84-4693-9b75-02e8a0b56ba7",
+    "run_id": "f957932b-4b61-49b6-a9f7-56d64ffa01ca",
+    "status": "completed",
+    "mode": "yolo",
+    "started_at": "2026-04-04T03:31:05Z",
+    "finished_at": "2026-04-04T03:44:04Z",
+    "started_by": "swarm-manager-ui",
+    "operation": "generator",
+    "prompt_trace": {
+      "purpose": "process",
+      "prompt": "\u003cexecution-context\u003e\nBacklog item: execute/deployment-manager-visual-validation-approval-flow\nTitle: Turn Visual Validation Into A Real Approval Flow\nItem folder: /home/matthalloran8/Vrooli/scenarios/swarm-manager/execute/deployment-manager-visual-validation-approval-flow\nRun type: process\n\u003c/execution-context\u003e\n\n\u003cimplementation-plan path=\"plan.md\"\u003e\n# Plan: Turn Visual Validation Into A Real Approval Flow\n\n## 1. Purpose\n\nConnect the existing visual-validation subsystem to the deployment-approval subsystem so that validation review outcomes (approve/reject) automatically drive approval state, replacing the current disconnected flow where validation and approval are independent operations.\n\n## 2. Required Reading\n\n```bash\nprompt-manager skill read implementation-plan-authoring seam-discovery-and-enforcement test\nswarm-manager backlog file-get --kind research --name desktop-release-control-plane-audit --path conclusion.md\n```\n\n**Key context:** The research audit (desktop-release-control-plane-audit) maps the full 4-system relay and identifies that `deployment_approvals.validation_id` already exists but is never populated automatically.\n\n## 3. Problem Statement\n\nVisual validation and deployment approval are two working subsystems that operate independently:\n\n- **Visual validation** (`visual_validations` table, `validation/handler.go`): Operators can create validations, record video, and submit review decisions (approve/reject) — but the review outcome stays local to the validation record.\n- **Deployment approval** (`deployment_approvals` table, `deployments/approvals_handler.go`): Operators can create approvals, decide on them, and the release gate checks all required platforms — but approvals must be created and decided manually.\n\nThe `deployment_approvals` table already has a `validation_id TEXT` column, hinting at the intended linkage, but nothing populates it. The result: operators must perform validation review AND separately create/approve a deployment approval, with no enforcement that one feeds the other.\n\n## 4. Scope\n\n### In scope\n- Linking validation review outcomes to deployment approval state changes\n- Making validations commit-aware (`git_commit_hash` as required field on new validations; nullable in DB for legacy rows)\n- Transaction-safe bridging via shared `*sql.Tx` context using DBTX interface pattern\n- UI approval status badge on VideoReviewPanel\n- CLI `--commit` flag on validation commands\n- Tests for the bridging logic\n- Removing orphaned `ApprovalID` field from `validation.Record` struct\n- Defaulting reviewer identity to `'operator'` when not provided\n\n### Out of scope\n- Changes to LPBS artifact publishing\n- Post-publish version sync (separate backlog item)\n- Rollback API (separate backlog item)\n- Auto-deploy after all approvals pass (separate backlog item)\n- Changes outside `scenarios/deployment-manager/**`\n- Proper reviewer identity / auth integration (follow-up item)\n\n## 5. Current Technical Context\n\n### Key files\n| File | Role |\n|------|------|\n| `api/validation/handler.go` | Visual validation CRUD + review submission (lines 105-130: SubmitReview) |\n| `api/validation/repository.go` | SQL repository for `visual_validations` — all methods use `r.db` directly, no `*sql.Tx` support |\n| `api/validation/types.go` | Request/Record/ReviewRequest structs — Record has orphaned `ApprovalID` field (line 30, to be removed); no `git_commit_hash` field |\n| `api/deployments/approvals_handler.go` | Approval CRUD + decide + release-gate |\n| `api/deployments/approvals_repository.go` | SQL repository — `Create()` calls `MarkStale()` non-atomically; only `SetRequiredPlatforms()` uses internal tx |\n| `api/deployments/approvals_types.go` | DeploymentApproval struct has `ValidationID` field; CreateApprovalRequest accepts optional `ValidationID` |\n| `api/deployments/orchestrator.go` | Checks release gate before deploy (HTTP 412) |\n| `api/server/server.go` | Handler wiring — ValidationHandler and ApprovalsHandler constructed independently (lines 138-139) |\n| `api/server/routes.go` | Route registration |\n| `ui/src/components/VideoReviewPanel.tsx` | Video player + review form — no reviewer identity sent, no approval status shown |\n| `cli/validations/commands.go` | CLI: run, status, video, review, list — no --commit flag |\n| `initialization/postgres/003_add_visual_validations.sql` | Visual validations schema — no git_commit_hash column |\n| `api/migrations/003_add_deployment_approvals.sql` | Approvals schema — has validation_id column, UNIQUE on (profile_id, git_commit_hash, platform) |\n\n### Database relationship\n- `visual_validations`: has `profile_id`, `platform`, `review_decision` (approved/rejected) — **no `git_commit_hash`**\n- `deployment_approvals`: has `profile_id`, `git_commit_hash`, `platform`, `validation_id` (currently unused), `status` (pending/approved/rejected/stale)\n- The `validation_id` FK on approvals is the designed join point\n\n### Current operator workflow (disconnected)\n1. Create visual validation → record video → review (approve/reject)\n2. Separately: create deployment approval → decide (approve/reject)\n3. Check release gate → deploy\n\n### Target operator workflow (integrated)\n1. Create visual validation **with commit hash** for a specific platform\n2. Record video, review evidence\n3. Approve/reject from review — **automatically creates/updates deployment approval** (atomic tx)\n4. Check release gate (now reflects validation-driven approvals) → deploy\n\n## 6. Target End State\n\n- Approving a visual validation review automatically creates/updates a `deployment_approval` for the same `(profile_id, git_commit_hash, platform)` with `validation_id` set\n- Rejecting a validation review creates a rejected approval record (or updates existing to rejected)\n- The release gate check reflects validation-driven approvals seamlessly\n- UI shows approval status badge on VideoReviewPanel after review submission, using data from the enriched SubmitReview response\n- CLI supports `--commit` flag on validation creation and review output shows resulting approval state\n- Manual approval (without validation) remains supported for backwards compatibility\n- Legacy validations (NULL `git_commit_hash`) continue to work but do not trigger approval bridging\n- Reviewer identity defaults to `'operator'` when not explicitly provided\n\n## 7. Implementation Strategy\n\n### Phase 1: Schema + migration + type cleanup\nAdd `git_commit_hash TEXT` (nullable) to `visual_validations` table via new migration file. Column is nullable so legacy rows get NULL. Application layer enforces non-null on new creates via request validation. Remove orphaned `ApprovalID` field from `validation.Record`.\n\n**Files changed:**\n- New: `api/migrations/004_add_validation_commit_hash.sql`\n  - `ALTER TABLE visual_validations ADD COLUMN git_commit_hash TEXT;`\n- Modified: `api/validation/repository.go` — add `git_commit_hash` to all INSERT/SELECT statements\n- Modified: `api/validation/types.go`:\n  - Add `GitCommitHash string` to `Record` (JSON: `git_commit_hash`) and `Request` structs\n  - Remove orphaned `ApprovalID string` field from `Record`\n  - Add `ApprovalID string` and `ApprovalStatus string` fields to `ReviewResponse` (or create it if absent)\n\n### Phase 2: Transaction infrastructure (DBTX pattern)\nAdd a `DBTX` interface (`QueryContext`, `ExecContext`, `QueryRowContext`) that both `*sql.DB` and `*sql.Tx` satisfy. Refactor both repository types to use `DBTX` internally. Add `WithTx(tx *sql.Tx)` method that returns a new repository instance backed by the tx.\n\n**Side-effect fix:** `ApprovalsRepository.Create()` currently calls `MarkStale()` outside any transaction. After the DBTX refactor, when called via `WithTx()`, both `MarkStale` and `INSERT` run within the caller's transaction, fixing the pre-existing atomicity bug.\n\n**Files changed:**\n- Modified: `api/validation/repository.go` — refactor `SQLRepository` to use `DBTX` interface; add `WithTx(tx *sql.Tx) *SQLRepository`\n- Modified: `api/deployments/approvals_repository.go` — refactor `SQLApprovalsRepository` to use `DBTX` interface; add `WithTx(tx *sql.Tx) *SQLApprovalsRepository`\n\n### Phase 3: Bridging logic in SubmitReview\nInject `ApprovalsRepository` and `*sql.DB` into `ValidationHandler`. When `SubmitReview` is called:\n1. Begin transaction on `*sql.DB`\n2. Call `repo.WithTx(tx).UpdateReview(...)` to update validation record\n3. If validation has a non-NULL `git_commit_hash`:\n   a. Default `reviewed_by` to `\"operator\"` if empty\n   b. Call `approvalsRepo.WithTx(tx).Create(...)` to create/update deployment approval with `validation_id` set, mapping review decision → approval status (`approved` → `approved`, `rejected` → `rejected`)\n4. Commit (or rollback on error)\n5. Return enriched response with `approval_id` and `approval_status` (empty if no bridging occurred)\n\n**Files changed:**\n- Modified: `api/validation/handler.go` — add `approvalsRepo` and `db` fields to `Handler`; update `SubmitReview` with bridging logic and enriched response\n- Modified: `api/server/server.go` — pass `approvalsRepo` and `db` to `NewHandler`\n\n### Phase 4: UI enhancement\nExtend `VideoReviewPanel.tsx` to:\n1. After review submission, read `approval_id` and `approval_status` from the enriched SubmitReview response\n2. Display approval status badge (approved/rejected) alongside validation status\n3. On mount, if the validation is already reviewed and has `git_commit_hash`, fetch approval status via existing approvals endpoint\n\n**Files changed:**\n- Modified: `ui/src/components/VideoReviewPanel.tsx` — add approval status badge rendering using SubmitReview response data\n\n### Phase 5: CLI updates\n- Add `--commit` flag to `validations run` command (required for new validations)\n- Update `validations review` output to show resulting approval state from enriched response\n- Add `--commit` flag to `validations list` for filtering\n\n**Files changed:**\n- Modified: `cli/validations/commands.go` — add `--commit` flags, update review output to show approval state\n\n## 8. Contract Decisions\n\n### API changes\n| Endpoint | Change |\n|----------|--------|\n| `POST /api/v1/validations` | Add required `git_commit_hash` field to request body (app-layer validation; column is nullable for legacy) |\n| `POST /api/v1/validations/{id}/review` | Response enriched: now includes `approval_id` and `approval_status` fields (empty strings if no bridging) |\n| `GET /api/v1/validations/{id}` | Response now includes `git_commit_hash` field (null for legacy rows) |\n\n### Data model changes\n| Table | Change |\n|-------|--------|\n| `visual_validations` | Add `git_commit_hash TEXT` column (nullable; NULL for legacy, enforced non-null by app on new creates) |\n| `deployment_approvals.validation_id` | Populated automatically when review triggers approval bridging |\n\n### Type changes\n| Struct | Change |\n|--------|--------|\n| `validation.Record` | Remove orphaned `ApprovalID` field; add `GitCommitHash string` |\n| `validation.Request` | Add `GitCommitHash string` (required at app layer) |\n| `validation.ReviewResponse` | Add `ApprovalID string` and `ApprovalStatus string` |\n\n### Reviewer identity\n- `reviewed_by` defaults to `\"operator\"` when not provided by caller\n- Both validation review and bridged approval record use this value\n- Proper identity propagation is deferred to a follow-up item\n\n### Transaction boundary\n- `SubmitReview` wraps validation update + approval create/update in a single `*sql.Tx`\n- If approval write fails, validation review also rolls back\n- `ApprovalsRepository.Create` via `WithTx()` runs `MarkStale` + `INSERT` within the same tx (fixes pre-existing atomicity bug)\n\n## 9. Testing Plan\n\n### Unit tests\n- Bridging logic: validation approve with git_commit_hash → approval created with status=approved, validation_id set\n- Bridging logic: validation reject with git_commit_hash → approval created with status=rejected, validation_id set\n- Bridging logic: validation without git_commit_hash (legacy) → no approval created\n- Bridging logic: second validation for same (profile, commit, platform) → old approval marked stale within tx\n- Transaction rollback: if approval create fails, validation review is also rolled back\n- git_commit_hash required validation on create endpoint (app layer, not DB constraint)\n- Reviewer defaults to 'operator' when not provided\n- SubmitReview response includes approval_id and approval_status when bridging fires\n- SubmitReview response has empty approval fields when no git_commit_hash\n\n### Integration tests (testcontainers)\n- Full flow: create validation with commit → submit review → verify approval exists in DB with correct validation_id\n- Release gate: create validation, approve → check release gate returns ready for that platform\n- Manual approval still works: create approval directly, decide → release gate reflects it\n- Stale handling: approve validation, then approve new validation for same commit+platform → first approval stale\n- Legacy validation (no commit hash): review does not create approval\n- Migration: apply migration on DB with existing visual_validations rows → git_commit_hash is NULL, no errors\n\n### UI tests (if test infra exists)\n- VideoReviewPanel renders approval badge after review submission\n- VideoReviewPanel shows approval status on mount when already reviewed\n\n## 10. Rollout/Validation Checklist\n\n- [ ] Migration applies cleanly on fresh DB\n- [ ] Migration applies cleanly on existing DB with data (git_commit_hash → NULL for existing rows)\n- [ ] Run existing test suite — no regressions\n- [ ] Run new bridging tests — all pass\n- [ ] Manually test: create validation with commit, approve, verify approval created\n- [ ] Manually test: reject validation, verify rejection propagated\n- [ ] Manually test: check release gate reflects validation-driven approval\n- [ ] Manually test: create approval directly (no validation) — still works\n- [ ] Manually test: review legacy validation (no commit hash) — no approval created, no error\n- [ ] Verify UI badge renders correctly after approve and reject\n\n## 11. Risks + Mitigations\n\n| Risk | Likelihood | Impact | Mitigation |\n|------|-----------|--------|------------|\n| Required `git_commit_hash` breaks existing callers | Medium | Medium | Column is nullable in DB; only app layer enforces on new creates. Existing code paths that don't provide it will get a validation error with clear message. CLI error message explains the new required flag. |\n| Transaction boundary complexity | Low | High | Use simple `DBTX` interface pattern (well-established Go idiom); test rollback explicitly |\n| UI approval fetch adds extra API call on mount for reviewed validations | Low | Low | Only needed when validation is already reviewed on mount; primary flow uses enriched SubmitReview response (zero extra calls) |\n| Existing data in `visual_validations` without commit hash | Low | Low | Column is nullable; NULL means 'legacy, no bridging'. Bridging logic has explicit NULL check. No collision risk. |\n| `MarkStale` + `INSERT` atomicity (pre-existing bug) | Medium | Medium | Fixed as side-effect of DBTX refactor — both run in caller's tx when using `WithTx()` |\n| Reviewer identity is a placeholder | Low | Low | Default `'operator'` is clearly a placeholder; follow-up item tracked for proper identity |\n\n## 12. Non-goals / Prohibited Patterns\n\n- Do not modify LPBS or scenario-to-desktop code\n- Do not add auto-deploy after approval (separate item)\n- Do not break existing manual approval flow\n- Do not add compatibility shims — extend existing types directly\n- Do not introduce an event bus or message queue for this bridging\n- Do not add bidirectional approval↔validation references (approval→validation via validation_id is sufficient)\n- Do not solve reviewer identity/auth in this item\n\n## 13. Definition of Done\n\n- [ ] Validation review (approve/reject) automatically creates/updates deployment approval with `validation_id` set when `git_commit_hash` is present\n- [ ] `git_commit_hash` required on all new visual validations (app-layer enforcement)\n- [ ] Legacy validations (NULL `git_commit_hash`) continue working without bridging\n- [ ] Release gate correctly reflects validation-driven approvals\n- [ ] SubmitReview response includes `approval_id` and `approval_status`\n- [ ] UI shows approval status badge on VideoReviewPanel\n- [ ] CLI supports `--commit` flag on validation creation\n- [ ] All bridging logic wrapped in `*sql.Tx` for atomicity\n- [ ] All new logic covered by automated tests (unit + integration)\n- [ ] Manual approval flow continues working unchanged\n- [ ] Orphaned `ApprovalID` field removed from `validation.Record`\n- [ ] Reviewer defaults to `'operator'` when not provided\n- [ ] Migration handles existing data gracefully (nullable column, no data loss)\n\n\u003c/implementation-plan\u003e\n",
+      "prompt_revision": "sha256:caeb4a30a5f0c91b",
+      "used_fallback": false,
+      "captured_at": "2026-04-04T03:31:05Z"
+    },
+    "finalization": {
+      "eligible": true,
+      "status": "completed",
+      "phase": "completed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-04-04T03:43:03Z",
+      "completed_at": "2026-04-04T03:44:04Z",
+      "affected_scenarios": [
+        "deployment-manager"
+      ],
+      "aggregate_classification": "ready_with_notes",
+      "aggregate_summary": "deployment-manager ready with notes",
+      "scenarios": [
+        {
+          "scenario_name": "deployment-manager",
+          "restart": {
+            "status": "completed",
+            "attempts": 1,
+            "started_at": "2026-04-04T03:43:03Z",
+            "finished_at": "2026-04-04T03:43:31Z"
+          },
+          "health": {
+            "status": "completed",
+            "scenario_status": "running",
+            "health_status": "healthy",
+            "schema_valid": true,
+            "details": "scenario is healthy",
+            "checked_at": "2026-04-04T03:43:34Z"
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "33de6a19-272e-48bb-8035-ee74193a1954",
+            "result": {
+              "job_id": "33de6a19-272e-48bb-8035-ee74193a1954",
+              "classification": "ready_with_notes",
+              "dimensions": [
+                {
+                  "name": "visual",
+                  "status": "red"
+                },
+                {
+                  "name": "provenance",
+                  "status": "green"
+                },
+                {
+                  "name": "codeQuality",
+                  "status": "yellow",
+                  "details": "0.0 score, 48 violations"
+                },
+                {
+                  "name": "tests",
+                  "status": "yellow",
+                  "details": "5/11 passed"
+                },
+                {
+                  "name": "standards",
+                  "status": "yellow",
+                  "details": "48 warnings"
+                }
+              ],
+              "raw_dimensions": {
+                "codeQuality": {
+                  "available": true,
+                  "score": 0,
+                  "violations": 48,
+                  "stale": true
+                },
+                "tests": {
+                  "available": true,
+                  "passed": false,
+                  "total": 11,
+                  "passedCount": 5,
+                  "failedCount": 6,
+                  "lastRun": "2026-04-04T03:44:00.941269391Z"
+                },
+                "standards": {
+                  "available": true,
+                  "blockingViolations": 0,
+                  "warnings": 48,
+                  "totalViolations": 48
+                },
+                "visual": {
+                  "available": true,
+                  "screenshotCount": 0,
+                  "stale": false
+                },
+                "provenance": {
+                  "available": true,
+                  "tracedFiles": 1
+                }
+              },
+              "summary": "Scenario deployment-manager readiness: yellow",
+              "reviewed_at": "2026-04-04T03:44:04Z"
+            }
+          }
+        }
+      ]
+    },
+    "created_at": "2026-04-04T03:31:05Z",
+    "updated_at": "2026-04-04T03:44:04Z"
+  },
+  {
+    "execution_id": "d46733b9e63c748b",
+    "backlog_kind": "execute",
+    "backlog_name": "deployment-manager-approval-gate-surfaces",
+    "previous_status": "completed",
+    "task_id": "f3c338aa-075c-4728-abdf-cf8ccf8165be",
+    "run_id": "f2070790-c63a-4a0b-a60f-4e49f8a702f6",
+    "status": "completed",
+    "mode": "yolo",
+    "started_at": "2026-04-04T03:38:39Z",
+    "finished_at": "2026-04-04T03:51:42Z",
+    "started_by": "swarm-manager:follow-up",
+    "operation": "followup",
+    "prompt_trace": {
+      "purpose": "followup",
+      "prompt": "\u003cexecution-context\u003e\nBacklog item: execute/deployment-manager-approval-gate-surfaces\nTitle: Expose Approval Gate Controls In Deployment Manager\nItem folder: /home/matthalloran8/Vrooli/scenarios/swarm-manager/execute/deployment-manager-approval-gate-surfaces\nRun type: followup\n\u003c/execution-context\u003e\n\n\u003creview-feedback\u003e\ndeployment-manager ready with notes\n- deployment-manager review summary: Scenario deployment-manager readiness: yellow\n- deployment-manager codeQuality (red): 0.0 score, 28 violations\n- deployment-manager tests (yellow): 5/11 passed\n- deployment-manager standards (yellow): 48 warnings\n- deployment-manager visual (red)\n\u003c/review-feedback\u003e\n\n\u003cfollow-up-context\u003e\nPlease properly address the code quality issues as much as is reasonable\n\u003c/follow-up-context\u003e\n\n\u003cimplementation-plan path=\"plan.md\"\u003e\n# Implementation Plan: Expose Approval Gate Controls in Deployment Manager\n\n## 1. Purpose\n\nSurface the existing deployment-manager approval-gating backend (7 API endpoints, full DB schema, orchestrator integration) through operator-facing CLI commands and UI pages. This closes the gap where approval state is only accessible via raw API calls.\n\n## 2. Required Reading\n\n```bash\nprompt-manager skill read cli-steer api-steer implementation-plan-authoring seam-discovery-and-enforcement react-coherence\n```\n\n**Research dependency:** `research/desktop-release-control-plane-audit` (completed) — provides the system contract and dependency map. Key findings:\n- deployment-manager owns canonical approval state (Finding 1)\n- Release gate check is `GET /profiles/{id}/release-gate?commit={hash}` (Finding 1)\n- 7 approval API endpoints already exist and are fully implemented (Finding 2)\n- CLI and UI have zero approval coverage currently\n- deployment-manager never talks to LPBS directly; flow is deployment-manager → scenario-to-desktop → LPBS (Finding 3)\n\n## 3. Problem Statement\n\nThe approval-gating backend is production-ready at the API level:\n- `deployment_approvals` and `profile_required_platforms` tables with indexes\n- 7 REST endpoints: create, list, get, decide, release-gate check, set/get required platforms\n- Orchestrator integration that blocks deployment when gate is not satisfied (HTTP 412)\n\nHowever, operators cannot use this system without crafting raw HTTP requests. There are:\n- **No CLI commands** for any approval operation\n- **No UI pages or components** for viewing/managing approvals\n- **No TypeScript types** in the UI api client for approval data\n\n## 4. Scope\n\n**In scope:**\n- New `approvals` CLI command group with subcommands mirroring all 7 API endpoints\n- New Approvals UI page for listing, filtering, and deciding approvals (standalone `/approvals` route)\n- Gate status badge integrated into ProfileDetail page (defaulting to latest deployment commit)\n- Required platforms configuration as a checkbox Card section on ProfileDetail\n- TypeScript types and API client functions for all approval endpoints\n- Automated tests for CLI subcommands and UI components\n\n**Out of scope:**\n- Modifying the existing API endpoints or database schema\n- Approval-to-deploy automation (separate backlog item: Action 5 from research)\n- Webhook/event notifications (separate backlog item: Action 4 from research)\n- Rollback API (separate backlog item: Action 3 from research)\n- Visual validation integration (existing separate workflow)\n- Real-time polling or WebSocket updates (use React Query defaults + manual refresh)\n\n## 5. Current Technical Context\n\n### Backend (complete, no changes needed)\n- **Schema:** `initialization/postgres/schema.sql:51-71` — `deployment_approvals`, `profile_required_platforms`\n- **Migration:** `api/migrations/003_add_deployment_approvals.sql`\n- **Types:** `api/deployments/approvals_types.go` — `DeploymentApproval`, `ReleaseGateStatus`, `PlatformGateStatus`, etc.\n- **Handler:** `api/deployments/approvals_handler.go` — 7 handler methods\n- **Repository:** `api/deployments/approvals_repository.go` — full CRUD + gate check\n- **Routes:** `api/server/routes.go:70-79` — all 7 endpoints registered (conditional on `ApprovalsHandler != nil`)\n- **Orchestrator:** `api/deployments/orchestrator.go:165-192` — gate check blocks deploys (HTTP 412)\n\n### CLI (no approval coverage)\n- Uses cli-core pattern with domain-specific command packages\n- Existing groups: overview, profiles, swaps, deployments, secrets, signing, validations, config, bundles\n- Pattern: each group is a package under `cli/` with `commands.go`, `Commands` struct, `New(api *cliutil.APIClient)` constructor, `Run(args []string) error` dispatcher\n- Flag parsing: `flag.NewFlagSet` + `cliutil.ParseInterspersed(fs, args)`\n- Format system: global `cmdutil.SetGlobalFormat`/`ResolveFormat` with `--json` consumed in `app.go`; default output is human-readable\n- Output: `cmdutil.PrintByFormat(format, body)` dispatches to JSON or plain text\n\n### UI (no approval coverage)\n- React + Vite, uses `@vrooli/api-base` for URL resolution\n- `ui/src/lib/api.ts` — typed fetch wrapper with `apiFetch\u003cT\u003e()` helper\n- Existing pages: Dashboard, Profiles, ProfileDetail, Deployments, Validation, Analyze, BundleTelemetry\n- Routing: `ui/src/App.tsx` with `react-router-dom` `\u003cRoutes\u003e` / `\u003cRoute\u003e`\n- Navigation: `ui/src/components/Layout.tsx` `navItems` array (path, label, icon from lucide-react)\n- State: React Query (`useQuery`/`useMutation`) for server state; local `useState` for UI state\n- Components: shadcn UI (Card, Button, Badge, etc.)\n- Tests: Vitest + React Testing Library, `vi.mock('../lib/api')`, `createWrapper()` with QueryClient + BrowserRouter\n\n### API Types (for reference in CLI/UI implementation)\n\n```go\n// Request types\nCreateApprovalRequest { GitCommitHash, Platform, ValidationID? }\nApprovalDecisionRequest { Decision (\"approved\"|\"rejected\"), Reviewer, Notes? }\nSetRequiredPlatformsRequest { Platforms []string }\n\n// Response types\nDeploymentApproval { ID, ProfileID, GitCommitHash, Platform, Status, ApprovedBy?, ApprovedAt?, Notes?, ValidationID?, CreatedAt, UpdatedAt }\nReleaseGateStatus { ProfileID, GitCommitHash, Ready bool, Platforms []PlatformGateStatus }\nPlatformGateStatus { Platform, Required bool, Status (\"pending\"|\"approved\"|\"rejected\"|\"stale\"|\"missing\") }\n```\n\n## 6. Target End State\n\nAfter implementation:\n1. `deployment-manager approvals list \u003cprofile-id\u003e` — shows approval history\n2. `deployment-manager approvals get \u003cid\u003e` — shows single approval detail\n3. `deployment-manager approvals create \u003cprofile-id\u003e --commit \u003chash\u003e --platform \u003cplat\u003e` — creates pending approval\n4. `deployment-manager approvals decide \u003cid\u003e --decision approved --reviewer \u003cname\u003e` — approves/rejects\n5. `deployment-manager approvals gate \u003cprofile-id\u003e --commit \u003chash\u003e` — checks release gate (operational output: Status → Triage → Next Steps)\n6. `deployment-manager approvals platforms set \u003cprofile-id\u003e --platforms win,mac,linux` — configures required platforms\n7. `deployment-manager approvals platforms get \u003cprofile-id\u003e` — shows required platforms\n8. UI ProfileDetail page shows release gate status badge (defaults to latest deployment commit, with commit selector) and required platforms config (checkbox Card section)\n9. New `/approvals` UI page for listing, filtering, and deciding approvals (inline quick-action buttons + detail view with validation link)\n10. All approval TypeScript types and API client functions defined\n11. Navigation sidebar includes Approvals link\n\n## 7. Implementation Strategy\n\n### Phase 1: CLI — `approvals` command group\n- Create `cli/approvals/` package following the validations pattern\n- Register as new CommandGroup in `app.go`\n- Wire `App.approvals` field with `approvals.New(core.APIClient)`\n- Implement subcommand routing in `commands.go` with nested `platforms` sub-dispatch\n\n**Commands:**\n| Subcommand | API Endpoint | Key Flags | Output Contract |\n|------------|-------------|-----------|-----------------|\n| `list \u003cprofile-id\u003e` | `GET /profiles/{id}/approvals` | `--commit` (optional filter) | Data retrieval |\n| `get \u003cid\u003e` | `GET /approvals/{id}` | — | Data retrieval |\n| `create \u003cprofile-id\u003e` | `POST /profiles/{id}/approvals` | `--commit`, `--platform`, `--validation-id` | Mutation |\n| `decide \u003cid\u003e` | `POST /approvals/{id}/decide` | `--decision`, `--reviewer`, `--notes` | Mutation |\n| `gate \u003cprofile-id\u003e` | `GET /profiles/{id}/release-gate` | `--commit` | Operational (Status → Triage → Next Steps) |\n| `platforms set \u003cprofile-id\u003e` | `PUT /profiles/{id}/required-platforms` | `--platforms` (CSV) | Mutation |\n| `platforms get \u003cprofile-id\u003e` | `GET /profiles/{id}/required-platforms` | — | Data retrieval |\n\n### Phase 2: CLI tests\n- Unit tests for all 7 subcommands using `httptest.NewServer` mocking\n- Test flag parsing, output format (human default + `--json`), error handling\n- Follow table-driven pattern from `cli/deployments/commands_test.go`\n\n### Phase 3: UI — TypeScript types + API client\n- Add approval types to `ui/src/lib/api.ts` matching Go types\n- Add API client functions for all 7 endpoints:\n  - `listApprovals(profileId, commit?)`, `getApproval(id)`, `createApproval(profileId, req)`, `decideApproval(id, req)`\n  - `checkReleaseGate(profileId, commit)`, `setRequiredPlatforms(profileId, platforms)`, `getRequiredPlatforms(profileId)`\n\n### Phase 4: UI — ProfileDetail integration\n- Gate status badge Card section: queries release gate for latest deployment commit, shows Ready/Blocked with per-platform status\n- Commit selector dropdown to check other commits\n- Required platforms checkbox Card section (collapsible): three checkboxes (Windows, macOS, Linux) with Save button\n\n### Phase 5: UI — Standalone Approvals page\n- Route: `/approvals`\n- Sidebar nav item with appropriate lucide-react icon\n- Approval list table with filtering (by profile, commit, status)\n- Inline approve/reject quick-action buttons in table rows\n- Detail view on row click: notes field, reviewer attribution, validation link (if validation_id set)\n- React Query for data fetching (defaults: refetch on focus/mount) + manual Refresh button\n\n### Phase 6: UI tests\n- Component tests for Approvals page (list rendering, filter interaction, approve/reject actions)\n- Component tests for ProfileDetail gate badge and required platforms config\n- Follow Vitest + React Testing Library pattern from `ui/src/pages/Profiles.test.tsx`\n\n## 8. Contract Decisions (Settled)\n\n- **CLI output:** Human-friendly default output. Gate check uses operational contract (Status → Triage → Next Steps). List/get use data-retrieval contract. Create/decide use mutation contract.\n- **CLI subcommand routing:** Single `approvals` top-level command with nested `platforms` sub-dispatch for set/get.\n- **UI page structure:** Standalone `/approvals` page + gate status badge and required-platforms config integrated into ProfileDetail.\n- **UI approval decide UX:** Inline quick-action buttons in list table + detail view with notes, reviewer attribution, and validation link.\n- **UI data freshness:** React Query defaults (refetch on focus/mount) + manual refresh button. No polling.\n- **No new API endpoints needed** — everything uses the existing 7 endpoints.\n\n## 9. Testing Plan\n\n### CLI automated tests (Phase 2)\n- **Per-subcommand tests** using `httptest.NewServer`:\n  - `list`: verify query param forwarding (`?commit=`), output includes approval summary table\n  - `get`: verify path param, output includes all approval fields\n  - `create`: verify POST body marshaling, required flags validation\n  - `decide`: verify decision and reviewer flags, error on missing required flags\n  - `gate`: verify operational output format (status, triage, next steps), both ready and blocked states\n  - `platforms set`: verify CSV parsing and PUT body, error on empty platforms\n  - `platforms get`: verify output lists platform names\n- **Format tests**: verify `--json` produces valid JSON for each subcommand\n- **Error tests**: verify HTTP error responses produce user-friendly messages\n\n### UI automated tests (Phase 6)\n- **Approvals page:**\n  - Renders approval list with mock data\n  - Filter by status works\n  - Approve/reject inline buttons trigger correct API calls\n  - Error state renders error message\n  - Empty state renders helpful message\n- **ProfileDetail gate badge:**\n  - Renders \"Ready\" badge when all platforms approved\n  - Renders \"Blocked\" badge with platform breakdown when not ready\n  - Commit selector triggers new gate check\n- **Required platforms config:**\n  - Renders checkboxes matching current required platforms\n  - Save button calls setRequiredPlatforms with correct array\n  - Success feedback on save\n\n## 10. Rollout / Validation Checklist\n\n- [ ] CLI builds without errors: `cd cli \u0026\u0026 go build ./...`\n- [ ] CLI tests pass: `cd cli \u0026\u0026 go test ./... -timeout 300s`\n- [ ] UI builds without errors: `cd ui \u0026\u0026 npm run build`\n- [ ] UI tests pass: `cd ui \u0026\u0026 npm test`\n- [ ] All 7 approval operations work via CLI (human-readable and --json output)\n- [ ] Gate check shows operational output with triage and next steps\n- [ ] ProfileDetail shows gate status badge defaulting to latest deployment commit\n- [ ] ProfileDetail shows required platforms config with checkboxes\n- [ ] Approvals page lists and filters approvals\n- [ ] Approval decide action works from both inline buttons and detail view\n- [ ] Sidebar navigation includes Approvals link\n\n## 11. Risks + Mitigations\n\n| Risk | Likelihood | Impact | Mitigation |\n|------|-----------|--------|------------|\n| API endpoint behavior differs from handler code reading | Low | Medium | CLI integration tests against mock server verify request/response shapes |\n| UI build time (5-10 min) slows iteration | Medium | Low | Test components in isolation first; use `npm test` for fast feedback |\n| Existing CLI tests break from new command group | Low | Low | New group is additive; run full test suite before merging |\n| ProfileDetail gate badge depends on deployment history for default commit | Low | Medium | Graceful fallback: show \"No deployments yet\" with commit input field if no deployment history |\n| Multiple operators deciding same approval concurrently | Low | Medium | API handles this (last write wins with status update); UI refetches on mutation success |\n\n## 12. Non-goals / Prohibited Patterns\n\n- Do NOT modify existing API endpoints or database schema\n- Do NOT implement business logic in CLI (thin wrapper only)\n- Do NOT add approval-to-deploy automation (separate backlog item)\n- Do NOT bypass cli-core patterns (use ScenarioApp, APIClient, ParseInterspersed)\n- Do NOT add bash scripts for CLI functionality\n- Do NOT introduce polling/WebSocket for the approvals page (use React Query defaults)\n- Do NOT add a new state management pattern — use React Query for server state, useState for local UI state\n\n## 13. Definition of Done\n\n1. All 7 approval API endpoints have corresponding CLI commands with human-friendly default output\n2. All CLI commands support `--json` flag for machine-readable output\n3. CLI automated tests cover all 7 subcommands (flag parsing, output format, error handling)\n4. UI has TypeScript types for all approval models\n5. UI has API client functions for all approval endpoints\n6. ProfileDetail page displays release gate status badge (with commit selector) and required platforms config (checkboxes)\n7. Standalone Approvals page allows listing, filtering, and deciding approvals (inline + detail view)\n8. Sidebar navigation includes Approvals link\n9. UI automated tests cover Approvals page and ProfileDetail approval integration\n10. `go build ./...` and `go test ./...` pass in `cli/`\n11. `npm run build` and `npm test` pass in `ui/`\n\n\u003c/implementation-plan\u003e\n",
+      "prompt_revision": "sha256:2688bb0de0fb2c89",
+      "used_fallback": false,
+      "captured_at": "2026-04-04T03:38:39Z"
+    },
+    "parent_execution_id": "17cd191860389862",
+    "finalization": {
+      "eligible": true,
+      "status": "completed",
+      "phase": "completed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-04-04T03:50:41Z",
+      "completed_at": "2026-04-04T03:51:42Z",
+      "affected_scenarios": [
+        "deployment-manager"
+      ],
+      "aggregate_classification": "ready_with_notes",
+      "aggregate_summary": "deployment-manager ready with notes",
+      "scenarios": [
+        {
+          "scenario_name": "deployment-manager",
+          "restart": {
+            "status": "completed",
+            "attempts": 1,
+            "started_at": "2026-04-04T03:50:41Z",
+            "finished_at": "2026-04-04T03:51:09Z"
+          },
+          "health": {
+            "status": "completed",
+            "scenario_status": "running",
+            "health_status": "healthy",
+            "schema_valid": true,
+            "details": "scenario is healthy",
+            "checked_at": "2026-04-04T03:51:11Z"
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "6c35ba6f-010a-487d-804d-ccc9cf095b42",
+            "result": {
+              "job_id": "6c35ba6f-010a-487d-804d-ccc9cf095b42",
+              "classification": "ready_with_notes",
+              "dimensions": [
+                {
+                  "name": "tests",
+                  "status": "yellow",
+                  "details": "6/11 passed"
+                },
+                {
+                  "name": "standards",
+                  "status": "yellow",
+                  "details": "48 warnings"
+                },
+                {
+                  "name": "visual",
+                  "status": "red"
+                },
+                {
+                  "name": "provenance",
+                  "status": "green"
+                },
+                {
+                  "name": "codeQuality",
+                  "status": "red",
+                  "details": "0.0 score, 62 violations"
+                }
+              ],
+              "raw_dimensions": {
+                "codeQuality": {
+                  "available": true,
+                  "score": 0,
+                  "violations": 62,
+                  "stale": false
+                },
+                "tests": {
+                  "available": true,
+                  "passed": false,
+                  "total": 11,
+                  "passedCount": 6,
+                  "failedCount": 5,
+                  "lastRun": "2026-04-04T03:51:38.273812472Z"
+                },
+                "standards": {
+                  "available": true,
+                  "blockingViolations": 0,
+                  "warnings": 48,
+                  "totalViolations": 48
+                },
+                "visual": {
+                  "available": true,
+                  "screenshotCount": 0,
+                  "stale": false
+                },
+                "provenance": {
+                  "available": true,
+                  "tracedFiles": 1
+                }
+              },
+              "summary": "Scenario deployment-manager readiness: yellow",
+              "reviewed_at": "2026-04-04T03:51:42Z"
+            }
+          }
+        }
+      ]
+    },
+    "created_at": "2026-04-04T03:38:39Z",
+    "updated_at": "2026-04-04T03:51:42Z"
   }
 ]

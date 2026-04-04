@@ -100,6 +100,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/captures", h.List).Methods("GET")
 	r.HandleFunc("/api/v1/captures", h.Create).Methods("POST")
 	r.HandleFunc("/api/v1/captures/{id}", h.Get).Methods("GET")
+	r.HandleFunc("/api/v1/captures/{id}", h.Update).Methods("PATCH")
 	r.HandleFunc("/api/v1/captures/{id}", h.Delete).Methods("DELETE")
 	r.HandleFunc("/api/v1/captures/{id}/classify", h.Classify).Methods("POST")
 	r.HandleFunc("/api/v1/captures/{id}/create-item", h.CreateItem).Methods("POST")
@@ -158,6 +159,40 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	if h.eventLogger != nil {
 		h.eventLogger.EmitCaptureViewed(id)
 	}
+}
+
+// Update modifies mutable fields on a capture (currently only note).
+func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+
+	var req struct {
+		Note *string `json:"note"`
+	}
+	if err := httputil.DecodeJSONStrict(r, &req); err != nil {
+		apierr.MapError(w, "[captures] update", apierr.BadRequest("invalid request body: %s", err))
+		return
+	}
+	if req.Note == nil {
+		apierr.MapError(w, "[captures] update", apierr.BadRequest("at least one field must be provided"))
+		return
+	}
+
+	cap, err := h.loadCapture(id)
+	if err != nil {
+		if os.IsNotExist(err) {
+			apierr.MapError(w, "[captures] update", apierr.NotFound("capture not found"))
+			return
+		}
+		apierr.MapError(w, "[captures] update", apierr.Internal("failed to load capture"))
+		return
+	}
+
+	cap.Note = strings.TrimSpace(*req.Note)
+	if err := h.writeCapture(cap); err != nil {
+		apierr.MapError(w, "[captures] update", apierr.Internal("failed to save capture"))
+		return
+	}
+	_ = httputil.JSON(w, map[string]any{"capture": cap})
 }
 
 // Delete removes a capture and its folder.

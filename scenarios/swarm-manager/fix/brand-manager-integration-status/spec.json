@@ -10,8 +10,8 @@
   "kind": "fix",
   "name": "brand-manager-integration-status",
   "priority": 2,
-  "status": "backlog",
+  "status": "completed",
   "tags": [],
   "title": "Fix GenerateOptions Endpoint to Report Actual Integration Availability",
-  "updated": "2026-03-26T22:02:39Z"
+  "updated": "2026-04-04T01:12:32Z"
 }

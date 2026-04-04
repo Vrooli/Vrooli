@@ -15,7 +15,7 @@
   "kind": "research",
   "name": "desktop-release-control-plane-audit",
   "priority": 1,
-  "status": "backlog",
+  "status": "completed",
   "tags": [
     "deployment",
     "desktop",
@@ -25,5 +25,5 @@
     "release-governance"
   ],
   "title": "Audit The Desktop Release Control Plane",
-  "updated": "2026-04-03T14:39:03Z"
+  "updated": "2026-04-03T20:45:53Z"
 }

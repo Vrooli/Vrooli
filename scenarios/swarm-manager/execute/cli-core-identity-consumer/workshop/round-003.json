@@ -1,0 +1,31 @@
+{
+  "round": 3,
+  "generated_at": "2026-04-03T23:15:00Z",
+  "mode": "finalize",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Incorporated all 3 round-2 decisions into the plan as D5 (fresh HTTPClient per call), D6 (401 handling via APIError.RawResponse), and D7 (exported constants for env var names). The approach phases now explicitly reference these decisions and the implementation notes detail the APIError type-assertion pattern."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Phase 1 was restructured to lead with exported constants (EnvIdentityToken, EnvAgentManagerBase) before type definitions, reflecting the D7 decision. Phase 3 verification steps now detail the exact HTTPClient construction (D5) and 401 error path (D6) instead of hand-waving those details."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "All 7 design decisions (D1–D7) are settled. All readiness dimensions score 3/3. Risk awareness improved from 2 to 3 after round-2 decisions eliminated ambiguity around HTTPClient lifecycle, error parsing, and constant placement. The plan is ready for execution."
+    }
+  ],
+  "plan_updates": "Added D5 (fresh HTTPClient per call), D6 (401 via APIError.RawResponse), D7 (exported constants) to settled decisions. Restructured Phase 1 to start with constants. Refined Phase 3 to reference D5/D6 explicitly. Updated implementation notes with APIError.RawResponse pattern and exported constant references."
+}

@@ -77,6 +77,7 @@ export const API_ENDPOINTS = {
   initiativeFileContent: (name: string, filePath: string) =>
     `/initiatives/${name}/files/${filePath}`,
   graph: "/graph",
+  overview: "/overview",
   stats: "/stats",
   health: "/health",
   // Review evidence endpoints

@@ -122,6 +122,7 @@ func scenarioActivitySpec(
 type ServiceConfig struct {
 	RootDir                  string
 	StorePath                string
+	SelfScenarioName         string
 	PolicyProvider           PolicyProvider
 	GovernanceProvider       GovernanceProvider
 	ReviewThresholdsProvider ReviewThresholdsProvider
@@ -137,6 +138,7 @@ type ServiceConfig struct {
 // Service owns execution lifecycle logic.
 type Service struct {
 	rootDir                  string
+	selfScenarioName         string
 	finalizationCfg          FinalizationConfig
 	store                    Store
 	policyProvider           PolicyProvider
@@ -184,8 +186,14 @@ func NewService(cfg ServiceConfig) *Service {
 	if fc == (FinalizationConfig{}) {
 		fc = DefaultFinalizationConfig()
 	}
+	selfName := strings.TrimSpace(cfg.SelfScenarioName)
+	if selfName == "" {
+		selfName = filepath.Base(rootDir)
+	}
+
 	service := &Service{
 		rootDir:                  rootDir,
+		selfScenarioName:         selfName,
 		finalizationCfg:          fc,
 		store:                    NewStore(cfg.StorePath),
 		policyProvider:           pp,

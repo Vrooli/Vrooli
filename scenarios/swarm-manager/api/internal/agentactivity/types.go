@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	"swarm-manager/internal/identity"
 )
 
 type OwnerType string
@@ -160,5 +162,17 @@ func specFromContext(ctx context.Context) (Spec, error) {
 	if !ok {
 		return Spec{}, fmt.Errorf("agent activity spec missing from context")
 	}
-	return spec.normalized()
+	normalized, err := spec.normalized()
+	if err != nil {
+		return Spec{}, err
+	}
+	// If RequestedBy was defaulted to "swarm-manager" but the request context
+	// carries agent provenance, use the agent identity instead.
+	if normalized.RequestedBy == "swarm-manager" {
+		prov := identity.FromContext(ctx)
+		if prov.IsAgent() {
+			normalized.RequestedBy = prov.FormatStartedBy()
+		}
+	}
+	return normalized, nil
 }

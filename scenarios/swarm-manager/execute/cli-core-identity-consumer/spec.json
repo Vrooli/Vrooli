@@ -12,7 +12,7 @@
   "kind": "execute",
   "name": "cli-core-identity-consumer",
   "priority": 2,
-  "status": "backlog",
+  "status": "completed",
   "tags": [
     "cli-core",
     "identity",
@@ -20,5 +20,5 @@
     "cross-scenario"
   ],
   "title": "Implement Identity Consumer Interface in cli-core",
-  "updated": "2026-03-30T14:55:00Z"
+  "updated": "2026-04-03T21:37:28Z"
 }

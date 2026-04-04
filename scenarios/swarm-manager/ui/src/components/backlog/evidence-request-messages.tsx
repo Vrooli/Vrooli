@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useRef } from "react";
+import { renderMarkdown } from "../../lib/render-markdown";
 import { Loader2 } from "lucide-react";
 import { cn } from "../../lib";
 import type { RequestMessage } from "../../services/review-service";
@@ -42,7 +43,7 @@ export function EvidenceRequestMessages({ messages, isWaitingForAgent }: Evidenc
                 : "border border-violet-500/20 bg-violet-500/5 text-slate-200",
             )}
           >
-            <p className="whitespace-pre-wrap">{msg.content}</p>
+            <div className="prose-sm-slate" dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
             {msg.added_evidence_ids && msg.added_evidence_ids.length > 0 && (
               <div className="mt-2 rounded bg-violet-500/10 px-2 py-1 text-xs text-violet-300">
                 Added {msg.added_evidence_ids.length} evidence item{msg.added_evidence_ids.length !== 1 ? "s" : ""}

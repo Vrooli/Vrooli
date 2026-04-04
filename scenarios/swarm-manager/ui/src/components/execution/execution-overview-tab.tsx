@@ -11,8 +11,10 @@ import {
   RotateCcw,
   XCircle,
 } from "lucide-react";
+import { renderMarkdown } from "../../lib/render-markdown";
 import { Button } from "../ui/button";
 import { EntityLink } from "../ui/entity-link";
+import { IdentityBadge } from "../ui/identity-badge";
 import { PostRunStatusBadge } from "./post-run-status-badge";
 import { DetailSection } from "../detail/DetailSection";
 import { formatRelativeTime, canRunPostRunChecks } from "../../lib";
@@ -68,7 +70,7 @@ export function ExecutionOverviewTab({
             {execution.startedBy && (
               <div>
                 <p className="text-xs text-slate-500 uppercase tracking-wider">Started by</p>
-                <p className="text-slate-200">{execution.startedBy}</p>
+                <IdentityBadge value={execution.startedBy} agentManagerUiUrl={agentManagerUiUrl} />
               </div>
             )}
             <div>
@@ -126,7 +128,7 @@ export function ExecutionOverviewTab({
           {execution.failureReason && (
             <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
               <p className="text-xs text-red-400 font-medium uppercase tracking-wider mb-1">Failure Reason</p>
-              <p className="text-sm text-red-200 whitespace-pre-wrap">{execution.failureReason}</p>
+              <div className="prose-sm-slate text-sm text-red-200" dangerouslySetInnerHTML={{ __html: renderMarkdown(execution.failureReason) }} />
             </div>
           )}
 

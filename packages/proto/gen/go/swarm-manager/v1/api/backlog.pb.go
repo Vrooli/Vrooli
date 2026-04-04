@@ -49,7 +49,9 @@ type CreateBacklogItemRequest struct {
 	// Glob patterns for file paths that must NOT be modified.
 	AcceptanceDeny []string `protobuf:"bytes,14,rep,name=acceptance_deny,json=acceptanceDeny,proto3" json:"acceptance_deny,omitempty"`
 	// Origin reference in "kind/name" format, tracking which item spawned this one.
-	SpawnedFrom   *string `protobuf:"bytes,15,opt,name=spawned_from,json=spawnedFrom,proto3,oneof" json:"spawned_from,omitempty"`
+	SpawnedFrom *string `protobuf:"bytes,15,opt,name=spawned_from,json=spawnedFrom,proto3,oneof" json:"spawned_from,omitempty"`
+	// Personal annotation — a user note for tracking context.
+	Note          *string `protobuf:"bytes,16,opt,name=note,proto3,oneof" json:"note,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -168,6 +170,13 @@ func (x *CreateBacklogItemRequest) GetSpawnedFrom() string {
 	return ""
 }
 
+func (x *CreateBacklogItemRequest) GetNote() string {
+	if x != nil && x.Note != nil {
+		return *x.Note
+	}
+	return ""
+}
+
 // UpdateBacklogItemRequest defines the payload for updating a backlog item.
 //
 // PATCH semantics:
@@ -199,7 +208,9 @@ type UpdateBacklogItemRequest struct {
 	// Glob patterns for file paths that must NOT be modified.
 	AcceptanceDeny []string `protobuf:"bytes,12,rep,name=acceptance_deny,json=acceptanceDeny,proto3" json:"acceptance_deny,omitempty"`
 	// Origin reference in "kind/name" format. Set to empty string to clear.
-	SpawnedFrom   *string `protobuf:"bytes,13,opt,name=spawned_from,json=spawnedFrom,proto3,oneof" json:"spawned_from,omitempty"`
+	SpawnedFrom *string `protobuf:"bytes,13,opt,name=spawned_from,json=spawnedFrom,proto3,oneof" json:"spawned_from,omitempty"`
+	// Personal annotation. Set to empty string to clear.
+	Note          *string `protobuf:"bytes,14,opt,name=note,proto3,oneof" json:"note,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -307,6 +318,13 @@ func (x *UpdateBacklogItemRequest) GetAcceptanceDeny() []string {
 func (x *UpdateBacklogItemRequest) GetSpawnedFrom() string {
 	if x != nil && x.SpawnedFrom != nil {
 		return *x.SpawnedFrom
+	}
+	return ""
+}
+
+func (x *UpdateBacklogItemRequest) GetNote() string {
+	if x != nil && x.Note != nil {
+		return *x.Note
 	}
 	return ""
 }
@@ -2289,7 +2307,7 @@ var File_swarm_manager_v1_api_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\n" +
-	"\"swarm-manager/v1/api/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\x1a'swarm-manager/v1/domain/execution.proto\"\xd6\x04\n" +
+	"\"swarm-manager/v1/api/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\x1a'swarm-manager/v1/domain/execution.proto\"\xf8\x04\n" +
 	"\x18CreateBacklogItemRequest\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12%\n" +
@@ -2306,13 +2324,15 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x06effort\x18\v \x01(\tB\x16\xbaH\x13r\x11R\x02XSR\x01SR\x01MR\x01LR\x02XLH\x03R\x06effort\x88\x01\x01\x12)\n" +
 	"\x10acceptance_allow\x18\r \x03(\tR\x0facceptanceAllow\x12'\n" +
 	"\x0facceptance_deny\x18\x0e \x03(\tR\x0eacceptanceDeny\x12&\n" +
-	"\fspawned_from\x18\x0f \x01(\tH\x04R\vspawnedFrom\x88\x01\x01B\x0e\n" +
+	"\fspawned_from\x18\x0f \x01(\tH\x04R\vspawnedFrom\x88\x01\x01\x12\x17\n" +
+	"\x04note\x18\x10 \x01(\tH\x05R\x04note\x88\x01\x01B\x0e\n" +
 	"\f_descriptionB\v\n" +
 	"\t_priorityB\r\n" +
 	"\v_initiativeB\t\n" +
 	"\a_effortB\x0f\n" +
-	"\r_spawned_fromJ\x04\b\a\x10\bJ\x04\b\n" +
-	"\x10\vJ\x04\b\f\x10\r\"\x82\x05\n" +
+	"\r_spawned_fromB\a\n" +
+	"\x05_noteJ\x04\b\a\x10\bJ\x04\b\n" +
+	"\x10\vJ\x04\b\f\x10\r\"\xa4\x05\n" +
 	"\x18UpdateBacklogItemRequest\x12\"\n" +
 	"\x05title\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x05title\x88\x01\x01\x12%\n" +
 	"\vdescription\x18\x02 \x01(\tH\x01R\vdescription\x88\x01\x01\x12q\n" +
@@ -2328,14 +2348,16 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x06effort\x18\t \x01(\tB\x18\xbaH\x15r\x13R\x00R\x02XSR\x01SR\x01MR\x01LR\x02XLH\x05R\x06effort\x88\x01\x01\x12)\n" +
 	"\x10acceptance_allow\x18\v \x03(\tR\x0facceptanceAllow\x12'\n" +
 	"\x0facceptance_deny\x18\f \x03(\tR\x0eacceptanceDeny\x12&\n" +
-	"\fspawned_from\x18\r \x01(\tH\x06R\vspawnedFrom\x88\x01\x01B\b\n" +
+	"\fspawned_from\x18\r \x01(\tH\x06R\vspawnedFrom\x88\x01\x01\x12\x17\n" +
+	"\x04note\x18\x0e \x01(\tH\aR\x04note\x88\x01\x01B\b\n" +
 	"\x06_titleB\x0e\n" +
 	"\f_descriptionB\t\n" +
 	"\a_statusB\v\n" +
 	"\t_priorityB\r\n" +
 	"\v_initiativeB\t\n" +
 	"\a_effortB\x0f\n" +
-	"\r_spawned_fromJ\x04\b\x06\x10\aJ\x04\b\n" +
+	"\r_spawned_fromB\a\n" +
+	"\x05_noteJ\x04\b\x06\x10\aJ\x04\b\n" +
 	"\x10\v\"O\n" +
 	"\x18ListBacklogItemsResponse\x123\n" +
 	"\x05items\x18\x01 \x03(\v2\x1d.swarm_manager.v1.BacklogItemR\x05items\"H\n" +

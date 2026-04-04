@@ -46,6 +46,7 @@ export interface IInitiativeService {
   get(name: string): Promise<InitiativeWithRollup>;
   listFiles(name: string): Promise<TreeFile[]>;
   getFileContent(name: string, path: string): Promise<string>;
+  updateNote(name: string, note: string): Promise<InitiativeWithRollup>;
 }
 
 export function createInitiativeService(
@@ -70,6 +71,14 @@ export function createInitiativeService(
 
     async getFileContent(name: string, path: string): Promise<string> {
       return apiClient.get<string>(API_ENDPOINTS.initiativeFileContent(name, path), { responseType: "text" });
+    },
+
+    async updateNote(name: string, note: string): Promise<InitiativeWithRollup> {
+      const raw = await apiClient.put<Record<string, unknown>>(
+        API_ENDPOINTS.initiativeByName(name),
+        { note },
+      );
+      return normalizeItem(raw as { initiative?: Record<string, unknown>; rollup?: RawRollup });
     },
   };
 }

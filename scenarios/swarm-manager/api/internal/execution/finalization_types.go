@@ -51,6 +51,7 @@ const (
 	finalizationWarningReviewAgentFailed         = "review_agent_failed"
 	finalizationWarningEvidenceSkippedDisabled   = "evidence_skipped_disabled"
 	finalizationWarningEvidenceSkippedPolicyErr  = "evidence_skipped_policy_error"
+	finalizationWarningSelfRestartSkipped        = "self_restart_skipped"
 )
 
 // ScenarioLifecycle restarts affected scenarios after execution completion.

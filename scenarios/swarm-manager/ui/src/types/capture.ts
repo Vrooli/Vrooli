@@ -20,6 +20,7 @@ export interface Capture {
   created: string;
   status: CaptureStatus;
   classification: CaptureClassification | null;
+  note?: string;
 }
 
 /**

@@ -44,6 +44,28 @@ func (s *Service) processFinalization(ctx context.Context, executionID string) e
 		return err
 	}
 
+	// Filter out self to avoid restarting our own process mid-finalization.
+	if s.selfScenarioName != "" {
+		filtered := make([]string, 0, len(scope.affectedScenarios))
+		for _, name := range scope.affectedScenarios {
+			if name == s.selfScenarioName {
+				slog.Warn("skipping self-restart during finalization",
+					"execution_id", executionID,
+					"scenario", s.selfScenarioName,
+				)
+				_ = s.appendFinalizationWarning(executionID, newFinalizationWarning(
+					finalizationWarningSelfRestartSkipped,
+					s.selfScenarioName,
+					fmt.Sprintf("Scenario %q was in scope but skipped because restarting it would kill this running process. If changes to %s require a restart, restart it manually after finalization completes.", s.selfScenarioName, s.selfScenarioName),
+					false,
+				))
+				continue
+			}
+			filtered = append(filtered, name)
+		}
+		scope.affectedScenarios = filtered
+	}
+
 	if err := s.markFinalizationPhase(executionID, FinalizationPhaseRestarting); err != nil {
 		return err
 	}

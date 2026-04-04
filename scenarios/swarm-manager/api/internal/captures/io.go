@@ -16,6 +16,7 @@ type capture struct {
 	Created        string          `json:"created"`
 	Status         string          `json:"status"`
 	Classification *classification `json:"classification,omitempty"`
+	Note           string          `json:"note,omitempty"`
 }
 
 // classification represents the AI-generated classification result.

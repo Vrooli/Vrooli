@@ -8,6 +8,7 @@
  */
 
 import { useState, useEffect } from "react";
+import { renderMarkdown } from "../../lib/render-markdown";
 import {
   ArrowRightLeft,
   ArrowUpRight,
@@ -21,6 +22,7 @@ import {
 import { TagList } from "../ui/tag-list";
 import { EntityLink } from "../ui/entity-link";
 import { DetailSection } from "../detail/DetailSection";
+import { NoteEditor } from "../ui/note-editor";
 import { DependencyChipList } from "./dependency-chip-list";
 import { formatRelativeTime } from "../../lib";
 import { selectors } from "../../consts/selectors";
@@ -34,6 +36,7 @@ export interface BacklogDetailsPanelProps {
   isLocked: boolean;
   onEditGlobs: () => void;
   onDepStatusChange: (dep: ResolvedDependency, newStatus: BacklogStatus) => void;
+  onSaveNote: (note: string) => Promise<void>;
 }
 
 export function BacklogDetailsPanel({
@@ -43,6 +46,7 @@ export function BacklogDetailsPanel({
   isLocked,
   onEditGlobs,
   onDepStatusChange,
+  onSaveNote,
 }: BacklogDetailsPanelProps) {
   const [descExpanded, setDescExpanded] = useState(false);
   const [descOverflows, setDescOverflows] = useState(false);
@@ -58,12 +62,11 @@ export function BacklogDetailsPanel({
     <DetailSection title="Details" icon={Info} hideDivider>
       <div className="space-y-3">
         <div className="relative">
-          <p
-            className={`text-sm leading-relaxed text-slate-300 ${descExpanded ? "" : "line-clamp-3"}`}
+          <div
+            className={`prose-sm-slate text-sm leading-relaxed text-slate-300 ${descExpanded ? "" : "line-clamp-3"}`}
             data-testid={selectors.backlogDetails.description}
-          >
-            {item.description || "No description provided"}
-          </p>
+            dangerouslySetInnerHTML={{ __html: item.description ? renderMarkdown(item.description) : "No description provided" }}
+          />
           {(descOverflows || descExpanded) && (
             <button
               type="button"
@@ -116,15 +119,16 @@ export function BacklogDetailsPanel({
               Spawned from
             </div>
             {(() => {
-              const slashIdx = item.spawnedFrom!.indexOf("/");
-              const spawnKind = slashIdx > 0 ? item.spawnedFrom!.slice(0, slashIdx) : "";
-              const spawnName = slashIdx > 0 ? item.spawnedFrom!.slice(slashIdx + 1) : item.spawnedFrom!;
+              const sf = item.spawnedFrom ?? "";
+              const slashIdx = sf.indexOf("/");
+              const spawnKind = slashIdx > 0 ? sf.slice(0, slashIdx) : "";
+              const spawnName = slashIdx > 0 ? sf.slice(slashIdx + 1) : sf;
               return (
                 <EntityLink
                   entityType="backlog"
                   kind={spawnKind}
                   name={spawnName}
-                  label={item.spawnedFrom!}
+                  label={sf}
                 />
               );
             })()}
@@ -231,6 +235,8 @@ export function BacklogDetailsPanel({
             </>
           )}
         </div>
+        <NoteEditor note={item.note ?? ""} onSave={onSaveNote} />
+
         <div className="grid grid-cols-2 gap-3 border-t border-slate-800 pt-3">
           <div className="space-y-1">
             <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Created</p>

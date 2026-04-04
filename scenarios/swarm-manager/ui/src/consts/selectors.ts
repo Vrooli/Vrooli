@@ -357,6 +357,9 @@ export const literalSelectors = {
     description: "initiative-details-description",
     rollup: "initiative-details-rollup",
     itemsList: "initiative-details-items-list",
+    itemsViewToggle: "initiative-items-view-toggle",
+    itemsListView: "initiative-items-list-view",
+    itemsGraphView: "initiative-items-graph-view",
     backLink: "initiative-details-back-link",
   },
   prompts: {

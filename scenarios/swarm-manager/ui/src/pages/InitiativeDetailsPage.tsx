@@ -10,7 +10,7 @@
 
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Target, FolderOpen, Archive } from "lucide-react";
+import { Target, FolderOpen, Archive, List, Network } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
@@ -23,7 +23,11 @@ import { PageLoadingState } from "../components/ui/loading-states";
 import { FileTree, type TreeFile } from "../components/ui/file-tree";
 import { FilePreview } from "../components/ui/file-preview";
 import { EntityLink } from "../components/ui/entity-link";
+import { NoteEditor } from "../components/ui/note-editor";
+import { InitiativeDependencyGraph } from "../components/initiative/InitiativeDependencyGraph";
 import { defaultQueryOptions, formatRelativeTime } from "../lib";
+import { dependencyAwareSort, computeDepthMap } from "../lib/dependency-sort";
+import { computeDependencyRelations } from "../lib/backlog-queue-utils";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
 import { initiativeService } from "../services";
@@ -99,17 +103,45 @@ export function InitiativeDetailsPage() {
     if (!initiative?.items) return [];
     return initiative.items.map((ref) => {
       const parsed = parseItemRef(ref);
-      if (!parsed) return { ref, kind: "", name: ref, title: ref, status: "backlog" as BacklogStatus };
+      if (!parsed) return { ref, kind: "" as BacklogKind, name: ref, title: ref, status: "backlog" as BacklogStatus, dependsOn: [] as string[] };
       const found = backlogItems.find((bi) => bi.kind === parsed.kind && bi.name === parsed.name);
       return {
         ref,
-        kind: parsed.kind,
+        kind: parsed.kind as BacklogKind,
         name: parsed.name,
         title: found?.title ?? `${parsed.kind}/${parsed.name}`,
         status: (found?.status ?? "archived") as BacklogStatus,
+        dependsOn: found?.dependsOn ?? [],
       };
     });
   }, [initiative?.items, backlogItems]);
+
+  // Topologically sorted items + dependency metadata
+  const sortedItems = useMemo(
+    () => dependencyAwareSort(resolvedItems, (a, b) => a.title.localeCompare(b.title), backlogItems),
+    [resolvedItems, backlogItems],
+  );
+
+  const depthMap = useMemo(() => computeDepthMap(backlogItems), [backlogItems]);
+
+  const depRelationsMap = useMemo(() => {
+    const initiativeKeys = new Set(resolvedItems.map((i) => `${i.kind}/${i.name}`));
+    const map = new Map<string, { parentCount: number; childCount: number }>();
+    for (const item of resolvedItems) {
+      const relations = computeDependencyRelations(
+        { kind: item.kind as BacklogKind, name: item.name, dependsOn: item.dependsOn },
+        backlogItems,
+      );
+      map.set(`${item.kind}/${item.name}`, {
+        parentCount: relations.parents.filter((p) => initiativeKeys.has(`${p.kind}/${p.name}`)).length,
+        childCount: relations.children.filter((c) => initiativeKeys.has(`${c.kind}/${c.name}`)).length,
+      });
+    }
+    return map;
+  }, [resolvedItems, backlogItems]);
+
+  // Items view mode toggle
+  const [itemsView, setItemsView] = useState<"list" | "graph">("list");
 
   // Collapsible description
   const [descExpanded, setDescExpanded] = useState(false);
@@ -241,6 +273,14 @@ export function InitiativeDetailsPage() {
             </div>
           )}
 
+          <NoteEditor
+            note={initiative.note ?? ""}
+            onSave={async (note) => {
+              await initiativeService.updateNote(initiative.name, note);
+              void refetch();
+            }}
+          />
+
           <div className="flex gap-6 text-xs text-slate-500">
             <div>
               <span className="uppercase tracking-wider">Created</span>{" "}
@@ -304,22 +344,68 @@ export function InitiativeDetailsPage() {
 
       {/* Member Items */}
       {resolvedItems.length > 0 && (
-        <DetailSection title={`Items (${resolvedItems.length})`} data-testid={selectors.initiativeDetails.itemsList}>
-          <div className="flex flex-wrap gap-1.5">
-            {resolvedItems.map((item) => {
-              const chipColors = BACKLOG_STATUS_CHIP_COLORS[item.status] ?? "bg-slate-600/20 text-slate-300";
-              return (
-                <EntityLink
-                  key={item.ref}
-                  entityType="backlog"
-                  kind={item.kind}
-                  name={item.name}
-                  label={item.title}
-                  className={`hover:brightness-125 ${chipColors}`}
-                />
-              );
-            })}
-          </div>
+        <DetailSection
+          title={`Items (${resolvedItems.length})`}
+          data-testid={selectors.initiativeDetails.itemsList}
+          action={
+            <div className="flex gap-0.5" data-testid={selectors.initiativeDetails.itemsViewToggle}>
+              <button
+                type="button"
+                onClick={() => setItemsView("list")}
+                className={`rounded p-1 transition-colors ${itemsView === "list" ? "text-slate-200 bg-slate-700/50" : "text-slate-500 hover:text-slate-300"}`}
+                title="List view"
+              >
+                <List className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setItemsView("graph")}
+                className={`rounded p-1 transition-colors ${itemsView === "graph" ? "text-slate-200 bg-slate-700/50" : "text-slate-500 hover:text-slate-300"}`}
+                title="Dependency graph"
+              >
+                <Network className="h-4 w-4" />
+              </button>
+            </div>
+          }
+        >
+          {itemsView === "list" ? (
+            <div className="flex flex-col gap-1.5" data-testid={selectors.initiativeDetails.itemsListView}>
+              {sortedItems.map((item) => {
+                const key = `${item.kind}/${item.name}`;
+                const chipColors = BACKLOG_STATUS_CHIP_COLORS[item.status] ?? "bg-slate-600/20 text-slate-300";
+                const depth = depthMap.get(key) ?? 0;
+                const relations = depRelationsMap.get(key);
+                return (
+                  <div key={item.ref} className="flex items-center gap-2">
+                    {depth > 0 && (
+                      <span className="shrink-0 text-[10px] font-mono text-slate-500 w-4 text-right">L{depth}</span>
+                    )}
+                    <EntityLink
+                      entityType="backlog"
+                      kind={item.kind}
+                      name={item.name}
+                      label={item.title}
+                      className={`hover:brightness-125 ${chipColors}`}
+                    />
+                    {relations && relations.parentCount > 0 && (
+                      <span className="shrink-0 text-[10px] text-amber-500/70">
+                        &larr; blocked by {relations.parentCount}
+                      </span>
+                    )}
+                    {relations && relations.childCount > 0 && (
+                      <span className="shrink-0 text-[10px] text-slate-500">
+                        &rarr; unblocks {relations.childCount}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div data-testid={selectors.initiativeDetails.itemsGraphView}>
+              <InitiativeDependencyGraph items={resolvedItems} />
+            </div>
+          )}
         </DetailSection>
       )}
 

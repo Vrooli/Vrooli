@@ -187,6 +187,9 @@ func (s *Service) Update(name string, req UpdateRequest) (*Initiative, error) {
 	if req.Items != nil {
 		init.Items = *req.Items
 	}
+	if req.Note != nil {
+		init.Note = strings.TrimSpace(*req.Note)
+	}
 	init.Updated = time.Now().UTC().Format(time.RFC3339)
 
 	if err := s.store.Save(init); err != nil {

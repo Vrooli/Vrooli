@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ArrowUpRight, ChevronDown, ChevronUp, ExternalLink, Loader2, MessageSquare, RefreshCw } from "lucide-react";
 import { Button } from "../ui/button";
+import { IdentityBadge } from "../ui/identity-badge";
 import { cn, formatRelativeTime, canFollowUpExecution, canRunPostRunChecks, resolvePostRunExecution } from "../../lib";
 import {
   BACKLOG_KIND_LABELS,
@@ -119,7 +120,7 @@ export function ExecutionCard({
 
       {/* ── Zone 3: Meta row — source + timestamps ── */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-        {item.startedBy ? <span>by {item.startedBy}</span> : null}
+        {item.startedBy ? <IdentityBadge value={item.startedBy} agentManagerUiUrl={agentManagerUiUrl} /> : null}
         <span className="ml-auto flex items-center gap-3">
           <span title={new Date(item.updatedAt).toLocaleString()}>Updated {formatRelativeTime(item.updatedAt)}</span>
           <span title={new Date(item.createdAt).toLocaleString()}>Created {formatRelativeTime(item.createdAt)}</span>

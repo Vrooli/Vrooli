@@ -25,6 +25,8 @@ import { InitiativeBadge } from "./initiative-badge";
 import { DependencyIndicator } from "./dependency-indicator";
 import { ScenarioBadge } from "./scenario-badge";
 import { AgentRunningBadge } from "./agent-running-badge";
+import { CircuitBrokenBadge } from "./circuit-broken-badge";
+import { NoteIndicator } from "../ui/note-indicator";
 import { ReadinessBar } from "./readiness-bar";
 import { displayLimitsConfig } from "../../config";
 
@@ -133,6 +135,8 @@ export function BacklogCard({
           )}
           <ScenarioBadge acceptanceAllow={item.acceptanceAllow} />
           <AgentRunningBadge backlogKind={item.kind as BacklogKind} backlogName={item.name} />
+          <CircuitBrokenBadge backlogKind={item.kind as BacklogKind} backlogName={item.name} />
+          <NoteIndicator note={item.note} />
         </div>
         <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
           P{item.priority}
@@ -282,6 +286,7 @@ export function BacklogCard({
                   size="sm"
                   variant={itemActions.primaryCta === "run" ? "default" : "outline"}
                   disabled={itemActions.runDisabled}
+                  title={itemActions.runDisabled && itemActions.disabledReason ? itemActions.disabledReason : undefined}
                   onClick={(event) => {
                     event.preventDefault();
                     event.stopPropagation();
@@ -297,6 +302,7 @@ export function BacklogCard({
                   size="sm"
                   variant={itemActions.primaryCta === "workshop" ? "default" : "outline"}
                   disabled={itemActions.workshopDisabled || workshopPending}
+                  title={(itemActions.workshopDisabled || workshopPending) && itemActions.disabledReason ? itemActions.disabledReason : undefined}
                   onClick={(event) => {
                     event.preventDefault();
                     event.stopPropagation();
@@ -345,6 +351,12 @@ export function BacklogCard({
             </div>
           )}
 
+          {/* Disabled reason for buttons that are shown but not clickable */}
+          {itemActions.disabledReason && (itemActions.runDisabled || itemActions.workshopDisabled || itemActions.finalizeDisabled) && (
+            <p className="mt-3 text-xs text-amber-400/80">
+              {itemActions.disabledReason}
+            </p>
+          )}
           {/* Not-queueable reason (non-locked, non-terminal items that can't run) */}
           {itemActions.notQueueableReason && !itemActions.locked && !itemActions.terminal && !itemActions.blocked && (
             <p className="mt-3 text-xs text-slate-500">

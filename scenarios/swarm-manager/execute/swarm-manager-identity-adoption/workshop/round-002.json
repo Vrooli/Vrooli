@@ -1,0 +1,126 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-03T23:45:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "cli-core's HTTPClient has no ExtraHeaders mechanism. requestV1() delegates to APIClient.Request() → HTTPClient.Do() which only sets Authorization and X-Dry-Run headers. The identity header cannot be injected through the existing chain without either (a) extending cli-core's HTTPClient, or (b) wrapping the http.Client's Transport with a RoundTripper."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "CLI identity header injection strategy",
+      "context": "requestV1() calls a.core.APIClient.Request() which goes through HTTPClient.DoWithContext(). This chain has no hook for extra headers. requestMultipartV1() builds requests manually and already iterates AuthHeaders(). We need a way to inject X-Agent-Identity-Token without modifying the out-of-scope packages/cli-core.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Custom http.RoundTripper that wraps DefaultTransport and injects the header",
+          "rationale": "Go-idiomatic pattern. Set it on the http.Client before APIClient uses it. No cli-core changes needed. All requests through that client automatically get the header. Clean separation of concerns. Recommended because it works transparently for both requestV1 and requestMultipartV1.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Add ExtraHeaders map to cli-core's HTTPClient",
+          "rationale": "Cleaner API surface — HTTPClient gains a SetExtraHeaders() method like SetToken(). But requires modifying packages/cli-core, which the scope says is out of bounds. Would benefit other scenarios adopting identity later."
+        },
+        {
+          "key": "C",
+          "label": "Replace requestV1() with manual request construction (like requestMultipartV1)",
+          "rationale": "No new abstractions, just duplicate the manual request pattern. But duplicates ~30 lines of HTTPClient.DoWithContext logic and creates drift risk if cli-core changes its request handling."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Middleware testing strategy for agent-manager verification",
+      "context": "The identity middleware calls cliutil.VerifyIdentity() which makes an HTTP request to agent-manager. Tests need to avoid depending on a running agent-manager. The existing test patterns in swarm-manager use httptest.NewServer for handler tests but there are no middleware-specific test patterns.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Interface-based: define a Verifier interface, inject real or mock implementation",
+          "rationale": "Standard Go testability pattern. Middleware takes a Verifier interface; production uses cliutil-backed implementation, tests use a stub. Clear, explicit, no global state. Recommended because it's the cleanest testing seam and matches the testutil patterns already in use.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "httptest.NewServer as fake agent-manager in tests",
+          "rationale": "Integration-style: spin up a fake HTTP server that responds to /api/v1/identity/verify. Tests exercise the real HTTP path. More realistic but slower, more boilerplate, and tests are coupled to agent-manager's API shape."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Backlog created_by immutability enforcement location",
+      "context": "The plan says created_by is set at creation time and immutable. SaveItem() does a read-modify-write: it reads existing spec.json, merges known fields from the BacklogItem struct, and preserves unknown fields. We need to decide where to enforce immutability so that updates cannot overwrite created_by.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Store-level: SaveItem() reads existing created_by before write and preserves it if already set",
+          "rationale": "Defense in depth — no matter what handler passes, the store ensures created_by can never change once written. Fits naturally into the existing read-modify-write pattern. Recommended because it makes the invariant impossible to violate regardless of caller.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Handler-level only: create handler sets it, update handler omits it from the struct",
+          "rationale": "Simpler — relies on convention that update handlers don't populate CreatedBy. But a bug in any handler could silently overwrite provenance. No safety net."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Provenance propagation to agent activity records",
+      "context": "Agent activity records currently get RequestedBy from hardcoded strings in handlers (e.g., 'swarm-manager', 'swarm-manager-ui'). With the identity middleware, provenance is available in context. We need to decide how activity records should adopt provenance.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Middleware sets provenance in context; activity Spec reads from context when RequestedBy is empty",
+          "rationale": "Minimal handler changes — existing code that sets RequestedBy explicitly keeps working, but CLI-initiated requests get automatic agent provenance from context. The activity Spec.normalized() method already has a default fallback. Recommended because it's backward-compatible and low-touch.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Each handler explicitly reads provenance from context and sets RequestedBy",
+          "rationale": "More explicit — every handler consciously decides what to set. But requires touching every handler that creates activities, and risks missed handlers."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    }
+  ],
+  "plan_updates": "Refined Phase 1 with specific implementation detail about the header injection gap (HTTPClient lacks ExtraHeaders). Added testing strategy detail to Phase 6. Refined Phase 3 with store-level immutability approach. Added agent activity propagation detail to Phase 4."
+}

@@ -29,6 +29,7 @@ import (
 	_ "modernc.org/sqlite"
 
 	"swarm-manager/internal/agentactivity"
+	"swarm-manager/internal/identity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/captures"
@@ -100,6 +101,7 @@ func NewServerWithRoot(scenarioRoot string) *Server {
 
 func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
+	s.router.Use(identity.Middleware(identity.CLIUtilVerifier{}))
 	scenarioRoot := s.scenarioRoot
 	scenariosDir := filepath.Dir(scenarioRoot)
 

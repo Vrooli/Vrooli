@@ -31,7 +31,7 @@ export interface BacklogFileOperationResult {
 
 export type BacklogUpdatePatch = Partial<Pick<
   BacklogItem,
-  "title" | "description" | "status" | "priority" | "tags" | "dependsOn" | "initiative" | "effort" | "acceptanceAllow" | "acceptanceDeny"
+  "title" | "description" | "status" | "priority" | "tags" | "dependsOn" | "initiative" | "effort" | "acceptanceAllow" | "acceptanceDeny" | "note"
 >>;
 
 /** Result of auto-advance decision from the workshop save endpoint. */

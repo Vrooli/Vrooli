@@ -15,7 +15,7 @@
   "kind": "execute",
   "name": "deployment-manager-visual-validation-approval-flow",
   "priority": 1,
-  "status": "backlog",
+  "status": "completed",
   "tags": [
     "deployment-manager",
     "visual-validation",
@@ -24,5 +24,5 @@
     "desktop-release"
   ],
   "title": "Turn Visual Validation Into A Real Approval Flow",
-  "updated": "2026-03-26T16:35:48Z"
+  "updated": "2026-04-04T03:44:04Z"
 }

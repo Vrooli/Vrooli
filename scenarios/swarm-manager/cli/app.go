@@ -2,6 +2,8 @@
 package main
 
 import (
+	"net/http"
+
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 )
@@ -21,6 +23,7 @@ var (
 type App struct {
 	core      *cliapp.ScenarioApp
 	globalDry bool // set by preflight from --dry-run global flag
+	identity  cliutil.IdentityEnv
 }
 
 func NewApp() (*App, error) {
@@ -28,7 +31,23 @@ func NewApp() (*App, error) {
 		ExtraAPIEnvVars: []string{"API_BASE_URL", "VITE_API_BASE_URL"},
 	})
 	app := &App{}
+
+	// Detect agent identity from environment. When present, wrap the HTTP
+	// transport so every outgoing request carries the identity token header.
+	identity := cliutil.DetectIdentity()
+	app.identity = identity
+	var httpClientOpts cliutil.HTTPClientOptions
+	if identity.IsIdentityPresent() {
+		httpClientOpts.Client = &http.Client{
+			Transport: &identityTransport{
+				base:  http.DefaultTransport,
+				token: identity.Token,
+			},
+		}
+	}
+
 	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
+		HTTPClientOptions: httpClientOpts,
 		Name:              appName,
 		Version:           appVersion,
 		Description:       "Swarm Manager CLI",

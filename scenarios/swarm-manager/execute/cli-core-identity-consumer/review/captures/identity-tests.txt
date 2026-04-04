@@ -1,0 +1,26 @@
+=== RUN   TestDetectIdentity
+=== RUN   TestDetectIdentity/returns_zero_value_when_env_var_not_set
+=== RUN   TestDetectIdentity/returns_populated_struct_when_env_var_set
+--- PASS: TestDetectIdentity (0.00s)
+    --- PASS: TestDetectIdentity/returns_zero_value_when_env_var_not_set (0.00s)
+    --- PASS: TestDetectIdentity/returns_populated_struct_when_env_var_set (0.00s)
+=== RUN   TestIsIdentityPresent
+=== RUN   TestIsIdentityPresent/token_set
+=== RUN   TestIsIdentityPresent/token_empty
+--- PASS: TestIsIdentityPresent (0.00s)
+    --- PASS: TestIsIdentityPresent/token_set (0.00s)
+    --- PASS: TestIsIdentityPresent/token_empty (0.00s)
+=== RUN   TestVerifyIdentity_Success
+--- PASS: TestVerifyIdentity_Success (0.00s)
+=== RUN   TestVerifyIdentity_InvalidToken
+--- PASS: TestVerifyIdentity_InvalidToken (0.00s)
+=== RUN   TestVerifyIdentity_NetworkError
+--- PASS: TestVerifyIdentity_NetworkError (0.00s)
+=== RUN   TestVerifyIdentity_MalformedResponse
+--- PASS: TestVerifyIdentity_MalformedResponse (0.00s)
+=== RUN   TestVerifyIdentity_EmptyToken
+--- PASS: TestVerifyIdentity_EmptyToken (0.00s)
+=== RUN   TestVerifyIdentity_NoBaseURL
+--- PASS: TestVerifyIdentity_NoBaseURL (0.00s)
+PASS
+ok  	github.com/vrooli/cli-core/cliutil	(cached)

@@ -8,6 +8,9 @@
  */
 
 import { Home, PanelLeft, Settings, X } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { defaultQueryOptions } from "../../../../lib";
+import { settingsService } from "../../../../services";
 import { useAgentActivitiesStore } from "../../../../stores";
 import { useDetailSelectionStore } from "../../../../stores/detail-selection-store";
 import { useGraphUIStore } from "../../stores/graph-ui-store";
@@ -35,6 +38,11 @@ export function SidebarHeader({
   const clearSelection = useDetailSelectionStore((s) => s.clearSelection);
   const setSidebarCollapsed = useGraphUIStore((s) => s.setSidebarCollapsed);
   const commandPostBadgeCount = useCommandPostBadgeCount();
+  const { data: settings } = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => settingsService.get(),
+    ...defaultQueryOptions,
+  });
 
   const handleGoHome = () => {
     clearSelection();
@@ -71,6 +79,7 @@ export function SidebarHeader({
           onViewActivity={onViewActivity}
           onViewBacklog={onViewBacklog}
           onStopRun={(runId) => void stopRun(runId)}
+          maxConcurrent={settings?.maxConcurrentExecutions}
           variant="badge"
         />
         <button

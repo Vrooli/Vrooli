@@ -97,6 +97,9 @@ export function BacklogDesktopHeader({
 
         <div className="flex flex-wrap items-center gap-2">
           {primaryAction}
+          {itemActions?.disabledReason && (itemActions.runDisabled || itemActions.workshopDisabled || itemActions.finalizeDisabled) ? (
+            <span className="max-w-xs text-xs text-amber-400/80">{itemActions.disabledReason}</span>
+          ) : null}
           {itemActions?.notQueueableReason && !itemActions.locked && !itemActions.terminal && !itemActions.canRun && !itemActions.runDisabled && !itemActions.canWorkshop && !itemActions.workshopDisabled && !itemActions.canFinalize && !itemActions.finalizeDisabled ? (
             <span className="max-w-xs text-xs text-slate-500">{itemActions.notQueueableReason}</span>
           ) : null}

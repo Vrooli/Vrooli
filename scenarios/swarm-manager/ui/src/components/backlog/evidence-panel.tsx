@@ -8,6 +8,7 @@
  */
 
 import { useState } from "react";
+import { renderMarkdown } from "../../lib/render-markdown";
 import {
   ChevronDown,
   ChevronRight,
@@ -143,7 +144,7 @@ function RoundSection({
   expanded,
   onToggle,
   onVerify,
-  onRequestMore,
+  onRequestMore: _onRequestMore,
 }: RoundSectionProps) {
   const verifiedCount = round.evidence.filter((e) => e.verified).length;
   const Icon = expanded ? ChevronDown : ChevronRight;
@@ -165,9 +166,7 @@ function RoundSection({
         </span>
         {/* Collapsed assessment preview */}
         {round.agent_assessment && !expanded && (
-          <span className="flex-1 truncate text-xs text-slate-400 italic">
-            {round.agent_assessment}
-          </span>
+          <span className="flex-1 truncate text-xs text-slate-400 italic" dangerouslySetInnerHTML={{ __html: renderMarkdown(round.agent_assessment) }} />
         )}
       </button>
 
@@ -185,14 +184,12 @@ function RoundSection({
                 <span className="text-xs font-medium text-slate-300">Agent Assessment</span>
               </div>
               {round.agent_assessment && (
-                <p className="text-sm leading-relaxed text-slate-300">
-                  {round.agent_assessment}
-                </p>
+                <div className="prose-sm-slate text-sm leading-relaxed text-slate-300" dangerouslySetInnerHTML={{ __html: renderMarkdown(round.agent_assessment) }} />
               )}
               {round.notes && round.notes.length > 0 && (
                 <ul className="space-y-1 pl-4 list-disc">
                   {round.notes.map((note, i) => (
-                    <li key={i} className="text-xs text-slate-400">{note}</li>
+                    <li key={i} className="text-xs text-slate-400" dangerouslySetInnerHTML={{ __html: renderMarkdown(note) }} />
                   ))}
                 </ul>
               )}

@@ -2,13 +2,13 @@
   "round": 2,
   "generated_at": "2026-04-02T19:30:00Z",
   "mode": "workshop",
-  "pending_synthesis": false,
+  "pending_synthesis": true,
   "readiness": {
-    "problem_clarity": 3,
-    "scope_defined": 2,
     "approach_solid": 2,
-    "testable": 1,
-    "risk_awareness": 2
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 2,
+    "testable": 1
   },
   "items": [
     {
@@ -59,9 +59,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": "A",
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d2",
@@ -86,9 +84,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": "A",
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d3",
@@ -118,9 +114,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": "A",
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "i5",

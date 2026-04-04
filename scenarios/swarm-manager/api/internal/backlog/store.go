@@ -217,6 +217,16 @@ func (s *FileStore) SaveItem(item BacklogItem) error {
 	} else {
 		delete(merged, "spawned_from")
 	}
+	if strings.TrimSpace(item.Note) != "" {
+		merged["note"] = item.Note
+	} else {
+		delete(merged, "note")
+	}
+
+	// Preserve immutable created_by: once set on disk, never overwrite.
+	if _, exists := merged["created_by"]; !exists && item.CreatedBy != nil {
+		merged["created_by"] = item.CreatedBy
+	}
 
 	data, err := json.MarshalIndent(merged, "", "  ")
 	if err != nil {

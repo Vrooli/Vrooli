@@ -90,6 +90,9 @@ message BacklogItem {
 
   // Origin reference in "kind/name" format, tracking which item spawned this one.
   optional string spawned_from = 17;
+
+  // Personal annotation — a user note for tracking context (e.g., why the item is paused).
+  optional string note = 18;
 }
 
 // BacklogFile represents a file or directory within a backlog item folder.

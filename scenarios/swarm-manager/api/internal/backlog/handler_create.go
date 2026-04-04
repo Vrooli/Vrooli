@@ -11,6 +11,7 @@ import (
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
+	"swarm-manager/internal/identity"
 	"swarm-manager/internal/settings"
 	"swarm-manager/internal/workshop"
 )
@@ -129,7 +130,12 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	if req.SpawnedFrom != nil {
 		spawnedFrom = strings.TrimSpace(*req.SpawnedFrom)
 	}
+	note := ""
+	if req.Note != nil {
+		note = strings.TrimSpace(*req.Note)
+	}
 
+	prov := identity.FromContext(r.Context())
 	item := BacklogItem{
 		Name:            name,
 		Title:           req.Title,
@@ -146,6 +152,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		AcceptanceAllow: req.AcceptanceAllow,
 		AcceptanceDeny:  req.AcceptanceDeny,
 		SpawnedFrom:     spawnedFrom,
+		Note:            note,
+		CreatedBy:       &prov,
 	}
 
 	itemDir := h.store.ItemDir(kind, name)

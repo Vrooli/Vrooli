@@ -94,6 +94,8 @@ function recentItemToNodeId(item: RecentlyViewedItem): string {
       return `initiative/${item.name}`;
     case "scenario":
       return `scenario/${item.name}`;
+    default:
+      return `${item.entityType}/${item.name}`;
   }
 }
 

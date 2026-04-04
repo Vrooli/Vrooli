@@ -16,10 +16,11 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { cn } from "../../../lib/utils";
 import { BACKLOG_KIND_ICONS } from "../../../types";
 import type { BacklogKind } from "../../../types";
+import { useGovernanceStore, isCircuitBroken } from "../../../stores/governance-store";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
 import type { GraphEntityType, GraphNodeData } from "../types";
-import { ActionableBadge, StatusBadge } from "./StatusBadge";
+import { ActionableBadge, CircuitBrokenNodeBadge, StatusBadge } from "./StatusBadge";
 import {
   getClipPathStyle,
   getEntityBadgeLabel,
@@ -37,6 +38,11 @@ function GraphNodeComponent({ id, data }: NodeProps) {
   const lens = useGraphDataStore((s) => s.lens);
   const isSelected = useGraphUIStore((s) => s.selectedNodeId === id);
   const entityType = nodeData.entityType ?? DEFAULT_ENTITY;
+  const circuitBroken = useGovernanceStore((s) =>
+    entityType === "backlog" && "name" in nodeData && "kind" in nodeData
+      ? isCircuitBroken(s, nodeData.kind as string, (nodeData as { name: string }).name)
+      : false,
+  );
   const backlogKindIcon = entityType === "backlog" && nodeData.kind
     ? BACKLOG_KIND_ICONS[nodeData.kind as BacklogKind]
     : undefined;
@@ -112,6 +118,9 @@ function GraphNodeComponent({ id, data }: NodeProps) {
         )}
         {lens === "topology" && entityType === "backlog" && nodeData.status && isActionableBacklogStatus(nodeData.status) && (
           <ActionableBadge status={nodeData.status} />
+        )}
+        {lens === "topology" && entityType === "backlog" && circuitBroken && (
+          <CircuitBrokenNodeBadge />
         )}
       </div>
       <Handle type="source" position={Position.Bottom} className="!opacity-0 !w-1 !h-1 !min-w-0 !min-h-0 !border-0 !p-0" />

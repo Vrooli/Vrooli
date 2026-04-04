@@ -11,7 +11,7 @@
   "kind": "execute",
   "name": "swarm-manager-concurrency-guardrails",
   "priority": 2,
-  "status": "failed",
+  "status": "completed",
   "tags": [
     "swarm-manager",
     "concurrency",
@@ -21,5 +21,5 @@
     "cost-awareness"
   ],
   "title": "Add Concurrency Controls, Rate Limiting, and Cost Awareness to Swarm-Manager Executions",
-  "updated": "2026-04-02T17:44:21Z"
+  "updated": "2026-04-03T20:42:12Z"
 }

@@ -8,6 +8,7 @@
 
 import { Check, AlertTriangle, X, Minus, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
+import { renderMarkdown } from "../../lib/render-markdown";
 import { cn } from "../../lib";
 import { useDetailSelectionStore } from "../../stores/detail-selection-store";
 import { selectors } from "../../consts/selectors";
@@ -144,16 +145,16 @@ function ScenarioCard({
       {expanded && hasExpandableDetails && (
         <div className="border-t border-white/5 px-3 py-2 space-y-2">
           {scenario.health.details && scenario.health.status !== "completed" && (
-            <p className="flex items-start gap-1.5 text-[11px] text-red-300">
+            <div className="flex items-start gap-1.5 text-[11px] text-red-300">
               <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
-              {scenario.health.details}
-            </p>
+              <span className="prose-sm-slate" dangerouslySetInnerHTML={{ __html: renderMarkdown(scenario.health.details) }} />
+            </div>
           )}
           {review.skipReason && (
-            <p className="text-[11px] text-amber-300">{review.skipReason}</p>
+            <div className="prose-sm-slate text-[11px] text-amber-300" dangerouslySetInnerHTML={{ __html: renderMarkdown(review.skipReason) }} />
           )}
           {summary && (
-            <p className="text-[11px] leading-relaxed text-slate-400">{summary}</p>
+            <div className="prose-sm-slate text-[11px] leading-relaxed text-slate-400" dangerouslySetInnerHTML={{ __html: renderMarkdown(summary) }} />
           )}
         </div>
       )}

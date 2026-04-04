@@ -45,6 +45,9 @@ message Capture {
 
   // Classification result (populated after agent completes).
   optional CaptureClassification classification = 6;
+
+  // Personal annotation — a user note for tracking context.
+  optional string note = 7;
 }
 
 // CaptureClassification contains the AI-generated classification of a capture.

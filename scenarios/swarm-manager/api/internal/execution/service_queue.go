@@ -12,6 +12,7 @@ import (
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/identity"
 	"swarm-manager/internal/idgen"
 	"swarm-manager/internal/promptcatalog"
 )
@@ -106,7 +107,12 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 		UpdatedAt:      now,
 	}
 	if record.StartedBy == "" {
-		record.StartedBy = "swarm-manager"
+		prov := identity.FromContext(ctx)
+		if prov.IsAgent() {
+			record.StartedBy = prov.FormatStartedBy()
+		} else {
+			record.StartedBy = "swarm-manager"
+		}
 	}
 	if record.Operation == "" {
 		record.Operation = "generator"

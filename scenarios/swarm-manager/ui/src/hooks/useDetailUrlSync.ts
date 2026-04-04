@@ -26,7 +26,7 @@ import {
   type DetailEntityType,
 } from "../stores/detail-selection-store";
 
-const DETAIL_ENTITY_TYPES = new Set(["backlog", "scenario", "execution", "initiative"]);
+const DETAIL_ENTITY_TYPES = new Set(["backlog", "scenario", "execution", "initiative", "capture"]);
 
 function isDetailEntityType(value: string | null): value is DetailEntityType {
   return value !== null && DETAIL_ENTITY_TYPES.has(value);
@@ -56,6 +56,11 @@ function readSelectionFromUrl(params: URLSearchParams): DetailSelection | null {
       if (!execId) return null;
       return { entityType: "execution", identifier: execId };
     }
+    case "capture": {
+      const id = params.get("id");
+      if (!id) return null;
+      return { entityType: "capture", identifier: id };
+    }
     case "initiative": {
       const name = params.get("name");
       if (!name) return null;
@@ -73,6 +78,7 @@ function writeSelectionToUrl(params: URLSearchParams, selection: DetailSelection
   params.delete("kind");
   params.delete("name");
   params.delete("execId");
+  params.delete("id");
   params.delete("tab");
 
   if (!selection) return;
@@ -90,6 +96,9 @@ function writeSelectionToUrl(params: URLSearchParams, selection: DetailSelection
       break;
     case "execution":
       if (selection.identifier) params.set("execId", selection.identifier);
+      break;
+    case "capture":
+      if (selection.identifier) params.set("id", selection.identifier);
       break;
   }
 

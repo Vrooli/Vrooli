@@ -72,7 +72,7 @@ export function ExecutionDetailsPage() {
     isTraceLoading,
     reviewRounds,
     isGatheringEvidence,
-    targetScenarios,
+    targetScenarios: _targetScenarios,
     isLoading,
     error,
     isActive,

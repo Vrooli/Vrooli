@@ -1,0 +1,42 @@
+
+ RUN  v2.1.9 /home/matthalloran8/Vrooli/scenarios/deployment-manager/ui
+
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+ ✓ src/pages/Approvals.test.tsx > Approvals > renders page title
+ ✓ src/pages/Approvals.test.tsx > Approvals > shows select prompt when no profile selected
+ ✓ src/pages/ProfileDetail.test.tsx > ProfileDetail - Release Gate > renders release gate card
+ ✓ src/pages/Approvals.test.tsx > Approvals > renders approval list after selecting profile
+ ✓ src/pages/ProfileDetail.test.tsx > ProfileDetail - Release Gate > shows Ready badge when gate is ready
+ ✓ src/pages/Approvals.test.tsx > Approvals > filters approvals by status
+ ✓ src/pages/Approvals.test.tsx > Approvals > shows empty state when no approvals
+ ✓ src/pages/Approvals.test.tsx > Approvals > shows error state on API failure
+ ✓ src/pages/ProfileDetail.test.tsx > ProfileDetail - Release Gate > shows Blocked badge with platform breakdown when not ready
+ ✓ src/pages/ProfileDetail.test.tsx > ProfileDetail - Required Platforms > renders required platforms checkboxes
+ ✓ src/pages/ProfileDetail.test.tsx > ProfileDetail - Required Platforms > shows save button after changing selection
+stderr | src/pages/Approvals.test.tsx > Approvals > opens detail view on row click
+Warning: validateDOMNesting(...): <div> cannot appear as a descendant of <p>.
+    at div
+    at Badge (/home/matthalloran8/Vrooli/scenarios/deployment-manager/ui/src/components/ui/badge.tsx:25:18)
+    at p
+    at div
+    at div
+    at div
+    at /home/matthalloran8/Vrooli/scenarios/deployment-manager/ui/src/components/ui/card.tsx:78:57
+    at div
+    at /home/matthalloran8/Vrooli/scenarios/deployment-manager/ui/src/components/ui/card.tsx:7:50
+    at div
+    at Approvals (/home/matthalloran8/Vrooli/scenarios/deployment-manager/ui/src/pages/Approvals.tsx:30:45)
+    at QueryClientProvider (file:///home/matthalloran8/Vrooli/scenarios/deployment-manager/ui/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:20:3)
+    at Router (file:///home/matthalloran8/Vrooli/scenarios/deployment-manager/ui/node_modules/react-router/dist/development/chunk-4WY6JWTD.mjs:6463:13)
+    at BrowserRouter (file:///home/matthalloran8/Vrooli/scenarios/deployment-manager/ui/node_modules/react-router/dist/development/chunk-4WY6JWTD.mjs:9623:3)
+    at /home/matthalloran8/Vrooli/scenarios/deployment-manager/ui/src/pages/Approvals.test.tsx:22:13
+
+ ✓ src/pages/ProfileDetail.test.tsx > ProfileDetail - Required Platforms > calls setRequiredPlatforms on save
+ ✓ src/pages/Approvals.test.tsx > Approvals > opens detail view on row click
+ ✓ src/pages/Approvals.test.tsx > Approvals > calls decideApproval on approve action
+
+ Test Files  2 passed (2)
+      Tests  14 passed (14)
+   Start at  23:54:26
+   Duration  1.08s (transform 131ms, setup 67ms, collect 455ms, tests 519ms, environment 526ms, prepare 298ms)
+

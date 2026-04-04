@@ -49,8 +49,8 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
+      "selected": "__other__",
+      "freeform": "Depends on what we discover from investigating and testing",
       "notes": null
     },
     {
@@ -81,7 +81,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
       "notes": null
     },

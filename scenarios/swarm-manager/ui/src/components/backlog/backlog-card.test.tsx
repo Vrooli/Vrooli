@@ -36,6 +36,7 @@ const makeActions = (overrides?: Partial<ItemActions>): ItemActions => ({
   showDecisionStepper: false,
   agentRunning: false,
   notQueueableReason: null,
+  disabledReason: null,
   ...overrides,
 });
 

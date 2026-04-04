@@ -73,3 +73,14 @@ export function ActionableBadge({ status }: ActionableBadgeProps) {
     />
   );
 }
+
+/** Circuit-breaker badge — red dot at bottom-right when breaker is tripped. */
+export function CircuitBrokenNodeBadge() {
+  return (
+    <div
+      className="absolute -bottom-2 left-1/2 -translate-x-1/2 h-4 w-4 rounded-full border-2 border-slate-900 bg-red-500 animate-pulse"
+      title="Circuit breaker tripped"
+      data-testid="circuit-broken-badge"
+    />
+  );
+}

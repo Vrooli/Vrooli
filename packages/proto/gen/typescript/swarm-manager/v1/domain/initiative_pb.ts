@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/domain/initiative.proto.
  */
 export const file_swarm_manager_v1_domain_initiative: GenFile = /*@__PURE__*/
-  fileDesc("Cihzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9pbml0aWF0aXZlLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIrUBCgpJbml0aWF0aXZlEhUKBG5hbWUYASABKAlCB7pIBHICEAESFgoFdGl0bGUYAiABKAlCB7pIBHICEAESEwoLZGVzY3JpcHRpb24YAyABKAkSMgoGc3RhdHVzGAQgASgJQiK6SB9yHVIGYWN0aXZlUgljb21wbGV0ZWRSCGFyY2hpdmVkEg0KBWl0ZW1zGAUgAygJEg8KB2NyZWF0ZWQYBiABKAkSDwoHdXBkYXRlZBgHIAEoCSJqChBJbml0aWF0aXZlUm9sbHVwEg0KBXRvdGFsGAEgASgFEhEKCWNvbXBsZXRlZBgCIAEoBRITCgtpbl9wcm9ncmVzcxgDIAEoBRIOCgZmYWlsZWQYBCABKAUSDwoHcGVuZGluZxgFIAEoBUJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvZG9tYWluO2RvbWFpbmIGcHJvdG8z", [file_buf_validate_validate]);
+  fileDesc("Cihzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9pbml0aWF0aXZlLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxItEBCgpJbml0aWF0aXZlEhUKBG5hbWUYASABKAlCB7pIBHICEAESFgoFdGl0bGUYAiABKAlCB7pIBHICEAESEwoLZGVzY3JpcHRpb24YAyABKAkSMgoGc3RhdHVzGAQgASgJQiK6SB9yHVIGYWN0aXZlUgljb21wbGV0ZWRSCGFyY2hpdmVkEg0KBWl0ZW1zGAUgAygJEg8KB2NyZWF0ZWQYBiABKAkSDwoHdXBkYXRlZBgHIAEoCRIRCgRub3RlGAggASgJSACIAQFCBwoFX25vdGUiagoQSW5pdGlhdGl2ZVJvbGx1cBINCgV0b3RhbBgBIAEoBRIRCgljb21wbGV0ZWQYAiABKAUSEwoLaW5fcHJvZ3Jlc3MYAyABKAUSDgoGZmFpbGVkGAQgASgFEg8KB3BlbmRpbmcYBSABKAVCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_buf_validate_validate]);
 
 /**
  * Initiative represents a named grouping of backlog items.
@@ -70,6 +70,13 @@ export type Initiative = Message<"swarm_manager.v1.Initiative"> & {
    * @generated from field: string updated = 7;
    */
   updated: string;
+
+  /**
+   * Personal annotation — a user note for tracking context.
+   *
+   * @generated from field: optional string note = 8;
+   */
+  note?: string;
 };
 
 /**

@@ -12,6 +12,7 @@ type Initiative struct {
 	Items       []string `json:"items"`  // "kind/name" references
 	Created     string   `json:"created"`
 	Updated     string   `json:"updated"`
+	Note        string   `json:"note,omitempty"`
 }
 
 // RollupStatus provides aggregated status counts for an initiative's items.
@@ -44,11 +45,12 @@ type UpdateRequest struct {
 	Description *string   `json:"description,omitempty"`
 	Status      *string   `json:"status,omitempty"`
 	Items       *[]string `json:"items,omitempty"`
+	Note        *string   `json:"note,omitempty"`
 }
 
 // HasChanges reports whether the update request contains at least one field.
 func (r UpdateRequest) HasChanges() bool {
-	return r.Title != nil || r.Description != nil || r.Status != nil || r.Items != nil
+	return r.Title != nil || r.Description != nil || r.Status != nil || r.Items != nil || r.Note != nil
 }
 
 // ValidateStatus returns true if the status string is valid.

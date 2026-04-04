@@ -12,7 +12,7 @@
 import { create } from "zustand";
 import { buildBacklogNodeId, buildExecutionNodeId } from "../surfaces/graph/lib/node-id-parser";
 
-export type DetailEntityType = "backlog" | "scenario" | "execution" | "initiative";
+export type DetailEntityType = "backlog" | "scenario" | "execution" | "initiative" | "capture";
 
 export interface DetailSelection {
   entityType: DetailEntityType;
@@ -20,7 +20,7 @@ export interface DetailSelection {
   kind?: string;
   /** Entity name. Used by backlog, scenario, and initiative. */
   name?: string;
-  /** Execution ID. Only set for execution entities. */
+  /** Execution ID or Capture ID. Set for execution and capture entities. */
   identifier?: string;
   /** Active tab within the detail page (e.g., "files", "workshop"). */
   tab?: string;
@@ -33,6 +33,7 @@ export interface DetailSelectionStore {
   selectScenario: (name: string, tab?: string) => void;
   selectExecution: (executionId: string) => void;
   selectInitiative: (name: string, tab?: string) => void;
+  selectCapture: (captureId: string) => void;
   setTab: (tab: string | null) => void;
   clearSelection: () => void;
 
@@ -57,6 +58,9 @@ export const useDetailSelectionStore = create<DetailSelectionStore>((set) => ({
 
   selectInitiative: (name, tab) =>
     set({ selection: { entityType: "initiative", name, tab } }),
+
+  selectCapture: (captureId) =>
+    set({ selection: { entityType: "capture", identifier: captureId } }),
 
   setTab: (tab) =>
     set((state) => {

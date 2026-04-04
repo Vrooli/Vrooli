@@ -68,6 +68,9 @@ message CreateBacklogItemRequest {
 
   // Origin reference in "kind/name" format, tracking which item spawned this one.
   optional string spawned_from = 15;
+
+  // Personal annotation — a user note for tracking context.
+  optional string note = 16;
 }
 
 // UpdateBacklogItemRequest defines the payload for updating a backlog item.
@@ -124,6 +127,9 @@ message UpdateBacklogItemRequest {
 
   // Origin reference in "kind/name" format. Set to empty string to clear.
   optional string spawned_from = 13;
+
+  // Personal annotation. Set to empty string to clear.
+  optional string note = 14;
 }
 
 // ListBacklogItemsResponse returns all backlog items.

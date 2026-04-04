@@ -4,12 +4,13 @@
 What should "version history" and "release records" mean as a unified concept across deployment-manager profile versions, build provenance, LPBS artifacts, update channels, manifests, and customer-visible release history? What are the canonical IDs, references, and schema shape that later implementation work should use?
 
 ## Summary
-The release record is a new first-class entity owned by deployment-manager (DM). Each release is identified by a UUID minted at orchestration time, correlating a git commit, profile version snapshot, semantic version, channel, and per-platform artifact references into a single auditable event. LPBS stores the `release_id` on artifacts and assets as a foreign correlation key but does not own the record. Channels follow a defined ordering (nightly → beta → stable) with explicit promotion semantics. Release notes live on the release record; no separate changelog API is needed.
+The release record is a new first-class entity owned by deployment-manager (DM). Each release is identified by a UUID minted at orchestration time, correlating a git commit, profile version snapshot, semantic version, channel, and per-platform artifact references into a single auditable event. LPBS stores the `release_id` on artifacts and assets as a foreign correlation key but does not own the record. Channels follow a defined ordering (nightly → beta → stable) with explicit promotion semantics. Release notes live on the release record; no separate changelog API is needed. Each release links back to the deployment that triggered it.
 
 ## Methodology
 - **Round 1 dependency input:** Built on the completed `desktop-release-control-plane-audit` research (7 gaps mapped).
 - **Round 1 schema analysis:** Read database schemas and Go types across deployment-manager, scenario-to-desktop, and LPBS. Identified 3 incompatible version ID schemes and the absence of a "release event" record.
 - **Round 2 deep dive:** Full schema review of DM tables (profiles, profile_versions, deployments, deployment_approvals, visual_validations), LPBS tables (download_apps, download_assets, download_artifacts), and S2D pipeline types (BuildProvenance, Config, DeployConfig, DeployResult). Traced the complete data flow from pipeline trigger through S2D's 4-step LPBS upload (presign → S3 → commit → apply).
+- **Round 3 verification:** Cross-referenced the proposed schema against actual codebase. Verified DM migration numbering (next: 004), confirmed `DeployDesktopRequest` struct fields (orchestrator.go:24-55), validated `CheckReleaseGate` logic (approvals_repository.go:183-224), and confirmed LPBS `UpsertAsset` hardcoded variant_key (download_service.go:596). Identified schema drift, pipeline extension points, and approval/channel interaction gaps.
 
 ## Findings
 
@@ -66,14 +67,17 @@ None of the three systems record the full event: "version X.Y.Z released to chan
 - Promotion to `stable` requires all `profile_required_platforms` to be approved (existing DM gate).
 - Each channel can have at most one "current" release per (profile, platform) at a time.
 
-**LPBS compatibility:** The existing `channelToVariantKey()` mapping (`stable` → `default`) continues to work. New channels (`beta`, `nightly`) map to their own variant_keys. No LPBS schema change needed for channel storage.
+**LPBS compatibility:** The existing `channelToVariantKey()` mapping (`stable` → `default`) continues to work. New channels (`beta`, `nightly`) map to their own variant_keys. No LPBS schema change needed for channel storage — but `UpsertAsset` must stop hardcoding `variant_key = 'default'` and accept it as a parameter (see Finding 11).
 
 ### Finding 7: Proposed Release Record Schema (deployment-manager)
 
 ```sql
+-- Migration: 004_add_releases.sql
+
 CREATE TABLE releases (
     id              TEXT PRIMARY KEY,          -- UUID minted by orchestrator
     profile_id      TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    deployment_id   TEXT REFERENCES deployments(id), -- links to the triggering deployment (round 2, d1→A)
     profile_version INTEGER NOT NULL,          -- snapshot reference (profiles.version at release time)
     git_commit_hash TEXT NOT NULL,
     release_version TEXT NOT NULL,             -- semver (e.g., "1.2.3")
@@ -98,15 +102,15 @@ CREATE TABLE release_platforms (
     error       TEXT,
     PRIMARY KEY (release_id, platform)
 );
-```
 
-**Indexes:**
-```sql
 CREATE INDEX idx_releases_profile_channel ON releases(profile_id, channel);
 CREATE INDEX idx_releases_status ON releases(status);
 CREATE INDEX idx_releases_commit ON releases(git_commit_hash);
+CREATE INDEX idx_releases_deployment ON releases(deployment_id);
 CREATE INDEX idx_release_platforms_status ON release_platforms(status);
 ```
+
+**Key change from round 2:** Added `deployment_id TEXT REFERENCES deployments(id)` to link each release to the deployment that triggered it (round 2 decision d1→A). The deployment holds execution details (logs, timing, error); the release holds semantic details (version, channel, per-platform status). Promoted releases may have `deployment_id = NULL` if promotion doesn't trigger a new pipeline run.
 
 ### Finding 8: LPBS Needs a release_id Correlation Column
 
@@ -122,12 +126,12 @@ This is a lightweight foreign correlation key (not a foreign key constraint, sin
 ### Finding 9: S2D Pipeline Data Flow Already Supports Extension
 
 The S2D pipeline already carries `Config.Version` → `ReleaseVersion` and `Provenance.GitCommitHash` through to LPBS upload. Adding `release_id` requires:
-1. DM passes `release_id` to S2D when triggering a pipeline (via `DeployDesktopRequest` or equivalent).
-2. S2D carries it through `Config` or a new field on `DeployConfig`.
-3. S2D's `UploadRequest` struct gains a `ReleaseID` field.
-4. The LPBS commit step includes `release_id` in the request body.
+1. DM passes `release_id` and `channel` to S2D when triggering a pipeline (via `DeployDesktopRequest` — needs new `ReleaseID` and `Channel` fields added to the struct at orchestrator.go:24-55).
+2. S2D carries them through `Config` or a new field on `DeployConfig`.
+3. S2D's `UploadRequest` struct gains `ReleaseID` and `Channel` fields.
+4. The LPBS commit step includes `release_id` in the request body, and uses `channelToVariantKey(channel)` to set the correct variant_key.
 
-The 4-step upload flow (presign → S3 → commit → apply) doesn't need structural changes — just an additional field passed through.
+The 4-step upload flow (presign → S3 → commit → apply) doesn't need structural changes — just additional fields passed through.
 
 ### Finding 10: Go Types for the Release Record
 
@@ -136,6 +140,7 @@ The 4-step upload flow (presign → S3 → commit → apply) doesn't need struct
 type Release struct {
     ID                    string     `json:"id"`
     ProfileID             string     `json:"profile_id"`
+    DeploymentID          string     `json:"deployment_id,omitempty"`
     ProfileVersion        int        `json:"profile_version"`
     GitCommitHash         string     `json:"git_commit_hash"`
     ReleaseVersion        string     `json:"release_version"`
@@ -180,28 +185,109 @@ const (
 )
 ```
 
+### Finding 11: LPBS UpsertAsset Hardcodes variant_key (Verified Round 3)
+
+`UpsertAsset` at download_service.go:596 hardcodes `'default'` in the INSERT VALUES clause. For multi-channel support:
+- Add `VariantKey string` field to the `DownloadAsset` struct.
+- Replace the hardcoded `'default'` with the parameterized value (`$12` instead of literal).
+- S2D's upload flow passes `channelToVariantKey(channel)` when constructing the asset.
+- The `channelToVariantKey()` function (update_handlers.go:50-55) already handles the mapping correctly and can be reused or moved to a shared location.
+
+### Finding 12: DeployDesktopRequest Needs Release Context Fields (Verified Round 3)
+
+The `DeployDesktopRequest` struct (orchestrator.go:24-55) currently has 15 fields but no release or channel awareness. Two new fields are needed:
+
+```go
+// ReleaseID is the UUID of the release record created for this deployment.
+// Empty for dry runs and non-publishing deployments.
+ReleaseID string `json:"release_id,omitempty"`
+// Channel is the target release channel (nightly, beta, stable).
+// Defaults to "stable" if empty.
+Channel string `json:"channel,omitempty"`
+```
+
+These flow through the pipeline into S2D and ultimately into the LPBS upload step.
+
+### Finding 13: Approval Model Is Not Channel-Aware (Round 3 Investigation)
+
+The `deployment_approvals` table has a unique constraint on `(profile_id, git_commit_hash, platform)` — no channel dimension. The `CheckReleaseGate` function (approvals_repository.go:183-224) checks that ALL required platforms have status "approved" without considering channels.
+
+**Implications:**
+- A single approval per (profile, commit, platform) covers all channels.
+- The nightly gate bypass (round 2, d3→A) must be implemented at the orchestrator level, not in `CheckReleaseGate` — the orchestrator simply skips the gate call for nightly releases.
+- Whether promotions to stable require fresh approvals is an **open decision** (round 3, d1).
+
+### Finding 14: Verification Paths Identified (Round 3)
+
+Four concrete verification strategies for validating the release record implementation:
+
+1. **End-to-end data flow test:** Trace a mock release from DM orchestrator → S2D pipeline → LPBS upload, asserting `release_id` appears at each hop (DM releases table, S2D request, LPBS download_artifacts).
+2. **Schema integration test:** Using the same testcontainers pattern as LPBS (postgres:15-alpine + `setupTestDB(t)`), verify migrations 004 apply cleanly, FK constraints work, and unique constraints enforce correctly.
+3. **Promotion chain test:** Create nightly → beta → stable releases and verify `promoted_from_release_id` links form a valid chain. Assert that promotion only goes up the stability ladder.
+4. **Channel-gate interaction test:** Verify that `CheckReleaseGate` is skipped for nightly, required for beta (at least one approval), and requires all-platform approval for stable.
+
 ## Limitations
 - The `release_id` on LPBS is a correlation key, not a foreign key constraint. Consistency depends on the orchestrator correctly propagating the ID. A reconciliation job or webhook confirmation would strengthen this.
 - The channel promotion model is designed for the current 3-channel case. If channels become user-definable or per-profile, the hardcoded ordering would need to become configurable.
 - Runtime behavior of the S2D → LPBS upload has not been verified end-to-end; the analysis is code-based.
 - The `promoted_from_release_id` chain could grow long for releases that promote through all channels. Queries that need the full promotion chain would need recursive CTEs.
+- Whether `deployment_approvals` should become channel-aware depends on the open decision (round 3, d1) about promotion approval requirements.
+- The `superseded` status trigger mechanism depends on the open decision (round 3, d3).
 
 ## Actions
 
-### Action 1: Create `releases` and `release_platforms` Tables in DM
-Add migration `004_add_releases.sql` with the schema from Finding 7. Add Go types, repository, and handler scaffolding.
+### Action 1: Create backlog item — Add `releases` and `release_platforms` tables to DM
+- **Kind**: execute
+- **Title**: Add releases and release_platforms tables to deployment-manager
+- **Description**: Create migration `004_add_releases.sql` with the schema from Finding 7. Add Go types (Finding 10), repository (CRUD + promotion + supersede logic), and handler scaffolding for release history API endpoints.
+- **Initiative**: desktop-release-governance
+- **Priority**: high
+- **Effort**: L
 
-### Action 2: Add `release_id` Column to LPBS `download_artifacts`
-Add migration to LPBS for the `release_id` TEXT column and index (Finding 8).
+### Action 2: Create backlog item — Add `release_id` column to LPBS `download_artifacts`
+- **Kind**: execute
+- **Title**: Add release_id correlation column to LPBS download_artifacts
+- **Description**: Add migration for the `release_id` TEXT column and index on `download_artifacts` (Finding 8). Update the artifact commit handler to accept and store `release_id` from S2D uploads.
+- **Initiative**: desktop-release-governance
+- **Priority**: high
+- **Effort**: S
 
-### Action 3: Extend S2D Pipeline to Carry `release_id`
-Add `ReleaseID` field to S2D's `Config`/`DeployConfig`, `UploadRequest`, and the LPBS client commit step (Finding 9).
+### Action 3: Create backlog item — Extend S2D pipeline to carry `release_id` and `channel`
+- **Kind**: execute
+- **Title**: Add release_id and channel to S2D pipeline data flow
+- **Description**: Add `ReleaseID` and `Channel` fields to S2D's `Config`/`DeployConfig` and `UploadRequest` structs (Finding 9). Pass `release_id` in the LPBS commit step. Use `channelToVariantKey(channel)` to set the correct variant_key on upload.
+- **Initiative**: desktop-release-governance
+- **Priority**: high
+- **Effort**: M
 
-### Action 4: Implement Channel Promotion Logic in DM
-Add promotion endpoint and validation: only allow promotion up the channel ladder, create new release record with `promoted_from_release_id`, enforce approval gates for stable promotion.
+### Action 4: Create backlog item — Parameterize LPBS UpsertAsset variant_key
+- **Kind**: fix
+- **Title**: Remove hardcoded variant_key in LPBS UpsertAsset
+- **Description**: Replace the hardcoded `'default'` at download_service.go:596 with a `VariantKey` field on `DownloadAsset` (Finding 11). This unblocks multi-channel releases.
+- **Initiative**: desktop-release-governance
+- **Priority**: high
+- **Effort**: S
 
-### Action 5: Build Release History API in DM
-Endpoints: list releases by profile (with channel/status filters), get release detail with platform statuses, get promotion chain for a release.
+### Action 5: Create backlog item — Implement channel promotion logic in DM
+- **Kind**: execute
+- **Title**: Add channel promotion endpoint and validation to deployment-manager
+- **Description**: Implement promotion endpoint: only allow promotion up the channel ladder, create new release record with `promoted_from_release_id`, enforce approval gates per channel policy (Finding 6). Includes channel-aware gate bypass for nightly releases.
+- **Initiative**: desktop-release-governance
+- **Priority**: medium
+- **Effort**: M
 
-### Action 6: Wire Release Record into Orchestration Flow
-DM orchestrator mints UUID and creates `releases` row at pipeline start, updates `release_platforms` as S2D reports per-platform results, sets status to `published` when all platforms complete (or `failed` on error).
+### Action 6: Create backlog item — Build release history API in DM
+- **Kind**: execute
+- **Title**: Add release history API endpoints to deployment-manager
+- **Description**: Endpoints: list releases by profile (with channel/status filters), get release detail with platform statuses, get promotion chain for a release. Uses the schema from Finding 7.
+- **Initiative**: desktop-release-governance
+- **Priority**: medium
+- **Effort**: M
+
+### Action 7: Create backlog item — Wire release record into DM orchestration flow
+- **Kind**: execute
+- **Title**: Integrate release record creation into DM orchestrator pipeline
+- **Description**: Orchestrator mints UUID and creates `releases` row at pipeline start (only for non-dry-run, publishing deployments). Updates `release_platforms` as S2D reports per-platform results. Sets status to `published` when all platforms complete (or `failed` on error). Adds `ReleaseID` and `Channel` to `DeployDesktopRequest` (Finding 12).
+- **Initiative**: desktop-release-governance
+- **Priority**: high
+- **Effort**: L

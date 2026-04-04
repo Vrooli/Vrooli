@@ -27,7 +27,7 @@ export function HeaderPrimaryAction({ className, onFinalizeWorkshop, onRunWorksh
     case "finalize":
       if (!itemActions.canFinalize && !itemActions.finalizeDisabled) return null;
       return (
-        <Button variant="default" size="sm" className={className} onClick={onFinalizeWorkshop} disabled={itemActions.finalizeDisabled || isRunningAgent}>
+        <Button variant="default" size="sm" className={className} onClick={onFinalizeWorkshop} disabled={itemActions.finalizeDisabled || isRunningAgent} title={(itemActions.finalizeDisabled || isRunningAgent) && itemActions.disabledReason ? itemActions.disabledReason : undefined}>
           <Sparkles className="mr-1.5 h-4 w-4" />
           {itemActions.agentRunning ? agentRunningLabel : isRunningAgent ? "Starting..." : "Finalize"}
         </Button>
@@ -35,7 +35,7 @@ export function HeaderPrimaryAction({ className, onFinalizeWorkshop, onRunWorksh
     case "run":
       if (!itemActions.canRun && !itemActions.runDisabled) return null;
       return (
-        <Button variant="default" size="sm" className={className} onClick={openRunModal} disabled={itemActions.runDisabled} data-testid={selectors.backlogDetails.queueButton}>
+        <Button variant="default" size="sm" className={className} onClick={openRunModal} disabled={itemActions.runDisabled} data-testid={selectors.backlogDetails.queueButton} title={itemActions.runDisabled && itemActions.disabledReason ? itemActions.disabledReason : undefined}>
           <Play className="mr-1.5 h-4 w-4" />
           {itemActions.agentRunning ? agentRunningLabel : "Run"}
         </Button>
@@ -43,7 +43,7 @@ export function HeaderPrimaryAction({ className, onFinalizeWorkshop, onRunWorksh
     case "workshop":
       if (!itemActions.canWorkshop && !itemActions.workshopDisabled) return null;
       return (
-        <Button variant="default" size="sm" className={className} onClick={onRunWorkshop} disabled={itemActions.workshopDisabled || isRunningAgent}>
+        <Button variant="default" size="sm" className={className} onClick={onRunWorkshop} disabled={itemActions.workshopDisabled || isRunningAgent} title={(itemActions.workshopDisabled || isRunningAgent) && itemActions.disabledReason ? itemActions.disabledReason : undefined}>
           <MessageSquareText className="mr-1.5 h-4 w-4" />
           {itemActions.agentRunning ? agentRunningLabel : isRunningAgent ? "Starting..." : workshopActionLabel}
         </Button>

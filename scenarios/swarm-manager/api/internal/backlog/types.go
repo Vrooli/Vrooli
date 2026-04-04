@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
+	"swarm-manager/internal/identity"
 )
 
 // BacklogStatus represents the lifecycle state of a backlog item.
@@ -48,21 +49,23 @@ var backlogKindDirs = func() map[BacklogKind]string {
 
 // BacklogItem represents a unit of work stored on disk.
 type BacklogItem struct {
-	Name            string        `json:"name"`
-	Title           string        `json:"title"`
-	Description     string        `json:"description"`
-	Status          BacklogStatus `json:"status"`
-	Priority        int           `json:"priority"`
-	Tags            []string      `json:"tags"`
-	Created         string        `json:"created"`
-	Updated         string        `json:"updated"`
-	Kind            BacklogKind   `json:"kind"`
-	DependsOn       []string      `json:"depends_on,omitempty"`
-	Initiative      string        `json:"initiative,omitempty"`
-	Effort          string        `json:"effort,omitempty"`
-	AcceptanceAllow []string      `json:"acceptance_allow,omitempty"`
-	AcceptanceDeny  []string      `json:"acceptance_deny,omitempty"`
-	SpawnedFrom     string        `json:"spawned_from,omitempty"`
+	Name            string               `json:"name"`
+	Title           string               `json:"title"`
+	Description     string               `json:"description"`
+	Status          BacklogStatus        `json:"status"`
+	Priority        int                  `json:"priority"`
+	Tags            []string             `json:"tags"`
+	Created         string               `json:"created"`
+	Updated         string               `json:"updated"`
+	Kind            BacklogKind          `json:"kind"`
+	DependsOn       []string             `json:"depends_on,omitempty"`
+	Initiative      string               `json:"initiative,omitempty"`
+	Effort          string               `json:"effort,omitempty"`
+	AcceptanceAllow []string             `json:"acceptance_allow,omitempty"`
+	AcceptanceDeny  []string             `json:"acceptance_deny,omitempty"`
+	SpawnedFrom     string               `json:"spawned_from,omitempty"`
+	Note            string               `json:"note,omitempty"`
+	CreatedBy       *identity.Provenance `json:"created_by,omitempty"`
 }
 
 // BacklogFile represents a file or directory within a backlog item folder.
@@ -190,6 +193,9 @@ func backlogToProto(item BacklogItem) *domainpb.BacklogItem {
 	}
 	if strings.TrimSpace(item.SpawnedFrom) != "" {
 		result.SpawnedFrom = &item.SpawnedFrom
+	}
+	if strings.TrimSpace(item.Note) != "" {
+		result.Note = &item.Note
 	}
 	return result
 }

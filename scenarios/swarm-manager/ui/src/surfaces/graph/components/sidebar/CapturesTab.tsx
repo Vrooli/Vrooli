@@ -12,6 +12,7 @@ import { CaptureCard } from "../../../../components/capture/capture-card";
 import { BacklogFormDialog } from "../../../../components/backlog/backlog-form-dialog";
 import { backlogService } from "../../../../services/backlog-service";
 import { useBacklogStore } from "../../../../stores";
+import { useDetailSelectionStore } from "../../../../stores/detail-selection-store";
 import { matchesSearch } from "./useSidebarSearch";
 import type { Capture, BacklogFormValues } from "../../../../types";
 import type { CaptureFilters, SortConfig } from "./types";
@@ -51,6 +52,7 @@ function applySort(items: Capture[], sort: SortConfig): Capture[] {
 export function CapturesTab({ searchQuery, filters, sort, onItemClick: _onItemClick }: CapturesTabProps) {
   const captures = useCaptureStore((s) => s.captures);
   const upsertBacklogItem = useBacklogStore((s) => s.upsertItem);
+  const selectCapture = useDetailSelectionStore((s) => s.selectCapture);
 
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editPrefill, setEditPrefill] = useState<BacklogFormValues | undefined>();
@@ -101,6 +103,7 @@ export function CapturesTab({ searchQuery, filters, sort, onItemClick: _onItemCl
             key={capture.id}
             capture={capture}
             onEditItem={handleEditItem}
+            onClick={() => selectCapture(capture.id)}
             className="rounded-lg border border-slate-800/80 bg-slate-900/50 p-2.5"
           />
         ))}

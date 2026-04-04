@@ -8,7 +8,7 @@
  * DOC: docs/internal/SEAMS.md#review-launch-sheet
  */
 
-import { AlertTriangle, Check, Info, Loader2, RefreshCw, Search, X } from "lucide-react";
+import { AlertTriangle, Check, Info, Loader2, RefreshCw, Search } from "lucide-react";
 import { BottomSheet } from "../ui/bottom-sheet";
 import { cn } from "../../lib";
 import { selectors } from "../../consts/selectors";

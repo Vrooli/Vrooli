@@ -41,7 +41,9 @@ type Initiative struct {
 	Created string `protobuf:"bytes,6,opt,name=created,proto3" json:"created,omitempty"`
 	// RFC3339 timestamp of last update.
 	// @format rfc3339
-	Updated       string `protobuf:"bytes,7,opt,name=updated,proto3" json:"updated,omitempty"`
+	Updated string `protobuf:"bytes,7,opt,name=updated,proto3" json:"updated,omitempty"`
+	// Personal annotation — a user note for tracking context.
+	Note          *string `protobuf:"bytes,8,opt,name=note,proto3,oneof" json:"note,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -121,6 +123,13 @@ func (x *Initiative) GetCreated() string {
 func (x *Initiative) GetUpdated() string {
 	if x != nil {
 		return x.Updated
+	}
+	return ""
+}
+
+func (x *Initiative) GetNote() string {
+	if x != nil && x.Note != nil {
+		return *x.Note
 	}
 	return ""
 }
@@ -211,7 +220,7 @@ var File_swarm_manager_v1_domain_initiative_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_initiative_proto_rawDesc = "" +
 	"\n" +
-	"(swarm-manager/v1/domain/initiative.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xf0\x01\n" +
+	"(swarm-manager/v1/domain/initiative.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\x92\x02\n" +
 	"\n" +
 	"Initiative\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
@@ -220,7 +229,9 @@ const file_swarm_manager_v1_domain_initiative_proto_rawDesc = "" +
 	"\x06status\x18\x04 \x01(\tB\"\xbaH\x1fr\x1dR\x06activeR\tcompletedR\barchivedR\x06status\x12\x14\n" +
 	"\x05items\x18\x05 \x03(\tR\x05items\x12\x18\n" +
 	"\acreated\x18\x06 \x01(\tR\acreated\x12\x18\n" +
-	"\aupdated\x18\a \x01(\tR\aupdated\"\x99\x01\n" +
+	"\aupdated\x18\a \x01(\tR\aupdated\x12\x17\n" +
+	"\x04note\x18\b \x01(\tH\x00R\x04note\x88\x01\x01B\a\n" +
+	"\x05_note\"\x99\x01\n" +
 	"\x10InitiativeRollup\x12\x14\n" +
 	"\x05total\x18\x01 \x01(\x05R\x05total\x12\x1c\n" +
 	"\tcompleted\x18\x02 \x01(\x05R\tcompleted\x12\x1f\n" +
@@ -259,6 +270,7 @@ func file_swarm_manager_v1_domain_initiative_proto_init() {
 	if File_swarm_manager_v1_domain_initiative_proto != nil {
 		return
 	}
+	file_swarm_manager_v1_domain_initiative_proto_msgTypes[0].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

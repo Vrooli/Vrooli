@@ -49,6 +49,9 @@ message Initiative {
   // RFC3339 timestamp of last update.
   // @format rfc3339
   string updated = 7;
+
+  // Personal annotation — a user note for tracking context.
+  optional string note = 8;
 }
 
 // InitiativeRollup provides aggregated status counts for initiative items.

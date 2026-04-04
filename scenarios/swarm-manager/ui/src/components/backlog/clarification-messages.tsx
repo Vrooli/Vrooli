@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useRef } from "react";
+import { renderMarkdown } from "../../lib/render-markdown";
 import { Loader2 } from "lucide-react";
 import { cn } from "../../lib";
 import type { ClarificationMessage } from "../../types/domain";
@@ -41,7 +42,7 @@ export function ClarificationMessages({ messages, isWaitingForAgent }: Clarifica
                 : "bg-cyan-500/5 border border-cyan-500/20 text-slate-200",
             )}
           >
-            <p className="whitespace-pre-wrap">{msg.content}</p>
+            <div className="prose-sm-slate" dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
             {msg.attachment_ids && msg.attachment_ids.length > 0 && (
               <div className="mt-2 flex gap-1.5 overflow-x-auto">
                 {msg.attachment_ids.map((id) => (

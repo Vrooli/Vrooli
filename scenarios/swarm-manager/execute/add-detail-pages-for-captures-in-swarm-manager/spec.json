@@ -4,7 +4,7 @@
   "kind": "execute",
   "name": "add-detail-pages-for-captures-in-swarm-manager",
   "priority": 5,
-  "status": "backlog",
+  "status": "completed",
   "tags": [
     "swarm-manager",
     "captures",
@@ -12,5 +12,5 @@
     "detail-pages"
   ],
   "title": "Add detail pages for captures in swarm-manager",
-  "updated": "2026-03-30T19:01:08Z"
+  "updated": "2026-04-04T01:18:37Z"
 }

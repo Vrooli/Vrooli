@@ -26,6 +26,7 @@ const (
 	updateFieldAcceptanceAllow = "acceptance_allow"
 	updateFieldAcceptanceDeny  = "acceptance_deny"
 	updateFieldSpawnedFrom     = "spawned_from"
+	updateFieldNote            = "note"
 )
 
 type backlogUpdateFieldSet map[string]struct{}
@@ -143,6 +144,10 @@ func normalizeUpdateBacklogPatch(req *apipb.UpdateBacklogItemRequest, fields bac
 		normalized := strings.ToUpper(strings.TrimSpace(*req.Effort))
 		req.Effort = &normalized
 	}
+	if fields.Has(updateFieldNote) && req.Note != nil {
+		trimmed := strings.TrimSpace(*req.Note)
+		req.Note = &trimmed
+	}
 }
 
 func validateUpdateBacklogItemRequest(req *apipb.UpdateBacklogItemRequest, fields backlogUpdateFieldSet, kind BacklogKind) string {
@@ -224,6 +229,9 @@ func applyUpdateBacklogPatch(item *BacklogItem, req *apipb.UpdateBacklogItemRequ
 	}
 	if fields.Has(updateFieldSpawnedFrom) {
 		item.SpawnedFrom = strings.TrimSpace(req.GetSpawnedFrom())
+	}
+	if fields.Has(updateFieldNote) {
+		item.Note = strings.TrimSpace(req.GetNote())
 	}
 }
 

@@ -14,7 +14,7 @@
   "kind": "execute",
   "name": "swarm-manager-identity-adoption",
   "priority": 3,
-  "status": "backlog",
+  "status": "failed",
   "tags": [
     "swarm-manager",
     "identity",
@@ -22,5 +22,5 @@
     "adoption"
   ],
   "title": "Adopt Agent Identity Standard in Swarm-Manager for Provenance Tracking",
-  "updated": "2026-03-30T14:55:00Z"
+  "updated": "2026-04-04T01:02:24Z"
 }

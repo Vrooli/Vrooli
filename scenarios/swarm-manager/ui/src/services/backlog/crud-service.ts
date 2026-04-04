@@ -32,6 +32,7 @@ export function buildBacklogUpdatePayload(patch: BacklogUpdatePatch): Record<str
   if (patch.effort !== undefined) payload.effort = patch.effort;
   if (patch.acceptanceAllow !== undefined) payload.acceptance_allow = patch.acceptanceAllow;
   if (patch.acceptanceDeny !== undefined) payload.acceptance_deny = patch.acceptanceDeny;
+  if (patch.note !== undefined) payload.note = patch.note;
   return payload;
 }
 
