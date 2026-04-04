@@ -15,6 +15,7 @@ import type {
   ServerType,
 } from "../domain/deployment";
 import type { OutputLocation } from "../domain/generator";
+import { DEFAULT_LOCAL_API_ENDPOINT } from "../store/formTypes";
 
 // ============================================================================
 // Types
@@ -124,7 +125,7 @@ export function useScenarioSync(props: UseScenarioSyncProps): UseScenarioSyncRet
           bundleManifestPath: fs.bundle_manifest_path ?? "",
           serverPort: fs.server_port ?? 3000,
           localServerPath: fs.local_server_path ?? "ui/server.js",
-          localApiEndpoint: fs.local_api_endpoint ?? "http://localhost:3001/api",
+          localApiEndpoint: fs.local_api_endpoint ?? DEFAULT_LOCAL_API_ENDPOINT,
           autoManageTier1: fs.auto_manage_tier1 ?? false,
           vrooliBinaryPath: fs.vrooli_binary_path ?? "vrooli",
           connectionResult: (fs.connection_result as ProbeResponse | null) ?? null,

@@ -48,6 +48,7 @@ import {
   selectIsSubmitting,
   selectPreflightOk,
   selectMissingSecrets,
+  DEFAULT_LOCAL_API_ENDPOINT,
 } from "../../store";
 import { PendingChangesAlert } from "../state/PendingChangesAlert";
 import type { FormState } from "../../lib/api";
@@ -326,7 +327,7 @@ export function GeneratorForm({
           bundleManifestPath: fs.bundle_manifest_path ?? "",
           serverPort: fs.server_port ?? 3000,
           localServerPath: fs.local_server_path ?? "ui/server.js",
-          localApiEndpoint: fs.local_api_endpoint ?? "http://localhost:3001/api",
+          localApiEndpoint: fs.local_api_endpoint ?? DEFAULT_LOCAL_API_ENDPOINT,
           autoManageTier1: fs.auto_manage_tier1 ?? false,
           vrooliBinaryPath: fs.vrooli_binary_path ?? "vrooli",
           connectionResult: (fs.connection_result as ProbeResponse | null) ?? null,

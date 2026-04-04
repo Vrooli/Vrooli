@@ -11,6 +11,7 @@ import { Label } from "../components/ui/label";
 import { InfoCard } from "../components/ui/info-card";
 import { TelemetryEntry } from "../components/TelemetryEntry";
 import { getDeploymentStatus, listTelemetry, uploadTelemetry } from "../lib/api";
+import { getErrorMessage } from "../lib/utils";
 
 export function Deployments() {
   const [showHelp, setShowHelp] = useState(false);
@@ -159,7 +160,7 @@ export function Deployments() {
             <CardContent className="space-y-3">
               {error && (
                 <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-100">
-                  Failed to load deployment: {(error as Error).message}
+                  Failed to load deployment: {getErrorMessage(error)}
                 </div>
               )}
               {deployment && (
@@ -248,7 +249,7 @@ export function Deployments() {
                 </div>
                 {uploadMutation.error && (
                   <div className="rounded border border-red-500/30 bg-red-500/10 p-2 text-xs text-red-100">
-                    {(uploadMutation.error as Error).message}
+                    {getErrorMessage(uploadMutation.error)}
                   </div>
                 )}
                 {uploadMutation.isSuccess && (
@@ -265,7 +266,7 @@ export function Deployments() {
                 </div>
                 {telemetryError && (
                   <div className="rounded border border-red-500/30 bg-red-500/10 p-2 text-xs text-red-100">
-                    {(telemetryError as Error).message}
+                    {getErrorMessage(telemetryError)}
                   </div>
                 )}
                 {telemetryLoading && <p className="text-xs text-slate-400">Loading telemetry...</p>}

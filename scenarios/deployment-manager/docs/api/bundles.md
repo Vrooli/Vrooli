@@ -14,7 +14,7 @@ curl -X POST "http://localhost:${API_PORT}/api/v1/bundles/validate" \
   -d @bundle.json
 ```
 
-**Request Body:** Full bundle manifest (see [manifest schema](../examples/manifests/))
+**Request Body:** Full bundle manifest (see [manifest schema](../examples/manifests/README.md))
 
 **Response (valid):**
 
@@ -303,6 +303,6 @@ curl -X POST "http://localhost:${API_PORT}/api/v1/bundles/export" \
 
 ## Related
 
-- [Example Manifests](../examples/manifests/) - Complete bundle.json examples
+- [Example Manifests](../examples/manifests/README.md) - Complete bundle.json examples
 - [Desktop Workflow](../workflows/desktop-deployment.md) - How bundles are used
 - [CLI Reference](../cli/deployment-commands.md) - CLI commands for packaging

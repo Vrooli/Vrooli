@@ -752,7 +752,7 @@ See [API Reference - Bundles](../api/bundles.md) for details.
 
 ## Related Documentation
 
-- [Example Manifests](../examples/manifests/) - Working examples
+- [Example Manifests](../examples/manifests/README.md) - Working examples
 - [Secrets Management](secrets-management.md) - Secret classification and handling
 - [Desktop Workflow](../workflows/desktop-deployment.md) - End-to-end deployment guide
 - [Fitness Scoring](fitness-scoring.md) - How compatibility is calculated

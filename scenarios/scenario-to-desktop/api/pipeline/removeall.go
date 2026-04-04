@@ -105,9 +105,7 @@ func forceRemoveTree(root string) error {
 		entries = append(entries, entry{path: path, isDir: d.IsDir()})
 		return nil
 	})
-	if walkErr != nil {
-		// We'll still attempt removal below even if walk had issues.
-	}
+	_ = walkErr // We still attempt removal below even if walk had issues.
 
 	// Remove children first, then directories.
 	for i := len(entries) - 1; i >= 0; i-- {

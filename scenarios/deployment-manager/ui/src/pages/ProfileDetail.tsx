@@ -7,6 +7,7 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { getProfile, deployProfile, checkReleaseGate, getRequiredPlatforms, setRequiredPlatforms } from "../lib/api";
 import type { ReleaseGateStatus } from "../lib/api";
+import { getErrorMessage } from "../lib/utils";
 
 const TIER_NAMES: Record<number, string> = {
   1: "Local/Dev",
@@ -97,7 +98,7 @@ export function ProfileDetail() {
           <h1 className="text-3xl font-bold">Profile Not Found</h1>
         </div>
         <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-red-200">
-          <p className="text-sm">Failed to load profile: {(error as Error).message}</p>
+          <p className="text-sm">Failed to load profile: {getErrorMessage(error)}</p>
         </div>
       </div>
     );
@@ -159,7 +160,7 @@ export function ProfileDetail() {
       {deployMutation.isError && (
         <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-red-200">
           <p className="text-sm">
-            Failed to deploy: {(deployMutation.error as Error).message}
+            Failed to deploy: {getErrorMessage(deployMutation.error)}
           </p>
         </div>
       )}
@@ -208,7 +209,7 @@ export function ProfileDetail() {
 
           {gateError && (
             <div className="text-sm text-red-300">
-              Failed to check gate: {(gateError as Error).message}
+              Failed to check gate: {getErrorMessage(gateError)}
             </div>
           )}
 

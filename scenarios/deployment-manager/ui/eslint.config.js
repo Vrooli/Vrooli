@@ -56,7 +56,9 @@ export default tseslint.config(
       "@typescript-eslint/no-unsafe-assignment": "warn",
       "@typescript-eslint/no-unsafe-return": "warn",
 
-      // Prevents explicit 'any' which disables all type checking for that value
+      // CRITICAL: Prevents explicit 'any' which disables all type checking for that value
+      // Using 'any' silently allows undefined property access, wrong argument types, and
+      // missing null checks — all of which crash at runtime with no compile-time warning
       "@typescript-eslint/no-explicit-any": "error",
 
       // CRITICAL: Detects circular dependencies that cause "Cannot access X before initialization"

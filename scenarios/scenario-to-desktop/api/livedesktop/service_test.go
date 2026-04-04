@@ -414,14 +414,6 @@ func (m *mockMonitor) Done() <-chan struct{} {
 	return m.doneCh
 }
 
-type mockMonitorFactory struct {
-	monitor *mockMonitor
-}
-
-func (f *mockMonitorFactory) NewMonitor() procmetrics.Monitor {
-	return f.monitor
-}
-
 func TestSessionView_IncludesMetrics(t *testing.T) {
 	splashDur := int64(800)
 	readyDur := int64(1500)

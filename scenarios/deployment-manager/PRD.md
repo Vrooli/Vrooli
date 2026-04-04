@@ -9,24 +9,24 @@
 
 ## 🎯 Overview
 
-### Purpose
+#### Purpose
 deployment-manager is the **control tower for the entire deployment lifecycle** in Vrooli. It analyzes scenario dependencies, scores platform fitness, guides users through portable deployments, orchestrates platform-specific packagers, and monitors deployed scenarios across all deployment tiers.
 
 This scenario transforms Vrooli's deployment story from "manually package and ship" to "intelligent, automated, multi-tier deployments with dependency optimization."
 
-### Target Users
+#### Target Users
 - **Primary**: Scenario developers deploying to desktop, mobile, or cloud platforms
 - **Secondary**: End users managing deployed scenario instances
 - **Tertiary**: Enterprise administrators overseeing compliance and multi-tenant deployments
 
-### Deployment Surfaces
+#### Deployment Surfaces
 - **Tier 1 (Local/Dev Stack)**: Full Vrooli installation for development (baseline reference)
 - **Tier 2 (Desktop)**: Windows, macOS, Linux standalone applications
 - **Tier 3 (Mobile)**: iOS and Android native apps
 - **Tier 4 (SaaS/Cloud)**: DigitalOcean, AWS, bare metal server deployments
 - **Tier 5 (Enterprise)**: Hardware appliances with compliance overlays
 
-### Value Proposition
+#### Value Proposition
 **Without deployment-manager**: Scenarios are trapped in Tier 1 (local dev). Attempting to package scenarios fails because dependencies aren't portable (e.g., postgres doesn't run on mobile, ollama is too heavy for desktop bundles).
 
 **With deployment-manager**: Any scenario can target any tier. The system analyzes dependencies, scores fitness, suggests swaps (postgres → sqlite for mobile), validates configurations, orchestrates packaging, and monitors deployments — all through an intuitive UI and CLI.
@@ -191,7 +191,7 @@ This scenario transforms Vrooli's deployment story from "manually package and sh
 
 ## 🧱 Tech Direction Snapshot
 
-### Preferred Stacks
+#### Preferred Stacks
 - **Backend API**: Go (proven orchestration performance, matches existing scenarios)
 - **Frontend UI**: React + TypeScript + Vite + TailwindCSS + shadcn + Lucide (Vrooli standard)
 - **Data Visualization**: React Flow (dependency graphs) + Recharts (monitoring metrics)
@@ -199,13 +199,13 @@ This scenario transforms Vrooli's deployment story from "manually package and sh
 - **Storage**: PostgreSQL (deployment profiles, audit logs, fitness rules)
 - **Caching**: Redis (optional, for fitness score caching)
 
-### Storage Expectations
+#### Storage Expectations
 - **Deployment Profiles**: JSON documents with versioning (PostgreSQL JSONB)
 - **Fitness Rules**: Pluggable rules engine (Go structs, PostgreSQL storage for custom rules)
 - **Audit Logs**: Append-only table (PostgreSQL with timestamps and immutability constraints)
 - **Swap Database**: Structured data (dependency → alternatives with metadata)
 
-### Integration Strategy
+#### Integration Strategy
 - **Upstream Integrations** (deployment-manager consumes):
   - `scenario-dependency-analyzer`: REST API for dependency trees
   - `secrets-manager`: REST API + CLI for secret requirements and templates
@@ -214,7 +214,7 @@ This scenario transforms Vrooli's deployment story from "manually package and sh
   - `scenario-to-desktop`, `scenario-to-ios`, `scenario-to-android`, `scenario-to-saas`, `scenario-to-enterprise`: REST API + CLI for packaging
 - **Event System** (optional P2): Pub/sub for deployment lifecycle events (deploy.started, deploy.succeeded, deploy.failed)
 
-### Non-Goals
+#### Non-Goals
 - ❌ **Not a packager**: deployment-manager does not build apps directly, only orchestrates scenario-to-* packagers
 - ❌ **Not a source code modifier**: Dependency swaps affect deployment profiles, never source code (migrations require developer action via app-issue-tracker)
 - ❌ **Not a CI/CD replacement**: Integrates with CI/CD (CLI for automation) but doesn't replace GitHub Actions, Jenkins, etc.
@@ -224,18 +224,18 @@ This scenario transforms Vrooli's deployment story from "manually package and sh
 
 ## 🤝 Dependencies & Launch Plan
 
-### Required Resources
+#### Required Resources
 1. **postgres**: Deployment profile storage, audit logs, fitness rules database
 2. **redis** (optional): Caching layer for fitness scores and dependency tree calculations
 3. **claude-code or ollama**: AI-powered migration strategy suggestions (agent integration)
 
-### Required Scenarios
+#### Required Scenarios
 1. **scenario-dependency-analyzer**: Dependency tree data source (critical dependency)
 2. **secrets-manager**: Secret classification and template generation (critical dependency)
 3. **app-issue-tracker**: Migration task creation and tracking (critical dependency)
 4. **At least one scenario-to-*** packager (scenario-to-extension, scenario-to-desktop, etc.): Required to validate orchestration
 
-### Operational Risks
+#### Operational Risks
 - **Risk**: scenario-to-* packagers don't exist for all tiers yet
   - **Mitigation**: Start with Tier 2 (desktop) and Tier 3 (mobile), expand as packagers become available
 - **Risk**: Fitness scoring rules may need continuous tuning
@@ -243,7 +243,7 @@ This scenario transforms Vrooli's deployment story from "manually package and sh
 - **Risk**: Dependency swaps may break scenarios unexpectedly
   - **Mitigation**: Swaps only affect profiles (non-destructive), require explicit user approval, create app-issue-tracker migration tasks
 
-### Launch Sequencing
+#### Launch Sequencing
 1. **Phase 1 (P0 Core)**: Dependency analysis, fitness scoring, profile management, validation, basic orchestration (Tier 2 desktop focus)
 2. **Phase 2 (P1 Monitoring)**: Post-deployment health tracking, updates/rollbacks, multi-tier orchestration
 3. **Phase 3 (P1 Integrations)**: Agent migration strategies, custom swap requests, enhanced secret management
@@ -254,7 +254,7 @@ This scenario transforms Vrooli's deployment story from "manually package and sh
 
 ## 🎨 UX & Branding
 
-### Desired Look and Feel
+#### Desired Look and Feel
 - **Aesthetic**: Professional, blueprint-like theme (dark mode default, monospace accents for technical data)
 - **Inspiration**: Vercel deployment dashboard meets Kubernetes dashboard meets Lighthouse performance reports
 - **Visual Language**:
@@ -262,13 +262,13 @@ This scenario transforms Vrooli's deployment story from "manually package and sh
   - Configuration forms: Shadcn-style professional forms with validation hints
   - Monitoring dashboards: Recharts time-series with sparklines for at-a-glance health
 
-### Accessibility Bar
+#### Accessibility Bar
 - **Standard**: WCAG AA compliance minimum
 - **Keyboard Navigation**: Full keyboard support (tab navigation, Enter/Space activation, Esc to cancel)
 - **Screen Reader Support**: ARIA labels, table view fallback for dependency graph
 - **Color Accessibility**: Avoid color-only indicators (use icons + color, e.g., ✓ green, ⚠ yellow, ✗ red)
 
-### Brand Tone
+#### Brand Tone
 - **Professional and Technical**: Deployment is serious business, UI should inspire confidence
 - **Helpful, Not Condescending**: Errors should guide users to solutions, not blame them
 - **Transparent**: Show what's happening (log streaming, progress indicators, cost estimates upfront)

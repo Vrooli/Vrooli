@@ -92,6 +92,7 @@ export {
   defaultOutput,
   defaultPlatforms,
   defaultConnection,
+  DEFAULT_LOCAL_API_ENDPOINT,
 } from "./formTypes";
 
 // Live desktop store

@@ -112,7 +112,7 @@
 **Description**: Unit test phase fails for Node.js/pnpm projects due to coverage CLI args being passed incorrectly.
 
 **Root Cause**:
-- File: `/home/matthalloran8/Vrooli/scripts/scenarios/testing/unit/node.sh:241`
+- File: `scripts/scenarios/testing/unit/node.sh:241` (relative to Vrooli repo root)
 - When `pnpm` is detected, coverage args are passed as `pnpm test "${runner_args[@]}"` but vitest requires these through config file or with `--` separator
 - Error: `Unknown options: 'coverage', 'coverage.reporter', ...`
 

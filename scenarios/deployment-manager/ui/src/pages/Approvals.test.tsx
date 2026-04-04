@@ -150,11 +150,15 @@ describe('Approvals', () => {
   it('calls decideApproval on approve action', async () => {
     vi.mocked(api.listProfiles).mockResolvedValue(mockProfiles);
     vi.mocked(api.listApprovals).mockResolvedValue(mockApprovals);
-    const baseApproval = mockApprovals[0] as api.DeploymentApproval;
     vi.mocked(api.decideApproval).mockResolvedValue({
-      ...baseApproval,
+      id: 'approval-1',
+      profile_id: 'prof-1',
+      git_commit_hash: 'abc123def456789',
+      platform: 'linux',
       status: 'approved',
       approved_by: 'tester',
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
     });
 
     render(<Approvals />, { wrapper: createWrapper() });
@@ -172,8 +176,9 @@ describe('Approvals', () => {
     // Click the Approve button in the detail panel (the one inside the decision section)
     const approveButtons = screen.getAllByText('Approve');
     // The last Approve button is the one in the detail decision section
-    const detailApproveBtn = approveButtons[approveButtons.length - 1] as HTMLElement;
-    fireEvent.click(detailApproveBtn);
+    const detailApproveBtn = approveButtons[approveButtons.length - 1];
+    expect(detailApproveBtn).toBeDefined();
+    if (detailApproveBtn) fireEvent.click(detailApproveBtn);
 
     await waitFor(() => {
       expect(api.decideApproval).toHaveBeenCalledWith('approval-1', {

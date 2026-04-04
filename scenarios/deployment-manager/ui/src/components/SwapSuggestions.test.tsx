@@ -3,9 +3,17 @@ import { describe, it, expect } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
+interface SwapSuggestion {
+  name: string;
+  fitnessImprovement: number;
+  pros: string[];
+  cons: string[];
+  migrationEffort: string;
+}
+
 // Mock component for testing
 const SwapSuggestions = ({ dependency, tier }: { dependency: string; tier: string }) => {
-  const [suggestions, setSuggestions] = React.useState<any[]>([]);
+  const [suggestions, setSuggestions] = React.useState<SwapSuggestion[]>([]);
 
   React.useEffect(() => {
     // Simulate fetching swap suggestions
@@ -61,7 +69,7 @@ describe('SwapSuggestions Component', () => {
   // [REQ:DM-P0-007] Show "No known alternatives" when applicable
   it('[REQ:DM-P0-007] shows no alternatives message when none available', async () => {
     const NoAlternativesComponent = () => {
-      const [suggestions] = React.useState<any[]>([]);
+      const [suggestions] = React.useState<SwapSuggestion[]>([]);
       return (
         <div data-testid="swap-suggestions">
           {suggestions.length === 0 && <p>No known alternatives</p>}

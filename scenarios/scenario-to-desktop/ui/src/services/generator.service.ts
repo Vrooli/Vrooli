@@ -17,6 +17,7 @@ import {
   type ValidateFormInputsParams,
 } from "../domain/generator";
 import { decideConnection, DEFAULT_DEPLOYMENT_MODE, DEFAULT_SERVER_TYPE } from "../domain/deployment";
+import { DEFAULT_LOCAL_API_ENDPOINT } from "../store/formTypes";
 
 // ============================================================================
 // Re-exports from domain layer
@@ -174,7 +175,7 @@ export function transformConnectionConfigToFormState(
       bundleManifestPath: config.bundle_manifest_path ?? "",
       serverPort: 3000,
       localServerPath: "ui/server.js",
-      localApiEndpoint: "http://localhost:3001/api",
+      localApiEndpoint: DEFAULT_LOCAL_API_ENDPOINT,
       autoManageTier1: config.auto_manage_vrooli ?? false,
       vrooliBinaryPath: config.vrooli_binary_path ?? "vrooli",
       connectionResult: null,
@@ -383,7 +384,7 @@ export function deserializeFormStateFromServer(
       bundleManifestPath: data.bundle_manifest_path ?? "",
       serverPort: data.server_port ?? 3000,
       localServerPath: data.local_server_path ?? "ui/server.js",
-      localApiEndpoint: data.local_api_endpoint ?? "http://localhost:3001/api",
+      localApiEndpoint: data.local_api_endpoint ?? DEFAULT_LOCAL_API_ENDPOINT,
       autoManageTier1: data.auto_manage_tier1 ?? false,
       vrooliBinaryPath: data.vrooli_binary_path ?? "vrooli",
       connectionResult: data.connection_result ?? null,

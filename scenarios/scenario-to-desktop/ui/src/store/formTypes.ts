@@ -200,12 +200,16 @@ export const defaultPlatforms: PlatformsState = {
   linux: true,
 };
 
+/** Default local API endpoint, configurable via VITE_LOCAL_API_ENDPOINT env var. */
+export const DEFAULT_LOCAL_API_ENDPOINT =
+  import.meta.env.VITE_LOCAL_API_ENDPOINT ?? "http://localhost:3001/api";
+
 export const defaultConnection: ConnectionState = {
   proxyUrl: "",
   bundleManifestPath: "",
   serverPort: 3000,
   localServerPath: "ui/server.js",
-  localApiEndpoint: "http://localhost:3001/api",
+  localApiEndpoint: DEFAULT_LOCAL_API_ENDPOINT,
   autoManageTier1: false,
   vrooliBinaryPath: "vrooli",
   connectionResult: null,

@@ -6,6 +6,7 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { listProfiles, listApprovals, decideApproval } from "../lib/api";
 import type { DeploymentApproval, DeploymentProfile } from "../lib/api";
+import { getErrorMessage } from "../lib/utils";
 
 type StatusFilter = "all" | "pending" | "approved" | "rejected" | "stale";
 
@@ -124,7 +125,7 @@ export function Approvals() {
 
       {error && (
         <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-red-200">
-          <p className="text-sm">Failed to load approvals: {(error as Error).message}</p>
+          <p className="text-sm">Failed to load approvals: {getErrorMessage(error)}</p>
         </div>
       )}
 
@@ -311,7 +312,7 @@ export function Approvals() {
                 </div>
                 {decideMutation.isError && (
                   <p className="text-sm text-red-300">
-                    {(decideMutation.error as Error).message}
+                    {getErrorMessage(decideMutation.error)}
                   </p>
                 )}
               </div>

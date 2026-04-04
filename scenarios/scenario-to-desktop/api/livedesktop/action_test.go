@@ -376,7 +376,7 @@ func TestDarkModeAction_Toggle(t *testing.T) {
 
 	// Toggle off
 	params, _ = json.Marshal(map[string]bool{"enabled": false})
-	result, err = action.Execute(context.Background(), session, svc, params)
+	_, err = action.Execute(context.Background(), session, svc, params)
 	require.NoError(t, err)
 	assert.False(t, session.DarkMode)
 }

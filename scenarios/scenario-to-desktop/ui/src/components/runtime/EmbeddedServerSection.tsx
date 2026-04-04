@@ -1,5 +1,6 @@
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { DEFAULT_LOCAL_API_ENDPOINT } from "../../store/formTypes";
 
 interface EmbeddedServerSectionProps {
   serverPort: number;
@@ -50,7 +51,7 @@ export function EmbeddedServerSection({
           id="localApiEndpoint"
           value={localApiEndpoint}
           onChange={(e) => onLocalApiEndpointChange(e.target.value)}
-          placeholder="http://localhost:3001/api"
+          placeholder={DEFAULT_LOCAL_API_ENDPOINT}
         />
       </div>
     </div>

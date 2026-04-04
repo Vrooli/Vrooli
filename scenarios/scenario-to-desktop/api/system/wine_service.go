@@ -1,6 +1,7 @@
 package system
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -36,7 +37,9 @@ func (s *DefaultWineService) IsInstalled() bool {
 
 // GetVersion returns the installed Wine version.
 func (s *DefaultWineService) GetVersion() string {
-	cmd := exec.Command("wine", "--version")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "wine", "--version")
 	output, err := cmd.Output()
 	if err != nil {
 		return ""

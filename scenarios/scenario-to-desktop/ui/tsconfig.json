@@ -1,6 +1,13 @@
 {
   "extends": "./tsconfig.node.json",
   "compilerOptions": {
+    // ╔══════════════════════════════════════════════════════════════════════════╗
+    // ║  SAFETY-CRITICAL RULES - DO NOT REMOVE OR WEAKEN                         ║
+    // ║  These are also set in tsconfig.node.json; repeated here so that         ║
+    // ║  static analysis tools that don't follow "extends" can verify them.      ║
+    // ╚══════════════════════════════════════════════════════════════════════════╝
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
     "jsx": "react-jsx",
     "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"]
   },

@@ -245,7 +245,7 @@ For Desktop/Mobile/Cloud bundles:
 - **Secrets hygiene**: No infrastructure secrets; user-prompted and local-generated only
 - **Upgrade safety**: Versioned data dirs, idempotent migrations
 
-See [Bundle Manifest Schema](examples/manifests/) for the `bundle.json` contract.
+See [Bundle Manifest Schema](examples/manifests/README.md) for the `bundle.json` contract.
 
 ## For Agents
 
@@ -253,9 +253,9 @@ When helping users deploy scenarios:
 
 1. **Start with [DEPLOYMENT-GUIDE.md](DEPLOYMENT-GUIDE.md)** - The single entry point with complete workflow
 2. **Check [ROADMAP.md](ROADMAP.md)** - Know what works vs. what needs workarounds
-3. **Use workflows** - [workflows/](workflows/) provides detailed step-by-step guides
-4. **Reference the CLI** - [cli/](cli/) documents every command with examples
-5. **Check API docs** - [api/](api/) for direct REST calls when CLI doesn't suffice
+3. **Use workflows** - [workflows/](workflows/README.md) provides detailed step-by-step guides
+4. **Reference the CLI** - [cli/](cli/README.md) documents every command with examples
+5. **Check API docs** - [api/](api/README.md) for direct REST calls when CLI doesn't suffice
 6. **Note the gaps** - Each workflow documents what's implemented vs. planned
 
 ### Key Files to Know

@@ -124,9 +124,10 @@ describe('ProfileDetail - Required Platforms', () => {
     await screen.findByText('Required Platforms');
 
     // Check the windows checkbox
-    const checkboxes = screen.getAllByRole('checkbox');
-    const windowsCheckbox = checkboxes[0] as HTMLElement; // windows is first in ALL_PLATFORMS
-    fireEvent.click(windowsCheckbox);
+    const windowsCheckbox = screen.getAllByRole('checkbox')[0];
+    expect(windowsCheckbox).toBeDefined();
+    // windows is first in ALL_PLATFORMS
+    if (windowsCheckbox) fireEvent.click(windowsCheckbox);
 
     expect(screen.getByText('Save Platforms')).toBeInTheDocument();
   });
@@ -141,8 +142,9 @@ describe('ProfileDetail - Required Platforms', () => {
     await screen.findByText('Required Platforms');
 
     // Check windows checkbox
-    const checkboxes = screen.getAllByRole('checkbox');
-    fireEvent.click(checkboxes[0] as HTMLElement);
+    const firstCheckbox = screen.getAllByRole('checkbox')[0];
+    expect(firstCheckbox).toBeDefined();
+    if (firstCheckbox) fireEvent.click(firstCheckbox);
 
     // Click save
     fireEvent.click(screen.getByText('Save Platforms'));

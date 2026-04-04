@@ -23,7 +23,7 @@ Tier 1 is our current reality: every scenario runs inside a single Vrooli instal
 
 ## Documentation Links
 
-- [Production bundles](../../scenarios/PRODUCTION_BUNDLES.md) — why tier 1 uses prod builds.
+- [Production bundles](/docs/scenarios/PRODUCTION_BUNDLES.md) — why tier 1 uses prod builds.
 - [Cloudflare tunnel setup](../providers/digitalocean.md#cloudflare-tunnel-quick-reference) — temporary home until a dedicated guide exists.
 
 ## Roadmap

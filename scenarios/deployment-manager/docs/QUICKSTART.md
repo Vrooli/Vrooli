@@ -173,8 +173,8 @@ msiexec /i scenarios\my-scenario\platforms\electron\dist-electron\my-scenario-1.
 
 ## Next Steps
 
-- [Full CLI Reference](cli/deploy-desktop.md)
+- [Full CLI Reference](cli/deployment-commands.md)
 - [Bundle Manifest Schema](guides/bundle-manifest-schema.md)
 - [Dependency Swapping Guide](guides/dependency-swapping.md)
-- [Telemetry & Analytics](guides/telemetry-guide.md)
+- [Telemetry & Analytics](api/telemetry.md)
 - [Troubleshooting Guide](workflows/troubleshooting.md)
