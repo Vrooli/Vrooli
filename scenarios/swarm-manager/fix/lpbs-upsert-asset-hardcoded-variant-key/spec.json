@@ -1,0 +1,24 @@
+{
+  "acceptance_allow": [
+    "scenarios/landing-page-business-suite/**"
+  ],
+  "created": "2026-04-04T00:00:00Z",
+  "depends_on": [
+    "research/release-record-contract-and-history-model"
+  ],
+  "description": "The `UpsertAsset` function at download_service.go:596 hardcodes `variant_key = 'default'` in the INSERT VALUES clause, blocking multi-channel releases.\n\nFix:\n1. Add `VariantKey string` field to the `DownloadAsset` struct.\n2. Replace the hardcoded `'default'` with a parameterized value.\n3. S2D's upload flow passes `channelToVariantKey(channel)` when constructing the asset.\n4. The existing `channelToVariantKey()` function (update_handlers.go:50-55) already handles the mapping correctly and can be reused or moved to a shared location.",
+  "effort": "S",
+  "initiative": "desktop-release-governance",
+  "kind": "fix",
+  "name": "lpbs-upsert-asset-hardcoded-variant-key",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "lpbs",
+    "variant-key",
+    "multi-channel",
+    "desktop-release"
+  ],
+  "title": "Remove Hardcoded Variant Key In LPBS UpsertAsset",
+  "updated": "2026-04-04T00:00:00Z"
+}

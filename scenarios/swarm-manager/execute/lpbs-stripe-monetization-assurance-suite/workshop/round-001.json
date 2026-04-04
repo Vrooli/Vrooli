@@ -1,0 +1,195 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-04T12:00:00Z",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 1,
+    "problem_clarity": 2,
+    "risk_awareness": 2,
+    "scope_defined": 2,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Test organization strategy",
+      "context": "The LPBS API already has 75 test files. The new monetization assurance tests span multiple services (checkout, webhooks, entitlements, downloads, coupons). We need to decide whether to add tests to existing files or create dedicated integration test files. Existing files are organized per-service (e.g., stripe_service_test.go, download_authorizer_test.go). Cross-concern integration tests don't fit neatly into any one file.",
+      "options": [
+        {
+          "key": "A",
+          "label": "New dedicated integration test files",
+          "rationale": "Create 2-3 new files like stripe_monetization_e2e_test.go, download_entitlement_integration_test.go, coupon_lifecycle_e2e_test.go. Keeps cross-concern tests separate from unit tests. Easier to run independently. Clearer intent."
+        },
+        {
+          "key": "B",
+          "label": "Extend existing test files",
+          "rationale": "Add new test functions to existing service test files (e.g., add to stripe_integration_test.go, download_authorizer_test.go). Avoids file proliferation. Keeps related tests together by primary service."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own organization approach"
+        }
+      ],
+      "selected": "A",
+      "notes": "Recommend A: cross-service integration tests are fundamentally different from unit tests and benefit from dedicated files. The existing stripe_integration_test.go already establishes precedent for separate integration test files."
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Priority ordering of test phases",
+      "context": "The plan has 4 phases. Given this is about launch confidence, we should prioritize tests that catch the highest-impact failures first. Phase 1 (checkout+webhook) catches payment processing failures. Phase 2 (entitlement+download) catches 'paid but no access' and 'no pay but got access' failures. Phase 3 (coupons) catches revenue leakage. Phase 4 (concurrency+security) catches race conditions and abuse.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Phase 2 first (entitlement + download gating)",
+          "rationale": "The most customer-visible failure mode is 'I paid but can't download' or 'I didn't pay but got the app'. These are the highest-impact gaps in current coverage and directly gate launch readiness."
+        },
+        {
+          "key": "B",
+          "label": "Phase 1 first (checkout + webhook)",
+          "rationale": "Follows the natural data flow. Checkout failures prevent subscriptions from being created at all. If checkout is broken, downstream tests are moot."
+        },
+        {
+          "key": "C",
+          "label": "As written (1→2→3→4)",
+          "rationale": "The plan order already follows a logical progression from entry point to downstream effects."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own priority ordering"
+        }
+      ],
+      "selected": "C",
+      "notes": "Both A and B are defensible. A targets the highest customer-impact gap; B follows natural flow. Existing checkout+webhook tests are already the strongest area, which argues for A."
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Scope of concurrent/race condition tests",
+      "context": "Concurrent tests are the most complex to write and maintain. The codebase already has stripe_concurrent_test.go and stripe_service_concurrent_test.go covering basic races. We need to decide how deep to go on new concurrency scenarios. Deeper coverage catches real bugs but adds significant test complexity and potential flakiness.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Focused: 2 critical paths only",
+          "rationale": "Test only (1) concurrent email migration + payment webhook and (2) concurrent subscription status change + download authorization. These are the two most likely real-world race conditions. Minimal flakiness risk."
+        },
+        {
+          "key": "B",
+          "label": "Moderate: 4-5 concurrent scenarios",
+          "rationale": "Add the above plus concurrent topups, concurrent coupon eligibility checks, and concurrent checkout sessions for same email. Better coverage but more test maintenance."
+        },
+        {
+          "key": "C",
+          "label": "Comprehensive: all identified races",
+          "rationale": "Cover every concurrent scenario identified in the gap analysis. Maximum confidence but highest maintenance burden and flakiness risk."
+        },
+        {
+          "key": "D",
+          "label": "Skip concurrency tests entirely",
+          "rationale": "Existing concurrent tests provide baseline coverage. Focus effort on integration and E2E tests which have larger gaps. Concurrency bugs are rare in practice with Postgres row-level locking."
+        },
+        {
+          "key": "E",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "notes": "Recommend A: the two identified paths (email migration + payment, status change + download) represent real-world races that could cause visible customer issues. Going broader risks test flakiness without proportional confidence gain."
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Coupon abuse test depth",
+      "context": "Current coupon tests cover CRUD operations and basic eligibility. The gap is around abuse scenarios: re-using intro coupons, eligibility bypass via email variants, expired coupon application, and bulk checkout attempts. Some of these rely on email normalization (already tested) and DB unique constraints (inherently safe). The question is how many distinct abuse scenarios to test.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Lifecycle E2E + 2-3 key abuse cases",
+          "rationale": "Test the full intro coupon lifecycle (apply → use → reject), plus: (1) email variant bypass attempt, (2) expired coupon application, (3) re-use after markIntroUsed. Covers the most likely abuse vectors without over-testing what DB constraints already guarantee."
+        },
+        {
+          "key": "B",
+          "label": "Comprehensive abuse matrix",
+          "rationale": "Test all identified abuse vectors including: email variants, expired coupons, re-use, bulk attempts, cross-plan coupon application, coupon with max_redemptions exceeded, and invalid coupon IDs. Thorough but many scenarios test DB/Stripe constraints rather than application logic."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own scope"
+        }
+      ],
+      "selected": "A",
+      "notes": "Recommend A: the most dangerous abuse vectors (re-use, email variant bypass) are worth explicit tests. Scenarios that test DB unique constraints or Stripe API validation add limited value."
+    },
+    {
+      "id": "d5",
+      "type": "decision",
+      "topic": "Webhook out-of-order delivery test approach",
+      "context": "Stripe does not guarantee webhook delivery order. The current code uses idempotency (event IDs) but doesn't explicitly handle sequence. For example, invoice.paid could arrive before checkout.session.completed if Stripe's event delivery is delayed. The question is how to structure these tests and which ordering scenarios matter most.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Test 2-3 critical reorderings",
+          "rationale": "Focus on: (1) invoice.paid before checkout.session.completed, (2) customer.subscription.updated before checkout.session.completed, (3) customer.updated (email change) interleaved with payment events. These are the most likely real-world reorderings."
+        },
+        {
+          "key": "B",
+          "label": "Permutation testing for all event pairs",
+          "rationale": "For each pair of events that could be reordered, test both orderings. More thorough but could be 10+ test cases for 8 event types."
+        },
+        {
+          "key": "C",
+          "label": "Property-based: final state convergence",
+          "rationale": "Generate random event orderings and assert that final DB state is the same regardless of delivery order. Elegant but complex to implement and debug."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "notes": "Recommend A: targeted reordering tests are easier to debug when they fail and cover the scenarios most likely to occur. Property-based (C) is elegant but overkill for this stage."
+    },
+    {
+      "id": "d6",
+      "type": "decision",
+      "topic": "Entitlement error handling during download gating",
+      "context": "DownloadAuthorizer currently propagates entitlement lookup errors up the stack. There's no test for what happens when the entitlement service errors during a download authorization check (e.g., DB timeout, invalid data). The question is whether to test the current error propagation behavior or also recommend/test defensive fallback behavior.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Test current behavior (error propagation)",
+          "rationale": "Write tests that verify DownloadAuthorizer correctly propagates errors from entitlement lookup. This documents and locks in current behavior without changing code. If entitlements are unavailable, download is denied (fail-closed)."
+        },
+        {
+          "key": "B",
+          "label": "Test + recommend fail-closed with specific error",
+          "rationale": "Test current behavior AND verify that the error response clearly distinguishes 'entitlement check failed' from 'no entitlement'. This helps customer support diagnose issues without changing gating logic."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "notes": "Recommend A: the current fail-closed behavior is the correct security posture. Testing it locks it in. Distinguishing error types (B) is nice-to-have but involves code changes beyond the test-deepening scope."
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The existing test infrastructure is mature: 75 test files, testcontainers for real Postgres, established Stripe API mocking patterns. No test infra work is needed — new tests can use existing helpers (setupTestDB, mux.SetURLVars, etc.) directly."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "This item depends on execute/lpbs-desktop-release-contract-hardening. That dependency is about ensuring the release contract is solid before testing monetization against it. If that item changes download_assets schema or DownloadAuthorizer behavior, tests written here may need updating. Recommend checking that item's status before starting implementation."
+    }
+  ],
+  "plan_updates": "Created initial plan.md with all 13 mandatory sections. Phases 1-4 defined with TBD markers for exact test cases pending workshop decisions. Scope, risks, and definition of done established based on codebase gap analysis."
+}

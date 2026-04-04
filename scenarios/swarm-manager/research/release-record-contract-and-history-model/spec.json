@@ -15,7 +15,7 @@
   "kind": "research",
   "name": "release-record-contract-and-history-model",
   "priority": 2,
-  "status": "backlog",
+  "status": "completed",
   "tags": [
     "deployment",
     "version-history",
@@ -24,5 +24,5 @@
     "desktop-release"
   ],
   "title": "Define The Release Record And History Model",
-  "updated": "2026-03-26T16:35:48Z"
+  "updated": "2026-04-04T17:44:14Z"
 }

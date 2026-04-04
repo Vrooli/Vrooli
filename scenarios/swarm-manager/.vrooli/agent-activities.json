@@ -2465,5 +2465,204 @@
       "entrypoint": "finalization.evidence_gathering"
     },
     "updated_at": "2026-04-04T04:50:15Z"
+  },
+  {
+    "activity_id": "d40bd49dd035c4cd",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "scenario-to-desktop-approval-gate-integration",
+    "owner_title": "Integrate Scenario To Desktop With Canonical Approval Gates",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "94cdb618-7e5f-4d6e-a213-6e39fd4bbb1f",
+    "run_id": "7f1447b2-b06c-45d5-bcfa-fbbe7848a742",
+    "status": "complete",
+    "requested_at": "2026-04-04T17:09:53Z",
+    "started_at": "2026-04-04T17:09:54Z",
+    "finished_at": "2026-04-04T17:13:55Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-04T17:16:13Z"
+  },
+  {
+    "activity_id": "5116e45a5bc723e3",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "release-record-contract-and-history-model",
+    "owner_title": "Define The Release Record And History Model",
+    "purpose": "finalize",
+    "interaction_type": "spawn",
+    "task_id": "034f3ec6-b5f7-43d9-8b1a-f14c5adf5274",
+    "run_id": "bbb5b7f2-cf9d-4195-9ca9-79cbe90cdf2a",
+    "status": "complete",
+    "requested_at": "2026-04-04T17:11:35Z",
+    "started_at": "2026-04-04T17:11:35Z",
+    "finished_at": "2026-04-04T17:14:48Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "auto_triggered": "true",
+      "entrypoint": "backlog.workshop_auto_advance",
+      "mode": "finalize",
+      "skill_id": "swarm-manager-workshop-research-finalize"
+    },
+    "updated_at": "2026-04-04T17:16:13Z"
+  },
+  {
+    "activity_id": "a5085cd45d8f3d16",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "release-record-contract-and-history-model",
+    "owner_title": "Define The Release Record And History Model",
+    "execution_id": "e0206ac7304f3ca0",
+    "purpose": "process",
+    "interaction_type": "spawn",
+    "task_id": "459d47e0-d192-41cd-9cc8-34794acd88ff",
+    "run_id": "ab45ab48-2f89-4bc6-8c8c-d7c7705eaba1",
+    "status": "complete",
+    "requested_at": "2026-04-04T17:17:49Z",
+    "started_at": "2026-04-04T17:17:49Z",
+    "finished_at": "2026-04-04T17:20:24Z",
+    "requested_by": "swarm-manager-ui",
+    "metadata": {
+      "entrypoint": "execution.start",
+      "mode": "yolo",
+      "operation": "generator"
+    },
+    "updated_at": "2026-04-04T17:43:13Z"
+  },
+  {
+    "activity_id": "1b5ef4c005b35ee2",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "release-record-contract-and-history-model",
+    "owner_title": "Define The Release Record And History Model",
+    "execution_id": "e0206ac7304f3ca0",
+    "purpose": "review",
+    "interaction_type": "spawn",
+    "status": "failed",
+    "requested_at": "2026-04-04T17:31:57Z",
+    "finished_at": "2026-04-04T17:31:57Z",
+    "failure_reason": "agent-manager request failed: status 400: {\"code\":\"VALIDATION_FIELD\",\"message\":\"validation error on contextAttachments[0].content: required for note attachments\",\"details\":{\"fields\":{\"field\":{\"string_value\":\"contextAttachments[0].content\"},\"message\":{\"string_value\":\"required for note attachments\"},\"recovery\":{\"string_value\":\"fix_input\"},\"request_id\":{\"string_value\":\"8e1d828d-7602-42b4-908c-98e8965e3308\"},\"retryable\":{\"bool_value\":false},\"user_message\":{\"string_value\":\"Invalid value for contextAttachments[0].content: required for note attachments\"}}}}",
+    "requested_by": "finalization",
+    "metadata": {
+      "entrypoint": "finalization.evidence_gathering"
+    },
+    "updated_at": "2026-04-04T17:31:57Z"
+  },
+  {
+    "activity_id": "dacb93d7bb7b5390",
+    "owner_type": "backlog",
+    "owner_kind": "fix",
+    "owner_name": "lpbs-upsert-asset-hardcoded-variant-key",
+    "owner_title": "Remove Hardcoded Variant Key In LPBS UpsertAsset",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "3b5ec55f-0303-4f80-bcec-572bf005700e",
+    "run_id": "1e3ed979-8c79-4169-a66e-682b1d529e74",
+    "status": "complete",
+    "requested_at": "2026-04-04T17:44:40Z",
+    "started_at": "2026-04-04T17:44:40Z",
+    "finished_at": "2026-04-04T17:46:46Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-04T17:46:50Z"
+  },
+  {
+    "activity_id": "1d7d21198a8fa830",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "dm-releases-and-release-platforms-tables",
+    "owner_title": "Add Releases And Release Platforms Tables To Deployment Manager",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "65e72089-beeb-411b-9394-330a299f06f7",
+    "run_id": "aecd9f34-b60f-460c-b84c-99d2d98138d4",
+    "status": "complete",
+    "requested_at": "2026-04-04T17:45:01Z",
+    "started_at": "2026-04-04T17:45:01Z",
+    "finished_at": "2026-04-04T17:49:40Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-04T17:51:44Z"
+  },
+  {
+    "activity_id": "c16efa921b332565",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "lpbs-stripe-monetization-assurance-suite",
+    "owner_title": "Deepen LPBS Stripe Monetization Assurance",
+    "purpose": "initialize",
+    "interaction_type": "spawn",
+    "task_id": "7ddc8d7a-5831-44f0-9dc9-5c6ad545a20c",
+    "run_id": "6691475e-2339-470e-b77b-1257be002643",
+    "status": "complete",
+    "requested_at": "2026-04-04T17:47:34Z",
+    "started_at": "2026-04-04T17:47:34Z",
+    "finished_at": "2026-04-04T17:51:37Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "initialize",
+      "skill_id": "swarm-manager-initialize-backlog"
+    },
+    "updated_at": "2026-04-04T17:51:44Z"
+  },
+  {
+    "activity_id": "bbae4c6813ff3dcd",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "lpbs-stripe-monetization-assurance-suite",
+    "owner_title": "Deepen LPBS Stripe Monetization Assurance",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "56472a59-9531-407c-8207-01c51583a5fd",
+    "run_id": "5b4ab278-0337-42ed-9771-e1ba116e419e",
+    "status": "complete",
+    "requested_at": "2026-04-04T17:52:16Z",
+    "started_at": "2026-04-04T17:52:16Z",
+    "finished_at": "2026-04-04T17:56:28Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "auto_triggered": "true",
+      "entrypoint": "backlog.workshop_auto_advance",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-04T18:00:03Z"
+  },
+  {
+    "activity_id": "40991f6f5de4993a",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "lpbs-stripe-monetization-assurance-suite",
+    "owner_title": "Deepen LPBS Stripe Monetization Assurance",
+    "purpose": "finalize",
+    "interaction_type": "spawn",
+    "task_id": "fee3a202-ae26-4eb1-bfad-ba70110ed7a4",
+    "run_id": "f7ec63af-b9bc-4ba0-bd72-c382f2aa80f2",
+    "status": "complete",
+    "requested_at": "2026-04-04T18:00:48Z",
+    "started_at": "2026-04-04T18:00:48Z",
+    "finished_at": "2026-04-04T18:03:17Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "auto_triggered": "true",
+      "entrypoint": "backlog.workshop_auto_advance",
+      "mode": "finalize",
+      "skill_id": "swarm-manager-workshop-finalize"
+    },
+    "updated_at": "2026-04-04T18:06:59Z"
   }
 ]

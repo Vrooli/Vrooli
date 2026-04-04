@@ -1,0 +1,176 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-04T17:30:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 2,
+    "scope_defined": 2,
+    "approach_solid": 1,
+    "testable": 1,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Deployment profile ID resolution strategy",
+      "context": "The pipeline needs a deployment-manager profile ID to create approvals and check the release gate. Currently, scenario-to-desktop has no concept of a deployment-manager profile — it only knows about deploy targets (LPBS remote profiles). The profile ID must come from somewhere.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Add profile_id field to DeployTarget",
+          "rationale": "Deploy targets already configure the LPBS destination. Adding an optional deployment_manager_profile_id field keeps all deploy config in one place. The deploy-target doctor can validate it. This is the simplest approach and avoids new pipeline parameters.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Add profile_id as a pipeline run parameter",
+          "rationale": "Pass it explicitly via PipelineConfig or DeployConfig when starting the pipeline. More flexible (different profiles per run) but adds a required parameter that callers must know."
+        },
+        {
+          "key": "C",
+          "label": "Auto-discover profile by scenario name",
+          "rationale": "Query deployment-manager's profile list endpoint, match by scenario name. Avoids manual configuration but introduces a runtime dependency and assumes a naming convention."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Gate check placement in the pipeline",
+      "context": "The gate check must happen before artifacts are deployed to LPBS. Currently the pipeline stages are: Bundle → Preflight → Generate → Build → SmokeTest → Deploy. The question is whether the gate check is a new stage or part of the existing Deploy stage.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Gate check as the first step inside Deploy stage",
+          "rationale": "Deploy stage already handles deploy target resolution and LPBS upload. Adding gate check as the first operation keeps the stage count stable and is consistent with the 'deploy readiness' concept. If blocked, the stage enters waiting state.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "New 'ApprovalGate' stage between SmokeTest and Deploy",
+          "rationale": "Makes the gate check explicit in the pipeline progression. Clear separation of concerns. But adds a new stage to the pipeline model, which changes status reporting, UI progress, and stage ordering throughout the codebase."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Wait/resume behavior when gate is blocked",
+      "context": "When the release gate is not satisfied, the pipeline must decide how to handle it. The pipeline already supports resume capability (pipeline resume command exists). The question is what happens during the wait period.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Poll with exponential backoff + configurable timeout",
+          "rationale": "Pipeline polls deployment-manager gate endpoint at increasing intervals (e.g. 10s, 20s, 40s... up to 5min). Times out after a configurable max wait (default 30min). Simple, no new infrastructure. Pipeline process stays alive.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Pause pipeline immediately, require manual resume",
+          "rationale": "Pipeline enters 'gate-blocked' state and stops. User must run 'pipeline resume' after approvals are granted. No polling overhead. But requires manual intervention for every deploy."
+        },
+        {
+          "key": "C",
+          "label": "Configurable: poll OR pause based on pipeline config",
+          "rationale": "Add a gate_wait_mode field to DeployConfig: 'poll' (with timeout) or 'pause' (manual resume). Most flexible but adds config complexity."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "When to create pending approvals",
+      "context": "Pending approval records must be created on deployment-manager so reviewers can approve/reject platforms. The question is at which pipeline point this should happen, and whether it's automatic or opt-in.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Automatically after build stage completes",
+          "rationale": "Once all platforms are built, the system knows the commit hash and platform list. Creating approvals here gives reviewers maximum time to approve before deploy. This is the natural point where 'artifacts exist and need approval'.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Automatically after smoke test stage completes",
+          "rationale": "Approvals are created after smoke tests pass, linking each approval to a validation_id. Reviewers see that the build has been tested. But delays approval creation and couples it to smoke test configuration."
+        },
+        {
+          "key": "C",
+          "label": "On-demand via explicit CLI/API call",
+          "rationale": "Don't create approvals automatically. User calls a new command like 'pipeline request-approval <pipeline-id>' when ready. Maximum control but adds a manual step."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d5",
+      "type": "decision",
+      "topic": "Graceful degradation when deployment-manager is unavailable",
+      "context": "The pipeline currently doesn't depend on deployment-manager for its core flow (build → deploy). Adding approval gating introduces a new dependency. If deployment-manager is down, should the pipeline block or continue?",
+      "options": [
+        {
+          "key": "A",
+          "label": "Warn and skip approval flow if deployment-manager unreachable",
+          "rationale": "Log a warning, skip approval creation and gate check, proceed with deploy. Preserves the current pipeline behavior as a fallback. Risk: artifacts could be deployed without approval.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Fail the pipeline if deployment-manager unreachable",
+          "rationale": "Approval gating is a governance requirement — if it can't be checked, deployment should not proceed. Stricter but may block pipelines during deployment-manager maintenance."
+        },
+        {
+          "key": "C",
+          "label": "Configurable: strict or lenient mode",
+          "rationale": "Add a gate_required field to deploy config. When true, pipeline fails if deployment-manager is unreachable. When false, warns and skips. Flexible but adds config surface."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Build provenance is already fully plumbed: CaptureProvenance() captures git commit hash at pipeline start (orchestrator.go:562), propagates through StageInput.Provenance to all stages, and stage_deploy.go:165 extracts it for LPBS upload. The git_commit_hash is already sent to LPBS during artifact commit (lpbs_client.go:319). This same hash is what deployment-manager needs for approval records."
+    }
+  ],
+  "plan_updates": "Created initial plan scaffold with all 13 mandatory sections. Populated purpose, problem statement, scope, technical context (with file paths and line numbers), target end state, phased implementation strategy (6 phases), risks matrix, non-goals, and definition of done. Left implementation details in phases 2-5 as TBD pending workshop decisions on profile ID resolution, gate check placement, wait behavior, and approval creation timing."
+}

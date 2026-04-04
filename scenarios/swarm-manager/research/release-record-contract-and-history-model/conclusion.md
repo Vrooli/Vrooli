@@ -4,13 +4,13 @@
 What should "version history" and "release records" mean as a unified concept across deployment-manager profile versions, build provenance, LPBS artifacts, update channels, manifests, and customer-visible release history? What are the canonical IDs, references, and schema shape that later implementation work should use?
 
 ## Summary
-The release record is a new first-class entity owned by deployment-manager (DM). Each release is identified by a UUID minted at orchestration time, correlating a git commit, profile version snapshot, semantic version, channel, and per-platform artifact references into a single auditable event. LPBS stores the `release_id` on artifacts and assets as a foreign correlation key but does not own the record. Channels follow a defined ordering (nightly → beta → stable) with explicit promotion semantics. Release notes live on the release record; no separate changelog API is needed. Each release links back to the deployment that triggered it.
+The release record is a new first-class entity owned by deployment-manager (DM). Each release is identified by a UUID minted at orchestration time, correlating a git commit, profile version snapshot, semantic version, channel, and per-platform artifact references into a single auditable event. LPBS stores the `release_id` on artifacts and assets as a foreign correlation key but does not own the record. Channels follow a defined ordering (nightly → beta → stable) with explicit promotion semantics. Release notes live on the release record; no separate changelog API is needed. Each release links back to the deployment that triggered it. Approvals are commit-scoped — one approval per (profile, commit, platform) covers all channels. Only publishing deployments create release records; dry runs and validation-only runs do not. Previous releases are marked "superseded" by application-level logic when a new release publishes to the same profile and channel.
 
 ## Methodology
 - **Round 1 dependency input:** Built on the completed `desktop-release-control-plane-audit` research (7 gaps mapped).
 - **Round 1 schema analysis:** Read database schemas and Go types across deployment-manager, scenario-to-desktop, and LPBS. Identified 3 incompatible version ID schemes and the absence of a "release event" record.
 - **Round 2 deep dive:** Full schema review of DM tables (profiles, profile_versions, deployments, deployment_approvals, visual_validations), LPBS tables (download_apps, download_assets, download_artifacts), and S2D pipeline types (BuildProvenance, Config, DeployConfig, DeployResult). Traced the complete data flow from pipeline trigger through S2D's 4-step LPBS upload (presign → S3 → commit → apply).
-- **Round 3 verification:** Cross-referenced the proposed schema against actual codebase. Verified DM migration numbering (next: 004), confirmed `DeployDesktopRequest` struct fields (orchestrator.go:24-55), validated `CheckReleaseGate` logic (approvals_repository.go:183-224), and confirmed LPBS `UpsertAsset` hardcoded variant_key (download_service.go:596). Identified schema drift, pipeline extension points, and approval/channel interaction gaps.
+- **Round 3 verification:** Cross-referenced the proposed schema against actual codebase. Verified DM migration numbering (next: 004), confirmed `DeployDesktopRequest` struct fields (orchestrator.go:24-55), validated `CheckReleaseGate` logic (approvals_repository.go:183-224), and confirmed LPBS `UpsertAsset` hardcoded variant_key (download_service.go:596). Identified schema drift, pipeline extension points, and approval/channel interaction gaps. Resolved three remaining decisions: commit-scoped approvals, dry-run exclusion, and application-level superseded status.
 
 ## Findings
 
@@ -77,7 +77,7 @@ None of the three systems record the full event: "version X.Y.Z released to chan
 CREATE TABLE releases (
     id              TEXT PRIMARY KEY,          -- UUID minted by orchestrator
     profile_id      TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    deployment_id   TEXT REFERENCES deployments(id), -- links to the triggering deployment (round 2, d1→A)
+    deployment_id   TEXT REFERENCES deployments(id), -- links to the triggering deployment
     profile_version INTEGER NOT NULL,          -- snapshot reference (profiles.version at release time)
     git_commit_hash TEXT NOT NULL,
     release_version TEXT NOT NULL,             -- semver (e.g., "1.2.3")
@@ -110,7 +110,9 @@ CREATE INDEX idx_releases_deployment ON releases(deployment_id);
 CREATE INDEX idx_release_platforms_status ON release_platforms(status);
 ```
 
-**Key change from round 2:** Added `deployment_id TEXT REFERENCES deployments(id)` to link each release to the deployment that triggered it (round 2 decision d1→A). The deployment holds execution details (logs, timing, error); the release holds semantic details (version, channel, per-platform status). Promoted releases may have `deployment_id = NULL` if promotion doesn't trigger a new pipeline run.
+**Key design notes:**
+- `deployment_id` links each release to the triggering deployment (round 2, d1→A). The deployment holds execution details (logs, timing, error); the release holds semantic details (version, channel, per-platform status). Promoted releases may have `deployment_id = NULL` if promotion doesn't trigger a new pipeline run.
+- Only publishing deployments (not dry-run, not skip-packaging) create release records (round 3, d2→A). The orchestrator checks `DryRun` and `SkipPackaging` flags before minting a release UUID.
 
 ### Finding 8: LPBS Needs a release_id Correlation Column
 
@@ -208,14 +210,16 @@ Channel string `json:"channel,omitempty"`
 
 These flow through the pipeline into S2D and ultimately into the LPBS upload step.
 
-### Finding 13: Approval Model Is Not Channel-Aware (Round 3 Investigation)
+### Finding 13: Approval Model Is Commit-Scoped, Not Channel-Scoped
 
 The `deployment_approvals` table has a unique constraint on `(profile_id, git_commit_hash, platform)` — no channel dimension. The `CheckReleaseGate` function (approvals_repository.go:183-224) checks that ALL required platforms have status "approved" without considering channels.
 
-**Implications:**
-- A single approval per (profile, commit, platform) covers all channels.
-- The nightly gate bypass (round 2, d3→A) must be implemented at the orchestrator level, not in `CheckReleaseGate` — the orchestrator simply skips the gate call for nightly releases.
-- Whether promotions to stable require fresh approvals is an **open decision** (round 3, d1).
+**Resolution (decided round 3, d1→A):** Approvals remain commit-scoped. A single approval per (profile, commit, platform) covers all channels. This means:
+- Once a commit is approved for a platform, it can be promoted to any channel without re-approval.
+- The `deployment_approvals` table needs no schema changes.
+- `CheckReleaseGate` needs no channel awareness — it continues to check that all required platforms are approved.
+- The nightly gate bypass (round 2, d3→A) is implemented at the orchestrator level: the orchestrator simply skips the `CheckReleaseGate` call for nightly releases.
+- Stricter per-channel review policies, if ever needed, would require a future schema extension.
 
 ### Finding 14: Verification Paths Identified (Round 3)
 
@@ -226,20 +230,31 @@ Four concrete verification strategies for validating the release record implemen
 3. **Promotion chain test:** Create nightly → beta → stable releases and verify `promoted_from_release_id` links form a valid chain. Assert that promotion only goes up the stability ladder.
 4. **Channel-gate interaction test:** Verify that `CheckReleaseGate` is skipped for nightly, required for beta (at least one approval), and requires all-platform approval for stable.
 
+### Finding 15: Only Publishing Deployments Create Release Records
+
+**Resolution (decided round 3, d2→A):** The orchestrator checks `DryRun` and `SkipPackaging` flags before creating a release record. Only deployments that intend to publish (both flags false) mint a release UUID and insert into the `releases` table. This keeps release history clean — dry runs and validation-only runs are tracked solely in the `deployments` table. The `releases.deployment_id` FK ensures traceability back to the deployment that triggered any given release.
+
+### Finding 16: Superseded Status Is Set by Application Logic
+
+**Resolution (decided round 3, d3→A):** When a new release reaches `published` status for a given (profile, channel), the orchestrator sets the previous `published` release for that same (profile, channel) to `superseded`. This is application-level logic in the orchestrator, not a database trigger. The pattern matches LPBS's existing `is_current` flag management. The supersede step is:
+1. Query for the currently `published` release on (profile_id, channel) where `id != new_release_id`.
+2. If found, update its status to `superseded` and set `updated_at`.
+3. This runs in the same transaction as the new release's status update to `published`, ensuring atomicity.
+
 ## Limitations
 - The `release_id` on LPBS is a correlation key, not a foreign key constraint. Consistency depends on the orchestrator correctly propagating the ID. A reconciliation job or webhook confirmation would strengthen this.
 - The channel promotion model is designed for the current 3-channel case. If channels become user-definable or per-profile, the hardcoded ordering would need to become configurable.
 - Runtime behavior of the S2D → LPBS upload has not been verified end-to-end; the analysis is code-based.
 - The `promoted_from_release_id` chain could grow long for releases that promote through all channels. Queries that need the full promotion chain would need recursive CTEs.
-- Whether `deployment_approvals` should become channel-aware depends on the open decision (round 3, d1) about promotion approval requirements.
-- The `superseded` status trigger mechanism depends on the open decision (round 3, d3).
+- Approvals are commit-scoped with no channel dimension. This simplifies the model but means there is no mechanism for requiring stricter review specifically for stable promotions. If that need arises, the approval model would need a channel column or a separate promotion-approval concept.
+- The superseded status transition depends on correct orchestrator logic running in a transaction. If the orchestrator crashes between publishing the new release and superseding the old one, both could briefly show as `published`. Recovery logic or a periodic consistency check should be considered during implementation.
 
 ## Actions
 
 ### Action 1: Create backlog item — Add `releases` and `release_platforms` tables to DM
 - **Kind**: execute
 - **Title**: Add releases and release_platforms tables to deployment-manager
-- **Description**: Create migration `004_add_releases.sql` with the schema from Finding 7. Add Go types (Finding 10), repository (CRUD + promotion + supersede logic), and handler scaffolding for release history API endpoints.
+- **Description**: Create migration `004_add_releases.sql` with the schema from Finding 7. Add Go types (Finding 10), repository (CRUD + promotion + supersede logic), and handler scaffolding for release history API endpoints. The supersede step (Finding 16) must run in the same transaction as the publish status update.
 - **Initiative**: desktop-release-governance
 - **Priority**: high
 - **Effort**: L
@@ -271,7 +286,7 @@ Four concrete verification strategies for validating the release record implemen
 ### Action 5: Create backlog item — Implement channel promotion logic in DM
 - **Kind**: execute
 - **Title**: Add channel promotion endpoint and validation to deployment-manager
-- **Description**: Implement promotion endpoint: only allow promotion up the channel ladder, create new release record with `promoted_from_release_id`, enforce approval gates per channel policy (Finding 6). Includes channel-aware gate bypass for nightly releases.
+- **Description**: Implement promotion endpoint: only allow promotion up the channel ladder, create new release record with `promoted_from_release_id`, enforce approval gates per channel policy (Finding 6). Nightly skips the gate entirely; beta and stable call `CheckReleaseGate`. Approvals are commit-scoped (Finding 13) — no re-approval needed when promoting, only verification that required approvals exist.
 - **Initiative**: desktop-release-governance
 - **Priority**: medium
 - **Effort**: M
@@ -287,7 +302,7 @@ Four concrete verification strategies for validating the release record implemen
 ### Action 7: Create backlog item — Wire release record into DM orchestration flow
 - **Kind**: execute
 - **Title**: Integrate release record creation into DM orchestrator pipeline
-- **Description**: Orchestrator mints UUID and creates `releases` row at pipeline start (only for non-dry-run, publishing deployments). Updates `release_platforms` as S2D reports per-platform results. Sets status to `published` when all platforms complete (or `failed` on error). Adds `ReleaseID` and `Channel` to `DeployDesktopRequest` (Finding 12).
+- **Description**: Orchestrator mints UUID and creates `releases` row at pipeline start — only for non-dry-run, non-skip-packaging deployments (Finding 15). Updates `release_platforms` as S2D reports per-platform results. Sets status to `published` when all platforms complete (or `failed` on error), and atomically supersedes the previous release for the same profile+channel (Finding 16). Adds `ReleaseID` and `Channel` to `DeployDesktopRequest` (Finding 12). Skips `CheckReleaseGate` for nightly releases (Finding 13).
 - **Initiative**: desktop-release-governance
 - **Priority**: high
 - **Effort**: L

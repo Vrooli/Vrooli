@@ -2357,5 +2357,330 @@
     },
     "created_at": "2026-04-04T03:38:39Z",
     "updated_at": "2026-04-04T03:51:42Z"
+  },
+  {
+    "execution_id": "e0206ac7304f3ca0",
+    "backlog_kind": "research",
+    "backlog_name": "release-record-contract-and-history-model",
+    "previous_status": "backlog",
+    "task_id": "459d47e0-d192-41cd-9cc8-34794acd88ff",
+    "run_id": "ab45ab48-2f89-4bc6-8c8c-d7c7705eaba1",
+    "status": "needs_fixup",
+    "mode": "yolo",
+    "started_at": "2026-04-04T17:17:50Z",
+    "finished_at": "2026-04-04T17:31:57Z",
+    "started_by": "swarm-manager-ui",
+    "operation": "generator",
+    "prompt_trace": {
+      "purpose": "process",
+      "prompt": "\u003cexecution-context\u003e\nBacklog item: research/release-record-contract-and-history-model\nTitle: Define The Release Record And History Model\nItem folder: /home/matthalloran8/Vrooli/scenarios/swarm-manager/research/release-record-contract-and-history-model\nRun type: process\n\u003c/execution-context\u003e\n\n\u003cresearch-conclusion path=\"conclusion.md\"\u003e\n# Research Conclusion: Define The Release Record And History Model\n\n## Research Question\nWhat should \"version history\" and \"release records\" mean as a unified concept across deployment-manager profile versions, build provenance, LPBS artifacts, update channels, manifests, and customer-visible release history? What are the canonical IDs, references, and schema shape that later implementation work should use?\n\n## Summary\nThe release record is a new first-class entity owned by deployment-manager (DM). Each release is identified by a UUID minted at orchestration time, correlating a git commit, profile version snapshot, semantic version, channel, and per-platform artifact references into a single auditable event. LPBS stores the `release_id` on artifacts and assets as a foreign correlation key but does not own the record. Channels follow a defined ordering (nightly → beta → stable) with explicit promotion semantics. Release notes live on the release record; no separate changelog API is needed. Each release links back to the deployment that triggered it. Approvals are commit-scoped — one approval per (profile, commit, platform) covers all channels. Only publishing deployments create release records; dry runs and validation-only runs do not. Previous releases are marked \"superseded\" by application-level logic when a new release publishes to the same profile and channel.\n\n## Methodology\n- **Round 1 dependency input:** Built on the completed `desktop-release-control-plane-audit` research (7 gaps mapped).\n- **Round 1 schema analysis:** Read database schemas and Go types across deployment-manager, scenario-to-desktop, and LPBS. Identified 3 incompatible version ID schemes and the absence of a \"release event\" record.\n- **Round 2 deep dive:** Full schema review of DM tables (profiles, profile_versions, deployments, deployment_approvals, visual_validations), LPBS tables (download_apps, download_assets, download_artifacts), and S2D pipeline types (BuildProvenance, Config, DeployConfig, DeployResult). Traced the complete data flow from pipeline trigger through S2D's 4-step LPBS upload (presign → S3 → commit → apply).\n- **Round 3 verification:** Cross-referenced the proposed schema against actual codebase. Verified DM migration numbering (next: 004), confirmed `DeployDesktopRequest` struct fields (orchestrator.go:24-55), validated `CheckReleaseGate` logic (approvals_repository.go:183-224), and confirmed LPBS `UpsertAsset` hardcoded variant_key (download_service.go:596). Identified schema drift, pipeline extension points, and approval/channel interaction gaps. Resolved three remaining decisions: commit-scoped approvals, dry-run exclusion, and application-level superseded status.\n\n## Findings\n\n### Finding 1: Three Incompatible Version ID Schemes Coexist\n\n| System | Version ID | Type | Scope |\n|--------|-----------|------|-------|\n| deployment-manager | `profiles.version` | Auto-incrementing integer | Internal config versioning (profile snapshots) |\n| scenario-to-desktop | `BuildProvenance.GitCommitHash` + `Config.Version` | SHA-1 hash + semver string | Build-time provenance |\n| LPBS | `download_artifacts.release_version` + `download_assets.release_version` | Semver string (VARCHAR 50) | Customer-facing release identifier |\n\n**Resolution (decided round 1, d2→B):** A UUID minted at release time by the DM orchestrator becomes the canonical cross-system release identifier. All three existing ID schemes remain in their systems but are correlated through this UUID.\n\n### Finding 2: \"Profile Version\" and \"Release Version\" Are Fundamentally Different Concepts\n\n- **Profile version** (deployment-manager): Integer counter tracking config changes. Increments on every profile edit.\n- **Release version** (LPBS): Semver string (e.g., \"1.2.3\") attached to published artifacts. Customer-facing.\n- **Build version** (scenario-to-desktop): Semver from `.vrooli/service.json`, stamped into `BuildProvenance`. Becomes `release_version` when uploaded to LPBS.\n\nThese are three distinct lifecycle tracks. The release record links them without conflating them.\n\n### Finding 3: Release History Is Implicitly Stored but Not Explicitly Queryable\n\nLPBS stores historical artifacts (multiple per app/platform with `is_current` flags) but has no API to list all versions ever published. DM's `profile_versions` tracks config history, not release history. S2D's pipeline state is transient.\n\n**Resolution:** The DM `releases` table becomes the canonical release history. It records each release event with timestamp, actor, channel, version, and per-platform status.\n\n### Finding 4: The Channel/Variant Model Is Underspecified\n\nLPBS maps channels to `variant_key` via a simple pass-through (`stable`/empty → `default`, others → as-is). No ordering, promotion rules, or channel relationship exists.\n\n**Resolution (decided round 1, d3→A):** Channels get a formal ordering model. See Finding 6 for the proposed design.\n\n### Finding 5: No \"Release Event\" Record Exists Anywhere\n\nNone of the three systems record the full event: \"version X.Y.Z released to channel C for platform P at time T, from commit H, approved by user U.\"\n\n**Resolution (decided round 1, d1→A):** DM owns the release record. See proposed schema below.\n\n### Finding 6: Proposed Channel Model\n\n**Channel ordering** (lowest → highest stability):\n\n| Channel | variant_key (LPBS) | Stability | Promotion Target |\n|---------|-------------------|-----------|-----------------|\n| `nightly` | `nightly` | Lowest — automated builds, no approval required | `beta` |\n| `beta` | `beta` | Middle — requires approval, used for testing | `stable` |\n| `stable` | `default` | Highest — full approval gate, customer-facing | (terminal) |\n\n**Promotion semantics:**\n- A release can only promote **up** the stability ladder (nightly → beta → stable).\n- Promotion creates a new release record with `promoted_from_release_id` pointing to the source release.\n- The promoted release inherits the same git commit, artifacts, and version but targets a higher channel.\n- Promotion to `stable` requires all `profile_required_platforms` to be approved (existing DM gate).\n- Each channel can have at most one \"current\" release per (profile, platform) at a time.\n\n**LPBS compatibility:** The existing `channelToVariantKey()` mapping (`stable` → `default`) continues to work. New channels (`beta`, `nightly`) map to their own variant_keys. No LPBS schema change needed for channel storage — but `UpsertAsset` must stop hardcoding `variant_key = 'default'` and accept it as a parameter (see Finding 11).\n\n### Finding 7: Proposed Release Record Schema (deployment-manager)\n\n```sql\n-- Migration: 004_add_releases.sql\n\nCREATE TABLE releases (\n    id              TEXT PRIMARY KEY,          -- UUID minted by orchestrator\n    profile_id      TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,\n    deployment_id   TEXT REFERENCES deployments(id), -- links to the triggering deployment\n    profile_version INTEGER NOT NULL,          -- snapshot reference (profiles.version at release time)\n    git_commit_hash TEXT NOT NULL,\n    release_version TEXT NOT NULL,             -- semver (e.g., \"1.2.3\")\n    channel         TEXT NOT NULL DEFAULT 'stable',  -- nightly, beta, stable\n    status          TEXT NOT NULL DEFAULT 'pending', -- pending, publishing, published, failed, superseded\n    release_notes   TEXT,\n    released_by     TEXT,                      -- who triggered the release\n    promoted_from_release_id TEXT REFERENCES releases(id), -- NULL if original, set if promoted\n    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n    published_at    TIMESTAMPTZ,              -- when status became 'published'\n    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n    UNIQUE(profile_id, git_commit_hash, channel)\n);\n\nCREATE TABLE release_platforms (\n    release_id  TEXT NOT NULL REFERENCES releases(id) ON DELETE CASCADE,\n    platform    TEXT NOT NULL,                -- windows, mac, linux\n    status      TEXT NOT NULL DEFAULT 'pending', -- pending, building, uploading, published, failed\n    approval_id TEXT REFERENCES deployment_approvals(id),\n    lpbs_artifact_id INTEGER,                 -- references LPBS download_artifacts.id (cross-system)\n    published_at TIMESTAMPTZ,\n    error       TEXT,\n    PRIMARY KEY (release_id, platform)\n);\n\nCREATE INDEX idx_releases_profile_channel ON releases(profile_id, channel);\nCREATE INDEX idx_releases_status ON releases(status);\nCREATE INDEX idx_releases_commit ON releases(git_commit_hash);\nCREATE INDEX idx_releases_deployment ON releases(deployment_id);\nCREATE INDEX idx_release_platforms_status ON release_platforms(status);\n```\n\n**Key design notes:**\n- `deployment_id` links each release to the triggering deployment (round 2, d1→A). The deployment holds execution details (logs, timing, error); the release holds semantic details (version, channel, per-platform status). Promoted releases may have `deployment_id = NULL` if promotion doesn't trigger a new pipeline run.\n- Only publishing deployments (not dry-run, not skip-packaging) create release records (round 3, d2→A). The orchestrator checks `DryRun` and `SkipPackaging` flags before minting a release UUID.\n\n### Finding 8: LPBS Needs a release_id Correlation Column\n\nTo correlate LPBS artifacts back to DM release records, LPBS needs:\n\n```sql\nALTER TABLE download_artifacts ADD COLUMN release_id TEXT;\nCREATE INDEX idx_artifacts_release_id ON download_artifacts(release_id);\n```\n\nThis is a lightweight foreign correlation key (not a foreign key constraint, since it references a different database). S2D's LPBS client upload flow (presign → S3 → commit → apply) would pass `release_id` in the commit step alongside the existing `git_commit_hash` and `release_version`.\n\n### Finding 9: S2D Pipeline Data Flow Already Supports Extension\n\nThe S2D pipeline already carries `Config.Version` → `ReleaseVersion` and `Provenance.GitCommitHash` through to LPBS upload. Adding `release_id` requires:\n1. DM passes `release_id` and `channel` to S2D when triggering a pipeline (via `DeployDesktopRequest` — needs new `ReleaseID` and `Channel` fields added to the struct at orchestrator.go:24-55).\n2. S2D carries them through `Config` or a new field on `DeployConfig`.\n3. S2D's `UploadRequest` struct gains `ReleaseID` and `Channel` fields.\n4. The LPBS commit step includes `release_id` in the request body, and uses `channelToVariantKey(channel)` to set the correct variant_key.\n\nThe 4-step upload flow (presign → S3 → commit → apply) doesn't need structural changes — just additional fields passed through.\n\n### Finding 10: Go Types for the Release Record\n\n```go\n// Release represents a versioned release event in deployment-manager.\ntype Release struct {\n    ID                    string     `json:\"id\"`\n    ProfileID             string     `json:\"profile_id\"`\n    DeploymentID          string     `json:\"deployment_id,omitempty\"`\n    ProfileVersion        int        `json:\"profile_version\"`\n    GitCommitHash         string     `json:\"git_commit_hash\"`\n    ReleaseVersion        string     `json:\"release_version\"`\n    Channel               string     `json:\"channel\"`\n    Status                string     `json:\"status\"`\n    ReleaseNotes          string     `json:\"release_notes,omitempty\"`\n    ReleasedBy            string     `json:\"released_by,omitempty\"`\n    PromotedFromReleaseID string     `json:\"promoted_from_release_id,omitempty\"`\n    CreatedAt             time.Time  `json:\"created_at\"`\n    PublishedAt           *time.Time `json:\"published_at,omitempty\"`\n    UpdatedAt             time.Time  `json:\"updated_at\"`\n    Platforms             []ReleasePlatform `json:\"platforms,omitempty\"`\n}\n\ntype ReleasePlatform struct {\n    ReleaseID      string     `json:\"release_id\"`\n    Platform       string     `json:\"platform\"`\n    Status         string     `json:\"status\"`\n    ApprovalID     string     `json:\"approval_id,omitempty\"`\n    LPBSArtifactID int64      `json:\"lpbs_artifact_id,omitempty\"`\n    PublishedAt    *time.Time `json:\"published_at,omitempty\"`\n    Error          string     `json:\"error,omitempty\"`\n}\n\n// Channel constants\nconst (\n    ChannelNightly = \"nightly\"\n    ChannelBeta    = \"beta\"\n    ChannelStable  = \"stable\"\n)\n\n// ChannelOrder defines promotion ordering. Lower index = less stable.\nvar ChannelOrder = []string{ChannelNightly, ChannelBeta, ChannelStable}\n\n// Release status constants\nconst (\n    ReleaseStatusPending    = \"pending\"\n    ReleaseStatusPublishing = \"publishing\"\n    ReleaseStatusPublished  = \"published\"\n    ReleaseStatusFailed     = \"failed\"\n    ReleaseStatusSuperseded = \"superseded\"\n)\n```\n\n### Finding 11: LPBS UpsertAsset Hardcodes variant_key (Verified Round 3)\n\n`UpsertAsset` at download_service.go:596 hardcodes `'default'` in the INSERT VALUES clause. For multi-channel support:\n- Add `VariantKey string` field to the `DownloadAsset` struct.\n- Replace the hardcoded `'default'` with the parameterized value (`$12` instead of literal).\n- S2D's upload flow passes `channelToVariantKey(channel)` when constructing the asset.\n- The `channelToVariantKey()` function (update_handlers.go:50-55) already handles the mapping correctly and can be reused or moved to a shared location.\n\n### Finding 12: DeployDesktopRequest Needs Release Context Fields (Verified Round 3)\n\nThe `DeployDesktopRequest` struct (orchestrator.go:24-55) currently has 15 fields but no release or channel awareness. Two new fields are needed:\n\n```go\n// ReleaseID is the UUID of the release record created for this deployment.\n// Empty for dry runs and non-publishing deployments.\nReleaseID string `json:\"release_id,omitempty\"`\n// Channel is the target release channel (nightly, beta, stable).\n// Defaults to \"stable\" if empty.\nChannel string `json:\"channel,omitempty\"`\n```\n\nThese flow through the pipeline into S2D and ultimately into the LPBS upload step.\n\n### Finding 13: Approval Model Is Commit-Scoped, Not Channel-Scoped\n\nThe `deployment_approvals` table has a unique constraint on `(profile_id, git_commit_hash, platform)` — no channel dimension. The `CheckReleaseGate` function (approvals_repository.go:183-224) checks that ALL required platforms have status \"approved\" without considering channels.\n\n**Resolution (decided round 3, d1→A):** Approvals remain commit-scoped. A single approval per (profile, commit, platform) covers all channels. This means:\n- Once a commit is approved for a platform, it can be promoted to any channel without re-approval.\n- The `deployment_approvals` table needs no schema changes.\n- `CheckReleaseGate` needs no channel awareness — it continues to check that all required platforms are approved.\n- The nightly gate bypass (round 2, d3→A) is implemented at the orchestrator level: the orchestrator simply skips the `CheckReleaseGate` call for nightly releases.\n- Stricter per-channel review policies, if ever needed, would require a future schema extension.\n\n### Finding 14: Verification Paths Identified (Round 3)\n\nFour concrete verification strategies for validating the release record implementation:\n\n1. **End-to-end data flow test:** Trace a mock release from DM orchestrator → S2D pipeline → LPBS upload, asserting `release_id` appears at each hop (DM releases table, S2D request, LPBS download_artifacts).\n2. **Schema integration test:** Using the same testcontainers pattern as LPBS (postgres:15-alpine + `setupTestDB(t)`), verify migrations 004 apply cleanly, FK constraints work, and unique constraints enforce correctly.\n3. **Promotion chain test:** Create nightly → beta → stable releases and verify `promoted_from_release_id` links form a valid chain. Assert that promotion only goes up the stability ladder.\n4. **Channel-gate interaction test:** Verify that `CheckReleaseGate` is skipped for nightly, required for beta (at least one approval), and requires all-platform approval for stable.\n\n### Finding 15: Only Publishing Deployments Create Release Records\n\n**Resolution (decided round 3, d2→A):** The orchestrator checks `DryRun` and `SkipPackaging` flags before creating a release record. Only deployments that intend to publish (both flags false) mint a release UUID and insert into the `releases` table. This keeps release history clean — dry runs and validation-only runs are tracked solely in the `deployments` table. The `releases.deployment_id` FK ensures traceability back to the deployment that triggered any given release.\n\n### Finding 16: Superseded Status Is Set by Application Logic\n\n**Resolution (decided round 3, d3→A):** When a new release reaches `published` status for a given (profile, channel), the orchestrator sets the previous `published` release for that same (profile, channel) to `superseded`. This is application-level logic in the orchestrator, not a database trigger. The pattern matches LPBS's existing `is_current` flag management. The supersede step is:\n1. Query for the currently `published` release on (profile_id, channel) where `id != new_release_id`.\n2. If found, update its status to `superseded` and set `updated_at`.\n3. This runs in the same transaction as the new release's status update to `published`, ensuring atomicity.\n\n## Limitations\n- The `release_id` on LPBS is a correlation key, not a foreign key constraint. Consistency depends on the orchestrator correctly propagating the ID. A reconciliation job or webhook confirmation would strengthen this.\n- The channel promotion model is designed for the current 3-channel case. If channels become user-definable or per-profile, the hardcoded ordering would need to become configurable.\n- Runtime behavior of the S2D → LPBS upload has not been verified end-to-end; the analysis is code-based.\n- The `promoted_from_release_id` chain could grow long for releases that promote through all channels. Queries that need the full promotion chain would need recursive CTEs.\n- Approvals are commit-scoped with no channel dimension. This simplifies the model but means there is no mechanism for requiring stricter review specifically for stable promotions. If that need arises, the approval model would need a channel column or a separate promotion-approval concept.\n- The superseded status transition depends on correct orchestrator logic running in a transaction. If the orchestrator crashes between publishing the new release and superseding the old one, both could briefly show as `published`. Recovery logic or a periodic consistency check should be considered during implementation.\n\n## Actions\n\n### Action 1: Create backlog item — Add `releases` and `release_platforms` tables to DM\n- **Kind**: execute\n- **Title**: Add releases and release_platforms tables to deployment-manager\n- **Description**: Create migration `004_add_releases.sql` with the schema from Finding 7. Add Go types (Finding 10), repository (CRUD + promotion + supersede logic), and handler scaffolding for release history API endpoints. The supersede step (Finding 16) must run in the same transaction as the publish status update.\n- **Initiative**: desktop-release-governance\n- **Priority**: high\n- **Effort**: L\n\n### Action 2: Create backlog item — Add `release_id` column to LPBS `download_artifacts`\n- **Kind**: execute\n- **Title**: Add release_id correlation column to LPBS download_artifacts\n- **Description**: Add migration for the `release_id` TEXT column and index on `download_artifacts` (Finding 8). Update the artifact commit handler to accept and store `release_id` from S2D uploads.\n- **Initiative**: desktop-release-governance\n- **Priority**: high\n- **Effort**: S\n\n### Action 3: Create backlog item — Extend S2D pipeline to carry `release_id` and `channel`\n- **Kind**: execute\n- **Title**: Add release_id and channel to S2D pipeline data flow\n- **Description**: Add `ReleaseID` and `Channel` fields to S2D's `Config`/`DeployConfig` and `UploadRequest` structs (Finding 9). Pass `release_id` in the LPBS commit step. Use `channelToVariantKey(channel)` to set the correct variant_key on upload.\n- **Initiative**: desktop-release-governance\n- **Priority**: high\n- **Effort**: M\n\n### Action 4: Create backlog item — Parameterize LPBS UpsertAsset variant_key\n- **Kind**: fix\n- **Title**: Remove hardcoded variant_key in LPBS UpsertAsset\n- **Description**: Replace the hardcoded `'default'` at download_service.go:596 with a `VariantKey` field on `DownloadAsset` (Finding 11). This unblocks multi-channel releases.\n- **Initiative**: desktop-release-governance\n- **Priority**: high\n- **Effort**: S\n\n### Action 5: Create backlog item — Implement channel promotion logic in DM\n- **Kind**: execute\n- **Title**: Add channel promotion endpoint and validation to deployment-manager\n- **Description**: Implement promotion endpoint: only allow promotion up the channel ladder, create new release record with `promoted_from_release_id`, enforce approval gates per channel policy (Finding 6). Nightly skips the gate entirely; beta and stable call `CheckReleaseGate`. Approvals are commit-scoped (Finding 13) — no re-approval needed when promoting, only verification that required approvals exist.\n- **Initiative**: desktop-release-governance\n- **Priority**: medium\n- **Effort**: M\n\n### Action 6: Create backlog item — Build release history API in DM\n- **Kind**: execute\n- **Title**: Add release history API endpoints to deployment-manager\n- **Description**: Endpoints: list releases by profile (with channel/status filters), get release detail with platform statuses, get promotion chain for a release. Uses the schema from Finding 7.\n- **Initiative**: desktop-release-governance\n- **Priority**: medium\n- **Effort**: M\n\n### Action 7: Create backlog item — Wire release record into DM orchestration flow\n- **Kind**: execute\n- **Title**: Integrate release record creation into DM orchestrator pipeline\n- **Description**: Orchestrator mints UUID and creates `releases` row at pipeline start — only for non-dry-run, non-skip-packaging deployments (Finding 15). Updates `release_platforms` as S2D reports per-platform results. Sets status to `published` when all platforms complete (or `failed` on error), and atomically supersedes the previous release for the same profile+channel (Finding 16). Adds `ReleaseID` and `Channel` to `DeployDesktopRequest` (Finding 12). Skips `CheckReleaseGate` for nightly releases (Finding 13).\n- **Initiative**: desktop-release-governance\n- **Priority**: high\n- **Effort**: L\n\n\u003c/research-conclusion\u003e\n",
+      "prompt_revision": "sha256:24f7bb99762f11a0",
+      "used_fallback": false,
+      "captured_at": "2026-04-04T17:17:49Z"
+    },
+    "finalization": {
+      "eligible": true,
+      "status": "completed",
+      "phase": "completed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-04-04T17:20:25Z",
+      "completed_at": "2026-04-04T17:31:57Z",
+      "warnings": [
+        {
+          "code": "review_agent_failed",
+          "message": "spawn review agent: agent-manager request failed: status 400: {\"code\":\"VALIDATION_FIELD\",\"message\":\"validation error on contextAttachments[0].content: required for note attachments\",\"details\":{\"fields\":{\"field\":{\"string_value\":\"contextAttachments[0].content\"},\"message\":{\"string_value\":\"required for note attachments\"},\"recovery\":{\"string_value\":\"fix_input\"},\"request_id\":{\"string_value\":\"8e1d828d-7602-42b4-908c-98e8965e3308\"},\"retryable\":{\"bool_value\":false},\"user_message\":{\"string_value\":\"Invalid value for contextAttachments[0].content: required for note attachments\"}}}}",
+          "created_at": "2026-04-04T17:31:57Z"
+        }
+      ],
+      "affected_scenarios": [
+        "deployment-manager",
+        "landing-page-business-suite",
+        "prompt-manager",
+        "scenario-to-desktop"
+      ],
+      "aggregate_classification": "needs_work",
+      "aggregate_summary": "deployment-manager ready with notes; landing-page-business-suite ready with notes; prompt-manager ready with notes; scenario-to-desktop needs follow-up: Scenario scenario-to-desktop readiness: red; 1 warning(s)",
+      "scenarios": [
+        {
+          "scenario_name": "deployment-manager",
+          "restart": {
+            "status": "completed",
+            "attempts": 1,
+            "started_at": "2026-04-04T17:20:25Z",
+            "finished_at": "2026-04-04T17:20:53Z"
+          },
+          "health": {
+            "status": "completed",
+            "scenario_status": "running",
+            "health_status": "healthy",
+            "schema_valid": true,
+            "details": "scenario is healthy",
+            "checked_at": "2026-04-04T17:20:56Z"
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "6f558a90-143c-4e22-bb12-04f2f29a0164",
+            "result": {
+              "job_id": "6f558a90-143c-4e22-bb12-04f2f29a0164",
+              "classification": "ready_with_notes",
+              "dimensions": [
+                {
+                  "name": "standards",
+                  "status": "yellow",
+                  "details": "2 warnings"
+                },
+                {
+                  "name": "visual",
+                  "status": "red"
+                },
+                {
+                  "name": "provenance",
+                  "status": "green"
+                },
+                {
+                  "name": "codeQuality",
+                  "status": "red",
+                  "details": "0.0 score, 69 violations"
+                },
+                {
+                  "name": "tests",
+                  "status": "yellow",
+                  "details": "10/11 passed"
+                }
+              ],
+              "raw_dimensions": {
+                "codeQuality": {
+                  "available": true,
+                  "score": 0,
+                  "violations": 69,
+                  "stale": false
+                },
+                "tests": {
+                  "available": true,
+                  "passed": false,
+                  "total": 11,
+                  "passedCount": 10,
+                  "failedCount": 1,
+                  "lastRun": "2026-04-04T17:22:53.782074334Z"
+                },
+                "standards": {
+                  "available": true,
+                  "blockingViolations": 0,
+                  "warnings": 2,
+                  "totalViolations": 2
+                },
+                "visual": {
+                  "available": true,
+                  "screenshotCount": 0,
+                  "stale": false
+                },
+                "provenance": {
+                  "available": true,
+                  "tracedFiles": 1
+                }
+              },
+              "summary": "Scenario deployment-manager readiness: yellow",
+              "reviewed_at": "2026-04-04T17:22:59Z"
+            }
+          }
+        },
+        {
+          "scenario_name": "landing-page-business-suite",
+          "restart": {
+            "status": "completed",
+            "attempts": 1,
+            "started_at": "2026-04-04T17:20:56Z",
+            "finished_at": "2026-04-04T17:21:08Z"
+          },
+          "health": {
+            "status": "completed",
+            "scenario_status": "running",
+            "health_status": "healthy",
+            "schema_valid": true,
+            "details": "scenario is healthy",
+            "checked_at": "2026-04-04T17:21:10Z"
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "bedabd86-0f7b-4995-b997-4a6a4aef2622",
+            "result": {
+              "job_id": "bedabd86-0f7b-4995-b997-4a6a4aef2622",
+              "classification": "ready_with_notes",
+              "dimensions": [
+                {
+                  "name": "codeQuality",
+                  "status": "red",
+                  "details": "0.0 score, 354 violations"
+                },
+                {
+                  "name": "tests",
+                  "status": "yellow",
+                  "details": "8/11 passed"
+                },
+                {
+                  "name": "standards",
+                  "status": "yellow",
+                  "details": "23 warnings"
+                },
+                {
+                  "name": "visual",
+                  "status": "red"
+                },
+                {
+                  "name": "provenance",
+                  "status": "green"
+                }
+              ],
+              "raw_dimensions": {
+                "codeQuality": {
+                  "available": true,
+                  "score": 0,
+                  "violations": 354,
+                  "stale": false
+                },
+                "tests": {
+                  "available": true,
+                  "passed": false,
+                  "total": 11,
+                  "passedCount": 8,
+                  "failedCount": 3,
+                  "lastRun": "2026-04-04T17:25:06.522534163Z"
+                },
+                "standards": {
+                  "available": true,
+                  "blockingViolations": 0,
+                  "warnings": 23,
+                  "totalViolations": 23
+                },
+                "visual": {
+                  "available": true,
+                  "screenshotCount": 0,
+                  "stale": false
+                },
+                "provenance": {
+                  "available": true,
+                  "tracedFiles": 1
+                }
+              },
+              "summary": "Scenario landing-page-business-suite readiness: yellow",
+              "reviewed_at": "2026-04-04T17:25:09Z"
+            }
+          }
+        },
+        {
+          "scenario_name": "prompt-manager",
+          "restart": {
+            "status": "completed",
+            "attempts": 1,
+            "started_at": "2026-04-04T17:21:10Z",
+            "finished_at": "2026-04-04T17:21:45Z"
+          },
+          "health": {
+            "status": "completed",
+            "scenario_status": "running",
+            "health_status": "healthy",
+            "schema_valid": true,
+            "details": "scenario is healthy",
+            "checked_at": "2026-04-04T17:21:52Z"
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "55a00d09-6494-4f7a-a5d4-f21cdb42bed3",
+            "result": {
+              "job_id": "55a00d09-6494-4f7a-a5d4-f21cdb42bed3",
+              "classification": "ready_with_notes",
+              "dimensions": [
+                {
+                  "name": "codeQuality",
+                  "status": "yellow",
+                  "details": "100.0 score, 0 violations"
+                },
+                {
+                  "name": "tests",
+                  "status": "yellow",
+                  "details": "6/11 passed"
+                },
+                {
+                  "name": "standards",
+                  "status": "red",
+                  "details": "8 blocking violations"
+                },
+                {
+                  "name": "visual",
+                  "status": "green"
+                },
+                {
+                  "name": "provenance",
+                  "status": "green"
+                }
+              ],
+              "raw_dimensions": {
+                "codeQuality": {
+                  "available": true,
+                  "score": 100,
+                  "violations": 0,
+                  "stale": true
+                },
+                "tests": {
+                  "available": true,
+                  "passed": false,
+                  "total": 11,
+                  "passedCount": 6,
+                  "failedCount": 5,
+                  "lastRun": "2026-04-04T17:26:51.659048699Z"
+                },
+                "standards": {
+                  "available": true,
+                  "blockingViolations": 8,
+                  "warnings": 153,
+                  "totalViolations": 161
+                },
+                "visual": {
+                  "available": true,
+                  "screenshotCount": 5,
+                  "stale": false
+                },
+                "provenance": {
+                  "available": true,
+                  "tracedFiles": 1
+                }
+              },
+              "summary": "Scenario prompt-manager readiness: yellow",
+              "reviewed_at": "2026-04-04T17:26:55Z"
+            }
+          }
+        },
+        {
+          "scenario_name": "scenario-to-desktop",
+          "restart": {
+            "status": "completed",
+            "attempts": 1,
+            "started_at": "2026-04-04T17:21:52Z",
+            "finished_at": "2026-04-04T17:22:19Z"
+          },
+          "health": {
+            "status": "completed",
+            "scenario_status": "running",
+            "health_status": "healthy",
+            "schema_valid": true,
+            "details": "scenario is healthy",
+            "checked_at": "2026-04-04T17:22:23Z"
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "a8995730-7a9c-443e-a59b-a7b3594af586",
+            "result": {
+              "job_id": "a8995730-7a9c-443e-a59b-a7b3594af586",
+              "classification": "needs_work",
+              "raw_dimensions": {},
+              "summary": "Scenario scenario-to-desktop readiness: red",
+              "reviewed_at": "2026-04-04T17:31:57Z"
+            }
+          }
+        }
+      ]
+    },
+    "created_at": "2026-04-04T17:17:49Z",
+    "updated_at": "2026-04-04T17:31:57Z"
   }
 ]
