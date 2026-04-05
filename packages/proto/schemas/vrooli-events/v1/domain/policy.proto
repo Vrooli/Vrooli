@@ -1,0 +1,134 @@
+syntax = "proto3";
+
+package vrooli_events.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain;domain";
+
+// =============================================================================
+// POLICY RULES
+// =============================================================================
+//
+// @layer 0
+// @domain vrooli-events
+// @imports none (external only: none)
+// @stability stable
+//
+// Typed policy rule messages for access control, rate limiting, and circuit
+// breaking across the vrooli-events bus. Each rule type embeds a shared
+// PolicyMatcher for consistent pattern matching.
+//
+// USAGE CONTEXTS:
+//   - Policy Engine: Evaluate rules against event envelopes
+//   - Policy Cache: SSE-pushed snapshots for local evaluation
+//   - Admin API: CRUD operations on policy rules (future v1/api/)
+//
+// =============================================================================
+
+// PolicyMatcher defines the pattern fields shared by all policy rule types.
+//
+// Patterns support glob matching (e.g., "agent-manager.*", "*").
+// An empty pattern matches everything.
+//
+// @usage AccessRule.matcher, RateLimit.matcher, CircuitBreaker.matcher
+message PolicyMatcher {
+  // Source scenario pattern (glob).
+  string source_pattern = 1;
+
+  // Target scenario pattern (glob).
+  string target_pattern = 2;
+
+  // Action/event-type pattern (glob).
+  string action_pattern = 3;
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+// Effect controls whether a matching AccessRule allows or denies traffic.
+//
+// @usage AccessRule.effect
+enum Effect {
+  EFFECT_UNSPECIFIED = 0;
+  EFFECT_ALLOW = 1;
+  EFFECT_DENY = 2;
+}
+
+// CircuitBreakerState represents the current state of a circuit breaker.
+//
+// State machine: CLOSED -> OPEN -> HALF_OPEN -> CLOSED (or back to OPEN).
+//
+// @usage CircuitBreaker.state
+enum CircuitBreakerState {
+  CIRCUIT_BREAKER_STATE_UNSPECIFIED = 0;
+  CIRCUIT_BREAKER_STATE_CLOSED = 1;
+  CIRCUIT_BREAKER_STATE_OPEN = 2;
+  CIRCUIT_BREAKER_STATE_HALF_OPEN = 3;
+}
+
+// =============================================================================
+// ACCESS RULES
+// =============================================================================
+
+// AccessRule grants or denies event traffic matching a pattern.
+//
+// Most-specific-wins resolution: specificity_score is pre-computed at rule
+// creation using segment-count scoring (exact=3, prefix=2, wildcard=1, max 9).
+//
+// @usage Policy engine evaluation, PolicySnapshot.access_rules
+message AccessRule {
+  // Pattern this rule matches against.
+  PolicyMatcher matcher = 1;
+
+  // Whether matching traffic is allowed or denied.
+  Effect effect = 2;
+
+  // Pre-computed specificity score for most-specific-wins resolution.
+  // Higher score = more specific rule takes precedence.
+  int32 specificity_score = 3;
+}
+
+// =============================================================================
+// RATE LIMITING
+// =============================================================================
+
+// RateLimit enforces token-bucket rate limiting on matching event traffic.
+//
+// capacity is the bucket size (burst limit), refill_rate is tokens per second.
+//
+// @usage Policy engine evaluation, PolicySnapshot.rate_limits
+message RateLimit {
+  // Pattern this rule matches against.
+  PolicyMatcher matcher = 1;
+
+  // Maximum tokens in the bucket (burst capacity).
+  int64 capacity = 2;
+
+  // Tokens added per second.
+  double refill_rate = 3;
+}
+
+// =============================================================================
+// CIRCUIT BREAKER
+// =============================================================================
+
+// CircuitBreaker protects downstream scenarios from cascading failures.
+//
+// Transitions CLOSED -> OPEN after failure_threshold consecutive failures,
+// then OPEN -> HALF_OPEN after cooldown_seconds, then either back to CLOSED
+// (on success) or OPEN (on failure).
+//
+// @usage Policy engine evaluation, PolicySnapshot.circuit_breakers
+message CircuitBreaker {
+  // Pattern this rule matches against.
+  PolicyMatcher matcher = 1;
+
+  // Number of consecutive failures before opening the circuit.
+  int32 failure_threshold = 2;
+
+  // Seconds to wait in OPEN state before transitioning to HALF_OPEN.
+  int64 cooldown_seconds = 3;
+
+  // Current circuit breaker state.
+  CircuitBreakerState state = 4;
+}

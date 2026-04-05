@@ -1,0 +1,77 @@
+{
+  "version": "2.0.0",
+  "name": "vrooli-events",
+  "description": "Central event bus for inter-scenario communication — durable SQLite event store with SSE pub/sub",
+  "ports": {
+    "api": {
+      "env": "API_PORT",
+      "range": "15000-19999"
+    }
+  },
+  "lifecycle": {
+    "setup": {
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && GOWORK=off go build -o vrooli-events-api .",
+          "check": "test -f api/vrooli-events-api"
+        },
+        {
+          "name": "build-cli",
+          "run": "cd cli && GOWORK=off go build -o vrooli-events .",
+          "check": "test -f cli/vrooli-events"
+        }
+      ]
+    },
+    "develop": {
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./vrooli-events-api",
+          "background": true,
+          "condition": "test -f api/vrooli-events-api"
+        }
+      ]
+    },
+    "health": {
+      "checks": [
+        {
+          "name": "api",
+          "http": "http://localhost:${API_PORT}/health",
+          "interval": "30s",
+          "timeout": "10s",
+          "startup_grace": "15s"
+        }
+      ]
+    },
+    "production": {
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./vrooli-events-api",
+          "background": true
+        }
+      ]
+    },
+    "stop": {
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f vrooli-events-api || true"
+        }
+      ]
+    },
+    "test": {
+      "steps": [
+        {
+          "name": "go-test",
+          "run": "GOWORK=off go test ./... -timeout 300s"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": [],
+    "scenarios": []
+  }
+}
