@@ -1,0 +1,31 @@
+{
+  "module": "pub-sub",
+  "description": "SSE-based real-time event delivery with glob filtering",
+  "operational_targets": ["OT-P0-002", "OT-P1-001", "OT-P1-004", "OT-P1-005"],
+  "requirements": [
+    {
+      "id": "REQ-PS-001",
+      "title": "SSE streaming",
+      "description": "Server-Sent Events endpoint with 30s heartbeat, retry: 5000ms, standard SSE format",
+      "status": "implemented"
+    },
+    {
+      "id": "REQ-PS-002",
+      "title": "Glob-pattern filtering",
+      "description": "Segment-aware glob matching: * matches one segment, ** matches one or more",
+      "status": "implemented"
+    },
+    {
+      "id": "REQ-PS-003",
+      "title": "Last-Event-ID resume",
+      "description": "SSE clients can reconnect with Last-Event-ID to replay missed events from store",
+      "status": "implemented"
+    },
+    {
+      "id": "REQ-PS-004",
+      "title": "Backpressure handling",
+      "description": "64-capacity subscriber channels with non-blocking send; dropped events counted in heartbeat",
+      "status": "implemented"
+    }
+  ]
+}

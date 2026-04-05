@@ -1,0 +1,31 @@
+{
+  "module": "cli",
+  "description": "CLI tools for event query, subscribe, and stats",
+  "operational_targets": ["OT-P2-002"],
+  "requirements": [
+    {
+      "id": "REQ-CLI-001",
+      "title": "ScenarioApp integration",
+      "description": "CLI built on cli-core ScenarioApp with auto-config, API client, and consistent UX",
+      "status": "implemented"
+    },
+    {
+      "id": "REQ-CLI-002",
+      "title": "Query command",
+      "description": "vrooli-events query with --type, --source, --correlation-id, --since, --limit, --json flags",
+      "status": "implemented"
+    },
+    {
+      "id": "REQ-CLI-003",
+      "title": "Subscribe command",
+      "description": "vrooli-events subscribe with --type, --source, --target, --json flags for live SSE streaming",
+      "status": "implemented"
+    },
+    {
+      "id": "REQ-CLI-004",
+      "title": "Stats command",
+      "description": "vrooli-events stats shows store health, subscriber count, event count, size",
+      "status": "implemented"
+    }
+  ]
+}

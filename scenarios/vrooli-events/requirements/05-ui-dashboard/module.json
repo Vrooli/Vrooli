@@ -1,0 +1,25 @@
+{
+  "module": "ui-dashboard",
+  "description": "Real-time analytics dashboard for event monitoring",
+  "operational_targets": ["OT-P2-001"],
+  "requirements": [
+    {
+      "id": "REQ-UI-001",
+      "title": "Event stream viewer",
+      "description": "Real-time display of incoming events via SSE, filterable by type/source",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-UI-002",
+      "title": "Store statistics dashboard",
+      "description": "Charts showing event throughput, store size, top event types, subscriber count",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-UI-003",
+      "title": "Event detail view",
+      "description": "Drill into individual events to see full payload, metadata, and correlation chain",
+      "status": "planned"
+    }
+  ]
+}

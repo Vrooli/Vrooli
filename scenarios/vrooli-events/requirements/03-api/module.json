@@ -1,0 +1,25 @@
+{
+  "module": "api",
+  "description": "HTTP API for event ingestion, query, and health",
+  "operational_targets": ["OT-P0-001", "OT-P0-003", "OT-P0-004"],
+  "requirements": [
+    {
+      "id": "REQ-API-001",
+      "title": "Event ingestion endpoint",
+      "description": "POST /api/v1/events accepts proto-JSON EventEnvelope, validates required fields, returns 202 Accepted",
+      "status": "implemented"
+    },
+    {
+      "id": "REQ-API-002",
+      "title": "Event query endpoint",
+      "description": "GET /api/v1/events with query params: type (glob), source, correlation_id, since, limit",
+      "status": "implemented"
+    },
+    {
+      "id": "REQ-API-003",
+      "title": "Health endpoint",
+      "description": "GET /health returns store stats (total events, payload bytes, oldest/newest), subscriber count, status",
+      "status": "implemented"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "module": "event-store",
+  "description": "Durable SQLite event store with WAL mode",
+  "operational_targets": ["OT-P0-001", "OT-P1-003"],
+  "requirements": [
+    {
+      "id": "REQ-ES-001",
+      "title": "SQLite WAL mode storage",
+      "description": "Events stored in SQLite with WAL mode, busy_timeout=10000, synchronous=NORMAL",
+      "status": "implemented"
+    },
+    {
+      "id": "REQ-ES-002",
+      "title": "Event schema",
+      "description": "Events table with id (autoincrement), event_id (unique), source_scenario, target_scenario, event_type, correlation_id, payload (BLOB), metadata (JSON), created_at",
+      "status": "implemented"
+    },
+    {
+      "id": "REQ-ES-003",
+      "title": "Dual-trigger pruning",
+      "description": "Background goroutine every 6 hours deletes events older than 30 days or when total size exceeds 2GB",
+      "status": "implemented"
+    }
+  ]
+}

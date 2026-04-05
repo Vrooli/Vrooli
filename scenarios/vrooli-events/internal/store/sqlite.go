@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/match"
 	_ "modernc.org/sqlite"
 )
 
@@ -194,7 +195,7 @@ func (s *SQLiteStore) Query(ctx context.Context, f QueryFilters) ([]Event, error
 	if hasGlob {
 		filtered := events[:0]
 		for _, e := range events {
-			if matchGlob(f.EventType, e.EventType) && len(filtered) < limit {
+			if match.Glob(f.EventType, e.EventType) && len(filtered) < limit {
 				filtered = append(filtered, e)
 			}
 		}
@@ -202,40 +203,6 @@ func (s *SQLiteStore) Query(ctx context.Context, f QueryFilters) ([]Event, error
 	}
 
 	return events, nil
-}
-
-// matchGlob performs segment-aware glob matching.
-// Segments separated by ".". "*" = one segment, "**" = one or more segments.
-func matchGlob(pattern, value string) bool {
-	if pattern == "" {
-		return true
-	}
-	return matchSegments(strings.Split(pattern, "."), strings.Split(value, "."))
-}
-
-func matchSegments(pat, val []string) bool {
-	pi, vi := 0, 0
-	for pi < len(pat) && vi < len(val) {
-		switch pat[pi] {
-		case "**":
-			for vi2 := vi + 1; vi2 <= len(val); vi2++ {
-				if matchSegments(pat[pi+1:], val[vi2:]) {
-					return true
-				}
-			}
-			return pi+1 == len(pat)
-		case "*":
-			pi++
-			vi++
-		default:
-			if pat[pi] != val[vi] {
-				return false
-			}
-			pi++
-			vi++
-		}
-	}
-	return pi == len(pat) && vi == len(val)
 }
 
 func (s *SQLiteStore) GetSince(ctx context.Context, lastID int64, limit int) ([]Event, error) {
