@@ -18,8 +18,14 @@
     {
       "id": "REQ-ES-003",
       "title": "Dual-trigger pruning",
-      "description": "Background goroutine every 6 hours deletes events older than 30 days or when total size exceeds 2GB",
+      "description": "Background goroutine at configurable interval (default: every 6 hours) deletes events older than retention window (default: 30 days) or when total size exceeds size cap (default: 2GB). Currently hardcoded — see REQ-ES-004 for configurable version.",
       "status": "implemented"
+    },
+    {
+      "id": "REQ-ES-004",
+      "title": "Configurable retention settings",
+      "description": "Retention window, size cap, and prune interval stored in SQLite settings table. Changeable via API (PUT /api/v1/settings/retention) and UI. Changes take effect on next prune cycle. Settings: retention_days (int, default 30), max_size_bytes (int, default 2147483648), prune_interval_hours (int, default 6). Manual prune trigger via POST /api/v1/settings/retention/prune.",
+      "status": "planned"
     }
   ]
 }

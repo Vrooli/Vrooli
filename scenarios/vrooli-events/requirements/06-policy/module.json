@@ -1,0 +1,55 @@
+{
+  "module": "policy",
+  "description": "Policy enforcement engine: access control, rate limiting, circuit breaking with dual-end caching",
+  "operational_targets": ["OT-P1-004", "OT-P1-005", "OT-P1-006", "OT-P1-007", "OT-P1-008", "OT-P1-009"],
+  "requirements": [
+    {
+      "id": "REQ-POL-001",
+      "title": "Access control rules",
+      "description": "Rules define which source scenarios can call which target scenarios and optionally which endpoint patterns (glob). Rules stored in SQLite policy_rules table with fields: id, rule_type='access', source_scenario (glob), target_scenario (glob), endpoint_pattern (glob, optional), effect (allow|deny), priority (higher wins on conflict), enabled, created_at, updated_at. Default policy is allow-all when no rules match (configurable default-deny via settings).",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-POL-002",
+      "title": "Rate limiting rules",
+      "description": "Rules define request rate caps per scenario pair. Stored in policy_rules table with rule_type='rate_limit'. Fields: source_scenario, target_scenario, endpoint_pattern, max_requests, window_seconds (sliding window), burst_allowance (optional, for short spikes). Counters maintained in SQLite rate_limit_counters table with atomic increment via INSERT OR REPLACE. Expired counters pruned by the retention background goroutine.",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-POL-003",
+      "title": "Circuit breaker rules",
+      "description": "Per-scenario-pair circuit breaker with three states: closed (normal), open (blocking), half-open (probe). Configuration in policy_rules table with rule_type='circuit_breaker'. Fields: source_scenario, target_scenario, failure_threshold (consecutive failures to trip), window_seconds (failure counting window), cooldown_seconds (time in open state before half-open probe), success_threshold (consecutive successes in half-open to close). State tracked in circuit_breaker_state table with current_state, failure_count, last_failure_at, opened_at, last_probe_at.",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-POL-004",
+      "title": "Policy CRUD API",
+      "description": "REST endpoints for policy rule management: POST /api/v1/policies (create), GET /api/v1/policies (list with filters: rule_type, source, target, enabled), GET /api/v1/policies/:id (get), PUT /api/v1/policies/:id (update), DELETE /api/v1/policies/:id (delete). Validation rejects conflicting rules, invalid globs, and nonsensical thresholds. Changes trigger immediate SSE policy push to all connected scenarios.",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-POL-005",
+      "title": "SSE policy push channel",
+      "description": "Dedicated SSE endpoint: GET /api/v1/policies/subscribe. Pushes PolicyUpdate events whenever rules change (created, updated, deleted). Event payload includes the full current policy snapshot relevant to the subscribing scenario (filtered by source/target match). Supports Last-Event-ID for reconnection replay. Heartbeat every 30s with policy_version counter.",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-POL-006",
+      "title": "Policy evaluation engine",
+      "description": "In-process policy evaluator that takes (source, target, endpoint, context) and returns (allow|deny, reason, metadata). Evaluation order: circuit breaker (if open, deny immediately) → access control (priority-ordered rule matching) → rate limiting (check/increment counter). Returns structured PolicyDecision with fields: allowed, rule_id, rule_type, reason, retry_after (for rate limits), circuit_state (for circuit breakers).",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-POL-007",
+      "title": "Policy violation logging",
+      "description": "Every denied request logs a policy_violations record: timestamp, source_scenario, target_scenario, endpoint, rule_id, rule_type, reason. Queryable via GET /api/v1/policies/violations with filters: source, target, rule_type, since, until, limit. Also emitted as a vrooli-events.policy.violation.v1 event for real-time monitoring.",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-POL-008",
+      "title": "Circuit breaker manual override",
+      "description": "POST /api/v1/policies/:id/override with body {state: 'open'|'closed'|'half_open'} to manually force circuit breaker state. Override is logged as a policy event. Override expires after configurable TTL (default: 1 hour) and reverts to automatic behavior.",
+      "status": "planned"
+    }
+  ]
+}

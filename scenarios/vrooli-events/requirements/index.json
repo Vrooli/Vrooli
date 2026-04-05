@@ -9,6 +9,9 @@
     "02-pub-sub/module.json",
     "03-api/module.json",
     "04-cli/module.json",
-    "05-ui-dashboard/module.json"
+    "05-ui-dashboard/module.json",
+    "06-policy/module.json",
+    "07-subscriptions/module.json",
+    "08-discovery-integration/module.json"
   ]
 }

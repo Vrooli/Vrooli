@@ -1,24 +1,90 @@
 {
   "module": "ui-dashboard",
-  "description": "Real-time analytics dashboard for event monitoring",
-  "operational_targets": ["OT-P2-001"],
+  "description": "Comprehensive analytics, policy management, subscription management, and compliance dashboard",
+  "operational_targets": ["OT-P2-001", "OT-P2-002", "OT-P2-003", "OT-P2-004", "OT-P2-005", "OT-P2-006", "OT-P2-007"],
   "requirements": [
     {
       "id": "REQ-UI-001",
       "title": "Event stream viewer",
-      "description": "Real-time display of incoming events via SSE, filterable by type/source",
+      "description": "Real-time scrolling feed of incoming events via SSE. Each event row shows: timestamp, event type (color-coded by scenario), source → target, correlation_id (linkable). Filterable by type glob, source, target. Pause/resume button to freeze the stream for inspection. Auto-scroll with manual scroll override.",
       "status": "planned"
     },
     {
       "id": "REQ-UI-002",
-      "title": "Store statistics dashboard",
-      "description": "Charts showing event throughput, store size, top event types, subscriber count",
+      "title": "Analytics dashboard — throughput",
+      "description": "Time-series chart showing events/second over configurable window (1m, 5m, 1h, 24h). Breakdown by source scenario (stacked area chart). Summary cards: total events today, events/minute average, peak throughput, unique scenario pairs active.",
       "status": "planned"
     },
     {
       "id": "REQ-UI-003",
+      "title": "Analytics dashboard — per-scenario metrics",
+      "description": "Table and bar chart showing per-scenario call volume: outbound calls, inbound calls, error rate, average latency (from event metadata). Sortable columns. Click-through to filtered event stream for any scenario. Time range selector.",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-UI-004",
       "title": "Event detail view",
-      "description": "Drill into individual events to see full payload, metadata, and correlation chain",
+      "description": "Click any event to open detail panel: full JSON payload with syntax highlighting, all metadata fields, correlation chain visualization (all events sharing the same correlation_id shown as a timeline). Copy-to-clipboard for event ID and payload.",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-UI-005",
+      "title": "Correlation trace view",
+      "description": "Given a correlation_id, display all related events as a visual timeline/waterfall chart showing the sequence of inter-scenario calls. Each node shows scenario name, event type, duration, success/failure. Useful for debugging distributed flows.",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-UI-006",
+      "title": "Policy management — rule list",
+      "description": "Table of all policy rules with columns: type (access/rate_limit/circuit_breaker), source pattern, target pattern, effect/threshold, priority, enabled toggle, created/updated dates. Filterable by rule type and scenario. Bulk enable/disable.",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-UI-007",
+      "title": "Policy management — rule editor",
+      "description": "Form for creating/editing policy rules. Dynamic fields based on rule_type selection. Source/target scenario fields with autocomplete from known scenarios. Glob pattern syntax help tooltip. Validation feedback before save. Preview showing which existing scenario pairs would match the rule.",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-UI-008",
+      "title": "Circuit breaker dashboard",
+      "description": "Grid of all circuit breaker-protected scenario pairs. Each card shows: current state (closed=green, half-open=yellow, open=red), failure count, last failure time, time remaining in cooldown (if open). Manual override buttons (force open/close). Click-through to failure event stream.",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-UI-009",
+      "title": "Subscription management",
+      "description": "Table of all persistent subscriptions: name, owner, event pattern, delivery type, delivery target, enabled toggle, health status (healthy/degraded/circuit_broken). Create/edit form with glob pattern tester — shows a live preview of matching events from the last hour. Delete with confirmation.",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-UI-010",
+      "title": "Subscription health detail",
+      "description": "Click a subscription to see: delivery stats (total delivered, total failed, success rate), recent delivery log (last 50 attempts with status/response), consecutive failure count, auto-disable threshold, re-enable button for circuit-broken subscriptions.",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-UI-011",
+      "title": "Compliance & audit view",
+      "description": "Searchable, sortable log of all policy violations: timestamp, source, target, endpoint, rule type, reason. Filter by scenario, rule type, time range. Summary cards: violations today, top violating scenario pairs, most-triggered rules. Export to CSV/JSON.",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-UI-012",
+      "title": "Retention & storage settings",
+      "description": "Settings panel showing: current retention window (editable), size cap (editable), current store size (with usage bar), event count, oldest event age, next scheduled prune. Save triggers immediate settings update via API. Manual 'Prune Now' button.",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-UI-013",
+      "title": "System health overview",
+      "description": "Top-level dashboard card showing: vrooli-events API status, SQLite store health, active SSE subscribers count, policy cache subscribers count, event ingestion rate, last prune timestamp. Amber/red indicators for degraded states.",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-UI-014",
+      "title": "Navigation and layout",
+      "description": "Sidebar navigation with sections: Overview (health + throughput), Events (stream + query + traces), Policies (rules + circuit breakers + violations), Subscriptions (list + health), Settings (retention + system). Responsive layout for desktop and tablet. Dark theme with Vrooli palette.",
       "status": "planned"
     }
   ]

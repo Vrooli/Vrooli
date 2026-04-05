@@ -1,0 +1,49 @@
+{
+  "module": "discovery-integration",
+  "description": "Integration with packages/api-core/discovery for automatic event emission and local policy enforcement",
+  "operational_targets": ["OT-P1-010", "OT-P1-011", "OT-P1-014"],
+  "requirements": [
+    {
+      "id": "REQ-DI-001",
+      "title": "EmittingResolver decorator",
+      "description": "New EmittingResolver struct wraps existing discovery.Resolver. On every ResolveScenarioPort/URL call, after the underlying call completes, emits a {caller}.discovery.resolve.v1 event via fire-and-forget background goroutine. Event includes: source_scenario (caller), target_scenario (resolved slug), port_key, resolved_port, duration_ms, success/error. The emit MUST NOT block or add latency to the resolve call. Constructor: NewEmittingResolver(inner Resolver, eventsURL string, sourceScenario string).",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-DI-002",
+      "title": "Fire-and-forget event emission",
+      "description": "Events are sent to vrooli-events via a buffered channel (capacity: 256) drained by a background goroutine. If the channel is full, the event is dropped and a warning counter is incremented (queryable via health endpoint). The background goroutine batches events (up to 10 or 100ms, whichever comes first) into a single POST to reduce HTTP overhead. If vrooli-events is unreachable, events are dropped after 3 retries with 1s backoff. No panics, no blocking.",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-DI-003",
+      "title": "Sender-side policy cache",
+      "description": "EmittingResolver maintains a local policy cache loaded at construction time via GET /api/v1/policies?source={sourceScenario}. Cache is kept current via SSE subscription to /api/v1/policies/subscribe. Before each resolve call, the cache is consulted: if an access control rule denies the call, ResolveScenarioPort returns a structured PolicyDeniedError immediately without making the CLI call. Rate limit counters are tracked locally. Circuit breaker state is tracked locally.",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-DI-004",
+      "title": "Receiver-side policy middleware",
+      "description": "Importable Go middleware: func PolicyMiddleware(eventsURL, scenarioName string) func(http.Handler) http.Handler. Middleware maintains its own policy cache (loaded and SSE-subscribed like sender-side). On each incoming request, extracts X-Source-Scenario header (set by EmittingResolver), evaluates policy, and returns 403 with PolicyDeniedError JSON body if denied. If no X-Source-Scenario header is present, the request is treated as external and subject to a separate 'external' policy class.",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-DI-005",
+      "title": "Graceful degradation",
+      "description": "If vrooli-events is unreachable during cache initialization, EmittingResolver starts with an empty policy cache and operates in the configured default mode (fail-open or fail-closed, configurable per-rule with global default). If SSE connection drops, the last-known policy remains in effect. Reconnection uses exponential backoff (1s, 2s, 4s, max 30s). Health endpoint reports policy_cache_age and policy_cache_stale (true if SSE disconnected > 60s).",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-DI-006",
+      "title": "X-Source-Scenario header injection",
+      "description": "EmittingResolver adds X-Source-Scenario header to all outgoing HTTP requests (by returning a URL and a recommended header set, or by wrapping an http.Client). This enables receiver-side middleware to identify the calling scenario without requiring auth tokens. Header is informational/governance — not a security boundary.",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-DI-007",
+      "title": "Zero-dependency fallback",
+      "description": "If a scenario is built without vrooli-events integration (e.g., during development), the existing discovery.Resolver continues to work unchanged. EmittingResolver is opt-in via constructor. Receiver-side middleware is opt-in via router registration. No scenario breaks if vrooli-events is not running.",
+      "status": "planned"
+    }
+  ]
+}

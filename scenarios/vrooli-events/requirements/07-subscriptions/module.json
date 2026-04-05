@@ -1,0 +1,37 @@
+{
+  "module": "subscriptions",
+  "description": "Persistent subscription management for event-driven consumers like notification-hub",
+  "operational_targets": ["OT-P1-012"],
+  "requirements": [
+    {
+      "id": "REQ-SUB-001",
+      "title": "Subscription CRUD API",
+      "description": "REST endpoints: POST /api/v1/subscriptions (create), GET /api/v1/subscriptions (list with filters: owner, pattern, enabled), GET /api/v1/subscriptions/:id (get), PUT /api/v1/subscriptions/:id (update), DELETE /api/v1/subscriptions/:id (delete). Each subscription has: id, name (human-readable), owner_scenario, event_pattern (glob on event type), source_filter (glob on source scenario, optional), delivery_type (sse|webhook), delivery_target (webhook URL or SSE reconnect key), enabled, created_at, updated_at.",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-SUB-002",
+      "title": "Glob pattern matching on subscriptions",
+      "description": "Subscriptions use the same segment-aware glob matching as SSE filters. Pattern 'swarm-manager.backlog.*' matches all backlog events from swarm-manager. Pattern '**.completed.v1' matches all completed events across all scenarios. Pattern '*' matches everything. Subscription patterns are validated at creation time for syntactic correctness.",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-SUB-003",
+      "title": "Webhook delivery",
+      "description": "For subscriptions with delivery_type=webhook: POST matching events to delivery_target URL. Request includes X-VrooliEvents-Subscription header with subscription ID, X-VrooliEvents-Signature header with HMAC-SHA256 signature (using per-subscription secret). Retry policy: 3 attempts with exponential backoff (1s, 5s, 25s). Failed deliveries logged in subscription_deliveries table with status, response_code, error.",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-SUB-004",
+      "title": "Subscription health tracking",
+      "description": "Track per-subscription delivery health: total_delivered, total_failed, last_delivered_at, last_failed_at, consecutive_failures. If consecutive_failures exceeds threshold (default: 50), subscription auto-disables with status='circuit_broken'. Health queryable via GET /api/v1/subscriptions/:id/health. Auto-disabled subscriptions can be re-enabled manually.",
+      "status": "planned"
+    },
+    {
+      "id": "REQ-SUB-005",
+      "title": "Subscription testing endpoint",
+      "description": "POST /api/v1/subscriptions/:id/test sends a synthetic test event matching the subscription's pattern. Returns delivery result (success/failure with details). Useful for verifying webhook URLs and glob patterns before enabling a subscription in production.",
+      "status": "planned"
+    }
+  ]
+}
