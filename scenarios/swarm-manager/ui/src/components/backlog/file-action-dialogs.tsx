@@ -9,6 +9,7 @@ import { Button } from "../ui/button";
 import { Dialog } from "../ui/dialog";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 import { Input } from "../ui/input";
+import { useFileService } from "../../contexts/FileServiceContext";
 import type { FileActionType } from "./backlog-file-browser";
 import type { BacklogFile } from "../../types";
 
@@ -31,6 +32,7 @@ export function FileActionDialogs({
   onConfirm,
   onClose,
 }: FileActionDialogsProps) {
+  const fileService = useFileService();
   return (
     <>
       {/* File action dialogs (rename/move/copy) */}
@@ -99,7 +101,7 @@ export function FileActionDialogs({
         onClose={onClose}
         onConfirm={onConfirm}
         title={`Delete ${activeAction?.target.type ?? "file"}`}
-        description={`Delete "${activeAction?.target.path ?? ""}" from this backlog item? This cannot be undone.`}
+        description={`Delete "${activeAction?.target.path ?? ""}" from this ${fileService.entityLabel}? This cannot be undone.`}
         confirmLabel="Delete"
         isLoading={fileActionPending}
       />

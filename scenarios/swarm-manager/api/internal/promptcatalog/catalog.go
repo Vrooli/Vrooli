@@ -79,7 +79,7 @@ var entries = []Entry{
 		Modes:        []string{"workshop"},
 		Purpose:      "Run one workshop round for non-research backlog items and update plan.md.",
 		OutputPaths:  []string{"workshop/round-NNN.json", "plan.md"},
-		VariableKeys: []string{"ITEM_DESCRIPTION", "ITEM_FOLDER", "ITEM_KIND", "ITEM_NAME", "ITEM_PRIORITY", "ITEM_TAGS", "ITEM_TITLE", "ROUND_NUMBER"},
+		VariableKeys: []string{"ITEM_DESCRIPTION", "ITEM_FOLDER", "ITEM_INITIATIVE", "ITEM_KIND", "ITEM_NAME", "ITEM_PRIORITY", "ITEM_TAGS", "ITEM_TITLE", "ROUND_NUMBER"},
 		ReferenceSkillIDs: []string{
 			"swarm-manager-backlog-tools",
 			"implementation-plan-authoring",
@@ -98,7 +98,7 @@ var entries = []Entry{
 		Modes:        []string{"workshop"},
 		Purpose:      "Run one workshop round for research backlog items and update conclusion.md.",
 		OutputPaths:  []string{"workshop/round-NNN.json", "conclusion.md"},
-		VariableKeys: []string{"ITEM_DESCRIPTION", "ITEM_FOLDER", "ITEM_NAME", "ITEM_PRIORITY", "ITEM_TAGS", "ITEM_TITLE", "ROUND_NUMBER"},
+		VariableKeys: []string{"ITEM_DESCRIPTION", "ITEM_FOLDER", "ITEM_INITIATIVE", "ITEM_NAME", "ITEM_PRIORITY", "ITEM_TAGS", "ITEM_TITLE", "ROUND_NUMBER"},
 		ReferenceSkillIDs: []string{
 			"swarm-manager-backlog-tools",
 			"research-conclusion-authoring",
@@ -116,7 +116,7 @@ var entries = []Entry{
 		Modes:        []string{"initialize"},
 		Purpose:      "Bootstrap a backlog item with its first deliverable draft and first workshop round.",
 		OutputPaths:  []string{"workshop/round-001.json", "plan.md", "conclusion.md"},
-		VariableKeys: []string{"ITEM_DESCRIPTION", "ITEM_FOLDER", "ITEM_KIND", "ITEM_NAME", "ITEM_PRIORITY", "ITEM_TAGS", "ITEM_TITLE"},
+		VariableKeys: []string{"ITEM_DESCRIPTION", "ITEM_FOLDER", "ITEM_INITIATIVE", "ITEM_KIND", "ITEM_NAME", "ITEM_PRIORITY", "ITEM_TAGS", "ITEM_TITLE"},
 		ReferenceSkillIDs: []string{
 			"swarm-manager-backlog-tools",
 			"implementation-plan-authoring",
@@ -135,7 +135,7 @@ var entries = []Entry{
 		Modes:        []string{"finalize"},
 		Purpose:      "Fold the latest workshop answers into plan.md and write a finalize round with no new decisions.",
 		OutputPaths:  []string{"workshop/round-NNN.json", "plan.md"},
-		VariableKeys: []string{"ITEM_DESCRIPTION", "ITEM_FOLDER", "ITEM_KIND", "ITEM_NAME", "ITEM_PRIORITY", "ITEM_TAGS", "ITEM_TITLE", "ROUND_NUMBER"},
+		VariableKeys: []string{"ITEM_DESCRIPTION", "ITEM_FOLDER", "ITEM_INITIATIVE", "ITEM_KIND", "ITEM_NAME", "ITEM_PRIORITY", "ITEM_TAGS", "ITEM_TITLE", "ROUND_NUMBER"},
 		ReferenceSkillIDs: []string{
 			"swarm-manager-backlog-tools",
 			"implementation-plan-authoring",
@@ -154,7 +154,7 @@ var entries = []Entry{
 		Modes:        []string{"finalize"},
 		Purpose:      "Fold the latest workshop answers into conclusion.md and write a finalize round with no new decisions.",
 		OutputPaths:  []string{"workshop/round-NNN.json", "conclusion.md"},
-		VariableKeys: []string{"ITEM_DESCRIPTION", "ITEM_FOLDER", "ITEM_NAME", "ITEM_PRIORITY", "ITEM_TAGS", "ITEM_TITLE", "ROUND_NUMBER"},
+		VariableKeys: []string{"ITEM_DESCRIPTION", "ITEM_FOLDER", "ITEM_INITIATIVE", "ITEM_NAME", "ITEM_PRIORITY", "ITEM_TAGS", "ITEM_TITLE", "ROUND_NUMBER"},
 		ReferenceSkillIDs: []string{
 			"swarm-manager-backlog-tools",
 			"research-conclusion-authoring",
@@ -172,7 +172,7 @@ var entries = []Entry{
 		Modes:        []string{"clarify"},
 		Purpose:      "Clarify a workshop decision item and assess impact on the workshop round.",
 		OutputPaths:  []string{},
-		VariableKeys: []string{"CLARIFICATION_HISTORY", "DECISION_CONTEXT", "DECISION_OPTIONS", "DECISION_TOPIC", "ITEM_DESCRIPTION", "ITEM_KIND", "ITEM_NAME", "ITEM_TITLE", "USER_QUESTION", "WORKSHOP_HISTORY"},
+		VariableKeys: []string{"CLARIFICATION_HISTORY", "DECISION_CONTEXT", "DECISION_OPTIONS", "DECISION_TOPIC", "ITEM_DESCRIPTION", "ITEM_INITIATIVE", "ITEM_KIND", "ITEM_NAME", "ITEM_TITLE", "USER_QUESTION", "WORKSHOP_HISTORY"},
 		ReferenceSkillIDs: []string{
 			"swarm-manager-backlog-tools",
 		},

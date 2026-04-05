@@ -7,8 +7,8 @@ import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Copy, Check, X, FileCode, FileText, Braces, Terminal, ChevronDown, ChevronUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { api } from '@/lib/api'
-import { copyAsyncToClipboard } from '@/lib/clipboard'
+import { copyToClipboard } from '@/lib/clipboard'
+import { toast } from '@/hooks/use-toast'
 import type { Skill } from '@/types'
 import type { DisplayFormat } from '@/types/world'
 import { displaySkills, generatePreview, validateForDisplay } from '@/services/skillDisplayService'
@@ -54,29 +54,24 @@ export function DisplayPanel({ selectedSkills, onClear, onDisplay }: DisplayPane
     [selectedSkills, format]
   )
 
-  // Handle copy - uses API for authoritative display.
-  // Must call copyAsyncToClipboard synchronously in click handler to preserve
-  // user activation for clipboard access.
+  // Copy using the already-computed display result — no async work in the
+  // click handler, so the clipboard write stays within the user-activation window.
   const handleCopy = () => {
-    const identifiers = selectedSkills.map((p) => p.id)
-    const contentPromise = api.displaySkills(identifiers, format)
-      .then((response) => {
-        onDisplay?.(response.combined, format)
-        return response.combined
-      })
-      .catch(() => {
-        // Fallback to client-side display if API fails
-        onDisplay?.(displayResult.combined, format)
-        return displayResult.combined
-      })
+    onDisplay?.(displayResult.combined, format)
 
-    copyAsyncToClipboard(contentPromise)
+    copyToClipboard(displayResult.combined)
       .then(() => {
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
       })
       .catch((error: unknown) => {
+        const msg = error instanceof Error ? error.message : String(error)
         console.error('Failed to copy skills:', error)
+        toast({
+          title: 'Copy failed',
+          description: msg,
+          variant: 'destructive',
+        })
       })
   }
 

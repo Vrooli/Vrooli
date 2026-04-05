@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils'
 import { useTopics } from '@/hooks/useTopicData'
 import { getAccumulatedSkills } from '@/services/topicService'
 import { api } from '@/lib/api'
-import { copyAsyncToClipboard } from '@/lib/clipboard'
+import { copyToClipboard } from '@/lib/clipboard'
 import { toast } from '@/hooks/use-toast'
 import type { Topic } from '@/lib/schemas/topic.schema'
 import type { CombineFormat } from '@/stores/combineStore'
@@ -302,17 +302,40 @@ export function TopicSelectionWizard({ onClose, className }: TopicSelectionWizar
     }
   }, [step, selectedTopicIds])
 
+  // Pre-fetch combined content so the copy click is synchronous (preserves
+  // user activation on iOS).
+  const [prefetchedContent, setPrefetchedContent] = useState<string | null>(null)
+  const selectedSkillIds = getSelectedSkillIds()
+
+  useEffect(() => {
+    setPrefetchedContent(null)
+    if (selectedSkillIds.length === 0) return
+
+    let stale = false
+    void api.displaySkills(selectedSkillIds, format)
+      .then((r) => { if (!stale) setPrefetchedContent(r.combined) })
+      .catch(() => { /* prefetch failed — handleCopy will show error */ })
+    return () => { stale = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- selectedSkillIds is a new array each render; stringify for stable dep
+  }, [JSON.stringify(selectedSkillIds), format])
+
   // Copy handler (works on any step)
   const handleCopy = useCallback(() => {
     const skillIds = getSelectedSkillIds()
     if (skillIds.length === 0) return
 
+    if (prefetchedContent === null) {
+      toast({
+        title: 'Still loading',
+        description: 'Content is being prepared — please try again in a moment.',
+      })
+      return
+    }
+
     setIsCopying(true)
     setCopySuccess(false)
 
-    const contentPromise = api.displaySkills(skillIds, format).then((r) => r.combined)
-
-    copyAsyncToClipboard(contentPromise)
+    copyToClipboard(prefetchedContent)
       .then(() => {
         setCopySuccess(true)
         toast({
@@ -322,17 +345,18 @@ export function TopicSelectionWizard({ onClose, className }: TopicSelectionWizar
         setTimeout(() => setCopySuccess(false), 2000)
       })
       .catch((error: unknown) => {
+        const msg = error instanceof Error ? error.message : String(error)
         console.error('Failed to copy skills:', error)
         toast({
           title: 'Copy failed',
-          description: 'Failed to copy skills to clipboard',
+          description: msg,
           variant: 'destructive',
         })
       })
       .finally(() => {
         setIsCopying(false)
       })
-  }, [getSelectedSkillIds, format])
+  }, [getSelectedSkillIds, format, prefetchedContent])
 
   const copyableCount = step === 'review' ? effectiveSkillCount : getSelectedSkillIds().length
 

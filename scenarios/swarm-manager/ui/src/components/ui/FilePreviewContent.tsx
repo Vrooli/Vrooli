@@ -14,7 +14,6 @@ import { cn } from "../../lib/utils";
 import { useResolvedTheme } from "../../lib";
 import { getMonacoLanguage } from "../../lib/file-type-utils";
 import { renderMarkdown } from "../../lib/render-markdown";
-import type { BacklogKind } from "../../types";
 import { ErrorState } from "./error-state";
 
 const DEFAULT_EDITOR_OPTIONS = {
@@ -43,11 +42,9 @@ const DEFAULT_EDITOR_OPTIONS = {
 } as const;
 
 export interface FilePreviewContentProps {
-  /** Backlog kind (needed for image URL) */
-  backlogKind: BacklogKind;
-  /** Backlog item name (needed for image URL) */
-  backlogName: string;
-  /** File path within the backlog folder */
+  /** Base URL for raw file content (used for image src) */
+  fileContentBaseUrl: string;
+  /** File path within the entity folder */
   filePath: string;
   /** File name for display / language detection */
   fileName: string;
@@ -78,8 +75,7 @@ export interface FilePreviewContentProps {
 }
 
 export function FilePreviewContent({
-  backlogKind,
-  backlogName,
+  fileContentBaseUrl,
   filePath,
   fileName,
   contentClassName,
@@ -142,7 +138,7 @@ export function FilePreviewContent({
       {isImage && (
         <div className="flex items-center justify-center p-4 bg-slate-900/50">
           <img
-            src={`/api/v1/backlog/${backlogKind}/${backlogName}/files/${filePath}`}
+            src={`${fileContentBaseUrl}/${filePath}`}
             alt={fileName}
             className="max-w-full max-h-full object-contain"
             data-testid="file-preview-image"

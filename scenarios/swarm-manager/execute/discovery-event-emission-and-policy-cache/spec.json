@@ -1,0 +1,20 @@
+{
+  "acceptance_allow": [
+    "packages/api-core/discovery/**",
+    "packages/api-core/**"
+  ],
+  "created": "2026-04-04T22:36:30Z",
+  "depends_on": [
+    "execute/vrooli-events-core-runtime"
+  ],
+  "description": "Modify packages/api-core/discovery/ to: (1) emit events on every inter-scenario call via fire-and-forget background goroutine (zero latency impact on caller), (2) load policy cache at scenario startup from vrooli-events, (3) subscribe to SSE policy updates from vrooli-events for real-time cache refresh, (4) enforce sender-side policy checks (fail fast with clear error on denied calls, never makes network call), (5) provide receiver-side middleware that scenarios can plug into their API routers for defense-in-depth policy enforcement. Graceful degradation: if vrooli-events is unreachable, last-known policy holds (configurable fail-open or fail-closed per rule). Must not break any existing inter-scenario communication.",
+  "effort": "L",
+  "initiative": "vrooli-events",
+  "kind": "execute",
+  "name": "discovery-event-emission-and-policy-cache",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [],
+  "title": "Integrate Event Emission And Policy Caching Into Discovery Package",
+  "updated": "2026-04-04T22:36:30Z"
+}

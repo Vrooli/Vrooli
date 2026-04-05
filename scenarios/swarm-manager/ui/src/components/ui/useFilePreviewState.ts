@@ -2,6 +2,7 @@
  * useFilePreviewState hook
  *
  * Encapsulates all state, queries, and mutations for the FilePreview component.
+ * Reads the file service from FileServiceContext to stay entity-agnostic.
  *
  * [REQ:REQ-P0-004] File preview state management
  */
@@ -10,8 +11,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { defaultQueryOptions } from "../../lib";
 import { getContentTypeForFile, getFileType } from "../../lib/file-type-utils";
-import { backlogService } from "../../services";
-import type { BacklogKind } from "../../types";
+import { useFileService } from "../../contexts/FileServiceContext";
 
 type FileDraftState = {
   original: string;
@@ -19,8 +19,6 @@ type FileDraftState = {
 };
 
 export interface UseFilePreviewStateParams {
-  backlogKind: BacklogKind;
-  backlogName: string;
   filePath: string;
   fileName: string;
   /** Pre-fetched content string. When provided, skips the internal query. */
@@ -30,21 +28,20 @@ export interface UseFilePreviewStateParams {
 }
 
 export function useFilePreviewState({
-  backlogKind,
-  backlogName,
   filePath,
   fileName,
   externalContent,
   readOnly,
 }: UseFilePreviewStateParams) {
+  const fileService = useFileService();
   const queryClient = useQueryClient();
   const fileType = getFileType(fileName);
   const isImage = fileType === "image";
   const isEditable = fileType !== "image" && !readOnly;
 
   const contentQueryKey = useMemo(
-    () => ["backlog", backlogKind, backlogName, "files", filePath, "content"],
-    [backlogKind, backlogName, filePath]
+    () => [...fileService.queryKeyPrefix, "files", filePath, "content"],
+    [fileService.queryKeyPrefix, filePath]
   );
 
   const [fileStateByPath, setFileStateByPath] = useState<Record<string, FileDraftState>>({});
@@ -78,7 +75,7 @@ export function useFilePreviewState({
     refetch,
   } = useQuery({
     queryKey: contentQueryKey,
-    queryFn: () => backlogService.getFileContent(backlogKind, backlogName, filePath),
+    queryFn: () => fileService.getFileContent(filePath),
     enabled: !isImage && externalContent === undefined,
     ...defaultQueryOptions,
     refetchOnWindowFocus: defaultQueryOptions.refetchOnWindowFocus && !isDirty,
@@ -112,9 +109,7 @@ export function useFilePreviewState({
   // Save mutation
   const saveMutation = useMutation({
     mutationFn: async (nextContent: string) =>
-      backlogService.saveFileContent(
-        backlogKind,
-        backlogName,
+      fileService.saveFileContent(
         filePath,
         nextContent,
         getContentTypeForFile(fileName)
@@ -126,11 +121,11 @@ export function useFilePreviewState({
       }));
       queryClient.setQueryData(contentQueryKey, nextContent);
       queryClient.invalidateQueries({
-        queryKey: ["backlog", backlogKind, backlogName, "files"],
+        queryKey: [...fileService.queryKeyPrefix, "files"],
       });
-      if (filePath.endsWith("spec.json")) {
+      if (filePath.endsWith(fileService.protectedFile)) {
         queryClient.invalidateQueries({
-          queryKey: ["backlog", backlogKind, backlogName],
+          queryKey: [...fileService.queryKeyPrefix],
         });
       }
     },

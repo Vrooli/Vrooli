@@ -1,0 +1,14 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "swarm-manager-review",
+  "name": "Swarm Manager Review Agent",
+  "description": "Gather visual and functional evidence for a completed backlog execution to support human archive/follow-up decisions.",
+  "modes": ["tools"],
+  "tags": ["swarm-manager", "review", "evidence", "verification"],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-04-02T00:00:00Z",
+  "updatedAt": "2026-04-02T00:00:00Z"
+}

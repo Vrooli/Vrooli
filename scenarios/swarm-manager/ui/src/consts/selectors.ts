@@ -361,6 +361,9 @@ export const literalSelectors = {
     itemsListView: "initiative-items-list-view",
     itemsGraphView: "initiative-items-graph-view",
     backLink: "initiative-details-back-link",
+    tabRow: "initiative-details-tab-row",
+    tabInfo: "initiative-details-tab-info",
+    tabFiles: "initiative-details-tab-files",
   },
   prompts: {
     page: "prompts-page",

@@ -154,6 +154,12 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
    - `research/summary.md` — deep research findings (if exists)
    - `archive/` — user-provided materials
    - Any user-uploaded files
+   - **Initiative context** — If this item belongs to initiative `{{ITEM_INITIATIVE}}`, check for strategic context:
+     ```bash
+     swarm-manager initiatives get --name {{ITEM_INITIATIVE}}
+     swarm-manager initiatives files --name {{ITEM_INITIATIVE}}
+     ```
+     Read any files present (orchestration summaries, decision logs, strategy docs). Use initiative context to align decisions with the broader initiative goals and understand how this item relates to sibling items.
 
 2. **Analyze prior rounds** (if ROUND_NUMBER > 1)
 

@@ -139,6 +139,7 @@ func buildVariableMap(item BacklogItem, itemFolder string) map[string]string {
 		"ITEM_PRIORITY":    fmt.Sprintf("%d", item.Priority),
 		"ITEM_TAGS":        strings.Join(item.Tags, ", "),
 		"ITEM_FOLDER":      itemFolder,
+		"ITEM_INITIATIVE":  item.Initiative,
 		"DELIVERABLE":      deliverable,
 	}
 

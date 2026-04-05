@@ -321,3 +321,95 @@ func TestGenerateOptions(t *testing.T) {
 		t.Error("expected at least 1 element type")
 	}
 }
+
+func TestGenerateOptions_Availability(t *testing.T) {
+	// Helper to extract provider availability from the response body.
+	providerAvail := func(t *testing.T, body map[string]interface{}) map[string]bool {
+		t.Helper()
+		result := map[string]bool{}
+		providers := body["providers"].([]interface{})
+		for _, p := range providers {
+			pm := p.(map[string]interface{})
+			result[pm["id"].(string)] = pm["available"].(bool)
+		}
+		return result
+	}
+
+	// Fake Ollama server that responds 200 to /api/tags.
+	fakeOllama := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"models":[]}`))
+	}))
+	defer fakeOllama.Close()
+
+	tests := []struct {
+		name             string
+		ollamaURL        string
+		openRouterKey    string
+		expectOllama     bool
+		expectOpenRouter bool
+	}{
+		{
+			name:             "neither configured",
+			expectOllama:     false,
+			expectOpenRouter: false,
+		},
+		{
+			name:             "ollama only",
+			ollamaURL:        fakeOllama.URL,
+			expectOllama:     true,
+			expectOpenRouter: false,
+		},
+		{
+			name:             "openrouter only",
+			openRouterKey:    "sk-test-key",
+			expectOllama:     false,
+			expectOpenRouter: true,
+		},
+		{
+			name:             "both configured",
+			ollamaURL:        fakeOllama.URL,
+			openRouterKey:    "sk-test-key",
+			expectOllama:     true,
+			expectOpenRouter: true,
+		},
+		{
+			name:             "ollama configured but unreachable",
+			ollamaURL:        "http://127.0.0.1:1", // nothing listening
+			expectOllama:     false,
+			expectOpenRouter: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := config.Default()
+			cfg.OllamaURL = tt.ollamaURL
+			cfg.OpenRouterAPIKey = tt.openRouterKey
+			_, router, _, _, _ := setupMockServerWithConfig(t, cfg)
+
+			req := httptest.NewRequest("GET", "/api/v1/brands/generate/options", nil)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			if w.Code != http.StatusOK {
+				t.Fatalf("expected 200, got %d", w.Code)
+			}
+
+			var body map[string]interface{}
+			json.NewDecoder(w.Body).Decode(&body)
+
+			avail := providerAvail(t, body)
+			if avail["ollama"] != tt.expectOllama {
+				t.Errorf("ollama: got available=%v, want %v", avail["ollama"], tt.expectOllama)
+			}
+			if avail["openrouter"] != tt.expectOpenRouter {
+				t.Errorf("openrouter: got available=%v, want %v", avail["openrouter"], tt.expectOpenRouter)
+			}
+			// Manual should always be available.
+			if !avail["manual"] {
+				t.Error("manual should always be available")
+			}
+		})
+	}
+}

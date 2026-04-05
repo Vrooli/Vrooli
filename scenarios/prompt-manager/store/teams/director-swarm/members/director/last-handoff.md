@@ -1,53 +1,38 @@
-**Status**: Completed twelfth strategic assessment heartbeat. 46 uncommitted files (down from 122). All builds GREEN, all tests PASS. Capability trap worsening — 12 active initiatives, 55 items, 1 completion (1.8%).
+**Status**: Completed thirteenth strategic assessment. 80 uncommitted files. Velocity accelerating (4/week). Capability trap slightly improved by feature-parity progress (57%) but 10/13 initiatives still at 0%.
 
 **Completed this heartbeat**:
 - Spawned intelligence-officer, operations-chief, strategist — all returned structured briefs
-- Intelligence: 46 files across 4 areas, 5 new initiatives created today (23 items), 1.8% completion rate, DTV only initiative with progress
-- Operations: brand-manager-readiness Grade A (most execution-ready), DTV Grade B+ (60% done), desktop-monetization-assurance Grade C+ (transitively blocked), 3 runtime state files to exclude
-- Strategy: capability trap deepening, revenue critical path is ~7 items across 3 initiatives, Option B recommended (revenue-first + momentum)
-- Logged 2 decisions: portfolio focus (dec-1774564978089289501), initiative moratorium (dec-1774564980037232996)
-- Added 2 knowledge entries: cross-initiative dependency mapping, capability trap metrics
-- Created 3 tasks: 2 P1 awaiting human decisions, 1 P2 commit batch
+- Intelligence: 13 active initiatives, 68 items, 7 completed (10.3%), velocity doubled to 4/week, 10 initiatives at 0%
+- Operations: feature-parity Grade B (3 items left, closest to done), governance Grade C (deep deps), DTV Grade C (ambiguous state), brand-manager Grade C (all unblocked)
+- Strategy: Option B still correct but tightened to Option A (3 active, 11 items). Revenue path ~4 weeks focused. State persistence is P0.
+- Persisted 3 decisions, 3 tasks, 2 knowledge entries — ALL VERIFIED present after write
 
-**AWAITING HUMAN (2 decisions)**:
+**AWAITING HUMAN (3 decisions)**:
 
-1. **Portfolio focus (dec-1774564978089289501)** — 4 options:
-   - **A**: Revenue-first only (3 initiatives, ~7 items). Maximum focus.
-   - **B (recommended)**: Revenue-first + momentum (5 initiatives, ~13 items). Adds DTV (60% done) and brand-manager-readiness (Grade A) as completion targets.
-   - **C**: Moderate pruning (5-7 initiatives). Evidence says this fails.
-   - **D**: Status quo (12 initiatives). Not recommended.
+1. **Portfolio focus (dec-1775254772312319062)** — Option A recommended: 3 Active Now (feature-parity, release-governance, monetization-assurance), 3 Track, 7 Defer. 11 items, ~4 weeks to revenue.
 
-2. **Initiative moratorium (dec-1774564980037232996)** — No new initiatives until first completion. New ideas as standalone backlog items only.
+2. **Initiative moratorium (dec-1775254774942113200)** — Option A recommended: No new initiatives until first completion.
 
-**Uncommitted work** (46 files in 4 batches):
+3. **State persistence P0 (dec-1775254777934494933)** — Option A recommended: Root-cause and fix. Without this, every heartbeat starts from zero.
 
-| Batch | Area | Files | Notes |
-|---|---|---|---|
-| 1 | DTV report domain | 9 | New domain implementation, tests pass |
-| 2 | Swarm-manager backlog system | 6 | API improvements, tests pass |
-| 3 | Swarm-manager items + initiatives | ~25 | Deletions, new items, specs |
-| 4 | Ecosystem + prompt-manager | 7 | Queue entries, config, runtime state |
-| SKIP | Runtime state files | 3 | heartbeat-active-runs.json, heartbeat.json, execution-runs.json |
+**Key metrics delta (heartbeat 12 → 13)**:
+- Uncommitted files: 46 → 80 (growing — commits needed)
+- Active initiatives: 12 → 13 (swarm-manager-dashboard archived, but net count up)
+- Total items: 55 → 68
+- Completed items: 1 → 7 (feature-parity drove 6 completions)
+- Completion rate: 1.8% → 10.3%
+- In-progress items: 0 → 0 (unchanged — still the bottleneck)
+- Velocity: ~0/week → 4/week (real improvement)
 
-**Key metrics**:
-- Uncommitted files: 122 → 46 (commits happening, good)
-- Active initiatives: 11 → 12 (still growing, bad)
-- Total items: 51 → 55 (still growing, bad)
-- Completed items: 0 → 1 (DTV report generation)
-- Completion rate: 0% → 1.8%
-- In-progress items: 0 (unchanged — nothing executing)
-- Infrastructure ratio: 9/12 (75%)
-- Acceptance criteria defined: 0/4 checked
-
-**Next priorities**:
-1. **IMMEDIATE**: Human resolves portfolio focus + moratorium decisions
-2. **IMMEDIATE**: Commit DTV report domain (9 files, zero risk)
-3. **POST-DECISION**: Start desktop-release-governance research audit (unblocks entire monetization path)
-4. **POST-DECISION**: Complete DTV remaining 2 items (first initiative completion ever)
-5. **POST-DECISION**: Deploy brand-manager-readiness items in parallel (4 items, Grade A)
+**Nearest completable work** (if portfolio focus approved):
+1. execute/swarm-manager-identity-adoption (S effort, unblocked) — closes feature-parity to 6/7
+2. chore/app-issue-tracker-deprecation (S effort, after identity-adoption) — closes feature-parity to 7/7
+3. fix/brand-manager-integration-status (S effort, no deps) — first brand-manager progress
+4. chore/desktop-entitlement-vs-approval-docs (XS effort, no deps) — quick governance win
+5. execute/desktop-approval-auto-deploy (S effort, no deps) — governance progress
 
 **Notes for next heartbeat**:
-- Prior heartbeat decisions (dec-1774559948691098880, dec-1774559950887013427, dec-1774559959752588284) are no longer in the decision store — they were either cleared or lost. The new decisions (dec-1774564978089289501, dec-1774564980037232996) supersede them.
-- If portfolio focus Option B is accepted, next heartbeat should prepare detailed execution proposals for DTV and brand-manager-readiness team deployment.
-- The zero-in-progress metric is the operational bottleneck — nothing is executing. Portfolio decisions must translate into actual item state changes.
-- Runtime state files should be gitignored to stop them from appearing in every assessment.
+- Verify decisions dec-1775254772312319062, dec-1775254774942113200, dec-1775254777934494933 still exist. If empty again, the persistence bug is confirmed as a systematic issue requiring code investigation.
+- If portfolio focus Option A is accepted, immediately prepare execution proposals for the 3 Active Now initiatives.
+- The swarm-manager-graph-workspace shows heavy git commit activity (p30-p39) but 0/7 initiative items completed — items may need status updates.
+- 80 uncommitted files is substantial. A structured commit session is warranted but is not the director's primary job unless it directly affects an active initiative.

@@ -1,0 +1,17 @@
+{
+  "acceptance_allow": [
+    "resources/ntfy/**",
+    ".vrooli/service.json"
+  ],
+  "created": "2026-04-04T22:36:30Z",
+  "description": "Add ntfy (https://ntfy.sh) as a Vrooli resource for push notification delivery. Docker container deployment with upstream-base-url configured to https://ntfy.sh for iOS APNs relay (only content-free wake-up signals go through ntfy.sh cloud; actual message content stays on local server). Register in .vrooli/service.json resource registry. Configure authentication, topic namespacing, and access control. Test end-to-end: server sends notification -\u003e ntfy relays APNs wake -\u003e iOS ntfy app fetches message from local server. Document known iOS delivery caveats and configuration requirements.",
+  "effort": "S",
+  "initiative": "notification-hub-greenfield",
+  "kind": "execute",
+  "name": "ntfy-vrooli-resource",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [],
+  "title": "Set Up ntfy As A Vrooli Resource",
+  "updated": "2026-04-04T22:36:30Z"
+}

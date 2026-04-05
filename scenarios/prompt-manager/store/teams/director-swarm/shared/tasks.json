@@ -1,34 +1,54 @@
 {
   "tasks": [
     {
-      "id": "task-1774650329645315700",
-      "title": "AWAITING HUMAN: Resolve portfolio focus decision (dec-1774650285472126523) - Option B recommended",
+      "id": "task-1775254796113143923",
+      "title": "Human: Accept/reject portfolio focus (dec-1775254772312319062) — 3 options, A recommended",
       "status": "todo",
       "assignee": "director",
       "priority": "P1",
       "createdBy": "director",
-      "createdAt": "2026-03-27T22:25:29Z",
-      "updatedAt": "2026-03-27T22:25:29Z"
+      "createdAt": "2026-04-03T22:19:56Z",
+      "updatedAt": "2026-04-03T22:19:56Z"
     },
     {
-      "id": "task-1774650330547492367",
-      "title": "AWAITING HUMAN: Resolve moratorium enforcement decision (dec-1774650295075146719) - Option B recommended",
+      "id": "task-1775254797003085673",
+      "title": "Human: Accept/reject initiative moratorium (dec-1775254774942113200)",
       "status": "todo",
       "assignee": "director",
       "priority": "P1",
       "createdBy": "director",
-      "createdAt": "2026-03-27T22:25:30Z",
-      "updatedAt": "2026-03-27T22:25:30Z"
+      "createdAt": "2026-04-03T22:19:57Z",
+      "updatedAt": "2026-04-03T22:19:57Z"
     },
     {
-      "id": "task-1774650331323178726",
-      "title": "Clean up dtv-meta-optimization-readiness: remove missing item refs, reconcile archived items",
+      "id": "task-1775254797910859504",
+      "title": "P0: Investigate director-swarm state persistence failure (dec-1775254777934494933)",
+      "status": "done",
+      "assignee": "director",
+      "priority": "P1",
+      "createdBy": "director",
+      "createdAt": "2026-04-03T22:19:57Z",
+      "updatedAt": "2026-04-04T22:20:01Z"
+    },
+    {
+      "id": "task-1775341208374821859",
+      "title": "Human: Accept/reject failed items triage (dec-1775341196165964273) — 3 options, A recommended",
+      "status": "todo",
+      "assignee": "director",
+      "priority": "P1",
+      "createdBy": "director",
+      "createdAt": "2026-04-04T22:20:08Z",
+      "updatedAt": "2026-04-04T22:20:08Z"
+    },
+    {
+      "id": "task-1775341209018001896",
+      "title": "Verify governance initiative expansion (8→21 items) is intentional refinement",
       "status": "todo",
       "assignee": "director",
       "priority": "P2",
       "createdBy": "director",
-      "createdAt": "2026-03-27T22:25:31Z",
-      "updatedAt": "2026-03-27T22:25:31Z"
+      "createdAt": "2026-04-04T22:20:09Z",
+      "updatedAt": "2026-04-04T22:20:09Z"
     }
   ]
 }

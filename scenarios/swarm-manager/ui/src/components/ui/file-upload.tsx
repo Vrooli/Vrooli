@@ -1,8 +1,8 @@
 /**
  * FileUpload Component
  *
- * Provides drag-and-drop and click-to-upload functionality for adding files
- * to a backlog folder.
+ * Provides drag-and-drop and click-to-upload functionality for adding files.
+ * Reads its file service from FileServiceContext — works with any entity type.
  *
  * Features:
  * - Drag and drop support with visual feedback
@@ -18,16 +18,11 @@ import { useCallback, useState, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Upload, X, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { cn, formatFileSize } from "../../lib";
-import { backlogService } from "../../services";
-import type { BacklogKind } from "../../types";
+import { useFileService } from "../../contexts/FileServiceContext";
 import { Button } from "./button";
 
 export interface FileUploadProps {
-  /** Backlog kind to upload files to */
-  backlogKind: BacklogKind;
-  /** Backlog item name to upload files to */
-  backlogName: string;
-  /** Optional subdirectory path within the backlog folder */
+  /** Optional subdirectory path within the entity folder */
   targetPath?: string;
   /** Called when upload completes successfully */
   onUploadComplete?: () => void;
@@ -47,13 +42,12 @@ interface UploadState {
  * FileUpload component with drag-and-drop support.
  */
 export function FileUpload({
-  backlogKind,
-  backlogName,
   targetPath,
   onUploadComplete,
   className,
   "data-testid": testId,
 }: FileUploadProps) {
+  const fileService = useFileService();
   const [isDragging, setIsDragging] = useState(false);
   const [uploads, setUploads] = useState<UploadState[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -65,14 +59,14 @@ export function FileUpload({
       setUploads((prev) =>
         prev.map((u, i) => (i === index ? { ...u, status: "uploading" } : u))
       );
-      return backlogService.uploadFile(backlogKind, backlogName, file, targetPath);
+      return fileService.uploadFile(file, targetPath);
     },
     onSuccess: (_, { index }) => {
       setUploads((prev) =>
         prev.map((u, i) => (i === index ? { ...u, status: "success" } : u))
       );
       // Invalidate files query to refresh the file tree
-      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, backlogName, "files"] });
+      queryClient.invalidateQueries({ queryKey: [...fileService.queryKeyPrefix, "files"] });
       onUploadComplete?.();
     },
     onError: (error, { index }) => {

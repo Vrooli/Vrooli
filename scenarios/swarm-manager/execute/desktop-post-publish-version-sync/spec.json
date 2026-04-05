@@ -10,12 +10,12 @@
   "kind": "execute",
   "name": "desktop-post-publish-version-sync",
   "priority": 1,
-  "status": "failed",
+  "status": "completed",
   "tags": [
     "deployment-manager",
     "scenario-to-desktop",
     "version-sync"
   ],
   "title": "Add post-publish version sync from scenario-to-desktop to deployment-manager",
-  "updated": "2026-04-02T16:38:28Z"
+  "updated": "2026-04-04T23:12:19Z"
 }

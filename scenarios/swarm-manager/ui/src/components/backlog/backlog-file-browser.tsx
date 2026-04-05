@@ -16,7 +16,7 @@ import { FileTree, type TreeFile } from "../ui/file-tree";
 import { FileUpload } from "../ui/file-upload";
 import { collectMatchingFiles, getBaseName, getParentPath, joinPath, normalizeDestinationPath } from "../../lib/file-path-utils";
 import { selectors } from "../../consts/selectors";
-import type { BacklogFile, BacklogKind } from "../../types";
+import type { BacklogFile } from "../../types";
 import { FileActionDialogs } from "./file-action-dialogs";
 import { useFileActionMenuRenderer } from "./file-action-menu";
 import { FileSearchResults, FileSearchResultsList } from "./file-search-results";
@@ -42,8 +42,6 @@ export interface BacklogFileBrowserProps {
   filesError: Error | null;
   selectedFile: BacklogFile | null;
   isLocked: boolean;
-  backlogKind: BacklogKind;
-  backlogName: string;
   onFileSelect: (file: BacklogFile) => void;
   onRefetchFiles: () => void;
   onUploadComplete: () => void;
@@ -70,8 +68,6 @@ export function BacklogFileBrowser({
   filesError,
   selectedFile,
   isLocked,
-  backlogKind,
-  backlogName,
   onFileSelect,
   onRefetchFiles,
   onUploadComplete,
@@ -113,7 +109,7 @@ export function BacklogFileBrowser({
     setActiveFileAction(null);
     setFileActionInput("");
     setFileActionError(null);
-  }, [selectedFile?.path, backlogKind, backlogName]);
+  }, [selectedFile?.path]);
 
   const openFileActionDialog = useCallback((action: FileActionType, target: BacklogFile) => {
     setActiveFileAction({ action, target });
@@ -239,8 +235,6 @@ export function BacklogFileBrowser({
 
           {showUpload && (
             <FileUpload
-              backlogKind={backlogKind}
-              backlogName={backlogName}
               onUploadComplete={onUploadComplete}
               data-testid={selectors.backlogDetails.fileUpload}
             />

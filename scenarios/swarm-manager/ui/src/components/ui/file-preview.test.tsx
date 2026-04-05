@@ -8,15 +8,26 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FilePreview } from "./file-preview";
+import { FileServiceProvider } from "../../contexts/FileServiceContext";
+import type { IFileService } from "../../services/file-service-types";
 
-vi.mock("../../services", () => ({
-  backlogService: {
-    getFileContent: vi.fn(),
-    saveFileContent: vi.fn(),
-  },
-}));
-
-import { backlogService } from "../../services";
+function createMockFileService(overrides?: Partial<IFileService>): IFileService {
+  return {
+    entityLabel: "backlog item",
+    protectedFile: "spec.json",
+    fileContentBaseUrl: "/api/v1/backlog/idea/test-idea/files",
+    queryKeyPrefix: ["backlog", "idea", "test-idea"],
+    getFiles: vi.fn().mockResolvedValue([]),
+    getFileContent: vi.fn().mockResolvedValue(""),
+    uploadFile: vi.fn().mockResolvedValue({ name: "", path: "", type: "file" }),
+    saveFileContent: vi.fn().mockResolvedValue({ name: "", path: "", type: "file" }),
+    renameFile: vi.fn().mockResolvedValue({}),
+    moveFile: vi.fn().mockResolvedValue({}),
+    copyFile: vi.fn().mockResolvedValue({}),
+    deleteFile: vi.fn().mockResolvedValue({}),
+    ...overrides,
+  };
+}
 
 const createTestQueryClient = () =>
   new QueryClient({
@@ -27,11 +38,14 @@ const createTestQueryClient = () =>
     },
   });
 
-const renderWithProviders = (ui: React.ReactElement) => {
+const renderWithProviders = (ui: React.ReactElement, fileService?: IFileService) => {
   const queryClient = createTestQueryClient();
+  const svc = fileService ?? createMockFileService();
   return render(
     <QueryClientProvider client={queryClient}>
-      {ui}
+      <FileServiceProvider value={svc}>
+        {ui}
+      </FileServiceProvider>
     </QueryClientProvider>
   );
 };
@@ -42,45 +56,48 @@ describe("FilePreview", () => {
   });
 
   it("renders file preview with file name", async () => {
-    vi.mocked(backlogService.getFileContent).mockResolvedValue("# Test Content");
+    const svc = createMockFileService({
+      getFileContent: vi.fn().mockResolvedValue("# Test Content"),
+    });
 
     renderWithProviders(
       <FilePreview
-        backlogKind="idea"
-        backlogName="test-idea"
         filePath="docs/readme.md"
         fileName="readme.md"
-      />
+      />,
+      svc,
     );
 
     expect(screen.getByTestId("file-preview-name")).toHaveTextContent("readme.md");
   });
 
   it("shows loading state while fetching content", async () => {
-    vi.mocked(backlogService.getFileContent).mockReturnValue(new Promise(() => {}));
+    const svc = createMockFileService({
+      getFileContent: vi.fn().mockReturnValue(new Promise(() => {})),
+    });
 
     renderWithProviders(
       <FilePreview
-        backlogKind="idea"
-        backlogName="test-idea"
         filePath="test.txt"
         fileName="test.txt"
-      />
+      />,
+      svc,
     );
 
     expect(screen.getByTestId("file-preview-name")).toHaveTextContent("test.txt");
   });
 
   it("renders markdown content correctly", async () => {
-    vi.mocked(backlogService.getFileContent).mockResolvedValue("# Hello World\n\nThis is a test.");
+    const svc = createMockFileService({
+      getFileContent: vi.fn().mockResolvedValue("# Hello World\n\nThis is a test."),
+    });
 
     renderWithProviders(
       <FilePreview
-        backlogKind="idea"
-        backlogName="test-idea"
         filePath="README.md"
         fileName="README.md"
-      />
+      />,
+      svc,
     );
 
     await waitFor(() => {
@@ -95,15 +112,16 @@ describe("FilePreview", () => {
   });
 
   it("toggles markdown rendering between rendered and raw", async () => {
-    vi.mocked(backlogService.getFileContent).mockResolvedValue("# Hello World\n\nThis is a test.");
+    const svc = createMockFileService({
+      getFileContent: vi.fn().mockResolvedValue("# Hello World\n\nThis is a test."),
+    });
 
     renderWithProviders(
       <FilePreview
-        backlogKind="idea"
-        backlogName="test-idea"
         filePath="README.md"
         fileName="README.md"
-      />
+      />,
+      svc,
     );
 
     await waitFor(() => {
@@ -125,15 +143,16 @@ describe("FilePreview", () => {
   });
 
   it("renders code files with editor", async () => {
-    vi.mocked(backlogService.getFileContent).mockResolvedValue("function test() {\n  return true;\n}");
+    const svc = createMockFileService({
+      getFileContent: vi.fn().mockResolvedValue("function test() {\n  return true;\n}"),
+    });
 
     renderWithProviders(
       <FilePreview
-        backlogKind="idea"
-        backlogName="test-idea"
         filePath="src/test.ts"
         fileName="test.ts"
-      />
+      />,
+      svc,
     );
 
     await waitFor(() => {
@@ -142,15 +161,16 @@ describe("FilePreview", () => {
   });
 
   it("renders plain text for unknown file types", async () => {
-    vi.mocked(backlogService.getFileContent).mockResolvedValue("Plain text content");
+    const svc = createMockFileService({
+      getFileContent: vi.fn().mockResolvedValue("Plain text content"),
+    });
 
     renderWithProviders(
       <FilePreview
-        backlogKind="idea"
-        backlogName="test-idea"
         filePath="notes.txt"
         fileName="notes.txt"
-      />
+      />,
+      svc,
     );
 
     await waitFor(() => {
@@ -161,20 +181,21 @@ describe("FilePreview", () => {
   });
 
   it("saves edited content and shows diff mode", async () => {
-    vi.mocked(backlogService.getFileContent).mockResolvedValue("Original content");
-    vi.mocked(backlogService.saveFileContent).mockResolvedValue({
-      name: "notes.txt",
-      path: "notes.txt",
-      type: "file",
+    const svc = createMockFileService({
+      getFileContent: vi.fn().mockResolvedValue("Original content"),
+      saveFileContent: vi.fn().mockResolvedValue({
+        name: "notes.txt",
+        path: "notes.txt",
+        type: "file",
+      }),
     });
 
     renderWithProviders(
       <FilePreview
-        backlogKind="idea"
-        backlogName="test-idea"
         filePath="notes.txt"
         fileName="notes.txt"
-      />
+      />,
+      svc,
     );
 
     const editor = await screen.findByTestId("file-preview-editor");
@@ -190,9 +211,7 @@ describe("FilePreview", () => {
     fireEvent.click(screen.getByTestId("file-preview-save"));
 
     await waitFor(() => {
-      expect(backlogService.saveFileContent).toHaveBeenCalledWith(
-        "idea",
-        "test-idea",
+      expect(svc.saveFileContent).toHaveBeenCalledWith(
         "notes.txt",
         "Updated content",
         "text/plain"
@@ -201,13 +220,14 @@ describe("FilePreview", () => {
   });
 
   it("renders image preview for image files", () => {
+    const svc = createMockFileService();
+
     renderWithProviders(
       <FilePreview
-        backlogKind="idea"
-        backlogName="test-idea"
         filePath="images/logo.png"
         fileName="logo.png"
-      />
+      />,
+      svc,
     );
 
     const image = screen.getByTestId("file-preview-image");
@@ -216,15 +236,16 @@ describe("FilePreview", () => {
   });
 
   it.skip("shows error state when file fetch fails", async () => {
-    vi.mocked(backlogService.getFileContent).mockRejectedValue(new Error("File not found"));
+    const svc = createMockFileService({
+      getFileContent: vi.fn().mockRejectedValue(new Error("File not found")),
+    });
 
     renderWithProviders(
       <FilePreview
-        backlogKind="idea"
-        backlogName="test-idea"
         filePath="missing.txt"
         fileName="missing.txt"
-      />
+      />,
+      svc,
     );
 
     await waitFor(
@@ -236,15 +257,16 @@ describe("FilePreview", () => {
   });
 
   it("displays file path in header", async () => {
-    vi.mocked(backlogService.getFileContent).mockResolvedValue("content");
+    const svc = createMockFileService({
+      getFileContent: vi.fn().mockResolvedValue("content"),
+    });
 
     renderWithProviders(
       <FilePreview
-        backlogKind="idea"
-        backlogName="test-idea"
         filePath="src/components/Button.tsx"
         fileName="Button.tsx"
-      />
+      />,
+      svc,
     );
 
     expect(screen.getByText("src/components/Button.tsx")).toBeInTheDocument();

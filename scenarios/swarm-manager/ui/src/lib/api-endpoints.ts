@@ -74,6 +74,7 @@ export const API_ENDPOINTS = {
   initiativeByName: (name: string) => `/initiatives/${name}`,
   initiativeItems: (name: string) => `/initiatives/${name}/items`,
   initiativeFiles: (name: string) => `/initiatives/${name}/files`,
+  initiativeFileOperations: (name: string) => `/initiatives/${name}/files`,
   initiativeFileContent: (name: string, filePath: string) =>
     `/initiatives/${name}/files/${filePath}`,
   graph: "/graph",

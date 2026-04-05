@@ -8,6 +8,7 @@ You are a workshop clarification agent for the Swarm Manager backlog system. An 
 - **Name:** {{ITEM_NAME}}
 - **Title:** {{ITEM_TITLE}}
 - **Description:** {{ITEM_DESCRIPTION}}
+- **Initiative:** {{ITEM_INITIATIVE}}
 
 ## Decision Being Clarified
 

@@ -52,6 +52,8 @@ import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { useDetailNavigation } from "../hooks/useDetailNavigation";
 import { selectionToNodeId } from "../stores/detail-selection-store";
 import { BacklogDetailProvider } from "../contexts/BacklogDetailContext";
+import { FileServiceProvider } from "../contexts/FileServiceContext";
+import { createBacklogFileServiceAdapter } from "../services/backlog/backlog-file-service-adapter";
 
 const DEFAULT_PREVIEW_FILE_PATH = "spec.json";
 const AGENT_RUN_REFRESH_MS = 6000;
@@ -341,22 +343,27 @@ export function BacklogDetailsPage() {
     />
   ) : undefined;
 
-  const fileWorkspaceElement = (
-    <BacklogFileWorkspace
-      files={files}
-      isLoadingFiles={isLoadingFiles}
-      filesError={filesError}
-      selectedFile={selectedFile}
-      isLocked={isLocked}
-      backlogKind={backlogKind as BacklogKind}
-      backlogName={name}
-      onFileSelect={handlers.handleFileSelect}
-      onRefetchFiles={refetchFiles}
-      onUploadComplete={handlers.handleUploadComplete}
-      fileActionPending={isFileActionPending}
-      onFileAction={handlers.handleFileAction}
-    />
+  const fileService = useMemo(
+    () => backlogKind && name ? createBacklogFileServiceAdapter(backlogKind as BacklogKind, name) : null,
+    [backlogKind, name],
   );
+
+  const fileWorkspaceElement = fileService ? (
+    <FileServiceProvider value={fileService}>
+      <BacklogFileWorkspace
+        files={files}
+        isLoadingFiles={isLoadingFiles}
+        filesError={filesError}
+        selectedFile={selectedFile}
+        isLocked={isLocked}
+        onFileSelect={handlers.handleFileSelect}
+        onRefetchFiles={refetchFiles}
+        onUploadComplete={handlers.handleUploadComplete}
+        fileActionPending={isFileActionPending}
+        onFileAction={handlers.handleFileAction}
+      />
+    </FileServiceProvider>
+  ) : null;
 
   const tabBar = item ? (
     <div className="border-t border-slate-800/50" data-testid={selectors.backlogDetails.tabRow}>

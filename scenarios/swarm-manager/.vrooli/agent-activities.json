@@ -2664,5 +2664,188 @@
       "skill_id": "swarm-manager-workshop-finalize"
     },
     "updated_at": "2026-04-04T18:06:59Z"
+  },
+  {
+    "activity_id": "100f85ed08368303",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "lpbs-desktop-release-contract-hardening",
+    "owner_title": "Harden The LPBS Desktop Release Contract",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "bcf57ffe-14c1-4ad7-8f16-d3ea7d569525",
+    "run_id": "2462f23e-4ded-4e4e-b5af-978e35f8d792",
+    "status": "complete",
+    "requested_at": "2026-04-04T23:12:50Z",
+    "started_at": "2026-04-04T23:12:50Z",
+    "finished_at": "2026-04-04T23:18:35Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-04T23:18:36Z"
+  },
+  {
+    "activity_id": "3ba5b6675351890a",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "scenario-to-desktop-approval-gate-integration",
+    "owner_title": "Integrate Scenario To Desktop With Canonical Approval Gates",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "5772b5e6-db0e-468d-a18c-655f24e99a0b",
+    "run_id": "643751c5-7d95-4587-a13c-77b66b24626e",
+    "status": "complete",
+    "requested_at": "2026-04-04T23:14:54Z",
+    "started_at": "2026-04-04T23:14:54Z",
+    "finished_at": "2026-04-04T23:20:11Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "auto_triggered": "true",
+      "entrypoint": "backlog.workshop_auto_advance",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-04T23:21:03Z"
+  },
+  {
+    "activity_id": "85abbb5def8e270f",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "vrooli-events-architecture",
+    "owner_title": "Design The Event Bus Architecture And Policy Model",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "25b97716-3240-406e-99a7-d8dfe57d2370",
+    "run_id": "62797fb1-059f-416e-8d50-a4c8995d7331",
+    "status": "failed",
+    "requested_at": "2026-04-04T23:56:51Z",
+    "started_at": "2026-04-04T23:56:51Z",
+    "finished_at": "2026-04-05T00:00:18Z",
+    "failure_reason": "Workshop round 1 is complete. Here's the summary:\n\n---\n\n**Research: Design The Event Bus Architecture And Policy Model** — Round 1\n\n### Key Findings\n\n1. **Discovery package is extension-ready** — Stateless resolver with `CommandRunner` interface; event emission can wrap `ResolveScenarioURL` non-invasively\n2. **Swarm-manager's eventlog is a proven template** — Fire-and-forget SQLite emitter with WAL mode, Repository abstraction; can be generalized into `packages/api-core/`\n3. **Policy is greenfield** — No rate limiting, circuit breaking, or ACL middleware exists anywhere in the codebase\n4. **Proto infrastructure ready** — `buf` generates Go/TS/Python/JS; agent-manager's `RunEvent` with `oneof` provides an envelope template\n\n### Decisions for You (3)\n\n| # | Topic | Recommendation |\n|---|-------|---------------|\n| **d1** | Event envelope metadata fields | **B: Rich envelope** (event_id, source/target scenario, event_type, timestamp, correlation_id, payload, metadata map) — balances debuggability with wire efficiency |\n| **d2** | Policy rule expression format | **A: Typed proto messages** per policy kind (AccessRule, RateLimit, CircuitBreaker) — strong typing, fast evaluation, no parsing overhead |\n| **d3** | Behavior during vrooli-events outage | **B: Local ring buffer** (configurable max size, flush on reconnect) — bounded risk, prevents total loss during brief outages |\n\n### Readiness (0-3 scale)\n| Dimension | Score | Notes |\n|-----------|-------|-------|\n| Problem clarity | 2 | Clear question, scope from initiative is well-defined |\n| Scope defined | 2 | Boundaries set by initiative, acceptance globs defined |\n| Approach solid | 1 | General direction clear, specifics need decisions above |\n| Testable | 1 | Verification paths exist but not yet documented |\n| Risk awareness | 1 | Some gaps noted, more to surface in later rounds |",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop-research"
+    },
+    "updated_at": "2026-04-05T00:00:52Z"
+  },
+  {
+    "activity_id": "4e6024297cf06666",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "vrooli-events-architecture",
+    "owner_title": "Design The Event Bus Architecture And Policy Model",
+    "purpose": "clarify",
+    "interaction_type": "spawn",
+    "task_id": "98c0ee87-7926-45f2-a506-60844ac990bd",
+    "run_id": "ddb8f0e3-936d-4850-b473-86021712f61e",
+    "status": "complete",
+    "requested_at": "2026-04-05T00:01:58Z",
+    "started_at": "2026-04-05T00:01:59Z",
+    "finished_at": "2026-04-05T00:02:38Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.clarification",
+      "item_id": "d1",
+      "round_number": "1"
+    },
+    "updated_at": "2026-04-05T00:05:45Z"
+  },
+  {
+    "activity_id": "70e3f255b5027943",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "vrooli-events-architecture",
+    "owner_title": "Design The Event Bus Architecture And Policy Model",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "9aed4944-a456-4563-abda-8f6d289c04b2",
+    "run_id": "032e2f03-67b9-490e-b466-3763b0dedc60",
+    "status": "complete",
+    "requested_at": "2026-04-05T00:07:01Z",
+    "started_at": "2026-04-05T00:07:01Z",
+    "finished_at": "2026-04-05T00:11:30Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "auto_triggered": "true",
+      "entrypoint": "backlog.workshop_auto_advance",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop-research"
+    },
+    "updated_at": "2026-04-05T00:50:15Z"
+  },
+  {
+    "activity_id": "eee02b2ced0f5b18",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "vrooli-events-architecture",
+    "owner_title": "Design The Event Bus Architecture And Policy Model",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "97a41330-5ff9-4d15-bcd8-1f128290b7f6",
+    "run_id": "ccd01911-ff5e-4371-af0e-dbb0f75f8165",
+    "status": "failed",
+    "requested_at": "2026-04-05T02:36:03Z",
+    "started_at": "2026-04-05T02:36:03Z",
+    "finished_at": "2026-04-05T02:41:10Z",
+    "failure_reason": "Both files confirmed. Here's the **Round 3 summary**:\n\n---\n\n**Workshop Round 3 — Synthesis \u0026 Schema Design**\n\nThis round shifted from exploration to synthesis. I investigated the remaining gaps (rate limiting patterns, proto compatibility, SQLite schemas, discovery callsites) and produced concrete schema proposals.\n\n### New Findings (5)\n- **google.protobuf.Any** isn't used yet in the codebase — first-time pattern, but buf config already supports it\n- **Discovery decorator pattern** — `EmittingResolver` wraps the Resolver at the library level, not at callsites\n- **SQLite event store DDL** — full schema with indexes for type, source, correlation, and time-based pruning\n- **Policy rules table DDL** — unified table for all 3 policy kinds with glob patterns and specificity scoring\n- **No rate limiting exists anywhere** — entirely greenfield\n\n### 3 Decisions for Your Input\n\n| ID | Topic | Recommended |\n|----|-------|-------------|\n| **d1** | Rate limiting algorithm | **A: Token bucket** — allows bursts, simple state (2 numbers per rule), industry standard |\n| **d2** | Policy cache invalidation | **A: Full snapshot push** — simplest client logic, acceptable bandwidth at early scale |\n| **d3** | Access control specificity scoring | **A: Segment-count scoring** — exact=3, prefix=2, wildcard=1, sum across source+target+action |\n\n### Readiness: `problem_clarity:3, scope_defined:3, approach_solid:2, testable:2, risk_awareness:2`\n\nThe research question and scope are fully defined. The approach and testability are at 2 because the 3 pending decisions (rate limiting, cache invalidation, specificity scoring) affect implementation detail. Once those settle, the conclusion should be ready for finalization.",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "auto_triggered": "true",
+      "entrypoint": "backlog.workshop_auto_advance",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop-research"
+    },
+    "updated_at": "2026-04-05T02:41:16Z"
+  },
+  {
+    "activity_id": "356c13182b3e70ed",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "vrooli-events-architecture",
+    "owner_title": "Design The Event Bus Architecture And Policy Model",
+    "purpose": "finalize",
+    "interaction_type": "spawn",
+    "task_id": "00b11249-533b-4d4f-b4dd-9815af71f132",
+    "run_id": "07384f28-0c1a-4c12-b3df-3be897d5dc07",
+    "status": "failed",
+    "requested_at": "2026-04-05T02:42:02Z",
+    "started_at": "2026-04-05T02:42:02Z",
+    "finished_at": "2026-04-05T02:44:49Z",
+    "failure_reason": "Finalize round complete. Here's what was done:\n\n**Synthesized from Round 3** (3 decisions incorporated):\n1. **Token bucket rate limiting** → Added Finding 17 with capacity/refill_rate state model\n2. **Full snapshot policy push** → Added Finding 18 with atomic cache replacement and scale boundary note\n3. **Segment-count specificity scoring** → Updated Finding 12 with the 3/2/1 point formula and tie-breaking\n\n**Conclusion updates:**\n- Summary now mentions all three algorithms\n- All 4 Actions updated with algorithm-specific details (proto fields, cache evaluation logic, middleware enforcement)\n- 3 \"depends on Round 3\" limitations removed; 1 new scale-boundary limitation added for snapshot push\n\n**Readiness scores:** problem_clarity=3, scope_defined=3, approach_solid=3, testable=2, risk_awareness=3\n\nThe architecture is now fully settled — all design decisions are resolved. The testability score stays at 2 because test strategies depend on implementation choices in the execute items. Remaining gaps (ring buffer details, pruning SQL performance, Any integration) are implementation-level and appropriately scoped for the execute items.",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "auto_triggered": "true",
+      "entrypoint": "backlog.workshop_auto_advance",
+      "mode": "finalize",
+      "skill_id": "swarm-manager-workshop-research-finalize"
+    },
+    "updated_at": "2026-04-05T02:44:49Z"
+  },
+  {
+    "activity_id": "e82f63b48dab4ce1",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "vrooli-events-architecture",
+    "owner_title": "Design The Event Bus Architecture And Policy Model",
+    "execution_id": "49708abeb4f7884c",
+    "purpose": "process",
+    "interaction_type": "spawn",
+    "task_id": "d243c188-0d9d-4689-86a3-c5f1cff7f71b",
+    "run_id": "1c887816-63aa-490a-a5ac-7aaa37a6637b",
+    "status": "running",
+    "requested_at": "2026-04-05T02:50:16Z",
+    "started_at": "2026-04-05T02:50:17Z",
+    "requested_by": "swarm-manager-ui",
+    "metadata": {
+      "entrypoint": "execution.start",
+      "mode": "yolo",
+      "operation": "generator"
+    },
+    "updated_at": "2026-04-05T02:50:17Z"
   }
 ]

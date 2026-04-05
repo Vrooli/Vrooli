@@ -8,14 +8,26 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FileUpload } from "./file-upload";
+import { FileServiceProvider } from "../../contexts/FileServiceContext";
+import type { IFileService } from "../../services/file-service-types";
 
-vi.mock("../../services", () => ({
-  backlogService: {
-    uploadFile: vi.fn(),
-  },
-}));
-
-import { backlogService } from "../../services";
+function createMockFileService(overrides?: Partial<IFileService>): IFileService {
+  return {
+    entityLabel: "backlog item",
+    protectedFile: "spec.json",
+    fileContentBaseUrl: "/api/v1/backlog/idea/test-idea/files",
+    queryKeyPrefix: ["backlog", "idea", "test-idea"],
+    getFiles: vi.fn().mockResolvedValue([]),
+    getFileContent: vi.fn().mockResolvedValue(""),
+    uploadFile: vi.fn().mockResolvedValue({ name: "", path: "", type: "file" }),
+    saveFileContent: vi.fn().mockResolvedValue({ name: "", path: "", type: "file" }),
+    renameFile: vi.fn().mockResolvedValue({}),
+    moveFile: vi.fn().mockResolvedValue({}),
+    copyFile: vi.fn().mockResolvedValue({}),
+    deleteFile: vi.fn().mockResolvedValue({}),
+    ...overrides,
+  };
+}
 
 const createTestQueryClient = () =>
   new QueryClient({
@@ -29,11 +41,14 @@ const createTestQueryClient = () =>
     },
   });
 
-const renderWithProviders = (ui: React.ReactElement) => {
+const renderWithProviders = (ui: React.ReactElement, fileService?: IFileService) => {
   const queryClient = createTestQueryClient();
+  const svc = fileService ?? createMockFileService();
   return render(
     <QueryClientProvider client={queryClient}>
-      {ui}
+      <FileServiceProvider value={svc}>
+        {ui}
+      </FileServiceProvider>
     </QueryClientProvider>
   );
 };
@@ -48,7 +63,7 @@ describe("FileUpload", () => {
   });
 
   it("renders upload dropzone", () => {
-    renderWithProviders(<FileUpload backlogKind="idea" backlogName="test-idea" />);
+    renderWithProviders(<FileUpload />);
 
     expect(screen.getByTestId("file-upload-dropzone")).toBeInTheDocument();
     expect(screen.getByText(/click to upload/i)).toBeInTheDocument();
@@ -56,14 +71,16 @@ describe("FileUpload", () => {
   });
 
   it("handles file selection via input", async () => {
-    vi.mocked(backlogService.uploadFile).mockResolvedValue({
-      name: "test.txt",
-      path: "test.txt",
-      type: "file",
-      size: 12,
+    const svc = createMockFileService({
+      uploadFile: vi.fn().mockResolvedValue({
+        name: "test.txt",
+        path: "test.txt",
+        type: "file",
+        size: 12,
+      }),
     });
 
-    renderWithProviders(<FileUpload backlogKind="idea" backlogName="test-idea" />);
+    renderWithProviders(<FileUpload />, svc);
 
     const input = screen.getByTestId("file-upload-input");
     const file = createFile("test.txt");
@@ -71,19 +88,21 @@ describe("FileUpload", () => {
     fireEvent.change(input, { target: { files: [file] } });
 
     await waitFor(() => {
-      expect(backlogService.uploadFile).toHaveBeenCalledWith("idea", "test-idea", file, undefined);
+      expect(svc.uploadFile).toHaveBeenCalledWith(file, undefined);
     });
   });
 
   it("shows upload list when files are added", async () => {
-    vi.mocked(backlogService.uploadFile).mockResolvedValue({
-      name: "test.txt",
-      path: "test.txt",
-      type: "file",
-      size: 12,
+    const svc = createMockFileService({
+      uploadFile: vi.fn().mockResolvedValue({
+        name: "test.txt",
+        path: "test.txt",
+        type: "file",
+        size: 12,
+      }),
     });
 
-    renderWithProviders(<FileUpload backlogKind="idea" backlogName="test-idea" />);
+    renderWithProviders(<FileUpload />, svc);
 
     const input = screen.getByTestId("file-upload-input");
     const file = createFile("test.txt");
@@ -98,14 +117,16 @@ describe("FileUpload", () => {
   });
 
   it("shows success state after successful upload", async () => {
-    vi.mocked(backlogService.uploadFile).mockResolvedValue({
-      name: "test.txt",
-      path: "test.txt",
-      type: "file",
-      size: 12,
+    const svc = createMockFileService({
+      uploadFile: vi.fn().mockResolvedValue({
+        name: "test.txt",
+        path: "test.txt",
+        type: "file",
+        size: 12,
+      }),
     });
 
-    renderWithProviders(<FileUpload backlogKind="idea" backlogName="test-idea" />);
+    renderWithProviders(<FileUpload />, svc);
 
     const input = screen.getByTestId("file-upload-input");
     const file = createFile("test.txt");
@@ -119,9 +140,11 @@ describe("FileUpload", () => {
   });
 
   it("shows error state when upload fails", async () => {
-    vi.mocked(backlogService.uploadFile).mockRejectedValue(new Error("Upload failed"));
+    const svc = createMockFileService({
+      uploadFile: vi.fn().mockRejectedValue(new Error("Upload failed")),
+    });
 
-    renderWithProviders(<FileUpload backlogKind="idea" backlogName="test-idea" />);
+    renderWithProviders(<FileUpload />, svc);
 
     const input = screen.getByTestId("file-upload-input");
     const file = createFile("test.txt");
@@ -137,16 +160,18 @@ describe("FileUpload", () => {
   });
 
   it("allows retry on failed upload", async () => {
-    vi.mocked(backlogService.uploadFile)
-      .mockRejectedValueOnce(new Error("First attempt failed"))
-      .mockResolvedValueOnce({
-        name: "test.txt",
-        path: "test.txt",
-        type: "file",
-        size: 12,
-      });
+    const svc = createMockFileService({
+      uploadFile: vi.fn()
+        .mockRejectedValueOnce(new Error("First attempt failed"))
+        .mockResolvedValueOnce({
+          name: "test.txt",
+          path: "test.txt",
+          type: "file",
+          size: 12,
+        }),
+    });
 
-    renderWithProviders(<FileUpload backlogKind="idea" backlogName="test-idea" />);
+    renderWithProviders(<FileUpload />, svc);
 
     const input = screen.getByTestId("file-upload-input");
     const file = createFile("test.txt");
@@ -166,14 +191,16 @@ describe("FileUpload", () => {
   });
 
   it("allows removing an upload", async () => {
-    vi.mocked(backlogService.uploadFile).mockResolvedValue({
-      name: "test.txt",
-      path: "test.txt",
-      type: "file",
-      size: 12,
+    const svc = createMockFileService({
+      uploadFile: vi.fn().mockResolvedValue({
+        name: "test.txt",
+        path: "test.txt",
+        type: "file",
+        size: 12,
+      }),
     });
 
-    renderWithProviders(<FileUpload backlogKind="idea" backlogName="test-idea" />);
+    renderWithProviders(<FileUpload />, svc);
 
     const input = screen.getByTestId("file-upload-input");
     const file = createFile("test.txt");
@@ -192,7 +219,7 @@ describe("FileUpload", () => {
   });
 
   it("handles drag over visual feedback", () => {
-    renderWithProviders(<FileUpload backlogKind="idea" backlogName="test-idea" />);
+    renderWithProviders(<FileUpload />);
 
     const dropzone = screen.getByTestId("file-upload-dropzone");
 
@@ -204,14 +231,16 @@ describe("FileUpload", () => {
   });
 
   it("handles file drop", async () => {
-    vi.mocked(backlogService.uploadFile).mockResolvedValue({
-      name: "test.txt",
-      path: "test.txt",
-      type: "file",
-      size: 12,
+    const svc = createMockFileService({
+      uploadFile: vi.fn().mockResolvedValue({
+        name: "test.txt",
+        path: "test.txt",
+        type: "file",
+        size: 12,
+      }),
     });
 
-    renderWithProviders(<FileUpload backlogKind="idea" backlogName="test-idea" />);
+    renderWithProviders(<FileUpload />, svc);
 
     const dropzone = screen.getByTestId("file-upload-dropzone");
     const file = createFile("test.txt");
@@ -221,20 +250,23 @@ describe("FileUpload", () => {
     });
 
     await waitFor(() => {
-      expect(backlogService.uploadFile).toHaveBeenCalledWith("idea", "test-idea", file, undefined);
+      expect(svc.uploadFile).toHaveBeenCalledWith(file, undefined);
     });
   });
 
   it("supports uploading to a target path", async () => {
-    vi.mocked(backlogService.uploadFile).mockResolvedValue({
-      name: "test.txt",
-      path: "docs/test.txt",
-      type: "file",
-      size: 12,
+    const svc = createMockFileService({
+      uploadFile: vi.fn().mockResolvedValue({
+        name: "test.txt",
+        path: "docs/test.txt",
+        type: "file",
+        size: 12,
+      }),
     });
 
     renderWithProviders(
-      <FileUpload backlogKind="idea" backlogName="test-idea" targetPath="docs" />
+      <FileUpload targetPath="docs" />,
+      svc,
     );
 
     const input = screen.getByTestId("file-upload-input");
@@ -243,7 +275,7 @@ describe("FileUpload", () => {
     fireEvent.change(input, { target: { files: [file] } });
 
     await waitFor(() => {
-      expect(backlogService.uploadFile).toHaveBeenCalledWith("idea", "test-idea", file, "docs");
+      expect(svc.uploadFile).toHaveBeenCalledWith(file, "docs");
     });
   });
 });

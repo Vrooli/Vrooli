@@ -104,6 +104,12 @@ You are initializing a Swarm Manager backlog item. Your goal is to bootstrap it 
    - `archive/` — user-provided materials (requirements docs, prior scenario artifacts, designs)
    - Any user-added files in the item root
    - Existing `plan.md` and `workshop/` artifacts from a prior run (preserve these)
+   - **Initiative context** — If this item belongs to initiative `{{ITEM_INITIATIVE}}`, check for strategic context:
+     ```bash
+     swarm-manager initiatives get --name {{ITEM_INITIATIVE}}
+     swarm-manager initiatives files --name {{ITEM_INITIATIVE}}
+     ```
+     Read any files present (orchestration summaries, decision logs, strategy docs). Use initiative context to align decisions with the broader initiative goals and understand how this item relates to sibling items.
 
 2. **Check acceptance fields**
 

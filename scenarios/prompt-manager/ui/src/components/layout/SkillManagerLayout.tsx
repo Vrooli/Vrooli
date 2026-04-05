@@ -18,7 +18,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { toast } from '@/hooks/use-toast'
 import { Home, X, GripVertical, Settings } from 'lucide-react'
 import { getIcon } from '@/lib/icons'
-import { copyAsyncToClipboard } from '@/lib/clipboard'
+import { copyToClipboard } from '@/lib/clipboard'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { DeleteTeamDialog } from '../shared/DeleteTeamDialog'
 import { PanelErrorBoundary } from '../PanelErrorBoundary'
@@ -297,6 +297,79 @@ export function SkillManagerLayout() {
   // Combine copy success state (local since it's UI feedback)
   const [combineCopySuccess, setCombineCopySuccess] = useState(false)
 
+  // Pre-fetched combined content — ready before the user taps "Copy" so the
+  // clipboard write happens synchronously within the user-activation window.
+  const [prefetchedContent, setPrefetchedContent] = useState<string | null>(null)
+  const prefetchAbort = useRef<AbortController | null>(null)
+
+  // Re-fetch whenever selection, format, or entity type changes.
+  useEffect(() => {
+    // Cancel any in-flight fetch.
+    prefetchAbort.current?.abort()
+    setPrefetchedContent(null)
+
+    if (!combineMode || combineSelectedIds.size === 0) return
+
+    const identifiers = Array.from(combineSelectedIds)
+    const abort = new AbortController()
+    prefetchAbort.current = abort
+
+    let stale = false
+    abort.signal.addEventListener('abort', () => { stale = true })
+
+    const run = async () => {
+      try {
+        let text: string
+        if (combineEntityType === 'skills') {
+          const response = await api.displaySkills(identifiers, combineFormat)
+          text = response.combined
+        } else if (combineEntityType === 'agents') {
+          const results = identifiers.map((id) => {
+            const agent = agents.find((a) => a.id === id)
+            return agent ? {
+              id: agent.id,
+              displayName: agent.displayName,
+              description: agent.description ?? '',
+              status: agent.status,
+              tags: agent.tags,
+              score: 0,
+              scorePercent: 0,
+            } : null
+          }).filter((r): r is NonNullable<typeof r> => r !== null)
+          text = formatAgents(results, combineFormat)
+        } else if (combineEntityType === 'teams') {
+          const teams = await api.getTeams()
+          const selected = teams.filter((t) => combineSelectedIds.has(t.id))
+          const results = selected.map((t) => ({
+            id: t.id,
+            displayName: t.displayName,
+            mission: t.mission ?? '',
+            enabled: t.enabled,
+            memberCount: t.memberCount,
+            score: 0,
+            scorePercent: 0,
+          }))
+          text = formatTeams(results, combineFormat)
+        } else {
+          const topics = await api.getTopics()
+          const selected = topics.filter((t) => combineSelectedIds.has(t.id))
+          const results = selected.map((t) => ({
+            topic: t,
+            score: 0,
+          }))
+          text = formatTopics(results, combineFormat)
+        }
+        if (!stale) setPrefetchedContent(text)
+      } catch {
+        // Prefetch failed — handleCombineCopy will show an error when clicked.
+      }
+    }
+    void run()
+
+    return () => { abort.abort() }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- agents array identity changes; content depends on IDs not refs
+  }, [combineMode, combineSelectedIds, combineFormat, combineEntityType])
+
   // Combine helper functions
   const handleCombineCheckboxChange = useCallback(
     (node: TreeNode) => {
@@ -315,66 +388,26 @@ export function SkillManagerLayout() {
   const handleCombineCopy = useCallback(() => {
     if (combineSelectedIds.size === 0) return
 
-    setIsCombineCopying(true)
-    setCombineCopySuccess(false)
-
     const identifiers = Array.from(combineSelectedIds)
     const entityLabel = combineEntityType === 'skills' ? 'skill'
       : combineEntityType === 'agents' ? 'agent'
       : combineEntityType === 'teams' ? 'team'
       : 'topic'
 
-    // Build content promise based on entity type
-    let contentPromise: Promise<string>
-    if (combineEntityType === 'skills') {
-      contentPromise = api.displaySkills(identifiers, combineFormat)
-        .then((response) => response.combined)
-    } else if (combineEntityType === 'agents') {
-      // Need to look up the full result objects for formatting
-      const results = identifiers.map((id) => {
-        const agent = agents.find((a) => a.id === id)
-        return agent ? {
-          id: agent.id,
-          displayName: agent.displayName,
-          description: agent.description ?? '',
-          status: agent.status,
-          tags: agent.tags,
-          score: 0,
-          scorePercent: 0,
-        } : null
-      }).filter((r): r is NonNullable<typeof r> => r !== null)
-      contentPromise = Promise.resolve(formatAgents(results, combineFormat))
-    } else if (combineEntityType === 'teams') {
-      // Teams are fetched by the TeamListPanel — we need to get them from the API
-      contentPromise = api.getTeams().then((teams) => {
-        const selected = teams.filter((t) => combineSelectedIds.has(t.id))
-        const results = selected.map((t) => ({
-          id: t.id,
-          displayName: t.displayName,
-          mission: t.mission ?? '',
-          enabled: t.enabled,
-          memberCount: t.memberCount,
-          score: 0,
-          scorePercent: 0,
-        }))
-        return formatTeams(results, combineFormat)
+    if (prefetchedContent === null) {
+      toast({
+        title: 'Still loading',
+        description: 'Content is being prepared — please try again in a moment.',
       })
-    } else {
-      // Topics
-      contentPromise = api.getTopics().then((topics) => {
-        const selected = topics.filter((t) => combineSelectedIds.has(t.id))
-        const results = selected.map((t) => ({
-          topic: t,
-          score: 0,
-        }))
-        return formatTopics(results, combineFormat)
-      })
+      return
     }
 
-    // IMPORTANT: copyAsyncToClipboard must be called synchronously in the click
-    // handler (within user activation). It uses ClipboardItem with a Promise<Blob>
-    // so the browser reserves the clipboard write immediately while content loads.
-    copyAsyncToClipboard(contentPromise)
+    // Content is already resolved — copy happens synchronously within the
+    // user-activation window, so clipboard APIs won't hang or be denied.
+    setIsCombineCopying(true)
+    setCombineCopySuccess(false)
+
+    copyToClipboard(prefetchedContent)
       .then(() => {
         setCombineCopySuccess(true)
         recordCopySet(combineEntityType, identifiers, combineFormat)
@@ -385,17 +418,18 @@ export function SkillManagerLayout() {
         setTimeout(() => setCombineCopySuccess(false), 2000)
       })
       .catch((error: unknown) => {
+        const msg = error instanceof Error ? error.message : String(error)
         console.error(`Failed to copy combined ${combineEntityType}:`, error)
         toast({
           title: 'Copy failed',
-          description: `Failed to combine and copy ${combineEntityType}`,
+          description: msg,
           variant: 'destructive',
         })
       })
       .finally(() => {
         setIsCombineCopying(false)
       })
-  }, [combineSelectedIds, combineFormat, combineEntityType, setIsCombineCopying, agents])
+  }, [combineSelectedIds, combineFormat, combineEntityType, setIsCombineCopying, prefetchedContent])
 
   // Skill editor state
   const {

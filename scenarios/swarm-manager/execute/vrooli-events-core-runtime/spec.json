@@ -1,0 +1,21 @@
+{
+  "acceptance_allow": [
+    "scenarios/vrooli-events/**",
+    "packages/proto/schemas/vrooli-events/**",
+    "packages/proto/gen/**"
+  ],
+  "created": "2026-04-04T22:36:30Z",
+  "depends_on": [
+    "research/vrooli-events-architecture"
+  ],
+  "description": "Greenfield Go scenario at scenarios/vrooli-events/. Core API with: high-throughput event ingestion endpoint (async, non-blocking), SSE pub/sub for event subscriptions and policy updates, policy CRUD API (access control rules, rate limit configs, circuit breaker thresholds per scenario pair), durable SQLite event store with configurable retention window and size-based pruning settings, structured event IDs ({scenario}.{domain}.{action}.{version}) with glob-pattern subscription matching. Proto contract in packages/proto/schemas/vrooli-events/v1/. CLI for event queries, policy management, and subscription management. Storage: SQLite + file-based. No Postgres, no Redis.",
+  "effort": "XL",
+  "initiative": "vrooli-events",
+  "kind": "execute",
+  "name": "vrooli-events-core-runtime",
+  "priority": 1,
+  "status": "backlog",
+  "tags": [],
+  "title": "Build The vrooli-events Scenario Core Runtime",
+  "updated": "2026-04-04T22:36:30Z"
+}

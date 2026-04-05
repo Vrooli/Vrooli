@@ -3,10 +3,12 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"brand-manager/domain"
 
@@ -304,6 +306,12 @@ func (h *Handlers) RegisterExtendedRoutes(r *mux.Router) {
 // GenerateOptions handles GET /api/v1/brands/generate/options. [REQ:BM-REQ-UI-GENERATE]
 // Returns available generation providers and their capabilities.
 func (h *Handlers) GenerateOptions(w http.ResponseWriter, r *http.Request) {
+	ollamaAvailable := false
+	if h.cfg.OllamaURL != "" {
+		ollamaAvailable = h.checkOllamaHealth(r.Context())
+	}
+	openrouterAvailable := h.cfg.OpenRouterAPIKey != ""
+
 	options := map[string]interface{}{
 		"providers": []map[string]interface{}{
 			{
@@ -317,7 +325,7 @@ func (h *Handlers) GenerateOptions(w http.ResponseWriter, r *http.Request) {
 				"id":           "ollama",
 				"name":         "Ollama (Local AI)",
 				"description":  "Generate brand elements using local Ollama models",
-				"available":    false,
+				"available":    ollamaAvailable,
 				"capabilities": []string{"colors", "typography", "voice"},
 				"requires":     "Ollama resource must be running",
 			},
@@ -325,7 +333,7 @@ func (h *Handlers) GenerateOptions(w http.ResponseWriter, r *http.Request) {
 				"id":           "openrouter",
 				"name":         "OpenRouter (Cloud AI)",
 				"description":  "Generate brand elements using cloud AI models",
-				"available":    false,
+				"available":    openrouterAvailable,
 				"capabilities": []string{"colors", "typography", "identity", "voice", "images"},
 				"requires":     "OPENROUTER_API_KEY environment variable",
 			},
@@ -336,4 +344,21 @@ func (h *Handlers) GenerateOptions(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(data)
+}
+
+// checkOllamaHealth checks if Ollama is reachable by hitting its /api/tags endpoint.
+func (h *Handlers) checkOllamaHealth(parent context.Context) bool {
+	ctx, cancel := context.WithTimeout(parent, 2*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(h.cfg.OllamaURL, "/")+"/api/tags", nil)
+	if err != nil {
+		return false
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return false
+	}
+	resp.Body.Close()
+	return resp.StatusCode == http.StatusOK
 }

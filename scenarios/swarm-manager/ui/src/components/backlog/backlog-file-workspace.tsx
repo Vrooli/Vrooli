@@ -19,7 +19,8 @@ import { Button } from "../ui/button";
 import { BottomSheet } from "../ui/bottom-sheet";
 import { cn } from "../../lib";
 import { selectors } from "../../consts/selectors";
-import type { BacklogFile, BacklogKind } from "../../types";
+import { useFileService } from "../../contexts/FileServiceContext";
+import type { BacklogFile } from "../../types";
 
 const MIN_FILES_PANEL_WIDTH = 240;
 const MAX_FILES_PANEL_WIDTH = 520;
@@ -32,8 +33,6 @@ export interface BacklogFileWorkspaceProps {
   filesError: Error | null;
   selectedFile: BacklogFile | null;
   isLocked: boolean;
-  backlogKind: BacklogKind;
-  backlogName: string;
   onFileSelect: (file: BacklogFile) => void;
   onRefetchFiles: () => void;
   onUploadComplete: () => void;
@@ -47,8 +46,6 @@ export function BacklogFileWorkspace({
   filesError,
   selectedFile,
   isLocked,
-  backlogKind,
-  backlogName,
   onFileSelect,
   onRefetchFiles,
   onUploadComplete,
@@ -97,7 +94,8 @@ export function BacklogFileWorkspace({
     setHeaderSlotProps(props);
   }, []);
 
-  const isProtectedSelectedFile = selectedFile?.path === "spec.json";
+  const fileService = useFileService();
+  const isProtectedSelectedFile = selectedFile?.path === fileService.protectedFile;
 
   const fileHeaderActions = (
     <>
@@ -144,8 +142,6 @@ export function BacklogFileWorkspace({
     filesError,
     selectedFile,
     isLocked,
-    backlogKind,
-    backlogName,
     onFileSelect: handleFileSelect,
     onRefetchFiles,
     onUploadComplete,
@@ -188,8 +184,6 @@ export function BacklogFileWorkspace({
                 }
               >
                 <FilePreview
-                  backlogKind={backlogKind}
-                  backlogName={backlogName}
                   filePath={selectedFile.path}
                   fileName={selectedFile.name}
                   compactHeader

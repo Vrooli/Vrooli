@@ -8,22 +8,21 @@
  * - Images: Displayed inline
  * - Text: Plain text display
  *
+ * Reads its file service from FileServiceContext — works with both
+ * backlog items and initiatives.
+ *
  * [REQ:REQ-P0-004] File preview for backlog details page
  */
 
 import { useCallback, type ReactNode } from "react";
 import { cn } from "../../lib/utils";
-import type { BacklogKind } from "../../types";
+import { useFileService } from "../../contexts/FileServiceContext";
 import { useFilePreviewState } from "./useFilePreviewState";
 import { FilePreviewHeader } from "./FilePreviewHeader";
 import { FilePreviewContent } from "./FilePreviewContent";
 
 export interface FilePreviewProps {
-  /** Backlog kind containing the file */
-  backlogKind: BacklogKind;
-  /** Backlog item name containing the file */
-  backlogName: string;
-  /** Path to the file within the backlog folder */
+  /** Path to the file within the entity folder */
   filePath: string;
   /** File name for display */
   fileName: string;
@@ -50,8 +49,6 @@ export interface FilePreviewProps {
  */
 // DOC: docs/internal/INTENT.md#git-tracked-backlog
 export function FilePreview({
-  backlogKind,
-  backlogName,
   filePath,
   fileName,
   className,
@@ -63,9 +60,9 @@ export function FilePreview({
   readOnly = false,
   "data-testid": testId,
 }: FilePreviewProps) {
+  const fileService = useFileService();
+
   const state = useFilePreviewState({
-    backlogKind,
-    backlogName,
     filePath,
     fileName,
     externalContent,
@@ -125,8 +122,7 @@ export function FilePreview({
 
       {/* Content */}
       <FilePreviewContent
-        backlogKind={backlogKind}
-        backlogName={backlogName}
+        fileContentBaseUrl={fileService.fileContentBaseUrl}
         filePath={filePath}
         fileName={fileName}
         contentClassName={contentClassName}
