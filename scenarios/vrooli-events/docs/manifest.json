@@ -102,9 +102,57 @@
           "internal": true
         },
         {
-          "path": "PROGRESS.md",
+          "path": "internal/PROGRESS.md",
           "title": "Progress Log",
           "description": "Development history and milestone tracking",
+          "internal": true
+        },
+        {
+          "path": "internal/INVARIANTS.md",
+          "title": "System Invariants",
+          "description": "Critical contracts: event ID format, WAL mode, buffer sizes, immutability",
+          "internal": true
+        },
+        {
+          "path": "internal/TEMPORAL-FLOWS.md",
+          "title": "Temporal Flows",
+          "description": "Async patterns: SSE delivery, pruning, heartbeat, race conditions",
+          "internal": true
+        },
+        {
+          "path": "internal/COHERENCE-NOTES.md",
+          "title": "React Coherence",
+          "description": "State management, styling patterns, component coherence audit",
+          "internal": true
+        },
+        {
+          "path": "internal/EXPERIENCE-AUDIT.md",
+          "title": "Experience Audit",
+          "description": "Persona mapping, friction analysis, navigation integrity",
+          "internal": true
+        },
+        {
+          "path": "internal/ASSUMPTIONS.md",
+          "title": "Assumptions",
+          "description": "Unvalidated beliefs: subscriber scale, pruning speed, EventSource limits",
+          "internal": true
+        },
+        {
+          "path": "internal/ERROR-SEMANTICS.md",
+          "title": "Error Semantics",
+          "description": "Error codes, HTTP status mapping, SSE error recovery",
+          "internal": true
+        },
+        {
+          "path": "internal/SECURITY-POSTURE.md",
+          "title": "Security Posture",
+          "description": "Threat model, input validation, auth gaps, resource protection",
+          "internal": true
+        },
+        {
+          "path": "internal/UNIT_TEST_ARCHITECTURE.md",
+          "title": "Unit Test Architecture",
+          "description": "Test file organization, mock patterns, testability status, priority improvements",
           "internal": true
         }
       ]

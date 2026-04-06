@@ -19,7 +19,7 @@ All events are durably stored in an embedded SQLite database using WAL mode for 
 - **Proto payloads**: Type-safe event data serialized via Protocol Buffers
 - **Configurable retention**: Dual-trigger pruning by age (default 30 days) and size (default 2GB)
 
-[CODE: api/internal/store/events.go]
+[CODE: internal/store/store.go]
 
 ### SSE Broker
 
@@ -30,7 +30,7 @@ Real-time event delivery via Server-Sent Events. Features:
 - **Backpressure**: 64-capacity channels with drop+notify to prevent slow subscribers from blocking
 - **30s heartbeat**: Keeps connections alive and reports dropped event counts
 
-[CODE: api/internal/broker/broker.go]
+[CODE: internal/broker/broker.go]
 
 ### Policy Engine
 
@@ -138,6 +138,54 @@ All data lives in a single SQLite database:
 | `policy_violations` | Audit log of denied requests |
 | `subscriptions` | Persistent subscription definitions |
 | `subscription_deliveries` | Webhook delivery log |
+
+## Operational Target Traceability
+
+Maps PRD operational targets to their implementation locations.
+
+### P0 — Implemented
+
+| Target | Description | Implementation |
+|--------|-------------|----------------|
+| OT-P0-001 | Event ingestion | [CODE: api/handlers.go#handleIngest], [CODE: internal/store/sqlite.go#Insert] |
+| OT-P0-002 | SSE event subscribe | [CODE: api/handlers.go#handleSubscribe], [CODE: internal/broker/broker.go#Subscribe] |
+| OT-P0-003 | Event query | [CODE: api/handlers.go#handleQuery], [CODE: internal/store/sqlite.go#Query] |
+| OT-P0-004 | Health endpoint | [CODE: api/handlers.go#handleHealth] |
+| OT-P0-005 | Structured event IDs | [CODE: internal/match/match.go#Glob], [CODE: internal/broker/matcher.go#Match] |
+| OT-P0-006 | Correlation tracking | [CODE: internal/store/store.go#Event] (CorrelationID field) |
+
+### P1 — Partially Implemented
+
+| Target | Description | Implementation | Status |
+|--------|-------------|----------------|--------|
+| OT-P1-001 | Last-Event-ID resume | [CODE: api/handlers.go#handleSubscribe] — reads `Last-Event-ID` header, replays via `store.GetSince` | Done |
+| OT-P1-002 | Backpressure handling | [CODE: internal/broker/broker.go#Publish] — 64-cap channel, `droppedCount` in heartbeat | Done |
+| OT-P1-003 | Configurable retention | [CODE: internal/store/pruner.go#StartPruner] — reads settings table | Done |
+| OT-P1-004 | Policy — access control | Not implemented | Planned |
+| OT-P1-005 | Policy — rate limiting | Not implemented | Planned |
+| OT-P1-006 | Policy — circuit breaking | Not implemented | Planned |
+| OT-P1-007 | Policy CRUD API | Not implemented | Planned |
+| OT-P1-008 | SSE policy push | Not implemented | Planned |
+| OT-P1-009 | Dual-end policy caching | Not implemented | Planned |
+| OT-P1-010 | Discovery integration | Not implemented | Planned |
+| OT-P1-011 | Receiver-side middleware | Not implemented | Planned |
+| OT-P1-012 | Persistent subscriptions | Not implemented | Planned |
+| OT-P1-013 | CLI tools | [CODE: cli/main.go] — query, subscribe, stats commands | Partial |
+| OT-P1-014 | Graceful degradation | Not implemented | Planned |
+
+### P2 — Planned
+
+| Target | Description | Implementation | Status |
+|--------|-------------|----------------|--------|
+| OT-P2-001 | Analytics dashboard | [CODE: ui/src/pages/AnalyticsPage.tsx] — basic stats from health endpoint | Partial |
+| OT-P2-002 | Policy management UI | Not implemented | Planned |
+| OT-P2-003 | Subscription management UI | Not implemented | Planned |
+| OT-P2-004 | Compliance & audit UI | Not implemented | Planned |
+| OT-P2-005 | Event detail & trace view | [CODE: ui/src/components/EventDetail.tsx] — JSON viewer, no trace visualization | Partial |
+| OT-P2-006 | Retention settings UI | [CODE: ui/src/pages/SettingsPage.tsx] — read-only display | Partial |
+| OT-P2-007 | Circuit breaker dashboard | Not implemented | Planned |
+| OT-P2-008 | Event replay | Not implemented | Planned |
+| OT-P2-009 | Metrics export | Not implemented | Planned |
 
 ## Non-Goals
 

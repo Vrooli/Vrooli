@@ -1,31 +1,316 @@
 {
   "module": "pub-sub",
   "description": "SSE-based real-time event delivery with glob filtering",
-  "operational_targets": ["OT-P0-002", "OT-P1-001", "OT-P1-004", "OT-P1-005"],
+  "operational_targets": [
+    "OT-P0-002",
+    "OT-P1-001",
+    "OT-P1-004",
+    "OT-P1-005"
+  ],
   "requirements": [
     {
       "id": "REQ-PS-001",
       "title": "SSE streaming",
       "description": "Server-Sent Events endpoint with 30s heartbeat, retry: 5000ms, standard SSE format",
-      "status": "implemented"
+      "status": "complete",
+      "operational_targets": [
+        "OT-P0-002"
+      ],
+      "children": [
+        "REQ-PS-001A",
+        "REQ-PS-001B"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers_sse_test.go"
+        }
+      ],
+      "criticality": "P0"
+    },
+    {
+      "id": "REQ-PS-001A",
+      "title": "SSE message format compliance",
+      "description": "SSE frames use standard format: id/event/data fields for events, comment lines for heartbeats",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P0-002"
+      ],
+      "children": [
+        "REQ-PS-001A1"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers_sse_write_test.go"
+        }
+      ],
+      "criticality": "P0"
+    },
+    {
+      "id": "REQ-PS-001A1",
+      "title": "Heartbeat comment format",
+      "description": "Heartbeats written as SSE comments (: heartbeat) with optional data payload",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P0-002"
+      ],
+      "criticality": "P0",
+      "children": [
+        "REQ-PS-001A1a"
+      ]
+    },
+    {
+      "id": "REQ-PS-001B",
+      "title": "SSE headers and retry directive",
+      "description": "SSE endpoint sets Content-Type, Cache-Control, Connection, X-Accel-Buffering headers and retry directive",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P0-002"
+      ],
+      "criticality": "P0",
+      "children": [
+        "REQ-PS-001B1"
+      ]
     },
     {
       "id": "REQ-PS-002",
       "title": "Glob-pattern filtering",
       "description": "Segment-aware glob matching: * matches one segment, ** matches one or more",
-      "status": "implemented"
+      "status": "complete",
+      "operational_targets": [
+        "OT-P0-002",
+        "OT-P0-005"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "internal/broker/matcher_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "internal/match/match_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers_sse_filter_test.go"
+        }
+      ],
+      "criticality": "P0",
+      "children": [
+        "REQ-PS-002A",
+        "REQ-PS-002B"
+      ]
     },
     {
       "id": "REQ-PS-003",
       "title": "Last-Event-ID resume",
       "description": "SSE clients can reconnect with Last-Event-ID to replay missed events from store",
-      "status": "implemented"
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-001"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers_replay_test.go"
+        }
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-PS-003A",
+        "REQ-PS-003B"
+      ]
     },
     {
       "id": "REQ-PS-004",
       "title": "Backpressure handling",
       "description": "64-capacity subscriber channels with non-blocking send; dropped events counted in heartbeat",
-      "status": "implemented"
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-002"
+      ],
+      "children": [
+        "REQ-PS-004A",
+        "REQ-PS-004B"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "internal/broker/broker_test.go"
+        }
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-PS-004A",
+      "title": "Channel buffering capacity",
+      "description": "Subscriber channels use 64-capacity buffer with non-blocking send",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-002"
+      ],
+      "children": [
+        "REQ-PS-004A1"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "internal/broker/broker_temporal_test.go"
+        }
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-PS-004A1",
+      "title": "Drop counting accuracy",
+      "description": "Dropped events accurately counted and reported in heartbeat data",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-002"
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-PS-004A1a"
+      ]
+    },
+    {
+      "id": "REQ-PS-004B",
+      "title": "Heartbeat drop reporting",
+      "description": "Heartbeat messages include dropped event count for backpressure monitoring",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-002"
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-PS-004B1"
+      ]
+    },
+    {
+      "id": "REQ-PS-001A1a",
+      "title": "Heartbeat interval configuration",
+      "description": "Heartbeat interval configurable with default 30s ticker",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P0-002"
+      ],
+      "criticality": "P0"
+    },
+    {
+      "id": "REQ-PS-001B1",
+      "title": "Proxy buffering prevention",
+      "description": "X-Accel-Buffering: no header prevents nginx/reverse proxy buffering",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P0-002"
+      ],
+      "criticality": "P0"
+    },
+    {
+      "id": "REQ-PS-002A",
+      "title": "Pattern compilation and caching",
+      "description": "Glob patterns compiled once at subscription creation and cached for reuse",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P0-002",
+        "OT-P0-005"
+      ],
+      "criticality": "P0",
+      "children": [
+        "REQ-PS-002A1"
+      ]
+    },
+    {
+      "id": "REQ-PS-002A1",
+      "title": "Wildcard segment matching",
+      "description": "Single * matches one path segment, ** matches one or more segments",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P0-002",
+        "OT-P0-005"
+      ],
+      "criticality": "P0"
+    },
+    {
+      "id": "REQ-PS-002B",
+      "title": "Multi-field filter composition",
+      "description": "Filters applied on type, source, and target fields independently",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P0-002",
+        "OT-P0-005"
+      ],
+      "criticality": "P0"
+    },
+    {
+      "id": "REQ-PS-003A",
+      "title": "Last-Event-ID header parsing",
+      "description": "Extracts and validates numeric Last-Event-ID from SSE reconnection header",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-001"
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-PS-003A1"
+      ]
+    },
+    {
+      "id": "REQ-PS-003A1",
+      "title": "Invalid ID graceful handling",
+      "description": "Non-numeric or missing Last-Event-ID treated as fresh connection",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-001"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-PS-003B",
+      "title": "Replay window bounded query",
+      "description": "Replays limited to store retention window with configurable max replay count",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-001"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-PS-004A1a",
+      "title": "Atomic drop counter increment",
+      "description": "Drop counter uses atomic increment for concurrent safety",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-002"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-PS-004B1",
+      "title": "Cumulative drop count in heartbeat payload",
+      "description": "Heartbeat data field includes total dropped events since connection",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-002"
+      ],
+      "criticality": "P1"
     }
   ]
 }

@@ -1,37 +1,352 @@
 {
   "module": "subscriptions",
   "description": "Persistent subscription management for event-driven consumers like notification-hub",
-  "operational_targets": ["OT-P1-012"],
+  "operational_targets": [
+    "OT-P1-012"
+  ],
   "requirements": [
     {
       "id": "REQ-SUB-001",
       "title": "Subscription CRUD API",
-      "description": "REST endpoints: POST /api/v1/subscriptions (create), GET /api/v1/subscriptions (list with filters: owner, pattern, enabled), GET /api/v1/subscriptions/:id (get), PUT /api/v1/subscriptions/:id (update), DELETE /api/v1/subscriptions/:id (delete). Each subscription has: id, name (human-readable), owner_scenario, event_pattern (glob on event type), source_filter (glob on source scenario, optional), delivery_type (sse|webhook), delivery_target (webhook URL or SSE reconnect key), enabled, created_at, updated_at.",
-      "status": "planned"
+      "description": "REST endpoints for subscription create, list, get, update, delete with filters.",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-012"
+      ],
+      "children": [
+        "REQ-SUB-001A",
+        "REQ-SUB-001B"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_subscription_crud_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-SUB-001A",
+      "title": "Subscription field validation",
+      "description": "Validates required fields and delivery_target for webhooks",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-012"
+      ],
+      "children": [
+        "REQ-SUB-001A1"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-SUB-001A1",
+      "title": "Subscription filter combinations",
+      "description": "List endpoint supports filter by owner, pattern, and enabled status",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-012"
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-SUB-001A1a"
+      ]
+    },
+    {
+      "id": "REQ-SUB-001B",
+      "title": "Subscription SQLite storage",
+      "description": "Subscriptions persisted in SQLite with cascade delete for health records",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-012"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "internal/subscription/sqlite_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-SUB-001B1"
+      ]
     },
     {
       "id": "REQ-SUB-002",
       "title": "Glob pattern matching on subscriptions",
-      "description": "Subscriptions use the same segment-aware glob matching as SSE filters. Pattern 'swarm-manager.backlog.*' matches all backlog events from swarm-manager. Pattern '**.completed.v1' matches all completed events across all scenarios. Pattern '*' matches everything. Subscription patterns are validated at creation time for syntactic correctness.",
-      "status": "planned"
+      "description": "Subscriptions use segment-aware glob matching.",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-012"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_subscription_features_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-SUB-002A",
+        "REQ-SUB-002B"
+      ]
     },
     {
       "id": "REQ-SUB-003",
       "title": "Webhook delivery",
-      "description": "For subscriptions with delivery_type=webhook: POST matching events to delivery_target URL. Request includes X-VrooliEvents-Subscription header with subscription ID, X-VrooliEvents-Signature header with HMAC-SHA256 signature (using per-subscription secret). Retry policy: 3 attempts with exponential backoff (1s, 5s, 25s). Failed deliveries logged in subscription_deliveries table with status, response_code, error.",
-      "status": "planned"
+      "description": "POST matching events to delivery_target URL with retry policy.",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-012"
+      ],
+      "children": [
+        "REQ-SUB-003A",
+        "REQ-SUB-003B"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_subscription_deliver_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-SUB-003A",
+      "title": "Webhook HTTP delivery",
+      "description": "POST events with subscription ID and HMAC-SHA256 signature headers",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-012"
+      ],
+      "children": [
+        "REQ-SUB-003A1"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "internal/subscription/webhook_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-SUB-003A1",
+      "title": "Webhook retry with exponential backoff",
+      "description": "Failed deliveries retried 3 times with exponential backoff",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-012"
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-SUB-003A1a"
+      ]
+    },
+    {
+      "id": "REQ-SUB-003B",
+      "title": "Delivery result logging",
+      "description": "Failed deliveries logged with status, response_code, error",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-012"
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-SUB-003B1"
+      ]
     },
     {
       "id": "REQ-SUB-004",
       "title": "Subscription health tracking",
-      "description": "Track per-subscription delivery health: total_delivered, total_failed, last_delivered_at, last_failed_at, consecutive_failures. If consecutive_failures exceeds threshold (default: 50), subscription auto-disables with status='circuit_broken'. Health queryable via GET /api/v1/subscriptions/:id/health. Auto-disabled subscriptions can be re-enabled manually.",
-      "status": "planned"
+      "description": "Track delivery health with auto-disable on consecutive failures.",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-012"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_subscription_features_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-SUB-004A",
+        "REQ-SUB-004B"
+      ]
     },
     {
       "id": "REQ-SUB-005",
       "title": "Subscription testing endpoint",
-      "description": "POST /api/v1/subscriptions/:id/test sends a synthetic test event matching the subscription's pattern. Returns delivery result (success/failure with details). Useful for verifying webhook URLs and glob patterns before enabling a subscription in production.",
-      "status": "planned"
+      "description": "POST /api/v1/subscriptions/:id/test sends a synthetic test event.",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-012"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_subscription_features_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-SUB-005A",
+        "REQ-SUB-005B"
+      ]
+    },
+    {
+      "id": "REQ-SUB-001A1a",
+      "title": "Combined filter AND semantics",
+      "description": "Multiple filters applied with AND semantics: all conditions must match",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-012"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-SUB-001B1",
+      "title": "Cascade delete for health records",
+      "description": "Deleting subscription cascades to remove associated health tracking records",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-012"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-SUB-002A",
+      "title": "Pattern matcher initialization",
+      "description": "Compiles glob pattern from subscription filter at creation time",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-012"
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-SUB-002A1"
+      ]
+    },
+    {
+      "id": "REQ-SUB-002A1",
+      "title": "Pattern syntax validation",
+      "description": "Validates glob pattern syntax on subscription create/update, rejects invalid patterns",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-012"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-SUB-002B",
+      "title": "Event match evaluation",
+      "description": "Matches incoming event type against compiled subscription patterns",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-012"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-SUB-003A1a",
+      "title": "Exponential backoff interval calculation",
+      "description": "Retry intervals: 1s, 2s, 4s with jitter for concurrent delivery",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-012"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-SUB-003B1",
+      "title": "Structured delivery log format",
+      "description": "Delivery log includes HTTP status, response body snippet, and latency",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-012"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-SUB-004A",
+      "title": "Delivery attempt tracking",
+      "description": "Records each delivery attempt result (success/failure) with timestamp",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-012"
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-SUB-004A1"
+      ]
+    },
+    {
+      "id": "REQ-SUB-004A1",
+      "title": "Consecutive failure counter",
+      "description": "Maintains running count of consecutive failures, resets on success",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-012"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-SUB-004B",
+      "title": "Auto-disable on failure threshold",
+      "description": "Disables subscription after configurable consecutive failure count",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-012"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-SUB-005A",
+      "title": "Synthetic test event generation",
+      "description": "Generates test event with subscription's pattern and synthetic payload",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-012"
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-SUB-005A1"
+      ]
+    },
+    {
+      "id": "REQ-SUB-005A1",
+      "title": "Test event delivery verification",
+      "description": "Delivers test event to webhook and reports success/failure with response details",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-012"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-SUB-005B",
+      "title": "Test result reporting",
+      "description": "Returns delivery attempt result with HTTP status, latency, and any error",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-012"
+      ],
+      "criticality": "P1"
     }
   ]
 }

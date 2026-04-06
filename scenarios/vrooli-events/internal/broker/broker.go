@@ -10,16 +10,31 @@ import (
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/store"
 )
 
-const (
-	subscriberBufSize = 64
-	heartbeatInterval = 30 * time.Second
-)
-
 // SSEMessage represents a message to send over an SSE connection.
 type SSEMessage struct {
 	ID    int64  // maps to SSE "id:" field (store autoincrement ID)
 	Event string // maps to SSE "event:" field (event type)
 	Data  string // maps to SSE "data:" field (JSON payload)
+}
+
+// BrokerConfig holds tunable parameters for the SSE broker.
+type BrokerConfig struct {
+	SubscriberBufSize int           // Per-subscriber channel buffer. Default: 64
+	HeartbeatInterval time.Duration // SSE heartbeat frequency. Default: 30s
+}
+
+func (c BrokerConfig) subscriberBufSize() int {
+	if c.SubscriberBufSize > 0 {
+		return c.SubscriberBufSize
+	}
+	return 64
+}
+
+func (c BrokerConfig) heartbeatInterval() time.Duration {
+	if c.HeartbeatInterval > 0 {
+		return c.HeartbeatInterval
+	}
+	return 30 * time.Second
 }
 
 // subscriber tracks a single SSE connection.
@@ -32,19 +47,23 @@ type subscriber struct {
 	cancel       context.CancelFunc
 }
 
+// DOC: docs/concepts/ARCHITECTURE.md#sse-broker
+// DOC: docs/internal/TEMPORAL-FLOWS.md
 // Broker manages SSE subscribers and distributes events.
 type Broker struct {
 	mu          sync.RWMutex
 	subscribers map[*subscriber]struct{}
 	store       store.Store
+	config      BrokerConfig
 	done        chan struct{}
 }
 
-// NewBroker creates a new SSE broker.
-func NewBroker(s store.Store) *Broker {
+// NewBroker creates a new SSE broker with the given configuration.
+func NewBroker(s store.Store, cfg BrokerConfig) *Broker {
 	return &Broker{
 		subscribers: make(map[*subscriber]struct{}),
 		store:       s,
+		config:      cfg,
 		done:        make(chan struct{}),
 	}
 }
@@ -63,7 +82,7 @@ func (b *Broker) Subscribe(ctx context.Context, opts SubscribeOpts) (<-chan SSEM
 	subCtx, cancel := context.WithCancel(ctx)
 
 	sub := &subscriber{
-		ch:        make(chan SSEMessage, subscriberBufSize),
+		ch:        make(chan SSEMessage, b.config.subscriberBufSize()),
 		typePat:   opts.EventTypePattern,
 		sourcePat: opts.SourceScenarioPattern,
 		targetPat: opts.TargetScenarioPattern,
@@ -157,7 +176,7 @@ func (b *Broker) matches(sub *subscriber, e store.Event) bool {
 }
 
 func (b *Broker) heartbeat(ctx context.Context, sub *subscriber) {
-	ticker := time.NewTicker(heartbeatInterval)
+	ticker := time.NewTicker(b.config.heartbeatInterval())
 	defer ticker.Stop()
 
 	for {

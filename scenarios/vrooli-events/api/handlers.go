@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/broker"
@@ -20,48 +24,145 @@ var (
 	protoUnmarshaler = protojson.UnmarshalOptions{DiscardUnknown: true}
 )
 
+// --- Error codes (centralized so new error categories are added in one place) ---
+
+const (
+	ErrCodeReadError      = "READ_ERROR"
+	ErrCodeInvalidBody    = "INVALID_BODY"
+	ErrCodeMissingField   = "MISSING_FIELD"
+	ErrCodeConversion     = "CONVERSION_ERROR"
+	ErrCodeStoreWrite     = "STORE_ERROR"
+	ErrCodeDuplicate      = "DUPLICATE_EVENT"
+	ErrCodeStoreRead      = "QUERY_ERROR"
+	ErrCodeMarshal        = "MARSHAL_ERROR"
+	ErrCodeSSEUnsupported = "SSE_UNSUPPORTED"
+	ErrCodeInvalidParam   = "INVALID_PARAM"
+)
+
+// envelopeValidationError describes a missing or invalid field in an inbound EventEnvelope.
+// Keeping validation rules as data (not inline if-chains) means adding a new required
+// field is a single-line table entry rather than a scattered code change.
+type envelopeValidationError struct {
+	Field   string
+	Message string
+}
+
+// validateEnvelope checks that the EventEnvelope carries the minimum required fields.
+// Returns nil when valid, or a description of the first violated rule.
+func validateEnvelope(env *domain.EventEnvelope) *envelopeValidationError {
+	rules := []struct {
+		value   string
+		field   string
+		message string
+	}{
+		{env.EventId, "eventId", "eventId is required"},
+		{env.EventType, "eventType", "eventType is required"},
+		{env.SourceScenario, "sourceScenario", "sourceScenario is required"},
+	}
+	for _, r := range rules {
+		if r.value == "" {
+			return &envelopeValidationError{Field: r.field, Message: r.message}
+		}
+	}
+	return nil
+}
+
+// parseQueryFilters builds store.QueryFilters from URL query parameters.
+// Returns a non-nil error string (code + message) if a parameter is malformed.
+func parseQueryFilters(q map[string][]string) (store.QueryFilters, *paramError) {
+	get := func(key string) string {
+		if vs, ok := q[key]; ok && len(vs) > 0 {
+			return vs[0]
+		}
+		return ""
+	}
+
+	filters := store.QueryFilters{
+		EventType:     get("type"),
+		Source:        get("source"),
+		CorrelationID: get("correlation_id"),
+	}
+
+	if v := get("since"); v != "" {
+		n, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return filters, &paramError{Param: "since", Message: "since must be an integer"}
+		}
+		filters.Since = n
+	}
+	if v := get("limit"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return filters, &paramError{Param: "limit", Message: "limit must be an integer"}
+		}
+		filters.Limit = n
+	}
+
+	return filters, nil
+}
+
+// paramError describes a malformed query parameter.
+type paramError struct {
+	Param   string
+	Message string
+}
+
+// isDryRun checks whether the request carries the X-Dry-Run header.
+func isDryRun(r *http.Request) bool {
+	return r.Header.Get("X-Dry-Run") == "true"
+}
+
+// DOC: docs/reference/api-endpoints.md#event-ingestion
+// DOC: docs/internal/ERROR-SEMANTICS.md
 func (s *Server) handleIngest(w http.ResponseWriter, r *http.Request) {
-	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20)) // 1MB limit
+	body, err := io.ReadAll(io.LimitReader(r.Body, s.config.MaxBodyBytes))
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "READ_ERROR", "failed to read request body")
+		writeError(w, http.StatusBadRequest, ErrCodeReadError, "failed to read request body")
 		return
 	}
 
 	var env domain.EventEnvelope
 	if err := protoUnmarshaler.Unmarshal(body, &env); err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_BODY", "invalid request body: "+err.Error())
+		writeError(w, http.StatusBadRequest, ErrCodeInvalidBody, "invalid request body: "+err.Error())
 		return
 	}
 
-	if env.EventId == "" {
-		writeError(w, http.StatusBadRequest, "MISSING_EVENT_ID", "eventId is required")
-		return
-	}
-	if env.EventType == "" {
-		writeError(w, http.StatusBadRequest, "MISSING_EVENT_TYPE", "eventType is required")
-		return
-	}
-	if env.SourceScenario == "" {
-		writeError(w, http.StatusBadRequest, "MISSING_SOURCE", "sourceScenario is required")
+	if ve := validateEnvelope(&env); ve != nil {
+		writeError(w, http.StatusBadRequest, ErrCodeMissingField, ve.Message)
 		return
 	}
 
 	event, err := convert.EnvelopeToEvent(&env)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "CONVERSION_ERROR", err.Error())
+		writeError(w, http.StatusBadRequest, ErrCodeConversion, err.Error())
+		return
+	}
+
+	// Dry-run: full validation passes, but skip persistence and broadcast.
+	if isDryRun(r) {
+		writeJSON(w, 0, map[string]any{
+			"dry_run":        true,
+			"eventId":        env.EventId,
+			"eventType":      env.EventType,
+			"sourceScenario": env.SourceScenario,
+		})
 		return
 	}
 
 	id, err := s.store.Insert(r.Context(), event)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "STORE_ERROR", "failed to store event")
+		if errors.Is(err, store.ErrDuplicateEvent) {
+			writeError(w, http.StatusConflict, ErrCodeDuplicate, fmt.Sprintf("event_id %q already exists", env.EventId))
+			return
+		}
+		writeError(w, http.StatusInternalServerError, ErrCodeStoreWrite, "failed to store event")
 		log.Printf("insert error: %v", err)
 		return
 	}
 
 	event.ID = id
 
-	// Broadcast asynchronously
+	// Broadcast asynchronously so ingestion latency is not affected by slow subscribers.
 	go func() {
 		envOut, err := convert.EventToEnvelope(event)
 		if err != nil {
@@ -76,43 +177,29 @@ func (s *Server) handleIngest(w http.ResponseWriter, r *http.Request) {
 		s.broker.Publish(event, string(data))
 	}()
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusAccepted)
-	_ = json.NewEncoder(w).Encode(map[string]any{"id": id, "eventId": env.EventId})
+	writeJSON(w, http.StatusAccepted, map[string]any{"id": id, "eventId": env.EventId})
 }
 
+// DOC: docs/reference/api-endpoints.md#event-query
 func (s *Server) handleQuery(w http.ResponseWriter, r *http.Request) {
-	q := r.URL.Query()
-	filters := store.QueryFilters{
-		EventType:     q.Get("type"),
-		Source:        q.Get("source"),
-		CorrelationID: q.Get("correlation_id"),
-	}
-
-	if v := q.Get("since"); v != "" {
-		n, err := strconv.ParseInt(v, 10, 64)
-		if err != nil {
-			writeError(w, http.StatusBadRequest, "INVALID_SINCE", "since must be an integer")
-			return
-		}
-		filters.Since = n
-	}
-	if v := q.Get("limit"); v != "" {
-		n, err := strconv.Atoi(v)
-		if err != nil {
-			writeError(w, http.StatusBadRequest, "INVALID_LIMIT", "limit must be an integer")
-			return
-		}
-		filters.Limit = n
+	filters, pe := parseQueryFilters(r.URL.Query())
+	if pe != nil {
+		writeError(w, http.StatusBadRequest, ErrCodeInvalidParam, pe.Message)
+		return
 	}
 
 	events, err := s.store.Query(r.Context(), filters)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "QUERY_ERROR", "failed to query events")
+		writeError(w, http.StatusInternalServerError, ErrCodeStoreRead, "failed to query events")
 		log.Printf("query error: %v", err)
 		return
 	}
 
+	writeEventList(w, events)
+}
+
+// writeEventList serializes a slice of store.Event as a JSON array of proto EventEnvelopes.
+func writeEventList(w http.ResponseWriter, events []store.Event) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if len(events) == 0 {
@@ -127,12 +214,12 @@ func (s *Server) handleQuery(w http.ResponseWriter, r *http.Request) {
 		}
 		env, err := convert.EventToEnvelope(e)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "CONVERSION_ERROR", err.Error())
+			writeError(w, http.StatusInternalServerError, ErrCodeConversion, err.Error())
 			return
 		}
 		data, err := protoMarshaler.Marshal(env)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "MARSHAL_ERROR", err.Error())
+			writeError(w, http.StatusInternalServerError, ErrCodeMarshal, err.Error())
 			return
 		}
 		_, _ = w.Write(data)
@@ -140,10 +227,12 @@ func (s *Server) handleQuery(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("]"))
 }
 
+// DOC: docs/reference/api-endpoints.md#sse-subscribe
+// DOC: docs/internal/TEMPORAL-FLOWS.md
 func (s *Server) handleSubscribe(w http.ResponseWriter, r *http.Request) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		writeError(w, http.StatusInternalServerError, "SSE_UNSUPPORTED", "streaming not supported")
+		writeError(w, http.StatusInternalServerError, ErrCodeSSEUnsupported, "streaming not supported")
 		return
 	}
 
@@ -157,79 +246,127 @@ func (s *Server) handleSubscribe(w http.ResponseWriter, r *http.Request) {
 	ch, subCtx, cleanup := s.broker.Subscribe(r.Context(), opts)
 	defer cleanup()
 
-	// Set SSE headers
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("X-Accel-Buffering", "no")
+	writeSSEHeaders(w, flusher, s.config.SSERetryMs)
 
-	// Send retry directive
-	fmt.Fprintf(w, "retry: 5000\n\n")
-	flusher.Flush()
+	// Replay missed events so subscribers that reconnect (via Last-Event-ID)
+	// don't lose events that arrived while they were disconnected.
+	s.replayMissedEvents(w, r, flusher)
 
-	// Replay missed events if Last-Event-ID is present
-	if lastIDStr := r.Header.Get("Last-Event-ID"); lastIDStr != "" {
-		lastID, err := strconv.ParseInt(lastIDStr, 10, 64)
-		if err == nil {
-			events, err := s.store.GetSince(r.Context(), lastID, 1000)
-			if err == nil {
-				for _, e := range events {
-					env, err := convert.EventToEnvelope(e)
-					if err != nil {
-						continue
-					}
-					data, err := protoMarshaler.Marshal(env)
-					if err != nil {
-						continue
-					}
-					fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n", e.ID, e.EventType, data)
-				}
-				flusher.Flush()
-			}
-		}
+	// Stream live events until the client disconnects or the broker shuts down.
+	s.streamLiveEvents(w, flusher, ch, subCtx, r.Context())
+}
+
+// replayMissedEvents sends stored events newer than the client's Last-Event-ID,
+// enabling gap-free reconnection for SSE subscribers.
+func (s *Server) replayMissedEvents(w http.ResponseWriter, r *http.Request, flusher http.Flusher) {
+	lastIDStr := r.Header.Get("Last-Event-ID")
+	if lastIDStr == "" {
+		return
 	}
 
-	// Stream live events
+	lastID, err := strconv.ParseInt(lastIDStr, 10, 64)
+	if err != nil {
+		log.Printf("replay: invalid Last-Event-ID %q: %v", lastIDStr, err)
+		return
+	}
+
+	events, err := s.store.GetSince(r.Context(), lastID, s.config.ReplayLimit)
+	if err != nil {
+		log.Printf("replay: GetSince(lastID=%d) failed: %v", lastID, err)
+		return
+	}
+
+	replayed, skipped := 0, 0
+	for _, e := range events {
+		env, err := convert.EventToEnvelope(e)
+		if err != nil {
+			skipped++
+			log.Printf("replay: convert event %d: %v", e.ID, err)
+			continue
+		}
+		data, err := protoMarshaler.Marshal(env)
+		if err != nil {
+			skipped++
+			log.Printf("replay: marshal event %d: %v", e.ID, err)
+			continue
+		}
+		fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n", e.ID, e.EventType, data)
+		replayed++
+	}
+	if skipped > 0 {
+		log.Printf("replay: %d replayed, %d skipped (from Last-Event-ID=%d)", replayed, skipped, lastID)
+	}
+	flusher.Flush()
+}
+
+// streamLiveEvents is the main SSE event loop. It writes heartbeats (as SSE
+// comments) and data events until one of the contexts is cancelled.
+func (s *Server) streamLiveEvents(w http.ResponseWriter, flusher http.Flusher, ch <-chan broker.SSEMessage, subCtx, reqCtx context.Context) {
 	for {
 		select {
 		case <-subCtx.Done():
 			return
-		case <-r.Context().Done():
+		case <-reqCtx.Done():
 			return
 		case msg, ok := <-ch:
 			if !ok {
 				return
 			}
-			if msg.Event == "heartbeat" {
-				if msg.Data != "" {
-					fmt.Fprintf(w, ": heartbeat %s\n\n", msg.Data)
-				} else {
-					fmt.Fprintf(w, ": heartbeat\n\n")
-				}
-			} else {
-				fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n", msg.ID, msg.Event, msg.Data)
-			}
+			writeSSEMessage(w, msg)
 			flusher.Flush()
 		}
 	}
 }
 
+// writeSSEHeaders sets the standard SSE response headers and writes the retry
+// directive. Both event and policy SSE endpoints share this setup.
+func writeSSEHeaders(w http.ResponseWriter, flusher http.Flusher, retryMs int) {
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no") // nginx-specific: disable proxy buffering
+	fmt.Fprintf(w, "retry: %d\n\n", retryMs)
+	flusher.Flush()
+}
+
+// writeSSEMessage formats a single SSE frame. Heartbeats are written as SSE
+// comments (lines starting with ":") so they don't trigger client-side event
+// handlers but still keep the TCP connection alive.
+func writeSSEMessage(w http.ResponseWriter, msg broker.SSEMessage) {
+	if msg.Event == "heartbeat" {
+		if msg.Data != "" {
+			fmt.Fprintf(w, ": heartbeat %s\n\n", msg.Data)
+		} else {
+			fmt.Fprintf(w, ": heartbeat\n\n")
+		}
+	} else {
+		fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n", msg.ID, msg.Event, msg.Data)
+	}
+}
+
+// DOC: docs/reference/api-endpoints.md#health
+// handleHealth reports store reachability and key counters. Returning 503 when
+// the store is unreachable lets load balancers route traffic away from this instance.
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	now := time.Now().UTC().Format(time.RFC3339)
+
 	stats, err := s.store.Stats(r.Context())
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusServiceUnavailable)
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"status": "unhealthy",
-			"error":  err.Error(),
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"status":    "unhealthy",
+			"service":   "vrooli-events",
+			"timestamp": now,
+			"readiness": false,
+			"error":     err.Error(),
 		})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	writeJSON(w, 0, map[string]any{
 		"status":      "healthy",
 		"service":     "vrooli-events",
+		"timestamp":   now,
+		"readiness":   true,
 		"subscribers": s.broker.SubscriberCount(),
 		"store": map[string]any{
 			"totalEvents":       stats.TotalEvents,
@@ -238,11 +375,56 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func writeError(w http.ResponseWriter, status int, code, message string) {
+// writeJSON sends a JSON response with the given status code.
+// Centralizes Content-Type header and encoding so handlers stay focused on logic.
+func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]string{
+	if status != 0 {
+		w.WriteHeader(status)
+	}
+	_ = json.NewEncoder(w).Encode(v)
+}
+
+// writeError sends a structured JSON error response.
+// All error responses share the same shape {error, code} so clients can
+// switch on the machine-readable code field rather than parsing messages.
+func writeError(w http.ResponseWriter, status int, code, message string) {
+	writeJSON(w, status, map[string]string{
 		"error": message,
 		"code":  code,
 	})
+}
+
+// decodeJSONBody reads and JSON-decodes the request body into v.
+// Returns true on success; on failure it writes a 400 error and returns false.
+func decodeJSONBody(w http.ResponseWriter, r *http.Request, v any) bool {
+	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
+		writeError(w, http.StatusBadRequest, ErrCodeInvalidBody, "invalid request body: "+err.Error())
+		return false
+	}
+	return true
+}
+
+// requireByID parses a path parameter as an int64 ID, fetches the entity via
+// fetch, and handles 400/404/500 error responses. On success it returns the ID,
+// entity, and true. Callers can skip to business logic without the repeated
+// parse → fetch → ErrNoRows boilerplate.
+func requireByID[T any](w http.ResponseWriter, r *http.Request, param string, fetch func(context.Context, int64) (T, error), readCode, entity string) (int64, T, bool) {
+	var zero T
+	id, err := parsePathID(r, param)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, ErrCodeInvalidParam, "invalid "+entity+" ID")
+		return 0, zero, false
+	}
+	val, err := fetch(r.Context(), id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			writeError(w, http.StatusNotFound, ErrCodeNotFound, entity+" not found")
+			return 0, zero, false
+		}
+		writeError(w, http.StatusInternalServerError, readCode, "failed to get "+entity)
+		log.Printf("%s get error: %v", entity, err)
+		return 0, zero, false
+	}
+	return id, val, true
 }

@@ -1,9 +1,16 @@
+// DOC: docs/concepts/ARCHITECTURE.md#event-store-sqlite-wal
+// DOC: docs/internal/INVARIANTS.md
 package store
 
 import (
 	"context"
+	"errors"
 	"time"
 )
+
+// ErrDuplicateEvent is returned when an Insert is attempted with an event_id
+// that already exists in the store.
+var ErrDuplicateEvent = errors.New("duplicate event_id")
 
 // Event is the internal representation of an event in the store.
 type Event struct {

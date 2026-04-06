@@ -4,3 +4,4 @@ cli/cli
 *.db
 *.db-wal
 *.db-shm
+api/api

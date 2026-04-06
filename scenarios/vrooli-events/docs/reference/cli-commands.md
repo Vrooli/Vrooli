@@ -2,7 +2,7 @@
 
 The vrooli-events CLI is built on cli-core ScenarioApp with auto-discovery of the vrooli-events API.
 
-## Configuration
+## CLI Configuration
 
 ```bash
 vrooli-events configure api_base http://localhost:15000/api/v1

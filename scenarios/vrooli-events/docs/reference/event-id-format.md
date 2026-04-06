@@ -1,5 +1,7 @@
 # Event ID Format
 
+Implementation: [CODE: internal/match/match.go#Glob] | [CODE: internal/broker/matcher.go#Match]
+
 ## Structure
 
 All events in vrooli-events use a structured, hierarchical ID format:

@@ -1,3 +1,5 @@
+// DOC: docs/concepts/ARCHITECTURE.md#event-store-sqlite-wal
+// DOC: docs/internal/SECURITY-POSTURE.md
 package store
 
 import (
@@ -44,9 +46,11 @@ PRAGMA synchronous=NORMAL;
 
 // SQLiteConfig holds configuration for the SQLite store.
 type SQLiteConfig struct {
-	DBPath       string
-	MaxAge       time.Duration // retention period (default 30 days)
-	MaxSizeBytes int64         // max total payload size (default 2GB)
+	DBPath        string
+	MaxAge        time.Duration // retention period (default 30 days)
+	MaxSizeBytes  int64         // max total payload size (default 2GB)
+	QueryLimit    int           // default query limit when not specified (default 100)
+	QueryLimitMax int           // maximum allowed query limit (default 1000)
 }
 
 // SQLiteStore implements Store using SQLite.
@@ -63,6 +67,12 @@ func NewSQLiteStore(ctx context.Context, cfg SQLiteConfig) (*SQLiteStore, error)
 	if cfg.MaxSizeBytes == 0 {
 		cfg.MaxSizeBytes = 2 * 1024 * 1024 * 1024 // 2GB
 	}
+	if cfg.QueryLimit <= 0 {
+		cfg.QueryLimit = 100
+	}
+	if cfg.QueryLimitMax <= 0 {
+		cfg.QueryLimitMax = 1000
+	}
 
 	dsn := cfg.DBPath
 	if dsn == "" {
@@ -73,7 +83,9 @@ func NewSQLiteStore(ctx context.Context, cfg SQLiteConfig) (*SQLiteStore, error)
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
-	db.SetMaxOpenConns(1) // SQLite single-writer
+	// SQLite allows only one writer at a time. Limiting to one open connection
+	// prevents "database is locked" errors under concurrent request load.
+	db.SetMaxOpenConns(1)
 
 	if _, err := db.ExecContext(ctx, pragmas); err != nil {
 		db.Close()
@@ -116,6 +128,9 @@ func (s *SQLiteStore) Insert(ctx context.Context, e Event) (int64, error) {
 		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		e.EventID, e.SourceScenario, e.TargetScenario, e.EventType, e.CorrelationID, e.Payload, string(metadataJSON))
 	if err != nil {
+		if isUniqueConstraintError(err) {
+			return 0, fmt.Errorf("%w: %s", ErrDuplicateEvent, e.EventID)
+		}
 		return 0, fmt.Errorf("insert event: %w", err)
 	}
 
@@ -131,6 +146,12 @@ func (s *SQLiteStore) Insert(ctx context.Context, e Event) (int64, error) {
 
 	id, _ := res.LastInsertId()
 	return id, nil
+}
+
+// isUniqueConstraintError checks if the error is a SQLite UNIQUE constraint violation.
+// modernc.org/sqlite returns errors containing "UNIQUE constraint failed" for duplicate keys.
+func isUniqueConstraintError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed")
 }
 
 func (s *SQLiteStore) Query(ctx context.Context, f QueryFilters) ([]Event, error) {
@@ -164,13 +185,16 @@ func (s *SQLiteStore) Query(ctx context.Context, f QueryFilters) ([]Event, error
 
 	limit := f.Limit
 	if limit <= 0 {
-		limit = 100
+		limit = s.config.QueryLimit
 	}
-	if limit > 1000 {
-		limit = 1000
+	if limit > s.config.QueryLimitMax {
+		limit = s.config.QueryLimitMax
 	}
 
-	// Fetch more rows than limit when using glob (SQL LIKE is broader than our glob)
+	// SQL LIKE can't express our segment-aware glob semantics (e.g. "*" = one
+	// segment only), so we over-fetch from SQLite and post-filter in Go. The 3x
+	// multiplier is a heuristic: most event types have 3-4 segments, so 3x the
+	// requested limit usually yields enough candidates after precise filtering.
 	sqlLimit := limit
 	if hasGlob {
 		sqlLimit = limit * 3
@@ -347,6 +371,12 @@ func (s *SQLiteStore) Stats(ctx context.Context) (Stats, error) {
 	}
 
 	return stats, nil
+}
+
+// DB returns the underlying *sql.DB so other packages (e.g. policy) can share
+// the same database connection without opening a second handle.
+func (s *SQLiteStore) DB() *sql.DB {
+	return s.db
 }
 
 func (s *SQLiteStore) Close() error {

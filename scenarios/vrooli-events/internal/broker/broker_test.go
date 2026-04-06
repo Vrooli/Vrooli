@@ -8,7 +8,9 @@ import (
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/store"
 )
 
-// mockStore implements store.Store for broker tests (only GetSince needed).
+// mockStore implements store.Store for broker tests with no-op behavior.
+// Broker only needs a Store reference; it never calls Store methods directly
+// during pub-sub operations, so a zero-value mock is sufficient here.
 type mockStore struct{}
 
 func (m *mockStore) Insert(_ context.Context, _ store.Event) (int64, error) { return 0, nil }
@@ -26,8 +28,9 @@ func (m *mockStore) Prune(_ context.Context) (store.PruneResult, error) {
 func (m *mockStore) Stats(_ context.Context) (store.Stats, error) { return store.Stats{}, nil }
 func (m *mockStore) Close() error                                 { return nil }
 
+// [REQ:REQ-PS-001] Verify subscriber receives published events via SSE channel
 func TestSubscribeAndPublish(t *testing.T) {
-	b := NewBroker(&mockStore{})
+	b := NewBroker(&mockStore{}, BrokerConfig{})
 	defer b.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -59,8 +62,9 @@ func TestSubscribeAndPublish(t *testing.T) {
 	}
 }
 
+// [REQ:REQ-PS-002] Verify glob-pattern filtering on event type during publish
 func TestSubscribeFiltering(t *testing.T) {
-	b := NewBroker(&mockStore{})
+	b := NewBroker(&mockStore{}, BrokerConfig{})
 	defer b.Close()
 
 	ctx := context.Background()
@@ -83,8 +87,9 @@ func TestSubscribeFiltering(t *testing.T) {
 	}
 }
 
+// [REQ:REQ-PS-004] Verify backpressure drops events when subscriber buffer is full
 func TestBackpressureDrop(t *testing.T) {
-	b := NewBroker(&mockStore{})
+	b := NewBroker(&mockStore{}, BrokerConfig{})
 	defer b.Close()
 
 	ctx := context.Background()
@@ -92,7 +97,7 @@ func TestBackpressureDrop(t *testing.T) {
 	defer cleanup()
 
 	// Fill the channel beyond capacity
-	for i := 0; i < subscriberBufSize+10; i++ {
+	for i := 0; i < 64 /* default subscriber buf size */ +10; i++ {
 		b.Publish(store.Event{ID: int64(i), EventType: "test.v1"}, `{}`)
 	}
 
@@ -107,13 +112,14 @@ func TestBackpressureDrop(t *testing.T) {
 		}
 	}
 done:
-	if drained != subscriberBufSize {
-		t.Fatalf("expected %d messages (buffer capacity), got %d", subscriberBufSize, drained)
+	if drained != 64 /* default subscriber buf size */ {
+		t.Fatalf("expected %d messages (buffer capacity), got %d", 64 /* default subscriber buf size */, drained)
 	}
 }
 
+// [REQ:REQ-PS-001] Verify subscriber count tracking on subscribe and cleanup
 func TestSubscriberCount(t *testing.T) {
-	b := NewBroker(&mockStore{})
+	b := NewBroker(&mockStore{}, BrokerConfig{})
 	defer b.Close()
 
 	ctx := context.Background()
@@ -140,8 +146,9 @@ func TestSubscriberCount(t *testing.T) {
 	}
 }
 
+// [REQ:REQ-PS-002] Verify glob-pattern filtering on source_scenario during publish
 func TestSourceAndTargetFiltering(t *testing.T) {
-	b := NewBroker(&mockStore{})
+	b := NewBroker(&mockStore{}, BrokerConfig{})
 	defer b.Close()
 
 	ctx := context.Background()

@@ -6,6 +6,8 @@ Base URL: `http://localhost:${API_PORT}/api/v1`
 
 ### POST /events — Ingest Event
 
+[CODE: api/handlers.go#handleIngest] | [CODE: api/routes.go]
+
 Accepts an event and stores it durably. Returns immediately (202 Accepted) — storage is synchronous but the caller should treat this as fire-and-forget.
 
 **Request Body** (JSON, proto-JSON compatible):
@@ -36,6 +38,8 @@ Accepts an event and stores it durably. Returns immediately (202 Accepted) — s
 
 ### GET /events — Query Events
 
+[CODE: api/handlers.go#handleQuery]
+
 Returns stored events matching the given filters.
 
 | Param | Type | Description |
@@ -51,6 +55,8 @@ Returns stored events matching the given filters.
 **Response**: `200 OK` with `{"events": [...], "total": N}`
 
 ### GET /events/subscribe — SSE Event Stream
+
+[CODE: api/handlers.go#handleSubscribe] | [CODE: internal/broker/broker.go#Subscribe]
 
 Server-Sent Events stream of incoming events. Supports glob-pattern filtering and reconnection.
 
@@ -140,6 +146,33 @@ Force a circuit breaker into a specific state. Override expires after TTL (defau
 }
 ```
 
+### POST /policies/evaluate — Evaluate Policy
+
+[CODE: api/handlers_policy.go#handleEvaluatePolicy]
+
+Evaluates all enabled access control rules for the given source/target/endpoint combination. Returns a structured decision.
+
+**Request Body**:
+```json
+{
+  "source": "scenario-a",
+  "target": "scenario-b",
+  "endpoint": "/api/v1/something"
+}
+```
+
+**Response**: `200 OK`
+```json
+{
+  "allowed": false,
+  "rule_id": 3,
+  "rule_type": "access",
+  "reason": "denied by access control rule"
+}
+```
+
+If denied, a violation is automatically logged in the policy_violations table.
+
 ### GET /policies/subscribe — SSE Policy Push
 
 SSE stream of policy updates. Used by EmittingResolver and PolicyMiddleware to keep local caches current.
@@ -223,6 +256,8 @@ Sends a synthetic event matching the subscription's pattern and returns the deli
 ## Settings & Health
 
 ### GET /health — System Health
+
+[CODE: api/handlers.go#handleHealth]
 
 **Response**:
 ```json

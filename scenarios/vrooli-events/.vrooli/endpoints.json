@@ -7,14 +7,17 @@
       "path": "/health",
       "method": "GET",
       "summary": "Service health check",
-      "description": "Returns API readiness plus dependency status",
+      "description": "Returns API readiness, store stats, subscriber count, and overall health status",
       "category": "system",
       "response": {
         "type": "object",
         "properties": {
           "status": "string",
+          "service": "string",
+          "timestamp": "string",
           "readiness": "boolean",
-          "dependencies": "object"
+          "subscribers": "number",
+          "store": "object"
         }
       },
       "examples": [
@@ -26,12 +29,114 @@
       "cli_mapping": {
         "command": "vrooli-events status"
       }
+    },
+    {
+      "id": "ingest-event",
+      "path": "/api/v1/events",
+      "method": "POST",
+      "summary": "Ingest an event",
+      "description": "Accepts a proto-JSON EventEnvelope, stores it durably, and broadcasts to SSE subscribers",
+      "category": "events",
+      "request": {
+        "type": "object",
+        "properties": {
+          "eventId": "string (required)",
+          "eventType": "string (required)",
+          "sourceScenario": "string (required)",
+          "targetScenario": "string",
+          "correlationId": "string",
+          "metadata": "object",
+          "payload": "any"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "id": "number",
+          "eventId": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Ingest event",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/events -H 'Content-Type: application/json' -d '{\"eventId\":\"evt-1\",\"eventType\":\"test.action.v1\",\"sourceScenario\":\"my-scenario\"}'"
+        }
+      ]
+    },
+    {
+      "id": "query-events",
+      "path": "/api/v1/events",
+      "method": "GET",
+      "summary": "Query stored events",
+      "description": "Returns stored events with glob-pattern type filter, source filter, correlation ID, since, and limit",
+      "category": "events",
+      "parameters": [
+        { "name": "type", "in": "query", "type": "string", "description": "Glob pattern for event type" },
+        { "name": "source", "in": "query", "type": "string", "description": "Exact source scenario match" },
+        { "name": "correlation_id", "in": "query", "type": "string", "description": "Exact correlation ID match" },
+        { "name": "since", "in": "query", "type": "integer", "description": "Return events after this sequence ID" },
+        { "name": "limit", "in": "query", "type": "integer", "description": "Max results (1-1000, default 100)" }
+      ],
+      "response": {
+        "type": "array",
+        "items": "EventEnvelope"
+      },
+      "examples": [
+        {
+          "name": "Query all events",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/events?limit=50"
+        }
+      ],
+      "cli_mapping": {
+        "command": "vrooli-events query"
+      }
+    },
+    {
+      "id": "subscribe-events",
+      "path": "/api/v1/events/subscribe",
+      "method": "GET",
+      "summary": "Subscribe to live events via SSE",
+      "description": "Server-Sent Events stream with glob-pattern filtering, Last-Event-ID resume, and 30s heartbeat",
+      "category": "events",
+      "parameters": [
+        { "name": "type", "in": "query", "type": "string", "description": "Glob pattern for event type" },
+        { "name": "source", "in": "query", "type": "string", "description": "Glob pattern for source scenario" },
+        { "name": "target", "in": "query", "type": "string", "description": "Glob pattern for target scenario" }
+      ],
+      "response": {
+        "type": "text/event-stream",
+        "description": "SSE stream of events"
+      },
+      "examples": [
+        {
+          "name": "Subscribe to all events",
+          "curl": "curl -N http://localhost:${API_PORT}/api/v1/events/subscribe"
+        }
+      ],
+      "cli_mapping": {
+        "command": "vrooli-events subscribe"
+      }
     }
   ],
   "cli_commands": [
     {
       "name": "status",
       "description": "Check API and dependency health",
+      "endpoint_id": "health"
+    },
+    {
+      "name": "query",
+      "description": "Query stored events with filters",
+      "endpoint_id": "query-events"
+    },
+    {
+      "name": "subscribe",
+      "description": "Subscribe to live event stream via SSE",
+      "endpoint_id": "subscribe-events"
+    },
+    {
+      "name": "stats",
+      "description": "Show event store statistics",
       "endpoint_id": "health"
     }
   ]

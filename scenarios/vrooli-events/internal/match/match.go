@@ -1,3 +1,4 @@
+// DOC: docs/reference/event-id-format.md
 package match
 
 import "strings"

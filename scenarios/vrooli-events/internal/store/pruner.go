@@ -1,3 +1,5 @@
+// DOC: docs/internal/TEMPORAL-FLOWS.md
+// DOC: docs/internal/INVARIANTS.md
 package store
 
 import (

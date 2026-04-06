@@ -1,55 +1,560 @@
 {
   "module": "policy",
   "description": "Policy enforcement engine: access control, rate limiting, circuit breaking with dual-end caching",
-  "operational_targets": ["OT-P1-004", "OT-P1-005", "OT-P1-006", "OT-P1-007", "OT-P1-008", "OT-P1-009"],
+  "operational_targets": [
+    "OT-P1-004",
+    "OT-P1-005",
+    "OT-P1-006",
+    "OT-P1-007",
+    "OT-P1-008",
+    "OT-P1-009"
+  ],
   "requirements": [
     {
       "id": "REQ-POL-001",
       "title": "Access control rules",
-      "description": "Rules define which source scenarios can call which target scenarios and optionally which endpoint patterns (glob). Rules stored in SQLite policy_rules table with fields: id, rule_type='access', source_scenario (glob), target_scenario (glob), endpoint_pattern (glob, optional), effect (allow|deny), priority (higher wins on conflict), enabled, created_at, updated_at. Default policy is allow-all when no rules match (configurable default-deny via settings).",
-      "status": "planned"
+      "description": "Rules define which source scenarios can call which target scenarios with effect and priority.",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-004"
+      ],
+      "children": [
+        "REQ-POL-001A",
+        "REQ-POL-001B"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "internal/policy/evaluator_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-POL-001A",
+      "title": "Priority-based rule matching",
+      "description": "Rules evaluated in priority order; highest priority matching rule determines outcome",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-004"
+      ],
+      "children": [
+        "REQ-POL-001A1"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "internal/policy/sqlite_edge_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-POL-001A1",
+      "title": "Conflict resolution with equal priority",
+      "description": "When multiple rules match at equal priority, deny takes precedence over allow",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-004"
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-POL-001A1a"
+      ]
+    },
+    {
+      "id": "REQ-POL-001B",
+      "title": "Default allow policy",
+      "description": "When no rules match, default policy is allow-all (configurable to deny)",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-004"
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-POL-001B1"
+      ]
     },
     {
       "id": "REQ-POL-002",
       "title": "Rate limiting rules",
-      "description": "Rules define request rate caps per scenario pair. Stored in policy_rules table with rule_type='rate_limit'. Fields: source_scenario, target_scenario, endpoint_pattern, max_requests, window_seconds (sliding window), burst_allowance (optional, for short spikes). Counters maintained in SQLite rate_limit_counters table with atomic increment via INSERT OR REPLACE. Expired counters pruned by the retention background goroutine.",
-      "status": "planned"
+      "description": "Rules define request rate caps per scenario pair with sliding window.",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-005"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "internal/policy/sqlite_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-POL-002A",
+        "REQ-POL-002B"
+      ]
     },
     {
       "id": "REQ-POL-003",
       "title": "Circuit breaker rules",
-      "description": "Per-scenario-pair circuit breaker with three states: closed (normal), open (blocking), half-open (probe). Configuration in policy_rules table with rule_type='circuit_breaker'. Fields: source_scenario, target_scenario, failure_threshold (consecutive failures to trip), window_seconds (failure counting window), cooldown_seconds (time in open state before half-open probe), success_threshold (consecutive successes in half-open to close). State tracked in circuit_breaker_state table with current_state, failure_count, last_failure_at, opened_at, last_probe_at.",
-      "status": "planned"
+      "description": "Per-scenario-pair circuit breaker with three states: closed, open, half-open.",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-006"
+      ],
+      "children": [
+        "REQ-POL-003A",
+        "REQ-POL-003B"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_policy_crud_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-POL-003A",
+      "title": "Three-state circuit breaker",
+      "description": "Circuit breaker tracks closed, open, and half-open states with configurable thresholds",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-006"
+      ],
+      "children": [
+        "REQ-POL-003A1"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "internal/policy/sqlite_edge_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-POL-003A1",
+      "title": "State transition persistence",
+      "description": "Circuit breaker state transitions persisted and replaceable via override",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-006"
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-POL-003A1a"
+      ]
+    },
+    {
+      "id": "REQ-POL-003B",
+      "title": "Circuit breaker configuration",
+      "description": "Configurable failure_threshold, window_seconds, cooldown_seconds, and success_threshold",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-006"
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-POL-003B1"
+      ]
     },
     {
       "id": "REQ-POL-004",
       "title": "Policy CRUD API",
-      "description": "REST endpoints for policy rule management: POST /api/v1/policies (create), GET /api/v1/policies (list with filters: rule_type, source, target, enabled), GET /api/v1/policies/:id (get), PUT /api/v1/policies/:id (update), DELETE /api/v1/policies/:id (delete). Validation rejects conflicting rules, invalid globs, and nonsensical thresholds. Changes trigger immediate SSE policy push to all connected scenarios.",
-      "status": "planned"
+      "description": "REST endpoints for policy rule management with validation.",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-007"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "internal/policy/sqlite_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-POL-004A",
+        "REQ-POL-004B"
+      ]
     },
     {
       "id": "REQ-POL-005",
       "title": "SSE policy push channel",
-      "description": "Dedicated SSE endpoint: GET /api/v1/policies/subscribe. Pushes PolicyUpdate events whenever rules change (created, updated, deleted). Event payload includes the full current policy snapshot relevant to the subscribing scenario (filtered by source/target match). Supports Last-Event-ID for reconnection replay. Heartbeat every 30s with policy_version counter.",
-      "status": "planned"
+      "description": "Dedicated SSE endpoint pushing PolicyUpdate events when rules change.",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-008"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_policy_subscribe_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "internal/policy/broadcaster_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-POL-005A",
+        "REQ-POL-005B"
+      ]
     },
     {
       "id": "REQ-POL-006",
       "title": "Policy evaluation engine",
-      "description": "In-process policy evaluator that takes (source, target, endpoint, context) and returns (allow|deny, reason, metadata). Evaluation order: circuit breaker (if open, deny immediately) → access control (priority-ordered rule matching) → rate limiting (check/increment counter). Returns structured PolicyDecision with fields: allowed, rule_id, rule_type, reason, retry_after (for rate limits), circuit_state (for circuit breakers).",
-      "status": "planned"
+      "description": "Evaluation order: circuit breaker \u2192 access control \u2192 rate limiting.",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-004"
+      ],
+      "children": [
+        "REQ-POL-006A",
+        "REQ-POL-006B"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_policy_eval_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-POL-006A",
+      "title": "Access control evaluation phase",
+      "description": "Evaluator matches rules by source/target/endpoint globs with priority-based resolution",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-004"
+      ],
+      "children": [
+        "REQ-POL-006A1"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-POL-006A1",
+      "title": "Endpoint pattern glob matching",
+      "description": "Policy evaluator supports glob patterns for endpoint matching",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-004"
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-POL-006A1a"
+      ]
+    },
+    {
+      "id": "REQ-POL-006B",
+      "title": "Structured PolicyDecision response",
+      "description": "Returns structured response with allowed, rule_id, rule_type, reason, retry_after, circuit_state",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-004"
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-POL-006B1"
+      ]
     },
     {
       "id": "REQ-POL-007",
       "title": "Policy violation logging",
-      "description": "Every denied request logs a policy_violations record: timestamp, source_scenario, target_scenario, endpoint, rule_id, rule_type, reason. Queryable via GET /api/v1/policies/violations with filters: source, target, rule_type, since, until, limit. Also emitted as a vrooli-events.policy.violation.v1 event for real-time monitoring.",
-      "status": "planned"
+      "description": "Denied requests logged as policy_violations records, queryable with filters.",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-004"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_policy_violations_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "internal/policy/sqlite_violations_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-POL-007A",
+        "REQ-POL-007B"
+      ]
     },
     {
       "id": "REQ-POL-008",
       "title": "Circuit breaker manual override",
-      "description": "POST /api/v1/policies/:id/override with body {state: 'open'|'closed'|'half_open'} to manually force circuit breaker state. Override is logged as a policy event. Override expires after configurable TTL (default: 1 hour) and reverts to automatic behavior.",
-      "status": "planned"
+      "description": "POST /api/v1/policies/:id/override to force circuit breaker state.",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-006"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_policy_override_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-POL-008A",
+        "REQ-POL-008B"
+      ]
+    },
+    {
+      "id": "REQ-POL-001A1a",
+      "title": "Deny-wins tie-breaking rule",
+      "description": "When multiple rules match at equal priority, deny effect takes precedence",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-004"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-POL-001B1",
+      "title": "Default mode configuration",
+      "description": "Default policy configurable between allow-all and deny-all via settings",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-004"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-POL-002A",
+      "title": "Rate limit rule storage",
+      "description": "Rate limit rules stored with max_requests, window_seconds, and scenario pair",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-005"
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-POL-002A1"
+      ]
+    },
+    {
+      "id": "REQ-POL-002A1",
+      "title": "Sliding window implementation",
+      "description": "Window slides based on request timestamps, not fixed intervals",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-005"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-POL-002B",
+      "title": "Rate check evaluation",
+      "description": "Counts requests within sliding window and compares against threshold",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-005"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-POL-003A1a",
+      "title": "Override event broadcasting",
+      "description": "Circuit breaker state changes broadcast to SSE policy subscribers",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-006"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-POL-003B1",
+      "title": "Threshold value validation",
+      "description": "Validates failure_threshold > 0, window_seconds > 0, cooldown_seconds > 0",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-006"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-POL-004A",
+      "title": "CRUD endpoint handlers",
+      "description": "POST create, GET list/get, PUT update, DELETE remove with proper status codes",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-007"
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-POL-004A1"
+      ]
+    },
+    {
+      "id": "REQ-POL-004A1",
+      "title": "Rule validation on create/update",
+      "description": "Validates required fields, rule type, and scenario glob patterns",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-007"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-POL-004B",
+      "title": "Schema enforcement",
+      "description": "Request bodies validated against rule type schema before persistence",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-007"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-POL-005A",
+      "title": "Policy change event generation",
+      "description": "Generates PolicyUpdate event on rule create, update, delete operations",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-008"
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-POL-005A1"
+      ]
+    },
+    {
+      "id": "REQ-POL-005A1",
+      "title": "Update event payload format",
+      "description": "Event includes action (created/updated/deleted), rule_id, and full rule snapshot",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-008"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-POL-005B",
+      "title": "SSE policy subscriber delivery",
+      "description": "Delivers policy update events to all connected SSE policy subscribers",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-008"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-POL-006A1a",
+      "title": "Multi-field glob matching",
+      "description": "Evaluator matches source, target, and endpoint fields with independent glob patterns",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-004"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-POL-006B1",
+      "title": "Retry-after calculation for rate limits",
+      "description": "PolicyDecision includes retry_after seconds when rate limit exceeded",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-004"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-POL-007A",
+      "title": "Violation record creation",
+      "description": "Creates violation record with source, target, rule_id, rule_type, timestamp, reason",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-004"
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-POL-007A1"
+      ]
+    },
+    {
+      "id": "REQ-POL-007A1",
+      "title": "Time-range query support",
+      "description": "Violations queryable by start/end timestamp range",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-004"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-POL-007B",
+      "title": "Violation query with filters",
+      "description": "List violations filtered by source, target, rule_id with pagination",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-004"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-POL-008A",
+      "title": "Override request validation",
+      "description": "Validates target state (open/closed/half-open) and circuit breaker exists",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-006"
+      ],
+      "criticality": "P1",
+      "children": [
+        "REQ-POL-008A1"
+      ]
+    },
+    {
+      "id": "REQ-POL-008A1",
+      "title": "Override audit trail",
+      "description": "Override actions logged with timestamp and previous state for auditing",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-006"
+      ],
+      "criticality": "P1"
+    },
+    {
+      "id": "REQ-POL-008B",
+      "title": "State persistence on override",
+      "description": "Overridden state persisted to database and broadcast via SSE",
+      "status": "complete",
+      "operational_targets": [
+        "OT-P1-006"
+      ],
+      "criticality": "P1"
     }
   ]
 }

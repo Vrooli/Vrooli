@@ -1,3 +1,4 @@
+// DOC: docs/internal/EXPERIENCE-AUDIT.md
 /**
  * Vrooli Ascension selector registry
  *
@@ -52,7 +53,7 @@ interface DynamicSelectorDefinition<P extends ParamSchema | undefined = undefine
 }
 
 type DynamicSelectorBranch = {
-  readonly [key: string]: DynamicSelectorBranch | DynamicSelectorDefinition<any>;
+  readonly [key: string]: DynamicSelectorBranch | DynamicSelectorDefinition<ParamSchema | undefined>;
 };
 
 type DynamicSelectorTree = DynamicSelectorBranch;
@@ -79,7 +80,7 @@ type SelectorTreeResult<
         Extract<L[K], LiteralSelectorTree>,
         K extends keyof D ? Extract<D[K], DynamicSelectorTree> : DynamicSelectorTree
       >;
-} & (D extends DynamicSelectorTree ? DynamicBranchResult<D> : {});
+} & (D extends DynamicSelectorTree ? DynamicBranchResult<D> : Record<string, never>);
 
 const TEMPLATE_TOKEN = /\$\{([^}]+)\}/g;
 
@@ -93,15 +94,15 @@ const formatTemplate = (template: string, values: Record<string, string | number
 
 const toDataTestIdSelector = (testId: string) => `[data-testid="${testId}"]`;
 
-const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<any> =>
-  Boolean(value && typeof value === "object" && (value as DynamicSelectorDefinition).kind === "dynamic-selector");
+const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<ParamSchema | undefined> =>
+  Boolean(value && typeof value === "object" && "kind" in value && value.kind === "dynamic-selector");
 
 const normalizeParams = (
-  definition: DynamicSelectorDefinition<any>,
+  definition: DynamicSelectorDefinition<ParamSchema | undefined>,
   raw: Record<string, string | number>,
   path: string,
 ) => {
-  const schema = definition.params ?? ({} as ParamSchema);
+  const schema: ParamSchema = definition.params ?? {};
   const normalized: Record<string, string | number> = {};
 
   for (const key of Object.keys(schema)) {
@@ -110,6 +111,9 @@ const normalizeParams = (
     }
     const definitionEntry = schema[key];
     const value = raw[key];
+    if (!definitionEntry || value === undefined) {
+      throw new Error(`Selector '${path}' parameter '${key}' lookup failed`);
+    }
     if (definitionEntry.type === "number") {
       if (typeof value !== "number") {
         throw new Error(`Selector '${path}' parameter '${key}' must be numeric`);
@@ -171,7 +175,8 @@ const flattenDynamicSelectors = (
     const nextPath = [...prefix, key];
     if (isDynamicDefinition(value)) {
       const manifestKey = nextPath.join(".");
-      const paramEntries = Object.entries(value.params ?? {}) as Array<[string, ParamDefinition]>;
+      const params: ParamSchema = value.params ?? {};
+      const paramEntries: Array<[string, ParamDefinition]> = Object.entries(params);
       target[manifestKey] = {
         description: value.description,
         selectorPattern:
@@ -212,11 +217,10 @@ const mergeLiteralAndDynamicNodes = (
     }
 
     if (literalValue && typeof literalValue === "object") {
-      merged[key] = mergeLiteralAndDynamicNodes(
-        literalValue as LiteralSelectorTree,
-        isDynamicDefinition(dynamicValue) ? undefined : (dynamicValue as DynamicSelectorTree | undefined),
-        nextPath,
-      );
+      const literalBranch: LiteralSelectorTree = literalValue;
+      const dynamicBranch: DynamicSelectorTree | undefined =
+        isDynamicDefinition(dynamicValue) ? undefined : dynamicValue;
+      merged[key] = mergeLiteralAndDynamicNodes(literalBranch, dynamicBranch, nextPath);
       return;
     }
 
@@ -225,7 +229,8 @@ const mergeLiteralAndDynamicNodes = (
         merged[key] = createDynamicSelectorFn(dynamicValue, nextPath.join("."));
         return;
       }
-      merged[key] = mergeLiteralAndDynamicNodes(undefined, dynamicValue as DynamicSelectorTree, nextPath);
+      const dynamicBranch: DynamicSelectorTree = dynamicValue;
+      merged[key] = mergeLiteralAndDynamicNodes(undefined, dynamicBranch, nextPath);
     }
   });
 
@@ -233,7 +238,7 @@ const mergeLiteralAndDynamicNodes = (
 };
 
 const createDynamicSelectorFn = (
-  definition: DynamicSelectorDefinition<any>,
+  definition: DynamicSelectorDefinition<ParamSchema | undefined>,
   path: string,
 ) => {
   return (params?: Record<string, string | number>) => {
@@ -265,27 +270,101 @@ const createSelectorRegistry = <
   return { selectors, manifest };
 };
 
-const literalSelectors: LiteralSelectorTree = {
-  /*
-  Example literal selectors:
-  dashboard: {
-    newProjectButton: 'dashboard-new-project-button',
+const literalSelectors = {
+  nav: {
+    stream: 'nav-stream',
+    analytics: 'nav-analytics',
+    events: 'nav-events',
+    settings: 'nav-settings',
+    healthIndicator: 'nav-health-indicator',
   },
-  */
-};
+  stream: {
+    pauseButton: 'stream-pause-button',
+    clearButton: 'stream-clear-button',
+    typeFilter: 'stream-type-filter',
+    sourceFilter: 'stream-source-filter',
+    resetFilters: 'stream-reset-filters',
+    eventCount: 'stream-event-count',
+    connectionStatus: 'stream-connection-status',
+  },
+  analytics: {
+    totalEvents: 'analytics-total-events',
+    storeSize: 'analytics-store-size',
+    subscribers: 'analytics-subscribers',
+    systemStatus: 'analytics-system-status',
+  },
+  eventLog: {
+    table: 'event-log-table',
+    typeFilter: 'event-log-type-filter',
+    sourceFilter: 'event-log-source-filter',
+    correlationFilter: 'event-log-correlation-filter',
+    limitSelect: 'event-log-limit-select',
+    resetFilters: 'event-log-reset-filters',
+    refreshButton: 'event-log-refresh-button',
+  },
+  eventDetail: {
+    panel: 'event-detail-panel',
+    closeButton: 'event-detail-close',
+    eventId: 'event-detail-id',
+    eventType: 'event-detail-type',
+    payload: 'event-detail-payload',
+    metadata: 'event-detail-metadata',
+  },
+  settings: {
+    retentionTime: 'settings-retention-time',
+    retentionSize: 'settings-retention-size',
+    pruneInterval: 'settings-prune-interval',
+  },
+  scenarioMetrics: {
+    page: 'scenario-metrics-page',
+    table: 'scenario-metrics-table',
+    sortOutbound: 'sort-outbound',
+    sortInbound: 'sort-inbound',
+    sortErrorRate: 'sort-errorRate',
+  },
+  correlationTrace: {
+    page: 'correlation-trace-page',
+    correlationInput: 'trace-correlation-input',
+    searchButton: 'trace-search-button',
+    timeline: 'trace-timeline',
+  },
+  policies: {
+    page: 'policies-page',
+    table: 'policies-table',
+    newButton: 'policies-new-button',
+    newForm: 'policies-new-form',
+  },
+  circuitBreakers: {
+    page: 'circuit-breakers-page',
+    table: 'circuit-breakers-table',
+    overrideForm: 'cb-override-form',
+  },
+  subscriptions: {
+    page: 'subscriptions-page',
+    table: 'subscriptions-table',
+    newButton: 'subscriptions-new-button',
+    newForm: 'subscriptions-new-form',
+  },
+  compliance: {
+    page: 'compliance-page',
+    table: 'compliance-table',
+  },
+} as const satisfies LiteralSelectorTree;
 
-const dynamicSelectorDefinitions: DynamicSelectorTree = {
-  /*
-  Example dynamic selectors:
-  projects: {
-    cardByName: defineDynamicSelector({
-      description: 'Project card filtered by name',
-      selectorPattern: '[data-testid="project-card"][data-project-name="${name}"]',
-      params: { name: { type: 'string' } },
+const dynamicSelectorDefinitions = {
+  eventTable: {
+    rowByIndex: defineDynamicSelector({
+      description: 'Event table row by index',
+      selectorPattern: '[data-testid="event-row-${index}"]',
+      params: { index: { type: 'number' } },
+    }),
+    rowByEventId: defineDynamicSelector({
+      description: 'Event table row by event ID',
+      selectorPattern: '[data-testid="event-row"][data-event-id="${eventId}"]',
+      params: { eventId: { type: 'string' } },
     }),
   },
-  */
-};
+} as const satisfies DynamicSelectorTree;
 
 const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);
 

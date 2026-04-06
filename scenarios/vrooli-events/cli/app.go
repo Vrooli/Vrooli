@@ -61,6 +61,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 	events := cliapp.CommandGroup{
 		Title: "Events",
 		Commands: []cliapp.Command{
+			{Name: "ingest", NeedsAPI: true, Description: "Publish an event to the event bus", Run: a.cmdIngest},
 			{Name: "query", NeedsAPI: true, Description: "Search events by type/source/correlation_id", Run: a.cmdQuery},
 			{Name: "subscribe", NeedsAPI: true, Description: "Real-time SSE event listener", Run: a.cmdSubscribe},
 		},

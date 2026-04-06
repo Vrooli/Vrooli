@@ -2,6 +2,7 @@ package broker
 
 import "testing"
 
+// [REQ:REQ-PS-002] Verify glob-pattern matching logic (single *, double **, exact, mixed)
 func TestMatch(t *testing.T) {
 	tests := []struct {
 		pattern string

@@ -1,3 +1,4 @@
+// DOC: docs/reference/event-id-format.md
 package broker
 
 import "github.com/vrooli/vrooli/scenarios/vrooli-events/internal/match"

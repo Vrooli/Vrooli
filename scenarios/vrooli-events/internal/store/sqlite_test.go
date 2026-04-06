@@ -28,6 +28,7 @@ func makeEvent(id, eventType, source string) Event {
 	}
 }
 
+// [REQ:REQ-ES-001] Verify basic insert and query against SQLite WAL-mode store
 func TestInsertAndQuery(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
@@ -55,6 +56,7 @@ func TestInsertAndQuery(t *testing.T) {
 	}
 }
 
+// [REQ:REQ-ES-001] Verify query filters (source, correlation, since, limit) on SQLite store
 func TestQueryFilters(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
@@ -88,6 +90,7 @@ func TestQueryFilters(t *testing.T) {
 	}
 }
 
+// [REQ:REQ-ES-002] Verify event_type glob matching in queries
 func TestQueryEventTypeGlob(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
@@ -109,6 +112,7 @@ func TestQueryEventTypeGlob(t *testing.T) {
 	}
 }
 
+// [REQ:REQ-ES-001] Verify GetSince retrieval by sequence ID from SQLite store
 func TestGetSince(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
@@ -129,6 +133,7 @@ func TestGetSince(t *testing.T) {
 	}
 }
 
+// [REQ:REQ-ES-002] Verify duplicate event_id is rejected (schema uniqueness constraint)
 func TestDuplicateEventID(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
@@ -143,6 +148,7 @@ func TestDuplicateEventID(t *testing.T) {
 	}
 }
 
+// [REQ:REQ-ES-001] Verify payload-size meta tracking in SQLite store
 func TestStoreMetaTracking(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
@@ -165,6 +171,7 @@ func TestStoreMetaTracking(t *testing.T) {
 	}
 }
 
+// [REQ:REQ-ES-001] Verify Stats reporting from SQLite store
 func TestStats(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
@@ -184,6 +191,7 @@ func TestStats(t *testing.T) {
 	}
 }
 
+// [REQ:REQ-ES-003] Verify time-based pruning deletes expired events
 func TestPruneByTime(t *testing.T) {
 	s, err := NewSQLiteStore(context.Background(), SQLiteConfig{MaxAge: 1 * time.Second})
 	if err != nil {
@@ -209,6 +217,7 @@ func TestPruneByTime(t *testing.T) {
 	}
 }
 
+// [REQ:REQ-ES-003] Verify size-based pruning removes events exceeding max payload bytes
 func TestPruneBySize(t *testing.T) {
 	// Max 100 bytes of payload
 	s, err := NewSQLiteStore(context.Background(), SQLiteConfig{MaxSizeBytes: 100})
@@ -240,6 +249,7 @@ func TestPruneBySize(t *testing.T) {
 	}
 }
 
+// [REQ:REQ-ES-001] Verify meta reconciliation corrects corrupted payload-byte tracking
 func TestReconcileMeta(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()

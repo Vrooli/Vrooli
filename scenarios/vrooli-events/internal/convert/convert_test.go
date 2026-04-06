@@ -11,6 +11,7 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
+// [REQ:REQ-ES-002] Verify protobuf EventEnvelope to store.Event round-trip conversion
 func TestEnvelopeToEventRoundTrip(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Millisecond)
 
@@ -73,6 +74,7 @@ func TestEnvelopeToEventRoundTrip(t *testing.T) {
 	}
 }
 
+// [REQ:REQ-ES-002] Verify nil payload handling in envelope-to-event conversion
 func TestEnvelopeToEventNilPayload(t *testing.T) {
 	env := &domain.EventEnvelope{
 		EventId:        "evt-no-payload",
@@ -97,6 +99,7 @@ func TestEnvelopeToEventNilPayload(t *testing.T) {
 	}
 }
 
+// [REQ:REQ-ES-002] Verify default timestamp population in event-to-envelope conversion
 func TestEventToEnvelopeDefaults(t *testing.T) {
 	event := store.Event{
 		EventID:        "evt-1",

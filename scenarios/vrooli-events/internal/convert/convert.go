@@ -1,3 +1,4 @@
+// DOC: docs/reference/api-endpoints.md
 package convert
 
 import (
@@ -56,7 +57,9 @@ func EventToEnvelope(e store.Event) (*domain.EventEnvelope, error) {
 	if len(e.Payload) > 0 {
 		any := &anypb.Any{}
 		if err := proto.Unmarshal(e.Payload, any); err != nil {
-			// If unmarshal fails, wrap raw bytes in an Any with empty type URL
+			// Payload bytes may not be valid proto (e.g. migrated data or raw JSON).
+			// Dropping the payload silently is safer than returning an error that
+			// would prevent the entire event from being read.
 			any = nil
 		}
 		env.Payload = any
