@@ -107,11 +107,7 @@ func TestPolicyDelete_BroadcastsEvent(t *testing.T) {
 	id := createTestPolicy(t, ts.URL,
 		`{"rule_type":"access","source_scenario":"*","target_scenario":"*","effect":"allow","priority":1,"enabled":true}`)
 
-	req, _ := http.NewRequest("DELETE", ts.URL+"/api/v1/policies/"+itoa(id), nil)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("delete: %v", err)
-	}
+	resp := doJSONRequest(t, "DELETE", ts.URL+"/api/v1/policies/"+itoa(id), "")
 	resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNoContent {
@@ -136,16 +132,14 @@ func TestSubscriptionDelete_StoreError(t *testing.T) {
 		`{"name":"del-sub","owner_scenario":"o","event_pattern":"*","delivery_type":"sse","enabled":true}`)
 
 	// First delete succeeds
-	req, _ := http.NewRequest("DELETE", ts.URL+"/api/v1/subscriptions/"+itoa(id), nil)
-	resp, _ := http.DefaultClient.Do(req)
+	resp := doJSONRequest(t, "DELETE", ts.URL+"/api/v1/subscriptions/"+itoa(id), "")
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("expected 204, got %d", resp.StatusCode)
 	}
 
 	// Second delete on already-deleted ID should still return 204 (idempotent)
-	req2, _ := http.NewRequest("DELETE", ts.URL+"/api/v1/subscriptions/"+itoa(id), nil)
-	resp2, _ := http.DefaultClient.Do(req2)
+	resp2 := doJSONRequest(t, "DELETE", ts.URL+"/api/v1/subscriptions/"+itoa(id), "")
 	resp2.Body.Close()
 	if resp2.StatusCode != http.StatusNoContent {
 		t.Fatalf("expected idempotent 204, got %d", resp2.StatusCode)

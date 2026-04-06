@@ -34,8 +34,9 @@ func TestSQLiteStore_CRUD(t *testing.T) {
 	if rule.SourceScenario != "src" {
 		t.Fatalf("expected src, got %s", rule.SourceScenario)
 	}
-	if rule.Priority != 5 {
-		t.Fatalf("expected priority=5, got %d", rule.Priority)
+	// Auto-computed specificity: exact(src)=3 + exact(tgt)=3 + empty(endpoint)=1 = 7
+	if rule.Priority != 7 {
+		t.Fatalf("expected priority=7 (auto-computed specificity), got %d", rule.Priority)
 	}
 	if !rule.Enabled {
 		t.Fatal("expected enabled=true")

@@ -16,7 +16,7 @@ globalThis.ResizeObserver = vi.fn().mockImplementation(() => ({
 }));
 
 // Mock EventSource (not available in jsdom)
-globalThis.EventSource = vi.fn().mockImplementation(() => ({
+const MockEventSource = vi.fn().mockImplementation(() => ({
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
     close: vi.fn(),
@@ -24,4 +24,8 @@ globalThis.EventSource = vi.fn().mockImplementation(() => ({
     CONNECTING: 0,
     OPEN: 1,
     CLOSED: 2,
-})) as unknown as typeof EventSource;
+}));
+MockEventSource.CONNECTING = 0;
+MockEventSource.OPEN = 1;
+MockEventSource.CLOSED = 2;
+Object.defineProperty(globalThis, "EventSource", { value: MockEventSource, writable: true });

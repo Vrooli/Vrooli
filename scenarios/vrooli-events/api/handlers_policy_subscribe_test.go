@@ -86,10 +86,10 @@ func TestPolicySubscribe_CreateBroadcast(t *testing.T) {
 	scanner.Scan()
 
 	// Create a policy to trigger the broadcast.
-	policyJSON := `{"rule_type":"access","source_scenario":"src","target_scenario":"tgt","effect":"allow"}`
+	policyJSON := `{"rule_type":"access","source_scenario":"src","target_scenario":"tgt","effect":"allow","enabled":true}`
 	_, _ = http.Post(ts.URL+"/api/v1/policies", "application/json", strings.NewReader(policyJSON))
 
-	// Read SSE events and look for a policy_change event.
+	// Read SSE events and look for a snapshot event.
 	var gotEvent bool
 	deadline := time.After(3 * time.Second)
 	for !gotEvent {
@@ -102,7 +102,7 @@ func TestPolicySubscribe_CreateBroadcast(t *testing.T) {
 			break
 		}
 		line := scanner.Text()
-		if line == "event: policy_change" {
+		if line == "event: snapshot" {
 			// Next line should be data:
 			if scanner.Scan() {
 				dataLine := scanner.Text()
@@ -112,11 +112,11 @@ func TestPolicySubscribe_CreateBroadcast(t *testing.T) {
 					if err := json.Unmarshal([]byte(data), &evt); err != nil {
 						t.Fatalf("unmarshal policy event: %v", err)
 					}
-					if evt.Action != "created" {
-						t.Fatalf("expected action created, got %s", evt.Action)
+					if evt.Type != "snapshot" {
+						t.Fatalf("expected type snapshot, got %s", evt.Type)
 					}
-					if evt.Rule == nil {
-						t.Fatal("expected rule to be present for created action")
+					if len(evt.Rules) == 0 {
+						t.Fatal("expected rules to be present in snapshot")
 					}
 					gotEvent = true
 				}
@@ -125,7 +125,7 @@ func TestPolicySubscribe_CreateBroadcast(t *testing.T) {
 	}
 
 	if !gotEvent {
-		t.Fatal("did not receive policy_change SSE event")
+		t.Fatal("did not receive snapshot SSE event")
 	}
 }
 
@@ -172,7 +172,7 @@ func TestPolicySubscribe_DeleteBroadcast(t *testing.T) {
 			break
 		}
 		line := scanner.Text()
-		if line == "event: policy_change" {
+		if line == "event: snapshot" {
 			if scanner.Scan() {
 				dataLine := scanner.Text()
 				if strings.HasPrefix(dataLine, "data: ") {
@@ -181,11 +181,12 @@ func TestPolicySubscribe_DeleteBroadcast(t *testing.T) {
 					if err := json.Unmarshal([]byte(data), &evt); err != nil {
 						t.Fatalf("unmarshal: %v", err)
 					}
-					if evt.Action == "deleted" {
-						if evt.Rule != nil {
-							t.Fatal("expected rule to be nil for deleted action")
+					if evt.Type == "snapshot" {
+						// After delete, snapshot should have 0 enabled rules
+						// (the only rule was deleted)
+						if len(evt.Rules) == 0 {
+							gotEvent = true
 						}
-						gotEvent = true
 					}
 				}
 			}
@@ -193,6 +194,6 @@ func TestPolicySubscribe_DeleteBroadcast(t *testing.T) {
 	}
 
 	if !gotEvent {
-		t.Fatal("did not receive deleted policy_change SSE event")
+		t.Fatal("did not receive snapshot SSE event after delete")
 	}
 }

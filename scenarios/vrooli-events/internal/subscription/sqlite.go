@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-	"time"
 
+	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/sqlutil"
 	_ "modernc.org/sqlite"
 )
 
@@ -55,7 +55,7 @@ func (s *SQLiteStore) Create(ctx context.Context, sub Subscription) (int64, erro
 		`INSERT INTO subscriptions (name, owner_scenario, event_pattern, source_filter, delivery_type, delivery_target, enabled)
 		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		sub.Name, sub.OwnerScenario, sub.EventPattern, sub.SourceFilter,
-		string(sub.DeliveryType), sub.DeliveryTarget, boolToInt(sub.Enabled))
+		string(sub.DeliveryType), sub.DeliveryTarget, sqlutil.BoolToInt(sub.Enabled))
 	if err != nil {
 		return 0, fmt.Errorf("insert subscription: %w", err)
 	}
@@ -75,7 +75,7 @@ func (s *SQLiteStore) Get(ctx context.Context, id int64) (Subscription, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, name, owner_scenario, event_pattern, source_filter, delivery_type, delivery_target, enabled, created_at, updated_at
 		 FROM subscriptions WHERE id = ?`, id)
-	return scanSubscription(row)
+	return scanSubscriptionFrom(row)
 }
 
 func (s *SQLiteStore) List(ctx context.Context, f ListFilters) ([]Subscription, error) {
@@ -92,7 +92,7 @@ func (s *SQLiteStore) List(ctx context.Context, f ListFilters) ([]Subscription, 
 	}
 	if f.Enabled != nil {
 		clauses = append(clauses, "enabled = ?")
-		args = append(args, boolToInt(*f.Enabled))
+		args = append(args, sqlutil.BoolToInt(*f.Enabled))
 	}
 
 	query := `SELECT id, name, owner_scenario, event_pattern, source_filter, delivery_type, delivery_target, enabled, created_at, updated_at FROM subscriptions`
@@ -109,7 +109,7 @@ func (s *SQLiteStore) List(ctx context.Context, f ListFilters) ([]Subscription, 
 
 	var subs []Subscription
 	for rows.Next() {
-		sub, err := scanSubscriptionFromRows(rows)
+		sub, err := scanSubscriptionFrom(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -125,7 +125,7 @@ func (s *SQLiteStore) Update(ctx context.Context, sub Subscription) error {
 		  updated_at=strftime('%Y-%m-%dT%H:%M:%f','now')
 		 WHERE id=?`,
 		sub.Name, sub.OwnerScenario, sub.EventPattern, sub.SourceFilter,
-		string(sub.DeliveryType), sub.DeliveryTarget, boolToInt(sub.Enabled), sub.ID)
+		string(sub.DeliveryType), sub.DeliveryTarget, sqlutil.BoolToInt(sub.Enabled), sub.ID)
 	if err != nil {
 		return fmt.Errorf("update subscription: %w", err)
 	}
@@ -157,41 +157,24 @@ func (s *SQLiteStore) Close() error {
 	return nil // DB lifecycle managed externally
 }
 
-func scanSubscription(row *sql.Row) (Subscription, error) {
+// subscriptionScanner abstracts *sql.Row and *sql.Rows so scan logic is shared.
+type subscriptionScanner interface {
+	Scan(dest ...any) error
+}
+
+// scanSubscriptionFrom scans a single subscription from any scanner (*sql.Row or *sql.Rows).
+func scanSubscriptionFrom(sc subscriptionScanner) (Subscription, error) {
 	var sub Subscription
 	var dt, createdAt, updatedAt string
 	var enabled int
-	err := row.Scan(&sub.ID, &sub.Name, &sub.OwnerScenario, &sub.EventPattern,
+	err := sc.Scan(&sub.ID, &sub.Name, &sub.OwnerScenario, &sub.EventPattern,
 		&sub.SourceFilter, &dt, &sub.DeliveryTarget, &enabled, &createdAt, &updatedAt)
 	if err != nil {
 		return sub, err
 	}
 	sub.DeliveryType = DeliveryType(dt)
 	sub.Enabled = enabled != 0
-	sub.CreatedAt, _ = time.Parse("2006-01-02T15:04:05.000", createdAt)
-	sub.UpdatedAt, _ = time.Parse("2006-01-02T15:04:05.000", updatedAt)
+	sub.CreatedAt = sqlutil.ParseTime(createdAt)
+	sub.UpdatedAt = sqlutil.ParseTime(updatedAt)
 	return sub, nil
-}
-
-func scanSubscriptionFromRows(rows *sql.Rows) (Subscription, error) {
-	var sub Subscription
-	var dt, createdAt, updatedAt string
-	var enabled int
-	err := rows.Scan(&sub.ID, &sub.Name, &sub.OwnerScenario, &sub.EventPattern,
-		&sub.SourceFilter, &dt, &sub.DeliveryTarget, &enabled, &createdAt, &updatedAt)
-	if err != nil {
-		return sub, err
-	}
-	sub.DeliveryType = DeliveryType(dt)
-	sub.Enabled = enabled != 0
-	sub.CreatedAt, _ = time.Parse("2006-01-02T15:04:05.000", createdAt)
-	sub.UpdatedAt, _ = time.Parse("2006-01-02T15:04:05.000", updatedAt)
-	return sub, nil
-}
-
-func boolToInt(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
 }

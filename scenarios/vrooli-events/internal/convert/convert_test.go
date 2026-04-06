@@ -99,6 +99,49 @@ func TestEnvelopeToEventNilPayload(t *testing.T) {
 	}
 }
 
+// [REQ:REQ-ES-002] Verify invalid payload bytes are silently dropped in event-to-envelope conversion
+func TestEventToEnvelope_InvalidPayload(t *testing.T) {
+	event := store.Event{
+		EventID:        "evt-bad-payload",
+		SourceScenario: "src",
+		EventType:      "test.v1",
+		Payload:        []byte("not-valid-protobuf"),
+		CreatedAt:      time.Now().UTC(),
+	}
+
+	env, err := EventToEnvelope(event)
+	if err != nil {
+		t.Fatalf("expected no error for invalid payload, got %v", err)
+	}
+	if env.Payload != nil {
+		t.Fatal("expected nil payload when bytes are invalid proto, got non-nil")
+	}
+	if env.EventId != "evt-bad-payload" {
+		t.Fatalf("expected event ID preserved, got %s", env.EventId)
+	}
+}
+
+// [REQ:REQ-ES-002] Verify nil timestamp in envelope uses current time
+func TestEnvelopeToEvent_NilTimestamp(t *testing.T) {
+	before := time.Now().UTC()
+	env := &domain.EventEnvelope{
+		EventId:        "evt-no-ts",
+		SourceScenario: "src",
+		EventType:      "test.v1",
+		// Timestamp deliberately nil
+	}
+
+	event, err := EnvelopeToEvent(env)
+	if err != nil {
+		t.Fatalf("envelopeToEvent: %v", err)
+	}
+	after := time.Now().UTC()
+
+	if event.CreatedAt.Before(before) || event.CreatedAt.After(after) {
+		t.Fatalf("expected CreatedAt between %v and %v, got %v", before, after, event.CreatedAt)
+	}
+}
+
 // [REQ:REQ-ES-002] Verify default timestamp population in event-to-envelope conversion
 func TestEventToEnvelopeDefaults(t *testing.T) {
 	event := store.Event{

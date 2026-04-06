@@ -2,11 +2,14 @@ package policy
 
 import "sync"
 
-// PolicyEvent represents a change to a policy rule, broadcast to SSE subscribers.
+// PolicyEvent represents a policy change, broadcast to SSE subscribers.
+// When Type is "snapshot", Rules contains the full set of enabled rules.
 type PolicyEvent struct {
-	Action string `json:"action"`         // "created", "updated", "deleted"
-	RuleID int64  `json:"rule_id"`        // ID of the affected rule
-	Rule   *Rule  `json:"rule,omitempty"` // Full rule for creates/updates; nil for deletes
+	Type   string `json:"type"`              // "snapshot"
+	Action string `json:"action,omitempty"`  // legacy: "created", "updated", "deleted"
+	RuleID int64  `json:"rule_id,omitempty"` // legacy: ID of the affected rule
+	Rule   *Rule  `json:"rule,omitempty"`    // legacy: full rule for creates/updates
+	Rules  []Rule `json:"rules,omitempty"`   // snapshot: all enabled rules
 }
 
 // PolicyBroadcaster fans out policy change events to in-process subscribers
@@ -63,4 +66,12 @@ func (b *PolicyBroadcaster) Broadcast(evt PolicyEvent) {
 			// Subscriber too slow; drop the event for this subscriber.
 		}
 	}
+}
+
+// BroadcastSnapshot broadcasts a full policy snapshot to all subscribers.
+func (b *PolicyBroadcaster) BroadcastSnapshot(rules []Rule) {
+	b.Broadcast(PolicyEvent{
+		Type:  "snapshot",
+		Rules: rules,
+	})
 }

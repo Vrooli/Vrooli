@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -39,7 +40,7 @@ func (s *Server) handleCreatePolicy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rule.ID = id
-	s.broadcastPolicyChange("created", id, &rule)
+	s.broadcastPolicySnapshot(r.Context())
 
 	writeJSON(w, http.StatusCreated, map[string]any{"id": id})
 }
@@ -64,10 +65,7 @@ func (s *Server) handleListPolicies(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if rules == nil {
-		rules = []policy.Rule{}
-	}
-	writeJSON(w, 0, rules)
+	writeJSON(w, 0, orEmpty(rules))
 }
 
 // handleGetPolicy returns a single policy rule by ID.
@@ -103,7 +101,7 @@ func (s *Server) handleUpdatePolicy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.broadcastPolicyChange("updated", id, &rule)
+	s.broadcastPolicySnapshot(r.Context())
 
 	writeJSON(w, 0, map[string]string{"status": "updated"})
 }
@@ -122,7 +120,7 @@ func (s *Server) handleDeletePolicy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.broadcastPolicyChange("deleted", id, nil)
+	s.broadcastPolicySnapshot(r.Context())
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -150,10 +148,7 @@ func (s *Server) handleListViolations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if violations == nil {
-		violations = []policy.Violation{}
-	}
-	writeJSON(w, 0, violations)
+	writeJSON(w, 0, orEmpty(violations))
 }
 
 // handleEvaluatePolicy evaluates a policy for a given request context.
@@ -274,21 +269,28 @@ func (s *Server) handlePolicySubscribe(w http.ResponseWriter, r *http.Request) {
 				log.Printf("policy SSE marshal error: %v", err)
 				continue
 			}
-			fmt.Fprintf(w, "event: policy_change\ndata: %s\n\n", data)
+			eventType := "policy_change"
+			if evt.Type == "snapshot" {
+				eventType = "snapshot"
+			}
+			fmt.Fprintf(w, "event: %s\ndata: %s\n\n", eventType, data)
 			flusher.Flush()
 		}
 	}
 }
 
-// broadcastPolicyChange sends a policy change event if the broadcaster is configured.
-func (s *Server) broadcastPolicyChange(action string, ruleID int64, rule *policy.Rule) {
-	if s.policyBroadcaster != nil {
-		s.policyBroadcaster.Broadcast(policy.PolicyEvent{
-			Action: action,
-			RuleID: ruleID,
-			Rule:   rule,
-		})
+// broadcastPolicySnapshot queries all enabled rules and broadcasts a full snapshot.
+func (s *Server) broadcastPolicySnapshot(ctx context.Context) {
+	if s.policyBroadcaster == nil {
+		return
 	}
+	enabled := true
+	rules, err := s.policyStore.ListRules(ctx, policy.ListFilters{Enabled: &enabled})
+	if err != nil {
+		log.Printf("policy snapshot broadcast error: %v", err)
+		return
+	}
+	s.policyBroadcaster.BroadcastSnapshot(orEmpty(rules))
 }
 
 // validatePolicyRule checks required fields on a policy rule.

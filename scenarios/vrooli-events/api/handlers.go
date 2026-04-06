@@ -375,6 +375,15 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// orEmpty returns s if non-nil, otherwise an empty slice of the same type.
+// Ensures JSON serialization produces "[]" instead of "null" for list endpoints.
+func orEmpty[T any](s []T) []T {
+	if s == nil {
+		return []T{}
+	}
+	return s
+}
+
 // writeJSON sends a JSON response with the given status code.
 // Centralizes Content-Type header and encoding so handlers stay focused on logic.
 func writeJSON(w http.ResponseWriter, status int, v any) {

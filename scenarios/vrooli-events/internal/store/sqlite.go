@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/match"
+	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/sqlutil"
 	_ "modernc.org/sqlite"
 )
 
@@ -241,104 +242,128 @@ func (s *SQLiteStore) GetSince(ctx context.Context, lastID int64, limit int) ([]
 func (s *SQLiteStore) Prune(ctx context.Context) (PruneResult, error) {
 	var result PruneResult
 
-	cutoff := time.Now().UTC().Add(-s.config.MaxAge).Format("2006-01-02T15:04:05.000")
+	count, err := s.pruneByTime(ctx)
+	if err != nil {
+		return result, err
+	}
+	result.TimeDeletedCount = count
 
-	// Time-based pruning
+	count, err = s.pruneBySize(ctx)
+	if err != nil {
+		return result, err
+	}
+	result.SizeDeletedCount = count
+
+	return result, nil
+}
+
+// pruneByTime deletes events older than MaxAge and adjusts the payload byte counter.
+func (s *SQLiteStore) pruneByTime(ctx context.Context) (int64, error) {
+	cutoff := time.Now().UTC().Add(-s.config.MaxAge).Format(sqlutil.TimestampFormat)
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return result, fmt.Errorf("begin tx: %w", err)
+		return 0, fmt.Errorf("begin tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	// Calculate bytes to subtract for time-based deletion
 	var timeBytes int64
-	err = tx.QueryRowContext(ctx,
-		`SELECT COALESCE(SUM(LENGTH(payload)), 0) FROM events WHERE created_at < ?`, cutoff).Scan(&timeBytes)
-	if err != nil {
-		return result, fmt.Errorf("sum time bytes: %w", err)
+	if err := tx.QueryRowContext(ctx,
+		`SELECT COALESCE(SUM(LENGTH(payload)), 0) FROM events WHERE created_at < ?`, cutoff).Scan(&timeBytes); err != nil {
+		return 0, fmt.Errorf("sum time bytes: %w", err)
 	}
 
 	res, err := tx.ExecContext(ctx, `DELETE FROM events WHERE created_at < ?`, cutoff)
 	if err != nil {
-		return result, fmt.Errorf("time prune: %w", err)
+		return 0, fmt.Errorf("time prune: %w", err)
 	}
-	result.TimeDeletedCount, _ = res.RowsAffected()
+	deleted, _ := res.RowsAffected()
 
 	if _, err := tx.ExecContext(ctx,
 		`UPDATE store_meta SET value = value - ? WHERE key = 'total_payload_bytes'`, timeBytes); err != nil {
-		return result, fmt.Errorf("update meta after time prune: %w", err)
+		return 0, fmt.Errorf("update meta after time prune: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return result, fmt.Errorf("commit time prune: %w", err)
+		return 0, fmt.Errorf("commit time prune: %w", err)
 	}
+	return deleted, nil
+}
 
-	// Size-based pruning
+// pruneBySize deletes the oldest events when total payload exceeds MaxSizeBytes.
+func (s *SQLiteStore) pruneBySize(ctx context.Context) (int64, error) {
 	var totalBytes int64
 	if err := s.db.QueryRowContext(ctx,
 		`SELECT value FROM store_meta WHERE key = 'total_payload_bytes'`).Scan(&totalBytes); err != nil {
-		return result, fmt.Errorf("read total bytes: %w", err)
+		return 0, fmt.Errorf("read total bytes: %w", err)
 	}
 
-	if totalBytes > s.config.MaxSizeBytes {
-		tx2, err := s.db.BeginTx(ctx, nil)
-		if err != nil {
-			return result, fmt.Errorf("begin size tx: %w", err)
-		}
-		defer func() { _ = tx2.Rollback() }()
-
-		excess := totalBytes - s.config.MaxSizeBytes
-		// Delete oldest events until we're under the limit
-		var deletedBytes int64
-		rows, err := tx2.QueryContext(ctx,
-			`SELECT id, LENGTH(payload) FROM events ORDER BY id ASC`)
-		if err != nil {
-			return result, fmt.Errorf("query for size prune: %w", err)
-		}
-
-		var idsToDelete []int64
-		for rows.Next() {
-			var id int64
-			var plen int64
-			if err := rows.Scan(&id, &plen); err != nil {
-				rows.Close()
-				return result, fmt.Errorf("scan size prune: %w", err)
-			}
-			idsToDelete = append(idsToDelete, id)
-			deletedBytes += plen
-			if deletedBytes >= excess {
-				break
-			}
-		}
-		rows.Close()
-
-		if len(idsToDelete) > 0 {
-			placeholders := make([]string, len(idsToDelete))
-			delArgs := make([]any, len(idsToDelete))
-			for i, id := range idsToDelete {
-				placeholders[i] = "?"
-				delArgs[i] = id
-			}
-			res, err := tx2.ExecContext(ctx,
-				fmt.Sprintf("DELETE FROM events WHERE id IN (%s)", strings.Join(placeholders, ",")),
-				delArgs...)
-			if err != nil {
-				return result, fmt.Errorf("size prune delete: %w", err)
-			}
-			result.SizeDeletedCount, _ = res.RowsAffected()
-
-			if _, err := tx2.ExecContext(ctx,
-				`UPDATE store_meta SET value = value - ? WHERE key = 'total_payload_bytes'`, deletedBytes); err != nil {
-				return result, fmt.Errorf("update meta after size prune: %w", err)
-			}
-		}
-
-		if err := tx2.Commit(); err != nil {
-			return result, fmt.Errorf("commit size prune: %w", err)
-		}
+	if totalBytes <= s.config.MaxSizeBytes {
+		return 0, nil
 	}
 
-	return result, nil
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin size tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	idsToDelete, deletedBytes, err := s.collectExcessEvents(ctx, tx, totalBytes-s.config.MaxSizeBytes)
+	if err != nil {
+		return 0, err
+	}
+	if len(idsToDelete) == 0 {
+		return 0, nil
+	}
+
+	placeholders := make([]string, len(idsToDelete))
+	delArgs := make([]any, len(idsToDelete))
+	for i, id := range idsToDelete {
+		placeholders[i] = "?"
+		delArgs[i] = id
+	}
+	res, err := tx.ExecContext(ctx,
+		fmt.Sprintf("DELETE FROM events WHERE id IN (%s)", strings.Join(placeholders, ",")),
+		delArgs...)
+	if err != nil {
+		return 0, fmt.Errorf("size prune delete: %w", err)
+	}
+	deleted, _ := res.RowsAffected()
+
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE store_meta SET value = value - ? WHERE key = 'total_payload_bytes'`, deletedBytes); err != nil {
+		return 0, fmt.Errorf("update meta after size prune: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit size prune: %w", err)
+	}
+	return deleted, nil
+}
+
+// collectExcessEvents returns IDs and total bytes of the oldest events whose
+// cumulative payload size meets or exceeds the given excess threshold.
+func (s *SQLiteStore) collectExcessEvents(ctx context.Context, tx *sql.Tx, excess int64) ([]int64, int64, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT id, LENGTH(payload) FROM events ORDER BY id ASC`)
+	if err != nil {
+		return nil, 0, fmt.Errorf("query for size prune: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []int64
+	var total int64
+	for rows.Next() {
+		var id, plen int64
+		if err := rows.Scan(&id, &plen); err != nil {
+			return nil, 0, fmt.Errorf("scan size prune: %w", err)
+		}
+		ids = append(ids, id)
+		total += plen
+		if total >= excess {
+			break
+		}
+	}
+	return ids, total, rows.Err()
 }
 
 func (s *SQLiteStore) Stats(ctx context.Context) (Stats, error) {
@@ -362,11 +387,11 @@ func (s *SQLiteStore) Stats(ctx context.Context) (Stats, error) {
 		return stats, err
 	}
 	if oldest.Valid {
-		t, _ := time.Parse("2006-01-02T15:04:05.000", oldest.String)
+		t := sqlutil.ParseTime(oldest.String)
 		stats.OldestEvent = &t
 	}
 	if newest.Valid {
-		t, _ := time.Parse("2006-01-02T15:04:05.000", newest.String)
+		t := sqlutil.ParseTime(newest.String)
 		stats.NewestEvent = &t
 	}
 
@@ -408,7 +433,7 @@ func (s *SQLiteStore) scanEvents(ctx context.Context, query string, args ...any)
 				return nil, fmt.Errorf("unmarshal metadata: %w", err)
 			}
 		}
-		e.CreatedAt, _ = time.Parse("2006-01-02T15:04:05.000", createdStr)
+		e.CreatedAt = sqlutil.ParseTime(createdStr)
 
 		events = append(events, e)
 	}

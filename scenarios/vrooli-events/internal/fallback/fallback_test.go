@@ -72,6 +72,19 @@ func TestCheck_UnreachableServer(t *testing.T) {
 	}
 }
 
+func TestCheck_UnhealthyServer(t *testing.T) {
+	// [REQ:DI-007] Check returns error when health endpoint returns >= 400
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer srv.Close()
+
+	err := Check(srv.URL)
+	if err != ErrEventsUnavailable {
+		t.Fatalf("expected ErrEventsUnavailable for unhealthy server, got %v", err)
+	}
+}
+
 func TestCheck_HealthyServer(t *testing.T) {
 	// [REQ:DI-007] Check returns nil for a healthy server
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

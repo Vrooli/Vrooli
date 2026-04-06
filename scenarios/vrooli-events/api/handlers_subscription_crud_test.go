@@ -139,9 +139,7 @@ func TestSubscriptionUpdate(t *testing.T) {
 	id := createTestSubscription(t, ts.URL, `{"name":"orig","owner_scenario":"o","event_pattern":"*","delivery_type":"sse","enabled":true}`)
 
 	updateBody := `{"name":"updated","owner_scenario":"o","event_pattern":"*.v2","delivery_type":"sse","enabled":false}`
-	req, _ := http.NewRequest("PUT", fmt.Sprintf("%s/api/v1/subscriptions/%d", ts.URL, id), strings.NewReader(updateBody))
-	req.Header.Set("Content-Type", "application/json")
-	resp, _ := http.DefaultClient.Do(req)
+	resp := doJSONRequest(t, "PUT", fmt.Sprintf("%s/api/v1/subscriptions/%d", ts.URL, id), updateBody)
 	resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
@@ -162,8 +160,7 @@ func TestSubscriptionDelete(t *testing.T) {
 
 	id := createTestSubscription(t, ts.URL, `{"name":"del","owner_scenario":"o","event_pattern":"*","delivery_type":"sse","enabled":true}`)
 
-	req, _ := http.NewRequest("DELETE", fmt.Sprintf("%s/api/v1/subscriptions/%d", ts.URL, id), nil)
-	resp, _ := http.DefaultClient.Do(req)
+	resp := doJSONRequest(t, "DELETE", fmt.Sprintf("%s/api/v1/subscriptions/%d", ts.URL, id), "")
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("expected 204, got %d", resp.StatusCode)
@@ -220,12 +217,7 @@ func TestSubscriptionUpdate_NotFound(t *testing.T) {
 	_, ts := newTestServer(t)
 
 	body := `{"name":"n","owner_scenario":"o","event_pattern":"*","delivery_type":"sse"}`
-	req, _ := http.NewRequest("PUT", ts.URL+"/api/v1/subscriptions/99999", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("request: %v", err)
-	}
+	resp := doJSONRequest(t, "PUT", ts.URL+"/api/v1/subscriptions/99999", body)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNotFound {
@@ -239,12 +231,7 @@ func TestSubscriptionUpdate_InvalidBody(t *testing.T) {
 
 	id := createTestSubscription(t, ts.URL, `{"name":"orig","owner_scenario":"o","event_pattern":"*","delivery_type":"sse","enabled":true}`)
 
-	req, _ := http.NewRequest("PUT", fmt.Sprintf("%s/api/v1/subscriptions/%d", ts.URL, id), strings.NewReader("not json"))
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("request: %v", err)
-	}
+	resp := doJSONRequest(t, "PUT", fmt.Sprintf("%s/api/v1/subscriptions/%d", ts.URL, id), "not json")
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusBadRequest {
@@ -260,12 +247,7 @@ func TestSubscriptionUpdate_ValidationError(t *testing.T) {
 
 	// Missing name
 	body := `{"owner_scenario":"o","event_pattern":"*","delivery_type":"sse"}`
-	req, _ := http.NewRequest("PUT", fmt.Sprintf("%s/api/v1/subscriptions/%d", ts.URL, id), strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("request: %v", err)
-	}
+	resp := doJSONRequest(t, "PUT", fmt.Sprintf("%s/api/v1/subscriptions/%d", ts.URL, id), body)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusBadRequest {
@@ -282,12 +264,7 @@ func TestSubscriptionUpdate_InvalidID(t *testing.T) {
 	_, ts := newTestServer(t)
 
 	body := `{"name":"n","owner_scenario":"o","event_pattern":"*","delivery_type":"sse"}`
-	req, _ := http.NewRequest("PUT", ts.URL+"/api/v1/subscriptions/abc", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("request: %v", err)
-	}
+	resp := doJSONRequest(t, "PUT", ts.URL+"/api/v1/subscriptions/abc", body)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusBadRequest {
@@ -299,11 +276,7 @@ func TestSubscriptionUpdate_InvalidID(t *testing.T) {
 func TestSubscriptionDelete_InvalidID(t *testing.T) {
 	_, ts := newTestServer(t)
 
-	req, _ := http.NewRequest("DELETE", ts.URL+"/api/v1/subscriptions/notanumber", nil)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("request: %v", err)
-	}
+	resp := doJSONRequest(t, "DELETE", ts.URL+"/api/v1/subscriptions/notanumber", "")
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusBadRequest {

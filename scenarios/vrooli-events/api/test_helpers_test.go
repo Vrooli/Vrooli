@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -123,6 +124,29 @@ func postOverride(t *testing.T, tsURL string, policyID int64, body string) *http
 	resp, err := http.Post(fmt.Sprintf("%s/api/v1/policies/%d/override", tsURL, policyID), "application/json", strings.NewReader(body))
 	if err != nil {
 		t.Fatalf("override request: %v", err)
+	}
+	return resp
+}
+
+// doJSONRequest sends an HTTP request with a JSON body and returns the response.
+// Consolidates the repeated NewRequest + Content-Type header + Do pattern
+// used across PUT, DELETE, and other non-GET/POST test requests.
+func doJSONRequest(t *testing.T, method, url, body string) *http.Response {
+	t.Helper()
+	var bodyReader io.Reader
+	if body != "" {
+		bodyReader = strings.NewReader(body)
+	}
+	req, err := http.NewRequest(method, url, bodyReader)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	if body != "" {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("%s %s: %v", method, url, err)
 	}
 	return resp
 }

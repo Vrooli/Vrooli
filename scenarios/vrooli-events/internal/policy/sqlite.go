@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/sqlutil"
 	_ "modernc.org/sqlite"
 )
 
@@ -71,12 +72,15 @@ func NewSQLiteStore(db *sql.DB) (*SQLiteStore, error) {
 }
 
 func (s *SQLiteStore) CreateRule(ctx context.Context, r Rule) (int64, error) {
+	if r.RuleType == RuleTypeAccess {
+		r.Priority = ComputeSpecificity(r.SourceScenario, r.TargetScenario, r.EndpointPattern)
+	}
 	res, err := s.db.ExecContext(ctx,
 		`INSERT INTO policy_rules (rule_type, source_scenario, target_scenario, endpoint_pattern, effect, priority, enabled,
 		  max_requests, window_seconds, burst_allowance, failure_threshold, cooldown_seconds, success_threshold)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		string(r.RuleType), r.SourceScenario, r.TargetScenario, r.EndpointPattern,
-		string(r.Effect), r.Priority, boolToInt(r.Enabled),
+		string(r.Effect), r.Priority, sqlutil.BoolToInt(r.Enabled),
 		r.MaxRequests, r.WindowSeconds, r.BurstAllowance,
 		r.FailureThreshold, r.CooldownSeconds, r.SuccessThreshold)
 	if err != nil {
@@ -91,7 +95,7 @@ func (s *SQLiteStore) GetRule(ctx context.Context, id int64) (Rule, error) {
 		  max_requests, window_seconds, burst_allowance, failure_threshold, cooldown_seconds, success_threshold,
 		  created_at, updated_at
 		 FROM policy_rules WHERE id = ?`, id)
-	return scanRule(row)
+	return scanRuleFrom(row)
 }
 
 func (s *SQLiteStore) ListRules(ctx context.Context, f ListFilters) ([]Rule, error) {
@@ -112,7 +116,7 @@ func (s *SQLiteStore) ListRules(ctx context.Context, f ListFilters) ([]Rule, err
 	}
 	if f.Enabled != nil {
 		clauses = append(clauses, "enabled = ?")
-		args = append(args, boolToInt(*f.Enabled))
+		args = append(args, sqlutil.BoolToInt(*f.Enabled))
 	}
 
 	query := `SELECT id, rule_type, source_scenario, target_scenario, endpoint_pattern, effect, priority, enabled,
@@ -131,7 +135,7 @@ func (s *SQLiteStore) ListRules(ctx context.Context, f ListFilters) ([]Rule, err
 
 	var rules []Rule
 	for rows.Next() {
-		r, err := scanRuleFromRows(rows)
+		r, err := scanRuleFrom(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -141,6 +145,9 @@ func (s *SQLiteStore) ListRules(ctx context.Context, f ListFilters) ([]Rule, err
 }
 
 func (s *SQLiteStore) UpdateRule(ctx context.Context, r Rule) error {
+	if r.RuleType == RuleTypeAccess {
+		r.Priority = ComputeSpecificity(r.SourceScenario, r.TargetScenario, r.EndpointPattern)
+	}
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE policy_rules SET
 		  rule_type=?, source_scenario=?, target_scenario=?, endpoint_pattern=?, effect=?, priority=?, enabled=?,
@@ -148,7 +155,7 @@ func (s *SQLiteStore) UpdateRule(ctx context.Context, r Rule) error {
 		  updated_at=strftime('%Y-%m-%dT%H:%M:%f','now')
 		 WHERE id=?`,
 		string(r.RuleType), r.SourceScenario, r.TargetScenario, r.EndpointPattern,
-		string(r.Effect), r.Priority, boolToInt(r.Enabled),
+		string(r.Effect), r.Priority, sqlutil.BoolToInt(r.Enabled),
 		r.MaxRequests, r.WindowSeconds, r.BurstAllowance,
 		r.FailureThreshold, r.CooldownSeconds, r.SuccessThreshold, r.ID)
 	if err != nil {
@@ -229,7 +236,7 @@ func (s *SQLiteStore) ListViolations(ctx context.Context, f ViolationFilters) ([
 }
 
 func (s *SQLiteStore) SetCircuitBreakerOverride(ctx context.Context, ruleID int64, state CircuitState, ttlSeconds int) error {
-	expiresAt := time.Now().Add(time.Duration(ttlSeconds) * time.Second).UTC().Format("2006-01-02T15:04:05.000")
+	expiresAt := time.Now().Add(time.Duration(ttlSeconds) * time.Second).UTC().Format(sqlutil.TimestampFormat)
 	_, err := s.db.ExecContext(ctx,
 		`INSERT OR REPLACE INTO circuit_breaker_overrides (rule_id, state, expires_at)
 		 VALUES (?, ?, ?)`,
@@ -256,8 +263,8 @@ func (s *SQLiteStore) GetCircuitBreakerOverride(ctx context.Context, ruleID int6
 		return nil, fmt.Errorf("get circuit breaker override: %w", err)
 	}
 	o.State = CircuitState(state)
-	o.ExpiresAt, _ = time.Parse("2006-01-02T15:04:05.000", expiresAt)
-	o.CreatedAt, _ = time.Parse("2006-01-02T15:04:05.000", createdAt)
+	o.ExpiresAt = sqlutil.ParseTime(expiresAt)
+	o.CreatedAt = sqlutil.ParseTime(createdAt)
 	return &o, nil
 }
 
@@ -265,12 +272,17 @@ func (s *SQLiteStore) Close() error {
 	return nil // DB lifecycle managed externally
 }
 
-// scanRule scans a single rule from a *sql.Row.
-func scanRule(row *sql.Row) (Rule, error) {
+// ruleScanner abstracts *sql.Row and *sql.Rows so rule scanning logic is shared.
+type ruleScanner interface {
+	Scan(dest ...any) error
+}
+
+// scanRuleFrom scans a single rule from any scanner (*sql.Row or *sql.Rows).
+func scanRuleFrom(sc ruleScanner) (Rule, error) {
 	var r Rule
 	var ruleType, effect, createdAt, updatedAt string
 	var enabled int
-	err := row.Scan(&r.ID, &ruleType, &r.SourceScenario, &r.TargetScenario,
+	err := sc.Scan(&r.ID, &ruleType, &r.SourceScenario, &r.TargetScenario,
 		&r.EndpointPattern, &effect, &r.Priority, &enabled,
 		&r.MaxRequests, &r.WindowSeconds, &r.BurstAllowance,
 		&r.FailureThreshold, &r.CooldownSeconds, &r.SuccessThreshold,
@@ -281,35 +293,7 @@ func scanRule(row *sql.Row) (Rule, error) {
 	r.RuleType = RuleType(ruleType)
 	r.Effect = Effect(effect)
 	r.Enabled = enabled != 0
-	r.CreatedAt, _ = time.Parse("2006-01-02T15:04:05.000", createdAt)
-	r.UpdatedAt, _ = time.Parse("2006-01-02T15:04:05.000", updatedAt)
+	r.CreatedAt = sqlutil.ParseTime(createdAt)
+	r.UpdatedAt = sqlutil.ParseTime(updatedAt)
 	return r, nil
-}
-
-// scanRuleFromRows scans a single rule from *sql.Rows.
-func scanRuleFromRows(rows *sql.Rows) (Rule, error) {
-	var r Rule
-	var ruleType, effect, createdAt, updatedAt string
-	var enabled int
-	err := rows.Scan(&r.ID, &ruleType, &r.SourceScenario, &r.TargetScenario,
-		&r.EndpointPattern, &effect, &r.Priority, &enabled,
-		&r.MaxRequests, &r.WindowSeconds, &r.BurstAllowance,
-		&r.FailureThreshold, &r.CooldownSeconds, &r.SuccessThreshold,
-		&createdAt, &updatedAt)
-	if err != nil {
-		return r, err
-	}
-	r.RuleType = RuleType(ruleType)
-	r.Effect = Effect(effect)
-	r.Enabled = enabled != 0
-	r.CreatedAt, _ = time.Parse("2006-01-02T15:04:05.000", createdAt)
-	r.UpdatedAt, _ = time.Parse("2006-01-02T15:04:05.000", updatedAt)
-	return r, nil
-}
-
-func boolToInt(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
 }

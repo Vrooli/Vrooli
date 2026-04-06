@@ -157,10 +157,11 @@ func TestSSE_MultipleEventsDelivered(t *testing.T) {
 
 	received := 0
 	deadline := time.After(3 * time.Second)
+loop:
 	for received < 5 {
 		select {
 		case <-deadline:
-			goto done
+			break loop
 		default:
 		}
 		if !scanner.Scan() {
@@ -170,7 +171,6 @@ func TestSSE_MultipleEventsDelivered(t *testing.T) {
 			received++
 		}
 	}
-done:
 	if received < 3 {
 		t.Fatalf("expected at least 3 events delivered under rapid ingestion, got %d", received)
 	}

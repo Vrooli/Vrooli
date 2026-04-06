@@ -173,8 +173,9 @@ func TestPolicyGet(t *testing.T) {
 	if rule.SourceScenario != "s" {
 		t.Fatalf("expected source=s, got %s", rule.SourceScenario)
 	}
-	if rule.Priority != 5 {
-		t.Fatalf("expected priority=5, got %d", rule.Priority)
+	// Auto-computed specificity: exact(s)=3 + exact(t)=3 + empty(endpoint)=1 = 7
+	if rule.Priority != 7 {
+		t.Fatalf("expected priority=7 (auto-computed specificity), got %d", rule.Priority)
 	}
 }
 
@@ -197,12 +198,7 @@ func TestPolicyUpdate(t *testing.T) {
 
 	// Update
 	updateBody := `{"rule_type":"access","source_scenario":"s-updated","target_scenario":"t","effect":"deny","enabled":true}`
-	req, _ := http.NewRequest("PUT", fmt.Sprintf("%s/api/v1/policies/%d", ts.URL, id), strings.NewReader(updateBody))
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("update: %v", err)
-	}
+	resp := doJSONRequest(t, "PUT", fmt.Sprintf("%s/api/v1/policies/%d", ts.URL, id), updateBody)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
@@ -228,11 +224,7 @@ func TestPolicyDelete(t *testing.T) {
 	id := createTestPolicy(t, ts.URL, `{"rule_type":"access","source_scenario":"s","target_scenario":"t","effect":"allow","enabled":true}`)
 
 	// Delete
-	req, _ := http.NewRequest("DELETE", fmt.Sprintf("%s/api/v1/policies/%d", ts.URL, id), nil)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("delete: %v", err)
-	}
+	resp := doJSONRequest(t, "DELETE", fmt.Sprintf("%s/api/v1/policies/%d", ts.URL, id), "")
 	resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNoContent {
@@ -280,12 +272,7 @@ func TestPolicyUpdate_NotFound(t *testing.T) {
 	_, ts := newTestServer(t)
 
 	body := `{"rule_type":"access","source_scenario":"s","target_scenario":"t","effect":"allow"}`
-	req, _ := http.NewRequest("PUT", ts.URL+"/api/v1/policies/99999", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("request: %v", err)
-	}
+	resp := doJSONRequest(t, "PUT", ts.URL+"/api/v1/policies/99999", body)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNotFound {
@@ -299,12 +286,7 @@ func TestPolicyUpdate_InvalidBody(t *testing.T) {
 
 	id := createTestPolicy(t, ts.URL, `{"rule_type":"access","source_scenario":"s","target_scenario":"t","effect":"allow","enabled":true}`)
 
-	req, _ := http.NewRequest("PUT", fmt.Sprintf("%s/api/v1/policies/%d", ts.URL, id), strings.NewReader("not json"))
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("request: %v", err)
-	}
+	resp := doJSONRequest(t, "PUT", fmt.Sprintf("%s/api/v1/policies/%d", ts.URL, id), "not json")
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusBadRequest {
@@ -320,12 +302,7 @@ func TestPolicyUpdate_ValidationError(t *testing.T) {
 
 	// Missing source_scenario
 	body := `{"rule_type":"access","target_scenario":"t","effect":"allow"}`
-	req, _ := http.NewRequest("PUT", fmt.Sprintf("%s/api/v1/policies/%d", ts.URL, id), strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("request: %v", err)
-	}
+	resp := doJSONRequest(t, "PUT", fmt.Sprintf("%s/api/v1/policies/%d", ts.URL, id), body)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusBadRequest {
@@ -341,11 +318,7 @@ func TestPolicyUpdate_ValidationError(t *testing.T) {
 func TestPolicyDelete_InvalidID(t *testing.T) {
 	_, ts := newTestServer(t)
 
-	req, _ := http.NewRequest("DELETE", ts.URL+"/api/v1/policies/notanumber", nil)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("request: %v", err)
-	}
+	resp := doJSONRequest(t, "DELETE", ts.URL+"/api/v1/policies/notanumber", "")
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusBadRequest {
@@ -413,12 +386,7 @@ func TestPolicyUpdate_InvalidID(t *testing.T) {
 	_, ts := newTestServer(t)
 
 	body := `{"rule_type":"access","source_scenario":"s","target_scenario":"t","effect":"allow"}`
-	req, _ := http.NewRequest("PUT", ts.URL+"/api/v1/policies/abc", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("request: %v", err)
-	}
+	resp := doJSONRequest(t, "PUT", ts.URL+"/api/v1/policies/abc", body)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusBadRequest {

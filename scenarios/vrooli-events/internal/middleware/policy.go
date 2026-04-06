@@ -6,10 +6,8 @@
 package middleware
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -26,18 +24,19 @@ type Config struct {
 	InitialRules []policy.Rule // initial policy snapshot (for testing, may be nil)
 }
 
-// PolicyMiddleware enforces access control on incoming requests using
-// locally-cached policy rules. The X-Source-Scenario header identifies
-// the caller; requests without it are classified as "external".
+// PolicyMiddleware enforces access control, rate limiting, and circuit breaking
+// on incoming requests using locally-cached policy rules.
 type PolicyMiddleware struct {
 	scenarioName string
 	defaultMode  fallback.Mode
 
-	mu    sync.RWMutex
-	rules []policy.Rule
+	access       *AccessMiddleware
+	rateLimit    *RateLimitMiddleware
+	circuitBreak *CircuitBreakerMiddleware
 
 	cacheUpdatedAt atomic.Value // time.Time
 	sseConnected   atomic.Bool
+	ruleCount      atomic.Int64
 }
 
 // PolicyDeniedResponse is the JSON body returned on 403.
@@ -62,74 +61,67 @@ func NewPolicyMiddleware(cfg Config) *PolicyMiddleware {
 	pm := &PolicyMiddleware{
 		scenarioName: cfg.ScenarioName,
 		defaultMode:  mode,
-		rules:        rules,
+		access:       NewAccessMiddleware(cfg.ScenarioName),
+		rateLimit:    NewRateLimitMiddleware(cfg.ScenarioName),
+		circuitBreak: NewCircuitBreakerMiddleware(cfg.ScenarioName),
 	}
 	pm.cacheUpdatedAt.Store(time.Now())
-	pm.sseConnected.Store(true) // assume connected initially
+	pm.sseConnected.Store(true)
+	pm.distributeRules(rules)
 	return pm
 }
 
-// Handler returns an http.Handler middleware that enforces policy.
+// Handler returns an http.Handler middleware that enforces the full policy chain:
+// access control -> rate limiting -> circuit breaking.
 func (pm *PolicyMiddleware) Handler(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		source := headers.ExtractSource(r)
-		if source == "" {
-			source = "external"
-		}
-
-		decision := pm.evaluate(source, r.URL.Path)
-		if !decision.Allowed {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusForbidden)
-			json.NewEncoder(w).Encode(PolicyDeniedResponse{
-				Error:  "policy_denied",
-				RuleID: decision.RuleID,
-				Reason: decision.Reason,
-			})
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
+	return pm.access.Wrap(pm.rateLimit.Wrap(pm.circuitBreak.Wrap(next)))
 }
 
-// UpdateRules replaces the cached rules. Thread-safe.
+// UpdateRules replaces all cached rules. Thread-safe.
 func (pm *PolicyMiddleware) UpdateRules(rules []policy.Rule) {
-	pm.mu.Lock()
-	defer pm.mu.Unlock()
-	pm.rules = rules
+	pm.distributeRules(rules)
 	pm.cacheUpdatedAt.Store(time.Now())
 }
 
 // ApplyEvent applies a single policy change event from SSE.
 func (pm *PolicyMiddleware) ApplyEvent(evt policy.PolicyEvent) {
-	pm.mu.Lock()
-	defer pm.mu.Unlock()
-	pm.cacheUpdatedAt.Store(time.Now())
+	// Reconstruct a full snapshot from access middleware's current rules.
+	// This is a legacy path; snapshot push replaces it.
+	pm.access.mu.Lock()
+	current := make([]policy.Rule, len(pm.access.rules))
+	copy(current, pm.access.rules)
+	pm.access.mu.Unlock()
 
 	switch evt.Action {
 	case "deleted":
-		for i, rule := range pm.rules {
+		for i, rule := range current {
 			if rule.ID == evt.RuleID {
-				pm.rules = append(pm.rules[:i], pm.rules[i+1:]...)
-				return
+				current = append(current[:i], current[i+1:]...)
+				break
 			}
 		}
 	case "created":
 		if evt.Rule != nil {
-			pm.rules = append(pm.rules, *evt.Rule)
+			current = append(current, *evt.Rule)
 		}
 	case "updated":
 		if evt.Rule != nil {
-			for i, rule := range pm.rules {
+			found := false
+			for i, rule := range current {
 				if rule.ID == evt.RuleID {
-					pm.rules[i] = *evt.Rule
-					return
+					current[i] = *evt.Rule
+					found = true
+					break
 				}
 			}
-			pm.rules = append(pm.rules, *evt.Rule)
+			if !found {
+				current = append(current, *evt.Rule)
+			}
 		}
 	}
+
+	pm.distributeRules(current)
+	pm.cacheUpdatedAt.Store(time.Now())
 }
 
 // SetSSEConnected updates the SSE connection status.
@@ -147,10 +139,6 @@ type HealthInfo struct {
 
 // Health returns cache health info for the health endpoint.
 func (pm *PolicyMiddleware) Health() HealthInfo {
-	pm.mu.RLock()
-	ruleCount := len(pm.rules)
-	pm.mu.RUnlock()
-
 	updatedAt, _ := pm.cacheUpdatedAt.Load().(time.Time)
 	age := time.Since(updatedAt)
 	connected := pm.sseConnected.Load()
@@ -159,58 +147,35 @@ func (pm *PolicyMiddleware) Health() HealthInfo {
 	return HealthInfo{
 		CacheAge:     age,
 		CacheStale:   stale,
-		RuleCount:    ruleCount,
+		RuleCount:    int(pm.ruleCount.Load()),
 		SSEConnected: connected,
 	}
 }
 
-// evaluate checks cached rules against the source and endpoint.
-func (pm *PolicyMiddleware) evaluate(source, endpoint string) policy.Decision {
-	pm.mu.RLock()
-	defer pm.mu.RUnlock()
+// distributeRules fans out rules to each middleware layer and prunes orphaned state.
+func (pm *PolicyMiddleware) distributeRules(rules []policy.Rule) {
+	pm.ruleCount.Store(int64(len(rules)))
 
-	if len(pm.rules) == 0 {
-		return policy.Decision{Allowed: true, Reason: "no rules, default allow"}
-	}
-
-	for _, rule := range pm.rules {
-		if !rule.Enabled || rule.RuleType != policy.RuleTypeAccess {
-			continue
-		}
-		// Match source scenario
-		if rule.SourceScenario != "*" && rule.SourceScenario != source {
-			continue
-		}
-		// Match target (this scenario)
-		if rule.TargetScenario != "*" && rule.TargetScenario != pm.scenarioName {
-			continue
-		}
-		// Match endpoint if specified
-		if rule.EndpointPattern != "" && rule.EndpointPattern != endpoint {
-			continue
-		}
-
-		allowed := rule.Effect == policy.EffectAllow
-		reason := "matched rule"
-		if !allowed {
-			reason = "denied by access control rule"
-		}
-		return policy.Decision{
-			Allowed:  allowed,
-			RuleID:   rule.ID,
-			RuleType: rule.RuleType,
-			Reason:   reason,
+	var accessRules []policy.Rule
+	var rateLimitRules []policy.Rule
+	var circuitRules []policy.Rule
+	for _, r := range rules {
+		switch r.RuleType {
+		case policy.RuleTypeAccess:
+			accessRules = append(accessRules, r)
+		case policy.RuleTypeRateLimit:
+			rateLimitRules = append(rateLimitRules, r)
+		case policy.RuleTypeCircuitBreaker:
+			circuitRules = append(circuitRules, r)
 		}
 	}
-
-	return policy.Decision{Allowed: true, Reason: "no matching rule, default allow"}
+	pm.access.UpdateRules(accessRules)
+	pm.rateLimit.UpdateRules(rateLimitRules)
+	pm.circuitBreak.UpdateRules(circuitRules)
 }
 
 // PolicyMiddlewareFunc is the convenience constructor matching the spec:
 // func PolicyMiddleware(eventsURL, scenarioName string) func(http.Handler) http.Handler
-//
-// It creates a middleware with default settings. For production use with
-// custom config, use NewPolicyMiddleware directly.
 func PolicyMiddlewareFunc(eventsURL, scenarioName string) func(http.Handler) http.Handler {
 	if eventsURL == "" {
 		log.Printf("[policy-middleware] no events URL, using noop middleware")
@@ -223,4 +188,13 @@ func PolicyMiddlewareFunc(eventsURL, scenarioName string) func(http.Handler) htt
 		DefaultMode:  fallback.ModeFailOpen,
 	})
 	return pm.Handler
+}
+
+// extractSource reads X-Source-Scenario from the request, defaulting to "external".
+func extractSource(r *http.Request) string {
+	source := headers.ExtractSource(r)
+	if source == "" {
+		return "external"
+	}
+	return source
 }

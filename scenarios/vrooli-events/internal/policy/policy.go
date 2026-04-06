@@ -4,6 +4,7 @@ package policy
 
 import (
 	"context"
+	"strings"
 	"time"
 )
 
@@ -99,6 +100,24 @@ type CircuitBreakerOverride struct {
 	State     CircuitState `json:"state"`
 	ExpiresAt time.Time    `json:"expires_at"`
 	CreatedAt time.Time    `json:"created_at"`
+}
+
+// ComputeSpecificity scores an access rule's pattern specificity.
+// Scoring per pattern: exact match = 3pts, prefix glob (contains * but isn't
+// just "*") = 2pts, wildcard ("*" or "**" or empty) = 1pt.
+// Sum across source + target + endpoint (max 9).
+func ComputeSpecificity(source, target, endpoint string) int {
+	return patternScore(source) + patternScore(target) + patternScore(endpoint)
+}
+
+func patternScore(p string) int {
+	if p == "" || p == "*" || p == "**" {
+		return 1
+	}
+	if strings.Contains(p, "*") {
+		return 2
+	}
+	return 3
 }
 
 // Store defines the policy storage interface.

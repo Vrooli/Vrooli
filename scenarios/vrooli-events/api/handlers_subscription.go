@@ -54,10 +54,7 @@ func (s *Server) handleListSubscriptions(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if subs == nil {
-		subs = []subscription.Subscription{}
-	}
-	writeJSON(w, 0, subs)
+	writeJSON(w, 0, orEmpty(subs))
 }
 
 // handleGetSubscription returns a single subscription by ID.
