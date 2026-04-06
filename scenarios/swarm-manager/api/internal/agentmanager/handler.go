@@ -104,13 +104,13 @@ func (h *Handler) GetRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := runStatusResponse{
-		RunID:        state.RunID,
-		TaskID:       state.TaskID,
-		Status:       state.Status,
-		StartedAt:    state.StartedAt,
-		FinishedAt:   state.FinishedAt,
-		ErrorMessage: state.ErrorMsg,
-		Active:       isActiveStatus(state.Status),
+		RunID:         state.RunID,
+		TaskID:        state.TaskID,
+		Status:        state.Status,
+		StartedAt:     state.StartedAt,
+		FinishedAt:    state.FinishedAt,
+		ErrorMessage:  state.ErrorMsg,
+		Active:        isActiveStatus(state.Status),
 		TokensUsed:    state.TokensUsed,
 		TurnsUsed:     state.TurnsUsed,
 		CostEstimate:  state.CostEstimate,

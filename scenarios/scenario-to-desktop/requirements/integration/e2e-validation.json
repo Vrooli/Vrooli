@@ -4,6 +4,7 @@
   "requirements": [
     {
       "id": "STD-E2E-GENERATION",
+      "prd_ref": "OT-P0-004",
       "title": "E2E test for desktop app generation",
       "description": "End-to-end test that generates a desktop app and validates the complete output",
       "validation": [
@@ -27,6 +28,7 @@
     },
     {
       "id": "STD-E2E-STRUCTURE",
+      "prd_ref": "OT-P0-004",
       "title": "Generated desktop app has correct file structure",
       "description": "Validates that generated desktop apps follow the standard platforms/electron/ structure",
       "validation": [
@@ -48,6 +50,7 @@
     },
     {
       "id": "STD-E2E-DEPENDENCIES",
+      "prd_ref": "OT-P0-004",
       "title": "Generated desktop app dependencies install successfully",
       "description": "npm install completes successfully in generated desktop app directory",
       "validation": [
@@ -62,6 +65,7 @@
     },
     {
       "id": "STD-E2E-BUILD",
+      "prd_ref": "OT-P0-004",
       "title": "Generated desktop app TypeScript builds successfully",
       "description": "TypeScript compilation completes and produces valid JavaScript in dist/",
       "validation": [
@@ -76,6 +80,7 @@
     },
     {
       "id": "STD-NATIVE-MENUS",
+      "prd_ref": "OT-P0-006",
       "title": "Native menu integration in templates",
       "description": "Templates include native menu bar with File, Edit, View, Window, Help menus",
       "validation": [
@@ -91,6 +96,7 @@
     },
     {
       "id": "STD-NATIVE-TRAY",
+      "prd_ref": "OT-P0-006",
       "title": "System tray integration in advanced templates",
       "description": "Advanced/multi-window/kiosk templates include system tray with context menu",
       "validation": [
@@ -106,6 +112,7 @@
     },
     {
       "id": "STD-NATIVE-FILE-DIALOGS",
+      "prd_ref": "OT-P0-006",
       "title": "Native file dialog integration",
       "description": "Templates include IPC handlers for native file open/save dialogs",
       "validation": [
@@ -121,6 +128,7 @@
     },
     {
       "id": "STD-NATIVE-NOTIFICATIONS",
+      "prd_ref": "OT-P0-006",
       "title": "System notification support",
       "description": "Templates support system notifications via Electron notification API",
       "validation": [
@@ -136,6 +144,7 @@
     },
     {
       "id": "STD-PLATFORM-WINDOWS",
+      "prd_ref": "OT-P0-003",
       "title": "Windows platform build support",
       "description": "Desktop apps can be packaged as Windows .msi installers",
       "validation": [
@@ -150,6 +159,7 @@
     },
     {
       "id": "STD-PLATFORM-MACOS",
+      "prd_ref": "OT-P0-003",
       "title": "macOS platform build support",
       "description": "Desktop apps can be packaged as macOS .pkg installers",
       "validation": [
@@ -164,6 +174,7 @@
     },
     {
       "id": "STD-PLATFORM-LINUX",
+      "prd_ref": "OT-P0-003",
       "title": "Linux platform build support",
       "description": "Desktop apps can be packaged as Linux .AppImage or .deb packages",
       "validation": [

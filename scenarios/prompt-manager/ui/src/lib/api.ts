@@ -86,6 +86,19 @@ import {
   type TopicMatchResponse,
   type WorldScaleConfig,
   type WorldSeatsConfig,
+  VersionsResponseSchema,
+  RevertResponseSchema,
+  VariantSchema,
+  VariantArraySchema,
+  ExperimentSchema,
+  ExperimentArraySchema,
+  type VersionsResponse,
+  type RevertResponse,
+  type Variant,
+  type CreateVariantRequest,
+  type Experiment,
+  type CreateExperimentRequest,
+  type ConcludeExperimentRequest,
   type Skill,
   type CreateSkillRequest,
   type UpdateSkillRequest,
@@ -1138,6 +1151,97 @@ class ApiClient {
         body: JSON.stringify({ queries, limit }),
       },
       TopicMatchResponseSchema
+    )
+  }
+
+  // Version history methods
+  async getSkillVersions(skillId: string): Promise<VersionsResponse> {
+    return this.request<VersionsResponse>(
+      `/skills/${encodeURIComponent(skillId)}/versions`,
+      undefined,
+      VersionsResponseSchema
+    )
+  }
+
+  async revertSkillVersion(skillId: string, version: number): Promise<RevertResponse> {
+    return this.request<RevertResponse>(
+      `/skills/${encodeURIComponent(skillId)}/revert/${version}`,
+      { method: 'POST' },
+      RevertResponseSchema
+    )
+  }
+
+  // Variant methods - aligned with api/skills/variant_handlers.go
+  async listVariants(skillId: string): Promise<Variant[]> {
+    return this.request<Variant[]>(
+      `/skills/${encodeURIComponent(skillId)}/variants`,
+      undefined,
+      VariantArraySchema
+    )
+  }
+
+  async createVariant(skillId: string, req: CreateVariantRequest): Promise<Variant> {
+    return this.request<Variant>(
+      `/skills/${encodeURIComponent(skillId)}/variants`,
+      {
+        method: 'POST',
+        body: JSON.stringify(req),
+      },
+      VariantSchema
+    )
+  }
+
+  async deleteVariant(skillId: string, variantId: string): Promise<void> {
+    await this.requestVoid(
+      `/skills/${encodeURIComponent(skillId)}/variants/${encodeURIComponent(variantId)}`,
+      { method: 'DELETE' }
+    )
+  }
+
+  // Experiment methods - aligned with api/skills/experiment_handlers.go
+  async listExperimentsBySkill(skillId: string): Promise<Experiment[]> {
+    return this.request<Experiment[]>(
+      `/skills/${encodeURIComponent(skillId)}/experiments`,
+      undefined,
+      ExperimentArraySchema
+    )
+  }
+
+  async getExperiment(experimentId: string): Promise<Experiment> {
+    return this.request<Experiment>(
+      `/experiments/${encodeURIComponent(experimentId)}`,
+      undefined,
+      ExperimentSchema
+    )
+  }
+
+  async createExperiment(req: CreateExperimentRequest): Promise<Experiment> {
+    return this.request<Experiment>(
+      '/experiments',
+      {
+        method: 'POST',
+        body: JSON.stringify(req),
+      },
+      ExperimentSchema
+    )
+  }
+
+  async startExperiment(experimentId: string): Promise<Experiment> {
+    return this.request<Experiment>(
+      `/experiments/${encodeURIComponent(experimentId)}/start`,
+      { method: 'POST' },
+      ExperimentSchema
+    )
+  }
+
+  async concludeExperiment(experimentId: string, req: ConcludeExperimentRequest): Promise<Experiment> {
+    return this.request<Experiment>(
+      `/experiments/${encodeURIComponent(experimentId)}/conclude`,
+      {
+        method: 'POST',
+        body: JSON.stringify(req),
+      },
+      ExperimentSchema
     )
   }
 }

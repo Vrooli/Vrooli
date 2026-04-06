@@ -250,6 +250,8 @@ type PromptTrace struct {
 	PromptRevision string `json:"prompt_revision,omitempty"`
 	UsedFallback   bool   `json:"used_fallback"`
 	CapturedAt     string `json:"captured_at"`
+	ExperimentID   string `json:"experiment_id,omitempty"`
+	VariantID      string `json:"variant_id,omitempty"`
 }
 
 type PromptCatalogEntry struct {
@@ -268,6 +270,25 @@ type PromptCatalogEntry struct {
 	OutputPaths       []string `json:"output_paths,omitempty"`
 	VariableKeys      []string `json:"variable_keys,omitempty"`
 	ReferenceSkillIDs []string `json:"reference_skill_ids,omitempty"`
+	ExperimentID      string   `json:"experiment_id,omitempty"`
+}
+
+type ExperimentVariantStats struct {
+	VariantID       string  `json:"variantId"`
+	TotalRuns       int     `json:"totalRuns"`
+	ReadyCount      int     `json:"readyCount"`
+	NeedsWorkCount  int     `json:"needsWorkCount"`
+	FixupRate       float64 `json:"fixupRate"`
+	AvgDurationSecs float64 `json:"avgDurationSecs,omitempty"`
+}
+
+type ExperimentResultsResponse struct {
+	ExperimentID  string                   `json:"experimentId"`
+	SkillID       string                   `json:"skillId,omitempty"`
+	Status        string                   `json:"status,omitempty"`
+	Variants      []ExperimentVariantStats `json:"variants"`
+	TotalOutcomes int                      `json:"totalOutcomes"`
+	AnalyzedAt    string                   `json:"analyzedAt"`
 }
 
 type PromptCatalogResponse struct {

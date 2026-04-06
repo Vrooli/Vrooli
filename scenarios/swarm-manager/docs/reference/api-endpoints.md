@@ -85,6 +85,22 @@ Behavior:
 - initiative metadata is created or updated before items are written
 - failures roll back the whole batch
 
+## Workshop Cancel Pending Advance
+
+`DELETE /api/v1/backlog/{kind}/{name}/workshop/pending-advance`
+
+Cancels a pending auto-advance countdown for the given backlog item. When `auto_advance_delay_seconds > 0` in settings, the `WorkshopSave` endpoint creates a deferred advance instead of spawning immediately. This endpoint cancels that deferred advance before it fires.
+
+Response:
+```json
+{
+  "cancelled": true
+}
+```
+
+- `cancelled: true` — a pending advance was found and cancelled
+- `cancelled: false` — no pending advance existed (idempotent)
+
 ## Initiatives Create
 
 `POST /api/v1/initiatives`

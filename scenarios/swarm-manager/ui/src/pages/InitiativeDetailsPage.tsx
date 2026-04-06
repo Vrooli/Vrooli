@@ -115,7 +115,8 @@ export function InitiativeDetailsPage() {
     queryKey: ["initiative", name, "files"],
     queryFn: () => {
       if (!name) throw new Error("Initiative name is required");
-      return fileService!.getFiles();
+      if (!fileService) throw new Error("File service is not available");
+      return fileService.getFiles();
     },
     enabled: !!name && !!fileService,
     ...defaultQueryOptions,

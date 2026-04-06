@@ -141,6 +141,7 @@ type ReadRequest struct {
 	Variables    map[string]string `json:"variables,omitempty"`    // Values for {{VAR}} substitution
 	WithScope    bool              `json:"withScope,omitempty"`    // Include default scope from first skill
 	Scope        string            `json:"scope,omitempty"`        // Explicit scope skill to include
+	ExperimentID string            `json:"experimentId,omitempty"` // Optional: select variant by experiment weights
 }
 
 // ReadIssue captures missing identifiers.
@@ -165,14 +166,15 @@ type ReadAmbiguous struct {
 
 // ReadResponse is the response for reading multiple skills.
 type ReadResponse struct {
-	Skills      []Response      `json:"skills,omitempty"`
-	Combined    string          `json:"combined,omitempty"`
-	SkillCount  int             `json:"skillCount,omitempty"`
-	TotalTokens int             `json:"totalTokens,omitempty"`
-	Format      string          `json:"format,omitempty"`
-	Missing     []ReadIssue     `json:"missing,omitempty"`
-	Ambiguous   []ReadAmbiguous `json:"ambiguous,omitempty"`
-	Resolve     string          `json:"resolve"`
-	Output      string          `json:"output,omitempty"`
-	ScopeSkill  *Response       `json:"scopeSkill,omitempty"` // Included scope skill (if requested)
+	Skills            []Response      `json:"skills,omitempty"`
+	Combined          string          `json:"combined,omitempty"`
+	SkillCount        int             `json:"skillCount,omitempty"`
+	TotalTokens       int             `json:"totalTokens,omitempty"`
+	Format            string          `json:"format,omitempty"`
+	Missing           []ReadIssue     `json:"missing,omitempty"`
+	Ambiguous         []ReadAmbiguous `json:"ambiguous,omitempty"`
+	Resolve           string          `json:"resolve"`
+	Output            string          `json:"output,omitempty"`
+	ScopeSkill        *Response       `json:"scopeSkill,omitempty"`        // Included scope skill (if requested)
+	SelectedVariantID string          `json:"selectedVariantId,omitempty"` // Set when experimentId selects a variant
 }

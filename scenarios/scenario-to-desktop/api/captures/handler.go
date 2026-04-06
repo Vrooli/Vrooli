@@ -151,7 +151,7 @@ func (h *Handler) download(w http.ResponseWriter, r *http.Request) {
 			f.Close()
 			continue
 		}
-		io.Copy(writer, f)
+		_, _ = io.Copy(writer, f)
 		f.Close()
 	}
 }

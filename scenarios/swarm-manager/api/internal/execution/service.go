@@ -130,6 +130,7 @@ type ServiceConfig struct {
 	ScenarioLifecycle        ScenarioLifecycle
 	ScenarioHealthChecker    ScenarioHealthChecker
 	PromptClient             promptmanager.Client
+	ExperimentClient         promptmanager.ExperimentClient
 	Archiver                 Archiver
 	ReviewClient             ReviewClient
 	Finalization             FinalizationConfig
@@ -146,6 +147,7 @@ type Service struct {
 	reviewThresholdsProvider ReviewThresholdsProvider
 	agentService             AgentSpawner
 	promptClient             promptmanager.Client
+	experimentClient         promptmanager.ExperimentClient
 	archiver                 Archiver
 	reviewClient             ReviewClient
 	inspector                RunInspector
@@ -201,6 +203,7 @@ func NewService(cfg ServiceConfig) *Service {
 		reviewThresholdsProvider: rtp,
 		agentService:             cfg.AgentService,
 		promptClient:             pc,
+		experimentClient:         cfg.ExperimentClient,
 		archiver:                 cfg.Archiver,
 		reviewClient:             cfg.ReviewClient,
 		scenarioLifecycle:        cfg.ScenarioLifecycle,

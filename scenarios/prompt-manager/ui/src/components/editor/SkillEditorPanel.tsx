@@ -19,7 +19,7 @@
  */
 
 import { useState } from 'react'
-import { ChevronDown, ChevronUp, MoreHorizontal, RotateCcw, Trash2, Menu, X, ToggleLeft, ToggleRight, MessageSquare } from 'lucide-react'
+import { ChevronDown, ChevronUp, MoreHorizontal, RotateCcw, Trash2, Menu, X, ToggleLeft, ToggleRight, MessageSquare, History, GitBranch, FlaskConical } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSelectionStore } from '@/stores/selectionStore'
 import type { NormalizedFormState, ValidationResult } from '@/types/editorStore'
@@ -45,6 +45,9 @@ import { ExpandableDescription } from '../shared/ExpandableDescription'
 import { TagChipsEditor } from '../shared/TagChipsEditor'
 import { CrossReferencePanel } from './CrossReferencePanel'
 import { StartChatDialog } from '../chat/StartChatDialog'
+import { VersionHistoryTab } from './tabs/VersionHistoryTab'
+import { VariantPanel } from './VariantPanel'
+import { ExperimentPanel } from './ExperimentPanel'
 import { PanelErrorBoundary } from '../PanelErrorBoundary'
 import { selectors } from '@/constants/selectors'
 import { useIsCompactHeader } from '@/hooks/useMediaQuery'
@@ -144,6 +147,11 @@ export function SkillEditorPanel({
 }: SkillEditorPanelProps) {
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false)
   const [showChatDialog, setShowChatDialog] = useState(false)
+  const [rightPanel, setRightPanel] = useState<'history' | 'variants' | 'experiments' | null>(null)
+
+  const togglePanel = (panel: 'history' | 'variants' | 'experiments') => {
+    setRightPanel((prev) => (prev === panel ? null : panel))
+  }
   const isCompactHeader = useIsCompactHeader()
   const isMobileSidebarToggle = Boolean(onOpenSidebar)
 
@@ -369,6 +377,52 @@ export function SkillEditorPanel({
               <MessageSquare className="h-4 w-4" />
             </button>
 
+            {/* Panel toggle group: History, Variants, Experiments */}
+            <div className="flex items-center border border-border/50 rounded-lg overflow-hidden flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => togglePanel('history')}
+                className={cn(
+                  'h-8 w-8 flex items-center justify-center transition-colors',
+                  rightPanel === 'history'
+                    ? 'bg-primary/20 text-primary'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                )}
+                aria-label="Toggle version history"
+                title="Version history"
+              >
+                <History className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => togglePanel('variants')}
+                className={cn(
+                  'h-8 w-8 flex items-center justify-center border-x border-border/50 transition-colors',
+                  rightPanel === 'variants'
+                    ? 'bg-primary/20 text-primary'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                )}
+                aria-label="Toggle variants"
+                title="Variants"
+              >
+                <GitBranch className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => togglePanel('experiments')}
+                className={cn(
+                  'h-8 w-8 flex items-center justify-center transition-colors',
+                  rightPanel === 'experiments'
+                    ? 'bg-primary/20 text-primary'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                )}
+                aria-label="Toggle experiments"
+                title="Experiments"
+              >
+                <FlaskConical className="h-4 w-4" />
+              </button>
+            </div>
+
             {/* File path menu with filename, breadcrumb, copy actions, and storage toggle */}
             <FilePathMenu
               file={formState.file}
@@ -383,29 +437,51 @@ export function SkillEditorPanel({
           </div>
         </div>
 
-        {/* Content area - full width */}
-        <div className="flex-1 overflow-hidden">
-          <SkillContentEditor
-            value={formState.content}
-            originalValue={originalContent ?? undefined}
-            onChange={(v) => onFieldChange('content', v)}
-            error={validation.errors.content}
-            isDirty={isDirty}
-            dirtyCount={dirtyCount}
-            onUndo={onUndo}
-            onRedo={onRedo}
-            canUndo={canUndo}
-            canRedo={canRedo}
-            onSave={onSave}
-            onSaveAll={onSaveAll}
-            onDiscard={onDiscard}
-            isSaving={isSaving}
-            isValid={validation.valid}
-            searchMatches={searchMatches}
-            scrollToLine={scrollToLine}
-            onScrollToLineHandled={onScrollToLineHandled}
-            className="h-full"
-          />
+        {/* Content area with optional right sidebar */}
+        <div className="flex-1 overflow-hidden flex">
+          <div className={cn('flex-1 overflow-hidden', rightPanel && 'min-w-0')}>
+            <SkillContentEditor
+              value={formState.content}
+              originalValue={originalContent ?? undefined}
+              onChange={(v) => onFieldChange('content', v)}
+              error={validation.errors.content}
+              isDirty={isDirty}
+              dirtyCount={dirtyCount}
+              onUndo={onUndo}
+              onRedo={onRedo}
+              canUndo={canUndo}
+              canRedo={canRedo}
+              onSave={onSave}
+              onSaveAll={onSaveAll}
+              onDiscard={onDiscard}
+              isSaving={isSaving}
+              isValid={validation.valid}
+              searchMatches={searchMatches}
+              scrollToLine={scrollToLine}
+              onScrollToLineHandled={onScrollToLineHandled}
+              className="h-full"
+            />
+          </div>
+
+          {/* Right sidebar panel */}
+          {rightPanel && (
+            <div className="w-72 flex-shrink-0 border-l border-border overflow-y-auto">
+              <PanelErrorBoundary panelName={`${rightPanel} panel`}>
+                {rightPanel === 'history' && (
+                  <VersionHistoryTab skillId={currentSkill.id} />
+                )}
+                {rightPanel === 'variants' && (
+                  <VariantPanel
+                    skillId={currentSkill.id}
+                    currentContent={formState.content}
+                  />
+                )}
+                {rightPanel === 'experiments' && (
+                  <ExperimentPanel skillId={currentSkill.id} />
+                )}
+              </PanelErrorBoundary>
+            </div>
+          )}
         </div>
 
         {/* Agent chat dialog */}

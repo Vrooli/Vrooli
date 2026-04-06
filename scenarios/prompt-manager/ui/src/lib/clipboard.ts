@@ -24,7 +24,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
     )
     promise.then(
       (v) => { clearTimeout(timer); resolve(v) },
-      (e: unknown) => { clearTimeout(timer); reject(e) },
+      (e: unknown) => { clearTimeout(timer); reject(e instanceof Error ? e : new Error(String(e))) },
     )
   })
 }
@@ -116,6 +116,6 @@ export async function copyToClipboard(text: string): Promise<void> {
   // 4. Nothing worked
   throw new Error(
     'Unable to copy — your browser may be blocking clipboard access. '
-    + 'Try disabling Brave Shields (tap the lion icon) or switching to Safari.'
+    + 'Try disabling Brave Shields (tap the lion icon) or switching to Safari.',
   )
 }

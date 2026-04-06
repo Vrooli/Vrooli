@@ -39,6 +39,7 @@ export function mapProtoSettings(protoSettings: Settings): SettingsDomain {
     autoInitializeWorkshop: protoSettings.autoInitializeWorkshop ?? true,
     autoAdvanceWorkshop: protoSettings.autoAdvanceWorkshop ?? true,
     autoCascadeWorkshop: protoSettings.autoCascadeWorkshop ?? true,
+    autoAdvanceDelaySeconds: protoSettings.autoAdvanceDelaySeconds ?? 10,
     agentMaxTurns: protoSettings.agentMaxTurns ?? 60,
     agentTimeoutSeconds: protoSettings.agentTimeoutSeconds ?? 900,
     agentRequiresApproval: protoSettings.agentRequiresApproval ?? true,

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"prompt-manager/store"
 )
 
 // GraphInvalidator allows triggering graph index invalidation.
@@ -29,9 +30,12 @@ type GraphInvalidator interface {
 type Handlers struct {
 	store            SkillStore
 	metrics          MetricsService
-	aiIndexer        AISearchIndexer  // Optional: nil if AI search not available
-	graphInvalidator GraphInvalidator // Optional: nil if graph not available
-	storeDir         string           // Absolute path to store directory for computing file paths
+	aiIndexer        AISearchIndexer       // Optional: nil if AI search not available
+	graphInvalidator GraphInvalidator      // Optional: nil if graph not available
+	experimentStore  store.ExperimentStore // Optional: for variant-aware read
+	variantStore     store.VariantStore    // Optional: for variant-aware read
+	packSkillStore   store.SkillStore      // Optional: for variant-aware read (pack-based)
+	storeDir         string                // Absolute path to store directory for computing file paths
 }
 
 // NewHandlers creates a new skills handler.
@@ -49,6 +53,13 @@ func NewHandlers(store SkillStore, metrics MetricsService, storeDir string) *Han
 // This is called after the aisearch.Service is initialized to avoid circular deps.
 func (h *Handlers) SetAIIndexer(indexer AISearchIndexer) {
 	h.aiIndexer = indexer
+}
+
+// SetExperimentStores sets the stores needed for variant-aware read.
+func (h *Handlers) SetExperimentStores(experiments store.ExperimentStore, variants store.VariantStore, skills store.SkillStore) {
+	h.experimentStore = experiments
+	h.variantStore = variants
+	h.packSkillStore = skills
 }
 
 // SetGraphInvalidator sets the graph invalidator.

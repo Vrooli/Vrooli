@@ -116,6 +116,22 @@ func (h *Handler) fetchResearchPrompt(ctx context.Context, item BacklogItem, mod
 	skillID := entry.SkillID
 	vars := buildVariableMap(item, h.store.ItemDir(item.Kind, item.Name))
 	withScope := false
+
+	// Use experiment-aware read if the catalog entry has an active experiment.
+	if strings.TrimSpace(entry.ExperimentID) != "" {
+		result, err := h.promptClient.ReadSkillWithExperiment(ctx, skillID, vars, withScope, entry.ExperimentID)
+		if err != nil {
+			return promptSelection{SkillID: skillID, Variables: vars, ExperimentID: entry.ExperimentID}, err
+		}
+		return promptSelection{
+			SkillID:      skillID,
+			Variables:    vars,
+			Prompt:       result.Content,
+			ExperimentID: entry.ExperimentID,
+			VariantID:    result.VariantID,
+		}, nil
+	}
+
 	prompt, err := h.promptClient.ReadSkill(ctx, skillID, vars, withScope)
 	if err != nil {
 		return promptSelection{SkillID: skillID, Variables: vars}, err
@@ -257,6 +273,8 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		Prompt:       prompt,
 		UsedFallback: promptErr != nil,
 		CapturedAt:   prompttrace.NowRFC3339(),
+		ExperimentID: selection.ExperimentID,
+		VariantID:    selection.VariantID,
 	}
 	if strings.TrimSpace(readOptionalString(req.Prompt)) != "" {
 		prompt = prompt + "\n\nAdditional context from user:\n" + strings.TrimSpace(readOptionalString(req.Prompt))

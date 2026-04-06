@@ -222,6 +222,11 @@ export function BacklogDetailsPage() {
     }
   }, [backlogKind, name, setActiveTab, uiStore]);
 
+  const fileService = useMemo(
+    () => backlogKind && name ? createBacklogFileServiceAdapter(backlogKind as BacklogKind, name) : null,
+    [backlogKind, name],
+  );
+
   // --- Early returns ---
   if (!backlogKind || !name) {
     return (
@@ -342,11 +347,6 @@ export function BacklogDetailsPage() {
       onDelete={uiStore.openDelete}
     />
   ) : undefined;
-
-  const fileService = useMemo(
-    () => backlogKind && name ? createBacklogFileServiceAdapter(backlogKind as BacklogKind, name) : null,
-    [backlogKind, name],
-  );
 
   const fileWorkspaceElement = fileService ? (
     <FileServiceProvider value={fileService}>

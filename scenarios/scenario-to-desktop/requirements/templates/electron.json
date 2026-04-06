@@ -4,6 +4,7 @@
   "requirements": [
     {
       "id": "STD-TEMPLATE-BASIC",
+      "prd_ref": "OT-P0-001",
       "title": "Basic Electron template generates correctly",
       "description": "Validates that basic template generates with correct structure: main.ts, preload.ts, package.json, splash.html, tsconfig.json, and assets/",
       "validation": [
@@ -19,6 +20,7 @@
     },
     {
       "id": "STD-TEMPLATE-ADVANCED",
+      "prd_ref": "OT-P0-001",
       "title": "Advanced Electron template with system tray and shortcuts",
       "description": "Validates advanced template includes system tray, global shortcuts, and background operation features",
       "validation": [
@@ -34,6 +36,7 @@
     },
     {
       "id": "STD-TEMPLATE-MULTI-WINDOW",
+      "prd_ref": "OT-P0-001",
       "title": "Multi-window template with window management",
       "description": "Validates multi-window template supports multiple BrowserWindow instances and inter-window communication",
       "validation": [
@@ -49,6 +52,7 @@
     },
     {
       "id": "STD-TEMPLATE-KIOSK",
+      "prd_ref": "OT-P0-001",
       "title": "Kiosk template with fullscreen and security hardening",
       "description": "Validates kiosk template includes fullscreen mode, security hardening, and auto-restart capabilities",
       "validation": [
@@ -64,6 +68,7 @@
     },
     {
       "id": "STD-FRAMEWORK-ELECTRON",
+      "prd_ref": "OT-P0-002",
       "title": "Electron framework fully supported",
       "description": "Electron framework is the primary and fully-supported desktop framework",
       "validation": [
@@ -79,6 +84,7 @@
     },
     {
       "id": "STD-FRAMEWORK-TAURI",
+      "prd_ref": "OT-P0-002",
       "title": "Tauri framework support (Rust-based)",
       "description": "Tauri provides smaller binaries and better performance using Rust and native webviews",
       "validation": [
@@ -93,6 +99,7 @@
     },
     {
       "id": "STD-FRAMEWORK-NEUTRALINO",
+      "prd_ref": "OT-P0-002",
       "title": "Neutralino framework support (lightweight alternative)",
       "description": "Neutralino provides ultra-lightweight desktop apps using native OS APIs",
       "validation": [

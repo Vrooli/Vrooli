@@ -9,13 +9,15 @@ import (
 
 // FileStore is the combined implementation of all store interfaces
 type FileStore struct {
-	storeDir  string
-	skills    *FileSkillStore
-	agents    *FileAgentStore
-	teams     *FileTeamStore
-	topics    *FileTopicStore
-	relations *FileRelationStore
-	indexes   *FileIndexStore
+	storeDir    string
+	skills      *FileSkillStore
+	variants    *FileVariantStore
+	experiments *FileExperimentStore
+	agents      *FileAgentStore
+	teams       *FileTeamStore
+	topics      *FileTopicStore
+	relations   *FileRelationStore
+	indexes     *FileIndexStore
 }
 
 // NewFileStore creates a new file-based store
@@ -28,6 +30,8 @@ func NewFileStore(storeDir string) *FileStore {
 
 	// Create entity stores
 	skillStore := NewFileSkillStore(storeDir)
+	variantStore := NewFileVariantStore(skillStore)
+	experimentStore := NewFileExperimentStore(storeDir)
 	teamStore := NewFileTeamStore(storeDir, relationStore)
 	agentStore := NewFileAgentStore(storeDir)
 	topicStore := NewFileTopicStore(storeDir)
@@ -36,13 +40,15 @@ func NewFileStore(storeDir string) *FileStore {
 	indexStore := NewFileIndexStore(storeDir, skillStore, agentStore, teamStore, topicStore, relationStore)
 
 	return &FileStore{
-		storeDir:  storeDir,
-		skills:    skillStore,
-		agents:    agentStore,
-		teams:     teamStore,
-		topics:    topicStore,
-		relations: relationStore,
-		indexes:   indexStore,
+		storeDir:    storeDir,
+		skills:      skillStore,
+		variants:    variantStore,
+		experiments: experimentStore,
+		agents:      agentStore,
+		teams:       teamStore,
+		topics:      topicStore,
+		relations:   relationStore,
+		indexes:     indexStore,
 	}
 }
 
@@ -54,6 +60,16 @@ func (s *FileStore) Skills() SkillStore {
 // FileSkills returns the concrete file skill store (for adapters that need direct access)
 func (s *FileStore) FileSkills() *FileSkillStore {
 	return s.skills
+}
+
+// Variants returns the variant store
+func (s *FileStore) Variants() VariantStore {
+	return s.variants
+}
+
+// Experiments returns the experiment store
+func (s *FileStore) Experiments() ExperimentStore {
+	return s.experiments
 }
 
 // Agents returns the agent store
@@ -97,6 +113,7 @@ func ensureStoreDirectories(storeDir string) {
 		filepath.Join(storeDir, "skills", "packs", "core"),
 		filepath.Join(storeDir, "skills", "packs", "local"),
 		filepath.Join(storeDir, "skills", "packs", "drafts"),
+		filepath.Join(storeDir, "experiments"),
 		filepath.Join(storeDir, "templates", "agent-files"),
 		filepath.Join(storeDir, "agents"),
 		filepath.Join(storeDir, "teams"),

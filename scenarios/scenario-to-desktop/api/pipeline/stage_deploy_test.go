@@ -33,27 +33,27 @@ func newTestDeployServer(t *testing.T, s3URL string) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/api/v1/admin/remote-profiles" && r.Method == "GET":
-			json.NewEncoder(w).Encode([]deploy.RemoteProfile{
+			_ = json.NewEncoder(w).Encode([]deploy.RemoteProfile{
 				{ID: 1, Tag: "prod", APIBase: "https://prod.example.com/api/v1", Status: "active"},
 			})
 		case r.URL.Path == "/api/v1/admin/remote-profiles/1/test" && r.Method == "POST":
-			w.Write([]byte(`{"ok":true}`))
+			_, _ = w.Write([]byte(`{"ok":true}`))
 		case r.URL.Path == "/api/v1/admin/remote-profiles/1/proxy" && r.Method == "POST":
 			body, _ := io.ReadAll(r.Body)
 			var payload map[string]interface{}
-			json.Unmarshal(body, &payload)
+			_ = json.Unmarshal(body, &payload)
 			path, _ := payload["path"].(string)
 			switch {
 			case strings.Contains(path, "presign-upload"):
-				json.NewEncoder(w).Encode(map[string]interface{}{
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{
 					"upload_url": s3URL + "/bucket/object",
 					"bucket":     "test-bucket",
 					"object_key": "uploads/artifact",
 				})
 			case strings.Contains(path, "commit"):
-				w.Write([]byte(`{"id":42}`))
+				_, _ = w.Write([]byte(`{"id":42}`))
 			case strings.Contains(path, "apply"):
-				w.Write([]byte(`{"ok":true}`))
+				_, _ = w.Write([]byte(`{"ok":true}`))
 			default:
 				t.Errorf("unexpected proxy path: %s", path)
 				w.WriteHeader(http.StatusBadRequest)
@@ -161,7 +161,7 @@ func TestDeployStage_Execute_InlineConfig(t *testing.T) {
 	// Create temp artifact
 	tmpDir := t.TempDir()
 	artifactPath := filepath.Join(tmpDir, "app.exe")
-	os.WriteFile(artifactPath, []byte("binary"), 0o644)
+	_ = os.WriteFile(artifactPath, []byte("binary"), 0o644)
 
 	t.Setenv("LPBS_SERVICE_SECRET", "test-token")
 
@@ -216,12 +216,12 @@ func TestDeployStage_Execute_SavedTarget(t *testing.T) {
 	// Create temp artifact
 	tmpDir := t.TempDir()
 	artifactPath := filepath.Join(tmpDir, "app.exe")
-	os.WriteFile(artifactPath, []byte("binary"), 0o644)
+	_ = os.WriteFile(artifactPath, []byte("binary"), 0o644)
 
 	// Set up target repo
 	targetDir := t.TempDir()
 	repo := deploy.NewTargetRepository(targetDir)
-	repo.Save("production", &deploy.DeployTarget{
+	_ = repo.Save("production", &deploy.DeployTarget{
 		Label:         "Production",
 		ScenarioName:  "lpbs",
 		RemoteProfile: "prod",
@@ -379,12 +379,12 @@ func TestDeployStage_Execute_RemoteProfileTestFails(t *testing.T) {
 	lpbsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/api/v1/admin/remote-profiles" && r.Method == "GET":
-			json.NewEncoder(w).Encode([]deploy.RemoteProfile{
+			_ = json.NewEncoder(w).Encode([]deploy.RemoteProfile{
 				{ID: 1, Tag: "prod"},
 			})
 		case r.URL.Path == "/api/v1/admin/remote-profiles/1/test" && r.Method == "POST":
 			w.WriteHeader(http.StatusBadGateway)
-			w.Write([]byte("session expired"))
+			_, _ = w.Write([]byte("session expired"))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}

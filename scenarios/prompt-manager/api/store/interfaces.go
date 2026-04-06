@@ -36,6 +36,57 @@ type SkillStore interface {
 	Rename(ctx context.Context, oldID, newID string) (*Skill, error)
 }
 
+// VariantStore defines operations for skill variant storage
+type VariantStore interface {
+	// List returns all variants for a skill
+	List(ctx context.Context, skillID string) ([]Variant, error)
+
+	// Get retrieves a variant by skill ID and variant ID
+	Get(ctx context.Context, skillID, variantID string) (*Variant, error)
+
+	// GetWithContent retrieves a variant with its markdown content
+	GetWithContent(ctx context.Context, skillID, variantID string) (*Variant, string, error)
+
+	// Create creates a new variant for a skill
+	Create(ctx context.Context, skillID string, variant *Variant, content string) error
+
+	// Update updates an existing variant
+	Update(ctx context.Context, skillID, variantID string, updates *Variant, content *string) error
+
+	// Delete removes a variant
+	Delete(ctx context.Context, skillID, variantID string) error
+}
+
+// ExperimentStore defines operations for experiment storage
+type ExperimentStore interface {
+	// List returns all experiments
+	List(ctx context.Context) ([]Experiment, error)
+
+	// ListBySkill returns experiments for a specific skill
+	ListBySkill(ctx context.Context, skillID string) ([]Experiment, error)
+
+	// Get retrieves an experiment by ID
+	Get(ctx context.Context, experimentID string) (*Experiment, error)
+
+	// Create creates a new experiment
+	Create(ctx context.Context, experiment *Experiment) error
+
+	// Update updates an existing experiment
+	Update(ctx context.Context, experimentID string, experiment *Experiment) error
+
+	// Delete removes an experiment and its outcomes
+	Delete(ctx context.Context, experimentID string) error
+
+	// RecordOutcome appends an opaque outcome to the experiment's JSONL log
+	RecordOutcome(ctx context.Context, experimentID string, outcome ExperimentOutcome) error
+
+	// ListOutcomes returns all raw outcomes for an experiment
+	ListOutcomes(ctx context.Context, experimentID string) ([]ExperimentOutcome, error)
+
+	// CountOutcomesByVariant returns outcome counts grouped by variant ID
+	CountOutcomesByVariant(ctx context.Context, experimentID string) (map[string]int, error)
+}
+
 // AgentStore defines operations for agent storage
 type AgentStore interface {
 	// List returns all agents
@@ -166,6 +217,8 @@ type IndexStore interface {
 // Store combines all store interfaces
 type Store interface {
 	Skills() SkillStore
+	Variants() VariantStore
+	Experiments() ExperimentStore
 	Agents() AgentStore
 	Teams() TeamStore
 	Topics() TopicStore

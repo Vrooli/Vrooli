@@ -199,6 +199,179 @@ Revert a skill to a specific version.
 
 ---
 
+## Variants
+
+### GET /api/v1/skills/{id}/variants
+
+List all variants for a skill.
+
+**Response:** `VariantResponse[]`
+
+### GET /api/v1/skills/{id}/variants/{vid}
+
+Get a variant with its content.
+
+**Response:** `VariantResponse` (includes `content` field)
+
+### POST /api/v1/skills/{id}/variants
+
+Create a new variant for a skill.
+
+**Request:**
+```json
+{
+  "id": "concise-v1",
+  "name": "Concise Style",
+  "description": "A more concise prompt variant",
+  "content": "# Concise\nShort and sweet."
+}
+```
+
+**Response:** `201 Created` with `VariantResponse`
+
+### PUT /api/v1/skills/{id}/variants/{vid}
+
+Update a variant's metadata and/or content.
+
+**Request:**
+```json
+{
+  "name": "Updated Name",
+  "content": "Updated content"
+}
+```
+
+### DELETE /api/v1/skills/{id}/variants/{vid}
+
+Delete a variant. Returns `204 No Content`.
+
+---
+
+## Experiments
+
+### GET /api/v1/experiments
+
+List all experiments.
+
+**Response:** `ExperimentResponse[]`
+
+### GET /api/v1/skills/{id}/experiments
+
+List experiments for a specific skill.
+
+**Response:** `ExperimentResponse[]`
+
+### GET /api/v1/experiments/{eid}
+
+Get experiment details, including outcome counts.
+
+**Response:** `ExperimentResponse` (includes `outcomeCounts` map)
+
+### POST /api/v1/experiments
+
+Create a new experiment.
+
+**Request:**
+```json
+{
+  "id": "exp-concise-test",
+  "skillId": "swarm-manager-workshop",
+  "name": "Concise vs Detailed Workshop",
+  "hypothesis": "Concise prompts produce equal quality with less tokens",
+  "arms": [
+    {"variantId": "control", "weight": 0.5},
+    {"variantId": "concise-v1", "weight": 0.5}
+  ]
+}
+```
+
+**Notes:**
+- `arms.weight` values must sum to 1.0 (±0.01 tolerance)
+- `control` is a reserved variant ID representing the original SKILL.md
+- All non-control variant IDs must exist for the skill
+- Experiment starts in `draft` status
+
+### PUT /api/v1/experiments/{eid}
+
+Update a draft experiment (name, hypothesis, arms).
+
+**Note:** Only draft experiments can be updated.
+
+### DELETE /api/v1/experiments/{eid}
+
+Delete an experiment and its outcomes. Returns `204 No Content`.
+
+### POST /api/v1/experiments/{eid}/start
+
+Transition experiment from `draft` to `running`.
+
+### POST /api/v1/experiments/{eid}/conclude
+
+Conclude a running experiment.
+
+**Request:**
+```json
+{
+  "winnerVariantId": "concise-v1",
+  "notes": "Equal quality, 40% faster execution time"
+}
+```
+
+**Notes:**
+- Winner must be one of the experiment's arms
+- If winner is not `control`, the winner's content is promoted to SKILL.md
+- Previous SKILL.md content is preserved in version history
+
+### POST /api/v1/experiments/{eid}/outcomes
+
+Record an opaque outcome. Called by consuming applications (e.g. swarm-manager).
+
+**Request:**
+```json
+{
+  "variantId": "concise-v1",
+  "source": "swarm-manager",
+  "schemaVersion": 1,
+  "data": {"classification": "ready", "durationSecs": 347}
+}
+```
+
+**Notes:**
+- Only running experiments accept outcomes
+- The `data` field is opaque to prompt-manager
+- `schemaVersion` is defined by the source system
+
+### GET /api/v1/experiments/{eid}/outcomes
+
+List raw outcomes for an experiment.
+
+**Response:** `ExperimentOutcomeResponse[]`
+
+### Variant-Aware Read (extension to POST /api/v1/skills/read)
+
+When `experimentId` is included in a read request, the first resolved skill's content may be replaced by a variant selected via weighted random sampling.
+
+**Additional request field:**
+```json
+{
+  "experimentId": "exp-concise-test"
+}
+```
+
+**Additional response field:**
+```json
+{
+  "selectedVariantId": "concise-v1"
+}
+```
+
+**Notes:**
+- Experiment must be `running` and target the resolved skill
+- `control` means the original SKILL.md was used (no content replacement)
+- Variable substitution is applied to variant content as normal
+
+---
+
 ## Usage Tracking
 
 ### POST /api/v1/skills/{id}/use

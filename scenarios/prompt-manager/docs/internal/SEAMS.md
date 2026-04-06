@@ -35,6 +35,8 @@ The prompt-manager uses interface-based design to create clear testing seams. Ea
 | Interface | Package | Purpose |
 |-----------|---------|---------|
 | `SkillStore` | `store` | CRUD operations for skills |
+| `VariantStore` | `store` | CRUD operations for skill variants (A/B testing) |
+| `ExperimentStore` | `store` | Experiment lifecycle, opaque outcome JSONL storage |
 | `AgentStore` | `store` | CRUD operations for agents |
 | `TeamStore` | `store` | CRUD operations for teams, roles, org charts, and inboxes |
 | `RelationStore` | `store` | Team-member relations |

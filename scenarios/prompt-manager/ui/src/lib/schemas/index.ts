@@ -269,6 +269,40 @@ export {
   type TopicMatchResponse,
 } from './topic.schema'
 
+// Version schemas
+export {
+  SkillVersionSchema,
+  VersionsResponseSchema,
+  RevertResponseSchema,
+  type SkillVersion,
+  type VersionsResponse,
+  type RevertResponse,
+} from './version.schema'
+
+// Variant schemas
+export {
+  VariantSchema,
+  VariantArraySchema,
+  CreateVariantRequestSchema,
+  type Variant,
+  type CreateVariantRequest,
+} from './variant.schema'
+
+// Experiment schemas
+export {
+  ExperimentArmSchema,
+  ExperimentArmInputSchema,
+  ExperimentSchema,
+  ExperimentArraySchema,
+  CreateExperimentRequestSchema,
+  ConcludeExperimentRequestSchema,
+  type ExperimentArm,
+  type ExperimentArmInput,
+  type Experiment,
+  type CreateExperimentRequest,
+  type ConcludeExperimentRequest,
+} from './experiment.schema'
+
 // Graph schemas
 export {
   NodeTypeSchema,

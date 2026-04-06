@@ -40,7 +40,7 @@ func TestListRemoteProfiles(t *testing.T) {
 			t.Errorf("unexpected auth: %s", auth)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode([]RemoteProfile{
+		_ = json.NewEncoder(w).Encode([]RemoteProfile{
 			{ID: 1, Tag: "prod", APIBase: "https://prod.example.com/api/v1", Status: "active"},
 			{ID: 2, Tag: "staging", APIBase: "https://staging.example.com/api/v1", Status: "active"},
 		})
@@ -73,7 +73,7 @@ func TestListRemoteProfilesWrappedResponse(t *testing.T) {
 			t.Errorf("unexpected auth: %s", auth)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"profiles":[{"id":1,"tag":"prod","api_base":"https://prod.example.com/api/v1","status":"active"}]}`))
+		_, _ = w.Write([]byte(`{"profiles":[{"id":1,"tag":"prod","api_base":"https://prod.example.com/api/v1","status":"active"}]}`))
 	})
 	server := httptest.NewServer(handler)
 	defer server.Close()
@@ -95,12 +95,12 @@ func TestTestRemoteProfile(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/api/v1/admin/remote-profiles" && r.Method == "GET":
-			json.NewEncoder(w).Encode([]RemoteProfile{
+			_ = json.NewEncoder(w).Encode([]RemoteProfile{
 				{ID: 42, Tag: "prod", APIBase: "https://prod.example.com/api/v1"},
 			})
 		case r.URL.Path == "/api/v1/admin/remote-profiles/42/test" && r.Method == "POST":
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"ok":true}`))
+			_, _ = w.Write([]byte(`{"ok":true}`))
 		default:
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
 			w.WriteHeader(http.StatusNotFound)
@@ -118,7 +118,7 @@ func TestTestRemoteProfile(t *testing.T) {
 
 func TestTestRemoteProfileNotFound(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode([]RemoteProfile{})
+		_ = json.NewEncoder(w).Encode([]RemoteProfile{})
 	})
 	server := httptest.NewServer(handler)
 	defer server.Close()
@@ -139,13 +139,13 @@ func TestProxyRequest(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/api/v1/admin/remote-profiles" && r.Method == "GET":
-			json.NewEncoder(w).Encode([]RemoteProfile{
+			_ = json.NewEncoder(w).Encode([]RemoteProfile{
 				{ID: 10, Tag: "prod"},
 			})
 		case r.URL.Path == "/api/v1/admin/remote-profiles/10/proxy" && r.Method == "POST":
 			body, _ := io.ReadAll(r.Body)
-			json.Unmarshal(body, &capturedBody)
-			w.Write([]byte(`{"result":"ok"}`))
+			_ = json.Unmarshal(body, &capturedBody)
+			_, _ = w.Write([]byte(`{"result":"ok"}`))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -163,7 +163,7 @@ func TestProxyRequest(t *testing.T) {
 
 	// Verify response
 	var result map[string]string
-	json.Unmarshal(resp, &result)
+	_ = json.Unmarshal(resp, &result)
 	if result["result"] != "ok" {
 		t.Errorf("unexpected response: %s", string(resp))
 	}
@@ -206,27 +206,27 @@ func TestUploadArtifact(t *testing.T) {
 	lpbsHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/api/v1/admin/remote-profiles" && r.Method == "GET":
-			json.NewEncoder(w).Encode([]RemoteProfile{
+			_ = json.NewEncoder(w).Encode([]RemoteProfile{
 				{ID: 5, Tag: "prod", APIBase: "https://prod.example.com/api/v1"},
 			})
 		case r.URL.Path == "/api/v1/admin/remote-profiles/5/proxy" && r.Method == "POST":
 			proxyCallCount++
 			body, _ := io.ReadAll(r.Body)
 			var payload map[string]interface{}
-			json.Unmarshal(body, &payload)
+			_ = json.Unmarshal(body, &payload)
 
 			path, _ := payload["path"].(string)
 			switch {
 			case strings.Contains(path, "presign-upload"):
-				json.NewEncoder(w).Encode(presignResponse{
+				_ = json.NewEncoder(w).Encode(presignResponse{
 					UploadURL: s3Server.URL + "/bucket/object",
 					Bucket:    "test-bucket",
 					ObjectKey: "uploads/test-app.exe",
 				})
 			case strings.Contains(path, "commit"):
-				w.Write([]byte(`{"id":99}`))
+				_, _ = w.Write([]byte(`{"id":99}`))
 			case strings.Contains(path, "apply"):
-				w.Write([]byte(`{"ok":true}`))
+				_, _ = w.Write([]byte(`{"ok":true}`))
 			default:
 				t.Errorf("unexpected proxy path: %s", path)
 				w.WriteHeader(http.StatusBadRequest)
@@ -278,7 +278,7 @@ func TestUploadArtifact(t *testing.T) {
 
 func TestDeriveUpdateURL(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode([]RemoteProfile{
+		_ = json.NewEncoder(w).Encode([]RemoteProfile{
 			{ID: 1, Tag: "prod", APIBase: "https://prod.example.com/api/v1"},
 			{ID: 2, Tag: "staging", APIBase: "https://staging.example.com/api/v1/"},
 		})
@@ -322,7 +322,7 @@ func TestGetServiceAuthStatus(t *testing.T) {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"service_auth_configured":true,"service_auth_mode":"bearer"}`))
+		_, _ = w.Write([]byte(`{"service_auth_configured":true,"service_auth_mode":"bearer"}`))
 	})
 	server := httptest.NewServer(handler)
 	defer server.Close()
@@ -343,7 +343,7 @@ func TestGetServiceAuthStatus(t *testing.T) {
 func TestGetServiceAuthStatusDecodeError(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"service_auth_configured":`))
+		_, _ = w.Write([]byte(`{"service_auth_configured":`))
 	})
 	server := httptest.NewServer(handler)
 	defer server.Close()
@@ -385,7 +385,7 @@ func TestInferContentType(t *testing.T) {
 func TestAdminRequestHTTPError(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("internal error"))
+		_, _ = w.Write([]byte("internal error"))
 	})
 	server := httptest.NewServer(handler)
 	defer server.Close()
@@ -404,18 +404,18 @@ func TestProxyRequestWithoutPayload(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/api/v1/admin/remote-profiles" && r.Method == "GET":
-			json.NewEncoder(w).Encode([]RemoteProfile{
+			_ = json.NewEncoder(w).Encode([]RemoteProfile{
 				{ID: 1, Tag: "prod"},
 			})
 		case r.URL.Path == "/api/v1/admin/remote-profiles/1/proxy" && r.Method == "POST":
 			body, _ := io.ReadAll(r.Body)
 			var payload map[string]interface{}
-			json.Unmarshal(body, &payload)
+			_ = json.Unmarshal(body, &payload)
 			// Without payload, body and headers should be absent
 			if _, ok := payload["body"]; ok {
 				t.Error("expected no body in proxy payload when payload is nil")
 			}
-			w.Write([]byte(`{"status":"ok"}`))
+			_, _ = w.Write([]byte(`{"status":"ok"}`))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}

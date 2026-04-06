@@ -2,9 +2,13 @@ package skills
 
 import (
 	"encoding/json"
+	"fmt"
+	"math/rand"
 	"net/http"
 	"path/filepath"
 	"strings"
+
+	"prompt-manager/store"
 )
 
 type indexedSkill struct {
@@ -77,6 +81,26 @@ func (h *Handlers) Read(w http.ResponseWriter, r *http.Request) {
 				Candidates: buildCandidates(matches),
 			})
 		}
+	}
+
+	// Variant-aware selection: if experimentId is provided, override the first
+	// skill's content with the selected variant's content.
+	if req.ExperimentID != "" && len(responses) > 0 {
+		selectedVariantID, variantContent, err := h.selectVariant(r, req.ExperimentID, responses[0].ID)
+		if err != nil {
+			http.Error(w, "Experiment error: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		if variantContent != nil {
+			// Apply variable substitution to variant content
+			content := *variantContent
+			if len(req.Variables) > 0 {
+				content = SubstituteVariables(content, req.Variables)
+			}
+			responses[0].Content = content
+			responses[0].Variables = ExtractVariables(*variantContent)
+		}
+		resp.SelectedVariantID = selectedVariantID
 	}
 
 	if !allowMissing && (len(resp.Missing) > 0 || len(resp.Ambiguous) > 0) {
@@ -308,6 +332,56 @@ func (h *Handlers) buildReadResponse(skill indexedSkill, variables map[string]st
 	resp.Content = content
 
 	return resp, nil
+}
+
+// selectVariant picks a variant based on experiment weights.
+// Returns the selected variant ID and the variant content (nil if control).
+func (h *Handlers) selectVariant(r *http.Request, experimentID, skillID string) (string, *string, error) {
+	if h.experimentStore == nil || h.variantStore == nil {
+		return "", nil, fmt.Errorf("experiment support not configured")
+	}
+
+	exp, err := h.experimentStore.Get(r.Context(), experimentID)
+	if err != nil {
+		return "", nil, fmt.Errorf("experiment not found: %s", experimentID)
+	}
+
+	if exp.Status != store.ExperimentStatusRunning {
+		return "", nil, fmt.Errorf("experiment %s is not running (status: %s)", experimentID, exp.Status)
+	}
+
+	if exp.SkillID != skillID {
+		return "", nil, fmt.Errorf("experiment %s targets skill %s, not %s", experimentID, exp.SkillID, skillID)
+	}
+
+	if len(exp.Arms) == 0 {
+		return "", nil, fmt.Errorf("experiment %s has no arms", experimentID)
+	}
+
+	// Weighted random selection: cumulative walk
+	roll := rand.Float64()
+	var cumulative float64
+	selectedArm := exp.Arms[len(exp.Arms)-1] // fallback to last arm
+	for _, arm := range exp.Arms {
+		cumulative += arm.Weight
+		if roll < cumulative {
+			selectedArm = arm
+			break
+		}
+	}
+
+	// If control, use original SKILL.md (no content override)
+	if selectedArm.VariantID == store.ControlVariantID {
+		return store.ControlVariantID, nil, nil
+	}
+
+	// Load variant content
+	_, content, err := h.variantStore.GetWithContent(r.Context(), skillID, selectedArm.VariantID)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to load variant %s: %w", selectedArm.VariantID, err)
+	}
+
+	return selectedArm.VariantID, &content, nil
 }
 
 func buildCandidates(skills []indexedSkill) []ReadCandidate {

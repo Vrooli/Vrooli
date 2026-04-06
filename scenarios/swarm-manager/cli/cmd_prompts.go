@@ -83,6 +83,9 @@ func (a *App) cmdPromptsCatalog(args []string) error {
 		if len(item.OutputPaths) > 0 {
 			fmt.Printf("    Outputs: %s\n", strings.Join(item.OutputPaths, ", "))
 		}
+		if strings.TrimSpace(item.ExperimentID) != "" {
+			fmt.Printf("    Experiment: %s\n", item.ExperimentID)
+		}
 		fmt.Println()
 	}
 
@@ -514,6 +517,63 @@ func (a *App) cmdPromptsSimulate(args []string) error {
 	return nil
 }
 
+func (a *App) cmdPromptsExperimentResults(args []string) error {
+	fs := flag.NewFlagSet("prompts experiment-results", flag.ContinueOnError)
+	idFlag := fs.String("id", "", "Experiment ID")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if *idFlag == "" && fs.NArg() > 0 {
+		*idFlag = fs.Arg(0)
+	}
+	if err := requireFlag("id", *idFlag); err != nil {
+		return fmt.Errorf("usage: prompts experiment-results <eid> [--json]\n\n%s", err)
+	}
+	experimentID := strings.TrimSpace(*idFlag)
+
+	body, err := a.getV1("/prompts/experiments/"+experimentID+"/results", nil)
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+
+	response, err := decodeResponse[ExperimentResultsResponse](body)
+	if err != nil {
+		return err
+	}
+
+	printSection("Experiment Results")
+	fmt.Printf("  Experiment: %s\n", response.ExperimentID)
+	if strings.TrimSpace(response.Status) != "" {
+		fmt.Printf("  Status: %s\n", response.Status)
+	}
+	fmt.Printf("  Total Outcomes: %d\n", response.TotalOutcomes)
+	fmt.Printf("  Analyzed: %s\n", response.AnalyzedAt)
+
+	if len(response.Variants) > 0 {
+		printSection("Variant Comparison")
+		fmt.Printf("  %-20s %8s %8s %8s %10s %12s\n", "Variant", "Runs", "Ready", "NeedWrk", "FixupRate", "AvgDuration")
+		fmt.Printf("  %-20s %8s %8s %8s %10s %12s\n", "-------", "----", "-----", "-------", "---------", "-----------")
+		for _, v := range response.Variants {
+			dur := ""
+			if v.AvgDurationSecs > 0 {
+				dur = fmt.Sprintf("%.1fs", v.AvgDurationSecs)
+			}
+			fmt.Printf("  %-20s %8d %8d %8d %9.1f%% %12s\n",
+				v.VariantID, v.TotalRuns, v.ReadyCount, v.NeedsWorkCount,
+				v.FixupRate*100, dur)
+		}
+	}
+
+	printCommandListSection("Next Steps", []string{
+		cliCommand("prompts", "catalog"),
+	})
+	return nil
+}
+
 func parseKVCSV(raw string) (map[string]string, error) {
 	result := map[string]string{}
 	for _, entry := range cliutil.ParseCSV(raw) {
@@ -567,6 +627,12 @@ func printPromptTraceSummary(header, subject string, trace PromptTrace) {
 		fmt.Printf("  Prompt Revision: %s\n", trace.PromptRevision)
 	}
 	fmt.Printf("  Used Fallback: %v\n", trace.UsedFallback)
+	if strings.TrimSpace(trace.ExperimentID) != "" {
+		fmt.Printf("  Experiment: %s\n", trace.ExperimentID)
+	}
+	if strings.TrimSpace(trace.VariantID) != "" {
+		fmt.Printf("  Variant: %s\n", trace.VariantID)
+	}
 	if strings.TrimSpace(trace.Prompt) != "" {
 		printSection("Prompt")
 		fmt.Println(trace.Prompt)

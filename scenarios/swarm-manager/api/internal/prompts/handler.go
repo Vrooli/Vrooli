@@ -19,8 +19,9 @@ import (
 )
 
 type Handler struct {
-	rootDir string
-	client  promptmanager.AdminClient
+	rootDir          string
+	client           promptmanager.AdminClient
+	experimentClient promptmanager.ExperimentClient
 }
 
 func NewHandler(rootDir string, client promptmanager.AdminClient) *Handler {
@@ -30,10 +31,20 @@ func NewHandler(rootDir string, client promptmanager.AdminClient) *Handler {
 	if client == nil {
 		client = promptmanager.NewHTTPClient()
 	}
-	return &Handler{
+	h := &Handler{
 		rootDir: rootDir,
 		client:  client,
 	}
+	// If the admin client also implements ExperimentClient, use it.
+	if ec, ok := client.(promptmanager.ExperimentClient); ok {
+		h.experimentClient = ec
+	}
+	return h
+}
+
+// SetExperimentClient injects an experiment client for outcome and analysis operations.
+func (h *Handler) SetExperimentClient(ec promptmanager.ExperimentClient) {
+	h.experimentClient = ec
 }
 
 func (h *Handler) RegisterRoutes(r *mux.Router) {
@@ -45,6 +56,10 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/prompts/skills/{id}/revert/{version}", h.RevertSkillVersion).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/prompts/preview", h.Preview).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/prompts/simulate", h.Simulate).Methods(http.MethodPost)
+
+	// Experiment results (uses the same prompt-manager client as an ExperimentClient).
+	expHandler := NewExperimentHandler(h.experimentClient)
+	expHandler.RegisterRoutes(r)
 }
 
 type PromptSkillSummary struct {

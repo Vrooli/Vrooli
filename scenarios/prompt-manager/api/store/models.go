@@ -1,6 +1,9 @@
 package store
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // Skill represents a skill entity from skill.json
 type Skill struct {
@@ -234,6 +237,49 @@ type HistoryEntry struct {
 	Timestamp string `json:"timestamp"`
 	Action    string `json:"action"`
 	Summary   string `json:"summary"`
+}
+
+// Variant represents an alternative version of a skill's content for A/B testing.
+type Variant struct {
+	BaseEntity
+	ID          string `json:"id"`
+	SkillID     string `json:"skillId"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	Entry       string `json:"entry"` // filename, e.g., "VARIANT.md"
+	Timestamps
+}
+
+// Experiment ties skill variants together for A/B testing with weighted traffic splitting.
+type Experiment struct {
+	BaseEntity
+	ID              string          `json:"id"`
+	SkillID         string          `json:"skillId"`
+	Name            string          `json:"name"`
+	Hypothesis      string          `json:"hypothesis,omitempty"`
+	Status          string          `json:"status"` // draft, running, concluded
+	Arms            []ExperimentArm `json:"arms"`
+	StartedAt       *string         `json:"startedAt,omitempty"`
+	ConcludedAt     *string         `json:"concludedAt,omitempty"`
+	WinnerVariantID *string         `json:"winnerVariantId,omitempty"`
+	Notes           string          `json:"notes,omitempty"`
+	Timestamps
+}
+
+// ExperimentArm is one variant in an experiment with its traffic weight.
+type ExperimentArm struct {
+	VariantID string  `json:"variantId"` // "control" = original SKILL.md
+	Weight    float64 `json:"weight"`    // 0.0-1.0, arms must sum to 1.0
+}
+
+// ExperimentOutcome is the opaque outcome envelope stored per experiment.
+// Prompt-manager never parses Data — it belongs to the source system (e.g. swarm-manager).
+type ExperimentOutcome struct {
+	VariantID     string          `json:"variantId"`
+	Source        string          `json:"source"`        // e.g. "swarm-manager"
+	SchemaVersion int             `json:"schemaVersion"` // consumer-defined
+	RecordedAt    string          `json:"recordedAt"`
+	Data          json.RawMessage `json:"data"` // opaque to PM
 }
 
 // PackOrder represents the pack precedence configuration

@@ -23,6 +23,8 @@ type Trace struct {
 	PromptRevision string            `json:"prompt_revision,omitempty"`
 	UsedFallback   bool              `json:"used_fallback"`
 	CapturedAt     string            `json:"captured_at"`
+	ExperimentID   string            `json:"experiment_id,omitempty"`
+	VariantID      string            `json:"variant_id,omitempty"`
 }
 
 func NowRFC3339() string {

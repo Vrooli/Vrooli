@@ -510,7 +510,7 @@ Add entitlements in `assets/entitlements.mac.plist`:
 
 - [Electron Documentation](https://www.electronjs.org/docs)
 - [Electron Builder](https://www.electron.build/)
-- [Vrooli Documentation](../../docs/README.md)
+- [Vrooli Documentation](../../../docs/README.md)
 - [scenario-to-desktop README](../README.md)
 
 ---

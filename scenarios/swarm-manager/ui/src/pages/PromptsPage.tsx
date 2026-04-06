@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { SkillsPanel } from "../components/prompts/SkillsPanel";
 import { PromptCatalog } from "../components/prompts/PromptCatalog";
 import { PromptEditor } from "../components/prompts/PromptEditor";
+import { ExperimentResults } from "../components/prompts/ExperimentResults";
 import { SimulationDialog, defaultSimulationPayload, type SimulationPayload } from "../components/prompts/SimulationDialog";
 import { selectors } from "../consts/selectors";
 import { defaultQueryOptions } from "../lib";
@@ -26,7 +27,7 @@ const GROUP_LABELS: Record<(typeof GROUP_ORDER)[number], string> = {
 };
 
 type PromptGroup = (typeof GROUP_ORDER)[number];
-type PromptTab = "catalog" | "viewer";
+type PromptTab = "catalog" | "viewer" | "experiments";
 
 const MIN_SKILLS_PANEL_WIDTH = 260;
 const MAX_SKILLS_PANEL_WIDTH = 460;
@@ -70,6 +71,7 @@ export function PromptsPage() {
     adjacentMinSize: MIN_EDITOR_WIDTH,
     handleWidth: RESIZE_HANDLE_WIDTH,
   });
+  const [selectedExperimentId, setSelectedExperimentId] = useState<string>("");
   const [showSimulationModal, setShowSimulationModal] = useState(false);
   const [showMobileSkills, setShowMobileSkills] = useState(false);
   const [simulationPayload, setSimulationPayload] = useState<SimulationPayload>(defaultSimulationPayload());
@@ -179,6 +181,14 @@ export function PromptsPage() {
     [catalogQuery.data, selectedSkillId]
   );
 
+  const experimentIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const entry of catalogQuery.data ?? []) {
+      if (entry.experiment_id) ids.add(entry.experiment_id);
+    }
+    return Array.from(ids);
+  }, [catalogQuery.data]);
+
   const canSimulateSelectedSkill = selectedSkillCatalogEntries.length > 0;
 
   const simulationKindOptions = useMemo(() => {
@@ -259,6 +269,9 @@ export function PromptsPage() {
         <TabsList data-testid={selectors.prompts.tabs}>
           <TabsTrigger value="catalog" data-testid={selectors.prompts.tabMap}>Prompt Catalog</TabsTrigger>
           <TabsTrigger value="viewer" data-testid={selectors.prompts.tabViewer}>Skills Viewer</TabsTrigger>
+          {experimentIds.length > 0 && (
+            <TabsTrigger value="experiments">Experiments</TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="catalog" data-testid={selectors.prompts.mapPanel}>
@@ -309,6 +322,33 @@ export function PromptsPage() {
             diffLines={diffLines}
           />
         </TabsContent>
+        {experimentIds.length > 0 && (
+          <TabsContent value="experiments">
+            <div className="space-y-4">
+              {experimentIds.length > 1 && (
+                <div className="flex gap-2 flex-wrap">
+                  {experimentIds.map((eid) => (
+                    <button
+                      key={eid}
+                      type="button"
+                      onClick={() => setSelectedExperimentId(eid)}
+                      className={`rounded-md px-3 py-1.5 text-sm border transition-colors ${
+                        selectedExperimentId === eid
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-muted border-border hover:bg-accent"
+                      }`}
+                    >
+                      {eid}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <ExperimentResults
+                experimentId={selectedExperimentId || experimentIds[0] || ""}
+              />
+            </div>
+          </TabsContent>
+        )}
       </Tabs>
 
       <SimulationDialog

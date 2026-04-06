@@ -162,6 +162,13 @@ func main() {
 	// Set AI indexer on skill handlers for CRUD hook integration
 	skillHandlers.SetAIIndexer(aiSearchService)
 
+	// Set experiment stores on skill handlers for variant-aware read
+	skillHandlers.SetExperimentStores(fileStore.Experiments(), fileStore.Variants(), fileStore.Skills())
+
+	// Variant and experiment handlers
+	variantHandlers := skills.NewVariantHandlers(fileStore.Variants(), fileStore.Skills())
+	experimentHandlers := skills.NewExperimentHandlers(fileStore.Experiments(), fileStore.Variants(), fileStore.Skills())
+
 	// Agent and team AI search vector stores
 	agentAICollection := os.Getenv("AI_SEARCH_AGENT_COLLECTION")
 	if agentAICollection == "" {
@@ -304,6 +311,27 @@ func main() {
 	// Version history routes (part of skills domain)
 	v1.HandleFunc("/skills/{id}/versions", skillHandlers.GetVersions).Methods("GET")
 	v1.HandleFunc("/skills/{id}/revert/{version}", skillHandlers.RevertToVersion).Methods("POST")
+
+	// Variant routes
+	v1.HandleFunc("/skills/{id}/variants", variantHandlers.ListVariants).Methods("GET")
+	v1.HandleFunc("/skills/{id}/variants/{vid}", variantHandlers.GetVariant).Methods("GET")
+	v1.HandleFunc("/skills/{id}/variants", variantHandlers.CreateVariant).Methods("POST")
+	v1.HandleFunc("/skills/{id}/variants/{vid}", variantHandlers.UpdateVariant).Methods("PUT")
+	v1.HandleFunc("/skills/{id}/variants/{vid}", variantHandlers.DeleteVariant).Methods("DELETE")
+
+	// Skill experiments (list by skill)
+	v1.HandleFunc("/skills/{id}/experiments", experimentHandlers.ListExperimentsBySkill).Methods("GET")
+
+	// Experiment routes
+	v1.HandleFunc("/experiments", experimentHandlers.ListExperiments).Methods("GET")
+	v1.HandleFunc("/experiments/{eid}", experimentHandlers.GetExperiment).Methods("GET")
+	v1.HandleFunc("/experiments", experimentHandlers.CreateExperiment).Methods("POST")
+	v1.HandleFunc("/experiments/{eid}", experimentHandlers.UpdateExperiment).Methods("PUT")
+	v1.HandleFunc("/experiments/{eid}", experimentHandlers.DeleteExperiment).Methods("DELETE")
+	v1.HandleFunc("/experiments/{eid}/start", experimentHandlers.StartExperiment).Methods("POST")
+	v1.HandleFunc("/experiments/{eid}/conclude", experimentHandlers.ConcludeExperiment).Methods("POST")
+	v1.HandleFunc("/experiments/{eid}/outcomes", experimentHandlers.RecordOutcome).Methods("POST")
+	v1.HandleFunc("/experiments/{eid}/outcomes", experimentHandlers.ListOutcomes).Methods("GET")
 
 	// Graph routes
 	v1.HandleFunc("/graph", graphHandlers.GetGraph).Methods("GET")

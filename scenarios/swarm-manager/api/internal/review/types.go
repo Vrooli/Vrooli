@@ -79,10 +79,10 @@ type RequestThread struct {
 
 // ImprovementSuggestion recommends a durable automation to replace one-off evidence.
 type ImprovementSuggestion struct {
-	Category    string `json:"category"`              // test_coverage, visual_capture, health_check, ci_workflow, standards_rule, other
+	Category    string `json:"category"` // test_coverage, visual_capture, health_check, ci_workflow, standards_rule, other
 	Description string `json:"description"`
 	EvidenceID  string `json:"evidence_id,omitempty"`
-	Priority    string `json:"priority"`              // high, medium, low
+	Priority    string `json:"priority"` // high, medium, low
 }
 
 // RequestMessage is a single turn in a request thread.

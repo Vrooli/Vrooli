@@ -3,6 +3,7 @@
  * Separated from formStore.ts for modularity.
  */
 
+import { resolveApiBase } from "@vrooli/api-base";
 import type { ProbeResponse } from "../lib/api";
 import type {
   DeploymentMode,
@@ -200,9 +201,9 @@ export const defaultPlatforms: PlatformsState = {
   linux: true,
 };
 
-/** Default local API endpoint, configurable via VITE_LOCAL_API_ENDPOINT env var. */
+/** Default local API endpoint, resolved via @vrooli/api-base with env-var override. */
 export const DEFAULT_LOCAL_API_ENDPOINT =
-  import.meta.env.VITE_LOCAL_API_ENDPOINT ?? "http://localhost:3001/api";
+  import.meta.env.VITE_LOCAL_API_ENDPOINT ?? resolveApiBase({ appendSuffix: true });
 
 export const defaultConnection: ConnectionState = {
   proxyUrl: "",

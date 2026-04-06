@@ -40,6 +40,22 @@ export interface PromptSimulateResponse {
   prompt: string;
 }
 
+export interface ExperimentResultsData {
+  experimentId: string;
+  skillId?: string;
+  status?: string;
+  variants: {
+    variantId: string;
+    totalRuns: number;
+    readyCount: number;
+    needsWorkCount: number;
+    fixupRate: number;
+    avgDurationSecs?: number;
+  }[];
+  totalOutcomes: number;
+  analyzedAt: string;
+}
+
 export interface IPromptService {
   listCatalog(): Promise<PromptCatalogEntry[]>;
   listSkills(): Promise<PromptSkillSummary[]>;
@@ -59,6 +75,7 @@ export interface IPromptService {
   preview(skillId: string, variables: Record<string, string>, withScope?: boolean): Promise<PromptPreviewResponse>;
   simulate(payload: PromptSimulateRequest): Promise<PromptSimulateResponse>;
   getExecutionPromptTrace(executionId: string): Promise<PromptTrace>;
+  getExperimentResults(experimentId: string): Promise<ExperimentResultsData>;
 }
 
 export function createPromptService(apiClient: IApiClient = defaultApiClient): IPromptService {
@@ -135,6 +152,10 @@ export function createPromptService(apiClient: IApiClient = defaultApiClient): I
         throw new Error("Prompt trace not found");
       }
       return data.trace;
+    },
+
+    async getExperimentResults(experimentId: string): Promise<ExperimentResultsData> {
+      return apiClient.get<ExperimentResultsData>(API_ENDPOINTS.promptExperimentResults(experimentId));
     },
 
   };

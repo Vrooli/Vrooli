@@ -138,7 +138,7 @@ func Commands(ctx appctx.Context) []cliapp.CommandGroup {
 					Name:        "skill",
 					Aliases:     []string{"skills", "s"},
 					NeedsAPI:    true,
-					Description: "Manage skills (list|show|read|add|update|delete|use|sync|rate|versions|revert)",
+					Description: "Manage skills (list|show|read|add|update|delete|use|sync|rate|versions|revert|variants|add-variant|rm-variant)",
 					Run: func(args []string) error {
 						return route(ctx, args)
 					},
@@ -180,6 +180,12 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdVersions(ctx, subArgs)
 	case "revert", "restore":
 		return cmdRevert(ctx, subArgs)
+	case "variants", "variant":
+		return cmdVariants(ctx, subArgs)
+	case "add-variant":
+		return cmdAddVariant(ctx, subArgs)
+	case "rm-variant":
+		return cmdRmVariant(ctx, subArgs)
 	default:
 		return fmt.Errorf("unknown subcommand: %s\n\n%s", subcommand, usageText())
 	}
@@ -204,7 +210,10 @@ Subcommands:
   sync                  Sync skills with hash-based change detection
   rate <id> <1-5>       Rate skill effectiveness
   versions, history <id> Show version history
-  revert, restore <id> <version>  Revert to a specific version`
+  revert, restore <id> <version>  Revert to a specific version
+  variants <id>         List variants for a skill
+  add-variant <id>      Create a new variant
+  rm-variant <id> <vid> Delete a variant`
 }
 
 func cmdList(ctx appctx.Context, args []string) error {
@@ -732,6 +741,156 @@ func cmdRevert(ctx appctx.Context, args []string) error {
 	}
 
 	fmt.Printf("Reverted to version %d (new version: %d)\n", resp.RevertedTo, resp.NewVersion)
+	return nil
+}
+
+// VariantResponse matches the API response for variants
+type VariantResp struct {
+	ID          string `json:"id"`
+	SkillID     string `json:"skillId"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	Content     string `json:"content,omitempty"`
+	CreatedAt   string `json:"createdAt"`
+	UpdatedAt   string `json:"updatedAt"`
+	Revision    int    `json:"revision"`
+}
+
+func cmdVariants(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("variants", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: skill variants <id> [--json]")
+	}
+	skillID := fs.Arg(0)
+
+	var variants []VariantResp
+	if err := ctx.Get(fmt.Sprintf("/skills/%s/variants", skillID), &variants); err != nil {
+		return fmt.Errorf("failed to list variants: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(variants)
+	}
+
+	if len(variants) == 0 {
+		fmt.Println("No variants found")
+		return nil
+	}
+
+	fmt.Printf("Variants for skill %s:\n", skillID)
+	for _, v := range variants {
+		desc := ""
+		if v.Description != "" {
+			desc = " - " + v.Description
+		}
+		fmt.Printf("  %s  %s%s  (updated %s) [%s]\n", v.ID, v.Name, desc, v.UpdatedAt, v.SkillID)
+	}
+	return nil
+}
+
+func cmdAddVariant(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("add-variant", flag.ContinueOnError)
+	name := fs.String("name", "", "Variant name (required)")
+	file := fs.String("file", "", "Path to file containing variant content")
+	content := fs.String("content", "", "Variant content (alternative to --file)")
+	description := fs.String("description", "", "Variant description")
+	variantID := fs.String("id", "", "Variant ID (auto-generated if omitted)")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: skill add-variant <skill-id> --name NAME (--file FILE | --content CONTENT)")
+	}
+	skillID := fs.Arg(0)
+
+	if *name == "" {
+		return fmt.Errorf("--name is required")
+	}
+
+	var body string
+	switch {
+	case *file != "":
+		data, err := os.ReadFile(*file)
+		if err != nil {
+			return fmt.Errorf("failed to read file %s: %w", *file, err)
+		}
+		body = string(data)
+	case *content != "":
+		body = *content
+	default:
+		return fmt.Errorf("either --file or --content is required")
+	}
+
+	id := *variantID
+	if id == "" {
+		id = strings.ToLower(strings.ReplaceAll(*name, " ", "-"))
+	}
+
+	req := struct {
+		ID          string `json:"id"`
+		Name        string `json:"name"`
+		Description string `json:"description,omitempty"`
+		Content     string `json:"content"`
+	}{
+		ID:          id,
+		Name:        *name,
+		Description: *description,
+		Content:     body,
+	}
+
+	var variant VariantResp
+	if err := ctx.Post(fmt.Sprintf("/skills/%s/variants", skillID), req, &variant); err != nil {
+		return fmt.Errorf("failed to create variant: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(variant)
+	}
+
+	fmt.Printf("Created variant: %s [%s] for skill %s\n", variant.Name, variant.ID, variant.SkillID)
+	return nil
+}
+
+func cmdRmVariant(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("rm-variant", flag.ContinueOnError)
+	force := fs.Bool("force", false, "Skip confirmation prompt")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: skill rm-variant <skill-id> <variant-id> [--force]")
+	}
+	skillID := fs.Arg(0)
+	variantID := fs.Arg(1)
+
+	if !*force {
+		fmt.Printf("Delete variant %q from skill %s? [y/N]: ", variantID, skillID)
+		reader := bufio.NewReader(os.Stdin)
+		response, _ := reader.ReadString('\n')
+		response = strings.TrimSpace(strings.ToLower(response))
+		if response != "y" && response != "yes" {
+			fmt.Println("Cancelled")
+			return nil
+		}
+	}
+
+	if err := ctx.Delete(fmt.Sprintf("/skills/%s/variants/%s", skillID, variantID)); err != nil {
+		return fmt.Errorf("failed to delete variant: %w", err)
+	}
+
+	fmt.Printf("Deleted variant %s from skill %s\n", variantID, skillID)
 	return nil
 }
 

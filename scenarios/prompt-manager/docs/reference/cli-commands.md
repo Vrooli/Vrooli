@@ -232,6 +232,97 @@ prompt-manager skill revert my-skill 2
 # Output: Reverted to version 2 (new version: 4)
 ```
 
+### prompt-manager skill variants
+
+List variants for a skill.
+
+```bash
+prompt-manager skill variants <id> [--json]
+```
+
+### prompt-manager skill add-variant
+
+Create a new variant for a skill.
+
+```bash
+prompt-manager skill add-variant <id> --name NAME --file FILE_PATH [--description TEXT] [--json]
+```
+
+### prompt-manager skill rm-variant
+
+Delete a variant.
+
+```bash
+prompt-manager skill rm-variant <id> <variant-id> [--force]
+```
+
+---
+
+## Experiments
+
+[CODE: cli/experiments/experiments.go]
+
+### prompt-manager experiment list
+
+List all experiments, optionally filtered by skill.
+
+```bash
+prompt-manager experiment list [--skill SKILL_ID] [--json]
+```
+
+### prompt-manager experiment show
+
+Show experiment details including outcome counts.
+
+```bash
+prompt-manager experiment show <experiment-id> [--json]
+```
+
+### prompt-manager experiment create
+
+Create a new experiment.
+
+```bash
+prompt-manager experiment create --skill SKILL_ID --name NAME [--hypothesis TEXT] --arm VARIANT:WEIGHT --arm VARIANT:WEIGHT [--json]
+```
+
+**Example:**
+```bash
+prompt-manager experiment create --skill swarm-manager-workshop --name "Concise test" --arm control:0.5 --arm concise-v1:0.5
+```
+
+### prompt-manager experiment start
+
+Start a draft experiment (transition to running).
+
+```bash
+prompt-manager experiment start <experiment-id>
+```
+
+### prompt-manager experiment conclude
+
+Conclude a running experiment with a winner.
+
+```bash
+prompt-manager experiment conclude <experiment-id> <winner-variant-id> [--notes TEXT]
+```
+
+### prompt-manager experiment outcomes
+
+List raw outcomes for an experiment.
+
+```bash
+prompt-manager experiment outcomes <experiment-id> [--json]
+```
+
+### prompt-manager experiment delete
+
+Delete an experiment and its outcomes.
+
+```bash
+prompt-manager experiment delete <experiment-id> [--force]
+```
+
 ---
 
 ## Tags

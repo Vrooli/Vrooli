@@ -199,6 +199,7 @@ func (a *App) registerSubcommandGroups() []cliapp.SubcommandGroup {
 				{Name: "skill-revert", NeedsAPI: true, Description: "Revert prompt skill to version (--id ID --version VERSION)", Run: a.cmdPromptsSkillRevert},
 				{Name: "preview", NeedsAPI: true, Description: "Render a skill prompt with variables (--id ID)", Run: a.cmdPromptsPreview},
 				{Name: "simulate", NeedsAPI: true, Description: "Simulate selected prompt for a workload kind (--kind KIND)", Run: a.cmdPromptsSimulate},
+				{Name: "experiment-results", NeedsAPI: true, Description: "Show experiment results (--id EID or positional) [--json]", Run: a.cmdPromptsExperimentResults},
 			},
 		},
 		{

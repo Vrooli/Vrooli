@@ -93,9 +93,11 @@ const (
 // promptSelection holds the resolved skill ID, variables, and rendered prompt
 // text returned by prompt-manager.
 type promptSelection struct {
-	SkillID   string
-	Variables map[string]string
-	Prompt    string
+	SkillID      string
+	Variables    map[string]string
+	Prompt       string
+	ExperimentID string
+	VariantID    string
 }
 
 // ParseBacklogKind validates and normalizes a raw kind string.

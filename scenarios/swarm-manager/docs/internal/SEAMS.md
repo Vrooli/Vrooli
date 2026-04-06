@@ -270,10 +270,22 @@ The overview endpoint composes these interfaces to produce a summary containing 
 - **Ready check**: `IsReady(effective)` returns true when all 5 dimensions reach 3
 - **Round I/O**: `LoadRounds(itemDir)` and `SaveRound(itemDir, round)` handle filesystem serialization
 - **Boost configuration**: `BoostN` map defines per-kind divisors
+- **OtherKey sentinel**: `OtherKey = "__other__"` — `CountPendingDecisions` treats decisions with `Selected == OtherKey` and empty `Freeform` as unanswered, preventing premature auto-advance
 
 This package is imported by both `internal/backlog/` (for research handler) and `internal/execution/` (for preflight readiness checks), avoiding import cycles.
 
-**Testing at the seam**: Unit tests exercise boost edge cases (raw < 2 not boosted, round accumulation, kind-specific divisors) and round serialization without needing HTTP or agent-manager mocks.
+**Testing at the seam**: Unit tests exercise boost edge cases (raw < 2 not boosted, round accumulation, kind-specific divisors), round serialization, and OtherKey freeform validation without needing HTTP or agent-manager mocks.
+
+### Workshop Auto-Advance & Pending Advance
+
+`api/internal/backlog/workshop_save.go` orchestrates auto-advance after saving a workshop round. When `auto_advance_delay_seconds > 0`, instead of spawning immediately, it writes a **pending advance file** (`.workshop-pending-advance.json`) to the item directory. Key components:
+
+- **Pending advance file** (`workshop_pending.go`): JSON file with `advance_at` timestamp, `next_mode`, item metadata. Functions: `writePendingAdvance`, `readPendingAdvance`, `deletePendingAdvance`.
+- **Background ticker** (`workshop_ticker.go`): `WorkshopTicker` polls every 2 seconds, fires `spawnWorkshopAsync` when `advance_at` is reached. Maintains an in-memory `sync.Map` registry. On startup, `RecoverPending()` scans all item directories for leftover files.
+- **Cancel endpoint**: `DELETE /api/v1/backlog/{kind}/{name}/workshop/pending-advance` — deletes the pending file and unregisters from the ticker.
+- **Idempotency**: New saves replace any existing pending advance. The workshop lock file (`.workshop-lock`) prevents concurrent spawns.
+
+**Testing at the seam**: Integration tests verify pending file creation with delay > 0, immediate spawn with delay = 0, cancel endpoint, and replacement of existing pending advances.
 
 ### Workshop Parsing Boundary (UI)
 

@@ -18,6 +18,8 @@ import (
 // Entity types
 const (
 	KindSkill      = "skill"
+	KindVariant    = "variant"
+	KindExperiment = "experiment"
 	KindAgent      = "agent"
 	KindTeam       = "team"
 	KindTeamRoles  = "team-roles"
@@ -26,6 +28,16 @@ const (
 	KindTeamMember = "team-member"
 	KindTopic      = "topic"
 )
+
+// Experiment status values
+const (
+	ExperimentStatusDraft     = "draft"
+	ExperimentStatusRunning   = "running"
+	ExperimentStatusConcluded = "concluded"
+)
+
+// ControlVariantID is the implicit variant representing the original SKILL.md content.
+const ControlVariantID = "control"
 
 // Status values for skills
 const (

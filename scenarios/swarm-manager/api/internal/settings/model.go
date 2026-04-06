@@ -22,11 +22,11 @@ type Settings struct {
 	ReviewAgentEnabled bool   `json:"review_agent_enabled"`
 
 	// Workshop.
-	MaxAutoRounds             int  `json:"max_auto_rounds"`
-	AutoInitializeWorkshop    bool `json:"auto_initialize_workshop"`
-	AutoAdvanceWorkshop       bool `json:"auto_advance_workshop"`
-	AutoCascadeWorkshop       bool `json:"auto_cascade_workshop"`
-	AutoAdvanceDelaySeconds   int  `json:"auto_advance_delay_seconds"`
+	MaxAutoRounds           int  `json:"max_auto_rounds"`
+	AutoInitializeWorkshop  bool `json:"auto_initialize_workshop"`
+	AutoAdvanceWorkshop     bool `json:"auto_advance_workshop"`
+	AutoCascadeWorkshop     bool `json:"auto_cascade_workshop"`
+	AutoAdvanceDelaySeconds int  `json:"auto_advance_delay_seconds"`
 
 	// Agent behavior.
 	AgentMaxTurns         int  `json:"agent_max_turns"`
@@ -64,11 +64,11 @@ type SettingsPatch struct {
 	MaxFixupAttempts   *int    `json:"max_fixup_attempts,omitempty"`
 	ReviewAgentEnabled *bool   `json:"review_agent_enabled,omitempty"`
 
-	MaxAutoRounds             *int  `json:"max_auto_rounds,omitempty"`
-	AutoInitializeWorkshop    *bool `json:"auto_initialize_workshop,omitempty"`
-	AutoAdvanceWorkshop       *bool `json:"auto_advance_workshop,omitempty"`
-	AutoCascadeWorkshop       *bool `json:"auto_cascade_workshop,omitempty"`
-	AutoAdvanceDelaySeconds   *int  `json:"auto_advance_delay_seconds,omitempty"`
+	MaxAutoRounds           *int  `json:"max_auto_rounds,omitempty"`
+	AutoInitializeWorkshop  *bool `json:"auto_initialize_workshop,omitempty"`
+	AutoAdvanceWorkshop     *bool `json:"auto_advance_workshop,omitempty"`
+	AutoCascadeWorkshop     *bool `json:"auto_cascade_workshop,omitempty"`
+	AutoAdvanceDelaySeconds *int  `json:"auto_advance_delay_seconds,omitempty"`
 
 	AgentMaxTurns         *int  `json:"agent_max_turns,omitempty"`
 	AgentTimeoutSeconds   *int  `json:"agent_timeout_seconds,omitempty"`

@@ -175,13 +175,13 @@ type RunResult struct {
 
 // RunState captures externally visible lifecycle state for a run.
 type RunState struct {
-	RunID        string
-	TaskID       string
-	Status       string
-	StartedAt    string
-	FinishedAt   string
-	ErrorMsg     string
-	SandboxID    string
+	RunID         string
+	TaskID        string
+	Status        string
+	StartedAt     string
+	FinishedAt    string
+	ErrorMsg      string
+	SandboxID     string
 	Summary       string
 	TokensUsed    int32
 	TurnsUsed     int32

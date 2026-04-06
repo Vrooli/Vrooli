@@ -165,7 +165,15 @@ fmt: fmt-go fmt-ui ## Format all code
 
 fmt-go: ## Format Go code
 	@echo "$(BLUE)🎨 Formatting Go code...$(RESET)"
-	@cd api && go fmt ./...
+	@if [ -d api ] && ls api/*.go &>/dev/null; then \
+		if command -v gofumpt >/dev/null 2>&1; then \
+			gofumpt -w api/; \
+		else \
+			cd api && go fmt ./...; \
+		fi; \
+	else \
+		echo "$(YELLOW)ℹ No Go sources found, skipping$(RESET)"; \
+	fi
 	@echo "$(GREEN)✓ Go format complete$(RESET)"
 
 fmt-ui: ## Format UI code (no-op if no UI formatting tool)
@@ -176,10 +184,14 @@ lint: lint-go lint-ui ## Lint all code
 
 lint-go: ## Lint Go code
 	@echo "$(BLUE)🔍 Linting Go code...$(RESET)"
-	@if command -v golangci-lint >/dev/null 2>&1; then \
-		cd api && golangci-lint run ./...; \
+	@if [ -d api ] && ls api/*.go &>/dev/null; then \
+		if command -v golangci-lint >/dev/null 2>&1; then \
+			cd api && golangci-lint run ./...; \
+		else \
+			echo "$(YELLOW)ℹ golangci-lint not installed, skipping$(RESET)"; \
+		fi; \
 	else \
-		echo "$(YELLOW)ℹ golangci-lint not installed, skipping$(RESET)"; \
+		echo "$(YELLOW)ℹ No Go sources found, skipping$(RESET)"; \
 	fi
 	@echo "$(GREEN)✓ Go lint complete$(RESET)"
 
@@ -192,7 +204,7 @@ vet: ## Vet code
 	@cd api && go vet ./...
 	@echo "$(GREEN)✓ Vet complete$(RESET)"
 
-check: fmt vet test ## Run fmt, vet, and test
+check: fmt lint vet test ## Run fmt, lint, vet, and test
 	@echo "$(GREEN)✓ All checks passed!$(RESET)"
 
 clean: ## Clean build artifacts

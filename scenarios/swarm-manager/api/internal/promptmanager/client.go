@@ -18,9 +18,30 @@ import (
 	"github.com/vrooli/api-core/discovery"
 )
 
+// ReadSkillResult holds the content and optional variant selection from a prompt-manager read.
+type ReadSkillResult struct {
+	Content   string `json:"content"`
+	VariantID string `json:"selectedVariantId,omitempty"`
+}
+
+// ExperimentOutcomeRequest is the request body for recording an experiment outcome.
+type ExperimentOutcomeRequest struct {
+	VariantID     string          `json:"variantId"`
+	Source        string          `json:"source"`
+	SchemaVersion int             `json:"schemaVersion"`
+	Data          json.RawMessage `json:"data"`
+}
+
 // Client reads skill prompts from prompt-manager.
 type Client interface {
 	ReadSkill(ctx context.Context, skillID string, variables map[string]string, withScope bool) (string, error)
+	ReadSkillWithExperiment(ctx context.Context, skillID string, variables map[string]string, withScope bool, experimentID string) (ReadSkillResult, error)
+}
+
+// ExperimentClient provides experiment outcome operations against prompt-manager.
+type ExperimentClient interface {
+	RecordExperimentOutcome(ctx context.Context, experimentID string, outcome ExperimentOutcomeRequest) error
+	ListExperimentOutcomes(ctx context.Context, experimentID string) ([]json.RawMessage, error)
 }
 
 // PromptSkill represents prompt-manager skill metadata and optional content.
@@ -110,15 +131,17 @@ func NewHTTPClientWithResolver(resolver BaseURLResolver, httpClient HTTPDoer) *H
 
 // readRequest is the request body for the skill read endpoint.
 type readRequest struct {
-	Identifiers []string          `json:"identifiers"`
-	Variables   map[string]string `json:"variables,omitempty"`
-	Output      string            `json:"output"`
-	WithScope   bool              `json:"withScope,omitempty"`
+	Identifiers  []string          `json:"identifiers"`
+	Variables    map[string]string `json:"variables,omitempty"`
+	Output       string            `json:"output"`
+	WithScope    bool              `json:"withScope,omitempty"`
+	ExperimentID string            `json:"experimentId,omitempty"`
 }
 
 // readResponse is the response from the skill read endpoint.
 type readResponse struct {
-	Combined string `json:"combined"`
+	Combined          string `json:"combined"`
+	SelectedVariantID string `json:"selectedVariantId,omitempty"`
 }
 
 // ReadSkill fetches a single skill from prompt-manager with variable substitution.
@@ -164,6 +187,118 @@ func (c *HTTPClient) ReadSkill(ctx context.Context, skillID string, variables ma
 	}
 
 	return readResp.Combined, nil
+}
+
+// ReadSkillWithExperiment fetches a skill from prompt-manager with experiment-based variant selection.
+func (c *HTTPClient) ReadSkillWithExperiment(ctx context.Context, skillID string, variables map[string]string, withScope bool, experimentID string) (ReadSkillResult, error) {
+	baseURL, err := c.baseURLResolver(ctx)
+	if err != nil {
+		return ReadSkillResult{}, fmt.Errorf("promptmanager: resolve URL: %w", err)
+	}
+
+	reqBody := readRequest{
+		Identifiers:  []string{skillID},
+		Variables:    variables,
+		Output:       "combined",
+		WithScope:    withScope,
+		ExperimentID: experimentID,
+	}
+
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		return ReadSkillResult{}, fmt.Errorf("promptmanager: marshal request: %w", err)
+	}
+
+	reqURL := baseURL + "/api/v1/skills/read"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, bytes.NewReader(body))
+	if err != nil {
+		return ReadSkillResult{}, fmt.Errorf("promptmanager: create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return ReadSkillResult{}, fmt.Errorf("promptmanager: request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return ReadSkillResult{}, fmt.Errorf("promptmanager: status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var readResp readResponse
+	if err := json.NewDecoder(resp.Body).Decode(&readResp); err != nil {
+		return ReadSkillResult{}, fmt.Errorf("promptmanager: decode response: %w", err)
+	}
+
+	return ReadSkillResult{
+		Content:   readResp.Combined,
+		VariantID: readResp.SelectedVariantID,
+	}, nil
+}
+
+// RecordExperimentOutcome posts an outcome to prompt-manager for an experiment.
+func (c *HTTPClient) RecordExperimentOutcome(ctx context.Context, experimentID string, outcome ExperimentOutcomeRequest) error {
+	baseURL, err := c.baseURLResolver(ctx)
+	if err != nil {
+		return fmt.Errorf("promptmanager: resolve URL: %w", err)
+	}
+
+	body, err := json.Marshal(outcome)
+	if err != nil {
+		return fmt.Errorf("promptmanager: marshal outcome: %w", err)
+	}
+
+	reqURL := baseURL + "/api/v1/experiments/" + url.PathEscape(strings.TrimSpace(experimentID)) + "/outcomes"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("promptmanager: create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("promptmanager: request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("promptmanager: status %d: %s", resp.StatusCode, string(respBody))
+	}
+	return nil
+}
+
+// ListExperimentOutcomes fetches raw outcomes for an experiment from prompt-manager.
+func (c *HTTPClient) ListExperimentOutcomes(ctx context.Context, experimentID string) ([]json.RawMessage, error) {
+	baseURL, err := c.baseURLResolver(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("promptmanager: resolve URL: %w", err)
+	}
+
+	reqURL := baseURL + "/api/v1/experiments/" + url.PathEscape(strings.TrimSpace(experimentID)) + "/outcomes"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("promptmanager: create request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("promptmanager: request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("promptmanager: status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result []json.RawMessage
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("promptmanager: decode response: %w", err)
+	}
+	return result, nil
 }
 
 // ListSkills fetches prompt-manager skill metadata with optional tag filtering.
@@ -342,15 +477,21 @@ func (c *HTTPClient) RevertSkillVersion(ctx context.Context, skillID string, ver
 	return nil
 }
 
-// MockClient implements Client for testing by consumers of this package.
+// MockClient implements Client, AdminClient, and ExperimentClient for testing.
 type MockClient struct {
-	Result       string
-	Err          error
-	Skills       []PromptSkill
-	Skill        PromptSkill
-	SkillByID    map[string]PromptSkill
-	Versions     PromptSkillVersions
-	UpdatedSkill PromptSkill
+	Result             string
+	Err                error
+	Skills             []PromptSkill
+	Skill              PromptSkill
+	SkillByID          map[string]PromptSkill
+	Versions           PromptSkillVersions
+	UpdatedSkill       PromptSkill
+	ReadSkillResult    ReadSkillResult
+	ReadSkillResultErr error
+	RecordedOutcomes   []ExperimentOutcomeRequest
+	RecordOutcomeErr   error
+	ExperimentOutcomes []json.RawMessage
+	ListOutcomesErr    error
 }
 
 // ReadSkill returns the mock result.
@@ -389,6 +530,28 @@ func (m *MockClient) GetSkillVersions(_ context.Context, _ string) (PromptSkillV
 // RevertSkillVersion applies a no-op mock revert.
 func (m *MockClient) RevertSkillVersion(_ context.Context, _ string, _ int) error {
 	return m.Err
+}
+
+// ReadSkillWithExperiment returns the mock ReadSkillResult.
+func (m *MockClient) ReadSkillWithExperiment(_ context.Context, _ string, _ map[string]string, _ bool, _ string) (ReadSkillResult, error) {
+	if m.ReadSkillResultErr != nil {
+		return ReadSkillResult{}, m.ReadSkillResultErr
+	}
+	if m.ReadSkillResult.Content != "" || m.ReadSkillResult.VariantID != "" {
+		return m.ReadSkillResult, nil
+	}
+	return ReadSkillResult{Content: m.Result}, m.Err
+}
+
+// RecordExperimentOutcome records a mock outcome.
+func (m *MockClient) RecordExperimentOutcome(_ context.Context, _ string, outcome ExperimentOutcomeRequest) error {
+	m.RecordedOutcomes = append(m.RecordedOutcomes, outcome)
+	return m.RecordOutcomeErr
+}
+
+// ListExperimentOutcomes returns mock outcomes.
+func (m *MockClient) ListExperimentOutcomes(_ context.Context, _ string) ([]json.RawMessage, error) {
+	return m.ExperimentOutcomes, m.ListOutcomesErr
 }
 
 // resolvePromptManagerBaseURL resolves prompt-manager using api-core discovery.

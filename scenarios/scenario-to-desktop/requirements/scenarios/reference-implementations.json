@@ -4,6 +4,7 @@
   "requirements": [
     {
       "id": "STD-INTEGRATION-PICKER-WHEEL",
+      "prd_ref": "OT-P0-005",
       "title": "Picker-wheel desktop generation and validation",
       "description": "Picker-wheel serves as the canonical reference implementation for basic desktop generation",
       "validation": [
@@ -26,6 +27,7 @@
     },
     {
       "id": "STD-INTEGRATION-SYSTEM-MONITOR",
+      "prd_ref": "OT-P0-005",
       "title": "System-monitor advanced desktop generation",
       "description": "System-monitor demonstrates advanced template with system tray and background operation",
       "validation": [
@@ -40,6 +42,7 @@
     },
     {
       "id": "STD-INTEGRATION-API-CONNECTIVITY",
+      "prd_ref": "OT-P0-005",
       "title": "Desktop apps connect to scenario APIs",
       "description": "Generated desktop apps successfully connect to and communicate with scenario backend APIs",
       "validation": [
@@ -54,6 +57,7 @@
     },
     {
       "id": "STD-INTEGRATION-UI-LOADING",
+      "prd_ref": "OT-P0-005",
       "title": "Desktop apps load React UI from scenario ui/dist/",
       "description": "Generated desktop apps correctly load and display the scenario's built React UI",
       "validation": [
