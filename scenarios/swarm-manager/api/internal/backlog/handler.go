@@ -54,6 +54,7 @@ type Handler struct {
 	governanceProvider execution.GovernanceProvider
 	eventDispatcher    dispatch.Invalidator
 	eventLogger        EventLogger
+	workshopTicker     *WorkshopTicker
 }
 
 // EventLogger records state-change events for analytics.
@@ -130,6 +131,23 @@ func (h *Handler) SetEventLogger(l EventLogger) {
 	h.eventLogger = l
 }
 
+// StartWorkshopTicker starts the background ticker that fires deferred
+// auto-advance spawns. It also recovers any pending advances from disk
+// that survived a server restart.
+func (h *Handler) StartWorkshopTicker() {
+	t := newWorkshopTicker(h)
+	h.workshopTicker = t
+	t.RecoverPending()
+	t.Start()
+}
+
+// StopWorkshopTicker stops the background ticker.
+func (h *Handler) StopWorkshopTicker() {
+	if h.workshopTicker != nil {
+		h.workshopTicker.Stop()
+	}
+}
+
 func (h *Handler) emitDependencyChanges(entityID string, oldDeps, newDeps []string) {
 	old := make(map[string]bool, len(oldDeps))
 	for _, d := range oldDeps {
@@ -195,6 +213,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/save", h.WorkshopSave).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/round", h.WorkshopDeleteRound).Methods("DELETE")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/reset", h.WorkshopReset).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/pending-advance", h.WorkshopCancelPendingAdvance).Methods("DELETE")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/clarification", h.CreateClarification).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/clarification/{threadId}", h.GetClarification).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/clarification/{threadId}/continue", h.ContinueClarification).Methods("POST")

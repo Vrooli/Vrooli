@@ -43,6 +43,8 @@ message Settings {
   bool auto_initialize_workshop = 16;
   bool auto_advance_workshop = 17;
   bool auto_cascade_workshop = 18;
+  // Grace period (seconds) before auto-advance spawns the next round. 0 = instant.
+  int32 auto_advance_delay_seconds = 32 [(buf.validate.field).int32 = { gte: 0, lte: 120 }];
 
   // Agent behavior settings.
   int32 agent_max_turns = 10 [(buf.validate.field).int32 = { gte: 5, lte: 200 }];

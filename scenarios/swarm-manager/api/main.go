@@ -146,6 +146,7 @@ func (s *Server) registerBacklogRoutes(scenarioRoot string) *backlog.Handler {
 	backlogHandler.SetPolicyProvider(settings.NewPolicyAdapter(s.settingsStore))
 	backlogHandler.SetGovernanceProvider(settings.NewGovernanceAdapter(s.settingsStore))
 	backlogHandler.RegisterRoutes(s.router)
+	backlogHandler.StartWorkshopTicker()
 	s.backlogHandler = backlogHandler
 	return backlogHandler
 }

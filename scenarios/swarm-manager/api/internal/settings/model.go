@@ -22,10 +22,11 @@ type Settings struct {
 	ReviewAgentEnabled bool   `json:"review_agent_enabled"`
 
 	// Workshop.
-	MaxAutoRounds          int  `json:"max_auto_rounds"`
-	AutoInitializeWorkshop bool `json:"auto_initialize_workshop"`
-	AutoAdvanceWorkshop    bool `json:"auto_advance_workshop"`
-	AutoCascadeWorkshop    bool `json:"auto_cascade_workshop"`
+	MaxAutoRounds             int  `json:"max_auto_rounds"`
+	AutoInitializeWorkshop    bool `json:"auto_initialize_workshop"`
+	AutoAdvanceWorkshop       bool `json:"auto_advance_workshop"`
+	AutoCascadeWorkshop       bool `json:"auto_cascade_workshop"`
+	AutoAdvanceDelaySeconds   int  `json:"auto_advance_delay_seconds"`
 
 	// Agent behavior.
 	AgentMaxTurns         int  `json:"agent_max_turns"`
@@ -63,10 +64,11 @@ type SettingsPatch struct {
 	MaxFixupAttempts   *int    `json:"max_fixup_attempts,omitempty"`
 	ReviewAgentEnabled *bool   `json:"review_agent_enabled,omitempty"`
 
-	MaxAutoRounds          *int  `json:"max_auto_rounds,omitempty"`
-	AutoInitializeWorkshop *bool `json:"auto_initialize_workshop,omitempty"`
-	AutoAdvanceWorkshop    *bool `json:"auto_advance_workshop,omitempty"`
-	AutoCascadeWorkshop    *bool `json:"auto_cascade_workshop,omitempty"`
+	MaxAutoRounds             *int  `json:"max_auto_rounds,omitempty"`
+	AutoInitializeWorkshop    *bool `json:"auto_initialize_workshop,omitempty"`
+	AutoAdvanceWorkshop       *bool `json:"auto_advance_workshop,omitempty"`
+	AutoCascadeWorkshop       *bool `json:"auto_cascade_workshop,omitempty"`
+	AutoAdvanceDelaySeconds   *int  `json:"auto_advance_delay_seconds,omitempty"`
 
 	AgentMaxTurns         *int  `json:"agent_max_turns,omitempty"`
 	AgentTimeoutSeconds   *int  `json:"agent_timeout_seconds,omitempty"`
@@ -126,6 +128,7 @@ func DefaultSettings() Settings {
 		AutoInitializeWorkshop:    true,
 		AutoAdvanceWorkshop:       true,
 		AutoCascadeWorkshop:       true,
+		AutoAdvanceDelaySeconds:   10,
 		AgentMaxTurns:             60,
 		AgentTimeoutSeconds:       900,
 		AgentRequiresApproval:     true,
@@ -226,6 +229,7 @@ func normalizeSettings(settings Settings) Settings {
 
 	// Workshop.
 	settings.MaxAutoRounds = clampInt(settings.MaxAutoRounds, 0, 50)
+	settings.AutoAdvanceDelaySeconds = clampInt(settings.AutoAdvanceDelaySeconds, 0, 120)
 
 	// Agent behavior.
 	settings.AgentMaxTurns = clampInt(settings.AgentMaxTurns, 5, 200)
@@ -301,6 +305,9 @@ func applyPatch(current Settings, patch SettingsPatch) Settings {
 	}
 	if patch.AutoCascadeWorkshop != nil {
 		current.AutoCascadeWorkshop = *patch.AutoCascadeWorkshop
+	}
+	if patch.AutoAdvanceDelaySeconds != nil {
+		current.AutoAdvanceDelaySeconds = *patch.AutoAdvanceDelaySeconds
 	}
 	if patch.AgentMaxTurns != nil {
 		current.AgentMaxTurns = *patch.AgentMaxTurns

@@ -1,0 +1,21 @@
+{
+  "acceptance_allow": [
+    "scenarios/swarm-manager/**",
+    "scenarios/prompt-manager/**"
+  ],
+  "created": "2026-04-06T01:02:51Z",
+  "depends_on": [
+    "execute/workshop-finalization-validation-gates",
+    "idea/meta-orchestration-native-sessions"
+  ],
+  "description": "## Research Question\n\nAfter plan validation gates (workshop-finalization-validation-gates) and meta-orchestration persistence (meta-orchestration-native-sessions) are in place, what remaining gaps exist in initiative-level quality assurance, and what agent-driven oversight mechanisms would address them?\n\n## Context\n\nThe swarm-manager currently has no initiative-level oversight. Initiatives are grouping labels with metadata, but there's no agent that:\n- Validates whether completed items actually delivered what the initiative intended\n- Detects drift between the original planning conversation and executed outputs\n- Creates corrective fix items when drift is detected\n- Reports initiative health beyond simple completion counts\n- Ensures cross-item coherence (e.g., two items in the same initiative making conflicting architectural choices)\n\nTwo related improvements are being built concurrently:\n1. **Plan validation gates** — programmatic scanning of plan.md before/after finalization to catch structural issues\n2. **Meta-orchestration persistence** — conversation tracking so the original planning context is preserved and resumable\n\nThese will address some but not all of the problem. Plan validation catches structural issues in individual items. Meta-orchestration persistence preserves planning context. But neither automatically validates that COMPLETED work aligns with the INITIATIVE'S goals across multiple items.\n\n## Research Scope\n- Survey how other orchestration systems (e.g., CI/CD pipelines, project management tools, multi-agent frameworks) handle multi-task coherence checking\n- Examine what drift actually looks like after validation gates and meta-orchestration are in place — what problems remain?\n- Propose concrete initiative agent capabilities: what triggers them, what they check, what actions they can take\n- Consider: should initiative agents run automatically (on item completion) or on-demand (user triggers a health check)?\n- Consider: should initiative agents have write access (create fix items, update initiative metadata) or be advisory-only?\n- Identify what data the initiative agent needs access to (orchestration summary, completed item outputs, PRDs, test results, review classifications)\n\n## Expected Output\nA conclusion.md with concrete recommendations for initiative-level agent design, including: trigger conditions, capabilities, data access requirements, and proposed implementation approach within the existing swarm-manager architecture.",
+  "effort": "M",
+  "initiative": "swarm-manager-quality-gates",
+  "kind": "research",
+  "name": "initiative-level-oversight-design",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [],
+  "title": "Research What Initiative Level Oversight Agents Should Look Like",
+  "updated": "2026-04-06T01:02:51Z"
+}

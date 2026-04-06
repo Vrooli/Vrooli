@@ -20,6 +20,9 @@ export interface StepperCompletionResult {
     taskId?: string;
     reason: string;
     nextMode?: "workshop" | "finalize";
+    pending?: boolean;
+    advanceAt?: string;
+    delaySeconds?: number;
   };
 }
 
@@ -63,7 +66,11 @@ export function InlineQuestionStepper({
       if (skipped.has(q.id)) return true;
       const a = answers.get(q.id);
       if (!a) return false;
-      if (q.source === "workshop") return !!a.selected?.trim();
+      if (q.source === "workshop") {
+        if (!a.selected?.trim()) return false;
+        if (a.selected === OTHER_KEY && !a.freeform?.trim()) return false;
+        return true;
+      }
       return a.reviewStatus === "approved" || a.reviewStatus === "flagged";
     });
     if (!allDone) return;

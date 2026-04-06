@@ -41,6 +41,12 @@ export interface WorkshopAutoAdvance {
   taskId?: string;
   reason: string;
   nextMode?: "workshop" | "finalize";
+  /** Whether an advance is pending (countdown active, not yet spawned). */
+  pending?: boolean;
+  /** When the pending advance will fire (RFC 3339 timestamp). */
+  advanceAt?: string;
+  /** Configured delay in seconds. */
+  delaySeconds?: number;
 }
 
 /** Response from saving a workshop round via the dedicated endpoint. */
@@ -160,6 +166,10 @@ export interface IBacklogService {
     kind: BacklogKind,
     name: string,
   ): Promise<WorkshopResetResponse>;
+  workshopCancelPendingAdvance(
+    kind: BacklogKind,
+    name: string,
+  ): Promise<{ cancelled: boolean }>;
   createClarification(
     kind: BacklogKind,
     name: string,

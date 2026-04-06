@@ -186,6 +186,42 @@ func TestShouldAutoAdvance_AllKindBoostDivisors(t *testing.T) {
 	}
 }
 
+func TestShouldAutoAdvance_OtherWithEmptyFreeform_IsPending(t *testing.T) {
+	round := &Round{
+		RoundNum:  1,
+		Readiness: allLowScores(),
+		Items: []Item{
+			{ID: "d1", Type: "decision", Selected: strPtr("A")},
+			{ID: "d2", Type: "decision", Selected: strPtr(OtherKey)}, // no freeform
+		},
+	}
+	result := ShouldAutoAdvance(true, round, 1, "idea", 10)
+	if result.Advance {
+		t.Error("expected Advance=false when __other__ has no freeform")
+	}
+	if result.Reason != "pending_decisions" {
+		t.Errorf("expected reason 'pending_decisions', got %q", result.Reason)
+	}
+}
+
+func TestShouldAutoAdvance_OtherWithFreeform_NotPending(t *testing.T) {
+	round := &Round{
+		RoundNum:  1,
+		Readiness: allLowScores(),
+		Items: []Item{
+			{ID: "d1", Type: "decision", Selected: strPtr("A")},
+			{ID: "d2", Type: "decision", Selected: strPtr(OtherKey), Freeform: strPtr("my alternative")},
+		},
+	}
+	result := ShouldAutoAdvance(true, round, 1, "idea", 10)
+	if !result.Advance {
+		t.Errorf("expected Advance=true when __other__ has freeform, got reason=%s", result.Reason)
+	}
+	if result.Reason != "not_ready" {
+		t.Errorf("expected reason 'not_ready', got %q", result.Reason)
+	}
+}
+
 func TestShouldAutoAdvance_Disabled(t *testing.T) {
 	round := makeRound(allLowScores(), 0)
 	result := ShouldAutoAdvance(false, round, 1, "idea", 10)

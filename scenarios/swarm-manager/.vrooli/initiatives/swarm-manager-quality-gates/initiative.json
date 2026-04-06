@@ -1,0 +1,13 @@
+{
+  "name": "swarm-manager-quality-gates",
+  "title": "Swarm Manager Quality Gates And Self-Correction",
+  "description": "Address structural gaps in swarm-manager's planning-to-execution pipeline that cause drift between what was planned and what gets built. Three interconnected improvements: (1) programmatic validation gates on plan.md content during workshop finalization to catch missing sections, skills, and template usage before execution begins, (2) meta-orchestration as a first-class swarm-manager feature with persistent conversations, initiative/item attribution, and resume capability, (3) research into initiative-level oversight agents that validate cross-item coherence and detect drift from original planning intent. Motivated by real drift observed during vrooli-events initiative execution where agents created scenarios without using templates, omitted UIs, and produced PRDs misaligned with planning decisions.",
+  "status": "active",
+  "items": [
+    "execute/workshop-finalization-validation-gates",
+    "idea/meta-orchestration-native-sessions",
+    "research/initiative-level-oversight-design"
+  ],
+  "created": "2026-04-06T01:02:51Z",
+  "updated": "2026-04-06T01:02:51Z"
+}

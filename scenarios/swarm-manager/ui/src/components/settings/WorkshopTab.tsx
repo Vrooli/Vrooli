@@ -49,6 +49,7 @@ export function WorkshopTab({ form, patch }: WorkshopTabProps) {
               autoAdvanceWorkshop: DEFAULT_SETTINGS.autoAdvanceWorkshop,
               autoCascadeWorkshop: DEFAULT_SETTINGS.autoCascadeWorkshop,
               maxAutoRounds: DEFAULT_SETTINGS.maxAutoRounds,
+              autoAdvanceDelaySeconds: DEFAULT_SETTINGS.autoAdvanceDelaySeconds,
             })}>Reset</button>
           </div>
         </div>
@@ -93,6 +94,25 @@ export function WorkshopTab({ form, patch }: WorkshopTabProps) {
               className="mt-1"
               value={form.maxAutoRounds}
               onChange={(e) => patch({ maxAutoRounds: Math.max(0, Math.min(50, Number(e.target.value || 0))) })}
+              disabled={!form.autoAdvanceWorkshop}
+            />
+          </div>
+          <div
+            className="border-t border-white/5 pt-4"
+            style={{
+              opacity: form.autoAdvanceWorkshop ? 1 : 0.5,
+              pointerEvents: form.autoAdvanceWorkshop ? "auto" : "none",
+            }}
+          >
+            <label className="block text-sm font-medium text-slate-300">Auto-Advance Delay</label>
+            <p className="mt-1 text-xs text-slate-400">Grace period (seconds) before the next round spawns after all decisions are answered. Set to 0 for immediate.</p>
+            <Input
+              type="number"
+              min={0}
+              max={120}
+              className="mt-1"
+              value={form.autoAdvanceDelaySeconds}
+              onChange={(e) => patch({ autoAdvanceDelaySeconds: Math.max(0, Math.min(120, Number(e.target.value || 0))) })}
               disabled={!form.autoAdvanceWorkshop}
             />
           </div>

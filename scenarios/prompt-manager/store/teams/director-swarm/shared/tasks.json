@@ -3,12 +3,19 @@
     {
       "id": "task-1775254796113143923",
       "title": "Human: Accept/reject portfolio focus (dec-1775254772312319062) — 3 options, A recommended",
-      "status": "todo",
+      "status": "done",
       "assignee": "director",
       "priority": "P1",
       "createdBy": "director",
       "createdAt": "2026-04-03T22:19:56Z",
-      "updatedAt": "2026-04-03T22:19:56Z"
+      "updatedAt": "2026-04-05T22:19:41Z",
+      "notes": [
+        {
+          "at": "2026-04-05T22:19:41Z",
+          "by": "",
+          "text": "Superseded by dec-1775427572168229608 which includes vrooli-events"
+        }
+      ]
     },
     {
       "id": "task-1775254797003085673",
@@ -49,6 +56,36 @@
       "createdBy": "director",
       "createdAt": "2026-04-04T22:20:09Z",
       "updatedAt": "2026-04-04T22:20:09Z"
+    },
+    {
+      "id": "task-1775427597547322562",
+      "title": "Human: Accept/reject updated portfolio focus (dec-1775427572168229608) — 3 options, A recommended",
+      "status": "todo",
+      "assignee": "director",
+      "priority": "P1",
+      "createdBy": "director",
+      "createdAt": "2026-04-05T22:19:57Z",
+      "updatedAt": "2026-04-05T22:19:57Z"
+    },
+    {
+      "id": "task-1775427598451232666",
+      "title": "Human: Accept/reject agent execution failure investigation (dec-1775427574764681085)",
+      "status": "todo",
+      "assignee": "director",
+      "priority": "P1",
+      "createdBy": "director",
+      "createdAt": "2026-04-05T22:19:58Z",
+      "updatedAt": "2026-04-05T22:19:58Z"
+    },
+    {
+      "id": "task-1775427599330888553",
+      "title": "Human: Accept/reject dependency hygiene (dec-1775427577207512235)",
+      "status": "todo",
+      "assignee": "director",
+      "priority": "P2",
+      "createdBy": "director",
+      "createdAt": "2026-04-05T22:19:59Z",
+      "updatedAt": "2026-04-05T22:19:59Z"
     }
   ]
 }

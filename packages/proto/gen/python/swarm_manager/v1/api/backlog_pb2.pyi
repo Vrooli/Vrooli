@@ -242,18 +242,30 @@ class WorkshopSaveResponse(_message.Message):
     def __init__(self, file: _Optional[_Union[_backlog_pb2.BacklogFile, _Mapping]] = ..., auto_advance: _Optional[_Union[WorkshopAutoAdvance, _Mapping]] = ...) -> None: ...
 
 class WorkshopAutoAdvance(_message.Message):
-    __slots__ = ("triggered", "run_id", "task_id", "reason", "next_mode")
+    __slots__ = ("triggered", "run_id", "task_id", "reason", "next_mode", "pending", "advance_at", "delay_seconds")
     TRIGGERED_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
     NEXT_MODE_FIELD_NUMBER: _ClassVar[int]
+    PENDING_FIELD_NUMBER: _ClassVar[int]
+    ADVANCE_AT_FIELD_NUMBER: _ClassVar[int]
+    DELAY_SECONDS_FIELD_NUMBER: _ClassVar[int]
     triggered: bool
     run_id: str
     task_id: str
     reason: str
     next_mode: str
-    def __init__(self, triggered: _Optional[bool] = ..., run_id: _Optional[str] = ..., task_id: _Optional[str] = ..., reason: _Optional[str] = ..., next_mode: _Optional[str] = ...) -> None: ...
+    pending: bool
+    advance_at: str
+    delay_seconds: int
+    def __init__(self, triggered: _Optional[bool] = ..., run_id: _Optional[str] = ..., task_id: _Optional[str] = ..., reason: _Optional[str] = ..., next_mode: _Optional[str] = ..., pending: _Optional[bool] = ..., advance_at: _Optional[str] = ..., delay_seconds: _Optional[int] = ...) -> None: ...
+
+class WorkshopCancelPendingAdvanceResponse(_message.Message):
+    __slots__ = ("cancelled",)
+    CANCELLED_FIELD_NUMBER: _ClassVar[int]
+    cancelled: bool
+    def __init__(self, cancelled: _Optional[bool] = ...) -> None: ...
 
 class WorkshopDeleteRoundRequest(_message.Message):
     __slots__ = ("round_number",)

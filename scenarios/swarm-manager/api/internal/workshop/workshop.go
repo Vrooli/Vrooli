@@ -55,6 +55,10 @@ type Option struct {
 	Recommended bool   `json:"recommended,omitempty"` // agent's pick
 }
 
+// OtherKey is the sentinel value for the "Other" option in workshop decisions.
+// When selected, the user must provide a freeform explanation.
+const OtherKey = "__other__"
+
 // ---------------------------------------------------------------------------
 // Readiness dimensions and boost computation
 // ---------------------------------------------------------------------------
@@ -172,14 +176,31 @@ func LoadLatestRound(itemDir string) (*Round, int, error) {
 }
 
 // CountPendingDecisions counts decision items that have not been answered yet.
+// A decision with Selected == OtherKey is only considered answered when its
+// Freeform field is also non-empty (the user must provide an explanation).
 func CountPendingDecisions(round *Round) int {
 	if round == nil {
 		return 0
 	}
 	count := 0
 	for _, item := range round.Items {
-		if item.Type == "decision" && (item.Selected == nil || strings.TrimSpace(*item.Selected) == "") {
+		if item.Type != "decision" {
+			continue
+		}
+		sel := ""
+		if item.Selected != nil {
+			sel = strings.TrimSpace(*item.Selected)
+		}
+		if sel == "" {
 			count++
+		} else if sel == OtherKey {
+			freeform := ""
+			if item.Freeform != nil {
+				freeform = strings.TrimSpace(*item.Freeform)
+			}
+			if freeform == "" {
+				count++
+			}
 		}
 	}
 	return count

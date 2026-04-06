@@ -28,6 +28,7 @@ import { AgentRunningBadge } from "./agent-running-badge";
 import { CircuitBrokenBadge } from "./circuit-broken-badge";
 import { NoteIndicator } from "../ui/note-indicator";
 import { ReadinessBar } from "./readiness-bar";
+import { AutoAdvanceCountdown } from "./auto-advance-countdown";
 import { displayLimitsConfig } from "../../config";
 
 export interface BacklogCardProps {
@@ -156,7 +157,19 @@ export function BacklogCard({
           onAllAnswered={onStepperCompleted}
         />
       ) : transitionResult ? (
-        <div className="mt-3 flex items-center gap-2 rounded-lg border border-cyan-500/20 bg-cyan-500/[0.03] px-3 py-2.5 text-sm text-cyan-300">
+        <div className="mt-3">
+          {transitionResult.autoAdvance?.pending && transitionResult.autoAdvance?.advanceAt ? (
+            <AutoAdvanceCountdown
+              advanceAt={transitionResult.autoAdvance.advanceAt}
+              delaySeconds={transitionResult.autoAdvance.delaySeconds ?? 10}
+              nextMode={(transitionResult.autoAdvance.nextMode ?? "workshop") as "workshop" | "finalize"}
+              kind={item.kind as BacklogKind}
+              name={item.name}
+              onCancelled={onStepperCompleted.bind(null, {})}
+              onExpired={() => {/* timer expired — server ticker will spawn; UI shows spinner */}}
+            />
+          ) : (
+          <div className="flex items-center gap-2 rounded-lg border border-cyan-500/20 bg-cyan-500/[0.03] px-3 py-2.5 text-sm text-cyan-300">
           {transitionResult.autoAdvance?.triggered && transitionResult.autoAdvance?.nextMode === "finalize" ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin shrink-0" />
@@ -182,6 +195,8 @@ export function BacklogCard({
               <CheckSquare className="h-4 w-4 shrink-0" />
               All decisions answered
             </>
+          )}
+          </div>
           )}
         </div>
       ) : (

@@ -21,7 +21,11 @@ export function createWorkshopMethods(apiClient: IApiClient) {
       };
       const data = await apiClient.post<{
         file: Record<string, unknown>;
-        auto_advance: { triggered: boolean; run_id?: string; task_id?: string; reason: string; next_mode?: "workshop" | "finalize" };
+        auto_advance: {
+          triggered: boolean; run_id?: string; task_id?: string; reason: string;
+          next_mode?: "workshop" | "finalize";
+          pending?: boolean; advance_at?: string; delay_seconds?: number;
+        };
       }>(API_ENDPOINTS.backlogWorkshopSave(kind, name), body);
       return {
         file: {
@@ -36,6 +40,9 @@ export function createWorkshopMethods(apiClient: IApiClient) {
           taskId: data.auto_advance?.task_id,
           reason: data.auto_advance?.reason ?? "",
           nextMode: data.auto_advance?.next_mode,
+          pending: data.auto_advance?.pending ?? false,
+          advanceAt: data.auto_advance?.advance_at,
+          delaySeconds: data.auto_advance?.delay_seconds ?? 0,
         },
       };
     },
@@ -69,6 +76,16 @@ export function createWorkshopMethods(apiClient: IApiClient) {
         deletedRounds: data.deleted_rounds ?? 0,
         statusReverted: data.status_reverted ?? false,
       };
+    },
+
+    async workshopCancelPendingAdvance(
+      kind: BacklogKind,
+      name: string,
+    ): Promise<{ cancelled: boolean }> {
+      const data = await apiClient.delete<{ cancelled: boolean }>(
+        API_ENDPOINTS.backlogWorkshopCancelPendingAdvance(kind, name),
+      );
+      return { cancelled: data.cancelled ?? false };
     },
 
     async createClarification(

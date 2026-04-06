@@ -52,18 +52,19 @@ func workshopSaveRequest(kind, name string, body []byte) *http.Request {
 func enableAutoAdvanceSettings(t *testing.T, rootDir string) {
 	t.Helper()
 	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
-		"theme":                       "dark",
-		"default_mode":                "manual",
-		"max_auto_rounds":             10,
-		"auto_initialize_workshop":    false,
-		"auto_advance_workshop":       true,
-		"auto_cascade_workshop":       false,
-		"agent_max_turns":             60,
-		"agent_timeout_seconds":       900,
-		"agent_requires_approval":     true,
-		"search_debounce_ms":          300,
-		"toast_duration_ms":           5000,
-		"confirm_destructive_actions": true,
+		"theme":                          "dark",
+		"default_mode":                   "manual",
+		"max_auto_rounds":                10,
+		"auto_initialize_workshop":       false,
+		"auto_advance_workshop":          true,
+		"auto_cascade_workshop":          false,
+		"auto_advance_delay_seconds":     0,
+		"agent_max_turns":                60,
+		"agent_timeout_seconds":          900,
+		"agent_requires_approval":        true,
+		"search_debounce_ms":             300,
+		"toast_duration_ms":              5000,
+		"confirm_destructive_actions":    true,
 	})
 }
 
@@ -171,9 +172,10 @@ func TestWorkshopSave_AutoAdvance_Triggers(t *testing.T) {
 		"default_mode":                "manual",
 		"max_auto_rounds":             10,
 		"auto_initialize_workshop":    false,
-		"auto_advance_workshop":       true,
-		"auto_cascade_workshop":       false,
-		"agent_max_turns":             60,
+		"auto_advance_workshop":          true,
+		"auto_cascade_workshop":          false,
+		"auto_advance_delay_seconds":     0,
+		"agent_max_turns":                60,
 		"agent_timeout_seconds":       900,
 		"agent_requires_approval":     true,
 		"search_debounce_ms":          300,
@@ -491,9 +493,10 @@ func TestWorkshopSave_AgentDown_StillSaves(t *testing.T) {
 		"default_mode":                "manual",
 		"max_auto_rounds":             10,
 		"auto_initialize_workshop":    false,
-		"auto_advance_workshop":       true,
-		"auto_cascade_workshop":       false,
-		"agent_max_turns":             60,
+		"auto_advance_workshop":          true,
+		"auto_cascade_workshop":          false,
+		"auto_advance_delay_seconds":     0,
+		"agent_max_turns":                60,
 		"agent_timeout_seconds":       900,
 		"agent_requires_approval":     true,
 		"search_debounce_ms":          300,
@@ -553,9 +556,10 @@ func TestWorkshopSave_ConcurrentSaves_LockPreventsDouble(t *testing.T) {
 		"default_mode":                "manual",
 		"max_auto_rounds":             10,
 		"auto_initialize_workshop":    false,
-		"auto_advance_workshop":       true,
-		"auto_cascade_workshop":       false,
-		"agent_max_turns":             60,
+		"auto_advance_workshop":          true,
+		"auto_cascade_workshop":          false,
+		"auto_advance_delay_seconds":     0,
+		"agent_max_turns":                60,
 		"agent_timeout_seconds":       900,
 		"agent_requires_approval":     true,
 		"search_debounce_ms":          300,
@@ -610,6 +614,95 @@ func TestWorkshopSave_ConcurrentSaves_LockPreventsDouble(t *testing.T) {
 
 	// Clean up lock.
 	os.Remove(lockPath)
+}
+
+func TestWorkshopSave_OtherSelectedEmptyFreeform_NoAutoAdvance(t *testing.T) {
+	agent := &mockAgentService{
+		result: agentmanager.RunResult{RunID: "run-other", TaskID: "task-other"},
+	}
+	h, rootDir := setupTestHandlerWithAgent(t, agent)
+	enableAutoAdvanceSettings(t, rootDir)
+
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name: "ws-other", Title: "WS Other", Status: StatusBacklog,
+		Created: "2026-01-01T00:00:00Z", Updated: "2026-01-01T00:00:00Z",
+	})
+
+	// User selected __other__ but hasn't typed the freeform text yet.
+	round := workshop.Round{
+		RoundNum:    1,
+		GeneratedAt: "2026-01-01T00:00:00Z",
+		Readiness:   map[string]int{"problem_clarity": 2, "scope_defined": 2, "approach_solid": 2, "testable": 1, "risk_awareness": 2},
+		Items: []workshop.Item{
+			{ID: "q1", Type: "decision", Selected: strPtr("A")},
+			{ID: "q2", Type: "decision", Selected: strPtr(workshop.OtherKey)}, // no freeform
+		},
+	}
+
+	body := makeWorkshopSaveBody(1, round)
+	w := httptest.NewRecorder()
+	h.WorkshopSave(w, workshopSaveRequest("idea", "ws-other", body))
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp workshopSaveResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if resp.AutoAdvance.Triggered {
+		t.Error("expected auto-advance NOT triggered when __other__ has no freeform")
+	}
+	if resp.AutoAdvance.Reason != "pending_decisions" {
+		t.Errorf("expected reason 'pending_decisions', got %q", resp.AutoAdvance.Reason)
+	}
+	if agent.lastReq != nil {
+		t.Error("expected no agent spawn when __other__ is pending")
+	}
+}
+
+func TestWorkshopSave_OtherSelectedWithFreeform_AutoAdvances(t *testing.T) {
+	agent := &mockAgentService{
+		result: agentmanager.RunResult{RunID: "run-other-ok", TaskID: "task-other-ok"},
+	}
+	h, rootDir := setupTestHandlerWithAgent(t, agent)
+	enableAutoAdvanceSettings(t, rootDir)
+
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name: "ws-other-ok", Title: "WS Other OK", Status: StatusBacklog,
+		Created: "2026-01-01T00:00:00Z", Updated: "2026-01-01T00:00:00Z",
+	})
+
+	freeform := "I want a completely different approach"
+	round := workshop.Round{
+		RoundNum:    1,
+		GeneratedAt: "2026-01-01T00:00:00Z",
+		Readiness:   map[string]int{"problem_clarity": 2, "scope_defined": 2, "approach_solid": 2, "testable": 1, "risk_awareness": 2},
+		Items: []workshop.Item{
+			{ID: "q1", Type: "decision", Selected: strPtr("A")},
+			{ID: "q2", Type: "decision", Selected: strPtr(workshop.OtherKey), Freeform: &freeform},
+		},
+	}
+
+	body := makeWorkshopSaveBody(1, round)
+	w := httptest.NewRecorder()
+	h.WorkshopSave(w, workshopSaveRequest("idea", "ws-other-ok", body))
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp workshopSaveResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if !resp.AutoAdvance.Triggered {
+		t.Errorf("expected auto-advance to trigger when __other__ has freeform, reason=%s", resp.AutoAdvance.Reason)
+	}
+	if agent.lastReq == nil {
+		t.Fatal("expected agent spawn to be called")
+	}
 }
 
 func strPtr(s string) *string { return &s }

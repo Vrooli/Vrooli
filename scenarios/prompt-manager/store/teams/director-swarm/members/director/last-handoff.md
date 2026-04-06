@@ -1,38 +1,39 @@
-**Status**: Completed thirteenth strategic assessment. 80 uncommitted files. Velocity accelerating (4/week). Capability trap slightly improved by feature-parity progress (57%) but 10/13 initiatives still at 0%.
+**Status**: Completed fifteenth strategic assessment. State persistence confirmed stable. Portfolio at 15 active initiatives, 92 items, 20 completed (21.7%). Two new initiatives (vrooli-events, notification-hub-greenfield). vrooli-events is the fastest-moving initiative at 50% in ~1 day. New critical signal: 0% agent execution success rate (13/13 failures).
 
 **Completed this heartbeat**:
 - Spawned intelligence-officer, operations-chief, strategist — all returned structured briefs
-- Intelligence: 13 active initiatives, 68 items, 7 completed (10.3%), velocity doubled to 4/week, 10 initiatives at 0%
-- Operations: feature-parity Grade B (3 items left, closest to done), governance Grade C (deep deps), DTV Grade C (ambiguous state), brand-manager Grade C (all unblocked)
-- Strategy: Option B still correct but tightened to Option A (3 active, 11 items). Revenue path ~4 weeks focused. State persistence is P0.
-- Persisted 3 decisions, 3 tasks, 2 knowledge entries — ALL VERIFIED present after write
+- Intelligence: 15 active initiatives, 92 items, 20 completed (21.7%), 1 failed, 0 in-progress. Agent execution 0% success. vrooli-events only initiative with active momentum.
+- Operations: vrooli-events Grade B+, feature-parity C+, governance C, notification-hub C-, monetization-assurance D (blocked). 5 NOT_FOUND dependencies blocking 8 downstream items. lpbs-release-contract-hardening is highest-leverage single completion across portfolio.
+- Strategy: Completion-first recommended (NOW = feature-parity + vrooli-events). Moratorium should grandfather vrooli-events. Agent execution 0% is the hidden gate underneath everything.
+- Persisted 3 new decisions, 3 new tasks, 1 knowledge entry (superseding old metrics) — ALL VERIFIED present after write
 
-**AWAITING HUMAN (3 decisions)**:
+**AWAITING HUMAN (7 decisions, 3 are highest priority)**:
 
-1. **Portfolio focus (dec-1775254772312319062)** — Option A recommended: 3 Active Now (feature-parity, release-governance, monetization-assurance), 3 Track, 7 Defer. 11 items, ~4 weeks to revenue.
+1. **Agent execution failure investigation (dec-1775427574764681085)** — P0. Option A recommended: Investigate why all 13 executions failed. This is a gate for every timeline estimate.
 
-2. **Initiative moratorium (dec-1775254774942113200)** — Option A recommended: No new initiatives until first completion.
+2. **Updated portfolio focus (dec-1775427572168229608)** — P1. Option A recommended: Completion-first (NOW = feature-parity + vrooli-events, NEAR = governance + monetization + brand-manager, FAR = 10 others). Supersedes dec-1775254772312319062.
 
-3. **State persistence P0 (dec-1775254777934494933)** — Option A recommended: Root-cause and fix. Without this, every heartbeat starts from zero.
+3. **Failed items triage (dec-1775341196165964273)** — P1. Option A recommended: Retry identity-adoption. Single highest-leverage action — unblocks first-ever initiative completion.
 
-**Key metrics delta (heartbeat 12 → 13)**:
-- Uncommitted files: 46 → 80 (growing — commits needed)
-- Active initiatives: 12 → 13 (swarm-manager-dashboard archived, but net count up)
-- Total items: 55 → 68
-- Completed items: 1 → 7 (feature-parity drove 6 completions)
-- Completion rate: 1.8% → 10.3%
-- In-progress items: 0 → 0 (unchanged — still the bottleneck)
-- Velocity: ~0/week → 4/week (real improvement)
+4. **Initiative moratorium (dec-1775254774942113200)** — P1. Needs update to grandfather vrooli-events. Moratorium principle still correct.
+
+5. **Dependency hygiene (dec-1775427577207512235)** — P2. 5 NOT_FOUND items blocking 8 downstream. Option A recommended when FAR initiatives promote.
+
+6. **State persistence P0 (dec-1775254777934494933)** — Closable. Resolved.
+
+7. **Original portfolio focus (dec-1775254772312319062)** — Superseded by dec-1775427572168229608.
 
 **Nearest completable work** (if portfolio focus approved):
-1. execute/swarm-manager-identity-adoption (S effort, unblocked) — closes feature-parity to 6/7
-2. chore/app-issue-tracker-deprecation (S effort, after identity-adoption) — closes feature-parity to 7/7
-3. fix/brand-manager-integration-status (S effort, no deps) — first brand-manager progress
-4. chore/desktop-entitlement-vs-approval-docs (XS effort, no deps) — quick governance win
-5. execute/desktop-approval-auto-deploy (S effort, no deps) — governance progress
+1. Retry execute/swarm-manager-identity-adoption (S effort, failed, dep satisfied) — closes feature-parity to 5/7
+2. chore/app-issue-tracker-deprecation (S effort, after identity-adoption) — closes feature-parity to 7/7 = **FIRST INITIATIVE COMPLETION**
+3. execute/discovery-event-emission-and-policy-cache (L effort, unblocked) — closes vrooli-events to 3/4
+4. execute/vrooli-events-analytics-ui (L effort, unblocked) — closes vrooli-events to 4/4 = **SECOND INITIATIVE COMPLETION**
+5. execute/lpbs-desktop-release-contract-hardening (S effort, unblocked) — highest-leverage governance item, unlocks 4+ downstream
 
 **Notes for next heartbeat**:
-- Verify decisions dec-1775254772312319062, dec-1775254774942113200, dec-1775254777934494933 still exist. If empty again, the persistence bug is confirmed as a systematic issue requiring code investigation.
-- If portfolio focus Option A is accepted, immediately prepare execution proposals for the 3 Active Now initiatives.
-- The swarm-manager-graph-workspace shows heavy git commit activity (p30-p39) but 0/7 initiative items completed — items may need status updates.
-- 80 uncommitted files is substantial. A structured commit session is warranted but is not the director's primary job unless it directly affects an active initiative.
+- Verify all 7 decisions still exist. State persistence has been stable for 2 heartbeats now.
+- If updated portfolio focus (Option A) is accepted, immediately prepare execution proposals for feature-parity retry and vrooli-events remaining items.
+- The 0% agent execution success rate is a newly surfaced systemic risk. If accepted as P0, it may reshape the execution model for all initiatives.
+- The moratorium decision needs a revision, not just accept/reject — it should grandfather vrooli-events while maintaining the principle.
+- 5 NOT_FOUND dependency references are a backlog hygiene issue affecting 4 FAR initiatives — low priority but should be fixed before any of those initiatives promote to NEAR/NOW.
+- swarm-manager-graph-workspace shows 0% completion but has 39+ git commits — possible tracking gap worth investigating.

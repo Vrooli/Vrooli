@@ -6,16 +6,17 @@
   ],
   "created": "2026-04-04T22:36:30Z",
   "depends_on": [
-    "research/vrooli-events-architecture"
+    "research/vrooli-events-architecture",
+    "execute/vrooli-events-proto-schemas"
   ],
-  "description": "Greenfield Go scenario at scenarios/vrooli-events/. Core API with: high-throughput event ingestion endpoint (async, non-blocking), SSE pub/sub for event subscriptions and policy updates, policy CRUD API (access control rules, rate limit configs, circuit breaker thresholds per scenario pair), durable SQLite event store with configurable retention window and size-based pruning settings, structured event IDs ({scenario}.{domain}.{action}.{version}) with glob-pattern subscription matching. Proto contract in packages/proto/schemas/vrooli-events/v1/. CLI for event queries, policy management, and subscription management. Storage: SQLite + file-based. No Postgres, no Redis.",
+  "description": "Greenfield Go scenario at scenarios/vrooli-events/. Core runtime with:\n\n**Event store** — SQLite with WAL mode (pragmas: journal_mode=WAL, busy_timeout=10000, synchronous=NORMAL). Schema: events table with id (INTEGER PK AUTOINCREMENT, doubles as SSE Last-Event-ID), event_id (TEXT UNIQUE), source_scenario, target_scenario, event_type, correlation_id, payload (BLOB, proto-serialized Any), metadata (TEXT, JSON map), created_at. Indexes on event_type, source_scenario, correlation_id (partial WHERE != ''), created_at.\n\n**Dual-trigger pruning** — Background goroutine every 6 hours: DELETE WHERE created_at \u003c 30 days OR size \u003e 2GB (oldest first). No VACUUM in hot path.\n\n**SSE pub/sub server** — 30-second heartbeat (': heartbeat\\n\\n' comment line), retry: 5000ms, Last-Event-ID resume from event store autoincrement id. Non-blocking send with 64-capacity subscriber channels; drop+notify backpressure (dropped_count in next heartbeat). Standard SSE format: id: (sequence), event: (type for client filtering), data: (JSON envelope).\n\n**Event ingestion** — Async non-blocking endpoint. Structured event IDs ({scenario}.{domain}.{action}.{version}) with glob-pattern subscription matching.\n\n**CLI** — Event queries, subscription management. Storage: SQLite + file-based. No Postgres, no Redis.\n\nNote: Policy CRUD API and enforcement middleware are in separate item execute/vrooli-events-policy-api-and-middleware.",
   "effort": "XL",
   "initiative": "vrooli-events",
   "kind": "execute",
   "name": "vrooli-events-core-runtime",
   "priority": 1,
-  "status": "backlog",
+  "status": "completed",
   "tags": [],
   "title": "Build The vrooli-events Scenario Core Runtime",
-  "updated": "2026-04-04T22:36:30Z"
+  "updated": "2026-04-05T15:54:15Z"
 }

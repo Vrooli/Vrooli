@@ -181,7 +181,11 @@ export function useDecisionStreamLogic({
     setPhase("completing");
 
     const answeredCount = Array.from(localAnswers.values()).filter((a) => {
-      return (a.selected?.trim()) || a.reviewStatus === "approved" || a.reviewStatus === "flagged";
+      if (a.selected?.trim()) {
+        if (a.selected === OTHER_KEY && !a.freeform?.trim()) return false;
+        return true;
+      }
+      return a.reviewStatus === "approved" || a.reviewStatus === "flagged";
     }).length;
 
     const parentGroups = groupByParent(activeQuestions);
@@ -240,7 +244,11 @@ export function useDecisionStreamLogic({
       if (skippedIds.has(ciq.question.id)) return true;
       const a = localAnswers.get(ciq.question.id);
       if (!a) return false;
-      if (ciq.question.source === "workshop") return !!a.selected?.trim();
+      if (ciq.question.source === "workshop") {
+        if (!a.selected?.trim()) return false;
+        if (a.selected === OTHER_KEY && !a.freeform?.trim()) return false;
+        return true;
+      }
       return a.reviewStatus === "approved" || a.reviewStatus === "flagged";
     });
   }, [activeQuestions, skippedIds, localAnswers]);
@@ -278,7 +286,11 @@ export function useDecisionStreamLogic({
       if (newSkipped.has(ciq.question.id)) return true;
       const a = localAnswers.get(ciq.question.id);
       if (!a) return false;
-      if (ciq.question.source === "workshop") return !!a.selected?.trim();
+      if (ciq.question.source === "workshop") {
+        if (!a.selected?.trim()) return false;
+        if (a.selected === OTHER_KEY && !a.freeform?.trim()) return false;
+        return true;
+      }
       return a.reviewStatus === "approved" || a.reviewStatus === "flagged";
     });
     if (allDone) handleCompletion();

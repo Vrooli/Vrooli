@@ -37,6 +37,8 @@ type Settings struct {
 	AutoInitializeWorkshop bool  `protobuf:"varint,16,opt,name=auto_initialize_workshop,json=autoInitializeWorkshop,proto3" json:"auto_initialize_workshop,omitempty"`
 	AutoAdvanceWorkshop    bool  `protobuf:"varint,17,opt,name=auto_advance_workshop,json=autoAdvanceWorkshop,proto3" json:"auto_advance_workshop,omitempty"`
 	AutoCascadeWorkshop    bool  `protobuf:"varint,18,opt,name=auto_cascade_workshop,json=autoCascadeWorkshop,proto3" json:"auto_cascade_workshop,omitempty"`
+	// Grace period (seconds) before auto-advance spawns the next round. 0 = instant.
+	AutoAdvanceDelaySeconds int32 `protobuf:"varint,32,opt,name=auto_advance_delay_seconds,json=autoAdvanceDelaySeconds,proto3" json:"auto_advance_delay_seconds,omitempty"`
 	// Agent behavior settings.
 	AgentMaxTurns         int32 `protobuf:"varint,10,opt,name=agent_max_turns,json=agentMaxTurns,proto3" json:"agent_max_turns,omitempty"`
 	AgentTimeoutSeconds   int32 `protobuf:"varint,11,opt,name=agent_timeout_seconds,json=agentTimeoutSeconds,proto3" json:"agent_timeout_seconds,omitempty"`
@@ -154,6 +156,13 @@ func (x *Settings) GetAutoCascadeWorkshop() bool {
 		return x.AutoCascadeWorkshop
 	}
 	return false
+}
+
+func (x *Settings) GetAutoAdvanceDelaySeconds() int32 {
+	if x != nil {
+		return x.AutoAdvanceDelaySeconds
+	}
+	return 0
 }
 
 func (x *Settings) GetAgentMaxTurns() int32 {
@@ -286,7 +295,7 @@ var File_swarm_manager_v1_domain_settings_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\n" +
-	"&swarm-manager/v1/domain/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xa9\r\n" +
+	"&swarm-manager/v1/domain/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xf1\r\n" +
 	"\bSettings\x120\n" +
 	"\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04darkR\x05lightR\x06systemR\x05theme\x126\n" +
 	"\fdefault_mode\x18\x05 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\vdefaultMode\x12\x1d\n" +
@@ -297,7 +306,8 @@ const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\x0fmax_auto_rounds\x18\t \x01(\x05B\t\xbaH\x06\x1a\x04\x182(\x00R\rmaxAutoRounds\x128\n" +
 	"\x18auto_initialize_workshop\x18\x10 \x01(\bR\x16autoInitializeWorkshop\x122\n" +
 	"\x15auto_advance_workshop\x18\x11 \x01(\bR\x13autoAdvanceWorkshop\x122\n" +
-	"\x15auto_cascade_workshop\x18\x12 \x01(\bR\x13autoCascadeWorkshop\x122\n" +
+	"\x15auto_cascade_workshop\x18\x12 \x01(\bR\x13autoCascadeWorkshop\x12F\n" +
+	"\x1aauto_advance_delay_seconds\x18  \x01(\x05B\t\xbaH\x06\x1a\x04\x18x(\x00R\x17autoAdvanceDelaySeconds\x122\n" +
 	"\x0fagent_max_turns\x18\n" +
 	" \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xc8\x01(\x05R\ragentMaxTurns\x12>\n" +

@@ -1,0 +1,112 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-05T12:00:00Z",
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 2,
+    "approach_solid": 2,
+    "testable": 2,
+    "risk_awareness": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Proto dependency strategy: build against proto types or use interim JSON?",
+      "context": "The proto schemas item (execute/vrooli-events-proto-schemas) is still in backlog status. The core runtime needs to serialize/deserialize event envelopes. We can either block on proto schemas being ready, build against internal Go structs with JSON serialization and swap to proto later, or define minimal internal proto-like types that match the planned schema. The research conclusion recommends google.protobuf.Any for the payload field, which is a first-use pattern in this codebase.",
+      "options": [
+        {"key": "A", "label": "JSON-first with proto migration", "rationale": "Use plain Go structs with JSON serialization for the event envelope. Store payload as JSON BLOB. When proto schemas complete, add a migration layer. Unblocks development immediately, but requires a future refactor pass."},
+        {"key": "B", "label": "Block on proto schemas completion", "rationale": "Wait for execute/vrooli-events-proto-schemas to complete, then build directly against generated Go types. No throwaway code, but delays core runtime development."},
+        {"key": "C", "label": "Parallel development with interface boundary", "rationale": "Define a Go interface for event serialization (Marshaler/Unmarshaler). Implement JSON version now. Proto implementation slots in as a second implementation when schemas are ready. Clean separation, minimal throwaway code."},
+        {"key": "D", "label": "Other", "rationale": "Provide your own approach"}
+      ],
+      "selected": "C",
+      "freeform": null,
+      "notes": "Option C is recommended: the interface boundary keeps the event store and SSE broker decoupled from serialization format. The JSON implementation works immediately for development and testing. When proto schemas land, a new implementation of the same interface wires in without touching store or broker code."
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Size-based pruning: full table scan vs. metadata tracking table?",
+      "context": "The research conclusion notes that SUM(LENGTH(payload)) over millions of rows may be slow and suggests a separate tracking table. The spec says dual-trigger pruning (30-day + 2GB). The naive approach scans the full table; the optimized approach maintains a running total in a metadata table updated on each insert.",
+      "options": [
+        {"key": "A", "label": "Metadata tracking table", "rationale": "Maintain a `store_meta` table with a single row tracking `total_payload_bytes`. Update on INSERT (add) and DELETE (subtract). Pruning checks this value in O(1). Adds slight complexity to insert path but avoids expensive full-table scans."},
+        {"key": "B", "label": "Naive SUM query", "rationale": "Use SELECT SUM(LENGTH(payload)) FROM events during pruning. Simple to implement. Only runs every 6 hours so performance may be acceptable for moderate event volumes."},
+        {"key": "C", "label": "Page count estimate", "rationale": "Use SQLite's PRAGMA page_count * page_size to estimate total DB size instead of summing payload bytes. Fast O(1) check, but includes index overhead and is an approximation rather than exact payload size."},
+        {"key": "D", "label": "Other", "rationale": "Provide your own approach"}
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": "Option A is recommended. The tracking table is a minor addition (one extra UPDATE per insert inside the same transaction) but completely avoids a full table scan that would degrade as events accumulate. This is a well-known pattern for bounded-storage systems."
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Go module path and package structure",
+      "context": "Existing scenarios use flat package main in their api/ directory (e.g., LPBS). The vrooli-events scenario needs an API server and a CLI. The question is whether to use a flat package main for both, or introduce internal packages for reusable components (event store, SSE broker) shared between API and CLI.",
+      "options": [
+        {"key": "A", "label": "Flat package main for API, separate main for CLI", "rationale": "API in api/ as package main (matches LPBS pattern). CLI in cli/ as a separate package main. Shared logic duplicated or extracted into an internal/ package. Follows existing codebase conventions."},
+        {"key": "B", "label": "Internal packages with thin mains", "rationale": "api/main.go and cli/main.go are thin entry points. Core logic in internal/store/, internal/broker/, internal/events/. Better testability and code sharing, but deviates from the flat LPBS pattern."},
+        {"key": "C", "label": "Single flat API package, CLI shells to API", "rationale": "API is flat package main. CLI is a thin HTTP client that calls the API endpoints. No shared Go code — CLI is just curl-like. Simplest approach but limits CLI to what the API exposes."},
+        {"key": "D", "label": "Other", "rationale": "Provide your own approach"}
+      ],
+      "selected": "B",
+      "freeform": null,
+      "notes": "Option B is recommended. The event store and SSE broker are substantial components that both the API and CLI need. Internal packages provide clean testability boundaries and avoid duplicating the store layer. The thin main pattern is standard Go practice."
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Glob-pattern matching library for event subscriptions",
+      "context": "Subscribers filter events using glob patterns on structured event IDs (e.g., 'swarm-manager.backlog.*' matches 'swarm-manager.backlog.item-completed.v1'). The separator is '.' not '/'. We need a matching implementation.",
+      "options": [
+        {"key": "A", "label": "Standard library path.Match", "rationale": "Go's path.Match supports * and ? globs. Works on dot-separated strings since it treats any character as valid. Simple, no dependencies. Limited: no ** (recursive) glob, no character classes beyond basic."},
+        {"key": "B", "label": "Custom segment-aware matcher", "rationale": "Write a small custom matcher that splits on '.' and matches segment-by-segment. Supports * (single segment) and ** (multiple segments). More expressive and aligned with the structured ID format. ~50 lines of code."},
+        {"key": "C", "label": "Third-party glob library (gobwas/glob)", "rationale": "Well-tested, fast, supports complex patterns including ** and character classes. Adds an external dependency but is battle-tested."},
+        {"key": "D", "label": "Other", "rationale": "Provide your own approach"}
+      ],
+      "selected": "B",
+      "freeform": null,
+      "notes": "Option B is recommended. The structured event ID format (4 dot-separated segments) benefits from segment-aware matching where * matches one segment and ** matches multiple. This is a small, self-contained function (~50 lines) that avoids external dependencies and is purpose-built for the event ID format."
+    },
+    {
+      "id": "d5",
+      "type": "decision",
+      "topic": "Event ingestion: synchronous store-then-broadcast vs. channel-buffered async?",
+      "context": "The spec says 'async non-blocking endpoint'. The question is whether the HTTP handler writes to SQLite synchronously (fast with WAL) and then broadcasts to SSE subscribers asynchronously, or whether the entire pipeline is async via a buffered channel (handler enqueues, background worker stores and broadcasts).",
+      "options": [
+        {"key": "A", "label": "Sync store, async broadcast", "rationale": "HTTP handler writes to SQLite (fast with WAL mode, single-digit ms), then enqueues to SSE broker channel for broadcast. Returns 202 after store write confirms. Guarantees durability before acknowledging. SSE delivery is best-effort."},
+        {"key": "B", "label": "Fully async via ingestion channel", "rationale": "HTTP handler enqueues to a buffered channel, returns 202 immediately. Background worker reads from channel, writes to SQLite, then broadcasts to SSE. Lower latency on the HTTP path but events can be lost if the process crashes before the worker persists them."},
+        {"key": "C", "label": "Other", "rationale": "Provide your own approach"}
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": "Option A is recommended. SQLite WAL-mode writes are fast enough (single-digit ms) that synchronous store doesn't meaningfully impact HTTP response time. The durability guarantee (event is persisted before 202 is returned) is valuable — lost events are harder to debug than slightly higher latency. SSE broadcast is already async via the broker's channel-based fan-out."
+    },
+    {
+      "id": "d6",
+      "type": "decision",
+      "topic": "SSE subscriber identification and management",
+      "context": "The SSE broker needs to track connected subscribers and their filter patterns. Subscribers connect via GET /api/v1/events/subscribe with optional query params for filtering. The question is how subscribers are identified and whether subscriptions are named/persistent or anonymous/ephemeral.",
+      "options": [
+        {"key": "A", "label": "Anonymous ephemeral connections", "rationale": "Each SSE connection is an anonymous subscriber identified by an auto-generated UUID. Subscriptions last only as long as the HTTP connection. Reconnecting clients get a new subscriber ID but can resume via Last-Event-ID. Simple, stateless, matches standard SSE semantics."},
+        {"key": "B", "label": "Named persistent subscriptions", "rationale": "Subscribers register with a name (e.g., 'notification-hub'). Subscription state (filter patterns, last delivered ID) is persisted in SQLite. Reconnecting clients resume with their subscription state. More complex but enables subscription management and monitoring."},
+        {"key": "C", "label": "Other", "rationale": "Provide your own approach"}
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": "Option A is recommended for the core runtime. Anonymous ephemeral connections match standard SSE semantics and keep the implementation simple. Last-Event-ID provides resume capability without persistent subscription state. Named subscriptions can be added as a future enhancement if monitoring or guaranteed delivery becomes important."
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The research item (research/vrooli-events-architecture) completed successfully with 18 findings covering event store schema, SSE protocol, policy model, access control scoring, and rate limiting. All major architectural decisions are settled. The spec for this execute item directly incorporates the research conclusions (Finding 14 schema, 30s heartbeat, 64-capacity channels, etc.)."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "The vrooli-events scenario directory does not exist yet — this is a true greenfield build. The proto schemas directory (packages/proto/schemas/vrooli-events/) also does not exist yet, confirming the proto dependency is not yet started. The plan accounts for this with the interface-based serialization strategy."
+    }
+  ],
+  "plan_updates": "Created initial plan.md with all 14 sections: Purpose, Problem Statement, Scope (in/out), Dependencies, Technical Context, Target End State, 5-phase Implementation Strategy, Contract Decisions (HTTP API, event format, SSE format, query params), SQLite Schema, Testing Plan, Rollout Checklist, Risks + Mitigations, Non-goals, and Definition of Done."
+}

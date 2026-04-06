@@ -1,0 +1,202 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-05T22:30:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 1,
+    "problem_clarity": 3,
+    "risk_awareness": 1,
+    "scope_defined": 2,
+    "testable": 1
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Session storage format",
+      "context": "Swarm-manager uses two JSON storage patterns: (1) folder-per-entity with spec.json (backlog items, captures), and (2) flat JSON array files (.vrooli/agent-activities.json). Meta-orchestration sessions have a natural 1:1 mapping with conversations and will grow with messages over time. The folder approach allows storing attachments alongside the session and follows the established backlog pattern. The flat file approach is simpler but doesn't scale well for large conversations with attachments.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Folder-per-session under .vrooli/orchestration-sessions/{id}/",
+          "rationale": "Matches backlog item pattern. Each session gets session.json + attachments/ subfolder. Naturally supports large conversations and file attachments. Easy to browse on disk. Recommended because it aligns with existing patterns and handles growth gracefully.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Flat JSON file at .vrooli/orchestration-sessions.json",
+          "rationale": "Simpler to implement — single file read/write. Matches agent-activities.json pattern. But messages accumulate fast and the file could grow very large. No natural place for attachments."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own storage approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Capture button mode switch UX",
+      "context": "The capture input (quick-capture-input.tsx) currently fires text to the classify agent. We need to add a way to start a meta-orchestration session instead. The existing component has an onOpenForm prop that opens a detailed form — a similar pattern could work for meta-orchestration mode. The question is how to expose this to users.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Icon toggle button next to the send button",
+          "rationale": "A small toggle (e.g., lightning bolt for quick capture, brain/compass icon for orchestration) next to the send button. Low visual noise, discoverable but not intrusive. Tooltip explains the modes. Recommended because it keeps the capture input clean and doesn't add a separate control surface.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Dropdown/select on the capture input",
+          "rationale": "A dropdown labeled 'Quick Capture' / 'Plan Session' above or beside the textarea. More explicit about what mode you're in, but adds visual weight to every capture interaction."
+        },
+        {
+          "key": "C",
+          "label": "Auto-detect from input length/content",
+          "rationale": "If the text looks like a high-level vision (long, multi-paragraph), offer to start orchestration. Clever but unpredictable — users won't understand when/why the mode switches."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own UX approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Conversation continuity mechanism",
+      "context": "When a user resumes a session, we need to restore the agent's conversation context. Two approaches exist in the codebase: (1) ContinueRun() sends a new message to an existing agent-manager run (the run must still be alive), and (2) SpawnBacklog() creates a fresh run with a prompt that includes injected history. Long-running runs may time out or be cleaned up, so ContinueRun alone is fragile for sessions that span hours or days.",
+      "options": [
+        {
+          "key": "A",
+          "label": "ContinueRun with fallback to new spawn with injected history",
+          "rationale": "Try ContinueRun first (cheapest, preserves agent state). If the run is dead/stale, spawn a new run with the full message history injected as context in the prompt. This gives the best UX — seamless for short sessions, graceful degradation for long ones. Recommended because it handles both cases.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Always spawn a new run with injected history",
+          "rationale": "Simpler — every resume is a fresh agent with full history. Predictable but wasteful for sessions that are still active. Avoids the complexity of checking run liveness."
+        },
+        {
+          "key": "C",
+          "label": "ContinueRun only (no fallback)",
+          "rationale": "Simplest implementation. But sessions that go stale (hours/days between messages) would fail with no recovery path."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own continuity approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "UI placement for orchestration sessions",
+      "context": "The orchestration conversation panel and session history need a home in the UI. The existing UI has: a captures page (triage incoming captures), a backlog page (manage items), and an initiatives page. Orchestration sessions are a new concept that creates items/initiatives but is distinct from both captures and backlog management.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Dedicated 'Planning' page in the sidebar nav",
+          "rationale": "New top-level page showing session list + active conversation panel. Clean separation of concerns. Users go here specifically to plan. Recommended because meta-orchestration is a distinct workflow that deserves its own space rather than being shoehorned into captures or backlog.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Tab or section within the Captures page",
+          "rationale": "Captures are already the entry point for new ideas. Adding a 'Planning Sessions' tab keeps everything in one place. But captures are meant to be lightweight and quick — planning sessions are heavyweight and long-lived."
+        },
+        {
+          "key": "C",
+          "label": "Floating panel accessible from anywhere (like clarification)",
+          "rationale": "The conversation panel overlays any page. Session history accessible from a sidebar drawer. Very flexible but could feel disconnected — no dedicated place to review session history."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own UI placement approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d5",
+      "type": "decision",
+      "topic": "Attribution metadata depth on created items",
+      "context": "When the meta-orchestrator creates backlog items and initiatives, we want to link them back to the planning session. The question is how much context to attach. More context helps executing agents understand intent; less context keeps things clean and avoids stale data.",
+      "options": [
+        {
+          "key": "A",
+          "label": "ID-only: meta_orchestration_id field on items/initiatives",
+          "rationale": "Minimal — just a foreign key. The UI can fetch session details on demand. Clean data model, no duplication. But requires the session to exist to be useful."
+        },
+        {
+          "key": "B",
+          "label": "ID + summary: meta_orchestration_id plus a brief context string",
+          "rationale": "The ID for linking, plus a 1-2 sentence summary of the planning rationale for this specific item. Survives even if the session is deleted. Executing agents get immediate context without needing to look up the session. Recommended because it balances traceability with self-contained context.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Full snapshot: embed relevant conversation excerpts",
+          "rationale": "Copy the decision-relevant portions of the conversation into the item. Most context for executing agents, but creates data duplication and staleness if the session is updated later."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own attribution approach"
+        }
+      ],
+      "selected": "B"
+    },
+    {
+      "id": "d6",
+      "type": "decision",
+      "topic": "Session title generation",
+      "context": "Each orchestration session needs a title for the session list UI. The user's initial input may be a long vision statement, so auto-generating a title is important for usability.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Agent generates title as part of first response",
+          "rationale": "The meta-orchestrator agent's first response includes a structured JSON block with a suggested session title based on the vision. This is natural — the agent already understands the content. Recommended because it produces high-quality titles with zero extra infrastructure.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Truncate first user message to ~60 chars",
+          "rationale": "Simple substring of the initial input. Fast, no agent dependency, but often produces poor titles (cuts mid-sentence)."
+        },
+        {
+          "key": "C",
+          "label": "User must provide a title before starting",
+          "rationale": "Explicit but adds friction to starting a session. Users often don't know what to call it until the planning unfolds."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "__other__",
+      "freeform": "Generated by ollama like agent-inbox does"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The existing ClarificationPanel and ClarificationMessages components are highly reusable. They already handle: multi-turn conversations with markdown rendering, image attachments, 3-second polling for agent responses, 90-second staleness warnings, draft persistence in localStorage, and action buttons. The OrchestrationPanel can be built by adapting these components with minimal new code."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "The acceptance_allow patterns are already set on this item: scenarios/swarm-manager/api/**, scenarios/swarm-manager/ui/src/**, scenarios/prompt-manager/store/skills/**. These cover all the target areas (API handlers, UI components, and potentially updating the meta-orchestrator skill to read the new env var)."
+    }
+  ],
+  "plan_updates": "Created initial plan scaffold with all 13 mandatory sections. Filled problem statement, scope, current technical context, preliminary implementation strategy (5 phases), data model contracts, and risk matrix. Sections marked TBD pending workshop decisions: target end state details, API contracts, detailed testing plan."
+}

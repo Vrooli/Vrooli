@@ -363,6 +363,20 @@ message WorkshopAutoAdvance {
 
   // The recommended next mode when manual follow-up is required.
   optional string next_mode = 5 [(buf.validate.field).string = { in: ["workshop", "finalize"] }];
+
+  // Whether an advance is pending (countdown active, not yet spawned).
+  bool pending = 6;
+
+  // When the pending advance will fire (RFC 3339 timestamp). Set when pending=true.
+  optional string advance_at = 7;
+
+  // Configured delay in seconds. Set when pending=true.
+  int32 delay_seconds = 8;
+}
+
+// WorkshopCancelPendingAdvanceResponse is the response from cancelling a pending advance.
+message WorkshopCancelPendingAdvanceResponse {
+  bool cancelled = 1;
 }
 
 // WorkshopDeleteRoundRequest deletes an entire workshop round and renumbers

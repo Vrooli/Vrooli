@@ -332,6 +332,34 @@ func TestCountPendingDecisions_AllAnswered(t *testing.T) {
 	}
 }
 
+func TestCountPendingDecisions_OtherKeyVariants(t *testing.T) {
+	tests := []struct {
+		name     string
+		selected *string
+		freeform *string
+		wantPend int
+	}{
+		{"other_nil_freeform", strPtr(OtherKey), nil, 1},
+		{"other_empty_freeform", strPtr(OtherKey), strPtr(""), 1},
+		{"other_whitespace_freeform", strPtr(OtherKey), strPtr("   "), 1},
+		{"other_valid_freeform", strPtr(OtherKey), strPtr("my alternative"), 0},
+		{"other_freeform_with_whitespace", strPtr(OtherKey), strPtr("  custom idea  "), 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			round := &Round{
+				Items: []Item{
+					{Type: "decision", Topic: "Test", Selected: tt.selected, Freeform: tt.freeform},
+				},
+			}
+			got := CountPendingDecisions(round)
+			if got != tt.wantPend {
+				t.Errorf("CountPendingDecisions: got %d, want %d", got, tt.wantPend)
+			}
+		})
+	}
+}
+
 func TestNeedsSynthesis_ExplicitFlag(t *testing.T) {
 	round := &Round{
 		PendingSynthesis: true,

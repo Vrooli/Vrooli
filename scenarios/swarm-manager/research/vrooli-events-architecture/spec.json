@@ -12,8 +12,8 @@
   "kind": "research",
   "name": "vrooli-events-architecture",
   "priority": 1,
-  "status": "queued",
+  "status": "completed",
   "tags": [],
   "title": "Design The Event Bus Architecture And Policy Model",
-  "updated": "2026-04-05T02:50:16Z"
+  "updated": "2026-04-05T02:57:35Z"
 }

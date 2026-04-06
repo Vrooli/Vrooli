@@ -134,14 +134,52 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 			if result.NextMode == string(ResearchModeFinalize) {
 				runMode = ResearchModeFinalize
 			}
-			runID, taskID, spawnErr := h.spawnWorkshopAsync(item, runMode)
-			if spawnErr != nil {
-				slog.Error("auto-advance spawn failed", "kind", kind, "name", name, "err", spawnErr)
-				autoAdvance.Reason = "error"
+
+			delaySec := cfg.AutoAdvanceDelaySeconds
+			if delaySec > 0 {
+				// Deferred advance: write a pending advance file and let the ticker fire it.
+				// Cancel any existing pending advance first.
+				deletePendingAdvance(itemDir)
+				if h.workshopTicker != nil {
+					h.workshopTicker.Unregister(string(kind), name)
+				}
+
+				now := time.Now().UTC()
+				pa := PendingAdvance{
+					CreatedAt:  now,
+					AdvanceAt:  now.Add(time.Duration(delaySec) * time.Second),
+					NextMode:   string(runMode),
+					RoundCount: roundCount,
+					Kind:       string(kind),
+					Name:       name,
+				}
+				if writeErr := writePendingAdvance(itemDir, pa); writeErr != nil {
+					slog.Error("failed to write pending advance", "kind", kind, "name", name, "err", writeErr)
+					autoAdvance.Reason = "error"
+				} else {
+					if h.workshopTicker != nil {
+						h.workshopTicker.Register(string(kind), name, pa)
+					}
+					autoAdvance.Pending = true
+					advanceAtStr := pa.AdvanceAt.Format(time.RFC3339)
+					autoAdvance.AdvanceAt = &advanceAtStr
+					autoAdvance.DelaySeconds = int32(delaySec)
+					if nextMode := autoAdvance.NextMode; nextMode == nil {
+						nm := string(runMode)
+						autoAdvance.NextMode = &nm
+					}
+				}
 			} else {
-				autoAdvance.Triggered = true
-				autoAdvance.RunId = &runID
-				autoAdvance.TaskId = &taskID
+				// Immediate advance (delay=0): spawn right away.
+				runID, taskID, spawnErr := h.spawnWorkshopAsync(item, runMode)
+				if spawnErr != nil {
+					slog.Error("auto-advance spawn failed", "kind", kind, "name", name, "err", spawnErr)
+					autoAdvance.Reason = "error"
+				} else {
+					autoAdvance.Triggered = true
+					autoAdvance.RunId = &runID
+					autoAdvance.TaskId = &taskID
+				}
 			}
 		}
 	}

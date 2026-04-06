@@ -17,7 +17,7 @@ export type ThemePreference = "dark" | "light" | "system";
  */
 export type Settings = Omit<
   ProtoMessage<ProtoSettings>,
-  "theme" | "defaultDelaySeconds" | "maxFixupAttempts" | "maxAutoRounds" | "agentMaxTurns" | "agentTimeoutSeconds" | "searchDebounceMs" | "toastDurationMs" | "reviewMaxBlockingViolations" | "reviewMaxWarnings" | "maxConcurrentExecutions" | "maxQueueDepth" | "circuitBreakerThreshold" | "circuitBreakerCooldownMinutes" | "executionCostCapPerRun" | "costPerTurnEstimate"
+  "theme" | "defaultDelaySeconds" | "maxFixupAttempts" | "maxAutoRounds" | "autoAdvanceDelaySeconds" | "agentMaxTurns" | "agentTimeoutSeconds" | "searchDebounceMs" | "toastDurationMs" | "reviewMaxBlockingViolations" | "reviewMaxWarnings" | "maxConcurrentExecutions" | "maxQueueDepth" | "circuitBreakerThreshold" | "circuitBreakerCooldownMinutes" | "executionCostCapPerRun" | "costPerTurnEstimate"
 > & {
   /** UI theme preference */
   theme: ThemePreference;
@@ -31,6 +31,7 @@ export type Settings = Omit<
   autoAdvanceWorkshop: boolean;
   autoCascadeWorkshop: boolean;
   maxAutoRounds: number;
+  autoAdvanceDelaySeconds: number;
   /** Agent behavior */
   agentMaxTurns: number;
   agentTimeoutSeconds: number;
