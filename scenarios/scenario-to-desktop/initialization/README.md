@@ -197,7 +197,7 @@ Workflows include version tracking:
 ## 📚 Related Documentation
 
 - [Desktop Templates](../templates/README.md) - Template system documentation
-- [Build Tools](../docs/build-and-packaging.md) - Build system details
+- [Build Tools](../docs/guides/build-and-packaging.md) - Build system details
 - [CLI Commands](../README.md) - Command-line interface
 - [API Reference](../README.md) - REST API documentation
 

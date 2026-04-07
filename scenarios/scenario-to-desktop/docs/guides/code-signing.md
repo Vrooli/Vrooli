@@ -27,7 +27,7 @@ You can build unsigned elsewhere and sign on the target OS if needed.
 - Linux GPG: free, instant.
 
 ## Workflow Overview
-- Decide platforms and formats (see `CROSS_PLATFORM_BUILDS.md` for build matrix).
+- Decide platforms and formats (see `cross-platform-builds.md` for build matrix).
 - Acquire the required cert/key per platform.
 - Install platform tools on the OS that will perform signing.
 - Configure signing in scenario-to-desktop (UI Signing tab or `scenario-to-desktop signing set`).

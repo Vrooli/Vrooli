@@ -53,6 +53,6 @@ Thin client mode is available for scenarios where you want a lightweight desktop
 ## Related docs
 - Bundled desktop tutorial: `../../deployment-manager/docs/tutorials/hello-desktop-walkthrough.md`
 - Runtime supervisor details: `runtime/README.md`
-- Choosing deployment modes: `docs/deployment-modes.md`
-- Build/troubleshoot: `docs/build-and-packaging.md`, `docs/DEBUGGING_WINDOWS.md`, `docs/WINE_INSTALLATION.md`
-- Bundled runtime logging: `docs/workflows/logging-bundled-desktop.md`
+- Choosing deployment modes: `docs/concepts/deployment-modes.md`
+- Build/troubleshoot: `docs/guides/build-and-packaging.md`, `docs/guides/debugging-windows.md`, `docs/guides/wine-installation.md`
+- Bundled runtime logging: `docs/guides/logging-bundled-desktop.md`

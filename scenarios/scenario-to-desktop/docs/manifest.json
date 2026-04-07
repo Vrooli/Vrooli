@@ -10,7 +10,7 @@
       "icon": "info",
       "documents": [
         { "path": "OVERVIEW.md", "title": "Current vs Roadmap", "description": "Thin-client reality and bundling status" },
-        { "path": "deployment-modes.md", "title": "Deployment Modes", "description": "Choose deployment_mode and server_type" }
+        { "path": "concepts/deployment-modes.md", "title": "Deployment Modes", "description": "Choose deployment_mode and server_type" }
       ]
     },
     {
@@ -35,11 +35,11 @@
       "title": "Build & Troubleshoot",
       "icon": "package",
       "documents": [
-        { "path": "build-and-packaging.md", "title": "Build Checklist", "description": "Prereqs, commands, and outputs" },
-        { "path": "CROSS_PLATFORM_BUILDS.md", "title": "Cross-Platform Builds", "description": "Build strategy and caveats for Windows/macOS/Linux targets" },
-        { "path": "DEBUGGING_WINDOWS.md", "title": "Debugging Windows", "description": "Windows build/runtime troubleshooting" },
-        { "path": "WINE_INSTALLATION.md", "title": "Wine (No-Sudo)", "description": "Install Wine via Flatpak for Windows builds" },
-        { "path": "SIGNING.md", "title": "Code Signing", "description": "Platform-specific signing setup and troubleshooting" }
+        { "path": "guides/build-and-packaging.md", "title": "Build Checklist", "description": "Prereqs, commands, and outputs" },
+        { "path": "guides/cross-platform-builds.md", "title": "Cross-Platform Builds", "description": "Build strategy and caveats for Windows/macOS/Linux targets" },
+        { "path": "guides/debugging-windows.md", "title": "Debugging Windows", "description": "Windows build/runtime troubleshooting" },
+        { "path": "guides/wine-installation.md", "title": "Wine (No-Sudo)", "description": "Install Wine via Flatpak for Windows builds" },
+        { "path": "guides/code-signing.md", "title": "Code Signing", "description": "Platform-specific signing setup and troubleshooting" }
       ]
     },
     {
@@ -47,7 +47,7 @@
       "title": "Desktop Features",
       "icon": "desktop",
       "documents": [
-        { "path": "desktop-integration-guide.md", "title": "Desktop Feature Cookbook", "description": "File system, menus, tray, notifications" },
+        { "path": "guides/desktop-integration.md", "title": "Desktop Feature Cookbook", "description": "File system, menus, tray, notifications" },
         { "path": "guides/interactive-desktop.md", "title": "Interactive Desktop", "description": "Use the browser-based VNC viewer to interact with generated apps" },
         { "path": "../templates/README.md", "title": "Template System", "description": "Template types and generator details" },
         { "path": "../templates/DESKTOP_WRAPPER_GUIDE.md", "title": "Wrapper Patterns", "description": "Server_type patterns and embeddings" }
@@ -60,8 +60,8 @@
       "documents": [
         { "path": "guides/DEPLOYMENT.md", "title": "LPBS Deployment", "description": "Deploy artifacts to Landing Page Business Suite" },
         { "path": "guides/AUTO_UPDATES.md", "title": "Auto-Updates", "description": "Configure electron-updater for desktop apps" },
-        { "path": "workflows/logging-bundled-desktop.md", "title": "Bundled App Logging", "description": "Run and debug packaged AppImage builds with runtime logs" },
-        { "path": "telemetry.md", "title": "Telemetry & Ops", "description": "deployment-telemetry.jsonl and auto-manage" },
+        { "path": "guides/logging-bundled-desktop.md", "title": "Bundled App Logging", "description": "Run and debug packaged AppImage builds with runtime logs" },
+        { "path": "reference/telemetry.md", "title": "Telemetry & Ops", "description": "deployment-telemetry.jsonl and auto-manage" },
         { "path": "../runtime/README.md", "title": "Bundled Runtime (Roadmap)", "description": "Supervisor design for offline bundles" },
         { "path": "../../../docs/deployment/scenarios/scenario-to-desktop.md", "title": "Deployment Hub", "description": "How desktop fits Tier 1/2 and deployment-manager" }
       ]
@@ -73,6 +73,8 @@
       "documents": [
         { "path": "reference/api-architecture.md", "title": "API Architecture", "description": "Visual overview of API structure, pipeline system, and tool execution" },
         { "path": "reference/smoke-test-pipeline.md", "title": "Smoke Test Pipeline", "description": "Deep dive into smoke test stage execution, configuration, and troubleshooting" },
+        { "path": "reference/api-contract.md", "title": "API Contract & Data Models", "description": "Endpoint schemas, data models, event interfaces, and cross-scenario interactions" },
+        { "path": "reference/cli-commands.md", "title": "CLI Commands", "description": "CLI binary command structure, flags, and usage" },
         { "path": "reference/live-desktop-api.md", "title": "Live Desktop API", "description": "Interactive VNC desktop session API endpoints" },
         { "path": "../README.md", "title": "Scenario README", "description": "Overview, limitations, installer matrix" },
         { "path": "../PRD.md", "title": "PRD", "description": "Product requirements and success metrics" },
@@ -81,22 +83,27 @@
       ]
     },
     {
-      "id": "standard",
-      "title": "Standard",
-      "icon": "clipboard",
+      "id": "internal",
+      "title": "Internal",
+      "icon": "lock",
+      "visibility": "developers-only",
       "documents": [
-        { "path": "PROGRESS.md", "title": "Docs Progress", "description": "Documentation refresh and alignment log" },
-        { "path": "../PROGRESS.md", "title": "Progress Log", "description": "Development progress tracking" },
-        { "path": "../PROBLEMS.md", "title": "Known Issues", "description": "Current issues and blockers" },
-        { "path": "internal/SEAMS.md", "title": "Seams", "description": "Integration points, boundaries, and architectural seams" },
-        { "path": "internal/ASSUMPTIONS.md", "title": "Assumptions", "description": "Documented assumptions and hardening status" },
+        { "path": "internal/PROGRESS.md", "title": "Progress Log", "description": "Development progress tracking", "internal": true },
+        { "path": "internal/PROBLEMS.md", "title": "Known Issues", "description": "Current issues and blockers", "internal": true },
+        { "path": "internal/SEAMS.md", "title": "Seams", "description": "Integration points, boundaries, and architectural seams", "internal": true },
+        { "path": "internal/ASSUMPTIONS.md", "title": "Assumptions", "description": "Documented assumptions and hardening status", "internal": true },
         { "path": "internal/COHERENCE-NOTES.md", "title": "Coherence Notes", "description": "React coherence audit — responsive layout decisions and patterns", "internal": true },
-        { "path": "../RESEARCH.md", "title": "Research", "description": "Research notes and open questions" }
+        { "path": "internal/INVARIANTS.md", "title": "Invariants", "description": "System contracts that must never be violated", "internal": true },
+        { "path": "internal/ERROR-SEMANTICS.md", "title": "Error Semantics", "description": "Error codes, recovery actions, and user messaging", "internal": true },
+        { "path": "internal/SECURITY-POSTURE.md", "title": "Security Posture", "description": "Security hardening status by category", "internal": true },
+        { "path": "internal/TEMPORAL-FLOWS.md", "title": "Temporal Flows", "description": "Async patterns, concurrency, and pipeline execution", "internal": true },
+        { "path": "internal/EXPERIENCE-AUDIT.md", "title": "Experience Audit", "description": "UX friction analysis and accessibility review", "internal": true },
+        { "path": "internal/RESEARCH.md", "title": "Research", "description": "Research notes and open questions", "internal": true }
       ]
     }
   ],
   "navigation": {
     "primary": ["overview", "concepts", "getting-started", "build", "features", "operations", "reference"],
-    "secondary": ["standard"]
+    "secondary": ["internal"]
   }
 }

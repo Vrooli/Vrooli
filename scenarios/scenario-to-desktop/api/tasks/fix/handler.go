@@ -41,7 +41,7 @@ func (h *Handler) ShouldContinue(ctx context.Context, task *domain.Investigation
 
 	// Parse the iteration report from the agent's output
 	report, err := ParseIterationReport(result.Output)
-	if err != nil {
+	if err != nil || report == nil {
 		// If we can't parse the report, check if the output indicates success
 		output := strings.ToLower(result.Output)
 		if strings.Contains(output, "build successful") ||

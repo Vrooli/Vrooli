@@ -228,6 +228,6 @@ Recorded when the bundled runtime process exits unexpectedly, with exit code and
 ## Related Documentation
 
 - [DOC: docs/concepts/ARCHITECTURE.md] - Visual architecture diagrams
-- [DOC: docs/deployment-modes.md] - Deployment mode details
+- [DOC: deployment-modes.md] - Deployment mode details
 - [DOC: docs/internal/SEAMS.md] - Complete seam documentation
 - [DOC: templates/vanilla/README.md] - Module implementation details

@@ -66,7 +66,7 @@ scenario-to-desktop generate <scenario> \
 ### Thin client preconditions
 - Target scenario is already running and reachable (LAN or Cloudflare).
 - UI build exists at `ui/dist` for the target scenario.
-- For Windows installers on Linux, follow `docs/WINE_INSTALLATION.md`.
+- For Windows installers on Linux, follow `docs/guides/wine-installation.md`.
 
 ### Check build artifacts (CLI)
 ```bash

@@ -384,6 +384,6 @@ Defaults: 1920x1080 at 15fps. Lower FPS keeps file sizes reasonable for review p
 ## Related Documentation
 
 - [API Architecture](./api-architecture.md) - Overall pipeline system overview
-- [Telemetry](../telemetry.md) - Telemetry collection and upload
-- [Build & Packaging](../build-and-packaging.md) - Prerequisites and build commands
+- [Telemetry](telemetry.md) - Telemetry collection and upload
+- [Build & Packaging](../guides/build-and-packaging.md) - Prerequisites and build commands
 - [SEAMS.md](../internal/SEAMS.md) - Integration boundaries and testability patterns

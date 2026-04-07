@@ -127,7 +127,7 @@ Preflight spins up the bundled runtime control API to validate manifests, secret
 | **Windows** | NSIS | `Setup.exe` | Standard installer, works via Wine |
 | **macOS** | ZIP | `.zip` | Contains `.app` bundle, user drags to Applications |
 
-> **Why these formats?** NSIS and ZIP can be built on Linux via Wine, enabling single-machine cross-platform builds. For DMG/PKG/MSI installers, use macOS/Windows CI runners. See [Cross-Platform Builds Guide](docs/CROSS_PLATFORM_BUILDS.md) for details.
+> **Why these formats?** NSIS and ZIP can be built on Linux via Wine, enabling single-machine cross-platform builds. For DMG/PKG/MSI installers, use macOS/Windows CI runners. See [Cross-Platform Builds Guide](docs/guides/cross-platform-builds.md) for details.
 
 - **Channel intent**: Auto-update hooks remain off by default. When you wire a publish target, stick to three channels (`dev`, `beta`, `stable`) and publish per-platform artifacts with signatures; the runtime/Electron wrapper should only enable updates when a channel URL and signing material are configured.
 - **Bundled mode impact**: Offline bundles will initially rely on manual installer refreshes; differential updates stay on the roadmap. Until then, treat each installer as a full reinstall and keep telemetry enabled so deployment-manager can flag upgrade pain.
@@ -142,11 +142,11 @@ Preflight spins up the bundled runtime control API to validate manifests, secret
 
 ## 📚 Documentation
 - Docs manifest for UI tab: `docs/manifest.json`
-- Start here: `docs/QUICKSTART.md` and `docs/deployment-modes.md`
-- **Cross-platform builds: `docs/CROSS_PLATFORM_BUILDS.md`** - Build formats, Wine setup, CI/CD recommendations
-- Builds and troubleshooting: `docs/build-and-packaging.md`, `docs/DEBUGGING_WINDOWS.md`, `docs/WINE_INSTALLATION.md`
-- Feature cookbook: `docs/desktop-integration-guide.md`
-- Telemetry/ops: `docs/telemetry.md`
+- Start here: `docs/QUICKSTART.md` and `docs/concepts/deployment-modes.md`
+- **Cross-platform builds: `docs/guides/cross-platform-builds.md`** - Build formats, Wine setup, CI/CD recommendations
+- Builds and troubleshooting: `docs/guides/build-and-packaging.md`, `docs/guides/debugging-windows.md`, `docs/guides/wine-installation.md`
+- Feature cookbook: `docs/guides/desktop-integration.md`
+- Telemetry/ops: `docs/reference/telemetry.md`
 
 ## 🎯 Overview
 
@@ -218,7 +218,7 @@ Built artifacts stay listed; collect telemetry via the UI or CLI.
 make stop
 ```
 
-Full walkthroughs: see `docs/QUICKSTART.md` and `docs/deployment-modes.md`.
+Full walkthroughs: see `docs/QUICKSTART.md` and `docs/concepts/deployment-modes.md`.
 
 ### 4. Build Desktop Packages
 
@@ -256,8 +256,8 @@ npm run dist:win    # Build Windows MSI installer
 
 ### 5. Windows builds (pointer)
 
-- For Windows builds on Linux, follow `docs/WINE_INSTALLATION.md` for a no-sudo Wine setup.
-- For runtime/build troubleshooting on Windows, see `docs/DEBUGGING_WINDOWS.md`.
+- For Windows builds on Linux, follow `docs/guides/wine-installation.md` for a no-sudo Wine setup.
+- For runtime/build troubleshooting on Windows, see `docs/guides/debugging-windows.md`.
 
 ### 6. Development and Testing
 
@@ -945,9 +945,9 @@ cd ui && npm install && npm start
 - [PRD.md](./PRD.md) - Comprehensive product requirements
 - **[Desktop Wrapper Guide](./templates/DESKTOP_WRAPPER_GUIDE.md) - Universal wrapper principles and patterns** ⭐ **NEW**
 - [Templates README](./templates/README.md) - Template system details
-- [API Documentation](./docs/desktop-integration-guide.md) - REST API reference
+- [API Documentation](./docs/guides/desktop-integration.md) - REST API reference
 - [CLI Reference](./docs/QUICKSTART.md) - Command-line usage
-- [Build Tools](./docs/build-and-packaging.md) - Generation system
+- [Build Tools](./docs/guides/build-and-packaging.md) - Generation system
 
 ## 💡 Examples Gallery
 

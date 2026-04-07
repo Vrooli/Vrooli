@@ -323,6 +323,6 @@ dist-electron/
 
 ## Related Documentation
 
-- [Wine Installation Guide](./WINE_INSTALLATION.md) - Detailed Wine setup
-- [Debugging Windows Apps](./DEBUGGING_WINDOWS.md) - Windows-specific troubleshooting
+- [Wine Installation Guide](./wine-installation.md) - Detailed Wine setup
+- [Debugging Windows Apps](./debugging-windows.md) - Windows-specific troubleshooting
 - [electron-builder Targets](https://www.electron.build/multi-platform-build) - Official docs

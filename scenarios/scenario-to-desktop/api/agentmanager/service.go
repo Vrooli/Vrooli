@@ -44,6 +44,16 @@ func NewAgentService(cfg AgentServiceConfig) *AgentService {
 	}
 }
 
+// NewAgentServiceWithClient creates an agent service with a pre-built client (for testing).
+func NewAgentServiceWithClient(client *Client, profileName, profileKey string, enabled bool) *AgentService {
+	return &AgentService{
+		client:      client,
+		profileName: profileName,
+		profileKey:  profileKey,
+		enabled:     enabled,
+	}
+}
+
 // IsEnabled returns whether agent-manager integration is enabled.
 func (s *AgentService) IsEnabled() bool {
 	return s.enabled

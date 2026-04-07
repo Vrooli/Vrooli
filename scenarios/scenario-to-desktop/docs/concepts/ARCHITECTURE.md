@@ -591,7 +591,7 @@ Desktop apps write telemetry to track deployment health:
 
 - [DOC: templates/vanilla/README.md] - Complete module documentation
 - [DOC: docs/QUICKSTART.md] - Getting started with thin client generation
-- [DOC: docs/deployment-modes.md] - Choosing deployment_mode and server_type
-- [DOC: docs/desktop-integration-guide.md] - Feature cookbook (file system, menus, tray)
+- [DOC: deployment-modes.md] - Choosing deployment_mode and server_type
+- [DOC: ../guides/desktop-integration.md] - Feature cookbook (file system, menus, tray)
 - [DOC: docs/internal/SEAMS.md] - Integration boundaries and testability
 - [DOC: docs/concepts/GLOSSARY.md] - Term definitions

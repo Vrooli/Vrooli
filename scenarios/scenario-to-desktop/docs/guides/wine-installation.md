@@ -106,7 +106,7 @@ Response:
   "installed": false,
   "method": "flatpak",
   "install_command": "flatpak --user install flathub org.winehq.Wine",
-  "instructions_url": "/docs/WINE_INSTALLATION.md"
+  "instructions_url": "/docs/guides/wine-installation.md"
 }
 ```
 

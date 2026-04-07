@@ -572,4 +572,4 @@ npm run dist:linux
 - [DOC: docs/concepts/ARCHITECTURE.md] - System architecture diagrams
 - [DOC: docs/internal/SEAMS.md] - Complete seam documentation
 - [DOC: docs/concepts/GLOSSARY.md] - Term definitions
-- [DOC: docs/desktop-integration-guide.md] - Feature cookbook
+- [DOC: docs/guides/desktop-integration.md] - Feature cookbook

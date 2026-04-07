@@ -212,7 +212,7 @@ Templates include signing configuration for:
 
 - **Electron Documentation**: https://www.electronjs.org/docs
 - **Electron Builder**: https://www.electron.build/
-- **Desktop Integration Guide**: ../docs/desktop-integration-guide.md
+- **Desktop Integration Guide**: ../docs/guides/desktop-integration.md
 - **Main README**: ../README.md
 
 ## Troubleshooting

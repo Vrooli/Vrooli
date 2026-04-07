@@ -22,10 +22,28 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// URLResolver resolves the agent-manager base URL.
+// Extracted as an interface to enable testing without real service discovery.
+type URLResolver interface {
+	ResolveBaseURL(ctx context.Context) (string, error)
+}
+
+// discoveryResolver uses the Vrooli service discovery system.
+type discoveryResolver struct{}
+
+func (d *discoveryResolver) ResolveBaseURL(ctx context.Context) (string, error) {
+	url, err := discovery.ResolveScenarioURLDefault(ctx, "agent-manager")
+	if err != nil {
+		return "", fmt.Errorf("resolve agent-manager url: %w", err)
+	}
+	return url, nil
+}
+
 // Client is an HTTP client for the agent-manager API.
 type Client struct {
-	httpClient *http.Client
-	jsonOpts   protojson.MarshalOptions
+	httpClient  *http.Client
+	jsonOpts    protojson.MarshalOptions
+	urlResolver URLResolver
 }
 
 // NewClient creates a new agent-manager client.
@@ -37,7 +55,15 @@ func NewClient(timeout time.Duration) *Client {
 		jsonOpts: protojson.MarshalOptions{
 			UseProtoNames: false, // lowerCamelCase to match agent-manager HTTP handlers
 		},
+		urlResolver: &discoveryResolver{},
 	}
+}
+
+// NewClientWithResolver creates a client with a custom URL resolver (for testing).
+func NewClientWithResolver(timeout time.Duration, resolver URLResolver) *Client {
+	c := NewClient(timeout)
+	c.urlResolver = resolver
+	return c
 }
 
 // Health checks the agent-manager service health.
@@ -289,11 +315,7 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body []byte
 }
 
 func (c *Client) resolveBaseURL(ctx context.Context) (string, error) {
-	url, err := discovery.ResolveScenarioURLDefault(ctx, "agent-manager")
-	if err != nil {
-		return "", fmt.Errorf("resolve agent-manager url: %w", err)
-	}
-	return url, nil
+	return c.urlResolver.ResolveBaseURL(ctx)
 }
 
 // ResolveURL exposes the computed agent-manager base URL.

@@ -12,6 +12,44 @@ requirements/
 └── integration/e2e-validation.json         # End-to-end validation
 ```
 
+## Operational Targets
+
+This requirements registry tracks coverage against the PRD operational targets defined in [PRD.md](../PRD.md#-operational-targets). Each requirement module maps to one or more `OT-*` targets:
+
+| Target | Priority | Status | Module(s) |
+|--------|----------|--------|-----------|
+| OT-P0-001 | P0 | Complete | `templates/electron.json` |
+| OT-P0-002 | P0 | Complete | `templates/electron.json` |
+| OT-P0-003 | P0 | Partial | `integration/e2e-validation.json` |
+| OT-P0-004 | P0 | Complete | `integration/e2e-validation.json` |
+| OT-P0-005 | P0 | Complete | `templates/electron.json` |
+| OT-P0-006 | P0 | Complete | `templates/electron.json` |
+| OT-P0-007 | P0 | Complete | `templates/electron.json` |
+| OT-P1-001 | P1 | Pending | — |
+| OT-P1-002 | P1 | Pending | — |
+| OT-P1-003 | P1 | Pending | — |
+| OT-P1-004 | P1 | Pending | — |
+| OT-P1-005 | P1 | Pending | — |
+| OT-P2-001 | P2 | Pending | — |
+| OT-P2-002 | P2 | Pending | — |
+| OT-P2-003 | P2 | Pending | — |
+
+## Auto-Sync
+
+Requirement statuses can be synced against the codebase using:
+
+```bash
+prd-control-tower requirements validate scenario-to-desktop --json
+```
+
+This compares `module.json` status fields against actual test results and code presence. After syncing, PRD checkboxes may auto-update to reflect validated completion.
+
+To regenerate requirements from PRD targets:
+
+```bash
+prd-control-tower requirements generate scenario-to-desktop --context-file scenarios/scenario-to-desktop/PRD.md --json
+```
+
 ## Requirements Status
 
 **Overall Progress**: Both bundled offline mode (recommended) and thin-client mode are production-ready.
