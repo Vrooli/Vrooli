@@ -38,6 +38,7 @@ import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
 import { initiativeService } from "../services";
 import { selectors } from "../consts/selectors";
+import { RollupProgressBar, rollupTotal as computeRollupTotal } from "../components/ui/rollup-progress-bar";
 import { BACKLOG_STATUS_CHIP_COLORS } from "../types";
 import type { BacklogFile, BacklogKind, BacklogStatus } from "../types";
 import { useBacklogStore, useDetailSelectionStore } from "../stores";
@@ -289,7 +290,7 @@ export function InitiativeDetailsPage() {
   }, [initiative?.description]);
 
   // Rollup total for progress bar
-  const rollupTotal = rollup ? rollup.completed + rollup.inProgress + rollup.failed + rollup.pending : 0;
+  const rollupTotalCount = rollup ? computeRollupTotal(rollup) : 0;
 
   if (isLoading) {
     return <PageLoadingState label="Loading initiative..." />;
@@ -434,50 +435,9 @@ export function InitiativeDetailsPage() {
             </DetailSection>
 
             {/* Progress Rollup */}
-            {rollup && rollupTotal > 0 && (
+            {rollup && rollupTotalCount > 0 && (
               <DetailSection title="Progress" data-testid={selectors.initiativeDetails.rollup}>
-                <div className="space-y-3">
-                  {/* Segmented progress bar */}
-                  <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-slate-800">
-                    {rollup.completed > 0 && (
-                      <div
-                        className="bg-emerald-500 transition-all"
-                        style={{ width: `${(rollup.completed / rollupTotal) * 100}%` }}
-                        title={`${rollup.completed} completed`}
-                      />
-                    )}
-                    {rollup.inProgress > 0 && (
-                      <div
-                        className="bg-purple-500 transition-all"
-                        style={{ width: `${(rollup.inProgress / rollupTotal) * 100}%` }}
-                        title={`${rollup.inProgress} in progress`}
-                      />
-                    )}
-                    {rollup.failed > 0 && (
-                      <div
-                        className="bg-red-500 transition-all"
-                        style={{ width: `${(rollup.failed / rollupTotal) * 100}%` }}
-                        title={`${rollup.failed} failed`}
-                      />
-                    )}
-                    {rollup.pending > 0 && (
-                      <div
-                        className="bg-slate-600 transition-all"
-                        style={{ width: `${(rollup.pending / rollupTotal) * 100}%` }}
-                        title={`${rollup.pending} pending`}
-                      />
-                    )}
-                  </div>
-
-                  {/* Numeric breakdown */}
-                  <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs">
-                    <span className="text-emerald-400">{rollup.completed} completed</span>
-                    <span className="text-purple-400">{rollup.inProgress} in progress</span>
-                    {rollup.failed > 0 && <span className="text-red-400">{rollup.failed} failed</span>}
-                    <span className="text-slate-400">{rollup.pending} pending</span>
-                    <span className="text-slate-500">{rollupTotal} total</span>
-                  </div>
-                </div>
+                <RollupProgressBar rollup={rollup} showLabels />
               </DetailSection>
             )}
 

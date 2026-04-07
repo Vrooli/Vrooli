@@ -247,9 +247,9 @@ export function formatExecutionMode(mode: ExecutionMode): string {
 // Agent Status Display
 // ============================================================================
 
-export const AGENT_ACTIVITY_STATUSES: AgentActivityStatus[] = [
+export const AGENT_ACTIVITY_STATUSES = [
   "pending", "starting", "running", "needs_review", "complete", "failed", "cancelled", "unspecified",
-];
+] as const satisfies readonly AgentActivityStatus[];
 
 export const AGENT_RUN_STATUSES: AgentRunStatus[] = [
   "pending", "starting", "running", "needs_review", "complete", "failed", "cancelled", "unspecified",

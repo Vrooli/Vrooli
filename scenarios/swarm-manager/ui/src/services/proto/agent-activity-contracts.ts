@@ -10,32 +10,21 @@ import type {
   AgentActivityPurpose,
   AgentActivityStatus,
 } from "../../types";
+import {
+  AGENT_ACTIVITY_PURPOSES,
+  AGENT_ACTIVITY_INTERACTION_TYPES,
+  AGENT_ACTIVITY_OWNER_TYPES,
+} from "../../types/agent";
+import { AGENT_ACTIVITY_STATUSES } from "../../types/constants";
 import { createProtoSchema } from "./shared";
 
-const agentActivityStatusSet = new Set<string>([
-  "pending",
-  "starting",
-  "running",
-  "needs_review",
-  "complete",
-  "failed",
-  "cancelled",
-  "unspecified",
-]);
-const agentActivityPurposeSet = new Set<string>([
-  "initialize",
-  "workshop",
-  "finalize",
-  "research",
-  "process",
-  "fixup",
-  "followup",
-  "spec_sync",
-  "classify",
-  "clarify",
-]);
-const agentActivityInteractionTypeSet = new Set<string>(["spawn", "continue"]);
-const agentActivityOwnerTypeSet = new Set<string>(["backlog", "capture", "scenario"]);
+// Validation sets derived from the canonical type arrays. Adding a new value to
+// the union type without updating the array causes a compile error, so these
+// sets can never silently fall out of sync.
+const agentActivityStatusSet: ReadonlySet<string> = new Set(AGENT_ACTIVITY_STATUSES);
+const agentActivityPurposeSet: ReadonlySet<string> = new Set(AGENT_ACTIVITY_PURPOSES);
+const agentActivityInteractionTypeSet: ReadonlySet<string> = new Set(AGENT_ACTIVITY_INTERACTION_TYPES);
+const agentActivityOwnerTypeSet: ReadonlySet<string> = new Set(AGENT_ACTIVITY_OWNER_TYPES);
 
 function isAgentActivityStatus(value: unknown): value is AgentActivityStatus {
   return typeof value === "string" && agentActivityStatusSet.has(value);

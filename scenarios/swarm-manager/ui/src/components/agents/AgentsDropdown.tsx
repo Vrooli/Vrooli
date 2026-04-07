@@ -8,7 +8,7 @@
  * The dropdown panel is identical in both variants.
  */
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Activity, Square, X } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { formatRelativeTime } from "../../lib";
@@ -37,8 +37,33 @@ export function AgentsDropdown({
   className,
 }: AgentsDropdownProps) {
   const [open, setOpen] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
   const count = activities.length;
   const countLabel = maxConcurrent != null ? `${count}/${maxConcurrent}` : `${count}`;
+
+  // Clamp dropdown panel to viewport bounds after it renders.
+  const clampToViewport = useCallback(() => {
+    const el = panelRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const margin = 8;
+    // Clamp horizontal: if overflowing right, shift left
+    if (rect.right > window.innerWidth - margin) {
+      const shift = rect.right - window.innerWidth + margin;
+      el.style.transform = `translateX(-${shift}px)`;
+    }
+    // Clamp vertical: if overflowing bottom, flip above trigger
+    if (rect.bottom > window.innerHeight - margin) {
+      el.style.top = "auto";
+      el.style.bottom = "100%";
+      el.style.marginTop = "0";
+      el.style.marginBottom = "4px";
+    }
+  }, []);
+
+  useEffect(() => {
+    if (open) clampToViewport();
+  }, [open, clampToViewport]);
 
   const trigger =
     variant === "badge" ? (
@@ -87,6 +112,7 @@ export function AgentsDropdown({
 
           {/* Dropdown panel */}
           <div
+            ref={panelRef}
             className="absolute right-0 top-full z-50 mt-1 w-[calc(100vw-2rem)] max-w-[360px] rounded-lg border border-slate-700/80 bg-slate-950 shadow-xl"
             data-testid="graph-agents-dropdown"
           >

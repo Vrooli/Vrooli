@@ -30,6 +30,7 @@ const mockBacklogItem: BacklogItem = {
   status: "ready",
   priority: 2,
   tags: ["ui", "frontend"],
+  suggestedSkills: [],
   initiative: "v2-launch",
   effort: "M",
   created: "2026-04-01T00:00:00Z",

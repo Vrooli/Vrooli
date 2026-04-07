@@ -56,9 +56,11 @@ export function useDecisionStreamLogic({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [localAnswers, setLocalAnswers] = useState<Map<string, QuestionAnswer>>(() => new Map());
   const [skippedIds, setSkippedIds] = useState<Set<string>>(() => new Set());
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(() => new Set());
   const [snoozedItemKeys, setSnoozedItemKeys] = useState<Set<string>>(() => new Set());
   const [savingId, setSavingId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [phase, setPhase] = useState<"answering" | "completing">("answering");
   const [contextExpanded, setContextExpanded] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
@@ -68,7 +70,9 @@ export function useDecisionStreamLogic({
   const backlogItems = useBacklogStore((s) => s.items);
 
   const activeQuestions = questions.filter(
-    (ciq) => !snoozedItemKeys.has(snoozeKey(ciq.parentKind, ciq.parentName)),
+    (ciq) =>
+      !snoozedItemKeys.has(snoozeKey(ciq.parentKind, ciq.parentName)) &&
+      !deletedIds.has(ciq.question.id),
   );
   const total = activeQuestions.length;
   const safeIndex = Math.min(currentIndex, Math.max(0, total - 1));
@@ -170,6 +174,37 @@ export function useDecisionStreamLogic({
       setSaveError("Save failed — will retry on next advance");
     } finally {
       setSavingId(null);
+    }
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Delete question
+  // ---------------------------------------------------------------------------
+
+  const deleteQuestion = useCallback(async (ciq: CrossItemQuestion) => {
+    const q = ciq.question;
+    if (q.source !== "workshop" || q.round_number == null) return;
+
+    setDeletingId(q.id);
+    setSaveError(null);
+    try {
+      const roundNum = String(q.round_number).padStart(3, "0");
+      const filePath = `workshop/round-${roundNum}.json`;
+      const content = await backlogService.getFileContent(ciq.parentKind, ciq.parentName, filePath);
+      const parsed = parseWorkshopRound(content);
+      if (parsed.round) {
+        const round = parsed.round;
+        round.items = (round.items ?? []).filter((i) => i.id !== q.id);
+        await backlogService.saveFileContent(
+          ciq.parentKind, ciq.parentName, filePath,
+          buildWorkshopRoundContent(round), "application/json",
+        );
+      }
+      setDeletedIds((prev) => new Set(prev).add(q.id));
+    } catch {
+      setSaveError("Delete failed — please try again");
+    } finally {
+      setDeletingId(null);
     }
   }, []);
 
@@ -381,6 +416,7 @@ export function useDecisionStreamLogic({
     safeIndex,
     savingId,
     saveError,
+    deletingId,
     contextExpanded,
     setContextExpanded,
     descExpanded,
@@ -391,5 +427,6 @@ export function useDecisionStreamLogic({
     goBack,
     skip,
     snoozeParent,
+    deleteQuestion,
   };
 }

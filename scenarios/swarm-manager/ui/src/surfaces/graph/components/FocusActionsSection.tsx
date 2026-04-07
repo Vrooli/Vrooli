@@ -21,7 +21,6 @@ import {
 import { cn } from "../../../lib/utils";
 import { defaultApiClient } from "../../../lib/api-client";
 import { API_ENDPOINTS } from "../../../lib/api-endpoints";
-import { backlogService } from "../../../services";
 import { useBacklogStore } from "../../../stores/backlog-store";
 import { useDetailSelectionStore } from "../../../stores/detail-selection-store";
 import { RunBacklogModal, type RunBacklogTarget } from "../../../components/backlog/run-backlog-modal";

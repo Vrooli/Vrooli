@@ -66,9 +66,9 @@ export function GraphWorkspaceHUD({
       data-testid="graph-hud"
     >
       {/* Row 1: Sidebar toggle + (lg: LensNav) + Settings/Help/Agents */}
-      <div className="flex h-10 items-center justify-between">
+      <div className="flex min-h-[2.5rem] items-start justify-between">
         {/* Left: Sidebar toggle + lens nav on large screens */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-start gap-1.5">
           {sidebarCollapsed && (
             <button
               type="button"

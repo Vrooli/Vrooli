@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { agentActivityService } from "../services/agent-activity-service";
-import type { AgentActivity, BacklogKind } from "../types";
+import type { AgentActivity, AgentActivityStatus, BacklogKind } from "../types";
 
 export interface AgentActivityRecord extends AgentActivity {
   isStopping: boolean;
@@ -13,7 +13,11 @@ interface AgentActivitiesStoreState {
   stopRun: (runId: string) => Promise<void>;
 }
 
-const ACTIVE_STATUSES = new Set<AgentActivity["status"]>([
+/**
+ * Statuses that represent an agent still doing work or awaiting human input.
+ * Activities in these states appear in the "running agents" indicator.
+ */
+const ACTIVE_STATUSES: ReadonlySet<AgentActivityStatus> = new Set<AgentActivityStatus>([
   "pending",
   "starting",
   "running",

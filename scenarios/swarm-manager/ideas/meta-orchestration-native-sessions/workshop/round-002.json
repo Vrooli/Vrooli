@@ -2,13 +2,12 @@
   "round": 2,
   "generated_at": "2026-04-06T13:00:00Z",
   "mode": "workshop",
-  "pending_synthesis": false,
   "readiness": {
-    "problem_clarity": 3,
-    "scope_defined": 2,
     "approach_solid": 2,
-    "testable": 1,
-    "risk_awareness": 1
+    "problem_clarity": 3,
+    "risk_awareness": 1,
+    "scope_defined": 2,
+    "testable": 1
   },
   "items": [
     {
@@ -39,9 +38,9 @@
           "rationale": "Provide your own message capture approach"
         }
       ],
-      "selected": null,
+      "selected": "B",
       "freeform": null,
-      "notes": null
+      "notes": "The existing clarification flow should probably also be updated to leverage this new agent manager endpoint once we add it"
     },
     {
       "id": "d2",
@@ -71,9 +70,9 @@
           "rationale": "Provide your own tracking approach"
         }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d3",
@@ -103,9 +102,9 @@
           "rationale": "Provide your own lifecycle approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "__other__",
+      "freeform": "I don’t think they do necessarily need. States sessions are just a place where I can chat with an agent and like workshop ideas and create backlog items and stuff. That’s something that I can come back to at any time. I don’t think there’s a natural place where a where this is considered completed or failed like the concept doesn’t really make sense here I don’t think. What does make sense would be adding an archived at date, which is separate from a status if you look at how we have set up archives for other entity types. So that’s what I would recommend an archived at date instead of a state. ",
+      "notes": ""
     },
     {
       "id": "d4",
@@ -135,9 +134,9 @@
           "rationale": "Provide your own layout approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "__other__",
+      "freeform": "I think these sessions should be a tab in the sidebar like every other entity type. And it’s details page would be set up similarly to other entity, detail pages and in this situation, it would be either one or two tabs. The first tab would be the conversation itself which reuses components from the clarification feature we have and the second tab would be all of the detected entity types, like initiatives, and backlog items that we detect were created during this session.",
+      "notes": ""
     },
     {
       "id": "d5",
@@ -162,9 +161,9 @@
           "rationale": "Provide your own fork approach"
         }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "i1",

@@ -22,14 +22,16 @@ type PendingQuestion struct {
 	ItemName string `json:"item_name"`
 
 	// Workshop decision fields
-	Topic       string           `json:"topic,omitempty"`
-	Text        string           `json:"text,omitempty"`
-	Context     string           `json:"context,omitempty"`
-	Options     []WorkshopOption `json:"options,omitempty"`
-	Selected    *string          `json:"selected,omitempty"`
-	Freeform    *string          `json:"freeform,omitempty"`
-	Notes       *string          `json:"notes,omitempty"`
-	RoundNumber int              `json:"round_number,omitempty"`
+	Topic           string           `json:"topic,omitempty"`
+	Text            string           `json:"text,omitempty"`
+	Context         string           `json:"context,omitempty"`
+	Options         []WorkshopOption `json:"options,omitempty"`
+	Selected        *string          `json:"selected,omitempty"`
+	Freeform        *string          `json:"freeform,omitempty"`
+	Notes           *string          `json:"notes,omitempty"`
+	RoundNumber     int              `json:"round_number,omitempty"`
+	ClarificationID *string          `json:"clarification_id,omitempty"`
+	ContextNote     *string          `json:"context_note,omitempty"`
 
 	// Review fields
 	Title         string `json:"title,omitempty"`
@@ -109,18 +111,20 @@ func collectWorkshopQuestions(itemDir string, kind BacklogKind, name string) []P
 			continue // already answered
 		}
 		questions = append(questions, PendingQuestion{
-			ID:          wi.ID,
-			Source:      "workshop",
-			ItemKind:    string(kind),
-			ItemName:    name,
-			Topic:       wi.Topic,
-			Text:        wi.Text,
-			Context:     wi.Context,
-			Options:     wi.Options,
-			Selected:    wi.Selected,
-			Freeform:    wi.Freeform,
-			Notes:       wi.Notes,
-			RoundNumber: latestRound.RoundNum,
+			ID:              wi.ID,
+			Source:          "workshop",
+			ItemKind:        string(kind),
+			ItemName:        name,
+			Topic:           wi.Topic,
+			Text:            wi.Text,
+			Context:         wi.Context,
+			Options:         wi.Options,
+			Selected:        wi.Selected,
+			Freeform:        wi.Freeform,
+			Notes:           wi.Notes,
+			RoundNumber:     latestRound.RoundNum,
+			ClarificationID: wi.ClarificationID,
+			ContextNote:     wi.ContextNote,
 		})
 	}
 	return questions

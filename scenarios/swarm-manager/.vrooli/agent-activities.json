@@ -3552,5 +3552,47 @@
       "round_number": "003"
     },
     "updated_at": "2026-04-07T19:54:34Z"
+  },
+  {
+    "activity_id": "69646bb8b43afdbe",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "team-schema-v2-design",
+    "owner_title": "Design Team Schema v2 With Organizational Properties",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "d5b29ff9-4c35-4924-ad08-015d534465fd",
+    "run_id": "c878de71-fe76-42d8-93fc-a25bc553914f",
+    "status": "running",
+    "requested_at": "2026-04-07T21:41:27Z",
+    "started_at": "2026-04-07T21:41:27Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop-research"
+    },
+    "updated_at": "2026-04-07T21:41:27Z"
+  },
+  {
+    "activity_id": "dfc593577edc7201",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "secrets-manager-pii-detection-design",
+    "owner_title": "Design PII detection system for Secrets Manager",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "73731ee1-1407-4b50-a7de-7e5bc6d1c745",
+    "run_id": "bc71fc37-bcbd-44a1-97e2-12302307a944",
+    "status": "running",
+    "requested_at": "2026-04-07T21:42:56Z",
+    "started_at": "2026-04-07T21:42:56Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop-research"
+    },
+    "updated_at": "2026-04-07T21:42:56Z"
   }
 ]

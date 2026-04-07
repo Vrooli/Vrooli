@@ -45,7 +45,7 @@ export function ScenarioCard({
   tags,
   completenessScore,
   lastReviewClassification,
-  lastReviewAt,
+  lastReviewAt: _lastReviewAt,
   isAnyActionPending,
   isActionPending,
   onAction,

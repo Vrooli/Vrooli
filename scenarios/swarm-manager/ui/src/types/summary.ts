@@ -90,6 +90,8 @@ export interface PendingQuestion {
   freeform?: string | null;
   notes?: string | null;
   round_number?: number;
+  clarification_id?: string;
+  context_note?: string;
   // Review fields
   title?: string;
   description?: string;

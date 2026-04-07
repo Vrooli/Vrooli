@@ -8,7 +8,8 @@
  * Mobile-first: 44px touch targets, safe-area-inset-bottom padding,
  * collapsible context panel, and maximized vertical content space.
  */
-import { ChevronDown, ChevronLeft, ChevronRight, Loader2, SkipForward, ArrowLeft, Moon, CheckCircle2, Info } from "lucide-react";
+import { useState, useCallback } from "react";
+import { ChevronDown, ChevronLeft, ChevronRight, ExternalLink, Loader2, SkipForward, ArrowLeft, Moon, CheckCircle2, Info, Trash2 } from "lucide-react";
 import { cn } from "../../lib";
 import { selectors } from "../../consts/selectors";
 import {
@@ -19,8 +20,11 @@ import {
 } from "../../types";
 import type { CrossItemQuestion } from "../../lib/command-post-utils";
 import { WorkshopQuestionView, ReviewQuestionView } from "../backlog/question-renderers";
+import { ClarifyButton } from "../backlog/clarify-button";
+import { ScenarioBadge } from "../backlog/scenario-badge";
 import { TagList } from "../ui/tag-list";
 import { useDecisionStreamLogic } from "../../hooks/useDecisionStreamLogic";
+import { useClarificationStore } from "../../stores/clarification-store";
 import type { DecisionStreamResults } from "../../hooks/useDecisionStreamLogic";
 
 export type { DecisionStreamResults };
@@ -30,6 +34,8 @@ export interface DecisionStreamViewProps {
   onComplete: (results: DecisionStreamResults) => void;
   onBack: () => void;
   onSnoozeItem: (key: string) => void;
+  /** Navigate to a backlog item's detail page. */
+  onOpenItem?: (kind: string, name: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -41,6 +47,7 @@ export function DecisionStreamView({
   onComplete,
   onBack,
   onSnoozeItem,
+  onOpenItem,
 }: DecisionStreamViewProps) {
   const {
     phase,
@@ -51,6 +58,7 @@ export function DecisionStreamView({
     safeIndex,
     savingId,
     saveError,
+    deletingId,
     contextExpanded,
     setContextExpanded,
     descExpanded,
@@ -61,7 +69,34 @@ export function DecisionStreamView({
     goBack,
     skip,
     snoozeParent,
+    deleteQuestion,
   } = useDecisionStreamLogic({ questions, onComplete, onBack, onSnoozeItem });
+
+  // Clarification
+  const clarificationStore = useClarificationStore();
+  const isClarifyActive = current
+    ? clarificationStore.isOpen && clarificationStore.target?.itemId === current.question.id
+    : false;
+
+  const handleClarifyClick = useCallback(() => {
+    if (!current) return;
+    const q = current.question;
+    if (isClarifyActive) {
+      clarificationStore.close();
+    } else if (q.source === "workshop" && q.round_number != null) {
+      clarificationStore.open({
+        backlogKind: current.parentKind,
+        backlogName: current.parentName,
+        roundNumber: q.round_number,
+        itemId: q.id,
+        itemTopic: q.topic || q.text || "",
+        clarificationId: q.clarification_id,
+      });
+    }
+  }, [current, isClarifyActive, clarificationStore]);
+
+  // Delete confirmation
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // ---------------------------------------------------------------------------
   // Completing phase
@@ -211,6 +246,15 @@ export function DecisionStreamView({
                   </div>
                 )}
 
+                {/* Scenario */}
+                {parentItem.acceptanceAllow && parentItem.acceptanceAllow.length > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <Info className="h-3 w-3 shrink-0 text-slate-500" />
+                    <span className="text-[10px] text-slate-500">Scenario:</span>
+                    <ScenarioBadge acceptanceAllow={parentItem.acceptanceAllow} />
+                  </div>
+                )}
+
                 {/* Tags */}
                 {parentItem.tags && parentItem.tags.length > 0 && (
                   <TagList tags={parentItem.tags} maxTags={5} />
@@ -220,8 +264,21 @@ export function DecisionStreamView({
               <p className="text-xs text-slate-500">Item details not available</p>
             )}
 
-            {/* Slug for reference */}
-            <p className="text-[10px] font-mono text-slate-600">{current.parentKind}/{current.parentName}</p>
+            {/* Slug + open link */}
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-mono text-slate-600">{current.parentKind}/{current.parentName}</p>
+              {onOpenItem && (
+                <button
+                  type="button"
+                  onClick={() => onOpenItem(current.parentKind, current.parentName)}
+                  className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-cyan-400 transition-colors hover:bg-slate-800 hover:text-cyan-300"
+                  data-testid={selectors.commandPost.decisionStream.openItemLink}
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  Open item
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -238,6 +295,52 @@ export function DecisionStreamView({
               answer={answer}
               disabled={isSaving}
               onUpdate={(patch) => updateAnswer(current.question.id, patch)}
+              actions={
+                <div className="flex shrink-0 items-center gap-1">
+                  {current.question.round_number != null && (
+                    <ClarifyButton
+                      disabled={isSaving || deletingId === current.question.id}
+                      isActive={isClarifyActive}
+                      hasClarification={!!current.question.clarification_id}
+                      onClick={handleClarifyClick}
+                    />
+                  )}
+                  {confirmDeleteId === current.question.id ? (
+                    <span className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setConfirmDeleteId(null);
+                          void deleteQuestion(current);
+                        }}
+                        disabled={deletingId === current.question.id}
+                        className="rounded px-1.5 py-0.5 text-[10px] font-medium text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                        data-testid={selectors.commandPost.decisionStream.deleteConfirm}
+                      >
+                        {deletingId === current.question.id ? "Deleting..." : "Delete"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="rounded px-1.5 py-0.5 text-[10px] font-medium text-slate-400 hover:bg-slate-700 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteId(current.question.id)}
+                      disabled={isSaving || deletingId === current.question.id}
+                      className="shrink-0 rounded p-1 text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                      title="Delete question"
+                      data-testid={selectors.commandPost.decisionStream.deleteButton}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              }
             />
           ) : (
             <ReviewQuestionView
@@ -247,6 +350,15 @@ export function DecisionStreamView({
               onUpdate={(patch) => updateAnswer(current.question.id, patch)}
             />
           )}
+
+          {/* Context note from clarification */}
+          {current.question.context_note && (
+            <div className="mt-2 rounded border border-cyan-500/15 bg-cyan-500/5 px-2 py-1">
+              <span className="text-[9px] font-medium text-cyan-400">Clarification note</span>
+              <p className="text-xs text-slate-400">{current.question.context_note}</p>
+            </div>
+          )}
+
           {saveError && (
             <p className="mt-2 text-[10px] text-red-400">{saveError}</p>
           )}

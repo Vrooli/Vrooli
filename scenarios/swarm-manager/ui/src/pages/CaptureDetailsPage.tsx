@@ -96,7 +96,7 @@ export function CaptureDetailsPage() {
     setIsSubmitting(true);
     setSubmitError(null);
     try {
-      const created = await backlogService.create(values);
+      const created = await backlogService.create({ ...values, suggestedSkills: [] });
       upsertBacklogItem(created);
       setShowEditDialog(false);
       setEditPrefill(undefined);

@@ -17,7 +17,9 @@ import { aggregateCrossItemQuestions } from "../../lib/command-post-utils";
 import { backlogService } from "../../services";
 import { SummaryView } from "./SummaryView";
 import { DecisionStreamView } from "./DecisionStreamView";
+import { ClarificationPanel } from "../backlog/clarification-panel";
 import { useSpatialNavContext } from "../../hooks/SpatialNavContext";
+import type { BacklogKind } from "../../types";
 
 interface CommandPostOverlayProps {
   isOpen: boolean;
@@ -135,9 +137,22 @@ export function CommandPostOverlay({
             onComplete={() => setView("summary")}
             onBack={() => setView("summary")}
             onSnoozeItem={(key) => snooze(key, Date.now() + 3_600_000)}
+            onOpenItem={(kind, name) => {
+              onNavigateToDetail({ entityType: "backlog", kind: kind as BacklogKind, name });
+              onClose();
+            }}
           />
         </div>
       )}
+
+      {/* Clarification panel for decision stream questions */}
+      <ClarificationPanel
+        onAction={(action) => {
+          if (action === "invalidate_round" || action === "remove_decision" || action === "update_decision") {
+            void summaryQuery.refetch();
+          }
+        }}
+      />
     </div>
   );
 }

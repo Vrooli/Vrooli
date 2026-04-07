@@ -11,6 +11,7 @@ import { matchesSearch } from "./useSidebarSearch";
 import type { InitiativeWithRollup } from "../../../../types";
 import type { InitiativeFilters, SortConfig } from "./types";
 import { NoteIndicator } from "../../../../components/ui/note-indicator";
+import { RollupProgressBar, rollupTotal } from "../../../../components/ui/rollup-progress-bar";
 
 interface InitiativesTabProps {
   searchQuery: string;
@@ -130,12 +131,17 @@ export function InitiativesTab({ searchQuery, filters, sort, onItemClick }: Init
                 </span>
               </div>
             </div>
-            <div className="mt-1.5 flex flex-wrap gap-2 text-[11px]">
-              <span className="text-green-400">{rollup.completed} done</span>
-              <span className="text-cyan-400">{rollup.inProgress} active</span>
-              {rollup.failed > 0 && <span className="text-red-400">{rollup.failed} failed</span>}
-              <span className="text-slate-500">{rollup.pending} pending</span>
-            </div>
+            {rollupTotal(rollup) > 0 && (
+              <>
+                <RollupProgressBar rollup={rollup} barHeight="h-1.5" className="mt-2" />
+                <div className="mt-1 flex flex-wrap gap-2 text-[11px]">
+                  <span className="text-emerald-400">{rollup.completed} done</span>
+                  <span className="text-purple-400">{rollup.inProgress} active</span>
+                  {rollup.failed > 0 && <span className="text-red-400">{rollup.failed} failed</span>}
+                  <span className="text-slate-500">{rollup.pending} pending</span>
+                </div>
+              </>
+            )}
             <p className="mt-1 text-[11px] text-slate-500">{formatRelativeTime(initiative.updated)}</p>
           </button>
         );

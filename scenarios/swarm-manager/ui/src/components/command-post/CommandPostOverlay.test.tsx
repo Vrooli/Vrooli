@@ -49,6 +49,10 @@ vi.mock("./DecisionStreamView", () => ({
   ),
 }));
 
+vi.mock("../backlog/clarification-panel", () => ({
+  ClarificationPanel: () => <div data-testid="mock-clarification-panel" />,
+}));
+
 vi.mock("../../stores/backlog-store", () => ({
   useBacklogStore: vi.fn((selector: (state: { items: BacklogItem[] }) => unknown) =>
     selector({ items: [] }),

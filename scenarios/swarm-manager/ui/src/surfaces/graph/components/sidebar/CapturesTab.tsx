@@ -75,7 +75,7 @@ export function CapturesTab({ searchQuery, filters, sort, onItemClick: _onItemCl
     setIsSubmitting(true);
     setSubmitError(null);
     try {
-      const created = await backlogService.create(values);
+      const created = await backlogService.create({ ...values, suggestedSkills: [] });
       upsertBacklogItem(created);
       setShowEditDialog(false);
       setEditPrefill(undefined);

@@ -181,6 +181,7 @@ describe("BacklogDetailsPage", () => {
     status: "backlog" as const,
     priority: 2,
     tags: ["feature", "api"],
+    suggestedSkills: [],
     created: "2026-01-20T10:00:00Z",
     updated: "2026-01-25T15:30:00Z",
     kind: "idea" as const,

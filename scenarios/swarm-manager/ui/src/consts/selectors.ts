@@ -402,6 +402,9 @@ export const literalSelectors = {
       navSnooze: "ds-nav-snooze",
       navNext: "ds-nav-next",
       progressBar: "ds-progress-bar",
+      openItemLink: "ds-open-item",
+      deleteButton: "ds-delete-question",
+      deleteConfirm: "ds-delete-confirm",
     },
   },
   graphNavControls: {

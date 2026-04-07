@@ -79,6 +79,7 @@ export function mapProtoBacklogItem(protoItem: BacklogItem): BacklogItemDomain {
     ...(protoItem.spawnedFrom ? { spawnedFrom: protoItem.spawnedFrom } : {}),
     ...(protoItem.note ? { note: protoItem.note } : {}),
     ...(protoItem.archivedAt ? { archivedAt: protoItem.archivedAt } : {}),
+    suggestedSkills: protoItem.suggestedSkills ?? [],
   };
 }
 

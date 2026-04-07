@@ -154,6 +154,7 @@ export function CaptureTriage({ capture, onEditItem, onCaptureResolved }: Captur
         status: "backlog",
         priority: item.priority,
         tags: item.tags,
+        suggestedSkills: [],
       });
       upsertBacklogItem(created);
 

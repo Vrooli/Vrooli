@@ -23,7 +23,7 @@ export function useGamepad(
   useEffect(() => {
     const mgr = new GamepadInputManager({
       ...options,
-      onAction: (a) => callbackRef.current(a),
+      onAction: (a: GamepadAction) => callbackRef.current(a),
     });
     mgr.start();
     managerRef.current = mgr;

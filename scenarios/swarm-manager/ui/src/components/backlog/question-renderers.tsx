@@ -28,18 +28,23 @@ export interface WorkshopQuestionViewProps {
   answer: QuestionAnswer | undefined;
   disabled: boolean;
   onUpdate: (patch: Partial<QuestionAnswer>) => void;
+  /** Optional action buttons rendered in the header row (e.g. clarify, delete). */
+  actions?: React.ReactNode;
 }
 
-export function WorkshopQuestionView({ question, answer, disabled, onUpdate }: WorkshopQuestionViewProps) {
+export function WorkshopQuestionView({ question, answer, disabled, onUpdate, actions }: WorkshopQuestionViewProps) {
   const selected = answer?.selected ?? question.selected ?? "";
   const freeform = answer?.freeform ?? question.freeform ?? "";
+  const notes = answer?.notes ?? question.notes ?? "";
   const isOther = selected === OTHER_KEY;
+  const isResolved = !!selected.trim();
   const options = filterAgentOther(question.options ?? []);
 
   const handleSelect = (key: string) => {
     onUpdate({
       selected: key,
       freeform: key === OTHER_KEY ? freeform : undefined,
+      notes,
     });
   };
 
@@ -49,7 +54,8 @@ export function WorkshopQuestionView({ question, answer, disabled, onUpdate }: W
         <span className="mt-0.5 shrink-0 rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
           D
         </span>
-        <p className="text-sm font-medium leading-snug text-slate-200">{question.topic || question.text}</p>
+        <p className="flex-1 text-sm font-medium leading-snug text-slate-200">{question.topic || question.text}</p>
+        {actions}
       </div>
       {question.context && (
         <p className="text-[11px] leading-relaxed text-slate-500">{question.context}</p>
@@ -127,6 +133,18 @@ export function WorkshopQuestionView({ question, answer, disabled, onUpdate }: W
           />
         )}
       </div>
+
+      {/* Notes — visible once any option is selected */}
+      {isResolved && (
+        <textarea
+          className="w-full rounded-md border border-slate-600 bg-slate-800 px-2 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-slate-500 focus:outline-none"
+          placeholder="Notes (optional)..."
+          value={notes}
+          onChange={(e) => onUpdate({ selected, freeform: isOther ? freeform : undefined, notes: e.target.value })}
+          disabled={disabled}
+          rows={2}
+        />
+      )}
     </div>
   );
 }
@@ -140,9 +158,11 @@ export interface ReviewQuestionViewProps {
   answer: QuestionAnswer | undefined;
   disabled: boolean;
   onUpdate: (patch: Partial<QuestionAnswer>) => void;
+  /** Optional action buttons rendered in the header row. */
+  actions?: React.ReactNode;
 }
 
-export function ReviewQuestionView({ question, answer, disabled, onUpdate }: ReviewQuestionViewProps) {
+export function ReviewQuestionView({ question, answer, disabled, onUpdate, actions }: ReviewQuestionViewProps) {
   const status: ReviewStatus = answer?.reviewStatus ?? (question.review_status as ReviewStatus) ?? "unreviewed";
   const comment = answer?.reviewComment ?? question.review_comment ?? "";
   const showComment = status === "flagged";
@@ -159,7 +179,7 @@ export function ReviewQuestionView({ question, answer, disabled, onUpdate }: Rev
         <span className="mt-0.5 shrink-0 rounded bg-slate-700 px-1.5 py-0.5 text-[10px] font-medium text-slate-400">
           {question.review_type === "requirement" ? "Req" : "Target"}
         </span>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-mono text-slate-500">{question.id}</span>
             {question.criticality && (
@@ -173,6 +193,7 @@ export function ReviewQuestionView({ question, answer, disabled, onUpdate }: Rev
           </div>
           <p className="mt-0.5 text-sm font-medium leading-snug text-slate-200">{question.title}</p>
         </div>
+        {actions}
       </div>
       {question.description && (
         <p className="text-[11px] leading-relaxed text-slate-400">{question.description}</p>
