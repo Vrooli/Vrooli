@@ -28,12 +28,6 @@ import (
 	"swarm-manager/internal/workshop"
 )
 
-// workshopLockFile is the filename used for idempotency locking.
-const workshopLockFile = ".workshop-lock"
-
-// workshopLockTTL is how long a stale lock file is considered valid.
-const workshopLockTTL = 30 * time.Minute
-
 // WorkshopSave saves a workshop round's responses and optionally auto-triggers
 // the next workshop round or a final synthesis pass.
 func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
@@ -173,8 +167,13 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 				// Immediate advance (delay=0): spawn right away.
 				runID, taskID, spawnErr := h.spawnWorkshopAsync(item, runMode)
 				if spawnErr != nil {
-					slog.Error("auto-advance spawn failed", "kind", kind, "name", name, "err", spawnErr)
-					autoAdvance.Reason = "error"
+					if errors.Is(spawnErr, agentactivity.ErrBacklogItemBusy) {
+						slog.Info("auto-advance skipped: agent already active", "kind", kind, "name", name)
+						autoAdvance.Reason = "agent_active"
+					} else {
+						slog.Error("auto-advance spawn failed", "kind", kind, "name", name, "err", spawnErr)
+						autoAdvance.Reason = "error"
+					}
 				} else {
 					autoAdvance.Triggered = true
 					autoAdvance.RunId = &runID
@@ -217,19 +216,9 @@ func resolveNextMode(result workshop.AutoAdvanceResult, autoAdvanceEnabled bool,
 }
 
 // spawnWorkshopAsync spawns a workshop/finalize/initialize agent for the given item.
-// It acquires an idempotency lock, fetches the prompt, and spawns via
-// agent-manager. Returns run/task IDs on success.
+// Per-item idempotency is enforced by the centralized guard in
+// agentactivity.Service.spawnTracked — no local lock needed here.
 func (h *Handler) spawnWorkshopAsync(item BacklogItem, mode ResearchMode) (runID, taskID string, err error) {
-	itemDir := h.store.ItemDir(item.Kind, item.Name)
-
-	// Idempotency lock.
-	release, acquired := tryAcquireWorkshopLock(itemDir)
-	if !acquired {
-		return "", "", fmt.Errorf("workshop lock held for %s/%s", item.Kind, item.Name)
-	}
-	// Release lock after spawn completes (or fails).
-	defer release()
-
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
@@ -279,40 +268,6 @@ func (h *Handler) spawnWorkshopAsync(item BacklogItem, mode ResearchMode) (runID
 	return runResult.RunID, runResult.TaskID, nil
 }
 
-// tryAcquireWorkshopLock attempts to create a lock file atomically.
-// Returns a release function and true if acquired, or nil and false if
-// the lock is already held (and not stale).
-func tryAcquireWorkshopLock(itemDir string) (release func(), ok bool) {
-	lockPath := filepath.Join(itemDir, workshopLockFile)
-
-	// Clean stale locks.
-	if info, err := os.Stat(lockPath); err == nil {
-		if time.Since(info.ModTime()) > workshopLockTTL {
-			_ = os.Remove(lockPath)
-		}
-	}
-
-	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
-	if err != nil {
-		return nil, false
-	}
-	_, _ = f.WriteString(time.Now().UTC().Format(time.RFC3339))
-	f.Close()
-
-	return func() { _ = os.Remove(lockPath) }, true
-}
-
-// isWorkshopLocked peeks at the workshop lock without acquiring it.
-// Returns true if a non-stale lock exists.
-func isWorkshopLocked(itemDir string) bool {
-	lockPath := filepath.Join(itemDir, workshopLockFile)
-	info, err := os.Stat(lockPath)
-	if err != nil {
-		return false
-	}
-	return time.Since(info.ModTime()) <= workshopLockTTL
-}
-
 // WorkshopDeleteRound deletes a workshop round and renumbers subsequent rounds.
 func (h *Handler) WorkshopDeleteRound(w http.ResponseWriter, r *http.Request) {
 	kind, name, ok := h.parseKindAndName(w, r, "workshop-delete-round")
@@ -338,14 +293,13 @@ func (h *Handler) WorkshopDeleteRound(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	itemDir := h.store.ItemDir(kind, name)
-
-	// Prevent deletion while a workshop agent is running.
-	if isWorkshopLocked(itemDir) {
-		apierr.MapError(w, "[backlog] workshop-delete-round", apierr.Conflict("workshop is currently being generated; try again after the agent finishes"))
+	// Prevent deletion while an agent is working on this item.
+	if h.activityChecker != nil && h.activityChecker.HasActiveAgent(r.Context(), string(kind), name) {
+		apierr.MapError(w, "[backlog] workshop-delete-round", apierr.Conflict("an agent is currently working on this item; try again after it finishes"))
 		return
 	}
 
+	itemDir := h.store.ItemDir(kind, name)
 	remaining, err := workshop.DeleteRoundAndRenumber(itemDir, int(req.RoundNumber))
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
@@ -386,13 +340,13 @@ func (h *Handler) WorkshopReset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	itemDir := h.store.ItemDir(kind, name)
-
-	// Prevent reset while a workshop agent is running.
-	if isWorkshopLocked(itemDir) {
-		apierr.MapError(w, "[backlog] workshop-reset", apierr.Conflict("workshop is currently being generated; try again after the agent finishes"))
+	// Prevent reset while an agent is working on this item.
+	if h.activityChecker != nil && h.activityChecker.HasActiveAgent(r.Context(), string(kind), name) {
+		apierr.MapError(w, "[backlog] workshop-reset", apierr.Conflict("an agent is currently working on this item; try again after it finishes"))
 		return
 	}
+
+	itemDir := h.store.ItemDir(kind, name)
 
 	// Determine deliverable file based on kind.
 	deliverableFile := "plan.md"

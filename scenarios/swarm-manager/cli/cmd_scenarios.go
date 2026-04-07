@@ -357,6 +357,75 @@ func (a *App) cmdScenariosRestart(args []string) error {
 	return a.runScenarioLifecycle(args, "restart")
 }
 
+func (a *App) cmdScenariosReviewQueue(args []string) error {
+	fs := flag.NewFlagSet("scenarios review-queue", flag.ContinueOnError)
+	limit := fs.Int("limit", 5, "Max scenarios to return (1-50)")
+	excludeTag := fs.String("exclude-tag", "", "Tag to exclude scenarios with pending QA fixes")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	query := url.Values{}
+	if *limit != 5 {
+		query.Set("limit", fmt.Sprintf("%d", *limit))
+	}
+	if strings.TrimSpace(*excludeTag) != "" {
+		query.Set("exclude_tag", strings.TrimSpace(*excludeTag))
+	}
+
+	body, err := a.getV1("/scenarios/review-queue", query)
+	if err != nil {
+		return err
+	}
+
+	if *jsonOut {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	var response ScenarioReviewQueueResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	printSection("Review Queue")
+	fmt.Printf("  Total scenarios: %d | Excluded (pending fixes): %d\n\n", response.TotalScenarios, response.ExcludedCount)
+
+	if len(response.Items) == 0 {
+		fmt.Println("  No scenarios require preemptive review.")
+		return nil
+	}
+
+	// Table header.
+	fmt.Printf("  %-30s %7s %12s %8s  %s\n", "Scenario", "Pending", "Last Review", "Score", "Signal")
+	fmt.Printf("  %-30s %7s %12s %8s  %s\n", "--------", "-------", "-----------", "-----", "------")
+	for _, item := range response.Items {
+		lastReview := "-"
+		if item.LastReviewClassification != "" {
+			lastReview = item.LastReviewClassification
+		}
+		cooldown := ""
+		if item.CooldownUntil != "" {
+			cooldown = " (cooldown)"
+		}
+		fmt.Printf("  %-30s %7d %12s %8.1f  %s%s\n",
+			item.ScenarioName,
+			item.PendingBacklogCount,
+			lastReview,
+			item.CompositeScore,
+			item.PrimarySignal,
+			cooldown,
+		)
+	}
+
+	fmt.Println()
+	printCommandListSection("Next Steps", []string{
+		cliCommand("scenarios", "review-queue", "--limit", "10", "--json"),
+	})
+	return nil
+}
+
 func (a *App) runScenarioLifecycle(args []string, action string) error {
 	fs := flag.NewFlagSet("scenarios "+action, flag.ContinueOnError)
 	nameFlag := fs.String("name", "", "Scenario name")

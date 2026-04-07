@@ -13,6 +13,7 @@ import {
 import { Button } from "../ui/button";
 import { TagList } from "../ui/tag-list";
 import { DetailSection } from "../detail/DetailSection";
+import { ReviewClassificationBadge } from "./ReviewClassificationBadge";
 import { ScenarioCliHints } from "./ScenarioCliHints";
 import { capitalize } from "../../lib";
 import { SCENARIO_STATUS_COLORS, type ScenarioStatus } from "../../types";
@@ -26,6 +27,8 @@ export interface ScenarioMobileViewProps {
     priority: number;
     tags: string[];
     completenessScore?: number;
+    lastReviewClassification?: string;
+    lastReviewAt?: string;
   };
   name: string;
   StatusIcon: LucideIcon;
@@ -116,6 +119,17 @@ export function ScenarioMobileView({
               {localGreenfield && (
                 <span className="rounded-full bg-cyan-500/20 px-2 py-0.5 text-[11px] text-cyan-300">
                   Greenfield
+                </span>
+              )}
+              {scenario.lastReviewClassification ? (
+                <ReviewClassificationBadge
+                  classification={scenario.lastReviewClassification}
+                  reviewedAt={scenario.lastReviewAt}
+                  showTimestamp
+                />
+              ) : (
+                <span className="rounded-full bg-slate-500/20 px-2 py-0.5 text-[11px] text-slate-400">
+                  Not reviewed
                 </span>
               )}
             </div>

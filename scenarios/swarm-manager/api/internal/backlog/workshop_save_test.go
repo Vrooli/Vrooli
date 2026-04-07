@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/testutil"
 	"swarm-manager/internal/workshop"
@@ -544,13 +545,15 @@ func TestWorkshopSave_AgentDown_StillSaves(t *testing.T) {
 	}
 }
 
-func TestWorkshopSave_ConcurrentSaves_LockPreventsDouble(t *testing.T) {
+func TestWorkshopSave_ConcurrentSaves_GuardPreventsDouble(t *testing.T) {
+	// Simulate the centralized guard rejecting the spawn because another
+	// agent is already active for this item.
 	agent := &mockAgentService{
-		result: agentmanager.RunResult{RunID: "run-x", TaskID: "task-x"},
+		err: agentactivity.ErrBacklogItemBusy,
 	}
 	h, rootDir := setupTestHandlerWithAgent(t, agent)
 
-	// Enable auto-advance to test lock behavior.
+	// Enable auto-advance to trigger the spawn path.
 	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
 		"theme":                       "dark",
 		"default_mode":                "manual",
@@ -572,11 +575,6 @@ func TestWorkshopSave_ConcurrentSaves_LockPreventsDouble(t *testing.T) {
 		Created: "2026-01-01T00:00:00Z", Updated: "2026-01-01T00:00:00Z",
 	})
 
-	// Manually create a lock file to simulate a concurrent spawn.
-	itemDir := filepath.Join(rootDir, "ideas", "ws-lock")
-	lockPath := filepath.Join(itemDir, ".workshop-lock")
-	testutil.WriteFile(t, lockPath, "2026-01-01T00:00:00Z")
-
 	round := workshop.Round{
 		RoundNum:    1,
 		GeneratedAt: "2026-01-01T00:00:00Z",
@@ -588,7 +586,7 @@ func TestWorkshopSave_ConcurrentSaves_LockPreventsDouble(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.WorkshopSave(w, workshopSaveRequest("idea", "ws-lock", body))
 
-	// Save succeeds.
+	// Save succeeds even though auto-advance was blocked.
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
@@ -597,23 +595,13 @@ func TestWorkshopSave_ConcurrentSaves_LockPreventsDouble(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("failed to unmarshal response: %v", err)
 	}
-	// Auto-advance should fail due to lock → reported as error.
+	// Auto-advance should report agent_active (not error) when the guard blocks.
 	if resp.AutoAdvance.Triggered {
-		t.Error("expected auto-advance NOT triggered when lock is held")
+		t.Error("expected auto-advance NOT triggered when agent is already active")
 	}
-	if resp.AutoAdvance.Reason != "error" {
-		t.Errorf("expected reason 'error', got %q", resp.AutoAdvance.Reason)
+	if resp.AutoAdvance.Reason != "agent_active" {
+		t.Errorf("expected reason 'agent_active', got %q", resp.AutoAdvance.Reason)
 	}
-	if resp.AutoAdvance.NextMode == nil || *resp.AutoAdvance.NextMode != "workshop" {
-		t.Errorf("expected next mode 'workshop', got %v", resp.AutoAdvance.NextMode)
-	}
-	// Agent should NOT have been called.
-	if agent.lastReq != nil {
-		t.Error("expected no agent spawn when lock is held")
-	}
-
-	// Clean up lock.
-	os.Remove(lockPath)
 }
 
 func TestWorkshopSave_OtherSelectedEmptyFreeform_NoAutoAdvance(t *testing.T) {

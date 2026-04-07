@@ -2,13 +2,13 @@
   "round": 1,
   "generated_at": "2026-04-04T18:30:00Z",
   "mode": "workshop",
-  "pending_synthesis": false,
+  "pending_synthesis": true,
   "readiness": {
-    "problem_clarity": 2,
-    "scope_defined": 3,
     "approach_solid": 2,
-    "testable": 2,
-    "risk_awareness": 2
+    "problem_clarity": 2,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
   },
   "items": [
     {
@@ -39,9 +39,7 @@
           "rationale": "Provide your own default policy shape and values."
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d2",
@@ -71,9 +69,7 @@
           "rationale": "Provide your own visibility model."
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d3",
@@ -103,9 +99,7 @@
           "rationale": "Provide your own current-version strategy."
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d4",
@@ -115,7 +109,7 @@
       "options": [
         {
           "key": "A",
-          "label": "Lightweight version+sha512 check: GET /api/v1/updates/{app_key}/verify?channel=X&platform=Y&expected_version=Z",
+          "label": "Lightweight version+sha512 check: GET /api/v1/updates/{app_key}/verify?channel=X\u0026platform=Y\u0026expected_version=Z",
           "rationale": "Checks that the manifest for the given channel/platform reports the expected version and has a non-empty sha512. Returns {match: true/false, actual_version, actual_sha512}. Simple, fast, covers the primary use case of post-deploy smoke testing. Recommended because it's the minimum viable verification that catches the most common failure (wrong version served).",
           "recommended": true
         },
@@ -135,9 +129,8 @@
           "rationale": "Provide your own verification approach."
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "__other__",
+      "freeform": "Whatever you think is the best long-term solution"
     },
     {
       "id": "i1",

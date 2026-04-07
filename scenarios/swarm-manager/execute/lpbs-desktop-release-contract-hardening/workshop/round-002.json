@@ -1,0 +1,134 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-07T19:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 2,
+    "testable": 2,
+    "risk_awareness": 2
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "is_current correction: The plan (from round 1, d3→A) says to add an is_current BOOLEAN column to download_artifacts. However, codebase inspection reveals is_current is already computed dynamically via a LEFT JOIN on download_assets in ListArtifactsByApp() (download_hosting.go:981) and GetCurrentArtifactByFilename() (download_hosting.go:1016-1039). The existing handleAdminSetArtifactAsCurrent endpoint (routes.go:126) manages 'current' by updating download_assets.artifact_id, not by flipping a column. No schema change is needed for is_current — the computed approach is already correct and matches the research conclusion's 'application-level logic' recommendation. The plan will be updated to remove the is_current migration."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "d4 resolution (verification endpoint): Based on user's 'best long-term solution' direction, the verification endpoint will combine options A and B from round 1. Default behavior: lightweight version+sha512 match (fast, no S3 calls). Optional deep=true query parameter: also HEAD the S3 object to confirm artifact accessibility and generate a test presign. This gives quick post-deploy smoke testing by default while allowing thorough validation when needed. Route: GET /api/v1/updates/{app_key}/verify?channel=X&platform=Y&expected_version=Z&deep=false. Response: {match: bool, actual_version: string, actual_sha512: string, artifact_accessible?: bool, presign_valid?: bool}. Same API-key gating as the update endpoint."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Update policy JSONB schema shape",
+      "context": "Round 1 settled on conservative defaults (4h check, optional, no rollback). Now we need to define the concrete JSONB fields stored in download_apps.update_policy. These fields will be served via the admin endpoint and ultimately embedded in generated desktop app configs. The schema must be extensible (JSONB allows additive changes) while covering the minimum viable policy surface.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Minimal viable: {check_interval_hours, update_mode, allow_downgrade}",
+          "rationale": "check_interval_hours (int, default 4): how often to poll. update_mode (string, default 'optional'): 'optional'|'recommended'|'mandatory'. allow_downgrade (bool, default false): whether older versions can be served. Covers core auto-update behavior without overengineering. Recommended because it maps directly to electron-updater config options and the 'non-invasive auto-update' goal. Fields like rollback_window or mandatory_after_days can be added later via JSONB without migration.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Full policy: add mandatory_after_days, rollback_window_hours, min_version",
+          "rationale": "Adds mandatory_after_days (int, nullable): force update after N days even if mode is 'optional'. rollback_window_hours (int, nullable): allow reverting to previous version within window. min_version (string, nullable): floor version below which updates are forced. More complete but most fields will be null/unused for initial launches."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own policy schema shape."
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Release notes format in electron-updater manifest",
+      "context": "buildElectronManifest() (update_handlers.go:58-69) produces YAML for electron-updater. The standard electron-updater manifest supports a 'releaseNotes' field. download_assets.release_notes already stores per-asset notes. The question is what format to serve and how to handle missing notes.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Plain text passthrough: serve release_notes as-is in releaseNotes YAML field",
+          "rationale": "Whatever is stored in download_assets.release_notes gets emitted verbatim. Electron-updater displays it in the update dialog. Simple, no transformation needed. The field is omitted from the manifest if release_notes is empty. Recommended because it keeps LPBS format-agnostic — the content producer (S2D/DM) controls the format, and LPBS just passes it through.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Markdown with HTML fallback: serve as releaseNotes with releaseNotesFormat='markdown'",
+          "rationale": "Electron-updater supports a releaseNotesFormat field ('text'|'markdown'|'html'). Serving as markdown enables rich formatting in update dialogs. But requires storing/detecting the format alongside the notes, adding a release_notes_format column or convention."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own format strategy."
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Migration file strategy",
+      "context": "This item requires 2 schema changes: (1) release_id TEXT column + index on download_artifacts, (2) update_policy JSONB column on download_apps. These could be a single migration or separate ones. LPBS uses inline DDL in main.go (IF NOT EXISTS pattern at lines 742-806) rather than numbered migration files.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Add both columns in the existing IF NOT EXISTS DDL block in main.go",
+          "rationale": "Follows the existing LPBS pattern — all schema setup runs on startup with IF NOT EXISTS guards. No migration tooling needed. Both new columns are additive (nullable TEXT and JSONB with defaults), so they're safe to add idempotently. Recommended because it's consistent with how LPBS already manages schema and avoids introducing a migration framework for 2 additive columns.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Introduce a numbered migration system (001_add_release_id.sql, 002_add_update_policy.sql)",
+          "rationale": "More rigorous for a production system. Enables rollback tracking and ordered application. But LPBS has no migration runner infrastructure, so this would require building or adopting one — significant scope creep for this item."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own migration approach."
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Verification and channel discovery endpoint auth: reuse existing middleware or inline check",
+      "context": "The update endpoint (handleUpdateFile) does its own inline API-key check against app.UpdateAPIKey using string comparison (to be fixed with constant-time compare). The new endpoints (channel discovery, verification) need the same gating. We could extract a shared middleware or duplicate the inline pattern.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Extract a requireUpdateAPIKey(appKey) middleware and use it on all three routes",
+          "rationale": "DRY — one place to maintain the API key check logic, including the constant-time fix. All update-family routes get consistent behavior. The middleware loads the app, checks the key, and either proceeds or returns 401. Recommended because the constant-time fix, key header name, and error response should be identical across all update-family endpoints.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Inline check in each handler (copy existing pattern with constant-time fix)",
+          "rationale": "Simpler — no new abstraction. Each handler already loads the app for its own purposes, so the key check is 3 lines of code. But the constant-time comparison logic would be duplicated in 3 places."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own auth sharing approach."
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    }
+  ],
+  "plan_updates": "Corrected is_current misconception (no schema change needed — already computed via JOIN). Resolved d4 from round 1 as combined lightweight+deep verification endpoint. Refined Phase 1 to remove is_current migration. Added concrete verification endpoint spec to Phase 2. Round 2 decisions will further refine update_policy schema, release notes format, migration strategy, and auth middleware extraction."
+}

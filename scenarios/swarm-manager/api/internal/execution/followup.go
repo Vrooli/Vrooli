@@ -2,6 +2,7 @@ package execution
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -126,7 +127,11 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 		Environment:     map[string]string{"VROOLI_SPAWN_SOURCE": item.Kind + "/" + item.Name},
 	})
 	if err != nil {
-		slog.Error("failed to spawn fixup run", "err", err)
+		if errors.Is(err, agentactivity.ErrBacklogItemBusy) {
+			slog.Warn("fixup spawn skipped: agent already active", "kind", item.Kind, "name", item.Name)
+		} else {
+			slog.Error("failed to spawn fixup run", "err", err)
+		}
 		for i := range records {
 			if records[i].ExecutionID == fixupRecord.ExecutionID {
 				records[i].Status = StatusFailed
@@ -307,7 +312,7 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 			Environment:     map[string]string{"VROOLI_SPAWN_SOURCE": item.Kind + "/" + item.Name},
 		})
 		if spawnErr != nil {
-			return Record{}, fmt.Errorf("spawn follow-up failed: %w", spawnErr)
+			return Record{}, wrapAgentError(fmt.Errorf("spawn follow-up failed: %w", spawnErr))
 		}
 		followUpRecord.TaskID = runResult.TaskID
 		followUpRecord.RunID = runResult.RunID

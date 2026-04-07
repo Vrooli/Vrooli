@@ -121,6 +121,12 @@ func (s *Server) setupRoutes() {
 	s.registerReviewRoutes(scenarioRoot, execSvc)
 	s.registerQueueRoutes(scenarioRoot)
 
+	// --- Cross-domain wiring ---
+	s.scenariosHandler.SetBacklogLister(backlogHandler.Store())
+	if execSvc != nil {
+		s.scenariosHandler.SetExecutionLister(execSvc)
+	}
+
 	// --- Read-only surfaces ---
 	overviewSvc := s.registerOverviewRoutes(backlogHandler, initService)
 	if execSvc != nil {

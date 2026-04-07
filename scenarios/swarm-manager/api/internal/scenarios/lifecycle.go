@@ -140,7 +140,7 @@ func (h *Handler) handleLifecycleAction(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	resp := &apipb.ScenarioResponse{Scenario: scenarioToProto(scenario)}
+	resp := &apipb.ScenarioResponse{Scenario: scenarioToProto(scenario, nil)}
 	if err := httputil.ProtoJSON(w, resp); err != nil {
 		apierr.MapError(w, "[scenarios] "+action, apierr.Internal("failed to encode response"))
 	}

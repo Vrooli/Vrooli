@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 	"sync"
@@ -201,6 +202,36 @@ func (s *Service) List(ctx context.Context, filters ListFilters) ([]Record, erro
 	return filtered, nil
 }
 
+// HasActiveAgent checks whether a backlog item has an active agent
+// (pending, starting, running, or needs_review). Used by non-spawn guards
+// like WorkshopDeleteRound and WorkshopReset to prevent mutations while
+// an agent is working. Returns false on store errors (safe-side: allow
+// operations to proceed if the store is broken).
+func (s *Service) HasActiveAgent(ctx context.Context, ownerKind, ownerName string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	records, err := s.store.Load()
+	if err != nil {
+		return false
+	}
+	_ = s.refreshActiveForOwnerLocked(ctx, records, ownerKind, ownerName)
+	records, _ = s.store.Load()
+
+	for _, rec := range records {
+		if rec.OwnerType != OwnerBacklog || rec.OwnerKind != ownerKind || rec.OwnerName != ownerName {
+			continue
+		}
+		if isPendingStale(rec) {
+			continue
+		}
+		if isActiveStatus(rec.Status) {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Service) spawnTracked(
 	ctx context.Context,
 	spec Spec,
@@ -215,6 +246,47 @@ func (s *Service) spawnTracked(
 	if err != nil {
 		s.mu.Unlock()
 		return agentmanager.RunResult{}, err
+	}
+
+	// Guard: at most one active agent per backlog item.
+	if spec.OwnerType == OwnerBacklog {
+		// Best-effort refresh of this item's active records to clear stale state.
+		if refreshErr := s.refreshActiveForOwnerLocked(ctx, records, spec.OwnerKind, spec.OwnerName); refreshErr != nil {
+			slog.Warn("backlog item guard: refresh failed, proceeding with stale data", "err", refreshErr)
+		}
+		// Re-load after refresh may have saved updated statuses.
+		records, err = s.store.Load()
+		if err != nil {
+			s.mu.Unlock()
+			return agentmanager.RunResult{}, err
+		}
+
+		staleCleaned := false
+		for i, rec := range records {
+			if rec.OwnerType != OwnerBacklog || rec.OwnerKind != spec.OwnerKind || rec.OwnerName != spec.OwnerName {
+				continue
+			}
+			// Auto-fail stale pending records (no RunID, older than TTL).
+			if isPendingStale(rec) {
+				records[i].Status = StatusFailed
+				records[i].FailureReason = "pending spawn timed out"
+				records[i].FinishedAt = nowRFC3339()
+				records[i].UpdatedAt = records[i].FinishedAt
+				staleCleaned = true
+				continue
+			}
+			if isActiveStatus(rec.Status) {
+				s.mu.Unlock()
+				return agentmanager.RunResult{}, fmt.Errorf("%w: %s/%s already has an active agent (activity=%s, status=%s, purpose=%s)",
+					ErrBacklogItemBusy, rec.OwnerKind, rec.OwnerName, rec.ActivityID, rec.Status, rec.Purpose)
+			}
+		}
+		if staleCleaned {
+			if err := s.store.Save(records); err != nil {
+				s.mu.Unlock()
+				return agentmanager.RunResult{}, err
+			}
+		}
 	}
 
 	now := nowRFC3339()

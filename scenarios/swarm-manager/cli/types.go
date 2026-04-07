@@ -205,6 +205,25 @@ type DeleteScenarioResponse struct {
 	Message  string `json:"message"`
 }
 
+// ScenarioReviewQueueItem represents a single scenario in the review queue.
+type ScenarioReviewQueueItem struct {
+	ScenarioName             string  `json:"scenario_name"`
+	PendingBacklogCount      int     `json:"pending_backlog_count"`
+	LastReviewClassification string  `json:"last_review_classification,omitempty"`
+	LastReviewAt             string  `json:"last_review_at,omitempty"`
+	RecentExecutionCount     int     `json:"recent_execution_count"`
+	CompositeScore           float64 `json:"composite_score"`
+	PrimarySignal            string  `json:"primary_signal"`
+	CooldownUntil            string  `json:"cooldown_until,omitempty"`
+}
+
+// ScenarioReviewQueueResponse is the response from the review-queue endpoint.
+type ScenarioReviewQueueResponse struct {
+	Items          []ScenarioReviewQueueItem `json:"items"`
+	TotalScenarios int                       `json:"total_scenarios"`
+	ExcludedCount  int                       `json:"excluded_count"`
+}
+
 // QueueItem represents a local queue entry.
 type QueueItem struct {
 	ID      string          `json:"id"`

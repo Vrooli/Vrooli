@@ -387,6 +387,20 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Cancel any pending auto-advance for workshop/finalize modes. This
+	// prevents a deferred auto-advance from racing with the user's manual
+	// "Next Round" click. The centralized guard in agentactivity.spawnTracked
+	// is the authoritative backstop against double-spawns.
+	if mode == ResearchModeWorkshop || mode == ResearchModeFinalize {
+		itemDir := h.store.ItemDir(kind, item.Name)
+		if deletePendingAdvance(itemDir) {
+			slog.Info("research: cancelled pending auto-advance", "kind", kind, "name", name, "mode", mode)
+		}
+		if h.workshopTicker != nil {
+			h.workshopTicker.Unregister(string(kind), name)
+		}
+	}
+
 	if httputil.IsDryRun(r) {
 		resp := &apipb.BacklogResearchResponse{
 			TaskId:  "dry-run-task",
@@ -432,6 +446,10 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, agentmanager.ErrNotAvailable) {
 			apierr.MapError(w, "[backlog] research", apierr.Unavailable("agent-manager is not available"))
+			return
+		}
+		if errors.Is(err, agentactivity.ErrBacklogItemBusy) {
+			apierr.MapError(w, "[backlog] research", apierr.Conflict("an agent is already active for this backlog item"))
 			return
 		}
 		apierr.MapError(w, "[backlog] research", apierr.Internal("failed to spawn research agent"))

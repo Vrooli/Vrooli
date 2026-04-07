@@ -42,11 +42,19 @@ type AgentSpawner interface {
 	GetRunState(ctx context.Context, runID string) (agentmanager.RunState, error)
 }
 
+// AgentActivityChecker checks whether a backlog item has an active agent.
+// Used by non-spawn guards (WorkshopDeleteRound, WorkshopReset) to prevent
+// mutations while an agent is working on the item.
+type AgentActivityChecker interface {
+	HasActiveAgent(ctx context.Context, ownerKind, ownerName string) bool
+}
+
 // Handler provides HTTP handlers for backlog operations.
 type Handler struct {
 	rootDir            string
 	store              Store
 	agentService       AgentSpawner
+	activityChecker    AgentActivityChecker
 	promptClient       promptmanager.Client
 	initiativeAssigner InitiativeAssigner
 	executionQueuer    ExecutionQueuer
@@ -91,6 +99,8 @@ func NewHandler(rootDir string) *Handler {
 }
 
 // NewHandlerWithClients creates a new backlog handler with custom dependencies.
+// If agentService implements AgentActivityChecker (e.g., *agentactivity.Service),
+// it is also used for active-agent guards.
 func NewHandlerWithClients(rootDir string, agentService AgentSpawner, promptClient promptmanager.Client) *Handler {
 	if rootDir == "" {
 		rootDir = pathutil.ResolveScenarioRoot("swarm-manager")
@@ -100,6 +110,9 @@ func NewHandlerWithClients(rootDir string, agentService AgentSpawner, promptClie
 		store:        NewFileStore(rootDir),
 		agentService: agentService,
 		promptClient: promptClient,
+	}
+	if checker, ok := agentService.(AgentActivityChecker); ok {
+		h.activityChecker = checker
 	}
 	if h.promptClient == nil {
 		h.promptClient = promptmanager.NewHTTPClient()

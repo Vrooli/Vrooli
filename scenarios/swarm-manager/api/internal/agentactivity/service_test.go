@@ -292,3 +292,249 @@ func TestServiceStopRunCancelsActiveActivities(t *testing.T) {
 		t.Fatalf("expected completed record to remain unchanged, got %q", records[1].Status)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Per-backlog-item guard tests
+// ---------------------------------------------------------------------------
+
+func TestSpawnBacklog_RejectsWhenItemAlreadyActive(t *testing.T) {
+	t.Parallel()
+	raw := &stubAgentService{
+		enabled:     true,
+		spawnResult: agentmanager.RunResult{TaskID: "t1", RunID: "r1"},
+	}
+	svc := newTestService(t, raw)
+
+	// First spawn succeeds.
+	ctx := WithSpec(context.Background(), Spec{
+		OwnerType: OwnerBacklog, OwnerKind: "idea", OwnerName: "item-a",
+		Purpose: PurposeWorkshop,
+	})
+	if _, err := svc.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
+		Kind: "idea", Name: "item-a",
+	}); err != nil {
+		t.Fatalf("first spawn should succeed: %v", err)
+	}
+
+	// Second spawn for the same item should fail.
+	ctx2 := WithSpec(context.Background(), Spec{
+		OwnerType: OwnerBacklog, OwnerKind: "idea", OwnerName: "item-a",
+		Purpose: PurposeFinalize,
+	})
+	_, err := svc.SpawnBacklog(ctx2, agentmanager.BacklogSpawnRequest{
+		Kind: "idea", Name: "item-a",
+	})
+	if !errors.Is(err, ErrBacklogItemBusy) {
+		t.Fatalf("expected ErrBacklogItemBusy, got %v", err)
+	}
+}
+
+func TestSpawnBacklog_AllowsWhenDifferentItem(t *testing.T) {
+	t.Parallel()
+	raw := &stubAgentService{
+		enabled:     true,
+		spawnResult: agentmanager.RunResult{TaskID: "t1", RunID: "r1"},
+	}
+	svc := newTestService(t, raw)
+
+	// Spawn for item-a.
+	ctx := WithSpec(context.Background(), Spec{
+		OwnerType: OwnerBacklog, OwnerKind: "idea", OwnerName: "item-a",
+		Purpose: PurposeWorkshop,
+	})
+	if _, err := svc.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
+		Kind: "idea", Name: "item-a",
+	}); err != nil {
+		t.Fatalf("spawn item-a should succeed: %v", err)
+	}
+
+	// Spawn for item-b should succeed (different item).
+	ctx2 := WithSpec(context.Background(), Spec{
+		OwnerType: OwnerBacklog, OwnerKind: "idea", OwnerName: "item-b",
+		Purpose: PurposeWorkshop,
+	})
+	if _, err := svc.SpawnBacklog(ctx2, agentmanager.BacklogSpawnRequest{
+		Kind: "idea", Name: "item-b",
+	}); err != nil {
+		t.Fatalf("spawn item-b should succeed: %v", err)
+	}
+}
+
+func TestSpawnBacklog_AllowsAfterPriorCompletes(t *testing.T) {
+	t.Parallel()
+	raw := &stubAgentService{
+		enabled:     true,
+		spawnResult: agentmanager.RunResult{TaskID: "t1", RunID: "r1"},
+		runStates: map[string]agentmanager.RunState{
+			"r1": {Status: "complete", TaskID: "t1"},
+		},
+	}
+	svc := newTestService(t, raw)
+
+	// First spawn.
+	ctx := WithSpec(context.Background(), Spec{
+		OwnerType: OwnerBacklog, OwnerKind: "idea", OwnerName: "item-a",
+		Purpose: PurposeWorkshop,
+	})
+	if _, err := svc.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
+		Kind: "idea", Name: "item-a",
+	}); err != nil {
+		t.Fatalf("first spawn should succeed: %v", err)
+	}
+
+	// Second spawn — the refresh should detect that r1 completed,
+	// clearing the way for a new spawn.
+	raw.spawnResult = agentmanager.RunResult{TaskID: "t2", RunID: "r2"}
+	ctx2 := WithSpec(context.Background(), Spec{
+		OwnerType: OwnerBacklog, OwnerKind: "idea", OwnerName: "item-a",
+		Purpose: PurposeFinalize,
+	})
+	if _, err := svc.SpawnBacklog(ctx2, agentmanager.BacklogSpawnRequest{
+		Kind: "idea", Name: "item-a",
+	}); err != nil {
+		t.Fatalf("second spawn should succeed after prior completed: %v", err)
+	}
+}
+
+func TestSpawnBacklog_AllowsStalePending(t *testing.T) {
+	t.Parallel()
+	raw := &stubAgentService{
+		enabled:     true,
+		spawnResult: agentmanager.RunResult{TaskID: "t1", RunID: "r1"},
+	}
+	svc := newTestService(t, raw)
+
+	// Pre-seed a stale pending record (no RunID, old timestamp).
+	staleRecord := Record{
+		ActivityID:      "stale-1",
+		OwnerType:       OwnerBacklog,
+		OwnerKind:       "idea",
+		OwnerName:       "item-a",
+		Purpose:         PurposeWorkshop,
+		InteractionType: InteractionSpawn,
+		Status:          StatusPending,
+		RequestedAt:     "2020-01-01T00:00:00Z", // well past the 5min TTL
+		UpdatedAt:       "2020-01-01T00:00:00Z",
+	}
+	if err := svc.store.Save([]Record{staleRecord}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Spawn should succeed — stale pending records are auto-failed.
+	ctx := WithSpec(context.Background(), Spec{
+		OwnerType: OwnerBacklog, OwnerKind: "idea", OwnerName: "item-a",
+		Purpose: PurposeWorkshop,
+	})
+	if _, err := svc.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
+		Kind: "idea", Name: "item-a",
+	}); err != nil {
+		t.Fatalf("spawn should succeed with stale pending record: %v", err)
+	}
+
+	// The stale record should now be failed.
+	records, _ := svc.store.Load()
+	for _, rec := range records {
+		if rec.ActivityID == "stale-1" && rec.Status != StatusFailed {
+			t.Errorf("expected stale record to be auto-failed, got %q", rec.Status)
+		}
+	}
+}
+
+func TestSpawnBacklog_SkipsGuardForNonBacklog(t *testing.T) {
+	t.Parallel()
+	raw := &stubAgentService{
+		enabled:     true,
+		spawnResult: agentmanager.RunResult{TaskID: "t1", RunID: "r1"},
+	}
+	svc := newTestService(t, raw)
+
+	// Pre-seed an active capture record — should not block a new capture spawn
+	// because the per-item guard only applies to OwnerBacklog.
+	activeRecord := Record{
+		ActivityID:      "capture-1",
+		OwnerType:       OwnerCapture,
+		OwnerKind:       "",
+		OwnerName:       "some-capture",
+		Purpose:         PurposeClassify,
+		InteractionType: InteractionSpawn,
+		Status:          StatusRunning,
+		RunID:           "r0",
+		RequestedAt:     nowRFC3339(),
+		UpdatedAt:       nowRFC3339(),
+	}
+	if err := svc.store.Save([]Record{activeRecord}); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := WithSpec(context.Background(), Spec{
+		OwnerType: OwnerCapture, OwnerName: "some-capture",
+		Purpose: PurposeClassify,
+	})
+	if _, err := svc.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
+		Name: "some-capture",
+	}); err != nil {
+		t.Fatalf("capture spawn should not be blocked by per-item guard: %v", err)
+	}
+}
+
+func TestHasActiveAgent_ReturnsTrueWhenActive(t *testing.T) {
+	t.Parallel()
+	raw := &stubAgentService{enabled: true}
+	svc := newTestService(t, raw)
+
+	activeRecord := Record{
+		ActivityID:      "active-1",
+		OwnerType:       OwnerBacklog,
+		OwnerKind:       "idea",
+		OwnerName:       "item-a",
+		Purpose:         PurposeWorkshop,
+		InteractionType: InteractionSpawn,
+		Status:          StatusRunning,
+		RunID:           "r1",
+		RequestedAt:     nowRFC3339(),
+		UpdatedAt:       nowRFC3339(),
+	}
+	if err := svc.store.Save([]Record{activeRecord}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Mock the run state to stay running.
+	raw.runStates = map[string]agentmanager.RunState{
+		"r1": {Status: "running", TaskID: "t1"},
+	}
+
+	if !svc.HasActiveAgent(context.Background(), "idea", "item-a") {
+		t.Error("expected HasActiveAgent to return true for active item")
+	}
+}
+
+func TestHasActiveAgent_ReturnsFalseAfterComplete(t *testing.T) {
+	t.Parallel()
+	raw := &stubAgentService{enabled: true}
+	svc := newTestService(t, raw)
+
+	record := Record{
+		ActivityID:      "done-1",
+		OwnerType:       OwnerBacklog,
+		OwnerKind:       "idea",
+		OwnerName:       "item-a",
+		Purpose:         PurposeWorkshop,
+		InteractionType: InteractionSpawn,
+		Status:          StatusRunning, // stored as running but agent-manager says complete
+		RunID:           "r1",
+		RequestedAt:     nowRFC3339(),
+		UpdatedAt:       nowRFC3339(),
+	}
+	if err := svc.store.Save([]Record{record}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Agent-manager reports this run as complete.
+	raw.runStates = map[string]agentmanager.RunState{
+		"r1": {Status: "complete", TaskID: "t1"},
+	}
+
+	if svc.HasActiveAgent(context.Background(), "idea", "item-a") {
+		t.Error("expected HasActiveAgent to return false after refresh shows complete")
+	}
+}

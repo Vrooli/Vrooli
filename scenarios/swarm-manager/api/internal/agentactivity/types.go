@@ -2,11 +2,22 @@ package agentactivity
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"swarm-manager/internal/identity"
 )
+
+// ErrBacklogItemBusy is returned when a spawn is attempted for a backlog item
+// that already has an active agent (pending, starting, running, or needs_review).
+var ErrBacklogItemBusy = errors.New("another agent is already active for this backlog item")
+
+// pendingSpawnTTL is how long a pending record without a RunID is considered
+// valid before being auto-failed. The spawn HTTP call typically has a 30-60s
+// timeout, so 5 minutes is generous.
+const pendingSpawnTTL = 5 * time.Minute
 
 type OwnerType string
 
@@ -149,6 +160,20 @@ func isActiveStatus(status Status) bool {
 	default:
 		return false
 	}
+}
+
+// isPendingStale returns true when a pending record has no RunID and its
+// RequestedAt timestamp is older than pendingSpawnTTL. Such records indicate
+// a spawn HTTP call that hung or a process crash before the result was recorded.
+func isPendingStale(rec Record) bool {
+	if rec.Status != StatusPending || strings.TrimSpace(rec.RunID) != "" {
+		return false
+	}
+	requested, err := time.Parse(time.RFC3339, rec.RequestedAt)
+	if err != nil {
+		return false
+	}
+	return time.Since(requested) > pendingSpawnTTL
 }
 
 type contextKey struct{}

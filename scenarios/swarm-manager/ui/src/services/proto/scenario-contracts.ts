@@ -63,6 +63,8 @@ export function mapProtoScenario(protoScenario: Scenario): ScenarioDomain {
         : undefined,
     isGreenfield: protoScenario.isGreenfield ?? false,
     tags: protoScenario.tags ?? [],
+    lastReviewClassification: protoScenario.lastReviewClassification ?? undefined,
+    lastReviewAt: protoScenario.lastReviewAt ?? undefined,
   };
 }
 

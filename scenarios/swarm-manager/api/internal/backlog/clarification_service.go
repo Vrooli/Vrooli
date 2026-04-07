@@ -20,6 +20,7 @@ import (
 	"github.com/google/uuid"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
+	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/promptcatalog"
 	"swarm-manager/internal/workshop"
@@ -148,7 +149,19 @@ func (h *Handler) spawnWorkshopForClarification(
 		return agentmanager.RunResult{}, fmt.Errorf("fetch workshop prompt: %w", err)
 	}
 
-	return h.agentService.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
+	activityCtx := agentactivity.WithSpec(ctx, agentactivity.Spec{
+		OwnerType:   agentactivity.OwnerBacklog,
+		OwnerKind:   string(kind),
+		OwnerName:   item.Name,
+		OwnerTitle:  item.Title,
+		Purpose:     agentactivity.PurposeWorkshop,
+		RequestedBy: "swarm-manager",
+		Metadata: map[string]string{
+			"entrypoint": "backlog.clarification_workshop_respawn",
+		},
+	})
+
+	return h.agentService.SpawnBacklog(activityCtx, agentmanager.BacklogSpawnRequest{
 		Kind:        string(kind),
 		Name:        item.Name,
 		Title:       fmt.Sprintf("Workshop: %s (re-run after clarification)", item.Title),

@@ -20,6 +20,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 
@@ -27,6 +28,7 @@ import (
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/dispatch"
+	"swarm-manager/internal/execution"
 	"swarm-manager/internal/httputil"
 )
 
@@ -70,6 +72,8 @@ type Handler struct {
 	completeness    CompletenessSource
 	executionQueuer ExecutionQueuer
 	eventDispatcher dispatch.NodeDispatcher
+	backlogLister   BacklogLister
+	executionLister ExecutionLister
 }
 
 // NewHandler creates a new scenarios handler.
@@ -128,6 +132,16 @@ func (h *Handler) SetEventDispatcher(d dispatch.NodeDispatcher) {
 	h.eventDispatcher = d
 }
 
+// SetBacklogLister sets the backlog lister for review queue computation.
+func (h *Handler) SetBacklogLister(bl BacklogLister) {
+	h.backlogLister = bl
+}
+
+// SetExecutionLister sets the execution lister for review queue computation.
+func (h *Handler) SetExecutionLister(el ExecutionLister) {
+	h.executionLister = el
+}
+
 // LoadAll exposes scenario listing for non-HTTP consumers.
 // This keeps data access centralized in the scenarios package.
 func (h *Handler) LoadAll() ([]Scenario, error) {
@@ -139,13 +153,39 @@ func (h *Handler) Load(name string) (Scenario, error) {
 	return h.loadScenario(context.Background(), name)
 }
 
-func scenarioToProto(s Scenario) *domainpb.Scenario {
+// getReviewSummaries loads execution records and computes per-scenario review summaries.
+// Returns nil if executionLister is not configured (graceful degradation).
+func (h *Handler) getReviewSummaries(ctx context.Context) map[string]ScenarioReviewSummary {
+	if h.executionLister == nil {
+		return nil
+	}
+	records, err := h.executionLister.List(ctx, execution.ListFilters{})
+	if err != nil {
+		slog.Warn("failed to load executions for review summaries", "error", err)
+		return nil
+	}
+	return ComputeReviewSummaries(records)
+}
+
+// reviewSummaryFor returns a pointer to the review summary for a scenario, or nil.
+func reviewSummaryFor(summaries map[string]ScenarioReviewSummary, name string) *ScenarioReviewSummary {
+	if summaries == nil {
+		return nil
+	}
+	s, ok := summaries[name]
+	if !ok {
+		return nil
+	}
+	return &s
+}
+
+func scenarioToProto(s Scenario, review *ScenarioReviewSummary) *domainpb.Scenario {
 	var completeness *int32
 	if s.CompletenessScore != nil {
 		value := int32(*s.CompletenessScore)
 		completeness = &value
 	}
-	return &domainpb.Scenario{
+	proto := &domainpb.Scenario{
 		Name:              s.Name,
 		DisplayName:       s.DisplayName,
 		Description:       s.Description,
@@ -155,10 +195,18 @@ func scenarioToProto(s Scenario) *domainpb.Scenario {
 		IsGreenfield:      s.IsGreenfield,
 		Tags:              s.Tags,
 	}
+	if review != nil && review.LastReviewClassification != "" {
+		proto.LastReviewClassification = &review.LastReviewClassification
+		ts := review.LastReviewAt.Format(time.RFC3339)
+		proto.LastReviewAt = &ts
+	}
+	return proto
 }
 
 // RegisterRoutes registers the scenarios API routes.
 func (h *Handler) RegisterRoutes(r *mux.Router) {
+	// review-queue must be registered before the {name} wildcard to avoid capture.
+	r.HandleFunc("/api/v1/scenarios/review-queue", h.ReviewQueue).Methods("GET")
 	r.HandleFunc("/api/v1/scenarios", h.List).Methods("GET")
 	r.HandleFunc("/api/v1/scenarios/{name}", h.Get).Methods("GET")
 	r.HandleFunc("/api/v1/scenarios/{name}", h.UpdateMetadata).Methods("PATCH")
@@ -201,9 +249,10 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	h.sortScenarios(scenarios, sortField, sortOrder)
 
 	slog.Info("listing scenarios", "count", len(scenarios), "search", search, "status", status, "tags", tagsParam)
+	summaries := h.getReviewSummaries(r.Context())
 	protoScenarios := make([]*domainpb.Scenario, 0, len(scenarios))
 	for _, scenario := range scenarios {
-		protoScenarios = append(protoScenarios, scenarioToProto(scenario))
+		protoScenarios = append(protoScenarios, scenarioToProto(scenario, reviewSummaryFor(summaries, scenario.Name)))
 	}
 	resp := &apipb.ListScenariosResponse{Scenarios: protoScenarios}
 	if err := httputil.ProtoJSON(w, resp); err != nil {
@@ -303,7 +352,8 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := &apipb.ScenarioResponse{Scenario: scenarioToProto(scenario)}
+	summaries := h.getReviewSummaries(r.Context())
+	resp := &apipb.ScenarioResponse{Scenario: scenarioToProto(scenario, reviewSummaryFor(summaries, scenario.Name))}
 	if err := httputil.ProtoJSON(w, resp); err != nil {
 		apierr.MapError(w, "[scenarios] get", apierr.Internal("failed to encode response"))
 	}
@@ -367,7 +417,8 @@ func (h *Handler) UpdateMetadata(w http.ResponseWriter, r *http.Request) {
 	applyCompletenessScore(&scenario, h.getCompletenessScores(r.Context()))
 
 	slog.Info("scenario metadata updated", "scenario", name, "isGreenfield", scenario.IsGreenfield)
-	resp := &apipb.ScenarioResponse{Scenario: scenarioToProto(scenario)}
+	summaries := h.getReviewSummaries(r.Context())
+	resp := &apipb.ScenarioResponse{Scenario: scenarioToProto(scenario, reviewSummaryFor(summaries, scenario.Name))}
 	if err := httputil.ProtoJSON(w, resp); err != nil {
 		apierr.MapError(w, "[scenarios] update", apierr.Internal("failed to encode response"))
 	}

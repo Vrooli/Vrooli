@@ -335,6 +335,8 @@ export function ScenariosPage() {
                 isGreenfield={scenario.isGreenfield}
                 tags={scenario.tags}
                 completenessScore={scenario.completenessScore}
+                lastReviewClassification={scenario.lastReviewClassification}
+                lastReviewAt={scenario.lastReviewAt}
                 isAnyActionPending={actionMutation.isPending}
                 isActionPending={(action) => isActionPending(scenario.name, action)}
                 onAction={(event, action) => handleAction(event, scenario.name, action)}

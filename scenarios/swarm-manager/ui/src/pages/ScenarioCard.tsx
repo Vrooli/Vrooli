@@ -10,6 +10,7 @@ import { Button } from "../components/ui/button";
 import { ResponsiveListItem } from "../components/ui/responsive-list";
 import { TagList } from "../components/ui/tag-list";
 import { SCENARIO_STATUS_ICONS, SCENARIO_STATUS_COLORS, type ScenarioStatus } from "../types";
+import { ReviewClassificationBadge } from "../components/scenarios/ReviewClassificationBadge";
 import { displayLimitsConfig } from "../config";
 import { selectors } from "../consts/selectors";
 
@@ -24,6 +25,8 @@ export interface ScenarioCardProps {
   isGreenfield: boolean;
   tags: string[];
   completenessScore?: number;
+  lastReviewClassification?: string;
+  lastReviewAt?: string;
   /** Whether any mutation is currently pending (disables all action buttons). */
   isAnyActionPending: boolean;
   /** Whether a specific action is pending for this scenario. */
@@ -41,6 +44,8 @@ export function ScenarioCard({
   isGreenfield,
   tags,
   completenessScore,
+  lastReviewClassification,
+  lastReviewAt,
   isAnyActionPending,
   isActionPending,
   onAction,
@@ -87,6 +92,13 @@ export function ScenarioCard({
           <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
             P{priority}
           </span>
+          {lastReviewClassification ? (
+            <ReviewClassificationBadge classification={lastReviewClassification} />
+          ) : (
+            <span className="rounded-full bg-slate-500/20 px-2 py-0.5 text-xs text-slate-400">
+              Not reviewed
+            </span>
+          )}
           {completenessScore !== undefined && (
             <div className="flex items-center gap-1">
               <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-700">

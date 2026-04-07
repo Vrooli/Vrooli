@@ -385,6 +385,9 @@ func wrapAgentError(err error) error {
 	if errors.Is(err, agentmanager.ErrNotAvailable) {
 		return apierr.Unavailable("agent-manager is not available")
 	}
+	if errors.Is(err, agentactivity.ErrBacklogItemBusy) {
+		return apierr.Conflict("an agent is already active for this backlog item")
+	}
 	if errors.Is(err, agentmanager.ErrRequestFailed) {
 		return apierr.BadGateway("agent-manager request failed; check agent-manager health/logs and retry")
 	}

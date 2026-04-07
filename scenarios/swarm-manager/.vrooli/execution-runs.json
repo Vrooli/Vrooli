@@ -2846,9 +2846,10 @@
     "previous_status": "backlog",
     "task_id": "b58f7c9b-d34b-49ce-9f6d-69d406e5cc60",
     "run_id": "2dbf7309-389d-49ba-8da0-f5075c18f0f2",
-    "status": "running",
+    "status": "completed",
     "mode": "yolo",
     "started_at": "2026-04-07T02:29:14Z",
+    "finished_at": "2026-04-07T02:50:10Z",
     "started_by": "swarm-manager-ui",
     "operation": "generator",
     "force": true,
@@ -2859,7 +2860,105 @@
       "used_fallback": false,
       "captured_at": "2026-04-07T02:29:14Z"
     },
+    "finalization": {
+      "eligible": true,
+      "status": "completed",
+      "phase": "completed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-04-07T02:48:16Z",
+      "completed_at": "2026-04-07T02:50:10Z",
+      "affected_scenarios": [
+        "landing-page-business-suite"
+      ],
+      "aggregate_classification": "ready_with_notes",
+      "aggregate_summary": "landing-page-business-suite ready with notes",
+      "scenarios": [
+        {
+          "scenario_name": "landing-page-business-suite",
+          "restart": {
+            "status": "completed",
+            "attempts": 1,
+            "started_at": "2026-04-07T02:48:16Z",
+            "finished_at": "2026-04-07T02:48:27Z"
+          },
+          "health": {
+            "status": "completed",
+            "scenario_status": "running",
+            "health_status": "healthy",
+            "schema_valid": true,
+            "details": "scenario is healthy",
+            "checked_at": "2026-04-07T02:48:29Z"
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "47121ff1-ff35-4b49-be40-3c424cd6fee1",
+            "result": {
+              "job_id": "47121ff1-ff35-4b49-be40-3c424cd6fee1",
+              "classification": "ready_with_notes",
+              "dimensions": [
+                {
+                  "name": "codeQuality",
+                  "status": "red",
+                  "details": "0.0 score, 361 violations"
+                },
+                {
+                  "name": "tests",
+                  "status": "yellow",
+                  "details": "7/11 passed"
+                },
+                {
+                  "name": "standards",
+                  "status": "yellow",
+                  "details": "23 warnings"
+                },
+                {
+                  "name": "visual",
+                  "status": "red"
+                },
+                {
+                  "name": "provenance",
+                  "status": "green"
+                }
+              ],
+              "raw_dimensions": {
+                "codeQuality": {
+                  "available": true,
+                  "score": 0,
+                  "violations": 361,
+                  "stale": false
+                },
+                "tests": {
+                  "available": true,
+                  "passed": false,
+                  "total": 11,
+                  "passedCount": 7,
+                  "failedCount": 4,
+                  "lastRun": "2026-04-07T02:50:08.864277863Z"
+                },
+                "standards": {
+                  "available": true,
+                  "blockingViolations": 0,
+                  "warnings": 23,
+                  "totalViolations": 23
+                },
+                "visual": {
+                  "available": true,
+                  "screenshotCount": 0,
+                  "stale": false
+                },
+                "provenance": {
+                  "available": true,
+                  "tracedFiles": 1
+                }
+              },
+              "summary": "Scenario landing-page-business-suite readiness: yellow",
+              "reviewed_at": "2026-04-07T02:50:10Z"
+            }
+          }
+        }
+      ]
+    },
     "created_at": "2026-04-07T02:29:14Z",
-    "updated_at": "2026-04-07T02:29:14Z"
+    "updated_at": "2026-04-07T02:50:10Z"
   }
 ]

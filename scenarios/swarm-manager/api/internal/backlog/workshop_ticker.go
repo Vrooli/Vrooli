@@ -7,12 +7,15 @@ package backlog
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"swarm-manager/internal/agentactivity"
 )
 
 const workshopTickerInterval = 2 * time.Second
@@ -134,7 +137,11 @@ func (t *WorkshopTicker) checkPending() {
 		deletePendingAdvance(itemDir)
 
 		if spawnErr != nil {
-			slog.Error("ticker: pending advance spawn failed", "kind", kind, "name", name, "err", spawnErr)
+			if errors.Is(spawnErr, agentactivity.ErrBacklogItemBusy) {
+				slog.Info("ticker: pending advance skipped, agent already active", "kind", kind, "name", name)
+			} else {
+				slog.Error("ticker: pending advance spawn failed", "kind", kind, "name", name, "err", spawnErr)
+			}
 		} else {
 			slog.Info("ticker: pending advance spawned", "kind", kind, "name", name, "run_id", runID, "task_id", taskID)
 		}

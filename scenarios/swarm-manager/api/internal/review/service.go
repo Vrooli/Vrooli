@@ -2,6 +2,7 @@ package review
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -164,6 +165,21 @@ func (s *Service) startReview(ctx context.Context, params startReviewParams) err
 		Status:      RoundStatusGathering,
 		Evidence:    []EvidenceItem{},
 	}
+
+	// Inject agent activity spec for the tracked agent service.
+	ctx = agentactivity.WithSpec(ctx, agentactivity.Spec{
+		OwnerType:   agentactivity.OwnerBacklog,
+		OwnerKind:   params.BacklogKind,
+		OwnerName:   params.BacklogName,
+		OwnerTitle:  params.ItemTitle,
+		ExecutionID: params.ExecutionID,
+		Purpose:     agentactivity.PurposeReview,
+		RequestedBy: "swarm-manager",
+		Metadata: map[string]string{
+			"entrypoint":   "review.start",
+			"round_number": fmt.Sprintf("%03d", roundNum),
+		},
+	})
 
 	// Spawn the review agent with instructions as system prompt and data as context.
 	runResult, err := s.agentService.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
@@ -375,7 +391,11 @@ func (s *Service) RequestMoreEvidence(ctx context.Context, kind, name string, ro
 				},
 			})
 			if spawnErr != nil {
-				slog.Error("spawn review agent for evidence request", "error", spawnErr, "thread_id", threadID)
+				if errors.Is(spawnErr, agentactivity.ErrBacklogItemBusy) {
+					slog.Info("evidence request skipped: agent already active", "kind", kind, "name", name, "thread_id", threadID)
+				} else {
+					slog.Error("spawn review agent for evidence request", "error", spawnErr, "thread_id", threadID)
+				}
 				return
 			}
 

@@ -148,6 +148,7 @@ func (a *App) registerSubcommandGroups() []cliapp.SubcommandGroup {
 				{Name: "start", NeedsAPI: true, Description: "Start a scenario (--name NAME)", Run: a.cmdScenariosStart},
 				{Name: "stop", NeedsAPI: true, Description: "Stop a scenario (--name NAME)", Run: a.cmdScenariosStop},
 				{Name: "restart", NeedsAPI: true, Description: "Restart a scenario (--name NAME)", Run: a.cmdScenariosRestart},
+				{Name: "review-queue", NeedsAPI: true, Description: "Get prioritized scenario review queue [--limit N]", Run: a.cmdScenariosReviewQueue},
 			},
 		},
 		{

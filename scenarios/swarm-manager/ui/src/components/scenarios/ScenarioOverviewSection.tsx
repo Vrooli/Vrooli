@@ -1,6 +1,7 @@
 import { Package } from "lucide-react";
 import { TagList } from "../ui/tag-list";
 import { DetailSection } from "../detail/DetailSection";
+import { ReviewClassificationBadge } from "./ReviewClassificationBadge";
 import { capitalize } from "../../lib";
 import { selectors } from "../../consts/selectors";
 import { SCENARIO_STATUS_COLORS, type ScenarioStatus } from "../../types";
@@ -14,6 +15,8 @@ export interface ScenarioOverviewSectionProps {
     priority: number;
     tags: string[];
     completenessScore?: number;
+    lastReviewClassification?: string;
+    lastReviewAt?: string;
   };
   StatusIcon: LucideIcon;
   localGreenfield: boolean | null;
@@ -52,6 +55,17 @@ export function ScenarioOverviewSection({
             {localGreenfield && (
               <span className="rounded-full bg-cyan-500/20 px-2 py-0.5 text-xs text-cyan-400">
                 Greenfield
+              </span>
+            )}
+            {scenario.lastReviewClassification ? (
+              <ReviewClassificationBadge
+                classification={scenario.lastReviewClassification}
+                reviewedAt={scenario.lastReviewAt}
+                showTimestamp
+              />
+            ) : (
+              <span className="rounded-full bg-slate-500/20 px-2 py-0.5 text-xs text-slate-400">
+                Not reviewed
               </span>
             )}
           </div>

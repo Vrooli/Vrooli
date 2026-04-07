@@ -162,6 +162,24 @@ export const SCENARIO_STATUS_COLORS: Record<ScenarioStatus, string> = {
 };
 
 // ============================================================================
+// Review Classification Display
+// ============================================================================
+
+export const REVIEW_CLASSIFICATION_LABELS: Record<string, string> = {
+  ready: "Healthy",
+  ready_with_notes: "Minor Issues",
+  needs_work: "Needs Work",
+  not_assessable: "Inconclusive",
+};
+
+export const REVIEW_CLASSIFICATION_COLORS: Record<string, string> = {
+  ready: "bg-emerald-500/20 text-emerald-400",
+  ready_with_notes: "bg-amber-500/20 text-amber-400",
+  needs_work: "bg-red-500/20 text-red-400",
+  not_assessable: "bg-slate-500/20 text-slate-400",
+};
+
+// ============================================================================
 // Initiative Status Display
 // ============================================================================
 

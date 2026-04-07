@@ -77,6 +77,77 @@ func (s *Service) refreshActiveLocked(ctx context.Context) error {
 	return nil
 }
 
+// refreshActiveForOwnerLocked refreshes only the active records matching a
+// specific backlog item owner. This is a scoped variant of refreshActiveLocked
+// used by the per-item guard in spawnTracked to avoid refreshing all records.
+// Caller must hold s.mu.
+func (s *Service) refreshActiveForOwnerLocked(ctx context.Context, records []Record, ownerKind, ownerName string) error {
+	if s.agentService == nil {
+		return nil
+	}
+
+	stateByRunID := make(map[string]agentmanager.RunState)
+	changed := false
+	changedRecords := make(map[string]Record)
+
+	for i := range records {
+		record := &records[i]
+		if record.OwnerType != OwnerBacklog || record.OwnerKind != ownerKind || record.OwnerName != ownerName {
+			continue
+		}
+		if !isActiveStatus(record.Status) || strings.TrimSpace(record.RunID) == "" {
+			continue
+		}
+
+		runID := strings.TrimSpace(record.RunID)
+		state, ok := stateByRunID[runID]
+		if !ok {
+			fetched, fetchErr := s.agentService.GetRunState(ctx, runID)
+			if fetchErr != nil {
+				continue
+			}
+			state = fetched
+			stateByRunID[runID] = state
+		}
+
+		nextStatus, reason := mapRunStatus(state.Status, state.ErrorMsg)
+		if nextStatus == record.Status &&
+			record.StartedAt == strings.TrimSpace(state.StartedAt) &&
+			record.FinishedAt == strings.TrimSpace(state.FinishedAt) &&
+			record.FailureReason == strings.TrimSpace(reason) {
+			continue
+		}
+
+		record.Status = nextStatus
+		record.FailureReason = strings.TrimSpace(reason)
+		record.UpdatedAt = nowRFC3339()
+		if record.TaskID == "" {
+			record.TaskID = strings.TrimSpace(state.TaskID)
+		}
+		if strings.TrimSpace(state.StartedAt) != "" {
+			record.StartedAt = strings.TrimSpace(state.StartedAt)
+		}
+		if strings.TrimSpace(state.FinishedAt) != "" {
+			record.FinishedAt = strings.TrimSpace(state.FinishedAt)
+		} else if !isActiveStatus(nextStatus) {
+			record.FinishedAt = record.UpdatedAt
+		}
+		changed = true
+		changedRecords[record.ActivityID] = *record
+	}
+
+	if !changed {
+		return nil
+	}
+	if err := s.store.Save(records); err != nil {
+		return err
+	}
+	for _, record := range changedRecords {
+		s.dispatchStatusUpdate(record)
+	}
+	return nil
+}
+
 func matchesFilters(record Record, filters ListFilters) bool {
 	if filters.ActiveOnly && !isActiveStatus(record.Status) {
 		return false

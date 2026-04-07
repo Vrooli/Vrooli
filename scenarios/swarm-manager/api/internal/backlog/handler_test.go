@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/gorilla/mux"
 	"swarm-manager/internal/agentmanager"
@@ -939,8 +938,19 @@ func TestWorkshopDeleteRound_NotFound(t *testing.T) {
 	testutil.AssertStatus(t, w, http.StatusNotFound)
 }
 
-func TestWorkshopDeleteRound_LockedConflict(t *testing.T) {
+// mockActivityChecker is a test double for AgentActivityChecker.
+type mockActivityChecker struct {
+	active bool
+}
+
+func (m *mockActivityChecker) HasActiveAgent(_ context.Context, _, _ string) bool {
+	return m.active
+}
+
+func TestWorkshopDeleteRound_ActiveAgentConflict(t *testing.T) {
 	h, rootDir := setupTestHandler(t)
+	// Simulate an active agent for this item.
+	h.activityChecker = &mockActivityChecker{active: true}
 
 	item := BacklogItem{
 		Name: "ws-delete-lock", Title: "WS Delete Lock",
@@ -956,9 +966,6 @@ func TestWorkshopDeleteRound_LockedConflict(t *testing.T) {
 	}
 	testutil.WriteFile(t, filepath.Join(workshopDir, "round-001.json"),
 		`{"round":1,"generated_at":"2026-01-01T00:00:00Z","readiness":{},"items":[]}`)
-
-	// Create a fresh lock file.
-	testutil.WriteFile(t, filepath.Join(itemDir, ".workshop-lock"), time.Now().UTC().Format(time.RFC3339))
 
 	reqBody := bytes.NewBufferString(`{"round_number":1}`)
 	req := httptest.NewRequest("DELETE", "/api/v1/backlog/idea/ws-delete-lock/workshop/round", reqBody)
@@ -1092,8 +1099,10 @@ func TestWorkshopReset_NoStatusChangeWhenNotReady(t *testing.T) {
 	}
 }
 
-func TestWorkshopReset_409WhenLocked(t *testing.T) {
+func TestWorkshopReset_409WhenAgentActive(t *testing.T) {
 	h, rootDir := setupTestHandler(t)
+	// Simulate an active agent for this item.
+	h.activityChecker = &mockActivityChecker{active: true}
 
 	item := BacklogItem{
 		Name: "ws-reset-lock", Title: "WS Reset Lock",
@@ -1101,9 +1110,6 @@ func TestWorkshopReset_409WhenLocked(t *testing.T) {
 		Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
 	}
 	createTestItem(t, rootDir, KindIdea, item)
-
-	itemDir := filepath.Join(rootDir, "ideas", "ws-reset-lock")
-	testutil.WriteFile(t, filepath.Join(itemDir, ".workshop-lock"), time.Now().UTC().Format(time.RFC3339))
 
 	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/ws-reset-lock/workshop/reset", nil)
 	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "ws-reset-lock"})

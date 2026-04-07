@@ -180,6 +180,10 @@ func (h *Handler) CreateClarification(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 	if err != nil {
+		if errors.Is(err, agentactivity.ErrBacklogItemBusy) {
+			apierr.MapError(w, "[backlog] clarification-create", apierr.Conflict("an agent is already active for this backlog item"))
+			return
+		}
 		slog.Error("clarification agent spawn failed", "err", err)
 		apierr.MapError(w, "[backlog] clarification-create", apierr.Internal("failed to spawn clarification agent"))
 		return

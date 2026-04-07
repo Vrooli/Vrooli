@@ -22,47 +22,50 @@ LPBS has a functional update endpoint and artifact storage layer, but the releas
 
 1. **Hardcoded variant_key**: `UpsertAsset` hardcodes `'default'` (download_service.go:596), blocking multi-channel releases.
 2. **No release_id correlation**: LPBS artifacts cannot be traced back to deployment-manager release records.
-3. **Release notes not served**: `download_assets.release_notes` exists but the manifest endpoint ignores it.
+3. **Release notes not served**: `download_assets.release_notes` exists but `buildElectronManifest()` (update_handlers.go:58-69) ignores it.
 4. **No channel discovery**: Desktop apps must hardcode channel names; no API to enumerate available channels/versions.
-5. **No current-version semantics**: All linked artifacts are equally valid; no explicit "current" vs "superseded" distinction at the LPBS level.
+5. **No current-version semantics at artifact level**: Current-version is determined by `download_assets.artifact_id` JOIN, but there's no verification or discovery API for this.
 6. **Update API key uses non-constant-time comparison**: `update_handlers.go` compares keys with Go string equality, not `subtle.ConstantTimeCompare`.
 7. **No post-release verification endpoint**: After a release, there's no way to programmatically verify that the update endpoint serves the expected version.
-8. **Update policy defaults are implicit**: No documented or configurable default policy for auto-update behavior (check interval, mandatory vs optional, rollback window).
+8. **Update policy defaults are implicit**: No documented or configurable default policy for auto-update behavior.
 
 ## 3. Scope
 
 ### In Scope
-- LPBS API changes (new endpoints, schema migrations, handler updates)
+- LPBS API changes (new endpoints, schema additions, handler updates)
 - scenario-to-desktop upload flow changes (pass release_id, channel, release_notes)
 - Update endpoint enhancements (release notes in manifest, channel discovery)
-- Post-release verification endpoint
+- Post-release verification endpoint (lightweight + optional deep S3 check)
 - Update policy defaults (schema + API, seam for per-app override)
+- Constant-time API key comparison fix
+- Auth middleware extraction for update-family endpoints
 - Relevant skill updates (landing-page-deploy-setup, landing-page-desktop-upload)
 - Test coverage for all new and modified endpoints
 
 ### Out of Scope
-- deployment-manager release record tables (separate backlog item: Action 1 from research)
-- Channel promotion logic in DM (separate backlog item: Action 5)
-- Release history API in DM (separate backlog item: Action 6)
-- DM orchestrator integration (separate backlog item: Action 7)
+- deployment-manager release record tables (separate initiative item)
+- Channel promotion logic in DM (separate initiative item)
+- Release history API in DM (separate initiative item)
+- DM orchestrator integration (separate initiative item)
 - Delta/patch updates
 - Code signing infrastructure
 - Bearer token / OAuth for update endpoints (future)
 - UI changes
+- **is_current column migration** — already computed dynamically via LEFT JOIN in `ListArtifactsByApp()` (download_hosting.go:981) and `GetCurrentArtifactByFilename()` (download_hosting.go:1016-1039). No schema change needed.
 
 ## 4. Current Technical Context
 
 ### Key Files — LPBS API
 | File | Role |
 |------|------|
-| `scenarios/landing-page-business-suite/api/update_handlers.go` | Update endpoint: manifest serving, binary redirects, API key gating |
+| `scenarios/landing-page-business-suite/api/update_handlers.go` | Update endpoint: manifest serving (lines 58-69), binary redirects, API key gating (lines 103-109), `channelToVariantKey()` (lines 50-55) |
 | `scenarios/landing-page-business-suite/api/update_handlers_test.go` | 13 test cases for update flows |
-| `scenarios/landing-page-business-suite/api/download_service.go` | Download app/asset CRUD, `UpsertAsset` with hardcoded variant_key |
+| `scenarios/landing-page-business-suite/api/download_service.go` | Download app/asset CRUD, `UpsertAsset` with hardcoded variant_key (line 596), `GetAssetByVariant()` (lines 529-549) |
 | `scenarios/landing-page-business-suite/api/download_service_test.go` | Asset/app service tests |
-| `scenarios/landing-page-business-suite/api/download_hosting.go` | S3 artifact management, presign flows |
+| `scenarios/landing-page-business-suite/api/download_hosting.go` | S3 artifact management, presign flows, `ListArtifactsByApp()` with computed is_current (line 981), `GetCurrentArtifactByFilename()` (lines 1016-1039) |
 | `scenarios/landing-page-business-suite/api/download_hosting_test.go` | Artifact lifecycle tests |
-| `scenarios/landing-page-business-suite/api/routes.go` | Route registration |
-| `scenarios/landing-page-business-suite/api/main.go:742-806` | Table DDL (download_apps, download_assets, download_artifacts) |
+| `scenarios/landing-page-business-suite/api/routes.go` | Route registration, `handleAdminSetArtifactAsCurrent` at POST `/api/v1/admin/download-assets/set-current` (line 126) |
+| `scenarios/landing-page-business-suite/api/main.go:742-806` | Table DDL with IF NOT EXISTS pattern |
 
 ### Key Files — scenario-to-desktop
 | File | Role |
@@ -71,9 +74,16 @@ LPBS has a functional update endpoint and artifact storage layer, but the releas
 
 ### Database Schema (current)
 - `download_apps` — app registry (app_key, update_api_key, metadata)
-- `download_assets` — per-platform asset binding (platform, variant_key, artifact_id, release_version, release_notes)
-- `download_artifacts` — S3 object references (sha256, sha512, size_bytes, original_filename)
+- `download_assets` — per-platform asset binding (platform, variant_key, artifact_id, release_version, release_notes). Unique on (bundle_key, app_key, platform, variant_key).
+- `download_artifacts` — S3 object references (sha256, sha512, size_bytes, original_filename, platform, release_version)
 - `download_storage_settings` — S3 bucket config
+
+### is_current Architecture (clarified round 2)
+The "current" artifact for a given slot is determined by `download_assets.artifact_id` FK join, NOT by a stored boolean column. This is already implemented:
+- `ListArtifactsByApp()` computes `is_current` via `CASE WHEN da.artifact_id = a.id THEN true ELSE false END`
+- `GetCurrentArtifactByFilename()` joins download_artifacts with download_assets on artifact_id
+- `handleAdminSetArtifactAsCurrent` updates `download_assets.artifact_id` to promote an artifact
+- No schema change needed — this is application-level logic matching the research conclusion
 
 ### Research Findings (dependency: release-record-contract-and-history-model)
 The completed research defines:
@@ -89,40 +99,41 @@ The completed research defines:
 After implementation:
 1. `UpsertAsset` accepts `variant_key` as a parameter (no hardcoded default)
 2. `download_artifacts` has a `release_id` TEXT column for DM correlation
-3. Update manifests include `releaseNotes` when available
-4. `GET /api/v1/updates/{app_key}/channels` returns available channels with latest version per platform
-5. `GET /api/v1/updates/{app_key}/verify` confirms the update endpoint serves an expected version+sha512
-6. `download_apps` has an `update_policy` JSONB column with configurable defaults (check_interval, mandatory, rollback_window)
+3. `download_apps` has an `update_policy` JSONB column with configurable defaults
+4. Update manifests include `releaseNotes` when release notes are available
+5. `GET /api/v1/updates/{app_key}/channels` returns available channels with latest version per platform
+6. `GET /api/v1/updates/{app_key}/verify?channel=X&platform=Y&expected_version=Z&deep=false` confirms update endpoint correctness
 7. Update API key comparison uses `crypto/subtle.ConstantTimeCompare`
-8. `download_assets` has an `is_current` BOOLEAN column (default true) for current-version selection
-9. All new/modified endpoints have test coverage
-10. Skills updated to document new capabilities
+8. Shared `requireUpdateAPIKey` middleware for all update-family endpoints
+9. `GET/PUT /api/v1/admin/download-apps/{app_key}/update-policy` for per-app policy management
+10. All new/modified endpoints have test coverage
+11. Skills updated to document new capabilities
 
 ## 6. Implementation Strategy
 
 ### Phase 1: Schema & Core Fixes (foundation)
-1. **Migration: Add `release_id` to `download_artifacts`** — TEXT column + index
-2. **Migration: Add `is_current` to `download_assets`** — BOOLEAN DEFAULT true + index
-3. **Migration: Add `update_policy` to `download_apps`** — JSONB column with sensible defaults
-4. **Fix `UpsertAsset` hardcoded variant_key** — parameterize from caller
-5. **Fix API key timing attack** — use `crypto/subtle.ConstantTimeCompare`
+1. **Add `release_id` TEXT column to `download_artifacts`** — Add to IF NOT EXISTS DDL in main.go with index. Nullable, no default.
+2. **Add `update_policy` JSONB column to `download_apps`** — Add to DDL. Default: `{"check_interval_hours": 4, "update_mode": "optional", "allow_downgrade": false}` (pending d1 confirmation).
+3. **Fix `UpsertAsset` hardcoded variant_key** — Add `VariantKey` field to `DownloadAsset` struct, parameterize in INSERT.
+4. **Fix API key timing attack** — Use `crypto/subtle.ConstantTimeCompare` in a new `requireUpdateAPIKey` middleware (pending d4 confirmation).
 
 ### Phase 2: Endpoint Enhancements
-6. **Add release notes to manifest** — extend `buildElectronManifest` to include `releaseNotes` field from `download_assets.release_notes`
-7. **Add channel discovery endpoint** — `GET /api/v1/updates/{app_key}/channels` returning `[{channel, platform, version, updated_at}]`
-8. **Add post-release verification endpoint** — `GET /api/v1/updates/{app_key}/verify?channel=stable&platform=linux&expected_version=1.2.3`
-9. **Update policy defaults endpoint** — `GET/PUT /api/v1/admin/download-apps/{app_key}/update-policy`
+5. **Add release notes to manifest** — Extend `buildElectronManifest()` to include `releaseNotes` field from `download_assets.release_notes`. Omit field when notes are empty (pending d2 confirmation on format).
+6. **Add channel discovery endpoint** — `GET /api/v1/updates/{app_key}/channels`. Same API-key gating as update endpoint. Returns `[{channel, platform, version, updated_at}]` aggregated from download_assets.
+7. **Add post-release verification endpoint** — `GET /api/v1/updates/{app_key}/verify?channel=X&platform=Y&expected_version=Z&deep=false`. Default: lightweight version+sha512 match. With `deep=true`: also HEAD S3 object and test presign. Response: `{match: bool, actual_version: string, actual_sha512: string, artifact_accessible?: bool, presign_valid?: bool}`.
+8. **Update policy CRUD endpoint** — `GET/PUT /api/v1/admin/download-apps/{app_key}/update-policy` (requireAdmin). Returns/sets the JSONB update_policy for an app.
 
 ### Phase 3: S2D Integration
-10. **Extend S2D upload flow** — pass `release_id` in artifact commit, pass `channel` → `variant_key` in asset apply
-11. **Update artifact commit handler** — accept and store `release_id`
+9. **Extend S2D upload flow** — Pass `release_id` in artifact commit, pass `channel` → `variant_key` in asset apply.
+10. **Update artifact commit handler** — Accept and store `release_id` in download_artifacts.
 
 ### Phase 4: Skills & Verification
-12. **Update `landing-page-desktop-upload` skill** — document release_id flow, channel handling, verification steps
-13. **Update `landing-page-deploy-setup` skill** — document update_policy configuration gate
+11. **Update `landing-page-desktop-upload` skill** — Document release_id flow, channel handling, verification steps.
+12. **Update `landing-page-deploy-setup` skill** — Document update_policy configuration gate.
 
 ### Final: Cleanup & Verification
 - Run `go build ./...` and fix ALL errors, even pre-existing
+- Run `gofumpt -w .` to format
 - Run `golangci-lint run` and fix ALL warnings in modified files
 - Run `go test ./... -timeout 300s` and fix any failures
 - `vrooli scenario restart landing-page-business-suite`
@@ -130,20 +141,23 @@ After implementation:
 
 ## 7. Contract Decisions
 
-<!-- Pending workshop decisions — will be populated from round answers -->
-
 ### Settled (from research dependency)
 - **Release ID ownership**: deployment-manager owns the UUID; LPBS stores it as a correlation key
 - **Channel ordering**: nightly → beta → stable; stable maps to variant_key "default"
 - **Approval model**: commit-scoped, no channel dimension
 - **Superseded status**: application-level logic, not DB trigger
 
-### Pending
-- Update policy default values (check interval, mandatory flag, rollback window)
-- Channel discovery endpoint: public or gated?
-- Verification endpoint: admin-only or public?
-- is_current management: who sets it and when?
-- Manifest format extensions beyond releaseNotes
+### Settled (from round 1)
+- **Update policy defaults**: Conservative — 4h check interval, optional updates, no rollback window (d1→A)
+- **Channel discovery gating**: Same as update endpoint — public if no update_api_key, gated if set (d2→A)
+- **is_current strategy**: Keep existing computed JOIN approach — no schema change (d3→A, corrected in round 2)
+- **Verification endpoint**: Combined lightweight + optional deep S3 check (d4→other, resolved round 2)
+
+### Pending (round 2)
+- **d1**: Update policy JSONB schema shape (minimal vs full)
+- **d2**: Release notes format in manifest (passthrough vs markdown-aware)
+- **d3**: Migration strategy (existing DDL block vs numbered migrations)
+- **d4**: Auth middleware extraction vs inline check for update-family endpoints
 
 ## 8. Testing Plan
 
@@ -151,23 +165,26 @@ After implementation:
 |------|-----------|----------|
 | UpsertAsset variant_key parameterization | Unit + integration | Verify non-default variant_keys insert correctly |
 | release_id on artifact commit | Unit + integration | Verify column stored and queryable |
-| is_current flag management | Integration | Verify only one asset per (app_key, platform, variant_key) is current |
-| Release notes in manifest | Unit | Verify YAML output includes releaseNotes |
-| Channel discovery endpoint | Unit + integration | Verify correct aggregation across platforms/variants |
-| Verification endpoint | Unit + integration | Verify match/mismatch responses |
-| Update policy CRUD | Unit + integration | Verify default application and per-app override |
+| Release notes in manifest | Unit | Verify YAML output includes releaseNotes when present, omits when empty |
+| Channel discovery endpoint | Unit + integration | Verify correct aggregation across platforms/variants; verify API key gating |
+| Verification endpoint (lightweight) | Unit + integration | Verify match/mismatch responses for version+sha512 |
+| Verification endpoint (deep) | Unit + integration | Verify S3 HEAD and presign check when deep=true |
+| Update policy CRUD | Unit + integration | Verify default application, per-app override, and GET/PUT round-trip |
 | API key constant-time comparison | Unit | Verify timing-safe comparison works for match/mismatch |
+| requireUpdateAPIKey middleware | Unit | Verify gating behavior: no key set → allow, key set + correct → allow, key set + wrong → 401 |
 | Non-default channel update flow | Integration | End-to-end: beta channel artifact → manifest serve |
 
 ## 9. Rollout/Validation Checklist
 
-- [ ] All migrations apply cleanly on fresh DB
-- [ ] Existing data is preserved (migrations are additive)
+- [ ] Schema additions apply cleanly on fresh DB (IF NOT EXISTS)
+- [ ] Existing data is preserved (all additions are nullable or have defaults)
 - [ ] Update endpoint serves manifests for default and non-default channels
-- [ ] Release notes appear in manifest YAML when populated
+- [ ] Release notes appear in manifest YAML when populated, omitted when empty
 - [ ] Channel discovery returns correct data for multi-platform apps
-- [ ] Verification endpoint correctly reports match/mismatch
+- [ ] Verification endpoint correctly reports match/mismatch (lightweight mode)
+- [ ] Verification endpoint correctly reports S3 accessibility (deep mode)
 - [ ] S2D upload flow passes release_id through to LPBS
+- [ ] Update policy endpoint returns defaults for unconfigured apps
 - [ ] All tests pass with `go test ./... -timeout 300s`
 - [ ] Scenario restarts cleanly
 
@@ -175,10 +192,12 @@ After implementation:
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Migration breaks existing data | High | All migrations are ALTER TABLE ADD COLUMN with defaults; no destructive changes |
+| DDL additions break existing data | High | All additions use IF NOT EXISTS, nullable columns, or columns with defaults |
 | S2D upload flow breaks if LPBS expects new fields | Medium | New fields are optional; old S2D versions continue to work without release_id |
-| Channel discovery performance on large datasets | Low | Index on (app_key, variant_key, platform) already exists |
+| Channel discovery performance on large datasets | Low | Index on (app_key, variant_key, platform) already exists via unique constraint |
 | Update policy schema evolution | Low | JSONB column allows additive changes without migrations |
+| Deep verification adds S3 latency | Low | Deep mode is opt-in; default is lightweight check only |
+| requireUpdateAPIKey middleware changes auth behavior | Medium | Middleware replicates exact existing inline logic; comprehensive test coverage |
 
 ## 11. Non-goals / Prohibited Patterns
 
@@ -187,17 +206,18 @@ After implementation:
 - **No UI changes**: API-only; UI can consume these endpoints later.
 - **No delta updates**: Full installer replacement only for now.
 - **No code signing**: Checksum integrity only; signing is a separate initiative.
+- **No is_current column**: Current-version is already computed via JOIN — do not add a stored flag.
 
 ## 12. Definition of Done
 
-1. All schema migrations apply cleanly
+1. DDL additions apply cleanly (release_id on artifacts, update_policy on apps)
 2. `UpsertAsset` accepts parameterized variant_key
-3. `download_artifacts` stores release_id
-4. Update manifests include release notes
-5. Channel discovery endpoint works
-6. Post-release verification endpoint works
-7. Update policy defaults are configurable per-app
-8. API key comparison is timing-safe
+3. `download_artifacts` stores release_id when provided
+4. Update manifests include release notes when available
+5. Channel discovery endpoint works with correct gating
+6. Post-release verification endpoint works (lightweight + deep modes)
+7. Update policy defaults are configurable per-app via admin endpoint
+8. API key comparison is timing-safe via extracted middleware
 9. All tests pass
 10. Scenario restarts and is healthy
 11. Skills updated with new capabilities

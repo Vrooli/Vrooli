@@ -3270,15 +3270,82 @@
     "interaction_type": "spawn",
     "task_id": "b58f7c9b-d34b-49ce-9f6d-69d406e5cc60",
     "run_id": "2dbf7309-389d-49ba-8da0-f5075c18f0f2",
-    "status": "running",
+    "status": "complete",
     "requested_at": "2026-04-07T02:29:14Z",
     "started_at": "2026-04-07T02:29:14Z",
+    "finished_at": "2026-04-07T02:48:15Z",
     "requested_by": "swarm-manager-ui",
     "metadata": {
       "entrypoint": "execution.start",
       "mode": "yolo",
       "operation": "generator"
     },
-    "updated_at": "2026-04-07T02:29:14Z"
+    "updated_at": "2026-04-07T04:29:14Z"
+  },
+  {
+    "activity_id": "94596a452391351d",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "lpbs-stripe-monetization-assurance-suite",
+    "owner_title": "Deepen LPBS Stripe Monetization Assurance",
+    "execution_id": "5b1a70dea862cf2f",
+    "purpose": "review",
+    "interaction_type": "spawn",
+    "task_id": "390e6b37-b9e1-4200-9bd3-ada8606d71de",
+    "run_id": "225ad0bc-528e-4495-96db-2953acb39365",
+    "status": "complete",
+    "requested_at": "2026-04-07T02:50:10Z",
+    "started_at": "2026-04-07T02:50:10Z",
+    "finished_at": "2026-04-07T02:53:16Z",
+    "requested_by": "finalization",
+    "metadata": {
+      "entrypoint": "finalization.evidence_gathering"
+    },
+    "updated_at": "2026-04-07T04:29:14Z"
+  },
+  {
+    "activity_id": "2531e0ec1c50da3f",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "lpbs-desktop-release-contract-hardening",
+    "owner_title": "Harden The LPBS Desktop Release Contract",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "9406ba4d-664a-4cd7-aba5-aa69ecae0ffc",
+    "run_id": "e0498199-0a3d-41d7-80f1-54d0dcd8a2d0",
+    "status": "complete",
+    "requested_at": "2026-04-07T13:24:23Z",
+    "started_at": "2026-04-07T13:24:23Z",
+    "finished_at": "2026-04-07T13:29:44Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-07T13:29:46Z"
+  },
+  {
+    "activity_id": "66ceb45b06fae32e",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "lpbs-desktop-release-contract-hardening",
+    "owner_title": "Harden The LPBS Desktop Release Contract",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "24385f0e-39a8-458f-9797-db8c4f3a06d0",
+    "run_id": "fe62e4ee-df3e-4333-9241-27975220eed8",
+    "status": "cancelled",
+    "requested_at": "2026-04-07T13:24:31Z",
+    "started_at": "2026-04-07T13:24:32Z",
+    "finished_at": "2026-04-07T13:27:24Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "auto_triggered": "true",
+      "entrypoint": "backlog.workshop_auto_advance",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-07T13:27:24Z"
   }
 ]
