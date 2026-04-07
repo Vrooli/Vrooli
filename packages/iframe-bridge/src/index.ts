@@ -24,3 +24,22 @@ export {
   type BridgeShortcutIntent,
   type BridgeShortcutOutcome,
 } from './iframeBridgeChild.js';
+
+// Spatial navigation (also available via `@vrooli/iframe-bridge/spatial`)
+export {
+  initSpatialNav,
+  GamepadInputManager,
+  SpatialNavManager,
+  FOCUSABLE_SELECTOR,
+  DEFAULT_SPATIAL_FOCUS_CSS,
+  injectSpatialStyles,
+  removeSpatialStyles,
+  type SpatialNavController,
+  type SpatialNavBridgeOptions,
+  type GamepadAction,
+  type GamepadInputOptions,
+  type Direction,
+  type FocusGroupMode,
+  type FocusGroupOptions,
+  type SpatialNavOptions,
+} from './spatialNavBridge.js';

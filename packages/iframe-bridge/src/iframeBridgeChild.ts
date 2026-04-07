@@ -8,7 +8,8 @@ export type BridgeCapability =
   | 'logs'
   | 'network'
   | 'inspect'
-  | 'shortcuts';
+  | 'shortcuts'
+  | 'spatial';
 
 export type BridgeLogLevel = 'log' | 'info' | 'warn' | 'error' | 'debug';
 

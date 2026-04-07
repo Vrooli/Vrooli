@@ -27,6 +27,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
+import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import App from "./App";
 import "./styles.css";
 
@@ -67,6 +68,8 @@ if (
   initIframeBridgeChild({ parentOrigin, appId: "swarm-manager" });
   window.__swarmManagerBridgeInitialized = true;
 }
+
+initSpatialNav();
 
 const ensureSEO = () => {
   const head = document.head;

@@ -44,10 +44,12 @@ This is the central organizing structure. Each interop concern maps to exactly o
 | **[E]** | `ui/src/App.tsx` | Proxy-aware router basename via `getProxyInfo()` | Import of `getProxyInfo` + `basename` prop on router |
 | **[F]** | `ui/src/lib/api-client.ts` | API base resolution + URL building | Import of `resolveApiBase` + `buildApiUrl` |
 | **[G]** | `ui/src/hooks/useKeyboardShortcuts.ts` | Central shortcut manager with iframe relay | Import of `emitShortcutIntent` |
+| **[H]** | `ui/src/hooks/useSpatialNav.ts` | Spatial navigation hook with focus group registration | Import of `initSpatialNav` from `@vrooli/iframe-bridge/spatial` |
+| **[I]** | `ui/src/hooks/useGamepad.ts` | Raw gamepad input hook for custom handling | Import of `GamepadInputManager` from `@vrooli/iframe-bridge/spatial` |
 
-**Why fixed slots?** A future CLI tool can verify interop compliance by checking 7 known file paths with simple grep/AST patterns. Scattering these across arbitrary files makes automated verification impractical.
+**Why fixed slots?** A future CLI tool can verify interop compliance by checking 9 known file paths with simple grep/AST patterns. Scattering these across arbitrary files makes automated verification impractical.
 
-**Flexibility note:** Slots [F] and [G] allow one naming alternative each (noted below). All other slots are fixed.
+**Flexibility note:** Slots [F] and [G] allow one naming alternative each (noted below). All other slots are fixed. Slots [H] and [I] are provided by the template and rarely need customisation.
 
 ---
 
@@ -562,6 +564,85 @@ Audit: `rg "scrollIntoView" ui/src/` — must return 0 matches in production fil
 
 ---
 
+## Section 4.6: Spatial Navigation & Gamepad Support
+
+Scenario UIs must be navigable with game controllers (Xbox, PlayStation, Switch) via spatial navigation — 2D directional focus movement driven by D-pad and analog stick input.
+
+### Initialisation — Slot [H]
+
+`initSpatialNav()` is called once in `main.tsx`, after `initIframeBridgeChild()`:
+
+```typescript
+import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
+
+// After bridge init...
+initSpatialNav();
+```
+
+Unlike the bridge init, spatial nav works in all contexts (not just iframes), so no `window.top !== window.self` guard is needed. The call is already included in both UI templates.
+
+### Focus Groups — `<SpatialGroup>` Component
+
+Complex UIs should register focus groups to control navigation behavior per-container:
+
+```tsx
+import { useSpatialNav } from "./hooks/useSpatialNav";
+import { SpatialGroup } from "./hooks/SpatialGroup";
+
+function App() {
+  const spatialNav = useSpatialNav();
+  return (
+    <>
+      <SpatialGroup controllerRef={spatialNav} mode="spatial">
+        <Sidebar />
+      </SpatialGroup>
+      <SpatialGroup controllerRef={spatialNav} mode="passthrough">
+        <GraphCanvas />
+      </SpatialGroup>
+      <SpatialGroup controllerRef={spatialNav} mode="spatial">
+        <DetailsPanel />
+      </SpatialGroup>
+    </>
+  );
+}
+```
+
+### Mode Selection Heuristic
+
+| Mode | When to use | Examples |
+|---|---|---|
+| `spatial` (default) | Standard UI — D-pad moves between focusable children | Lists, forms, buttons, cards, nav menus, detail views, modals, toolbars |
+| `passthrough` | Component handles arrow keys for its own internal purpose | Canvas/graph views, map views, drawing tools, rich text editors, video players |
+| `grid` | Uniform grid layout | Image galleries, dashboard cards, calendar views |
+
+**Rule of thumb:** If the component already handles arrow keys for panning, cursor movement, or cell navigation, use `passthrough`. Otherwise use `spatial`.
+
+### Mode Switching
+
+Mode switching between cursor and spatial navigation is automatic:
+- **D-pad press → enter spatial mode.** Browser cursor is hidden via CSS, a visible focus ring appears on the nearest focusable element.
+- **Mouse move / touch → exit spatial mode.** Cursor is restored, focus ring disappears.
+- **Bumper buttons (LB/RB)** cycle between top-level focus groups regardless of mode.
+- **B button** exits a passthrough zone and returns to the parent spatial context.
+
+### Iframe Safety
+
+All spatial navigation follows the same iframe-safe rules from Section 4.5:
+- Never use `scrollIntoView()` — the spatial nav engine uses `container.scrollTo()` internally.
+- Always `element.focus({ preventScroll: true })` — the engine handles this automatically.
+
+### Focus Ring Styling
+
+The engine injects a default blue focus ring via `[data-spatial-focus="true"]` attribute. Scenarios can:
+1. **Override** by writing CSS for `[data-spatial-focus="true"]` in their own stylesheets.
+2. **Opt out** by passing `{ injectDefaultFocusStyle: false }` to `initSpatialNav()` and styling `:focus-visible` themselves.
+
+### Opt-Out
+
+Scenarios that do not need gamepad support can add `// spatial-nav: disabled` to `main.tsx` instead of calling `initSpatialNav()`. The auditor rule will accept this as a valid opt-out.
+
+---
+
 ## Section 5: Self-Detection & Graceful Degradation
 
 Every pattern in this skill auto-detects its context and degrades to a no-op when the context isn't present:
@@ -606,7 +687,7 @@ These checks are also included in `app-monitor diagnostics <scenario-name>` (the
 
 ### Check Reference
 
-The automated scanner verifies 19 compliance checks mapped to slots [A]-[G] plus cross-cutting rules:
+The automated scanner verifies 21 compliance checks mapped to slots [A]-[I] plus cross-cutting rules:
 
 | # | Check | Slot | Severity | What It Verifies |
 |---|-------|------|----------|------------------|
@@ -629,8 +710,10 @@ The automated scanner verifies 19 compliance checks mapped to slots [A]-[G] plus
 | 17 | Standard server functions | [C] | medium | Server file uses `startScenarioServer` or `createScenarioServer` from `@vrooli/api-base/server` |
 | 18 | No scrollIntoView | §4.5 | high | No `scrollIntoView` calls in ui/src/ production files |
 | 19 | No h-screen | §4.5 | medium | No `h-screen` class usage in ui/src/ (use `h-full` with height chain) |
+| 20 | Spatial nav init | [H] | medium | `initSpatialNav` in main.tsx or `// spatial-nav: disabled` opt-out comment |
+| 21 | Focus visible styles | — | low | `focus-visible` classes or `data-spatial-focus` styling in UI component files |
 
-Checks 5, 9, 10, 13, 14, 16, and 17 are conditional — they skip automatically when the feature isn't used (no router, no keyboard shortcuts, no bridge call, no custom server, no server file).
+Checks 5, 9, 10, 13, 14, 16, and 17 are conditional — they skip automatically when the feature isn't used (no router, no keyboard shortcuts, no bridge call, no custom server, no server file). Checks 20-21 support an explicit opt-out comment.
 
 ---
 

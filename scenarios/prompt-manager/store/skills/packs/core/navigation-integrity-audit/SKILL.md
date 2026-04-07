@@ -132,6 +132,21 @@ Avoid superficial changes (e.g. renaming buttons without fixing their behavior, 
 
 ---
 
+### 8. Gamepad Traversal Coherence
+
+When a scenario has spatial navigation enabled (`initSpatialNav()` in `main.tsx`), verify gamepad-driven navigation is coherent:
+
+* **Reachability:** All interactive elements (buttons, links, inputs, tabs) must be reachable via D-pad directional navigation. Walk through every major view with only D-pad + A/B buttons.
+* **No focus traps:** Every focus group must have an escape path. Pressing B (back) should exit passthrough zones. Bumper buttons (LB/RB) should cycle between top-level groups.
+* **Passthrough zone identification:** Components that handle arrow keys internally (graph canvases, map views, rich text editors, video players) should be registered as `passthrough` focus groups. Verify D-pad input within these zones goes to the component, not the spatial nav engine.
+* **Focus order matches visual layout:** Spatial navigation should move focus to the visually nearest element in the pressed direction. If focus jumps to an unexpected element, the layout or focus group boundaries need adjustment.
+* **B-button / back behavior:** B button should match the user's expectation of "go back one step" — exiting a passthrough zone, closing a modal, or navigating to the previous page, in that priority order.
+* **Focus ring visibility:** The focus ring (default blue or scenario-custom) must be clearly visible on all backgrounds. Check both light and dark mode if applicable.
+
+This check complements Section 5 (Shortcut & Accelerator Consistency) — keyboard shortcuts and gamepad navigation should be coherent with each other.
+
+---
+
 ### **9. Documentation**
 
 Update the **Navigation** section of `docs/internal/EXPERIENCE-AUDIT.md` to record your findings:

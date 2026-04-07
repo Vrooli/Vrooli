@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge/child";
+import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import App from "./App";
 import "./styles.css";
 
@@ -40,6 +41,8 @@ if (typeof window !== 'undefined' && window.parent !== window && !window.__landi
   });
   window.__landingManagerBridgeInitialized = true;
 }
+
+initSpatialNav();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

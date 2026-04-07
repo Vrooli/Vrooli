@@ -37,6 +37,8 @@ import { GraphCanvas } from "./GraphCanvas";
 import { CapturePanel } from "./CapturePanel";
 import { CommandPostOverlay } from "../../../components/command-post";
 import { useCommandPostBadgeCount } from "../../../hooks/useCommandPostBadgeCount";
+import { useSpatialNav } from "../../../hooks/useSpatialNav";
+import { SpatialGroup } from "../../../hooks/SpatialGroup";
 
 const BacklogDetailsPage = lazy(() =>
   import("../../../pages/BacklogDetailsPage").then((m) => ({
@@ -108,6 +110,8 @@ export function GraphWorkspace() {
 
   const detailSelection = useDetailSelectionStore((s) => s.selection);
   const { openDetail } = useDetailNavigation();
+
+  const spatialNav = useSpatialNav();
 
   useDetailUrlSync();
   useCapturePolling();
@@ -232,21 +236,26 @@ export function GraphWorkspace() {
 
   return (
     <div className="flex h-screen bg-slate-950 text-slate-50" data-testid="graph-workspace">
-      {/* Sidebar (activity feed) */}
-      <Sidebar
-        feed={feed}
-        onItemClick={handleSidebarItemClick}
-        onSettingsOpen={() => setShowSettingsDrawer(true)}
-        onViewActivity={handleViewActivity}
-        onViewBacklog={handleViewBacklog}
-        onOpenCommandPost={() => setShowCommandPost(true)}
-      />
+      {/* Sidebar (activity feed) — spatial nav for list items */}
+      <SpatialGroup controllerRef={spatialNav} mode="spatial">
+        <Sidebar
+          feed={feed}
+          onItemClick={handleSidebarItemClick}
+          onSettingsOpen={() => setShowSettingsDrawer(true)}
+          onViewActivity={handleViewActivity}
+          onViewBacklog={handleViewBacklog}
+          onOpenCommandPost={() => setShowCommandPost(true)}
+        />
+      </SpatialGroup>
 
       {/* Main canvas area with HUD overlays */}
       <div className="relative flex-1">
-        <CanvasErrorBoundary>
-          <GraphCanvas />
-        </CanvasErrorBoundary>
+        {/* Graph canvas — passthrough for panning/zooming */}
+        <SpatialGroup controllerRef={spatialNav} mode="passthrough">
+          <CanvasErrorBoundary>
+            <GraphCanvas />
+          </CanvasErrorBoundary>
+        </SpatialGroup>
 
         {/* HUD — two rows at top */}
         <GraphWorkspaceHUD
@@ -303,15 +312,17 @@ export function GraphWorkspace() {
 
         {/* Detail page overlay — full-page, covers graph when active */}
         {detailSelection && (
-          <div className="absolute inset-0 z-40 overflow-y-auto bg-slate-950" data-testid="detail-overlay">
-            <Suspense fallback={<PageLoadingState label="Loading details..." />}>
-              {detailSelection.entityType === "backlog" && <BacklogDetailsPage />}
-              {detailSelection.entityType === "scenario" && <ScenarioDetailsPage />}
-              {detailSelection.entityType === "execution" && <ExecutionDetailsPage />}
-              {detailSelection.entityType === "initiative" && <InitiativeDetailsPage />}
-              {detailSelection.entityType === "capture" && <CaptureDetailsPage />}
-            </Suspense>
-          </div>
+          <SpatialGroup controllerRef={spatialNav} mode="spatial">
+            <div className="absolute inset-0 z-40 overflow-y-auto bg-slate-950" data-testid="detail-overlay">
+              <Suspense fallback={<PageLoadingState label="Loading details..." />}>
+                {detailSelection.entityType === "backlog" && <BacklogDetailsPage />}
+                {detailSelection.entityType === "scenario" && <ScenarioDetailsPage />}
+                {detailSelection.entityType === "execution" && <ExecutionDetailsPage />}
+                {detailSelection.entityType === "initiative" && <InitiativeDetailsPage />}
+                {detailSelection.entityType === "capture" && <CaptureDetailsPage />}
+              </Suspense>
+            </div>
+          </SpatialGroup>
         )}
       </div>
 
