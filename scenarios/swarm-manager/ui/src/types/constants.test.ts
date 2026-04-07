@@ -30,7 +30,6 @@ describe("Constants - Decision Boundaries", () => {
     "in_progress",
     "completed",
     "failed",
-    "archived",
   ];
 
   // All possible scenario statuses from the domain type
@@ -74,10 +73,10 @@ describe("Constants - Decision Boundaries", () => {
         BACKLOG_STATUS_COLORS.in_progress,
       ];
       const completedColor = BACKLOG_STATUS_COLORS.completed;
-      const archivedColor = BACKLOG_STATUS_COLORS.archived;
+      const failedColor = BACKLOG_STATUS_COLORS.failed;
 
-      // Completed should be visually different from archived
-      expect(completedColor).not.toBe(archivedColor);
+      // Completed should be visually different from failed
+      expect(completedColor).not.toBe(failedColor);
 
       // Active statuses should be distinct
       expect(new Set(activeColors).size).toBe(activeColors.length);

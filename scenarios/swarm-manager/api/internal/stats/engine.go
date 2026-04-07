@@ -205,7 +205,21 @@ func (s *aggregateState) processEvent(e *eventlog.Event) {
 
 	case eventlog.EventBacklogArchived:
 		delete(s.currentBacklog, e.EntityID)
-		s.itemStatus[e.EntityID] = "archived"
+		var p eventlog.ArchivePayload
+		if unmarshalMeta(e.Metadata, &p) && p.PreviousStatus != "" {
+			s.itemStatus[e.EntityID] = p.PreviousStatus
+		} else {
+			// Historical events before the migration may have nil metadata.
+			s.itemStatus[e.EntityID] = "archived"
+		}
+
+	case eventlog.EventBacklogUnarchived:
+		// Restore item to active backlog using whatever status we have recorded.
+		s.currentBacklog[e.EntityID] = true
+
+	case eventlog.EventBacklogDeleted:
+		delete(s.currentBacklog, e.EntityID)
+		delete(s.itemStatus, e.EntityID)
 
 	case eventlog.EventBacklogBlocked:
 		s.blockedItems[e.EntityID] = e.Timestamp

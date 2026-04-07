@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T21:14:21Z",
   "created": "2026-02-05T21:14:21Z",
   "description": "Privacy-first pregnancy tracking with evidence-based information, multi-outcome support, and complete data sovereignty",
   "name": "pregnancy-tracker-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "health",
     "pregnancy",

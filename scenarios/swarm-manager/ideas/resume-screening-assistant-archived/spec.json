@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T21:16:21Z",
   "created": "2026-02-05T21:16:21Z",
   "description": "AI-powered resume screening and candidate evaluation platform with semantic matching and automated assessment workflows",
   "name": "resume-screening-assistant-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "business-application",
     "business",

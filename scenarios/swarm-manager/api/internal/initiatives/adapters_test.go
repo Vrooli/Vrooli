@@ -167,7 +167,7 @@ func TestBacklogAssignerAdapter_Replace(t *testing.T) {
 		Name:        "repl-init",
 		Title:       "Replaced",
 		Description: "replaced desc",
-		Status:      "archived",
+		Status:      "completed",
 		Items:       []string{"fix/x", "fix/y"},
 	})
 	if err != nil {
@@ -184,8 +184,8 @@ func TestBacklogAssignerAdapter_Replace(t *testing.T) {
 	if result.Initiative.Description != "replaced desc" {
 		t.Errorf("expected description 'replaced desc', got %q", result.Initiative.Description)
 	}
-	if result.Initiative.Status != "archived" {
-		t.Errorf("expected status archived, got %q", result.Initiative.Status)
+	if result.Initiative.Status != "completed" {
+		t.Errorf("expected status completed, got %q", result.Initiative.Status)
 	}
 	if len(result.Initiative.Items) != 2 {
 		t.Fatalf("expected 2 items, got %d", len(result.Initiative.Items))

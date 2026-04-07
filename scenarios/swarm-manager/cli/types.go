@@ -121,26 +121,35 @@ type ProcessBlockingQuestion struct {
 	Question   string `json:"question,omitempty"`
 }
 
+// BlockingReason is a structured blocking reason with forceability metadata.
+type BlockingReason struct {
+	Message   string `json:"message"`
+	Forceable bool   `json:"forceable"`
+}
+
 type QueueBacklogResponse struct {
-	Item                BacklogItem `json:"item"`
-	TaskID              string      `json:"task_id"`
-	RunID               string      `json:"run_id"`
-	BaseURL             string      `json:"base_url"`
-	Created             string      `json:"created"`
-	DryRun              bool        `json:"dry_run,omitempty"`
-	Queued              bool        `json:"queued,omitempty"`
-	Message             string      `json:"message,omitempty"`
-	BlockingReasons     []string    `json:"blocking_reasons,omitempty"`
-	UnansweredQuestions int         `json:"unanswered_questions,omitempty"`
-	PendingSuggestions  int         `json:"pending_suggestions,omitempty"`
+	Item                BacklogItem      `json:"item"`
+	TaskID              string           `json:"task_id"`
+	RunID               string           `json:"run_id"`
+	BaseURL             string           `json:"base_url"`
+	Created             string           `json:"created"`
+	DryRun              bool             `json:"dry_run,omitempty"`
+	Queued              bool             `json:"queued,omitempty"`
+	Message             string           `json:"message,omitempty"`
+	BlockingReasons     []BlockingReason `json:"blocking_reasons,omitempty"`
+	UnansweredQuestions int              `json:"unanswered_questions,omitempty"`
+	PendingSuggestions  int              `json:"pending_suggestions,omitempty"`
 }
 
 type ResearchResponse struct {
-	TaskID  string `json:"task_id"`
-	RunID   string `json:"run_id"`
-	BaseURL string `json:"base_url"`
-	Created string `json:"created"`
-	DryRun  bool   `json:"dry_run,omitempty"`
+	TaskID          string           `json:"task_id"`
+	RunID           string           `json:"run_id"`
+	BaseURL         string           `json:"base_url"`
+	Created         string           `json:"created"`
+	DryRun          bool             `json:"dry_run,omitempty"`
+	Started         bool             `json:"started,omitempty"`
+	Message         string           `json:"message,omitempty"`
+	BlockingReasons []BlockingReason `json:"blocking_reasons,omitempty"`
 }
 
 // ImportBacklogResponse reports the results of importing an edited markdown export.

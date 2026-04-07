@@ -27,8 +27,8 @@ vi.mock("../../../lib/api-client", () => ({
 }));
 
 vi.mock("../../../stores/backlog-store", () => ({
-  useBacklogStore: (sel: (s: { items: unknown[]; fetchBacklog: () => void }) => unknown) =>
-    sel({ items: [], fetchBacklog: vi.fn() }),
+  useBacklogStore: (sel: (s: { items: unknown[]; blockingMap: Record<string, unknown>; fetchBacklog: () => void }) => unknown) =>
+    sel({ items: [], blockingMap: {}, fetchBacklog: vi.fn() }),
 }));
 
 vi.mock("../../../stores/execution-store", () => ({

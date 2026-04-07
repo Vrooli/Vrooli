@@ -3,6 +3,7 @@
     "scenarios/swarm-manager/ui/**",
     "scenarios/swarm-manager/api/**"
   ],
+  "archived_at": "2026-03-27T19:34:34Z",
   "created": "2026-03-26T21:08:47Z",
   "depends_on": [
     "execute/swarm-manager-dashboard-page"
@@ -13,7 +14,7 @@
   "kind": "execute",
   "name": "swarm-manager-initiative-management-ui",
   "priority": 3,
-  "status": "archived",
+  "status": "backlog",
   "tags": [],
   "title": "Build Initiative Detail View with Edit, Item Management, and Create Flow",
   "updated": "2026-03-27T18:40:24Z"

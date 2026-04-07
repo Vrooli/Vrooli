@@ -24,6 +24,7 @@ type backlogItem struct {
 	SourceScenarioName string   `json:"sourceScenarioName,omitempty"`
 	AcceptanceAllow    []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny     []string `json:"acceptance_deny,omitempty"`
+	ArchivedAt         *string  `json:"archived_at,omitempty"`
 }
 
 func (s *Service) loadBacklogItem(kind, name string) (backlogItem, error) {
@@ -86,10 +87,6 @@ func (s *Service) restoreBacklogStatusForRecord(record Record) error {
 func restoreBacklogStatus(record Record) string {
 	previous := strings.ToLower(strings.TrimSpace(record.PreviousStatus))
 	switch previous {
-	case backlogStatusArchived:
-		if strings.TrimSpace(record.BacklogKind) == "idea" {
-			return backlogStatusArchived
-		}
 	case backlogStatusBacklog, backlogStatusResearching, backlogStatusReady:
 		return previous
 	}
@@ -121,13 +118,12 @@ func (s *Service) scenariosRootDir() string {
 	return filepath.Dir(s.rootDir)
 }
 
+// isQueueableStatus checks whether the item's status allows queuing.
+// Archived items (identified by ArchivedAt) are handled separately by the caller.
 func isQueueableStatus(kind, status string) bool {
-	normalizedKind := strings.ToLower(strings.TrimSpace(kind))
 	switch strings.ToLower(strings.TrimSpace(status)) {
 	case backlogStatusBacklog, backlogStatusResearching, backlogStatusReady:
 		return true
-	case backlogStatusArchived:
-		return normalizedKind == "idea"
 	default:
 		return false
 	}

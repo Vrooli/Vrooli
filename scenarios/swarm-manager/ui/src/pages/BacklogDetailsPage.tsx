@@ -106,7 +106,7 @@ export function BacklogDetailsPage() {
     depRelations, itemActions, targetScenarios,
     deliverableLabel, workshopActionLabel,
     isWorkshopFinalized, isLocked, isTerminal, workshopBlockedDeps,
-    deleteError, isUpdating, isRunningAgent, isSavingWorkshop,
+    deleteError, archiveError, isArchiving, isUpdating, isRunningAgent, isSavingWorkshop,
     isBatchReviewing, isDeletingWorkshopRound, isFileActionPending,
   } = data;
 
@@ -334,10 +334,7 @@ export function BacklogDetailsPage() {
       onEdit={uiStore.openEdit}
       onFollowUp={() => uiStore.setFollowUpTarget(executionHistory?.[0] ?? null)}
       onOpenAgentDialog={uiStore.openAgent}
-      onArchive={() => handlers.handleUpdateItem({
-        title: item.title, description: item.description,
-        status: "archived", priority: item.priority, tags: item.tags,
-      })}
+      onArchive={() => handlers.handleArchiveItem()}
       onStatusChange={(newStatus) => handlers.handleUpdateItem({
         title: item.title, description: item.description,
         status: newStatus, priority: item.priority, tags: item.tags,
@@ -431,11 +428,24 @@ export function BacklogDetailsPage() {
             <>
               {/* Mobile tab content */}
               <div className="lg:hidden">
+                {item.archivedAt != null && (
+                  <div className="mb-3 flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+                    <span className="text-sm text-amber-300">Archived</span>
+                    <button
+                      type="button"
+                      className="text-sm font-medium text-amber-300 hover:text-amber-200"
+                      onClick={handlers.handleUnarchiveItem}
+                      disabled={isArchiving}
+                    >
+                      {isArchiving ? "Restoring..." : "Unarchive"}
+                    </button>
+                  </div>
+                )}
                 {activeTab === "info" && (
                   <div className="flex-1 space-y-0 overflow-y-auto pb-4">
-                    {deleteError && (
+                    {(deleteError || archiveError) && (
                       <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-                        {deleteError}
+                        {deleteError || archiveError}
                       </div>
                     )}
                     {detailsPanel}
@@ -460,10 +470,7 @@ export function BacklogDetailsPage() {
                       backlogName={name ?? ""}
                       onStopRun={(runId) => void stopRun(runId)}
                       onFollowUp={(exec) => uiStore.setFollowUpTarget(exec)}
-                      onArchive={item ? () => handlers.handleUpdateItem({
-                        title: item.title, description: item.description,
-                        status: "archived", priority: item.priority, tags: item.tags,
-                      }) : undefined}
+                      onArchive={item ? () => handlers.handleArchiveItem() : undefined}
                       onVerifyEvidence={(round, evidenceId, verified) => {
                         const execId = executionHistory?.[0]?.executionId;
                         void reviewService.verifyEvidence(backlogKind ?? "", name ?? "", round, evidenceId, verified, execId)
@@ -495,9 +502,13 @@ export function BacklogDetailsPage() {
                 <BacklogDesktopHeader
                   item={item}
                   deleteError={deleteError}
+                  archiveError={archiveError}
                   primaryAction={<HeaderPrimaryAction onFinalizeWorkshop={handlers.handleFinalizeWorkshop} onRunWorkshop={handlers.handleRunWorkshop} />}
                   onEdit={uiStore.openEdit}
                   onDelete={uiStore.openDelete}
+                  onArchive={handlers.handleArchiveItem}
+                  onUnarchive={handlers.handleUnarchiveItem}
+                  isArchiving={isArchiving}
                   onResetWorkshop={uiStore.openWorkshopReset}
                   hasWorkshopRounds={(workshopRounds?.length ?? 0) > 0}
                   onOpenAgentDialog={uiStore.openAgent}
@@ -531,10 +542,7 @@ export function BacklogDetailsPage() {
                         backlogName={name ?? ""}
                         onStopRun={(runId) => void stopRun(runId)}
                         onFollowUp={(exec) => uiStore.setFollowUpTarget(exec)}
-                        onArchive={item ? () => handlers.handleUpdateItem({
-                          title: item.title, description: item.description,
-                          status: "archived", priority: item.priority, tags: item.tags,
-                        }) : undefined}
+                        onArchive={item ? () => handlers.handleArchiveItem() : undefined}
                         onVerifyEvidence={(round, evidenceId, verified) => {
                           const execId = executionHistory?.[0]?.executionId;
                           void reviewService.verifyEvidence(backlogKind ?? "", name ?? "", round, evidenceId, verified, execId)
@@ -579,6 +587,7 @@ export function BacklogDetailsPage() {
             agentDialogTargetIds={agentDialogTargetIds}
             agentDialogRequirementIds={agentDialogRequirementIds}
             upsertItem={upsertItem}
+            blockingInfo={itemActions ? { blocked: itemActions.blocked, blockingDepKeys: itemActions.blockingDepKeys, allForceable: false } : null}
           />
         </div>
       </DetailPageLayout>

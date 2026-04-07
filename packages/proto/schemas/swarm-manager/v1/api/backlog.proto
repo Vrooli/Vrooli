@@ -88,7 +88,7 @@ message UpdateBacklogItemRequest {
   optional string description = 2;
 
   // Lifecycle status.
-  // @constraint one of: backlog, researching, ready, queued, in_progress, completed, failed, archived
+  // @constraint one of: backlog, researching, ready, queued, in_progress, completed, failed
   optional string status = 3 [(buf.validate.field).string = { in: [
     "backlog",
     "researching",
@@ -96,8 +96,7 @@ message UpdateBacklogItemRequest {
     "queued",
     "in_progress",
     "completed",
-    "failed",
-    "archived"
+    "failed"
   ] }];
 
   // Priority level (1-10).
@@ -132,9 +131,30 @@ message UpdateBacklogItemRequest {
   optional string note = 14;
 }
 
+// A single blocking reason with forceability metadata.
+message BlockingReason {
+  // Human-readable description of the blocking condition.
+  string message = 1;
+  // Whether this reason can be overridden with force=true.
+  bool forceable = 2;
+}
+
+// Per-item blocking summary for list views.
+message ItemBlockingInfo {
+  // Whether the item is currently blocked by dependencies.
+  bool blocked = 1;
+  // The "kind/name" keys of dependencies causing the block.
+  repeated string blocking_dep_keys = 2;
+  // Whether all blocking reasons are forceable (override available).
+  bool all_forceable = 3;
+}
+
 // ListBacklogItemsResponse returns all backlog items.
 message ListBacklogItemsResponse {
   repeated BacklogItem items = 1;
+  // Per-item blocking state keyed by "kind/name". Only includes items that
+  // have dependencies; items without deps are omitted (not blocked).
+  map<string, ItemBlockingInfo> blocking = 2;
 }
 
 // BacklogItemResponse returns a single backlog item.
@@ -211,7 +231,7 @@ message QueueBacklogItemResponse {
   // Human-readable summary of outcome.
   string message = 8;
   // Blocking reasons when queue did not execute.
-  repeated string blocking_reasons = 9;
+  repeated BlockingReason blocking_reasons = 9;
   // Number of unanswered clarification questions detected.
   int32 unanswered_questions = 10;
   // Number of suggestions still pending user decision.
@@ -248,14 +268,28 @@ message BacklogResearchRequest {
 
   // Requirement IDs to attach as agent context.
   repeated string context_requirement_ids = 8;
+
+  // Explicit confirmation to execute research. If false/unset, request is
+  // treated as a preview/dry-run and no agent is spawned.
+  optional bool confirm = 9;
+  // Override forceable blocking reasons (e.g. unmet dependencies).
+  optional bool force = 10;
 }
 
 // BacklogResearchResponse returns agent-manager identifiers for research runs.
 message BacklogResearchResponse {
-  string task_id = 1 [(buf.validate.field).string.min_len = 1];
-  string run_id = 2 [(buf.validate.field).string.min_len = 1];
-  string base_url = 3 [(buf.validate.field).string.min_len = 1];
-  string created = 4 [(buf.validate.field).string.min_len = 1];
+  string task_id = 1;
+  string run_id = 2;
+  string base_url = 3;
+  string created = 4;
+  // True when request ran in preview mode and no agent was spawned.
+  bool dry_run = 5;
+  // True when an agent was actually spawned.
+  bool started = 6;
+  // Human-readable summary of outcome.
+  string message = 7;
+  // Blocking reasons when research did not execute.
+  repeated BlockingReason blocking_reasons = 8;
 }
 
 // ExportBacklogRequest defines filter criteria for exporting backlog items to markdown.

@@ -12,6 +12,8 @@ import { useAgentActivitiesStore, useBacklogStore } from "../../../../stores";
 import { useSnoozedKeys } from "../../../../stores/snooze-store";
 import { useDetailSelectionStore } from "../../../../stores/detail-selection-store";
 import { backlogService } from "../../../../services";
+import { defaultApiClient } from "../../../../lib/api-client";
+import { API_ENDPOINTS } from "../../../../lib/api-endpoints";
 import { getItemActions } from "../../../../lib";
 import { dependencyAwareSort } from "../../../../lib/dependency-sort";
 import { buildReadinessData } from "../../../../lib/maturity";
@@ -25,6 +27,7 @@ import type { RunBacklogTarget } from "../../../../components/backlog/run-backlo
 import type { StepperCompletionResult } from "../../../../components/backlog/inline-question-stepper";
 import type { ReadinessIndicatorData } from "../../../../lib/maturity";
 import type { AttentionReason, FeedbackItem, MaturityItem } from "../../../../lib/feed";
+import { ConfirmDialog } from "../../../../components/ui/confirm-dialog";
 import type { BacklogItem, BacklogKind, BacklogStatus, PendingQuestion } from "../../../../types";
 import type { BacklogFilters, SortConfig } from "./types";
 
@@ -39,6 +42,8 @@ interface BacklogTabProps {
 
 function applyFilters(items: BacklogItem[], filters: BacklogFilters): BacklogItem[] {
   return items.filter((item) => {
+    // Hide archived items unless showArchived is on
+    if (item.archivedAt != null && !filters.showArchived) return false;
     if (filters.statuses.length > 0 && !filters.statuses.includes(item.status)) return false;
     if (filters.kinds.length > 0 && !filters.kinds.includes(item.kind)) return false;
     if (filters.priorityMin !== null && item.priority < filters.priorityMin) return false;
@@ -67,12 +72,13 @@ function applySort(items: BacklogItem[], sort: SortConfig, allItems: BacklogItem
 }
 
 function hasActiveFilters(filters: BacklogFilters): boolean {
-  return filters.statuses.length > 0 || filters.kinds.length > 0 || filters.priorityMin !== null || filters.priorityMax !== null;
+  return filters.statuses.length > 0 || filters.kinds.length > 0 || filters.priorityMin !== null || filters.priorityMax !== null || filters.showArchived;
 }
 
 export function BacklogTab({ searchQuery, filters, sort, onItemClick }: BacklogTabProps) {
   const queryClient = useQueryClient();
   const items = useBacklogStore((s) => s.items);
+  const blockingMap = useBacklogStore((s) => s.blockingMap);
   const fetchBacklog = useBacklogStore((s) => s.fetchBacklog);
   const agentActivities = useAgentActivitiesStore((s) => s.activities);
   const refreshActivities = useAgentActivitiesStore((s) => s.refreshActivities);
@@ -82,6 +88,12 @@ export function BacklogTab({ searchQuery, filters, sort, onItemClick }: BacklogT
   const [runModalTarget, setRunModalTarget] = useState<RunBacklogTarget | undefined>();
   const [completedSteppers, setCompletedSteppers] = useState<Set<string>>(new Set());
   const [transitionItems, setTransitionItems] = useState<Map<string, StepperCompletionResult>>(new Map());
+  const [workshopBlockingConfirm, setWorkshopBlockingConfirm] = useState<{
+    kind: BacklogKind;
+    name: string;
+    mode: "workshop" | "finalize";
+    blockingDepKeys: string[];
+  } | null>(null);
 
   // ── Active run tracking ──────────────────────────────────────────────
   const activeRunKeys = useMemo(() => {
@@ -171,8 +183,8 @@ export function BacklogTab({ searchQuery, filters, sort, onItemClick }: BacklogT
 
   // ── Mutations ────────────────────────────────────────────────────────
   const archiveMutation = useMutation({
-    mutationFn: ({ kind, name: itemName, item }: { kind: BacklogKind; name: string; item: BacklogItem }) =>
-      backlogService.update(kind, itemName, { ...item, status: "archived" }),
+    mutationFn: ({ kind, name: itemName }: { kind: BacklogKind; name: string }) =>
+      defaultApiClient.patch(API_ENDPOINTS.backlogArchiveItem(kind, itemName), {}),
     onSuccess: () => {
       void fetchBacklog({ force: true });
     },
@@ -187,12 +199,14 @@ export function BacklogTab({ searchQuery, filters, sort, onItemClick }: BacklogT
   });
 
   const workshopMutation = useMutation({
-    mutationFn: ({ kind, name: itemName, mode, prompt }: {
+    mutationFn: ({ kind, name: itemName, mode, prompt, confirm, force }: {
       kind: BacklogKind;
       name: string;
       mode: "workshop" | "finalize";
       prompt: string;
-    }) => backlogService.research(kind, itemName, { mode, prompt }),
+      confirm?: boolean;
+      force?: boolean;
+    }) => backlogService.research(kind, itemName, { mode, prompt, confirm, force }),
     onSuccess: (result) => {
       if (result.runId) {
         void refreshActivities(true);
@@ -267,7 +281,7 @@ export function BacklogTab({ searchQuery, filters, sort, onItemClick }: BacklogT
                 readinessData={readiness}
                 itemActions={getItemActions({
                   item,
-                  allItems: items,
+                  blockingInfo: blockingMap[itemKey] ?? null,
                   readinessReady: readiness ? readiness.ready : null,
                   pendingSynthesis: readiness?.pendingSynthesis ?? false,
                   agentRunning: activeRunKeys.has(itemKey),
@@ -283,20 +297,36 @@ export function BacklogTab({ searchQuery, filters, sort, onItemClick }: BacklogT
                 isSelected={false}
                 onToggleSelection={() => {}}
                 onRun={() => setRunModalTarget({ kind: item.kind, name: item.name, title: item.title })}
-                onArchive={() => archiveMutation.mutate({ kind: item.kind as BacklogKind, name: item.name, item })}
+                onArchive={() => archiveMutation.mutate({ kind: item.kind as BacklogKind, name: item.name })}
                 onFollowUp={() => selectBacklog(item.kind, item.name)}
-                onFinalize={() => workshopMutation.mutate({
-                  kind: item.kind as BacklogKind,
-                  name: item.name,
-                  mode: "finalize",
-                  prompt: "Finalize the latest workshop answers into the primary deliverable for this backlog item.",
-                })}
-                onWorkshop={() => workshopMutation.mutate({
-                  kind: item.kind as BacklogKind,
-                  name: item.name,
-                  mode: "workshop",
-                  prompt: "Run the next workshop round for this backlog item.",
-                })}
+                onFinalize={() => {
+                  const info = blockingMap[itemKey];
+                  if (info?.blocked) {
+                    setWorkshopBlockingConfirm({ kind: item.kind as BacklogKind, name: item.name, mode: "finalize", blockingDepKeys: info.blockingDepKeys });
+                    return;
+                  }
+                  workshopMutation.mutate({
+                    kind: item.kind as BacklogKind,
+                    name: item.name,
+                    mode: "finalize",
+                    prompt: "Finalize the latest workshop answers into the primary deliverable for this backlog item.",
+                    confirm: true,
+                  });
+                }}
+                onWorkshop={() => {
+                  const info = blockingMap[itemKey];
+                  if (info?.blocked) {
+                    setWorkshopBlockingConfirm({ kind: item.kind as BacklogKind, name: item.name, mode: "workshop", blockingDepKeys: info.blockingDepKeys });
+                    return;
+                  }
+                  workshopMutation.mutate({
+                    kind: item.kind as BacklogKind,
+                    name: item.name,
+                    mode: "workshop",
+                    prompt: "Run the next workshop round for this backlog item.",
+                    confirm: true,
+                  });
+                }}
                 runningLabel={activeRunLabels.get(itemKey)}
                 archivePending={archiveMutation.isPending}
                 finalizePending={
@@ -336,6 +366,28 @@ export function BacklogTab({ searchQuery, filters, sort, onItemClick }: BacklogT
           void fetchBacklog({ force: true });
           void refreshActivities(true);
         }}
+      />
+
+      {/* Workshop blocking override confirmation */}
+      <ConfirmDialog
+        isOpen={!!workshopBlockingConfirm}
+        onClose={() => setWorkshopBlockingConfirm(null)}
+        onConfirm={() => {
+          if (!workshopBlockingConfirm) return;
+          const { kind, name: itemName, mode } = workshopBlockingConfirm;
+          const prompt = mode === "finalize"
+            ? "Finalize the latest workshop answers into the primary deliverable for this backlog item."
+            : "Run the next workshop round for this backlog item.";
+          setWorkshopBlockingConfirm(null);
+          workshopMutation.mutate({ kind, name: itemName, mode, prompt, confirm: true, force: true });
+        }}
+        title="Dependencies Not Ready"
+        description={
+          workshopBlockingConfirm?.blockingDepKeys.length
+            ? `This item is blocked by incomplete dependencies: ${workshopBlockingConfirm.blockingDepKeys.join(", ")}. Do you want to proceed anyway?`
+            : "This item has incomplete dependencies. Do you want to proceed anyway?"
+        }
+        confirmLabel="Override and Proceed"
       />
     </>
   );

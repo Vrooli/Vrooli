@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T20:45:54Z",
   "created": "2026-02-05T20:45:54Z",
   "description": "Enterprise-grade AI image generation platform with voice briefings, multi-brand management, and quality control",
   "name": "image-generation-pipeline-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "business-application",
     "creative-tools",

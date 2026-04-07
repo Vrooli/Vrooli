@@ -20,76 +20,16 @@ import (
 	"swarm-manager/internal/httputil"
 )
 
-// isQueueableStatus checks if an item can be queued from its current status.
-func isQueueableStatus(kind BacklogKind, status BacklogStatus) bool {
-	switch status {
+// isQueueableItem checks if an item can be queued from its current state.
+// Archived ideas can be queued (re-executed); other archived items cannot.
+func isQueueableItem(item BacklogItem) bool {
+	switch item.Status {
 	case StatusBacklog, StatusResearching, StatusReady:
 		return true
-	case StatusArchived:
-		return kind == KindIdea
 	default:
-		return false
+		// Archived ideas can be queued for re-execution.
+		return item.ArchivedAt != nil && item.Kind == KindIdea
 	}
-}
-
-// dedupeQueueReasons removes duplicate and empty blocking reasons.
-func dedupeQueueReasons(reasons []string) []string {
-	if len(reasons) == 0 {
-		return nil
-	}
-	seen := make(map[string]struct{}, len(reasons))
-	result := make([]string, 0, len(reasons))
-	for _, reason := range reasons {
-		trimmed := strings.TrimSpace(reason)
-		if trimmed == "" {
-			continue
-		}
-		if _, exists := seen[trimmed]; exists {
-			continue
-		}
-		seen[trimmed] = struct{}{}
-		result = append(result, trimmed)
-	}
-	return result
-}
-
-// hasNonForceableQueueReasons returns true if any reason cannot be overridden
-// with the force flag.
-func hasNonForceableQueueReasons(reasons []string) bool {
-	for _, reason := range reasons {
-		if !isForceableQueueReason(reason) {
-			return true
-		}
-	}
-	return false
-}
-
-// isForceableQueueReason returns true if a blocking reason can be bypassed
-// with force=true. Workshop/decision gates and unmet dependency gates are
-// forceable — the user may know the dependency is irrelevant or failed and
-// want to proceed anyway. Only hard structural blockers (e.g. missing target
-// scenario) remain non-forceable.
-func isForceableQueueReason(reason string) bool {
-	normalized := strings.ToLower(strings.TrimSpace(reason))
-	return strings.Contains(normalized, "workshop decision") ||
-		strings.Contains(normalized, "pending decision") ||
-		strings.Contains(normalized, "unmet dependencies")
-}
-
-// appendDependencyBlockingReasons checks an item's dependencies and appends
-// a blocking reason if any are unmet. Used by the single-item Queue handler.
-func appendDependencyBlockingReasons(item BacklogItem, store Store, reasons []string) ([]string, error) {
-	if len(item.DependsOn) == 0 {
-		return reasons, nil
-	}
-	unmet, err := store.CheckDependencies(item.DependsOn)
-	if err != nil {
-		return reasons, err
-	}
-	if len(unmet) > 0 {
-		reasons = append(reasons, fmt.Sprintf("unmet dependencies: %s", strings.Join(unmet, ", ")))
-	}
-	return reasons, nil
 }
 
 // Queue queues a backlog item for processing via agent-manager.
@@ -110,7 +50,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !isQueueableStatus(item.Kind, item.Status) {
+	if !isQueueableItem(item) {
 		apierr.MapError(w, "[backlog] queue", apierr.BadRequest("backlog item cannot be queued from current status: %s", item.Status))
 		return
 	}
@@ -178,21 +118,39 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 	itemDir := h.store.ItemDir(kind, item.Name)
 	latestRound, _, _ := LoadLatestRound(itemDir)
 	pendingDecisions := CountPendingDecisions(latestRound)
-	blockingReasons := append([]string{}, preflight.BlockingReasons...)
+
+	// Convert preflight reasons to structured BlockingReasons.
+	// Preflight reasons from the execution service (readiness dimensions,
+	// missing deliverables) are non-forceable structural blockers.
+	var blockingReasons []BlockingReason
+	for _, reason := range preflight.BlockingReasons {
+		blockingReasons = append(blockingReasons, BlockingReason{
+			Message:   reason,
+			Forceable: false,
+		})
+	}
 	if pendingDecisions > 0 {
-		blockingReasons = append(blockingReasons, fmt.Sprintf("%d workshop decision(s) still pending", pendingDecisions))
+		blockingReasons = append(blockingReasons, BlockingReason{
+			Message:   fmt.Sprintf("%d workshop decision(s) still pending", pendingDecisions),
+			Forceable: true,
+		})
 	}
 
 	// Check dependency readiness: all depends_on items must be completed.
-	var depErr error
-	blockingReasons, depErr = appendDependencyBlockingReasons(item, h.store, blockingReasons)
+	depReasons, depErr := EvaluateDependencyBlocking(item, h.store)
 	if depErr != nil {
 		slog.Error("dependency check failed", "kind", kind, "name", name, "err", depErr)
 		apierr.MapError(w, "[backlog] queue", apierr.Internal("failed to check dependencies"))
 		return
 	}
+	blockingReasons = append(blockingReasons, depReasons...)
+	blockingReasons = DedupeReasons(blockingReasons)
 
-	blockingReasons = dedupeQueueReasons(blockingReasons)
+	// Convert to proto representation.
+	protoReasons := make([]*apipb.BlockingReason, len(blockingReasons))
+	for i, r := range blockingReasons {
+		protoReasons[i] = &apipb.BlockingReason{Message: r.Message, Forceable: r.Forceable}
+	}
 
 	buildQueueResponse := func(dryRun, queued bool, message string, taskID, runID, created string) *apipb.QueueBacklogItemResponse {
 		return &apipb.QueueBacklogItemResponse{
@@ -204,7 +162,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 			DryRun:              dryRun,
 			Queued:              queued,
 			Message:             message,
-			BlockingReasons:     blockingReasons,
+			BlockingReasons:     protoReasons,
 			UnansweredQuestions: 0,
 			PendingSuggestions:  int32(pendingDecisions),
 		}
@@ -226,7 +184,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(blockingReasons) > 0 {
-		if !force || hasNonForceableQueueReasons(blockingReasons) {
+		if !force || HasNonForceableReasons(blockingReasons) {
 			resp := buildQueueResponse(true, false, "Queue blocked by readiness checks.", "", "", time.Now().UTC().Format(time.RFC3339))
 			if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, resp); err != nil {
 				apierr.MapError(w, "[backlog] queue", apierr.Internal("failed to encode blocked response"))
@@ -277,7 +235,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		DryRun:              false,
 		Queued:              true,
 		Message:             "Queue created successfully.",
-		BlockingReasons:     []string{},
+		BlockingReasons:     nil,
 		UnansweredQuestions: 0,
 		PendingSuggestions:  int32(pendingDecisions),
 	}

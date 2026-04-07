@@ -240,7 +240,7 @@ func (p *ProjectionService) buildOperations(ctx context.Context, focusNodeID str
 			slog.Error("operations: initiatives error", "error", err)
 		} else {
 			for _, init := range inits {
-				if init.Status == "archived" {
+				if init.ArchivedAt != nil {
 					continue
 				}
 				rollup := computeInitiativeRollup(init.Items, itemByKey)

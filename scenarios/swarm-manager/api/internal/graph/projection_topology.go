@@ -32,7 +32,7 @@ func (p *ProjectionService) buildTopology(ctx context.Context) (GraphResponse, e
 	for _, item := range items {
 		key := backlogItemKey(string(item.Kind), item.Name)
 		itemByKey[key] = item
-		if item.Status == backlog.StatusCompleted || item.Status == backlog.StatusArchived {
+		if item.Status == backlog.StatusCompleted || item.ArchivedAt != nil {
 			continue
 		}
 		itemIndex[key] = true
@@ -70,7 +70,7 @@ func (p *ProjectionService) buildTopology(ctx context.Context) (GraphResponse, e
 			slog.Error("topology: initiatives error", "error", err)
 		} else {
 			for _, init := range inits {
-				if init.Status == "archived" {
+				if init.ArchivedAt != nil {
 					continue
 				}
 
@@ -98,7 +98,7 @@ func (p *ProjectionService) buildTopology(ctx context.Context) (GraphResponse, e
 
 	// member_of edges from backlog items to initiatives.
 	for _, item := range items {
-		if item.Status == backlog.StatusCompleted || item.Status == backlog.StatusArchived {
+		if item.Status == backlog.StatusCompleted || item.ArchivedAt != nil {
 			continue
 		}
 		if item.Initiative != "" {
@@ -165,7 +165,7 @@ func (p *ProjectionService) buildTopology(ctx context.Context) (GraphResponse, e
 			// Build targets edges first to discover which scenarios are referenced.
 			referencedScenarios := make(map[string]struct{})
 			for _, item := range items {
-				if item.Status == backlog.StatusCompleted || item.Status == backlog.StatusArchived {
+				if item.Status == backlog.StatusCompleted || item.ArchivedAt != nil {
 					continue
 				}
 				for _, pattern := range item.AcceptanceAllow {

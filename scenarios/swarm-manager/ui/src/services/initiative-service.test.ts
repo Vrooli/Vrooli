@@ -30,7 +30,7 @@ describe("Initiative Service", () => {
           created: "2026-03-28T00:00:00Z",
           updated: "2026-03-28T00:00:00Z",
         },
-        rollup: { total: 1, completed: 0, inProgress: 1, failed: 0, pending: 0 },
+        rollup: { total: 1, completed: 0, inProgress: 1, failed: 0, pending: 0, archived: 0 },
       },
     ];
 
@@ -52,7 +52,7 @@ describe("Initiative Service", () => {
         created: "2026-03-27T00:00:00Z",
         updated: "2026-03-28T00:00:00Z",
       },
-      rollup: { total: 2, completed: 2, inProgress: 0, failed: 0, pending: 0 },
+      rollup: { total: 2, completed: 2, inProgress: 0, failed: 0, pending: 0, archived: 0 },
     };
 
     vi.mocked(mockApiClient.get).mockResolvedValue(mockData);

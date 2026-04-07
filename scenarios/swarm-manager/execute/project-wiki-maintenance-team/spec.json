@@ -1,0 +1,20 @@
+{
+  "acceptance_allow": [
+    "scenarios/prompt-manager/store/teams/wiki-maintenance/**",
+    "scenarios/prompt-manager/store/skills/**"
+  ],
+  "created": "2026-04-06T19:35:58Z",
+  "depends_on": [
+    "execute/project-wiki-core-runtime",
+    "execute/team-schema-v2-migration"
+  ],
+  "description": "Create a new prompt-manager team dedicated to maintaining the project wiki. This follows the vision from Karpathy's LLM Wiki concept (https://gist.githubusercontent.com/karpathy/442a6bf555914893e9891c11519de94f/raw/ac46de1ad27f92b28ac95459c782c07f6b8c964a/llm-wiki.md) where agents handle the maintenance burden that makes humans abandon knowledge bases — adapted here as a dedicated team in Vrooli's multi-team system.\n\n**Team structure:**\n- Team ID: wiki-maintenance\n- Spawn mode: single-process (one agent handles the full maintenance cycle)\n- Decision mode: autonomous (can update wiki without approval; wiki content is reviewable via git diff)\n- Heartbeat cadence: TBD (daily or twice-daily depending on signal volume)\n\n**Team member (single agent):**\n- Wiki Curator — responsible for the full maintenance cycle: scan signals, determine updates, apply changes, run lint, log operations\n\n**Heartbeat workflow (defined in HEARTBEAT.md):**\n1. Read the wiki log to understand what was last updated and when\n2. Scan Swarm Manager for items completed/updated since last cycle: swarm-manager backlog list --status completed filtered by date, plus swarm-manager initiatives list for initiative-level changes\n3. Scan each enabled team's shared files for new handoffs, decisions, and knowledge entries since last cycle. Use the team's declared contributions from team.json to know what signal types to look for and which wiki sections they map to\n4. For each wiki-worthy signal found, use project-wiki ingest to process it into page updates\n5. Run project-wiki lint to check for issues introduced by the updates\n6. Run project-wiki publish to sync updated pages to Knowledge Observatory\n7. End with handoff noting: what was updated, what signals were processed, any lint issues found, any pages that need human attention\n\nThe two signal streams are parallel and equally important — neither is primary or secondary:\n- **Swarm Manager** is authoritative for engineering/capability changes (completed items, research conclusions, initiative progress)\n- **Team heartbeat outputs** (handoffs, decisions, knowledge entries) are authoritative for operational actions that don't go through Swarm Manager (marketing campaigns, deployment decisions, strategic shifts)\nAs the system matures and more teams operate autonomously, the heartbeat stream becomes increasingly important.\n\n**Team.json v2 fields:**\n- objectives: [\"Maintain wiki accuracy within 24h of significant project events\", \"Achieve zero lint errors on weekly lint passes\"]\n- kpis: [{name: \"wiki_staleness_days\", target: \"\u003c2\"}, {name: \"lint_errors\", target: \"0\"}]\n- consumers: [\"director-swarm\", \"marketing-crew\", \"revenue-research\", \"meta-optimization\"]\n- contributions: [{type: \"wiki-update-cycle\", section: \"operations/teams\", description: \"Summary of each maintenance cycle's changes for operational awareness\"}]\n\n**Skills:** Create a wiki-maintenance skill in prompt-manager that documents the project-wiki CLI commands, the signal scanning workflow, and guidelines for what's wiki-worthy vs. noise. Reference this skill in the agent's HEARTBEAT.md.",
+  "effort": "L",
+  "kind": "execute",
+  "name": "project-wiki-maintenance-team",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [],
+  "title": "Create Wiki Maintenance Team In Prompt Manager",
+  "updated": "2026-04-06T19:35:58Z"
+}

@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"swarm-manager/internal/workshop"
 )
 
 // Store abstracts persistence for backlog items. The primary implementation
@@ -29,7 +28,6 @@ type Store interface {
 	SaveItem(item BacklogItem) error
 	ValidateDependencies(dependsOn []string) error
 	CheckDependencies(dependsOn []string) ([]string, error)
-	CheckWorkshopDependencies(dependsOn []string) ([]workshop.DependencyStatus, error)
 }
 
 // FileStore is the filesystem-backed Store implementation. It reads and writes
@@ -223,6 +221,12 @@ func (s *FileStore) SaveItem(item BacklogItem) error {
 		delete(merged, "note")
 	}
 
+	if item.ArchivedAt != nil {
+		merged["archived_at"] = *item.ArchivedAt
+	} else {
+		delete(merged, "archived_at")
+	}
+
 	// Preserve immutable created_by: once set on disk, never overwrite.
 	if _, exists := merged["created_by"]; !exists && item.CreatedBy != nil {
 		merged["created_by"] = item.CreatedBy
@@ -264,16 +268,6 @@ func (s *FileStore) ValidateDependencies(dependsOn []string) error {
 	return nil
 }
 
-// blockingDepStatuses are statuses that indicate a dependency is not yet
-// planned/started — meaning the downstream item should not run yet. Once a
-// dependency has progressed past the planning phase (ready, queued, running,
-// completed, failed, archived) it no longer blocks. This matches the
-// frontend's BLOCKING_DEP_STATUSES in backlog-queue-utils.ts.
-var blockingDepStatuses = map[BacklogStatus]bool{
-	StatusBacklog:     true,
-	StatusResearching: true,
-}
-
 // CheckDependencies returns the subset of depends_on references that are still
 // in an unplanned state (backlog or researching). A dependency whose spec no
 // longer exists on disk is presumed completed/archived and treated as
@@ -300,26 +294,4 @@ func (s *FileStore) CheckDependencies(dependsOn []string) ([]string, error) {
 		}
 	}
 	return unmet, nil
-}
-
-// CheckWorkshopDependencies loads each dependency's status for workshop
-// readiness evaluation. Returns structured data for workshop.CheckWorkshopDependencies.
-// Dependencies whose specs no longer exist on disk are recorded as Found=false,
-// which the workshop layer treats as non-blocking (presumed completed & archived).
-func (s *FileStore) CheckWorkshopDependencies(dependsOn []string) ([]workshop.DependencyStatus, error) {
-	result := make([]workshop.DependencyStatus, 0, len(dependsOn))
-	for _, ref := range dependsOn {
-		kind, name, err := parseDependencyRef(ref)
-		if err != nil {
-			result = append(result, workshop.DependencyStatus{Ref: ref, Found: false})
-			continue
-		}
-		item, loadErr := s.LoadItem(kind, name)
-		if loadErr != nil {
-			result = append(result, workshop.DependencyStatus{Ref: ref, Found: false})
-			continue
-		}
-		result = append(result, workshop.DependencyStatus{Ref: ref, Status: string(item.Status), Found: true})
-	}
-	return result, nil
 }

@@ -1,0 +1,20 @@
+{
+  "acceptance_allow": [
+    "scenarios/git-control-tower/api/**",
+    "scenarios/git-control-tower/ui/**"
+  ],
+  "created": "2026-04-06T18:43:38Z",
+  "depends_on": [
+    "execute/gct-github-pr-api"
+  ],
+  "description": "Build agent-powered PR description generation. Collect all commits on branch since divergence from target. Group by Vrooli-Initiative trailer if present. For each group, summarize changes. If Swarm Manager available, enrich with initiative descriptions. Generate structured PR description (summary, changes by initiative, test plan). Present as editable draft before PR creation. Graceful degradation: with trailers + Swarm Manager = richest output; trailers only = grouped summaries; no trailers = agent reads all commits.",
+  "effort": "L",
+  "initiative": "gct-release-pipeline",
+  "kind": "execute",
+  "name": "gct-pr-description-generator",
+  "priority": 6,
+  "status": "backlog",
+  "tags": [],
+  "title": "Agent-powered PR drafting from commits grouped by initiative trailers",
+  "updated": "2026-04-06T18:43:38Z"
+}

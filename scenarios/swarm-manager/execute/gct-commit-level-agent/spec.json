@@ -1,0 +1,20 @@
+{
+  "acceptance_allow": [
+    "scenarios/git-control-tower/api/**",
+    "scenarios/git-control-tower/ui/**"
+  ],
+  "created": "2026-04-06T18:43:38Z",
+  "depends_on": [
+    "execute/gct-commit-level-gating"
+  ],
+  "description": "Extend GCT's existing agent integration to work at commit scope. Reuse review panel agent components and logic (AgentTab, agentContext.ts patterns). When security or PII findings are detected in staged files, user can trigger an agent to fix them. Same approve/reject workflow as existing agent tab. Agent receives security findings as context and proposes fixes.",
+  "effort": "M",
+  "initiative": "gct-pre-commit-security",
+  "kind": "execute",
+  "name": "gct-commit-level-agent",
+  "priority": 5,
+  "status": "backlog",
+  "tags": [],
+  "title": "Commit-scope agent for fixing security/PII findings pre-commit",
+  "updated": "2026-04-06T18:43:38Z"
+}

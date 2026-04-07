@@ -1,5 +1,5 @@
 import { backlogService } from "../services";
-import type { BacklogItem } from "../types";
+import type { BacklogItem, ItemBlockingInfo } from "../types";
 import { createCachedStore, type CachedStoreBase } from "./create-cached-store";
 import type { LoadStatus, StorePersistConfig } from "./store-utils";
 
@@ -20,21 +20,32 @@ const sortBacklog = (items: BacklogItem[]): BacklogItem[] => {
 
 interface BacklogStoreState extends CachedStoreBase {
   items: BacklogItem[];
+  /** Per-item blocking info from the list endpoint, keyed by "kind/name". */
+  blockingMap: Record<string, ItemBlockingInfo>;
   fetchBacklog: (options?: { force?: boolean }) => Promise<void>;
   setItems: (items: BacklogItem[]) => void;
   upsertItem: (item: BacklogItem) => void;
   removeItem: (name: string, kind: BacklogItem["kind"]) => void;
 }
 
+// Module-level cache for the blocking map from the latest list() call.
+// Populated by the fetchFn wrapper and read by the doFetch onSuccess in actions.
+let _latestBlockingMap: Record<string, ItemBlockingInfo> = {};
+
 const { useStore, initialState } = createCachedStore<BacklogItem, BacklogStoreState>({
   persist: PERSIST_CONFIG,
-  fetchFn: () => backlogService.list(),
+  fetchFn: async () => {
+    const result = await backlogService.list();
+    _latestBlockingMap = result.blocking;
+    return result.items;
+  },
   sortFn: sortBacklog,
   errorMessage: "Unable to load backlog.",
   getItems: (state) => state.items,
-  setItemsPartial: (items) => ({ items }) as Partial<BacklogStoreState>,
+  setItemsPartial: (items) => ({ items, blockingMap: _latestBlockingMap }) as Partial<BacklogStoreState>,
   actions: ({ doFetch, set, get, save, sortFn }) => ({
     items: [] as BacklogItem[], // placeholder; overridden by initialState spread
+    blockingMap: {} as Record<string, ItemBlockingInfo>,
 
     fetchBacklog: (options?: { force?: boolean }) => doFetch(options),
 
@@ -80,7 +91,10 @@ export const useBacklogStore = useStore;
 // Derived selectors
 // ---------------------------------------------------------------------------
 
-/** Build a `Set<"kind/name">` from backlog items. Reusable across any component. */
+/** Build a `Set<"kind/name">` from non-archived backlog items. Used by the
+ *  Command Post to exclude pending questions from archived items. */
 export function buildActiveBacklogKeys(items: BacklogItem[]): Set<string> {
-  return new Set(items.map((i) => `${i.kind}/${i.name}`));
+  return new Set(
+    items.filter((i) => i.archivedAt == null).map((i) => `${i.kind}/${i.name}`),
+  );
 }

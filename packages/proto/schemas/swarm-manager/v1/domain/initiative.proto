@@ -36,8 +36,8 @@ message Initiative {
   string description = 3;
 
   // Lifecycle state for the initiative.
-  // @constraint one of: active, completed, archived
-  string status = 4 [(buf.validate.field).string = { in: ["active", "completed", "archived"] }];
+  // @constraint one of: active, completed
+  string status = 4 [(buf.validate.field).string = { in: ["active", "completed"] }];
 
   // Backlog item references as "kind/name" strings.
   repeated string items = 5;
@@ -52,6 +52,11 @@ message Initiative {
 
   // Personal annotation — a user note for tracking context.
   optional string note = 8;
+
+  // RFC3339 timestamp when the initiative was archived. Null/unset means not archived.
+  // Archiving is orthogonal to status — initiatives retain their status when archived.
+  // @format rfc3339
+  optional string archived_at = 9;
 }
 
 // InitiativeRollup provides aggregated status counts for initiative items.
@@ -70,4 +75,7 @@ message InitiativeRollup {
 
   // Number of items with status "backlog" or "ready".
   int32 pending = 5;
+
+  // Number of items that are archived (regardless of their terminal status).
+  int32 archived = 6;
 }

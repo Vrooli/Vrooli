@@ -67,11 +67,38 @@ class UpdateBacklogItemRequest(_message.Message):
     note: str
     def __init__(self, title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ..., note: _Optional[str] = ...) -> None: ...
 
+class BlockingReason(_message.Message):
+    __slots__ = ("message", "forceable")
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    FORCEABLE_FIELD_NUMBER: _ClassVar[int]
+    message: str
+    forceable: bool
+    def __init__(self, message: _Optional[str] = ..., forceable: _Optional[bool] = ...) -> None: ...
+
+class ItemBlockingInfo(_message.Message):
+    __slots__ = ("blocked", "blocking_dep_keys", "all_forceable")
+    BLOCKED_FIELD_NUMBER: _ClassVar[int]
+    BLOCKING_DEP_KEYS_FIELD_NUMBER: _ClassVar[int]
+    ALL_FORCEABLE_FIELD_NUMBER: _ClassVar[int]
+    blocked: bool
+    blocking_dep_keys: _containers.RepeatedScalarFieldContainer[str]
+    all_forceable: bool
+    def __init__(self, blocked: _Optional[bool] = ..., blocking_dep_keys: _Optional[_Iterable[str]] = ..., all_forceable: _Optional[bool] = ...) -> None: ...
+
 class ListBacklogItemsResponse(_message.Message):
-    __slots__ = ("items",)
+    __slots__ = ("items", "blocking")
+    class BlockingEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: ItemBlockingInfo
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[ItemBlockingInfo, _Mapping]] = ...) -> None: ...
     ITEMS_FIELD_NUMBER: _ClassVar[int]
+    BLOCKING_FIELD_NUMBER: _ClassVar[int]
     items: _containers.RepeatedCompositeFieldContainer[_backlog_pb2.BacklogItem]
-    def __init__(self, items: _Optional[_Iterable[_Union[_backlog_pb2.BacklogItem, _Mapping]]] = ...) -> None: ...
+    blocking: _containers.MessageMap[str, ItemBlockingInfo]
+    def __init__(self, items: _Optional[_Iterable[_Union[_backlog_pb2.BacklogItem, _Mapping]]] = ..., blocking: _Optional[_Mapping[str, ItemBlockingInfo]] = ...) -> None: ...
 
 class BacklogItemResponse(_message.Message):
     __slots__ = ("item",)
@@ -144,38 +171,50 @@ class QueueBacklogItemResponse(_message.Message):
     dry_run: bool
     queued: bool
     message: str
-    blocking_reasons: _containers.RepeatedScalarFieldContainer[str]
+    blocking_reasons: _containers.RepeatedCompositeFieldContainer[BlockingReason]
     unanswered_questions: int
     pending_suggestions: int
-    def __init__(self, item: _Optional[_Union[_backlog_pb2.BacklogItem, _Mapping]] = ..., task_id: _Optional[str] = ..., run_id: _Optional[str] = ..., base_url: _Optional[str] = ..., created: _Optional[str] = ..., dry_run: _Optional[bool] = ..., queued: _Optional[bool] = ..., message: _Optional[str] = ..., blocking_reasons: _Optional[_Iterable[str]] = ..., unanswered_questions: _Optional[int] = ..., pending_suggestions: _Optional[int] = ...) -> None: ...
+    def __init__(self, item: _Optional[_Union[_backlog_pb2.BacklogItem, _Mapping]] = ..., task_id: _Optional[str] = ..., run_id: _Optional[str] = ..., base_url: _Optional[str] = ..., created: _Optional[str] = ..., dry_run: _Optional[bool] = ..., queued: _Optional[bool] = ..., message: _Optional[str] = ..., blocking_reasons: _Optional[_Iterable[_Union[BlockingReason, _Mapping]]] = ..., unanswered_questions: _Optional[int] = ..., pending_suggestions: _Optional[int] = ...) -> None: ...
 
 class BacklogResearchRequest(_message.Message):
-    __slots__ = ("prompt", "project_root", "mode", "context_paths", "context_target_ids", "context_requirement_ids")
+    __slots__ = ("prompt", "project_root", "mode", "context_paths", "context_target_ids", "context_requirement_ids", "confirm", "force")
     PROMPT_FIELD_NUMBER: _ClassVar[int]
     PROJECT_ROOT_FIELD_NUMBER: _ClassVar[int]
     MODE_FIELD_NUMBER: _ClassVar[int]
     CONTEXT_PATHS_FIELD_NUMBER: _ClassVar[int]
     CONTEXT_TARGET_IDS_FIELD_NUMBER: _ClassVar[int]
     CONTEXT_REQUIREMENT_IDS_FIELD_NUMBER: _ClassVar[int]
+    CONFIRM_FIELD_NUMBER: _ClassVar[int]
+    FORCE_FIELD_NUMBER: _ClassVar[int]
     prompt: str
     project_root: str
     mode: str
     context_paths: _containers.RepeatedScalarFieldContainer[str]
     context_target_ids: _containers.RepeatedScalarFieldContainer[str]
     context_requirement_ids: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, prompt: _Optional[str] = ..., project_root: _Optional[str] = ..., mode: _Optional[str] = ..., context_paths: _Optional[_Iterable[str]] = ..., context_target_ids: _Optional[_Iterable[str]] = ..., context_requirement_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+    confirm: bool
+    force: bool
+    def __init__(self, prompt: _Optional[str] = ..., project_root: _Optional[str] = ..., mode: _Optional[str] = ..., context_paths: _Optional[_Iterable[str]] = ..., context_target_ids: _Optional[_Iterable[str]] = ..., context_requirement_ids: _Optional[_Iterable[str]] = ..., confirm: _Optional[bool] = ..., force: _Optional[bool] = ...) -> None: ...
 
 class BacklogResearchResponse(_message.Message):
-    __slots__ = ("task_id", "run_id", "base_url", "created")
+    __slots__ = ("task_id", "run_id", "base_url", "created", "dry_run", "started", "message", "blocking_reasons")
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     BASE_URL_FIELD_NUMBER: _ClassVar[int]
     CREATED_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    STARTED_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    BLOCKING_REASONS_FIELD_NUMBER: _ClassVar[int]
     task_id: str
     run_id: str
     base_url: str
     created: str
-    def __init__(self, task_id: _Optional[str] = ..., run_id: _Optional[str] = ..., base_url: _Optional[str] = ..., created: _Optional[str] = ...) -> None: ...
+    dry_run: bool
+    started: bool
+    message: str
+    blocking_reasons: _containers.RepeatedCompositeFieldContainer[BlockingReason]
+    def __init__(self, task_id: _Optional[str] = ..., run_id: _Optional[str] = ..., base_url: _Optional[str] = ..., created: _Optional[str] = ..., dry_run: _Optional[bool] = ..., started: _Optional[bool] = ..., message: _Optional[str] = ..., blocking_reasons: _Optional[_Iterable[_Union[BlockingReason, _Mapping]]] = ...) -> None: ...
 
 class ExportBacklogRequest(_message.Message):
     __slots__ = ("kinds", "statuses", "names", "priority_max", "tags", "include_prd", "include_requirements", "include_clarify_questions", "include_suggestions", "include_notes", "include_template")

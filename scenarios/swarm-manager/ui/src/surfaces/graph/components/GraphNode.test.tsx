@@ -56,7 +56,7 @@ describe("GraphNode — actionable badge", () => {
     },
   );
 
-  it.each(["completed", "archived"] as BacklogStatus[])(
+  it.each(["completed"] as BacklogStatus[])(
     "does NOT show actionable-badge for non-actionable status %s",
     (status) => {
       useGraphDataStore.setState({ lens: "topology" });

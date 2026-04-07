@@ -44,11 +44,10 @@ export const BACKLOG_STATUSES: BacklogStatus[] = [
   "in_progress",
   "completed",
   "failed",
-  "archived",
 ];
 
 /** Statuses a user can manually set. Excludes queued/in_progress (managed by execution system). */
-export const USER_SETTABLE_STATUSES: BacklogStatus[] = ["backlog", "researching", "ready", "failed", "completed", "archived"];
+export const USER_SETTABLE_STATUSES: BacklogStatus[] = ["backlog", "researching", "ready", "failed", "completed"];
 
 /**
  * Maps backlog status to tailwind background color classes
@@ -61,7 +60,6 @@ export const BACKLOG_STATUS_COLORS: Record<BacklogStatus, string> = {
   in_progress: "bg-purple-600",
   completed: "bg-emerald-600",
   failed: "bg-red-600",
-  archived: "bg-gray-600",
 };
 
 /**
@@ -76,7 +74,6 @@ export const BACKLOG_STATUS_CHIP_COLORS: Record<BacklogStatus, string> = {
   in_progress: "bg-purple-600/20 text-purple-400",
   completed: "bg-emerald-600/20 text-emerald-400",
   failed: "bg-red-600/20 text-red-400",
-  archived: "bg-gray-600/20 text-gray-400",
 };
 
 /**
@@ -168,7 +165,7 @@ export const SCENARIO_STATUS_COLORS: Record<ScenarioStatus, string> = {
 // Initiative Status Display
 // ============================================================================
 
-export const INITIATIVE_STATUSES: InitiativeStatus[] = ["active", "completed", "archived"];
+export const INITIATIVE_STATUSES: InitiativeStatus[] = ["active", "completed"];
 
 /**
  * Maps initiative status to semi-transparent chip color classes (bg + text).
@@ -176,7 +173,6 @@ export const INITIATIVE_STATUSES: InitiativeStatus[] = ["active", "completed", "
 export const INITIATIVE_STATUS_CHIP_COLORS: Record<string, string> = {
   active: "bg-sky-500/15 text-sky-400",
   completed: "bg-green-500/15 text-green-400",
-  archived: "bg-slate-500/15 text-slate-500",
 };
 
 // ============================================================================

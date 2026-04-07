@@ -45,7 +45,8 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 	if err != nil {
 		return Record{}, apierr.NotFound("backlog item not found: %s/%s", req.BacklogKind, req.BacklogName)
 	}
-	if !isQueueableStatus(item.Kind, item.Status) {
+	isArchived := item.ArchivedAt != nil
+	if !isQueueableStatus(item.Kind, item.Status) && !(isArchived && strings.ToLower(strings.TrimSpace(item.Kind)) == "idea") {
 		return Record{}, apierr.BadRequest("backlog item cannot be queued from current status: %s", item.Status)
 	}
 	preflight := s.processPreflightForItem(item, true)

@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T21:15:11Z",
   "created": "2026-02-05T21:15:11Z",
   "description": "Automated referral/affiliate program generation and implementation for Vrooli scenarios with AI-driven branding analysis and revenue optimization",
   "name": "referral-program-generator-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "monetization",
     "business-intelligence",

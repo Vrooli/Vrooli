@@ -80,7 +80,7 @@ describe("buildFeed", () => {
   });
 
   it("excludes archived items by default", () => {
-    const archived = makeItem({ name: "old", status: "archived" });
+    const archived = makeItem({ name: "old", status: "completed", archivedAt: "2026-01-01T00:00:00Z" });
     const active = makeItem({ name: "active", status: "backlog" });
     const feed = buildFeed([], [archived, active], [], []);
     expect(itemNames(feed)).toEqual(["active"]);
@@ -97,7 +97,7 @@ describe("buildFeed", () => {
   });
 
   it("includes archived items when showFinished is true", () => {
-    const archived = makeItem({ name: "old", status: "archived" });
+    const archived = makeItem({ name: "old", status: "completed", archivedAt: "2026-01-01T00:00:00Z" });
     const feed = buildFeed([], [archived], [], [], { showFinished: true });
     expect(feed.length).toBe(1);
   });

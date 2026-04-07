@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T21:24:02Z",
   "created": "2026-02-05T21:24:02Z",
   "description": "AI-powered study assistant for personalized learning",
   "name": "study-buddy-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "personal-assistant",
     "education",

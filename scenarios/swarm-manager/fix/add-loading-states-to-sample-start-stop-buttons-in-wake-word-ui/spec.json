@@ -2,12 +2,13 @@
   "acceptance_allow": [
     "scenarios/web-console/ui/src/components/settings/VoiceInputSection.tsx"
   ],
+  "archived_at": "2026-04-04T16:56:30Z",
   "created": "2026-03-30T20:07:11Z",
   "description": "The buttons to start and stop each wake word sample recording lack proper loading states, making it unclear when an action is in progress.",
   "kind": "fix",
   "name": "add-loading-states-to-sample-start-stop-buttons-in-wake-word-ui",
   "priority": 6,
-  "status": "archived",
+  "status": "backlog",
   "tags": [
     "web-console",
     "voice",

@@ -70,7 +70,7 @@ function BacklogActions({ nodeData, nodeId }: { nodeData: BacklogGraphNodeData; 
   }, [fetchBacklog, queryClient]);
 
   const archiveMutation = useMutation({
-    mutationFn: () => backlogService.update(nodeData.kind, nodeData.name, { status: "archived" }),
+    mutationFn: () => defaultApiClient.patch(API_ENDPOINTS.backlogArchiveItem(nodeData.kind, nodeData.name), {}),
     onSuccess: invalidateAfterAction,
   });
 

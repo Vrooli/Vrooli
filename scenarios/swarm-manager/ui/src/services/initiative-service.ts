@@ -22,13 +22,28 @@ interface RawRollup {
   inProgress?: number;
   failed?: number;
   pending?: number;
+  archived?: number;
+}
+
+/** Raw initiative shape (snake_case from proto JSON). */
+interface RawInitiative {
+  archived_at?: string;
+  archivedAt?: string;
+  [key: string]: unknown;
 }
 
 /** Normalize a single initiative-with-rollup from the API's snake_case to camelCase. */
-function normalizeItem(raw: { initiative?: Record<string, unknown>; rollup?: RawRollup }): InitiativeWithRollup {
+function normalizeItem(raw: { initiative?: RawInitiative; rollup?: RawRollup }): InitiativeWithRollup {
   const rollup = raw.rollup ?? {};
+  const initiative = raw.initiative ?? {};
+  // Normalize archived_at (snake_case from API) to archivedAt (camelCase)
+  const archivedAt = initiative.archivedAt ?? initiative.archived_at;
   return {
     ...raw,
+    initiative: {
+      ...initiative,
+      ...(archivedAt ? { archivedAt } : {}),
+    },
     rollup: {
       ...rollup,
       // Accept both snake_case (API) and camelCase (already normalized)

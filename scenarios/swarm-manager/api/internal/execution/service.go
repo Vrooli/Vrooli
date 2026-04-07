@@ -29,7 +29,6 @@ const (
 	backlogStatusQueued      = "queued"
 	backlogStatusCompleted   = "completed"
 	backlogStatusFailed      = "failed"
-	backlogStatusArchived    = "archived"
 	backlogStatusBacklog     = "backlog"
 	backlogStatusResearching = "researching"
 	backlogStatusReady       = "ready"

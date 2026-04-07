@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T21:21:42Z",
   "created": "2026-02-05T21:21:42Z",
   "description": "Video processing, editing, and conversion utilities",
   "name": "video-tools-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "tools",
     "utilities",

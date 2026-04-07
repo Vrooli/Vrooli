@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T20:24:33Z",
   "created": "2026-02-05T20:24:33Z",
   "description": "Democratic feature request voting and management system that enables any scenario/app to collect and prioritize user feedback",
   "name": "feature-request-voting-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "user-feedback",
     "feature-management",

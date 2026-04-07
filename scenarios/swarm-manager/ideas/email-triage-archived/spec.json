@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T20:44:50Z",
   "created": "2026-02-05T20:44:50Z",
   "description": "AI-powered multi-tenant email management and triage system",
   "name": "email-triage-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "archived",
     "from-scenario"

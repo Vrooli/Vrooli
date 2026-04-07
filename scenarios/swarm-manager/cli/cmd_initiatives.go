@@ -16,7 +16,7 @@ import (
 
 func isValidInitiativeStatus(status string) bool {
 	switch status {
-	case "active", "completed", "archived":
+	case "active", "completed":
 		return true
 	default:
 		return false
@@ -161,7 +161,7 @@ func (a *App) cmdInitiativesCreate(args []string) error {
 		return fmt.Errorf("name and title are required fields")
 	}
 	if status := strings.TrimSpace(req.Status); status != "" && !isValidInitiativeStatus(status) {
-		return fmt.Errorf("status must be active, completed, or archived")
+		return fmt.Errorf("status must be active or completed")
 	}
 
 	body, err := a.requestV1("POST", "/initiatives", nil, payload)
@@ -213,7 +213,7 @@ func (a *App) cmdInitiativesUpdate(args []string) error {
 		return fmt.Errorf("at least one field must be provided")
 	}
 	if req.Status != nil && !isValidInitiativeStatus(strings.TrimSpace(*req.Status)) {
-		return fmt.Errorf("status must be active, completed, or archived")
+		return fmt.Errorf("status must be active or completed")
 	}
 
 	body, err := a.requestV1("PUT", "/initiatives/"+name, nil, payload)

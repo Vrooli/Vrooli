@@ -4,7 +4,7 @@
  * Shared type definitions used across backlog service modules.
  */
 
-import type { BacklogFile, BacklogItem, BacklogKind, ClarificationThread } from "../../types";
+import type { BacklogFile, BacklogItem, BacklogKind, BlockingReason, ClarificationThread, ItemBlockingInfo } from "../../types";
 
 /**
  * Response from queueing a backlog item for processing.
@@ -19,7 +19,7 @@ export interface QueueResponse {
   dryRun: boolean;
   queued: boolean;
   message: string;
-  blockingReasons: string[];
+  blockingReasons: BlockingReason[];
   pendingDecisions: number;
   pendingSuggestions: number;
 }
@@ -77,7 +77,7 @@ export interface ImportBacklogResponse {
  * This is the seam - implementations can be swapped for testing.
  */
 export interface IBacklogService {
-  list(kinds?: BacklogKind[]): Promise<BacklogItem[]>;
+  list(kinds?: BacklogKind[]): Promise<{ items: BacklogItem[]; blocking: Record<string, ItemBlockingInfo> }>;
   listBySpawnedFrom(spawnedFrom: string): Promise<BacklogItem[]>;
   get(kind: BacklogKind, name: string): Promise<BacklogItem>;
   create(item: Omit<BacklogItem, "created" | "updated">): Promise<BacklogItem>;
@@ -87,6 +87,8 @@ export interface IBacklogService {
     patch: BacklogUpdatePatch
   ): Promise<BacklogItem>;
   delete(kind: BacklogKind, name: string): Promise<void>;
+  archiveItem(kind: BacklogKind, name: string): Promise<BacklogItem>;
+  unarchiveItem(kind: BacklogKind, name: string): Promise<BacklogItem>;
   getFiles(kind: BacklogKind, name: string): Promise<BacklogFile[]>;
   getFileContent(kind: BacklogKind, name: string, filePath: string): Promise<string>;
   uploadFile(kind: BacklogKind, name: string, file: File, path?: string): Promise<BacklogFile>;
@@ -122,6 +124,8 @@ export interface IBacklogService {
       contextPaths?: string[];
       contextTargetIds?: string[];
       contextRequirementIds?: string[];
+      confirm?: boolean;
+      force?: boolean;
     }
   ): Promise<import("../../types").ResearchResponse>;
   getArchiveTargets(kind: BacklogKind, name: string): Promise<import("../../types").ArchiveTargetsResponse>;

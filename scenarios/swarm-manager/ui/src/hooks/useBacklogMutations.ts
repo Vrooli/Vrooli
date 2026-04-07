@@ -93,6 +93,32 @@ export function useBacklogMutations({
     },
   });
 
+  const archiveMutation = useMutation({
+    mutationFn: () => {
+      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
+      return backlogService.archiveItem(backlogKind, name);
+    },
+    onSuccess: (updatedItem) => {
+      if (!backlogKind || !name) return;
+      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name] });
+      queryClient.invalidateQueries({ queryKey: ["backlog-list"] });
+      upsertItem(updatedItem);
+    },
+  });
+
+  const unarchiveMutation = useMutation({
+    mutationFn: () => {
+      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
+      return backlogService.unarchiveItem(backlogKind, name);
+    },
+    onSuccess: (updatedItem) => {
+      if (!backlogKind || !name) return;
+      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name] });
+      queryClient.invalidateQueries({ queryKey: ["backlog-list"] });
+      upsertItem(updatedItem);
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: () => {
       if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
@@ -106,12 +132,14 @@ export function useBacklogMutations({
   });
 
   const agentMutation = useMutation({
-    mutationFn: ({ mode, prompt, contextPaths, contextTargetIds, contextRequirementIds }: {
+    mutationFn: ({ mode, prompt, contextPaths, contextTargetIds, contextRequirementIds, confirm, force }: {
       mode?: string;
       prompt: string;
       contextPaths?: string[];
       contextTargetIds?: string[];
       contextRequirementIds?: string[];
+      confirm?: boolean;
+      force?: boolean;
     }) => {
       if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
       return backlogService.research(backlogKind, name, {
@@ -120,6 +148,8 @@ export function useBacklogMutations({
         contextPaths,
         contextTargetIds,
         contextRequirementIds,
+        confirm,
+        force,
       });
     },
     onSuccess: () => {
@@ -277,11 +307,17 @@ export function useBacklogMutations({
     ? agentMutation.error instanceof Error ? agentMutation.error.message : "Failed to start the agent. Make sure agent-manager is running."
     : null;
 
+  const archiveError = archiveMutation.isError
+    ? archiveMutation.error instanceof Error ? archiveMutation.error.message : "Failed to archive item. Please try again."
+    : null;
+
   return {
     updateMutation,
     statusMutation,
     depStatusMutation,
     acceptanceGlobMutation,
+    archiveMutation,
+    unarchiveMutation,
     deleteMutation,
     agentMutation,
     workshopSaveMutation,
@@ -298,6 +334,7 @@ export function useBacklogMutations({
     fileActionMutation,
 
     updateError,
+    archiveError,
     deleteError,
     agentErrorMsg,
 

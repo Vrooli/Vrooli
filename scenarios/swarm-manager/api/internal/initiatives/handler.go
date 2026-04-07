@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 
@@ -38,6 +39,8 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/initiatives/{name}", h.Get).Methods("GET")
 	r.HandleFunc("/api/v1/initiatives/{name}", h.Update).Methods("PUT")
 	r.HandleFunc("/api/v1/initiatives/{name}", h.Delete).Methods("DELETE")
+	r.HandleFunc("/api/v1/initiatives/{name}/archive-item", h.Archive).Methods("PATCH")
+	r.HandleFunc("/api/v1/initiatives/{name}/archive-item", h.Unarchive).Methods("DELETE")
 	r.HandleFunc("/api/v1/initiatives/{name}/items", h.AddItems).Methods("POST")
 	r.HandleFunc("/api/v1/initiatives/{name}/items", h.RemoveItems).Methods("DELETE")
 }
@@ -74,7 +77,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if status := strings.TrimSpace(req.Status); status != "" && !ValidateStatus(status) {
-		apierr.MapError(w, "[initiatives] create", apierr.BadRequest("status must be active, completed, or archived"))
+		apierr.MapError(w, "[initiatives] create", apierr.BadRequest("status must be active or completed"))
 		return
 	}
 
@@ -148,7 +151,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Status != nil && !ValidateStatus(strings.TrimSpace(*req.Status)) {
-		apierr.MapError(w, "[initiatives] update", apierr.BadRequest("status must be active, completed, or archived"))
+		apierr.MapError(w, "[initiatives] update", apierr.BadRequest("status must be active or completed"))
 		return
 	}
 
@@ -189,6 +192,112 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// Archive sets archived_at on an initiative.
+func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	if strings.TrimSpace(name) == "" {
+		apierr.MapError(w, "[initiatives] archive", apierr.BadRequest("name is required"))
+		return
+	}
+
+	init, err := h.service.store.Load(name)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			apierr.MapError(w, "[initiatives] archive", apierr.NotFound("initiative not found"))
+			return
+		}
+		apierr.MapError(w, "[initiatives] archive", apierr.Internal("failed to load initiative"))
+		return
+	}
+
+	if init.ArchivedAt != nil {
+		rollup, _ := h.service.ComputeRollup(init)
+		if rollup == nil {
+			rollup = &RollupStatus{}
+		}
+		resp := InitiativeWithRollup{Initiative: *init, Rollup: *rollup}
+		if err := httputil.JSON(w, resp); err != nil {
+			apierr.MapError(w, "[initiatives] archive", apierr.Internal("failed to encode response"))
+		}
+		return
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	init.ArchivedAt = &now
+	init.Updated = now
+
+	if err := h.service.store.Save(init); err != nil {
+		apierr.MapError(w, "[initiatives] archive", apierr.Internal("failed to save initiative"))
+		return
+	}
+
+	if h.service.eventLogger != nil {
+		h.service.eventLogger.EmitInitiativeArchived(name, init.Status, now)
+	}
+
+	rollup, _ := h.service.ComputeRollup(init)
+	if rollup == nil {
+		rollup = &RollupStatus{}
+	}
+	resp := InitiativeWithRollup{Initiative: *init, Rollup: *rollup}
+	if err := httputil.JSON(w, resp); err != nil {
+		apierr.MapError(w, "[initiatives] archive", apierr.Internal("failed to encode response"))
+	}
+}
+
+// Unarchive clears archived_at on an initiative.
+func (h *Handler) Unarchive(w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	if strings.TrimSpace(name) == "" {
+		apierr.MapError(w, "[initiatives] unarchive", apierr.BadRequest("name is required"))
+		return
+	}
+
+	init, err := h.service.store.Load(name)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			apierr.MapError(w, "[initiatives] unarchive", apierr.NotFound("initiative not found"))
+			return
+		}
+		apierr.MapError(w, "[initiatives] unarchive", apierr.Internal("failed to load initiative"))
+		return
+	}
+
+	if init.ArchivedAt == nil {
+		rollup, _ := h.service.ComputeRollup(init)
+		if rollup == nil {
+			rollup = &RollupStatus{}
+		}
+		resp := InitiativeWithRollup{Initiative: *init, Rollup: *rollup}
+		if err := httputil.JSON(w, resp); err != nil {
+			apierr.MapError(w, "[initiatives] unarchive", apierr.Internal("failed to encode response"))
+		}
+		return
+	}
+
+	prevArchivedAt := *init.ArchivedAt
+	init.ArchivedAt = nil
+	init.Updated = time.Now().UTC().Format(time.RFC3339)
+
+	if err := h.service.store.Save(init); err != nil {
+		apierr.MapError(w, "[initiatives] unarchive", apierr.Internal("failed to save initiative"))
+		return
+	}
+
+	if h.service.eventLogger != nil {
+		h.service.eventLogger.EmitInitiativeUnarchived(name, prevArchivedAt)
+	}
+
+	rollup, _ := h.service.ComputeRollup(init)
+	if rollup == nil {
+		rollup = &RollupStatus{}
+	}
+	resp := InitiativeWithRollup{Initiative: *init, Rollup: *rollup}
+	if err := httputil.JSON(w, resp); err != nil {
+		apierr.MapError(w, "[initiatives] unarchive", apierr.Internal("failed to encode response"))
+	}
 }
 
 // itemsRequest is the JSON body for AddItems and RemoveItems.

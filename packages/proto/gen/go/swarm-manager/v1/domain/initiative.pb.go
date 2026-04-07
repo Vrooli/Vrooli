@@ -32,7 +32,7 @@ type Initiative struct {
 	// Detailed description of the initiative.
 	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	// Lifecycle state for the initiative.
-	// @constraint one of: active, completed, archived
+	// @constraint one of: active, completed
 	Status string `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
 	// Backlog item references as "kind/name" strings.
 	Items []string `protobuf:"bytes,5,rep,name=items,proto3" json:"items,omitempty"`
@@ -43,7 +43,11 @@ type Initiative struct {
 	// @format rfc3339
 	Updated string `protobuf:"bytes,7,opt,name=updated,proto3" json:"updated,omitempty"`
 	// Personal annotation — a user note for tracking context.
-	Note          *string `protobuf:"bytes,8,opt,name=note,proto3,oneof" json:"note,omitempty"`
+	Note *string `protobuf:"bytes,8,opt,name=note,proto3,oneof" json:"note,omitempty"`
+	// RFC3339 timestamp when the initiative was archived. Null/unset means not archived.
+	// Archiving is orthogonal to status — initiatives retain their status when archived.
+	// @format rfc3339
+	ArchivedAt    *string `protobuf:"bytes,9,opt,name=archived_at,json=archivedAt,proto3,oneof" json:"archived_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -134,6 +138,13 @@ func (x *Initiative) GetNote() string {
 	return ""
 }
 
+func (x *Initiative) GetArchivedAt() string {
+	if x != nil && x.ArchivedAt != nil {
+		return *x.ArchivedAt
+	}
+	return ""
+}
+
 // InitiativeRollup provides aggregated status counts for initiative items.
 type InitiativeRollup struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -146,7 +157,9 @@ type InitiativeRollup struct {
 	// Number of items with status "failed".
 	Failed int32 `protobuf:"varint,4,opt,name=failed,proto3" json:"failed,omitempty"`
 	// Number of items with status "backlog" or "ready".
-	Pending       int32 `protobuf:"varint,5,opt,name=pending,proto3" json:"pending,omitempty"`
+	Pending int32 `protobuf:"varint,5,opt,name=pending,proto3" json:"pending,omitempty"`
+	// Number of items that are archived (regardless of their terminal status).
+	Archived      int32 `protobuf:"varint,6,opt,name=archived,proto3" json:"archived,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -216,29 +229,40 @@ func (x *InitiativeRollup) GetPending() int32 {
 	return 0
 }
 
+func (x *InitiativeRollup) GetArchived() int32 {
+	if x != nil {
+		return x.Archived
+	}
+	return 0
+}
+
 var File_swarm_manager_v1_domain_initiative_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_initiative_proto_rawDesc = "" +
 	"\n" +
-	"(swarm-manager/v1/domain/initiative.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\x92\x02\n" +
+	"(swarm-manager/v1/domain/initiative.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xbe\x02\n" +
 	"\n" +
 	"Initiative\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\x12:\n" +
-	"\x06status\x18\x04 \x01(\tB\"\xbaH\x1fr\x1dR\x06activeR\tcompletedR\barchivedR\x06status\x12\x14\n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x120\n" +
+	"\x06status\x18\x04 \x01(\tB\x18\xbaH\x15r\x13R\x06activeR\tcompletedR\x06status\x12\x14\n" +
 	"\x05items\x18\x05 \x03(\tR\x05items\x12\x18\n" +
 	"\acreated\x18\x06 \x01(\tR\acreated\x12\x18\n" +
 	"\aupdated\x18\a \x01(\tR\aupdated\x12\x17\n" +
-	"\x04note\x18\b \x01(\tH\x00R\x04note\x88\x01\x01B\a\n" +
-	"\x05_note\"\x99\x01\n" +
+	"\x04note\x18\b \x01(\tH\x00R\x04note\x88\x01\x01\x12$\n" +
+	"\varchived_at\x18\t \x01(\tH\x01R\n" +
+	"archivedAt\x88\x01\x01B\a\n" +
+	"\x05_noteB\x0e\n" +
+	"\f_archived_at\"\xb5\x01\n" +
 	"\x10InitiativeRollup\x12\x14\n" +
 	"\x05total\x18\x01 \x01(\x05R\x05total\x12\x1c\n" +
 	"\tcompleted\x18\x02 \x01(\x05R\tcompleted\x12\x1f\n" +
 	"\vin_progress\x18\x03 \x01(\x05R\n" +
 	"inProgress\x12\x16\n" +
 	"\x06failed\x18\x04 \x01(\x05R\x06failed\x12\x18\n" +
-	"\apending\x18\x05 \x01(\x05R\apendingBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
+	"\apending\x18\x05 \x01(\x05R\apending\x12\x1a\n" +
+	"\barchived\x18\x06 \x01(\x05R\barchivedBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
 
 var (
 	file_swarm_manager_v1_domain_initiative_proto_rawDescOnce sync.Once

@@ -99,10 +99,11 @@ func (a *initiativeAdapter) List() ([]InitiativeEntry, error) {
 	result := make([]InitiativeEntry, 0, len(items))
 	for _, item := range items {
 		result = append(result, InitiativeEntry{
-			Name:   item.Name,
-			Title:  item.Title,
-			Status: item.Status,
-			Items:  append([]string(nil), item.Items...),
+			Name:       item.Name,
+			Title:      item.Title,
+			Status:     item.Status,
+			Items:      append([]string(nil), item.Items...),
+			ArchivedAt: item.ArchivedAt,
 		})
 	}
 	return result, nil

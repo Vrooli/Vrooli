@@ -53,7 +53,10 @@ export function createQueueMethods(apiClient: IApiClient) {
         dryRun: parsed.dryRun ?? false,
         queued: parsed.queued ?? false,
         message: parsed.message ?? "",
-        blockingReasons: parsed.blockingReasons ?? [],
+        blockingReasons: (parsed.blockingReasons ?? []).map((r) => ({
+          message: typeof r === "string" ? r : (r.message ?? ""),
+          forceable: typeof r === "string" ? false : (r.forceable ?? false),
+        })),
         pendingDecisions: parsed.unansweredQuestions ?? 0,
         pendingSuggestions: parsed.pendingSuggestions ?? 0,
       };
@@ -69,6 +72,8 @@ export function createQueueMethods(apiClient: IApiClient) {
         contextPaths?: string[];
         contextTargetIds?: string[];
         contextRequirementIds?: string[];
+        confirm?: boolean;
+        force?: boolean;
       }
     ): Promise<ResearchResponse> {
       const message = buildMessage(BacklogResearchRequestSchema, {
@@ -78,6 +83,8 @@ export function createQueueMethods(apiClient: IApiClient) {
         contextPaths: payload?.contextPaths ?? [],
         contextTargetIds: payload?.contextTargetIds ?? [],
         contextRequirementIds: payload?.contextRequirementIds ?? [],
+        ...(payload?.confirm !== undefined ? { confirm: payload.confirm } : {}),
+        ...(payload?.force !== undefined ? { force: payload.force } : {}),
       });
       const data = await apiClient.post<unknown>(
         API_ENDPOINTS.backlogResearch(kind, name),

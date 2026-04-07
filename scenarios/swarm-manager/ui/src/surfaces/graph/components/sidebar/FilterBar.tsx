@@ -87,10 +87,10 @@ function SortControls({ sort, tab, dispatch }: { sort: SortConfig; tab: SidebarT
 // Per-Tab Filters
 // ============================================================================
 
-const BACKLOG_STATUSES = ["backlog", "researching", "ready", "queued", "in_progress", "completed", "failed", "archived"] as const;
+const BACKLOG_STATUSES = ["backlog", "researching", "ready", "queued", "in_progress", "completed", "failed"] as const;
 const BACKLOG_KINDS = ["idea", "research", "fix", "execute", "chore"] as const;
 const CAPTURE_STATUSES = ["classifying", "classified", "failed"] as const;
-const INITIATIVE_STATUSES = ["active", "completed", "archived"] as const;
+const INITIATIVE_STATUSES = ["active", "completed"] as const;
 const EXECUTION_STATUSES = ["pending", "starting", "running", "needs_review", "validating", "needs_fixup", "completed", "failed", "canceled"] as const;
 const EXECUTION_MODES = ["manual", "yolo"] as const;
 
@@ -127,6 +127,17 @@ function BacklogFilterChips({ filters, dispatch }: { filters: BacklogFilters; di
           ))}
         </div>
       </div>
+      <div>
+        <label className="flex items-center gap-1.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={filters.showArchived}
+            onChange={() => dispatch({ type: "SET_BACKLOG_FILTERS", filters: { showArchived: !filters.showArchived } })}
+            className="h-3 w-3 rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500/30"
+          />
+          <span className="text-[11px] text-slate-400">Show Archived</span>
+        </label>
+      </div>
     </>
   );
 }
@@ -151,19 +162,32 @@ function CaptureFilterChips({ filters, dispatch }: { filters: CaptureFilters; di
 
 function InitiativeFilterChips({ filters, dispatch }: { filters: InitiativeFilters; dispatch: React.Dispatch<SidebarAction> }) {
   return (
-    <div>
-      <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">Status</p>
-      <div className="flex flex-wrap gap-1">
-        {INITIATIVE_STATUSES.map((s) => (
-          <Chip
-            key={s}
-            label={s}
-            active={filters.statuses.includes(s)}
-            onClick={() => dispatch({ type: "SET_INITIATIVE_FILTERS", filters: { statuses: toggleInArray(filters.statuses, s) } })}
-          />
-        ))}
+    <>
+      <div>
+        <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">Status</p>
+        <div className="flex flex-wrap gap-1">
+          {INITIATIVE_STATUSES.map((s) => (
+            <Chip
+              key={s}
+              label={s}
+              active={filters.statuses.includes(s)}
+              onClick={() => dispatch({ type: "SET_INITIATIVE_FILTERS", filters: { statuses: toggleInArray(filters.statuses, s) } })}
+            />
+          ))}
+        </div>
       </div>
-    </div>
+      <div>
+        <label className="flex items-center gap-1.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={filters.showArchived}
+            onChange={() => dispatch({ type: "SET_INITIATIVE_FILTERS", filters: { showArchived: !filters.showArchived } })}
+            className="h-3 w-3 rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500/30"
+          />
+          <span className="text-[11px] text-slate-400">Show Archived</span>
+        </label>
+      </div>
+    </>
   );
 }
 
@@ -210,9 +234,9 @@ function hasActiveFiltersForTab(tab: SidebarTab, backlog: BacklogFilters, captur
 
   switch (tab) {
     case "activity": return sortChanged;
-    case "backlog": return backlog.statuses.length > 0 || backlog.kinds.length > 0 || backlog.priorityMin !== null || backlog.priorityMax !== null || sortChanged;
+    case "backlog": return backlog.statuses.length > 0 || backlog.kinds.length > 0 || backlog.priorityMin !== null || backlog.priorityMax !== null || backlog.showArchived || sortChanged;
     case "captures": return captures.statuses.length > 0 || sortChanged;
-    case "initiatives": return initiatives.statuses.length > 0 || sortChanged;
+    case "initiatives": return initiatives.statuses.length > 0 || initiatives.showArchived || sortChanged;
     case "executions": return executions.statuses.length > 0 || executions.modes.length > 0 || sortChanged;
   }
 }

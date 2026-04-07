@@ -45,8 +45,8 @@ function depths(items: ReadonlyArray<DepthItem>): Record<string, number> {
 // ---------------------------------------------------------------------------
 
 describe("SORT_RESOLVED_STATUSES", () => {
-  it("contains exactly completed and archived", () => {
-    expect(SORT_RESOLVED_STATUSES).toEqual(new Set(["completed", "archived"]));
+  it("contains exactly completed", () => {
+    expect(SORT_RESOLVED_STATUSES).toEqual(new Set(["completed"]));
   });
 });
 
@@ -79,7 +79,6 @@ describe("computeDepthMap", () => {
     { status: "in_progress", expectedDepth: 1, label: "in_progress (incomplete)" },
     { status: "failed", expectedDepth: 1, label: "failed (incomplete)" },
     { status: "completed", expectedDepth: 0, label: "completed (resolved)" },
-    { status: "archived", expectedDepth: 0, label: "archived (resolved)" },
   ];
 
   describe.each(statusCases)("dep status: $label", ({ status, expectedDepth }) => {
@@ -142,9 +141,9 @@ describe("computeDepthMap", () => {
     expect(result.get("execute/c")).toBe(0);
   });
 
-  it("all deps resolved: A depends on B(completed) and C(archived)", () => {
+  it("all deps resolved: A depends on B(completed) and C(completed+archived)", () => {
     const b = makeItem("b", "completed");
-    const c = makeItem("c", "archived");
+    const c = makeItem("c", "completed", undefined, { archivedAt: "2026-01-01T00:00:00Z" });
     const a = makeItem("a", "backlog", ["execute/b", "execute/c"]);
     const result = computeDepthMap([a, b, c]);
     expect(result.get("execute/a")).toBe(0);
@@ -215,8 +214,8 @@ describe("dependencyAwareSort", () => {
     expect(result.map(key)).toEqual(["execute/a", "execute/dep"]);
   });
 
-  it("archived dep does not push dependent down", () => {
-    const dep = makeItem("dep", "archived", undefined, { priority: 5 });
+  it("archived (completed+archivedAt) dep does not push dependent down", () => {
+    const dep = makeItem("dep", "completed", undefined, { priority: 5, archivedAt: "2026-01-01T00:00:00Z" });
     const a = makeItem("a", "backlog", undefined, { priority: 1, dependsOn: ["execute/dep"] });
     const result = dependencyAwareSort([dep, a], byPriority);
     expect(result.map(key)).toEqual(["execute/a", "execute/dep"]);

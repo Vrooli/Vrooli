@@ -2,6 +2,7 @@
   "archiveReason": "scenario deleted with archive=true",
   "archivedAt": "2026-02-20T13:44:16Z",
   "archivedBy": "matthalloran8",
+  "archived_at": "2026-02-20T13:44:16Z",
   "created": "2026-02-20T13:44:16Z",
   "description": "Central UI for designing, previewing, editing, and tracking shared React UI components with AI-powered live editing and multi-viewport emulation",
   "name": "react-component-library-archived",
@@ -26,7 +27,7 @@
   "priority": 5,
   "sourceScenarioName": "react-component-library",
   "sourceScenarioPath": "/home/matthalloran8/Vrooli/scenarios/react-component-library",
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "react-ui",
     "go-api",

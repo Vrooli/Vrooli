@@ -15,6 +15,7 @@ import type { BacklogGraphNodeData } from "../types";
 
 export function useNodeActionContext(nodeData: BacklogGraphNodeData): ItemActions {
   const allItems = useBacklogStore((s) => s.items);
+  const blockingMap = useBacklogStore((s) => s.blockingMap);
   const executions = useExecutionStore((s) => s.items);
 
   const summaryQuery = useQuery({
@@ -44,12 +45,12 @@ export function useNodeActionContext(nodeData: BacklogGraphNodeData): ItemAction
 
     return getItemActions({
       item,
-      allItems,
+      blockingInfo: blockingMap[key] ?? null,
       readinessReady: maturityItem ? (maturityItem.ready ?? null) : null,
       pendingSynthesis: maturityItem?.pending_synthesis ?? false,
       agentRunning: false,
       hasPendingDecisions: (feedbackItem?.pending_decisions ?? 0) > 0,
       hasExecutionHistory,
     });
-  }, [nodeData.kind, nodeData.name, nodeData.status, allItems, executions, summaryQuery.data]);
+  }, [nodeData.kind, nodeData.name, nodeData.status, allItems, blockingMap, executions, summaryQuery.data]);
 }

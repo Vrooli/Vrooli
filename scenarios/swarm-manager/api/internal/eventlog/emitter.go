@@ -63,8 +63,21 @@ func (e *Emitter) EmitBacklogUnblocked(entityID, reason string) {
 	e.emit(EntityBacklogItem, entityID, EventBacklogUnblocked, BlockPayload{Reason: reason})
 }
 
-func (e *Emitter) EmitBacklogArchived(entityID string) {
-	e.emit(EntityBacklogItem, entityID, EventBacklogArchived, nil)
+func (e *Emitter) EmitBacklogArchived(entityID, previousStatus, archivedAt string) {
+	e.emit(EntityBacklogItem, entityID, EventBacklogArchived, ArchivePayload{
+		PreviousStatus: previousStatus,
+		ArchivedAt:     archivedAt,
+	})
+}
+
+func (e *Emitter) EmitBacklogUnarchived(entityID, archivedAt string) {
+	e.emit(EntityBacklogItem, entityID, EventBacklogUnarchived, UnarchivePayload{
+		ArchivedAt: archivedAt,
+	})
+}
+
+func (e *Emitter) EmitBacklogDeleted(entityID string) {
+	e.emit(EntityBacklogItem, entityID, EventBacklogDeleted, nil)
 }
 
 // --- Execution events ---
@@ -117,8 +130,17 @@ func (e *Emitter) EmitInitiativeStatusChanged(name, from, to string) {
 	e.emit(EntityInitiative, name, EventInitiativeStatusChanged, StatusChangePayload{From: from, To: to})
 }
 
-func (e *Emitter) EmitInitiativeArchived(name string) {
-	e.emit(EntityInitiative, name, EventInitiativeArchived, nil)
+func (e *Emitter) EmitInitiativeArchived(name, previousStatus, archivedAt string) {
+	e.emit(EntityInitiative, name, EventInitiativeArchived, ArchivePayload{
+		PreviousStatus: previousStatus,
+		ArchivedAt:     archivedAt,
+	})
+}
+
+func (e *Emitter) EmitInitiativeUnarchived(name, archivedAt string) {
+	e.emit(EntityInitiative, name, EventInitiativeUnarchived, UnarchivePayload{
+		ArchivedAt: archivedAt,
+	})
 }
 
 // --- Queue events ---

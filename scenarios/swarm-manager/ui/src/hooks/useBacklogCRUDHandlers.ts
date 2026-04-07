@@ -6,7 +6,7 @@
  */
 
 import { useCallback } from "react";
-import { useBacklogDetailUIStore } from "../stores";
+import { useBacklogDetailUIStore, useBacklogStore } from "../stores";
 import type { useBacklogDetailData } from "./useBacklogDetailData";
 import type { BacklogKind, BacklogStatus } from "../types";
 
@@ -83,6 +83,8 @@ export function useBacklogCRUDHandlers(opts: UseBacklogCRUDHandlersOptions) {
       contextPaths?: string[];
       contextTargetIds?: string[];
       contextRequirementIds?: string[];
+      confirm?: boolean;
+      force?: boolean;
     }) => {
       _mutations.agent.mutate(payload, {
         onSuccess: () => {
@@ -135,23 +137,57 @@ export function useBacklogCRUDHandlers(opts: UseBacklogCRUDHandlersOptions) {
   }, [_mutations.workshopReset]);
 
   const startWorkshopMode = useCallback(
-    (mode: "workshop" | "finalize", prompt: string) => {
+    (mode: "workshop" | "finalize", prompt: string, force?: boolean) => {
       if (!backlogKind || !name) return;
-      handleAgentSubmit({ mode, prompt });
+      handleAgentSubmit({ mode, prompt, confirm: true, force });
     },
     [backlogKind, name, handleAgentSubmit],
   );
 
   const handleRunWorkshop = useCallback(() => {
+    // Check if item is blocked — if so, show confirmation dialog
+    const blockingMap = useBacklogStore.getState().blockingMap;
+    const key = `${backlogKind}/${name}`;
+    const info = blockingMap[key];
+    if (info?.blocked) {
+      useBacklogDetailUIStore.getState().openWorkshopBlockingConfirm("workshop");
+      return;
+    }
     startWorkshopMode("workshop", "Run the next workshop round for this backlog item.");
-  }, [startWorkshopMode]);
+  }, [backlogKind, name, startWorkshopMode]);
 
   const handleFinalizeWorkshop = useCallback(() => {
+    // Check if item is blocked — if so, show confirmation dialog
+    const blockingMap = useBacklogStore.getState().blockingMap;
+    const key = `${backlogKind}/${name}`;
+    const info = blockingMap[key];
+    if (info?.blocked) {
+      useBacklogDetailUIStore.getState().openWorkshopBlockingConfirm("finalize");
+      return;
+    }
     startWorkshopMode(
       "finalize",
       `Finalize the latest workshop answers into the ${deliverableLabelLower} for this backlog item.`,
     );
+  }, [backlogKind, name, deliverableLabelLower, startWorkshopMode]);
+
+  const handleWorkshopBlockingOverride = useCallback(() => {
+    const { workshopBlockingConfirm } = useBacklogDetailUIStore.getState();
+    const mode = workshopBlockingConfirm.mode;
+    const prompt = mode === "finalize"
+      ? `Finalize the latest workshop answers into the ${deliverableLabelLower} for this backlog item.`
+      : "Run the next workshop round for this backlog item.";
+    useBacklogDetailUIStore.getState().closeWorkshopBlockingConfirm();
+    startWorkshopMode(mode, prompt, true);
   }, [deliverableLabelLower, startWorkshopMode]);
+
+  const handleArchiveItem = useCallback(() => {
+    _mutations.archiveMutation.mutate();
+  }, [_mutations.archiveMutation]);
+
+  const handleUnarchiveItem = useCallback(() => {
+    _mutations.unarchiveMutation.mutate();
+  }, [_mutations.unarchiveMutation]);
 
   return {
     handleUpdateItem,
@@ -163,5 +199,8 @@ export function useBacklogCRUDHandlers(opts: UseBacklogCRUDHandlersOptions) {
     handleWorkshopResetConfirm,
     handleRunWorkshop,
     handleFinalizeWorkshop,
+    handleWorkshopBlockingOverride,
+    handleArchiveItem,
+    handleUnarchiveItem,
   } as const;
 }

@@ -141,6 +141,9 @@ export function groupActionItems(
     snoozedKeys,
   );
   for (const item of nonSnoozedBacklog) {
+    // Skip archived items — they shouldn't surface as actionable
+    if (item.archivedAt != null) continue;
+
     const key = snoozeKeyForBacklog(item.kind, item.name);
     const reasons = getAttentionReasons(item, feedbackMap, maturityMap);
 
@@ -151,7 +154,7 @@ export function groupActionItems(
 
     const ctx: ActionContext = {
       item,
-      allItems: backlogItems,
+      blockingInfo: null, // Command post doesn't need blocking state — items are grouped by CTA
       readinessReady: maturity?.ready ?? null,
       pendingSynthesis: false, // conservative default
       agentRunning: false,

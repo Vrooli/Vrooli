@@ -218,6 +218,53 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	confirm := req.GetConfirm()
+	force := req.GetForce()
+
+	// Dependency blocking applies to initialize and workshop modes.
+	// Finalize, clarify, suggest, and enhance skip dep checks — once a
+	// workshop has started or is being refined, it should complete
+	// regardless of dependency state.
+	if mode == ResearchModeInitialize || mode == ResearchModeWorkshop {
+		depReasons, depErr := EvaluateDependencyBlocking(item, h.store)
+		if depErr != nil {
+			slog.Error("research dependency check failed", "kind", kind, "name", name, "err", depErr)
+			apierr.MapError(w, "[backlog] research", apierr.Internal("failed to check dependencies"))
+			return
+		}
+		if len(depReasons) > 0 {
+			protoReasons := make([]*apipb.BlockingReason, len(depReasons))
+			for i, r := range depReasons {
+				protoReasons[i] = &apipb.BlockingReason{Message: r.Message, Forceable: r.Forceable}
+			}
+			if !confirm {
+				resp := &apipb.BacklogResearchResponse{
+					DryRun:          true,
+					Started:         false,
+					Message:         "Research blocked by dependencies. Use confirm=true and force=true (CLI: --execute --force) to override.",
+					BlockingReasons: protoReasons,
+				}
+				if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, resp); err != nil {
+					apierr.MapError(w, "[backlog] research", apierr.Internal("failed to encode blocked response"))
+				}
+				return
+			}
+			if !force || HasNonForceableReasons(depReasons) {
+				resp := &apipb.BacklogResearchResponse{
+					DryRun:          true,
+					Started:         false,
+					Message:         "Research blocked by dependencies.",
+					BlockingReasons: protoReasons,
+				}
+				if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, resp); err != nil {
+					apierr.MapError(w, "[backlog] research", apierr.Internal("failed to encode blocked response"))
+				}
+				return
+			}
+			// force=true and all reasons are forceable — proceed.
+		}
+	}
+
 	if mode == ResearchModeInitialize && item.Status != StatusBacklog {
 		apierr.MapError(w, "[backlog] research", apierr.Conflict("initialize is only available for items in 'backlog' status"))
 		return
@@ -341,15 +388,16 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if httputil.IsDryRun(r) {
-		resp := map[string]any{
-			"task_id":  "dry-run-task",
-			"run_id":   "dry-run-run",
-			"base_url": "",
-			"created":  time.Now().UTC().Format(time.RFC3339),
-			"dry_run":  true,
-			"skill_id": selection.SkillID,
+		resp := &apipb.BacklogResearchResponse{
+			TaskId:  "dry-run-task",
+			RunId:   "dry-run-run",
+			BaseUrl: "",
+			Created: time.Now().UTC().Format(time.RFC3339),
+			DryRun:  true,
+			Started: false,
+			Message: "Dry run. No agent spawned.",
 		}
-		if err := httputil.JSONWithStatus(w, http.StatusOK, resp); err != nil {
+		if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, resp); err != nil {
 			apierr.MapError(w, "[backlog] research", apierr.Internal("failed to encode dry-run response"))
 		}
 		return
@@ -395,6 +443,9 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		RunId:   runResult.RunID,
 		BaseUrl: runResult.BaseURL,
 		Created: runResult.CreatedAt,
+		DryRun:  false,
+		Started: true,
+		Message: "Research agent spawned successfully.",
 	}
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusCreated, resp); err != nil {
 		apierr.MapError(w, "[backlog] research", apierr.Internal("failed to encode response"))

@@ -104,7 +104,7 @@ type UpdateInitiativeRequest struct {
 	// Optional description.
 	Description *string `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	// Lifecycle state.
-	// @constraint one of: active, completed, archived
+	// @constraint one of: active, completed
 	Status string `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
 	// Backlog item references as "kind/name" strings.
 	Items         []string `protobuf:"bytes,4,rep,name=items,proto3" json:"items,omitempty"`
@@ -278,11 +278,11 @@ const file_swarm_manager_v1_api_initiative_proto_rawDesc = "" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12%\n" +
 	"\vdescription\x18\x03 \x01(\tH\x00R\vdescription\x88\x01\x01\x12\x14\n" +
 	"\x05items\x18\x04 \x03(\tR\x05itemsB\x0e\n" +
-	"\f_description\"\xc1\x01\n" +
+	"\f_description\"\xb7\x01\n" +
 	"\x17UpdateInitiativeRequest\x12\x1d\n" +
 	"\x05title\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12%\n" +
-	"\vdescription\x18\x02 \x01(\tH\x00R\vdescription\x88\x01\x01\x12:\n" +
-	"\x06status\x18\x03 \x01(\tB\"\xbaH\x1fr\x1dR\x06activeR\tcompletedR\barchivedR\x06status\x12\x14\n" +
+	"\vdescription\x18\x02 \x01(\tH\x00R\vdescription\x88\x01\x01\x120\n" +
+	"\x06status\x18\x03 \x01(\tB\x18\xbaH\x15r\x13R\x06activeR\tcompletedR\x06status\x12\x14\n" +
 	"\x05items\x18\x04 \x03(\tR\x05itemsB\x0e\n" +
 	"\f_description\"\x8e\x01\n" +
 	"\x12InitiativeResponse\x12<\n" +

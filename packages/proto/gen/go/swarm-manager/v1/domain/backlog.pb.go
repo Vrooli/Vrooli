@@ -32,7 +32,7 @@ type BacklogItem struct {
 	// Detailed description of the work item.
 	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	// Lifecycle state for the backlog item.
-	// @constraint one of: backlog, researching, ready, queued, in_progress, completed, archived
+	// @constraint one of: backlog, researching, ready, queued, in_progress, completed, failed
 	Status string `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
 	// Priority level (1 = highest, 10 = lowest).
 	// @constraint 1-10
@@ -62,7 +62,11 @@ type BacklogItem struct {
 	// Origin reference in "kind/name" format, tracking which item spawned this one.
 	SpawnedFrom *string `protobuf:"bytes,17,opt,name=spawned_from,json=spawnedFrom,proto3,oneof" json:"spawned_from,omitempty"`
 	// Personal annotation — a user note for tracking context (e.g., why the item is paused).
-	Note          *string `protobuf:"bytes,18,opt,name=note,proto3,oneof" json:"note,omitempty"`
+	Note *string `protobuf:"bytes,18,opt,name=note,proto3,oneof" json:"note,omitempty"`
+	// RFC3339 timestamp when the item was archived. Null/unset means not archived.
+	// Archiving is orthogonal to status — items retain their terminal status when archived.
+	// @format rfc3339
+	ArchivedAt    *string `protobuf:"bytes,19,opt,name=archived_at,json=archivedAt,proto3,oneof" json:"archived_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -205,6 +209,13 @@ func (x *BacklogItem) GetSpawnedFrom() string {
 func (x *BacklogItem) GetNote() string {
 	if x != nil && x.Note != nil {
 		return *x.Note
+	}
+	return ""
+}
+
+func (x *BacklogItem) GetArchivedAt() string {
+	if x != nil && x.ArchivedAt != nil {
+		return *x.ArchivedAt
 	}
 	return ""
 }
@@ -567,12 +578,12 @@ var File_swarm_manager_v1_domain_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\n" +
-	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xf2\x05\n" +
+	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\x9e\x06\n" +
 	"\vBacklogItem\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\x12l\n" +
-	"\x06status\x18\x04 \x01(\tBT\xbaHQrOR\abacklogR\vresearchingR\x05readyR\x06queuedR\vin_progressR\tcompletedR\x06failedR\barchivedR\x06status\x12%\n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12b\n" +
+	"\x06status\x18\x04 \x01(\tBJ\xbaHGrER\abacklogR\vresearchingR\x05readyR\x06queuedR\vin_progressR\tcompletedR\x06failedR\x06status\x12%\n" +
 	"\bpriority\x18\x05 \x01(\x05B\t\xbaH\x06\x1a\x04\x18\n" +
 	"(\x01R\bpriority\x12\x1c\n" +
 	"\x04tags\x18\x06 \x03(\tB\b\xbaH\x05\x92\x01\x02\x18\x01R\x04tags\x12!\n" +
@@ -588,11 +599,14 @@ const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\x10acceptance_allow\x18\x0f \x03(\tR\x0facceptanceAllow\x12'\n" +
 	"\x0facceptance_deny\x18\x10 \x03(\tR\x0eacceptanceDeny\x12&\n" +
 	"\fspawned_from\x18\x11 \x01(\tH\x02R\vspawnedFrom\x88\x01\x01\x12\x17\n" +
-	"\x04note\x18\x12 \x01(\tH\x03R\x04note\x88\x01\x01B\r\n" +
+	"\x04note\x18\x12 \x01(\tH\x03R\x04note\x88\x01\x01\x12$\n" +
+	"\varchived_at\x18\x13 \x01(\tH\x04R\n" +
+	"archivedAt\x88\x01\x01B\r\n" +
 	"\v_initiativeB\t\n" +
 	"\a_effortB\x0f\n" +
 	"\r_spawned_fromB\a\n" +
-	"\x05_noteJ\x04\b\n" +
+	"\x05_noteB\x0e\n" +
+	"\f_archived_atJ\x04\b\n" +
 	"\x10\vJ\x04\b\x0e\x10\x0f\"\xd9\x01\n" +
 	"\vBacklogFile\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1b\n" +

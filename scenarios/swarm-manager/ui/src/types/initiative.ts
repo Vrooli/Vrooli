@@ -11,12 +11,15 @@ import type { ProtoMessage } from "./shared";
 /**
  * Valid lifecycle states for an initiative.
  */
-export type InitiativeStatus = "active" | "completed" | "archived";
+export type InitiativeStatus = "active" | "completed";
 
 /**
  * A named grouping of related backlog items.
  */
-export type Initiative = ProtoMessage<ProtoInitiative>;
+export type Initiative = ProtoMessage<ProtoInitiative> & {
+  /** ISO timestamp when the initiative was archived, or undefined if not archived. */
+  archivedAt?: string;
+};
 
 /**
  * Aggregated status counts for an initiative's member items.

@@ -2,9 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   computeDependencyRelations,
   getBacklogNotQueueableReason,
-  getBlockingDepKeys,
   getItemActions,
-  hasBlockingDeps,
   isBacklogQueueable,
   LOCKED_STATUSES,
   TERMINAL_STATUSES,
@@ -36,7 +34,7 @@ function makeItem(overrides?: Partial<BacklogItem>): BacklogItem {
 function makeCtx(overrides?: Partial<ActionContext>): ActionContext {
   return {
     item: makeItem(),
-    allItems: [],
+    blockingInfo: null,
     readinessReady: null,
     pendingSynthesis: false,
     agentRunning: false,
@@ -52,7 +50,7 @@ function makeCtx(overrides?: Partial<ActionContext>): ActionContext {
 
 describe("isBacklogQueueable", () => {
   const queueableStatuses: BacklogStatus[] = ["backlog", "researching", "ready"];
-  const nonQueueableStatuses: BacklogStatus[] = ["queued", "in_progress", "completed", "failed", "archived"];
+  const nonQueueableStatuses: BacklogStatus[] = ["queued", "in_progress", "completed", "failed"];
   const nonResearchKinds: BacklogKind[] = ["idea", "fix", "execute", "chore"];
 
   it("returns true for non-research items in queueable statuses", () => {
@@ -66,8 +64,6 @@ describe("isBacklogQueueable", () => {
   it("returns false for non-research items in non-queueable statuses", () => {
     for (const kind of nonResearchKinds) {
       for (const status of nonQueueableStatuses) {
-        // Exception: archived ideas ARE queueable
-        if (kind === "idea" && status === "archived") continue;
         expect(isBacklogQueueable({ kind, status })).toBe(false);
       }
     }
@@ -79,66 +75,8 @@ describe("isBacklogQueueable", () => {
     }
   });
 
-  it("returns true for archived ideas (special case)", () => {
-    expect(isBacklogQueueable({ kind: "idea", status: "archived" })).toBe(true);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// hasBlockingDeps / getBlockingDepKeys
-// ---------------------------------------------------------------------------
-
-describe("hasBlockingDeps", () => {
-  it("returns false when item has no dependencies", () => {
-    const item = makeItem();
-    expect(hasBlockingDeps(item, [])).toBe(false);
-  });
-
-  it("returns false when dependencies are in non-blocking statuses", () => {
-    const dep = makeItem({ name: "dep", kind: "idea", status: "ready" });
-    const item = makeItem({ dependsOn: ["idea/dep"] });
-    expect(hasBlockingDeps(item, [dep, item])).toBe(false);
-  });
-
-  it("returns true when a dependency is in backlog status", () => {
-    const dep = makeItem({ name: "dep", kind: "idea", status: "backlog" });
-    const item = makeItem({ dependsOn: ["idea/dep"] });
-    expect(hasBlockingDeps(item, [dep, item])).toBe(true);
-  });
-
-  it("returns true when a dependency is in researching status", () => {
-    const dep = makeItem({ name: "dep", kind: "idea", status: "researching" });
-    const item = makeItem({ dependsOn: ["idea/dep"] });
-    expect(hasBlockingDeps(item, [dep, item])).toBe(true);
-  });
-
-  it("returns false when dependency reference doesn't exist in allItems", () => {
-    const item = makeItem({ dependsOn: ["idea/nonexistent"] });
-    expect(hasBlockingDeps(item, [item])).toBe(false);
-  });
-
-  it("returns false for completed/failed/queued/in_progress dependencies", () => {
-    for (const status of ["completed", "failed", "queued", "in_progress", "archived"] as BacklogStatus[]) {
-      const dep = makeItem({ name: "dep", kind: "idea", status });
-      const item = makeItem({ dependsOn: ["idea/dep"] });
-      expect(hasBlockingDeps(item, [dep, item])).toBe(false);
-    }
-  });
-});
-
-describe("getBlockingDepKeys", () => {
-  it("returns empty array when no blocking deps", () => {
-    const item = makeItem();
-    expect(getBlockingDepKeys(item, [])).toEqual([]);
-  });
-
-  it("returns keys of blocking dependencies", () => {
-    const dep1 = makeItem({ name: "dep1", kind: "idea", status: "backlog" });
-    const dep2 = makeItem({ name: "dep2", kind: "fix", status: "ready" });
-    const dep3 = makeItem({ name: "dep3", kind: "chore", status: "researching" });
-    const item = makeItem({ dependsOn: ["idea/dep1", "fix/dep2", "chore/dep3"] });
-    const keys = getBlockingDepKeys(item, [dep1, dep2, dep3, item]);
-    expect(keys).toEqual(["idea/dep1", "chore/dep3"]);
+  it("returns true for archived ideas (special case via archivedAt)", () => {
+    expect(isBacklogQueueable({ kind: "idea", status: "completed", archivedAt: "2026-01-01T00:00:00Z" })).toBe(true);
   });
 });
 
@@ -150,7 +88,7 @@ describe("getBacklogNotQueueableReason", () => {
   it("returns null for queueable items", () => {
     expect(getBacklogNotQueueableReason({ kind: "idea", status: "backlog" })).toBeNull();
     expect(getBacklogNotQueueableReason({ kind: "idea", status: "ready" })).toBeNull();
-    expect(getBacklogNotQueueableReason({ kind: "idea", status: "archived" })).toBeNull();
+    expect(getBacklogNotQueueableReason({ kind: "idea", status: "completed", archivedAt: "2026-01-01T00:00:00Z" })).toBeNull();
   });
 
   it("returns null for research items in queueable statuses", () => {
@@ -162,7 +100,7 @@ describe("getBacklogNotQueueableReason", () => {
     expect(getBacklogNotQueueableReason({ kind: "fix", status: "in_progress" })).toContain("Already in progress");
     expect(getBacklogNotQueueableReason({ kind: "fix", status: "completed" })).toContain("cannot be queued again");
     expect(getBacklogNotQueueableReason({ kind: "fix", status: "failed" })).toContain("Reset status");
-    expect(getBacklogNotQueueableReason({ kind: "fix", status: "archived" })).toContain("Only archived ideas");
+    expect(getBacklogNotQueueableReason({ kind: "fix", status: "completed" })).toContain("cannot be queued again");
   });
 });
 
@@ -280,50 +218,45 @@ describe("getItemActions", () => {
   // -------------------------------------------------------------------------
 
   describe("blocked by dependencies", () => {
-    it("shows run as disabled when blocked and item is otherwise ready", () => {
-      const dep = makeItem({ name: "dep", kind: "idea", status: "backlog" });
+    it("sets blocked=true but CTAs remain available when blocked and item is ready", () => {
       const item = makeItem({ status: "ready", dependsOn: ["idea/dep"] });
       const result = getItemActions(makeCtx({
         item,
-        allItems: [dep, item],
+        blockingInfo: { blocked: true, blockingDepKeys: ["idea/dep"], allForceable: true },
         readinessReady: true,
       }));
       expect(result.blocked).toBe(true);
-      expect(result.runDisabled).toBe(true);
-      expect(result.canRun).toBe(false);
+      // CTAs are available (not hard-disabled) so user can override via modal
+      expect(result.canRun).toBe(true);
       expect(result.primaryCta).toBe("run");
     });
 
-    it("shows workshop as disabled when blocked and readiness not met", () => {
-      const dep = makeItem({ name: "dep", kind: "idea", status: "backlog" });
+    it("sets blocked=true but workshop still available when readiness not met", () => {
       const item = makeItem({ status: "backlog", dependsOn: ["idea/dep"] });
       const result = getItemActions(makeCtx({
         item,
-        allItems: [dep, item],
+        blockingInfo: { blocked: true, blockingDepKeys: ["idea/dep"], allForceable: true },
         readinessReady: false,
       }));
       expect(result.blocked).toBe(true);
-      expect(result.workshopDisabled).toBe(true);
-      expect(result.canWorkshop).toBe(false);
+      expect(result.canWorkshop).toBe(true);
       expect(result.primaryCta).toBe("workshop");
     });
 
-    it("populates blockingDepKeys", () => {
-      const dep = makeItem({ name: "blocker", kind: "idea", status: "backlog" });
+    it("populates blockingDepKeys from server-provided blockingInfo", () => {
       const item = makeItem({ status: "backlog", dependsOn: ["idea/blocker"] });
       const result = getItemActions(makeCtx({
         item,
-        allItems: [dep, item],
+        blockingInfo: { blocked: true, blockingDepKeys: ["idea/blocker"], allForceable: false },
       }));
       expect(result.blockingDepKeys).toEqual(["idea/blocker"]);
     });
 
     it("still shows decision stepper when blocked with pending decisions", () => {
-      const dep = makeItem({ name: "dep", kind: "idea", status: "backlog" });
       const item = makeItem({ status: "backlog", dependsOn: ["idea/dep"] });
       const result = getItemActions(makeCtx({
         item,
-        allItems: [dep, item],
+        blockingInfo: { blocked: true, blockingDepKeys: ["idea/dep"], allForceable: true },
         hasPendingDecisions: true,
         readinessReady: false,
       }));
@@ -510,18 +443,22 @@ describe("getItemActions", () => {
   // -------------------------------------------------------------------------
 
   describe("edge cases", () => {
-    it("archived idea is queueable (step 4)", () => {
+    it("archived items have no actions — must unarchive first", () => {
       const result = getItemActions(makeCtx({
-        item: makeItem({ kind: "idea", status: "archived" }),
+        item: makeItem({ kind: "idea", status: "completed", archivedAt: "2026-01-01T00:00:00Z" }),
         readinessReady: null,
       }));
-      expect(result.canRun).toBe(true);
-      expect(result.primaryCta).toBe("run");
+      expect(result.canRun).toBe(false);
+      expect(result.canArchive).toBe(false);
+      expect(result.canFollowUp).toBe(false);
+      expect(result.canWorkshop).toBe(false);
+      expect(result.canFinalize).toBe(false);
+      expect(result.primaryCta).toBeNull();
     });
 
-    it("item with empty allItems: blocking deps not checked", () => {
+    it("item with null blockingInfo: not blocked", () => {
       const item = makeItem({ dependsOn: ["idea/something"] });
-      const result = getItemActions(makeCtx({ item, allItems: [] }));
+      const result = getItemActions(makeCtx({ item, blockingInfo: null }));
       expect(result.blocked).toBe(false);
     });
 
@@ -582,11 +519,11 @@ describe("computeDependencyRelations", () => {
     ]);
   });
 
-  it("returns dangling refs with archived status", () => {
+  it("returns dangling refs with completed status", () => {
     const item = makeItem({ name: "orphan", kind: "idea", dependsOn: ["fix/gone"] });
     const result = computeDependencyRelations(item, [item]);
     expect(result.parents).toEqual([
-      { kind: "fix", name: "gone", title: "fix/gone", status: "archived" },
+      { kind: "fix", name: "gone", title: "fix/gone", status: "completed" },
     ]);
   });
 

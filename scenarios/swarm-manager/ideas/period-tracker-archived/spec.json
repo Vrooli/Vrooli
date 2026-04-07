@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T20:49:48Z",
   "created": "2026-02-05T20:49:48Z",
   "description": "Privacy-first menstrual health tracking with AI insights, multi-tenant support, and calendar integration",
   "name": "period-tracker-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "health",
     "menstrual",

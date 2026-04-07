@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-01-29T14:10:00Z",
   "created": "2026-01-29T14:10:00Z",
   "description": "Audio processing and manipulation utilities",
   "name": "audio-tools-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "tools",
     "utilities",

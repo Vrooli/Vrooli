@@ -9,6 +9,8 @@ import (
 	"swarm-manager/internal/execution"
 )
 
+func ptrStr(s string) *string { return &s }
+
 // --- Mock implementations ---
 
 type mockBacklogLister struct {
@@ -110,12 +112,12 @@ func TestProjectTopology(t *testing.T) {
 		Backlog: &mockBacklogLister{items: []backlog.BacklogItem{
 			{Kind: "execute", Name: "task-a", Title: "Task A", Status: backlog.StatusQueued, Priority: 3, DependsOn: []string{"execute/task-b"}, Initiative: "init-1", AcceptanceAllow: []string{"scenarios/my-app"}},
 			{Kind: "execute", Name: "task-b", Title: "Task B", Status: "ready", Priority: 5},
-			{Kind: "execute", Name: "task-c", Title: "Done", Status: backlog.StatusCompleted}, // should be excluded
-			{Kind: "idea", Name: "archived", Title: "Old", Status: backlog.StatusArchived},    // should be excluded
+			{Kind: "execute", Name: "task-c", Title: "Done", Status: backlog.StatusCompleted},                                           // should be excluded
+			{Kind: "idea", Name: "archived", Title: "Old", Status: backlog.StatusCompleted, ArchivedAt: ptrStr("2026-01-01T00:00:00Z")}, // should be excluded
 		}},
 		Initiative: &mockInitiativeLister{inits: []InitiativeEntry{
 			{Name: "init-1", Title: "Initiative 1", Status: "active", Items: []string{"execute/task-a", "execute/task-c"}},
-			{Name: "init-archived", Title: "Archived", Status: "archived"}, // excluded
+			{Name: "init-archived", Title: "Archived", Status: "completed", ArchivedAt: ptrStr("2026-01-01T00:00:00Z")}, // excluded
 		}},
 		Capture: &mockCaptureLister{caps: []CaptureEntry{
 			{ID: "cap-1", Text: "fix login", Status: "classified", Items: []CaptureClassificationItem{
@@ -301,7 +303,7 @@ func TestProjectOperations_AgentUnavailable(t *testing.T) {
 func TestProjectOperations_ExcludesArchivedBacklog(t *testing.T) {
 	svc := NewProjectionService(ProjectionConfig{
 		Backlog: &mockBacklogLister{items: []backlog.BacklogItem{
-			{Kind: "execute", Name: "done-task", Title: "Done", Status: backlog.StatusArchived},
+			{Kind: "execute", Name: "done-task", Title: "Done", Status: backlog.StatusCompleted, ArchivedAt: ptrStr("2026-01-01T00:00:00Z")},
 		}},
 		Execution: &mockExecutionLister{records: []execution.Record{
 			{ExecutionID: "exec-1", BacklogKind: "execute", BacklogName: "done-task", Status: execution.StatusNeedsFixup},
@@ -333,7 +335,6 @@ func TestProjectOperations_BacklogStatusFiltering(t *testing.T) {
 		{backlog.StatusInProgress, true},
 		{backlog.StatusFailed, true},
 		{backlog.StatusCompleted, false},
-		{backlog.StatusArchived, false},
 	}
 
 	for _, tt := range tests {
@@ -366,7 +367,7 @@ func TestProjectOperations_FiltersExecutionsByParentBacklog(t *testing.T) {
 	svc := NewProjectionService(ProjectionConfig{
 		Backlog: &mockBacklogLister{items: []backlog.BacklogItem{
 			{Kind: "execute", Name: "active-task", Title: "Active", Status: backlog.StatusInProgress},
-			{Kind: "execute", Name: "archived-task", Title: "Archived", Status: backlog.StatusArchived},
+			{Kind: "execute", Name: "archived-task", Title: "Archived", Status: backlog.StatusCompleted, ArchivedAt: ptrStr("2026-01-01T00:00:00Z")},
 		}},
 		Execution: &mockExecutionLister{records: []execution.Record{
 			{ExecutionID: "exec-1", BacklogKind: "execute", BacklogName: "active-task", Status: execution.StatusRunning},
@@ -404,7 +405,7 @@ func TestProjectOperations_InitiativeWithMixedMembers(t *testing.T) {
 	svc := NewProjectionService(ProjectionConfig{
 		Backlog: &mockBacklogLister{items: []backlog.BacklogItem{
 			{Kind: "execute", Name: "active", Title: "Active", Status: backlog.StatusReady, Initiative: "init-1"},
-			{Kind: "execute", Name: "done", Title: "Done", Status: backlog.StatusArchived, Initiative: "init-1"},
+			{Kind: "execute", Name: "done", Title: "Done", Status: backlog.StatusCompleted, ArchivedAt: ptrStr("2026-01-01T00:00:00Z"), Initiative: "init-1"},
 		}},
 		Initiative: &mockInitiativeLister{inits: []InitiativeEntry{
 			{Name: "init-1", Title: "Init", Status: "active", Items: []string{"execute/active", "execute/done"}},

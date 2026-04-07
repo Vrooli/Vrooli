@@ -158,7 +158,7 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 		result := batchQueueItemResult{Item: ref}
 
 		// Check if item status is queueable.
-		if !isQueueableStatus(item.Kind, item.Status) {
+		if !isQueueableItem(item) {
 			result.Message = fmt.Sprintf("Cannot queue from current status: %s", item.Status)
 			results = append(results, result)
 			continue
@@ -194,15 +194,25 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 		itemDir := h.store.ItemDir(item.Kind, item.Name)
 		latestRound, _, _ := LoadLatestRound(itemDir)
 		pendingDecisions := CountPendingDecisions(latestRound)
-		blockingReasons := append([]string{}, preflight.BlockingReasons...)
-		if pendingDecisions > 0 {
-			blockingReasons = append(blockingReasons, fmt.Sprintf("%d workshop decision(s) still pending", pendingDecisions))
+		var blockingReasons []BlockingReason
+		for _, reason := range preflight.BlockingReasons {
+			blockingReasons = append(blockingReasons, BlockingReason{Message: reason, Forceable: false})
 		}
-		blockingReasons = dedupeQueueReasons(blockingReasons)
+		if pendingDecisions > 0 {
+			blockingReasons = append(blockingReasons, BlockingReason{
+				Message:   fmt.Sprintf("%d workshop decision(s) still pending", pendingDecisions),
+				Forceable: true,
+			})
+		}
+		blockingReasons = DedupeReasons(blockingReasons)
 
 		if len(blockingReasons) > 0 {
-			if !req.Force || hasNonForceableQueueReasons(blockingReasons) {
-				result.Message = "Blocked: " + strings.Join(blockingReasons, "; ")
+			if !req.Force || HasNonForceableReasons(blockingReasons) {
+				msgs := make([]string, len(blockingReasons))
+				for i, r := range blockingReasons {
+					msgs[i] = r.Message
+				}
+				result.Message = "Blocked: " + strings.Join(msgs, "; ")
 				results = append(results, result)
 				continue
 			}

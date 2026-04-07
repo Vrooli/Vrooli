@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T21:13:37Z",
   "created": "2026-02-05T21:13:37Z",
   "description": "Smart nutrition tracking with calorie counting, macro tracking, and AI-powered meal suggestions",
   "name": "nutrition-tracker-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "saas-applications",
     "health",

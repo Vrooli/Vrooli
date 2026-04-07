@@ -1,0 +1,18 @@
+{
+  "acceptance_allow": [
+    "scenarios/project-wiki/**"
+  ],
+  "created": "2026-04-06T19:35:58Z",
+  "depends_on": [
+    "research/project-wiki-architecture"
+  ],
+  "description": "Implement the project-wiki scenario based on the architecture research. This is inspired by Andrej Karpathy's LLM Wiki concept (https://gist.githubusercontent.com/karpathy/442a6bf555914893e9891c11519de94f/raw/ac46de1ad27f92b28ac95459c782c07f6b8c964a/llm-wiki.md) — agents maintain a persistent, evolving knowledge base where knowledge compounds over time rather than being rediscovered with each query.\n\nStandard Vrooli scenario structure: service.json, Makefile, Go API, CLI wrapper, initialization scripts.\n\nThe scenario owns the wiki content directory (markdown files organized per the designed structure), serves CRUD operations via REST API, provides CLI commands for reading/searching/ingesting/linting, and maintains index.md and log.md as navigation and audit surfaces.\n\nKey implementation details:\n- Wiki pages are plain markdown files stored on disk (not in a database) — keeps them readable, diffable, and version-controllable\n- index.md is auto-maintained: every page create/update/delete updates the index\n- log.md is append-only: records every wiki operation with timestamp, source, affected pages\n- Cross-linking between pages uses standard markdown links with relative paths\n- The ingest operation is the core intelligence: given a signal (completed backlog item, team handoff, etc.), determine which pages to update, generate the content updates, and apply them\n- The lint operation scans for: pages not in index, index entries pointing to missing pages, broken cross-references, stale pages, contradictions\n- Follow standard scenario patterns: Go API with health endpoint, CLI that wraps API calls, Makefile with start/stop/test/logs targets, service.json for lifecycle management",
+  "effort": "XL",
+  "kind": "execute",
+  "name": "project-wiki-core-runtime",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [],
+  "title": "Build Project Wiki Scenario Core Runtime",
+  "updated": "2026-04-06T19:35:58Z"
+}

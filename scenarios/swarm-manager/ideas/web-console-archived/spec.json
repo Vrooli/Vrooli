@@ -2,6 +2,7 @@
   "archiveReason": "scenario deleted with archive=true",
   "archivedAt": "2026-02-16T04:14:56Z",
   "archivedBy": "matthalloran8",
+  "archived_at": "2026-03-21T15:30:04Z",
   "created": "2026-02-16T04:14:56Z",
   "description": "Standalone browser terminal scenario with pane-based workspaces, PTY-backed session durability (SQLite), AI command generation (Ollama/OpenRouter), configurable launch shortcuts, and mobile-first floating toolbar. Single-user design; auth delegated to api-base.",
   "kind": "idea",
@@ -15,7 +16,7 @@
   "priority": 5,
   "sourceScenarioName": "web-console",
   "sourceScenarioPath": "/home/matthalloran8/Vrooli/scenarios/web-console",
-  "status": "archived",
+  "status": "queued",
   "tags": [
     "terminal",
     "shortcuts",

@@ -8,6 +8,7 @@
     "scenarios/prompt-manager/ui/src/stores/graphStore.ts",
     "packages/**"
   ],
+  "archived_at": "2026-03-30T14:35:46Z",
   "created": "2026-03-27T18:40:16Z",
   "depends_on": [
     "research/swarm-manager-graph-workspace-contract"
@@ -18,7 +19,7 @@
   "kind": "execute",
   "name": "swarm-manager-graph-data-foundation",
   "priority": 1,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "swarm-manager",
     "ux",

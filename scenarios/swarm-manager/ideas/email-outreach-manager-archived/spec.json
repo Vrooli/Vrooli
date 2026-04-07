@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T20:43:46Z",
   "created": "2026-02-05T20:43:46Z",
   "description": "AI-powered personalized email campaign generation and execution with contact intelligence integration",
   "name": "email-outreach-manager-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "email-marketing",
     "ai-template-generation",

@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T20:46:28Z",
   "created": "2026-02-05T20:46:28Z",
   "description": "AI-powered character dialog generation for video games with jungle platformer aesthetics",
   "name": "game-dialog-generator-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "game-development",
     "dialog-generation",

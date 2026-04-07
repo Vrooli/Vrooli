@@ -203,9 +203,10 @@ func TestQueueBacklog_AllowsArchivedIdeas(t *testing.T) {
 		"name":        "archived-idea",
 		"title":       "Archived Idea",
 		"description": "desc",
-		"status":      "archived",
+		"status":      "ready",
 		"priority":    3,
 		"tags":        []string{},
+		"archived_at": "2025-01-01T00:00:00Z",
 	})
 	mustWriteDeliverableFile(t, root, "idea", "archived-idea")
 
@@ -233,9 +234,10 @@ func TestQueueBacklog_YOLORollsBackWhenSpawnFails(t *testing.T) {
 		"name":        "rollback-idea",
 		"title":       "Rollback Idea",
 		"description": "desc",
-		"status":      "archived",
+		"status":      "ready",
 		"priority":    3,
 		"tags":        []string{},
+		"archived_at": "2025-01-01T00:00:00Z",
 	})
 	mustWriteDeliverableFile(t, root, "idea", "rollback-idea")
 
@@ -257,8 +259,8 @@ func TestQueueBacklog_YOLORollsBackWhenSpawnFails(t *testing.T) {
 	}
 
 	storedItem := mustLoadBacklogItem(t, filepath.Join(root, "ideas", "rollback-idea", "spec.json"))
-	if storedItem["status"] != "archived" {
-		t.Fatalf("expected archived status restored, got %#v", storedItem["status"])
+	if storedItem["status"] != "ready" {
+		t.Fatalf("expected ready status restored, got %#v", storedItem["status"])
 	}
 
 	records := mustLoadRecords(t, filepath.Join(root, ".vrooli", "execution-runs.json"))
@@ -267,15 +269,16 @@ func TestQueueBacklog_YOLORollsBackWhenSpawnFails(t *testing.T) {
 	}
 }
 
-func TestCancel_RestoresArchivedStatus(t *testing.T) {
+func TestCancel_RestoresArchivedIdeaStatus(t *testing.T) {
 	root := t.TempDir()
 	mustWriteBacklogItem(t, root, "idea", "archived-cancel", map[string]any{
 		"name":          "archived-cancel",
 		"title":         "Archived Cancel",
 		"description":   "desc",
-		"status":        "archived",
+		"status":        "ready",
 		"priority":      3,
 		"tags":          []string{},
+		"archived_at":   "2025-01-01T00:00:00Z",
 		"archiveReason": "scenario deleted with archive=true",
 	})
 	mustWriteDeliverableFile(t, root, "idea", "archived-cancel")
@@ -300,8 +303,11 @@ func TestCancel_RestoresArchivedStatus(t *testing.T) {
 	}
 
 	storedItem := mustLoadBacklogItem(t, filepath.Join(root, "ideas", "archived-cancel", "spec.json"))
-	if storedItem["status"] != "archived" {
-		t.Fatalf("expected archived status after cancel, got %#v", storedItem["status"])
+	if storedItem["status"] != "ready" {
+		t.Fatalf("expected ready status after cancel, got %#v", storedItem["status"])
+	}
+	if storedItem["archived_at"] != "2025-01-01T00:00:00Z" {
+		t.Fatalf("expected archived_at preserved, got %#v", storedItem["archived_at"])
 	}
 	if storedItem["archiveReason"] != "scenario deleted with archive=true" {
 		t.Fatalf("expected archive metadata preserved, got %#v", storedItem["archiveReason"])
@@ -314,9 +320,10 @@ func TestCancel_RestoresArchivedStatusAfterForcedQueue(t *testing.T) {
 		"name":          "archived-cancel-forced",
 		"title":         "Archived Cancel Forced",
 		"description":   "desc",
-		"status":        "archived",
+		"status":        "ready",
 		"priority":      3,
 		"tags":          []string{},
+		"archived_at":   "2025-01-01T00:00:00Z",
 		"archiveReason": "scenario deleted with archive=true",
 	})
 	mustWriteDeliverableFile(t, root, "idea", "archived-cancel-forced")
@@ -342,8 +349,11 @@ func TestCancel_RestoresArchivedStatusAfterForcedQueue(t *testing.T) {
 	}
 
 	storedItem := mustLoadBacklogItem(t, filepath.Join(root, "ideas", "archived-cancel-forced", "spec.json"))
-	if storedItem["status"] != "archived" {
-		t.Fatalf("expected archived status after cancel, got %#v", storedItem["status"])
+	if storedItem["status"] != "ready" {
+		t.Fatalf("expected ready status after cancel, got %#v", storedItem["status"])
+	}
+	if storedItem["archived_at"] != "2025-01-01T00:00:00Z" {
+		t.Fatalf("expected archived_at preserved after cancel, got %#v", storedItem["archived_at"])
 	}
 }
 

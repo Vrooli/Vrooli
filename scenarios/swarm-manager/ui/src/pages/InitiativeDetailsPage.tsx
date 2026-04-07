@@ -12,7 +12,7 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
-import { Target, Archive, List, Network, CircleHelp, Files } from "lucide-react";
+import { Target, Archive, ArchiveRestore, List, Network, CircleHelp, Files } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
@@ -85,14 +85,32 @@ export function InitiativeDetailsPage() {
   const archiveMutation = useMutation({
     mutationFn: async () => {
       if (!name) throw new Error("Initiative name is required");
-      await defaultApiClient.put(API_ENDPOINTS.initiativeByName(name), { status: "archived" });
+      return defaultApiClient.patch<unknown>(API_ENDPOINTS.initiativeArchiveItem(name), {});
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["initiative", name] });
+      void queryClient.invalidateQueries({ queryKey: ["initiatives"] });
     },
   });
 
-  const isArchived = initiative?.status === "archived";
+  const unarchiveMutation = useMutation({
+    mutationFn: async () => {
+      if (!name) throw new Error("Initiative name is required");
+      return defaultApiClient.delete<unknown>(API_ENDPOINTS.initiativeArchiveItem(name));
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["initiative", name] });
+      void queryClient.invalidateQueries({ queryKey: ["initiatives"] });
+    },
+  });
+
+  const isArchived = initiative?.archivedAt != null;
+  const isArchiveActionPending = archiveMutation.isPending || unarchiveMutation.isPending;
+  const archiveActionError = archiveMutation.isError
+    ? archiveMutation.error instanceof Error ? archiveMutation.error.message : "Failed to archive initiative."
+    : unarchiveMutation.isError
+      ? unarchiveMutation.error instanceof Error ? unarchiveMutation.error.message : "Failed to unarchive initiative."
+      : null;
 
   // --- Tab state ---
   const [activeTab, setActiveTab] = useUrlState<InitiativeTab>("tab", "info", {
@@ -190,15 +208,27 @@ export function InitiativeDetailsPage() {
 
   const mobileActions = initiative ? (
     <div className="flex flex-col gap-2 p-4">
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => archiveMutation.mutate()}
-        disabled={isArchived || archiveMutation.isPending}
-      >
-        <Archive className="mr-1.5 h-4 w-4" />
-        {archiveMutation.isPending ? "Archiving..." : "Archive"}
-      </Button>
+      {isArchived ? (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => unarchiveMutation.mutate()}
+          disabled={isArchiveActionPending}
+        >
+          <ArchiveRestore className="mr-1.5 h-4 w-4" />
+          {unarchiveMutation.isPending ? "Restoring..." : "Unarchive"}
+        </Button>
+      ) : (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => archiveMutation.mutate()}
+          disabled={isArchiveActionPending}
+        >
+          <Archive className="mr-1.5 h-4 w-4" />
+          {archiveMutation.isPending ? "Archiving..." : "Archive"}
+        </Button>
+      )}
     </div>
   ) : undefined;
 
@@ -214,7 +244,7 @@ export function InitiativeDetailsPage() {
         kind: parsed.kind as BacklogKind,
         name: parsed.name,
         title: found?.title ?? `${parsed.kind}/${parsed.name}`,
-        status: (found?.status ?? "archived") as BacklogStatus,
+        status: (found?.status ?? "completed") as BacklogStatus,
         dependsOn: found?.dependsOn ?? [],
       };
     });
@@ -324,6 +354,29 @@ export function InitiativeDetailsPage() {
       mobileActionsTitle="Initiative Actions"
     >
       <div className="space-y-0 md:mx-auto md:max-w-3xl" data-testid={selectors.initiativeDetails.page}>
+        {isArchived && (
+          <div className="mb-3 flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+            <div className="flex items-center gap-2 text-sm text-amber-300">
+              <Archive className="h-4 w-4" />
+              <span>Archived {formatRelativeTime(initiative.archivedAt ?? "")}</span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-amber-500/30 text-amber-300 hover:bg-amber-500/10"
+              onClick={() => unarchiveMutation.mutate()}
+              disabled={isArchiveActionPending}
+            >
+              <ArchiveRestore className="mr-2 h-4 w-4" />
+              {unarchiveMutation.isPending ? "Restoring..." : "Unarchive"}
+            </Button>
+          </div>
+        )}
+        {archiveActionError && (
+          <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+            {archiveActionError}
+          </div>
+        )}
         {activeTab === "info" && (
           <>
             {/* Overview section */}

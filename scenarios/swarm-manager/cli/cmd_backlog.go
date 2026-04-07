@@ -19,7 +19,8 @@ import (
 func (a *App) cmdBacklogList(args []string) error {
 	fs := flag.NewFlagSet("backlog list", flag.ContinueOnError)
 	kindFlag := fs.String("kind", "", "Comma-separated kinds to filter by")
-	statusFlag := fs.String("status", "", "Comma-separated statuses to include, or \"all\" (default: non-archived)")
+	statusFlag := fs.String("status", "", "Comma-separated statuses to filter by")
+	archivedFlag := fs.String("archived", "false", "Show archived items: true, false (default), or all")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -31,6 +32,9 @@ func (a *App) cmdBacklogList(args []string) error {
 	}
 	if strings.TrimSpace(*statusFlag) != "" {
 		query.Set("statuses", strings.TrimSpace(*statusFlag))
+	}
+	if strings.TrimSpace(*archivedFlag) != "" {
+		query.Set("archived", strings.TrimSpace(*archivedFlag))
 	}
 
 	body, err := a.getV1("/backlog", query)
@@ -543,7 +547,11 @@ func (a *App) cmdBacklogQueue(args []string) error {
 			fmt.Println("  No blockers detected.")
 		} else {
 			for _, reason := range response.BlockingReasons {
-				fmt.Printf("  - %s\n", reason)
+				forceLabel := ""
+				if reason.Forceable {
+					forceLabel = " (forceable)"
+				}
+				fmt.Printf("  - %s%s\n", reason.Message, forceLabel)
 			}
 		}
 
@@ -585,26 +593,37 @@ func (a *App) cmdBacklogResearch(args []string) error {
 	kindFlag := fs.String("kind", "", "Backlog item kind")
 	nameFlag := fs.String("name", "", "Backlog item name")
 	data := fs.String("data", "", "Optional JSON payload (inline or @file)")
+	executeFlag := fs.Bool("execute", false, "Execute research (default is preview-only)")
+	forceFlag := fs.Bool("force", false, "Override forceable blocking reasons (e.g. unmet dependencies)")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if err := requireFlags("kind", *kindFlag, "name", *nameFlag); err != nil {
-		return fmt.Errorf("usage: backlog research --kind KIND --name NAME [--data JSON] [--json]\n\nExample:\n  backlog research --kind idea --name my-idea --data '{\"prompt\":\"Focus on risks\"}'\n\n%s", err)
+		return fmt.Errorf("usage: backlog research --kind KIND --name NAME [--execute] [--force] [--data JSON] [--json]\n\nExample:\n  backlog research --kind idea --name my-idea --execute --data '{\"prompt\":\"Focus on risks\"}'\n\n%s", err)
 	}
 	kind := strings.TrimSpace(*kindFlag)
 	name := strings.TrimSpace(*nameFlag)
 
-	var payload json.RawMessage
+	// Build payload from --data flag, then merge --execute and --force.
+	payloadMap := make(map[string]any)
 	if strings.TrimSpace(*data) != "" {
 		parsed, err := parseJSONString(*data)
 		if err != nil {
 			return err
 		}
-		payload = parsed
+		if err := json.Unmarshal(parsed, &payloadMap); err != nil {
+			return fmt.Errorf("invalid JSON payload: %w", err)
+		}
+	}
+	payloadMap["confirm"] = *executeFlag
+	payloadMap["force"] = *forceFlag
+	payload, err := json.Marshal(payloadMap)
+	if err != nil {
+		return fmt.Errorf("failed to encode request: %w", err)
 	}
 
-	body, err := a.requestV1("POST", "/backlog/"+kind+"/"+name+"/research", nil, payload)
+	body, err := a.requestV1("POST", "/backlog/"+kind+"/"+name+"/research", nil, json.RawMessage(payload))
 	if err != nil {
 		return err
 	}
@@ -619,11 +638,34 @@ func (a *App) cmdBacklogResearch(args []string) error {
 
 	if response.DryRun {
 		printSection("Result")
-		fmt.Printf("  Dry-run validated research request for %s/%s\n", kind, name)
-		printCommandListSection("Next Steps", []string{
-			cliCommand("backlog", "research", "--kind", kind, "--name", name),
+		if response.Message != "" {
+			fmt.Printf("  %s\n", response.Message)
+		} else {
+			fmt.Printf("  Dry-run validated research request for %s/%s\n", kind, name)
+		}
+
+		if len(response.BlockingReasons) > 0 {
+			printSection("Blocking Reasons")
+			for _, reason := range response.BlockingReasons {
+				forceLabel := ""
+				if reason.Forceable {
+					forceLabel = " (forceable)"
+				}
+				fmt.Printf("  - %s%s\n", reason.Message, forceLabel)
+			}
+		}
+
+		nextCommands := []string{
+			cliCommand("backlog", "research", "--kind", kind, "--name", name, "--execute"),
 			cliCommand("backlog", "prompt-trace", "--kind", kind, "--name", name),
-		})
+		}
+		if len(response.BlockingReasons) > 0 {
+			nextCommands = []string{
+				cliCommand("backlog", "research", "--kind", kind, "--name", name, "--execute", "--force"),
+				cliCommand("backlog", "get", "--kind", kind, "--name", name),
+			}
+		}
+		printCommandListSection("Next Steps", nextCommands)
 		return nil
 	}
 

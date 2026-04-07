@@ -102,6 +102,14 @@ export function BacklogCard({
 
   return (
     <>
+      {/* Archived banner */}
+      {item.archivedAt != null && (
+        <div className="mb-2 flex items-center gap-1.5 rounded border border-amber-500/20 bg-amber-500/5 px-2 py-1 text-[11px] text-amber-400/80">
+          <Archive className="h-3 w-3 shrink-0" />
+          Archived
+        </div>
+      )}
+
       {/* Header: status + priority */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2">

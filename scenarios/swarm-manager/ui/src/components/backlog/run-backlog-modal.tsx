@@ -336,7 +336,12 @@ export function RunBacklogModal({
             <p className="font-medium">{blockedResult.message}</p>
             <ul className="mt-2 list-disc pl-5 space-y-1">
               {blockedResult.blockingReasons.map((reason, i) => (
-                <li key={i}>{reason}</li>
+                <li key={i}>
+                  {reason.message}
+                  {reason.forceable && (
+                    <span className="ml-1.5 text-xs text-amber-400">(overridable)</span>
+                  )}
+                </li>
               ))}
             </ul>
             {blockedResult.pendingDecisions > 0 && (

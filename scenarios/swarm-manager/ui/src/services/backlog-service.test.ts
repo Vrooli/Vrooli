@@ -42,12 +42,13 @@ describe("Backlog Service", () => {
           kind: "idea",
         },
       ];
-      vi.mocked(mockApiClient.get).mockResolvedValue({ items: mockItems });
+      vi.mocked(mockApiClient.get).mockResolvedValue({ items: mockItems, blocking: {} });
 
       const result = await service.list();
 
-      expect(mockApiClient.get).toHaveBeenCalledWith("/backlog");
-      expect(result).toEqual(mockItems);
+      expect(mockApiClient.get).toHaveBeenCalledWith("/backlog?archived=all");
+      expect(result.items).toEqual(mockItems);
+      expect(result.blocking).toEqual({});
     });
   });
 

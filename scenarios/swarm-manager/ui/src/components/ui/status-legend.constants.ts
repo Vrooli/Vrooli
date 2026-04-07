@@ -46,10 +46,4 @@ export const BACKLOG_STATUS_LEGEND_ITEMS: StatusItem[] = [
     colorClass: "bg-red-600",
     description: "Last execution failed",
   },
-  {
-    status: "archived",
-    label: "Archived",
-    colorClass: "bg-gray-600",
-    description: "No longer active",
-  },
 ];

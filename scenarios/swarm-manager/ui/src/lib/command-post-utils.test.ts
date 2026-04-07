@@ -178,6 +178,19 @@ describe("groupActionItems", () => {
     expect(getGroup(groups, "needs-classification").count).toBe(0);
   });
 
+  it("excludes archived backlog items from all groups", () => {
+    // An archived completed item should NOT appear in needs-review
+    const archivedCompleted = makeBacklogItem({ status: "completed", archivedAt: "2026-04-01T00:00:00Z" });
+    // An archived ready item should NOT appear in ready-to-run
+    const archivedReady = makeBacklogItem({ status: "ready", archivedAt: "2026-04-01T00:00:00Z" });
+    const maturityMap = new Map([
+      [`${archivedReady.kind}/${archivedReady.name}`, { kind: archivedReady.kind, name: archivedReady.name, ready: true, pendingItems: 0 }],
+    ]);
+    const groups = groupActionItems([archivedCompleted, archivedReady], [], [], EMPTY_FEEDBACK, maturityMap, NO_SNOOZED);
+    const totalCount = groups.reduce((sum, g) => sum + g.count, 0);
+    expect(totalCount).toBe(0);
+  });
+
   it("skips locked items (queued/in_progress)", () => {
     const queued = makeBacklogItem({ status: "queued" });
     const inProgress = makeBacklogItem({ status: "in_progress" });

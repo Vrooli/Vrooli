@@ -50,6 +50,7 @@ export interface BacklogFilters {
   kinds: BacklogKind[];
   priorityMin: number | null;
   priorityMax: number | null;
+  showArchived: boolean;
 }
 
 export interface CaptureFilters {
@@ -58,6 +59,7 @@ export interface CaptureFilters {
 
 export interface InitiativeFilters {
   statuses: InitiativeStatus[];
+  showArchived: boolean;
 }
 
 export interface ExecutionFilters {
@@ -75,9 +77,9 @@ export interface TabFilters {
 
 export const DEFAULT_FILTERS: TabFilters = {
   activity: {},
-  backlog: { statuses: [], kinds: [], priorityMin: null, priorityMax: null },
+  backlog: { statuses: [], kinds: [], priorityMin: null, priorityMax: null, showArchived: false },
   captures: { statuses: [] },
-  initiatives: { statuses: [] },
+  initiatives: { statuses: [], showArchived: false },
   executions: { statuses: [], modes: [] },
 };
 

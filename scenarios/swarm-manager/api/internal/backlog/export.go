@@ -47,7 +47,7 @@ type suggestion struct {
 	RejectionReason string `json:"rejection_reason"`
 }
 
-// defaultExportStatuses returns all non-archived statuses.
+// defaultExportStatuses returns all statuses included in default exports.
 func defaultExportStatuses() map[BacklogStatus]bool {
 	return map[BacklogStatus]bool{
 		StatusBacklog:     true,
@@ -121,6 +121,11 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 	// Apply filters.
 	var filtered []BacklogItem
 	for _, item := range items {
+		// Exclude archived items by default.
+		if item.ArchivedAt != nil {
+			continue
+		}
+
 		// Status filter.
 		if !statusFilter[item.Status] {
 			continue

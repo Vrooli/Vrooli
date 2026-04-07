@@ -64,7 +64,7 @@ function isActiveExecution(node: GraphNode): boolean {
 // ---------------------------------------------------------------------------
 
 /** Statuses where queuing is not applicable (already queued, in progress, or terminal). */
-const NON_QUEUEABLE_STATUSES = new Set(["queued", "in_progress", "completed", "archived"]);
+const NON_QUEUEABLE_STATUSES = new Set(["queued", "in_progress", "completed"]);
 
 function makeQueueAction(): InspectorAction {
   return {
@@ -356,13 +356,12 @@ function makeInitiativeArchiveAction(): InspectorAction {
     async handler(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.name) throw new Error("Cannot determine initiative name");
-      await defaultApiClient.put(API_ENDPOINTS.initiativeByName(parsed.name), {
-        status: "archived",
-      });
+      await defaultApiClient.patch(API_ENDPOINTS.initiativeArchiveItem(parsed.name), {});
     },
     enabled(node: GraphNode) {
-      const status = getGraphNodeStatus(node);
-      return status !== "archived";
+      // Check archivedAt from the node's extra data if available
+      const data = node.data as Record<string, unknown> | undefined;
+      return data?.archivedAt == null;
     },
   };
 }

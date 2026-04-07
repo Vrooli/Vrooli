@@ -85,16 +85,17 @@ func TestList_ExcludesArchivedByDefault(t *testing.T) {
 		Name:        "archived-item",
 		Title:       "Archived Item",
 		Description: "An archived item",
-		Status:      StatusArchived,
+		Status:      StatusCompleted,
 		Priority:    2,
 		Tags:        []string{},
 		Created:     "2026-01-27T00:00:00Z",
 		Updated:     "2026-01-27T00:00:00Z",
+		ArchivedAt:  strPtr("2026-01-01T00:00:00Z"),
 	}
 	createTestItem(t, rootDir, KindIdea, active)
 	createTestItem(t, rootDir, KindIdea, archived)
 
-	// Default: no status param → archived excluded
+	// Default: no archived param → archived excluded
 	req := httptest.NewRequest("GET", "/api/v1/backlog", nil)
 	w := httptest.NewRecorder()
 	h.List(w, req)
@@ -107,18 +108,18 @@ func TestList_ExcludesArchivedByDefault(t *testing.T) {
 		t.Errorf("expected active-item, got %s", resp.Items[0].Name)
 	}
 
-	// status=all → everything returned
-	req = httptest.NewRequest("GET", "/api/v1/backlog?status=all", nil)
+	// archived=all → everything returned
+	req = httptest.NewRequest("GET", "/api/v1/backlog?archived=all", nil)
 	w = httptest.NewRecorder()
 	h.List(w, req)
 	testutil.AssertStatusOK(t, w)
 	resp = testutil.DecodeJSON[backlogListResponse](t, w)
 	if len(resp.Items) != 2 {
-		t.Fatalf("expected 2 items with status=all, got %d", len(resp.Items))
+		t.Fatalf("expected 2 items with archived=all, got %d", len(resp.Items))
 	}
 
-	// status=archived → only archived
-	req = httptest.NewRequest("GET", "/api/v1/backlog?status=archived", nil)
+	// archived=true → only archived
+	req = httptest.NewRequest("GET", "/api/v1/backlog?archived=true", nil)
 	w = httptest.NewRecorder()
 	h.List(w, req)
 	testutil.AssertStatusOK(t, w)
@@ -273,5 +274,65 @@ func TestList_FilterBySpawnedFrom(t *testing.T) {
 	}
 	if resp.Items[0].Name != "spawned-a" {
 		t.Errorf("expected 'spawned-a', got %q", resp.Items[0].Name)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// List blocking map tests
+// ---------------------------------------------------------------------------
+
+type listBlockingInfo struct {
+	Blocked         bool     `json:"blocked"`
+	BlockingDepKeys []string `json:"blocking_dep_keys"`
+	AllForceable    bool     `json:"all_forceable"`
+}
+
+type backlogListWithBlockingResponse struct {
+	Items    []BacklogItem               `json:"items"`
+	Blocking map[string]listBlockingInfo `json:"blocking"`
+}
+
+func TestList_IncludesBlockingMap(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	// Create a dep in "backlog" status and a child that depends on it.
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name: "list-dep", Title: "List Dep", Status: StatusBacklog, Priority: 1,
+		Tags: []string{}, Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
+	})
+	createTestItem(t, rootDir, KindFix, BacklogItem{
+		Name: "list-child", Title: "List Child", Status: StatusBacklog, Priority: 2,
+		Tags: []string{}, Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
+		DependsOn: []string{"idea/list-dep"},
+	})
+
+	req := httptest.NewRequest("GET", "/api/v1/backlog", nil)
+	w := httptest.NewRecorder()
+
+	h.List(w, req)
+	testutil.AssertStatusOK(t, w)
+
+	resp := testutil.DecodeJSON[backlogListWithBlockingResponse](t, w)
+	if len(resp.Items) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(resp.Items))
+	}
+
+	info, found := resp.Blocking["fix/list-child"]
+	if !found {
+		t.Fatalf("expected blocking info for fix/list-child, got blocking=%+v", resp.Blocking)
+	}
+	if !info.Blocked {
+		t.Error("expected Blocked=true for child with unmet dep")
+	}
+	if len(info.BlockingDepKeys) != 1 || info.BlockingDepKeys[0] != "idea/list-dep" {
+		t.Errorf("expected BlockingDepKeys=[idea/list-dep], got %v", info.BlockingDepKeys)
+	}
+	if !info.AllForceable {
+		t.Error("expected AllForceable=true")
+	}
+
+	// The dep itself should not appear in the blocking map.
+	if _, found := resp.Blocking["idea/list-dep"]; found {
+		t.Error("items without blocked deps should not appear in blocking map")
 	}
 }

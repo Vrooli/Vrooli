@@ -101,6 +101,25 @@ Response:
 - `cancelled: true` — a pending advance was found and cancelled
 - `cancelled: false` — no pending advance existed (idempotent)
 
+## Backlog Archive / Unarchive
+
+Archive sets `archived_at` on a backlog item. Items retain their terminal status when archived.
+
+`PATCH /api/v1/backlog/{kind}/{name}/archive-item`
+
+Response: the updated backlog item with `archived_at` set.
+
+`DELETE /api/v1/backlog/{kind}/{name}/archive-item`
+
+Unarchives the item (clears `archived_at`). Response: the updated backlog item.
+
+### Archive Query Filter
+
+All list endpoints support `?archived=` query parameter:
+- `false` (default) — exclude archived items
+- `true` — only archived items
+- `all` — include everything
+
 ## Initiatives Create
 
 `POST /api/v1/initiatives`
@@ -126,6 +145,14 @@ Updates are partial.
   "description": "Revised wording only"
 }
 ```
+
+## Initiative Archive / Unarchive
+
+Archive sets `archived_at` on an initiative. Initiatives retain their status when archived.
+
+`PATCH /api/v1/initiatives/{name}/archive-item`
+
+`DELETE /api/v1/initiatives/{name}/archive-item`
 
 ## Settings
 

@@ -227,15 +227,12 @@ func (h *Handler) maybeAutoWorkshop(item BacklogItem, forceOverride bool) {
 		return
 	}
 	if !forceOverride && len(item.DependsOn) > 0 {
-		depStatuses, err := h.store.CheckWorkshopDependencies(item.DependsOn)
+		reasons, err := EvaluateDependencyBlocking(item, h.store)
 		if err != nil {
 			slog.Warn("auto-workshop dep check error, proceeding anyway", "kind", item.Kind, "name", item.Name, "err", err)
-		} else {
-			result := workshop.CheckWorkshopDependencies(depStatuses)
-			if result.Blocked {
-				slog.Info("auto-workshop blocked by deps", "kind", item.Kind, "name", item.Name, "blocking_deps", result.BlockingDeps)
-				return
-			}
+		} else if len(reasons) > 0 {
+			slog.Info("auto-workshop blocked by deps", "kind", item.Kind, "name", item.Name, "reasons", reasons)
+			return
 		}
 	}
 	go func() {
@@ -274,13 +271,12 @@ func (h *Handler) cascadeWorkshopTrigger(readyItem BacklogItem) {
 			continue
 		}
 
-		depStatuses, err := h.store.CheckWorkshopDependencies(item.DependsOn)
+		reasons, err := EvaluateDependencyBlocking(item, h.store)
 		if err != nil {
 			slog.Warn("cascade dep check failed", "kind", item.Kind, "name", item.Name, "err", err)
 			continue
 		}
-		result := workshop.CheckWorkshopDependencies(depStatuses)
-		if result.Blocked {
+		if len(reasons) > 0 {
 			continue
 		}
 

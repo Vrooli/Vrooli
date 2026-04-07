@@ -408,3 +408,135 @@ func TestResearch_FinalizeMode_AllowsLegacyAnsweredRound(t *testing.T) {
 		t.Errorf("expected finalize title, got %q", agent.lastReq.Title)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Research dependency blocking tests
+// ---------------------------------------------------------------------------
+
+type researchBlockingResponse struct {
+	DryRun          bool   `json:"dry_run"`
+	Started         bool   `json:"started"`
+	Message         string `json:"message"`
+	BlockingReasons []struct {
+		Message   string `json:"message"`
+		Forceable bool   `json:"forceable"`
+	} `json:"blocking_reasons"`
+}
+
+func TestResearch_BlocksOnUnmetDeps_DryRun(t *testing.T) {
+	agent := &mockAgentService{
+		result: agentmanager.RunResult{TaskID: "task", RunID: "run", BaseURL: "http://agent", CreatedAt: "now"},
+	}
+	h, rootDir := setupTestHandlerWithAgent(t, agent)
+
+	// Create dep in "backlog" status.
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name: "research-dep", Title: "Dep", Status: StatusBacklog, Priority: 5,
+		Tags: []string{}, Created: "2026-03-09T00:00:00Z", Updated: "2026-03-09T00:00:00Z",
+	})
+	// Create item that depends on it.
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name: "research-child", Title: "Child", Status: StatusBacklog, Priority: 3,
+		Tags: []string{}, Created: "2026-03-09T00:00:00Z", Updated: "2026-03-09T00:00:00Z",
+		DependsOn: []string{"idea/research-dep"},
+	})
+
+	// No confirm → dry_run with blocking reasons.
+	body := `{"mode":"initialize"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/idea/research-child/research", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "research-child"})
+	w := httptest.NewRecorder()
+
+	h.Research(w, req)
+
+	testutil.AssertStatusOK(t, w)
+	resp := testutil.DecodeJSON[researchBlockingResponse](t, w)
+	if !resp.DryRun {
+		t.Error("expected dry_run=true")
+	}
+	if resp.Started {
+		t.Error("expected started=false")
+	}
+	if len(resp.BlockingReasons) == 0 {
+		t.Fatal("expected blocking reasons")
+	}
+	if agent.lastReq != nil {
+		t.Error("expected no agent spawn when blocked")
+	}
+}
+
+func TestResearch_BlocksOnUnmetDeps_ForceOverrides(t *testing.T) {
+	agent := &mockAgentService{
+		result: agentmanager.RunResult{TaskID: "task-forced", RunID: "run-forced", BaseURL: "http://agent", CreatedAt: "now"},
+	}
+	h, rootDir := setupTestHandlerWithAgent(t, agent)
+
+	// Create dep in "backlog" status.
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name: "force-dep", Title: "Dep", Status: StatusBacklog, Priority: 5,
+		Tags: []string{}, Created: "2026-03-09T00:00:00Z", Updated: "2026-03-09T00:00:00Z",
+	})
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name: "force-child", Title: "Child", Status: StatusBacklog, Priority: 3,
+		Tags: []string{}, Created: "2026-03-09T00:00:00Z", Updated: "2026-03-09T00:00:00Z",
+		DependsOn: []string{"idea/force-dep"},
+	})
+
+	// confirm=true, force=true → should proceed and spawn.
+	body := `{"mode":"initialize","confirm":true,"force":true}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/idea/force-child/research", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "force-child"})
+	w := httptest.NewRecorder()
+
+	h.Research(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	if agent.lastReq == nil {
+		t.Fatal("expected SpawnBacklog to be called with force override")
+	}
+}
+
+func TestResearch_FinalizeMode_SkipsDepsCheck(t *testing.T) {
+	agent := &mockAgentService{
+		result: agentmanager.RunResult{TaskID: "task-fin", RunID: "run-fin", BaseURL: "http://agent", CreatedAt: "now"},
+	}
+	h, rootDir := setupTestHandlerWithAgent(t, agent)
+
+	// Create dep in "backlog" status — would block if checked.
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name: "fin-dep", Title: "Dep", Status: StatusBacklog, Priority: 5,
+		Tags: []string{}, Created: "2026-03-09T00:00:00Z", Updated: "2026-03-09T00:00:00Z",
+	})
+	// Create item in "researching" with unmet dep and a ready workshop round.
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name: "fin-child", Title: "Finalize Child", Status: StatusResearching, Priority: 3,
+		Tags: []string{}, Created: "2026-03-09T00:00:00Z", Updated: "2026-03-09T00:00:00Z",
+		DependsOn: []string{"idea/fin-dep"},
+	})
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, "ideas", "fin-child", "workshop", "round-001.json"), workshop.Round{
+		RoundNum:         1,
+		PendingSynthesis: true,
+		Readiness:        map[string]int{"problem_clarity": 3, "scope_defined": 3, "approach_solid": 3, "testable": 3, "risk_awareness": 3},
+		Items:            []workshop.Item{{ID: "d1", Type: "decision", Selected: strPtr("A")}},
+	})
+
+	body := `{"mode":"finalize"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/idea/fin-child/research", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "fin-child"})
+	w := httptest.NewRecorder()
+
+	h.Research(w, req)
+
+	// Finalize should proceed despite unmet dep — it skips dep checks.
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	if agent.lastReq == nil {
+		t.Fatal("expected SpawnBacklog to be called for finalize despite unmet dep")
+	}
+}

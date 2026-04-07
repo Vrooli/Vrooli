@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T20:24:02Z",
   "created": "2026-02-05T20:24:02Z",
   "description": "Cryptography and blockchain utilities",
   "name": "crypto-tools-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "tools",
     "utilities",

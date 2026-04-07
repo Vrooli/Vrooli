@@ -28,6 +28,8 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	archivedFilter := parseArchivedQuery(r)
+
 	items, err := h.store.LoadAll(kinds)
 	if err != nil {
 		apierr.MapError(w, "[backlog] list", apierr.Internal("%s", err.Error()))
@@ -35,6 +37,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	items = filterByStatus(items, statusFilter)
+	items = filterByArchived(items, archivedFilter)
 
 	if sf := r.URL.Query().Get("spawned_from"); sf != "" {
 		filtered := items[:0]
@@ -59,7 +62,18 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		protoItems = append(protoItems, backlogToProto(item))
 	}
 
-	resp := &apipb.ListBacklogItemsResponse{Items: protoItems}
+	// Compute per-item blocking info from the full item set.
+	blockingMap := ComputeListBlockingInfo(items)
+	protoBlocking := make(map[string]*apipb.ItemBlockingInfo, len(blockingMap))
+	for key, info := range blockingMap {
+		protoBlocking[key] = &apipb.ItemBlockingInfo{
+			Blocked:         info.Blocked,
+			BlockingDepKeys: info.BlockingDepKeys,
+			AllForceable:    info.AllForceable,
+		}
+	}
+
+	resp := &apipb.ListBacklogItemsResponse{Items: protoItems, Blocking: protoBlocking}
 	if err := httputil.ProtoJSON(w, resp); err != nil {
 		apierr.MapError(w, "[backlog] list", apierr.Internal("failed to encode response"))
 	}
@@ -142,30 +156,60 @@ func parseStatusesQuery(r *http.Request) ([]BacklogStatus, error) {
 }
 
 // filterByStatus applies status filtering to a list of backlog items.
-//   - nil (no query param): exclude archived items (default)
+//   - nil (no query param): no status filtering
 //   - empty slice (status=all): no filtering, return everything
 //   - non-empty slice: include only items matching one of the given statuses
 func filterByStatus(items []BacklogItem, statuses []BacklogStatus) []BacklogItem {
-	if statuses != nil && len(statuses) == 0 {
+	if statuses == nil || len(statuses) == 0 {
 		return items
-	}
-
-	filtered := make([]BacklogItem, 0, len(items))
-	if statuses == nil {
-		for _, item := range items {
-			if item.Status != StatusArchived {
-				filtered = append(filtered, item)
-			}
-		}
-		return filtered
 	}
 
 	allow := make(map[BacklogStatus]bool, len(statuses))
 	for _, s := range statuses {
 		allow[s] = true
 	}
+	filtered := make([]BacklogItem, 0, len(items))
 	for _, item := range items {
 		if allow[item.Status] {
+			filtered = append(filtered, item)
+		}
+	}
+	return filtered
+}
+
+// archivedFilter represents the ?archived query parameter.
+type archivedFilter int
+
+const (
+	archivedExclude archivedFilter = iota // default: exclude archived
+	archivedOnly                          // archived=true: only archived
+	archivedAll                           // archived=all: include everything
+)
+
+// parseArchivedQuery reads the "archived" query parameter.
+func parseArchivedQuery(r *http.Request) archivedFilter {
+	raw := strings.TrimSpace(strings.ToLower(r.URL.Query().Get("archived")))
+	switch raw {
+	case "true", "1", "yes":
+		return archivedOnly
+	case "all":
+		return archivedAll
+	default:
+		return archivedExclude
+	}
+}
+
+// filterByArchived filters items based on their archived_at field.
+func filterByArchived(items []BacklogItem, filter archivedFilter) []BacklogItem {
+	if filter == archivedAll {
+		return items
+	}
+	filtered := make([]BacklogItem, 0, len(items))
+	for _, item := range items {
+		isArchived := item.ArchivedAt != nil
+		if filter == archivedExclude && !isArchived {
+			filtered = append(filtered, item)
+		} else if filter == archivedOnly && isArchived {
 			filtered = append(filtered, item)
 		}
 	}

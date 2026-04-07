@@ -8,7 +8,7 @@
  * DOC: docs/concepts/ARCHITECTURE.md#backlog-action-funnel
  */
 
-import type { BacklogItem, BacklogKind, BacklogStatus } from "../types";
+import type { BacklogItem, BacklogKind, BacklogStatus, ItemBlockingInfo } from "../types";
 
 // ---------------------------------------------------------------------------
 // Status constants
@@ -31,11 +31,11 @@ interface QueueableBacklogItem {
   status: BacklogStatus;
 }
 
-export const isBacklogQueueable = (item: QueueableBacklogItem): boolean =>
+export const isBacklogQueueable = (item: QueueableBacklogItem & { archivedAt?: string }): boolean =>
   QUEUEABLE_BACKLOG_STATUSES.includes(item.status) ||
-  (item.kind === "idea" && item.status === "archived");
+  (item.kind === "idea" && item.archivedAt != null);
 
-export const getBacklogNotQueueableReason = (item: QueueableBacklogItem): string | null => {
+export const getBacklogNotQueueableReason = (item: QueueableBacklogItem & { archivedAt?: string }): string | null => {
   if (isBacklogQueueable(item)) {
     return null;
   }
@@ -48,53 +48,10 @@ export const getBacklogNotQueueableReason = (item: QueueableBacklogItem): string
       return "Completed items cannot be queued again.";
     case "failed":
       return "Reset status to retry. Check Execution History for failure details.";
-    case "archived":
-      return "Only archived ideas can be queued directly.";
     default:
       return "This item cannot be queued from its current status.";
   }
 };
-
-// ---------------------------------------------------------------------------
-// Dependency blocking
-// ---------------------------------------------------------------------------
-
-/**
- * Statuses that indicate a dependency is not yet planned/ready — blocking downstream
- * items from being *queued*. This is intentionally narrow: you CAN workshop an item
- * whose dependency is `ready`, so only `backlog` and `researching` block queueing.
- *
- * For *display ordering* (sort-blocking), see `dependency-sort.ts` which uses a
- * broader definition: any dependency not `completed`/`archived` pushes the dependent
- * below it in sorted views.
- */
-const BLOCKING_DEP_STATUSES = new Set<BacklogStatus>(["backlog", "researching"]);
-
-/**
- * Check whether any of an item's dependencies are still in an unplanned state,
- * meaning this item should not be run yet.
- */
-export function hasBlockingDeps(item: Pick<BacklogItem, "dependsOn">, allItems: BacklogItem[]): boolean {
-  if (!item.dependsOn || item.dependsOn.length === 0) return false;
-  const itemsByKey = new Map(allItems.map((i) => [`${i.kind}/${i.name}`, i]));
-  return item.dependsOn.some((dep) => {
-    const depItem = itemsByKey.get(dep);
-    return depItem && BLOCKING_DEP_STATUSES.has(depItem.status);
-  });
-}
-
-/**
- * Return the keys of dependencies that are blocking this item.
- * Used for display purposes (linking to blocking items in the UI).
- */
-export function getBlockingDepKeys(item: Pick<BacklogItem, "dependsOn">, allItems: BacklogItem[]): string[] {
-  if (!item.dependsOn || item.dependsOn.length === 0) return [];
-  const itemsByKey = new Map(allItems.map((i) => [`${i.kind}/${i.name}`, i]));
-  return item.dependsOn.filter((dep) => {
-    const depItem = itemsByKey.get(dep);
-    return depItem && BLOCKING_DEP_STATUSES.has(depItem.status);
-  });
-}
 
 // ---------------------------------------------------------------------------
 // Dependency relations (parent/children resolution)
@@ -121,7 +78,7 @@ export interface DependencyRelations {
  * - Children: items that depend on this item (reverse lookup across `allItems`).
  *
  * Dangling refs (items listed in `dependsOn` but not found in `allItems`) are
- * returned with `"archived"` status so the chip still renders visually.
+ * returned with `"completed"` status so the chip still renders visually.
  */
 export function computeDependencyRelations(
   item: Pick<BacklogItem, "kind" | "name" | "dependsOn">,
@@ -139,7 +96,7 @@ export function computeDependencyRelations(
       parents.push({ kind: found.kind, name: found.name, title: found.title || found.name, status: found.status });
     } else {
       const [kind = "", ...rest] = dep.split("/");
-      parents.push({ kind, name: rest.join("/"), title: dep, status: "archived" as BacklogStatus });
+      parents.push({ kind, name: rest.join("/"), title: dep, status: "completed" as BacklogStatus });
     }
   }
 
@@ -164,8 +121,9 @@ export function computeDependencyRelations(
  * booleans/values so the resolver stays pure and framework-agnostic.
  */
 export interface ActionContext {
-  item: Pick<BacklogItem, "kind" | "name" | "status" | "dependsOn">;
-  allItems: BacklogItem[];
+  item: Pick<BacklogItem, "kind" | "name" | "status" | "dependsOn"> & { archivedAt?: string };
+  /** Server-computed blocking info for this item, or null if not available. */
+  blockingInfo: ItemBlockingInfo | null;
   /** Whether the item's plan is ready for execution. null = no readiness data loaded. */
   readinessReady: boolean | null;
   /** Whether the latest answered workshop round still needs a synthesis/finalize pass. */
@@ -234,14 +192,16 @@ export interface ItemActions {
  * |  6   | Terminal (completed/failed)         | follow-up/archive |
  */
 export function getItemActions(ctx: ActionContext): ItemActions {
-  const { item, allItems, agentRunning } = ctx;
+  const { item, blockingInfo, agentRunning } = ctx;
 
   const locked = LOCKED_STATUSES.has(item.status);
-  const terminal = TERMINAL_STATUSES.has(item.status);
-  const blocked = hasBlockingDeps(item, allItems);
-  const blockingDepKeys = blocked ? getBlockingDepKeys(item, allItems) : [];
+  const blocked = blockingInfo?.blocked ?? false;
+  const blockingDepKeys = blockingInfo?.blockingDepKeys ?? [];
   const queueable = isBacklogQueueable(item);
   const notQueueableReason = getBacklogNotQueueableReason(item);
+  // Archived ideas (status=completed + archivedAt) are re-queueable, so they
+  // should not be treated as terminal even though their status is "completed".
+  const terminal = TERMINAL_STATUSES.has(item.status) && !queueable;
 
   // Base result with all actions off.
   const base: ItemActions = {
@@ -264,8 +224,9 @@ export function getItemActions(ctx: ActionContext): ItemActions {
     disabledReason: null,
   };
 
-  // Step -1: Locked — no CTAs at all.
+  // Step -1: Locked or archived — no CTAs at all.
   if (locked) return base;
+  if (item.archivedAt != null) return base;
 
   // Step 5: Terminal — follow-up + archive. Checked before steps 0-4 because
   // terminal items should never show run/workshop regardless of other state.
@@ -278,23 +239,10 @@ export function getItemActions(ctx: ActionContext): ItemActions {
     };
   }
 
-  // Step 0: Blocked by deps — show actions as disabled.
-  if (blocked && queueable) {
-    const needsFinalize = ctx.pendingSynthesis && ctx.readinessReady === true;
-    const needsWorkshop = ctx.readinessReady === false;
-    return {
-      ...base,
-      showDecisionStepper: ctx.hasPendingDecisions,
-      canWorkshop: false,
-      workshopDisabled: needsWorkshop,
-      canFinalize: false,
-      finalizeDisabled: needsFinalize,
-      canRun: false,
-      runDisabled: !needsWorkshop && !needsFinalize,
-      primaryCta: needsFinalize ? "finalize" : needsWorkshop ? "workshop" : "run",
-      disabledReason: "Blocked by incomplete dependencies. Resolve them first.",
-    };
-  }
+  // Step 0: Blocked by deps — CTAs remain available so user can override via
+  // the modal (which sends confirm+force). The `blocked` and `blockingDepKeys`
+  // fields on ItemActions signal the UI to show a warning, but buttons are not
+  // hard-disabled. Fall through to normal CTA logic below.
 
   // Step 2: Unanswered decisions — stepper is primary, workshop blocked until
   // all decisions are resolved (running another round before answering existing

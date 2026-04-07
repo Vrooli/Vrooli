@@ -154,15 +154,33 @@ func TestEmitQueued(t *testing.T) {
 func TestEmitNilPayload(t *testing.T) {
 	emitter, repo := setupEmitter(t)
 
-	emitter.EmitInitiativeArchived("init-old")
+	emitter.EmitBacklogDeleted("idea/gone")
 
 	e := lastEvent(t, repo)
-	if e.EventType != eventlog.EventInitiativeArchived {
+	if e.EventType != eventlog.EventBacklogDeleted {
 		t.Errorf("event_type: got %q", e.EventType)
 	}
 	// Nil payload should result in nil metadata.
 	if e.Metadata != nil {
 		t.Errorf("expected nil metadata, got %s", e.Metadata)
+	}
+}
+
+func TestEmitInitiativeArchived(t *testing.T) {
+	emitter, repo := setupEmitter(t)
+
+	emitter.EmitInitiativeArchived("init-old", "active", "2026-04-06T00:00:00Z")
+
+	e := lastEvent(t, repo)
+	if e.EventType != eventlog.EventInitiativeArchived {
+		t.Errorf("event_type: got %q", e.EventType)
+	}
+	var p eventlog.ArchivePayload
+	if err := json.Unmarshal(e.Metadata, &p); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if p.PreviousStatus != "active" || p.ArchivedAt != "2026-04-06T00:00:00Z" {
+		t.Errorf("payload: %+v", p)
 	}
 }
 

@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/domain/initiative.proto.
  */
 export const file_swarm_manager_v1_domain_initiative: GenFile = /*@__PURE__*/
-  fileDesc("Cihzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9pbml0aWF0aXZlLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxItEBCgpJbml0aWF0aXZlEhUKBG5hbWUYASABKAlCB7pIBHICEAESFgoFdGl0bGUYAiABKAlCB7pIBHICEAESEwoLZGVzY3JpcHRpb24YAyABKAkSMgoGc3RhdHVzGAQgASgJQiK6SB9yHVIGYWN0aXZlUgljb21wbGV0ZWRSCGFyY2hpdmVkEg0KBWl0ZW1zGAUgAygJEg8KB2NyZWF0ZWQYBiABKAkSDwoHdXBkYXRlZBgHIAEoCRIRCgRub3RlGAggASgJSACIAQFCBwoFX25vdGUiagoQSW5pdGlhdGl2ZVJvbGx1cBINCgV0b3RhbBgBIAEoBRIRCgljb21wbGV0ZWQYAiABKAUSEwoLaW5fcHJvZ3Jlc3MYAyABKAUSDgoGZmFpbGVkGAQgASgFEg8KB3BlbmRpbmcYBSABKAVCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_buf_validate_validate]);
+  fileDesc("Cihzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9pbml0aWF0aXZlLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIvEBCgpJbml0aWF0aXZlEhUKBG5hbWUYASABKAlCB7pIBHICEAESFgoFdGl0bGUYAiABKAlCB7pIBHICEAESEwoLZGVzY3JpcHRpb24YAyABKAkSKAoGc3RhdHVzGAQgASgJQhi6SBVyE1IGYWN0aXZlUgljb21wbGV0ZWQSDQoFaXRlbXMYBSADKAkSDwoHY3JlYXRlZBgGIAEoCRIPCgd1cGRhdGVkGAcgASgJEhEKBG5vdGUYCCABKAlIAIgBARIYCgthcmNoaXZlZF9hdBgJIAEoCUgBiAEBQgcKBV9ub3RlQg4KDF9hcmNoaXZlZF9hdCJ8ChBJbml0aWF0aXZlUm9sbHVwEg0KBXRvdGFsGAEgASgFEhEKCWNvbXBsZXRlZBgCIAEoBRITCgtpbl9wcm9ncmVzcxgDIAEoBRIOCgZmYWlsZWQYBCABKAUSDwoHcGVuZGluZxgFIAEoBRIQCghhcmNoaXZlZBgGIAEoBUJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvZG9tYWluO2RvbWFpbmIGcHJvdG8z", [file_buf_validate_validate]);
 
 /**
  * Initiative represents a named grouping of backlog items.
@@ -42,7 +42,7 @@ export type Initiative = Message<"swarm_manager.v1.Initiative"> & {
 
   /**
    * Lifecycle state for the initiative.
-   * @constraint one of: active, completed, archived
+   * @constraint one of: active, completed
    *
    * @generated from field: string status = 4;
    */
@@ -77,6 +77,15 @@ export type Initiative = Message<"swarm_manager.v1.Initiative"> & {
    * @generated from field: optional string note = 8;
    */
   note?: string;
+
+  /**
+   * RFC3339 timestamp when the initiative was archived. Null/unset means not archived.
+   * Archiving is orthogonal to status — initiatives retain their status when archived.
+   * @format rfc3339
+   *
+   * @generated from field: optional string archived_at = 9;
+   */
+  archivedAt?: string;
 };
 
 /**
@@ -126,6 +135,13 @@ export type InitiativeRollup = Message<"swarm_manager.v1.InitiativeRollup"> & {
    * @generated from field: int32 pending = 5;
    */
   pending: number;
+
+  /**
+   * Number of items that are archived (regardless of their terminal status).
+   *
+   * @generated from field: int32 archived = 6;
+   */
+  archived: number;
 };
 
 /**

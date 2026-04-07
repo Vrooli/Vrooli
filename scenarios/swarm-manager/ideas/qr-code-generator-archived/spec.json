@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T21:16:43Z",
   "created": "2026-02-05T21:16:43Z",
   "description": "Fun retro-style QR code generator with customization options and batch processing",
   "name": "qr-code-generator-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "utility-application",
     "utilities",

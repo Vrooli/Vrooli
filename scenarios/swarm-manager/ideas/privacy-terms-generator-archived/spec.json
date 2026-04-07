@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-06T02:34:36Z",
   "created": "2026-02-06T02:34:36Z",
   "description": "Generate legally compliant privacy policies, terms of service, and other legal documents for businesses",
   "name": "privacy-terms-generator-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "legal",
     "compliance",

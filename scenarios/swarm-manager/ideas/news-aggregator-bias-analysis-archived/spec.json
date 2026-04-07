@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T20:52:53Z",
   "created": "2026-02-05T20:52:53Z",
   "description": "Real-time news aggregation with AI-powered bias detection, fact-checking, and perspective analysis",
   "name": "news-aggregator-bias-analysis-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "news-application",
     "media",

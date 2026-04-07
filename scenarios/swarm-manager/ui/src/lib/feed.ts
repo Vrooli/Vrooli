@@ -12,7 +12,7 @@
  * DOC: docs/concepts/ARCHITECTURE.md#unified-feed
  */
 
-import type { BacklogItem, BacklogStatus, Capture } from "../types";
+import type { BacklogItem, Capture } from "../types";
 import { dependencyAwareSort } from "./dependency-sort";
 
 export type AttentionReason =
@@ -97,8 +97,10 @@ function getSortTimestamp(entry: FeedItem): number {
   }
 }
 
-/** Statuses excluded from the feed by default (hidden unless showFinished is true). */
-const FINISHED_STATUSES = new Set<BacklogStatus>(["archived"]);
+/** Check if an item is archived (excluded from the feed by default unless showFinished is true). */
+function isFinished(item: BacklogItem): boolean {
+  return item.archivedAt != null;
+}
 
 /**
  * Build the unified action feed from captures and backlog items.
@@ -135,7 +137,7 @@ export function buildFeed(
   const includeFinished = options?.showFinished ?? false;
   const backlogFeed: FeedItem[] = [];
   for (const item of backlogItems) {
-    if (!includeFinished && FINISHED_STATUSES.has(item.status)) continue;
+    if (!includeFinished && isFinished(item)) continue;
     const reasons = getAttentionReasons(item, feedbackMap, maturityMap);
     if (reasons.length > 0) {
       backlogFeed.push({ type: "attention", item, reasons });

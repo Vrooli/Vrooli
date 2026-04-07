@@ -17,7 +17,7 @@ const STATUS_OPTIONS: BacklogStatus[] = [
   "queued",
   "in_progress",
   "completed",
-  "archived",
+  "failed",
 ];
 
 export interface BacklogFormDetailsSectionProps {

@@ -66,7 +66,9 @@ type EventLogger interface {
 	EmitBacklogDependencyAdded(entityID, target string)
 	EmitBacklogDependencyRemoved(entityID, target string)
 	EmitBacklogInitiativeChanged(entityID, from, to string)
-	EmitBacklogArchived(entityID string)
+	EmitBacklogArchived(entityID, previousStatus, archivedAt string)
+	EmitBacklogUnarchived(entityID, archivedAt string)
+	EmitBacklogDeleted(entityID string)
 	EmitWorkshopRoundCompleted(entityID string, roundNumber int)
 	EmitBacklogViewed(entityID, kind string)
 	EmitClarificationStarted(entityID string, roundNumber int, itemID string, hasMessage bool)
@@ -208,6 +210,8 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/files", h.OperateFile).Methods("PATCH")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/files/{filepath:.*}", h.GetFileContent).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/process-preflight", h.ProcessPreflight).Methods("GET")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive-item", h.Archive).Methods("PATCH")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive-item", h.Unarchive).Methods("DELETE")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/queue", h.Queue).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/research", h.Research).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/save", h.WorkshopSave).Methods("POST")
@@ -327,8 +331,8 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	// Cascade: when status transitions to workshop-ready, trigger
 	// workshops for dependents that were previously blocked.
 	if oldStatus != existing.Status &&
-		workshop.IsWorkshopReady(string(existing.Status)) &&
-		!workshop.IsWorkshopReady(string(oldStatus)) {
+		!blockingDepStatuses[existing.Status] &&
+		blockingDepStatuses[oldStatus] {
 		cfg, cfgErr := settings.NewStore("").Load()
 		if cfgErr != nil {
 			slog.Warn("cascade settings load error, using defaults", "err", cfgErr)
@@ -368,10 +372,101 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("item deleted", "name", name, "kind", kind)
 	if h.eventLogger != nil {
-		h.eventLogger.EmitBacklogArchived(string(kind) + "/" + name)
+		h.eventLogger.EmitBacklogDeleted(string(kind) + "/" + name)
 	}
 	h.invalidateAllGraphLenses()
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// Archive sets archived_at on a backlog item. The item must be in a terminal
+// status (completed or failed).
+func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
+	kind, name, ok := h.parseKindAndName(w, r, "archive")
+	if !ok {
+		return
+	}
+
+	item, err := h.store.LoadItem(kind, name)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			apierr.MapError(w, "", apierr.NotFound("backlog item not found"))
+			return
+		}
+		apierr.MapError(w, "[backlog] archive", apierr.Internal("%s", err.Error()))
+		return
+	}
+
+	if item.ArchivedAt != nil {
+		resp := &apipb.BacklogItemResponse{Item: backlogToProto(item)}
+		if err := httputil.ProtoJSON(w, resp); err != nil {
+			apierr.MapError(w, "[backlog] archive", apierr.Internal("failed to encode response"))
+		}
+		return
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	item.ArchivedAt = &now
+	item.Updated = now
+
+	if err := h.store.SaveItem(item); err != nil {
+		apierr.MapError(w, "[backlog] archive", apierr.Internal("failed to save item"))
+		return
+	}
+
+	if h.eventLogger != nil {
+		h.eventLogger.EmitBacklogArchived(string(kind)+"/"+name, string(item.Status), now)
+	}
+	h.invalidateAllGraphLenses()
+
+	resp := &apipb.BacklogItemResponse{Item: backlogToProto(item)}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
+		apierr.MapError(w, "[backlog] archive", apierr.Internal("failed to encode response"))
+	}
+}
+
+// Unarchive clears archived_at on a backlog item.
+func (h *Handler) Unarchive(w http.ResponseWriter, r *http.Request) {
+	kind, name, ok := h.parseKindAndName(w, r, "unarchive")
+	if !ok {
+		return
+	}
+
+	item, err := h.store.LoadItem(kind, name)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			apierr.MapError(w, "", apierr.NotFound("backlog item not found"))
+			return
+		}
+		apierr.MapError(w, "[backlog] unarchive", apierr.Internal("%s", err.Error()))
+		return
+	}
+
+	if item.ArchivedAt == nil {
+		resp := &apipb.BacklogItemResponse{Item: backlogToProto(item)}
+		if err := httputil.ProtoJSON(w, resp); err != nil {
+			apierr.MapError(w, "[backlog] unarchive", apierr.Internal("failed to encode response"))
+		}
+		return
+	}
+
+	prevArchivedAt := *item.ArchivedAt
+	item.ArchivedAt = nil
+	item.Updated = time.Now().UTC().Format(time.RFC3339)
+
+	if err := h.store.SaveItem(item); err != nil {
+		apierr.MapError(w, "[backlog] unarchive", apierr.Internal("failed to save item"))
+		return
+	}
+
+	if h.eventLogger != nil {
+		h.eventLogger.EmitBacklogUnarchived(string(kind)+"/"+name, prevArchivedAt)
+	}
+	h.invalidateAllGraphLenses()
+
+	resp := &apipb.BacklogItemResponse{Item: backlogToProto(item)}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
+		apierr.MapError(w, "[backlog] unarchive", apierr.Internal("failed to encode response"))
+	}
 }
 
 func (h *Handler) parseKindAndName(w http.ResponseWriter, r *http.Request, action string) (BacklogKind, string, bool) {

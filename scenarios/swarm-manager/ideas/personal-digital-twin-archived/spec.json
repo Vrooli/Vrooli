@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T21:23:34Z",
   "created": "2026-02-05T21:23:34Z",
   "description": "AI-powered personal assistant that learns your communication style, preferences, and knowledge to act as your digital representative",
   "name": "personal-digital-twin-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "personal-assistant",
     "ai-assistants",

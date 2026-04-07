@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T21:13:58Z",
   "created": "2026-02-05T21:13:58Z",
   "description": "Deep financial research tool for ROI analysis and investment decision-making",
   "name": "roi-fit-analysis-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "business-application",
     "finance",

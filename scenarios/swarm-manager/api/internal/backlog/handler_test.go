@@ -36,18 +36,23 @@ type backlogFileResponse struct {
 	File BacklogFile `json:"file"`
 }
 
+type queueBlockingReason struct {
+	Message   string `json:"message"`
+	Forceable bool   `json:"forceable"`
+}
+
 type backlogQueueResponse struct {
-	Item                BacklogItem `json:"item"`
-	TaskID              string      `json:"task_id"`
-	RunID               string      `json:"run_id"`
-	BaseURL             string      `json:"base_url"`
-	Created             string      `json:"created"`
-	DryRun              bool        `json:"dry_run"`
-	Queued              bool        `json:"queued"`
-	Message             string      `json:"message"`
-	BlockingReasons     []string    `json:"blocking_reasons"`
-	UnansweredQuestions int         `json:"unanswered_questions"`
-	PendingSuggestions  int         `json:"pending_suggestions"`
+	Item                BacklogItem           `json:"item"`
+	TaskID              string                `json:"task_id"`
+	RunID               string                `json:"run_id"`
+	BaseURL             string                `json:"base_url"`
+	Created             string                `json:"created"`
+	DryRun              bool                  `json:"dry_run"`
+	Queued              bool                  `json:"queued"`
+	Message             string                `json:"message"`
+	BlockingReasons     []queueBlockingReason `json:"blocking_reasons"`
+	UnansweredQuestions int                   `json:"unanswered_questions"`
+	PendingSuggestions  int                   `json:"pending_suggestions"`
 }
 
 type processPreflightEnvelope struct {
@@ -465,12 +470,13 @@ func TestQueue_AllowsArchivedIdea(t *testing.T) {
 		Name:        "archived-idea",
 		Title:       "Archived Idea",
 		Description: "",
-		Status:      StatusArchived,
+		Status:      StatusCompleted,
 		Priority:    3,
 		Tags:        []string{},
 		Created:     "2026-01-28T00:00:00Z",
 		Updated:     "2026-01-28T00:00:00Z",
 		Kind:        KindIdea,
+		ArchivedAt:  strPtr("2026-01-01T00:00:00Z"),
 	}
 	createReadyTestItem(t, rootDir, KindIdea, item)
 
@@ -491,24 +497,26 @@ func TestProcessPreflight_BlocksMissingWorkshopReadiness(t *testing.T) {
 		Name:        "archived-preflight",
 		Title:       "[Archived] web-console",
 		Description: "",
-		Status:      StatusArchived,
+		Status:      StatusCompleted,
 		Priority:    3,
 		Tags:        []string{},
 		Created:     "2026-01-28T00:00:00Z",
 		Updated:     "2026-01-28T00:00:00Z",
 		Kind:        KindIdea,
+		ArchivedAt:  strPtr("2026-01-01T00:00:00Z"),
 	}
 	createTestItem(t, rootDir, KindIdea, item)
 	testutil.WriteFile(t, filepath.Join(rootDir, "ideas", "archived-preflight", "spec.json"), `{
   "name":"archived-preflight",
   "title":"[Archived] web-console",
   "description":"",
-  "status":"archived",
+  "status":"completed",
   "priority":3,
   "tags":[],
   "created":"2026-01-28T00:00:00Z",
   "updated":"2026-01-28T00:00:00Z",
   "kind":"idea",
+  "archived_at":"2026-01-01T00:00:00Z",
   "sourceScenarioName":"web-console"
 }`)
 
@@ -568,12 +576,13 @@ func TestQueue_BlocksWhenProcessPreflightFails(t *testing.T) {
 		Name:        "blocked-queue",
 		Title:       "[Archived] web-console",
 		Description: "",
-		Status:      StatusArchived,
+		Status:      StatusCompleted,
 		Priority:    3,
 		Tags:        []string{},
 		Created:     "2026-01-28T00:00:00Z",
 		Updated:     "2026-01-28T00:00:00Z",
 		Kind:        KindIdea,
+		ArchivedAt:  strPtr("2026-01-01T00:00:00Z"),
 	}
 	// No plan.md or workshop rounds — preflight will block.
 	createTestItem(t, rootDir, KindIdea, item)
@@ -689,6 +698,60 @@ func TestQueue_InvalidMode(t *testing.T) {
 	h.Queue(w, req)
 
 	testutil.AssertStatus(t, w, http.StatusBadRequest)
+}
+
+func TestQueue_BlocksOnUnmetDeps_ForceOverrides(t *testing.T) {
+	agent := &mockAgentService{
+		result: agentmanager.RunResult{TaskID: "task", RunID: "run", BaseURL: "http://agent", CreatedAt: "now"},
+	}
+	h, rootDir := setupTestHandlerWithAgent(t, agent)
+
+	// Create dep in "backlog" status — not yet planned.
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name: "dep-unmet", Title: "Unmet Dep", Status: StatusBacklog, Priority: 5,
+		Tags: []string{}, Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
+	})
+	// Create the item that depends on it, with a plan.md so preflight passes.
+	createReadyTestItem(t, rootDir, KindFix, BacklogItem{
+		Name: "dep-child", Title: "Dep Child", Status: StatusReady, Priority: 3,
+		Tags: []string{}, Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
+		DependsOn: []string{"idea/dep-unmet"},
+	})
+
+	// Without force: should be blocked.
+	blockedBody := bytes.NewBufferString(`{"mode":"manual","confirm":true}`)
+	blockedReq := httptest.NewRequest("POST", "/api/v1/backlog/fix/dep-child/queue", blockedBody)
+	blockedReq.Header.Set("Content-Type", "application/json")
+	blockedReq = mux.SetURLVars(blockedReq, map[string]string{"kind": "fix", "name": "dep-child"})
+	blockedW := httptest.NewRecorder()
+	h.Queue(blockedW, blockedReq)
+	testutil.AssertStatusOK(t, blockedW)
+
+	resp := testutil.DecodeJSON[backlogQueueResponse](t, blockedW)
+	if !resp.DryRun {
+		t.Error("expected dry_run=true when blocked by deps")
+	}
+	if resp.Queued {
+		t.Error("expected queued=false when blocked by deps")
+	}
+	foundDepReason := false
+	for _, r := range resp.BlockingReasons {
+		if strings.Contains(r.Message, "dependencies") && r.Forceable {
+			foundDepReason = true
+		}
+	}
+	if !foundDepReason {
+		t.Errorf("expected a forceable dependency blocking reason, got %+v", resp.BlockingReasons)
+	}
+
+	// With force: should succeed.
+	forcedBody := bytes.NewBufferString(`{"mode":"manual","confirm":true,"force":true}`)
+	forcedReq := httptest.NewRequest("POST", "/api/v1/backlog/fix/dep-child/queue", forcedBody)
+	forcedReq.Header.Set("Content-Type", "application/json")
+	forcedReq = mux.SetURLVars(forcedReq, map[string]string{"kind": "fix", "name": "dep-child"})
+	forcedW := httptest.NewRecorder()
+	h.Queue(forcedW, forcedReq)
+	testutil.AssertStatus(t, forcedW, http.StatusAccepted)
 }
 
 func TestResearch_SpawnsAgent(t *testing.T) {

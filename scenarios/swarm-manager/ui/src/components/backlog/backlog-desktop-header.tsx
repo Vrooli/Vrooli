@@ -8,7 +8,7 @@
  */
 
 import type { ReactNode } from "react";
-import { Edit, RotateCcw, Sparkles, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, Edit, RotateCcw, Sparkles, Trash2 } from "lucide-react";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Select } from "../ui/select";
@@ -21,13 +21,18 @@ import {
 import type { BacklogStatus } from "../../types";
 import type { BacklogItem } from "../../types/domain";
 import { useBacklogDetail } from "../../contexts/BacklogDetailContext";
+import { formatRelativeTime } from "../../lib/format-utils";
 
 export interface BacklogDesktopHeaderProps {
   item: BacklogItem;
   deleteError: string | null;
+  archiveError: string | null;
   primaryAction: ReactNode;
   onEdit: () => void;
   onDelete: () => void;
+  onArchive: () => void;
+  onUnarchive: () => void;
+  isArchiving: boolean;
   onResetWorkshop: () => void;
   hasWorkshopRounds: boolean;
   onOpenAgentDialog: () => void;
@@ -37,18 +42,41 @@ export interface BacklogDesktopHeaderProps {
 export function BacklogDesktopHeader({
   item,
   deleteError,
+  archiveError,
   primaryAction,
   onEdit,
   onDelete,
+  onArchive,
+  onUnarchive,
+  isArchiving,
   onResetWorkshop,
   hasWorkshopRounds,
   onOpenAgentDialog,
   onStatusChange,
 }: BacklogDesktopHeaderProps) {
   const { isLocked, itemActions, agentLabel } = useBacklogDetail();
+  const isArchived = item.archivedAt != null;
 
   return (
     <Card data-testid={selectors.backlogDetails.header}>
+      {isArchived && (
+        <div className="mb-3 flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+          <div className="flex items-center gap-2 text-sm text-amber-300">
+            <Archive className="h-4 w-4" />
+            <span>Archived {formatRelativeTime(item.archivedAt ?? "")}</span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-amber-500/30 text-amber-300 hover:bg-amber-500/10"
+            onClick={onUnarchive}
+            disabled={isArchiving}
+          >
+            <ArchiveRestore className="mr-2 h-4 w-4" />
+            {isArchiving ? "Restoring..." : "Unarchive"}
+          </Button>
+        </div>
+      )}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
@@ -124,6 +152,18 @@ export function BacklogDesktopHeader({
               Reset Workshop
             </Button>
           )}
+          {!isArchived && itemActions?.canArchive && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="hidden lg:inline-flex"
+              onClick={onArchive}
+              disabled={isArchiving}
+            >
+              <Archive className="mr-2 h-4 w-4" />
+              {isArchiving ? "Archiving..." : "Archive"}
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -148,11 +188,18 @@ export function BacklogDesktopHeader({
         </div>
       </div>
 
-      {deleteError && (
+      {(deleteError || archiveError) && (
         <div className="mt-4 space-y-2">
-          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-            {deleteError}
-          </div>
+          {deleteError && (
+            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {deleteError}
+            </div>
+          )}
+          {archiveError && (
+            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {archiveError}
+            </div>
+          )}
         </div>
       )}
     </Card>

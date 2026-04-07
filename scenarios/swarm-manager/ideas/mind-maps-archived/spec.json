@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-06T03:24:51Z",
   "created": "2026-02-06T03:24:51Z",
   "description": "AI-enabled mind mapping tool for visual organization and semantic search of ideas and knowledge",
   "name": "mind-maps-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "foundation",
     "knowledge-management",

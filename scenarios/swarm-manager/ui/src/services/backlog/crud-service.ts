@@ -17,7 +17,7 @@ import {
 import type { IApiClient } from "../../lib/api-client";
 import { API_ENDPOINTS } from "../../lib/api-endpoints";
 import { buildQueryString } from "../../lib/query-utils";
-import type { BacklogItem, BacklogKind } from "../../types";
+import type { BacklogItem, BacklogKind, ItemBlockingInfo } from "../../types";
 import type { BacklogUpdatePatch } from "./types";
 
 export function buildBacklogUpdatePayload(patch: BacklogUpdatePatch): Record<string, unknown> {
@@ -38,11 +38,20 @@ export function buildBacklogUpdatePayload(patch: BacklogUpdatePatch): Record<str
 
 export function createCrudMethods(apiClient: IApiClient) {
   return {
-    async list(kinds?: BacklogKind[]): Promise<BacklogItem[]> {
-      const query = buildQueryString({ kinds });
+    async list(kinds?: BacklogKind[]): Promise<{ items: BacklogItem[]; blocking: Record<string, ItemBlockingInfo> }> {
+      const query = buildQueryString({ kinds, archived: "all" });
       const data = await apiClient.get<unknown>(`${API_ENDPOINTS.backlog}${query}`);
       const parsed = parseProtoResponse(listBacklogResponseSchema, data, "backlog list");
-      return parsed.items.map(mapProtoBacklogItem);
+      const items = parsed.items.map(mapProtoBacklogItem);
+      const blocking: Record<string, ItemBlockingInfo> = {};
+      for (const [key, info] of Object.entries(parsed.blocking ?? {})) {
+        blocking[key] = {
+          blocked: info.blocked ?? false,
+          blockingDepKeys: info.blockingDepKeys ?? [],
+          allForceable: info.allForceable ?? false,
+        };
+      }
+      return { items, blocking };
     },
 
     async listBySpawnedFrom(spawnedFrom: string): Promise<BacklogItem[]> {
@@ -87,6 +96,18 @@ export function createCrudMethods(apiClient: IApiClient) {
 
     async delete(kind: BacklogKind, name: string): Promise<void> {
       return apiClient.delete<void>(API_ENDPOINTS.backlogItem(kind, name));
+    },
+
+    async archiveItem(kind: BacklogKind, name: string): Promise<BacklogItem> {
+      const data = await apiClient.patch<unknown>(API_ENDPOINTS.backlogArchiveItem(kind, name), {});
+      const parsed = parseProtoResponse(backlogItemResponseSchema, data, "backlog item");
+      return mapProtoBacklogItem(requireProtoField(parsed.item, "backlog item"));
+    },
+
+    async unarchiveItem(kind: BacklogKind, name: string): Promise<BacklogItem> {
+      const data = await apiClient.delete<unknown>(API_ENDPOINTS.backlogArchiveItem(kind, name));
+      const parsed = parseProtoResponse(backlogItemResponseSchema, data, "backlog item");
+      return mapProtoBacklogItem(requireProtoField(parsed.item, "backlog item"));
     },
   };
 }

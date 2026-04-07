@@ -37,7 +37,7 @@ message BacklogItem {
   string description = 3;
 
   // Lifecycle state for the backlog item.
-  // @constraint one of: backlog, researching, ready, queued, in_progress, completed, archived
+  // @constraint one of: backlog, researching, ready, queued, in_progress, completed, failed
   string status = 4 [(buf.validate.field).string = { in: [
     "backlog",
     "researching",
@@ -45,8 +45,7 @@ message BacklogItem {
     "queued",
     "in_progress",
     "completed",
-    "failed",
-    "archived"
+    "failed"
   ] }];
 
   // Priority level (1 = highest, 10 = lowest).
@@ -93,6 +92,11 @@ message BacklogItem {
 
   // Personal annotation — a user note for tracking context (e.g., why the item is paused).
   optional string note = 18;
+
+  // RFC3339 timestamp when the item was archived. Null/unset means not archived.
+  // Archiving is orthogonal to status — items retain their terminal status when archived.
+  // @format rfc3339
+  optional string archived_at = 19;
 }
 
 // BacklogFile represents a file or directory within a backlog item folder.

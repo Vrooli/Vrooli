@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T20:42:10Z",
   "created": "2026-02-05T20:42:10Z",
   "description": "Comprehensive image manipulation toolkit with compression, resizing, format conversion, and metadata management",
   "name": "image-tools-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "image",
     "compression",

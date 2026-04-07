@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T20:23:16Z",
   "created": "2026-02-05T20:23:16Z",
   "description": "AI-powered audio intelligence platform for transcription, analysis, semantic search, and knowledge extraction",
   "name": "audio-intelligence-platform-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "business-application",
     "business",

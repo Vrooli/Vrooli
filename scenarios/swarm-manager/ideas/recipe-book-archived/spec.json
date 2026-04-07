@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T21:22:12Z",
   "created": "2026-02-05T21:22:12Z",
   "description": "Intelligent household recipe management with AI-powered search, generation, and multi-tenant sharing",
   "name": "recipe-book-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "lifestyle",
     "cooking",

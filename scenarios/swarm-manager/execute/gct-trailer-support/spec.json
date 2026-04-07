@@ -1,0 +1,20 @@
+{
+  "acceptance_allow": [
+    "scenarios/git-control-tower/api/**",
+    "scenarios/git-control-tower/ui/**"
+  ],
+  "created": "2026-04-06T18:43:38Z",
+  "depends_on": [
+    "research/gct-trailer-system-design"
+  ],
+  "description": "Add git trailer support to Git Control Tower's commit workflow. Trailer editor in commit panel for adding/editing/removing Vrooli-namespaced trailers. When using the 'continue' action on a previous commit: auto-increment part number in title, copy all Vrooli-* trailers from previous commit, add Vrooli-Continues trailer pointing to previous commit hash. Auto-suggest initiative slugs from recent trailer history.",
+  "effort": "M",
+  "initiative": "gct-commit-initiative-linking",
+  "kind": "execute",
+  "name": "gct-trailer-support",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [],
+  "title": "Trailer editor in commit panel with auto-population from continue action",
+  "updated": "2026-04-06T18:43:38Z"
+}

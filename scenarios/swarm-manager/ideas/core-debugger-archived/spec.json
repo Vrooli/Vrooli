@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T20:23:39Z",
   "created": "2026-02-05T20:23:39Z",
   "description": "Monitors and debugs Vrooli core infrastructure (CLI, orchestrator, resource manager, setup scripts) with file-based issue tracking and workaround database",
   "name": "core-debugger-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "infrastructure",
     "monitoring",

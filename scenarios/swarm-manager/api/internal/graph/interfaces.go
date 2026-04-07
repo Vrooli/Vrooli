@@ -15,10 +15,11 @@ type BacklogLister interface {
 
 // InitiativeEntry is the graph-specific initiative view needed by projections.
 type InitiativeEntry struct {
-	Name   string
-	Title  string
-	Status string
-	Items  []string
+	Name       string
+	Title      string
+	Status     string
+	Items      []string
+	ArchivedAt *string
 }
 
 // InitiativeLister lists initiatives needed by graph projections.

@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-06T03:11:06Z",
   "created": "2026-02-06T03:11:06Z",
   "description": "Real-time website visitor identification, behavioral tracking, and retention marketing automation for all Vrooli scenarios",
   "name": "visitor-intelligence-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "analytics",
     "tracking",

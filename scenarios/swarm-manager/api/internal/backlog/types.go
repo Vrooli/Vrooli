@@ -23,7 +23,6 @@ const (
 	StatusInProgress  BacklogStatus = "in_progress"
 	StatusCompleted   BacklogStatus = "completed"
 	StatusFailed      BacklogStatus = "failed"
-	StatusArchived    BacklogStatus = "archived"
 )
 
 // BacklogKind represents a category of backlog work.
@@ -66,6 +65,7 @@ type BacklogItem struct {
 	SpawnedFrom     string               `json:"spawned_from,omitempty"`
 	Note            string               `json:"note,omitempty"`
 	CreatedBy       *identity.Provenance `json:"created_by,omitempty"`
+	ArchivedAt      *string              `json:"archived_at,omitempty"`
 }
 
 // BacklogFile represents a file or directory within a backlog item folder.
@@ -113,7 +113,7 @@ func ParseBacklogKind(raw string) (BacklogKind, error) {
 // backlog status value.
 func validateBacklogStatus(status string) bool {
 	switch status {
-	case "backlog", "researching", "ready", "queued", "in_progress", "completed", "failed", "archived":
+	case "backlog", "researching", "ready", "queued", "in_progress", "completed", "failed":
 		return true
 	default:
 		return false
@@ -198,6 +198,9 @@ func backlogToProto(item BacklogItem) *domainpb.BacklogItem {
 	}
 	if strings.TrimSpace(item.Note) != "" {
 		result.Note = &item.Note
+	}
+	if item.ArchivedAt != nil {
+		result.ArchivedAt = item.ArchivedAt
 	}
 	return result
 }

@@ -18,8 +18,7 @@ export type BacklogStatus =
   | "queued"
   | "in_progress"
   | "completed"
-  | "failed"
-  | "archived";
+  | "failed";
 
 
 /**
@@ -33,6 +32,8 @@ export type BacklogKind = "idea" | "research" | "fix" | "execute" | "chore";
 export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind" | "dependsOn" | "initiative" | "acceptanceAllow" | "acceptanceDeny"> & {
   /** Current lifecycle state */
   status: BacklogStatus;
+  /** ISO timestamp when the item was archived, or undefined if not archived. */
+  archivedAt?: string;
   /** Backlog category */
   kind: BacklogKind;
   /** Items this depends on, as "kind/name" refs. Empty array from API, optional in client code. */
@@ -61,6 +62,25 @@ export interface BacklogFormValues {
   effort?: string;
   acceptanceAllow?: string[];
   acceptanceDeny?: string[];
+}
+
+/**
+ * A single blocking reason with forceability metadata.
+ * Mirrors the proto BlockingReason message.
+ */
+export interface BlockingReason {
+  message: string;
+  forceable: boolean;
+}
+
+/**
+ * Per-item blocking summary from the list endpoint.
+ * Mirrors the proto ItemBlockingInfo message.
+ */
+export interface ItemBlockingInfo {
+  blocked: boolean;
+  blockingDepKeys: string[];
+  allForceable: boolean;
 }
 
 /**

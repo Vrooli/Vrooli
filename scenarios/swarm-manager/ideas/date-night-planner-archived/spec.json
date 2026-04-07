@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T20:43:11Z",
   "created": "2026-02-05T20:43:11Z",
   "description": "AI-powered date planning with couple personalization and local integration",
   "name": "date-night-planner-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "personal-life",
     "relationships",

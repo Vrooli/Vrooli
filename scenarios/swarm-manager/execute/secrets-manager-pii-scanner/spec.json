@@ -1,0 +1,20 @@
+{
+  "acceptance_allow": [
+    "scenarios/secrets-manager/api/**",
+    "scenarios/secrets-manager/ui/**"
+  ],
+  "created": "2026-04-06T18:43:38Z",
+  "depends_on": [
+    "research/secrets-manager-pii-detection-design"
+  ],
+  "description": "Extend Secrets Manager's security_scanner.go with PII detection patterns (emails, phone numbers, home directory paths, IP addresses, AWS keys, etc.). Add custom watchlist support where users can upload their specific personal values to flag. Add allowlist system for test files/fixtures using configurable path patterns. Implement a new file-list-based scan endpoint that accepts arbitrary file paths and returns findings per file, enabling Git Control Tower to scan staged files regardless of where they live in the repo.",
+  "effort": "L",
+  "initiative": "gct-pre-commit-security",
+  "kind": "execute",
+  "name": "secrets-manager-pii-scanner",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [],
+  "title": "Implement PII scanner, custom watchlist, and file-list scan endpoint",
+  "updated": "2026-04-06T18:43:38Z"
+}

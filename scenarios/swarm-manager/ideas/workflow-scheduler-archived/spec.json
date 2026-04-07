@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T21:11:56Z",
   "created": "2026-02-05T21:11:56Z",
   "description": "Enterprise-grade cron scheduling platform for orchestrating Vrooli workflows with centralized management, execution tracking, and intelligent retry handling",
   "name": "workflow-scheduler-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "infrastructure",
     "automation-tools",

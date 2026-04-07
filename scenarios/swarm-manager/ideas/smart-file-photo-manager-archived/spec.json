@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T20:48:42Z",
   "created": "2026-02-05T20:48:42Z",
   "description": "AI-powered semantic file organization and management system with intelligent photo categorization, document processing, and duplicate detection",
   "name": "smart-file-photo-manager-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "business-application",
     "productivity",

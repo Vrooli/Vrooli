@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-06T03:10:25Z",
   "created": "2026-02-06T03:10:25Z",
   "description": "Universal token economy for scenario rewards and achievements",
   "name": "token-economy-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "archived",
     "from-scenario"

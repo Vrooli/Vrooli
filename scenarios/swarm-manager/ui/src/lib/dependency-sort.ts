@@ -22,16 +22,16 @@ import type { BacklogItem, BacklogStatus } from "../types";
 
 /**
  * Statuses where a dependency is considered resolved for sort-ordering purposes.
- * Only `completed` and `archived` items are "done" — everything else means the
- * dependent should sort below its dependency.
+ * Only `completed` items are "done" — everything else means the dependent
+ * should sort below its dependency. Archived items are also considered resolved
+ * (checked via archivedAt at the callsite).
  */
-export const SORT_RESOLVED_STATUSES: ReadonlySet<BacklogStatus> = new Set([
+export const SORT_RESOLVED_STATUSES: ReadonlySet<BacklogStatus> = new Set<BacklogStatus>([
   "completed",
-  "archived",
 ]);
 
 /** Minimal shape needed from a backlog item to compute dependency depths. */
-type DepthItem = Pick<BacklogItem, "kind" | "name" | "status" | "dependsOn">;
+type DepthItem = Pick<BacklogItem, "kind" | "name" | "status" | "dependsOn" | "archivedAt">;
 
 /**
  * Build a canonical key for a backlog item: `"kind/name"`.
@@ -71,7 +71,7 @@ export function computeDepthMap(
     const deps: string[] = [];
     for (const dep of item.dependsOn ?? []) {
       const depItem = itemsByKey.get(dep);
-      if (depItem && !SORT_RESOLVED_STATUSES.has(depItem.status)) {
+      if (depItem && !SORT_RESOLVED_STATUSES.has(depItem.status) && !depItem.archivedAt) {
         deps.push(dep);
       }
     }

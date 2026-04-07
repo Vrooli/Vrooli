@@ -8,11 +8,12 @@ type Initiative struct {
 	Name        string   `json:"name"`
 	Title       string   `json:"title"`
 	Description string   `json:"description,omitempty"`
-	Status      string   `json:"status"` // active, completed, archived
+	Status      string   `json:"status"` // active, completed
 	Items       []string `json:"items"`  // "kind/name" references
 	Created     string   `json:"created"`
 	Updated     string   `json:"updated"`
 	Note        string   `json:"note,omitempty"`
+	ArchivedAt  *string  `json:"archived_at,omitempty"`
 }
 
 // RollupStatus provides aggregated status counts for an initiative's items.
@@ -22,6 +23,7 @@ type RollupStatus struct {
 	InProgress int `json:"in_progress"`
 	Failed     int `json:"failed"`
 	Pending    int `json:"pending"`
+	Archived   int `json:"archived"`
 }
 
 // InitiativeWithRollup pairs an initiative with its computed rollup status.
@@ -56,7 +58,7 @@ func (r UpdateRequest) HasChanges() bool {
 // ValidateStatus returns true if the status string is valid.
 func ValidateStatus(status string) bool {
 	switch status {
-	case "active", "completed", "archived":
+	case "active", "completed":
 		return true
 	default:
 		return false

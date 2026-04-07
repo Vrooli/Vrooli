@@ -73,6 +73,7 @@ describe("InitiativeDetailsPage", () => {
       inProgress: 1,
       failed: 0,
       pending: 0,
+      archived: 0,
     },
   };
 

@@ -114,8 +114,7 @@ function mapProtoNode(raw: ProtoGraphNode): GraphNode {
             | "queued"
             | "in_progress"
             | "completed"
-            | "failed"
-            | "archived",
+            | "failed",
           priority: backlog.priority,
           activeExecutionStatus: (backlogAny.activeExecutionStatus as string) ?? undefined,
           activeExecutionCount: (backlogAny.activeExecutionCount as number) ?? undefined,

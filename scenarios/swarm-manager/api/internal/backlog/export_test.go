@@ -274,13 +274,14 @@ func TestExport_StatusFilter(t *testing.T) {
 	})
 
 	createTestItem(t, tmpDir, KindIdea, BacklogItem{
-		Name:     "archived-item",
-		Title:    "Archived Item",
-		Status:   StatusArchived,
-		Priority: 5,
-		Tags:     []string{},
-		Created:  "2026-02-10T00:00:00Z",
-		Updated:  "2026-02-10T00:00:00Z",
+		Name:       "archived-item",
+		Title:      "Archived Item",
+		Status:     StatusCompleted,
+		Priority:   5,
+		Tags:       []string{},
+		Created:    "2026-02-10T00:00:00Z",
+		Updated:    "2026-02-10T00:00:00Z",
+		ArchivedAt: strPtr("2026-01-01T00:00:00Z"),
 	})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/export", nil)

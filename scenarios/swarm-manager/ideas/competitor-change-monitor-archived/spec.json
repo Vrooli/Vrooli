@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T20:44:23Z",
   "created": "2026-02-05T20:44:23Z",
   "description": "Track competitor websites and repositories for relevant changes with AI-powered analysis and alerting",
   "name": "competitor-change-monitor-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "monitoring-application",
     "business-intelligence",

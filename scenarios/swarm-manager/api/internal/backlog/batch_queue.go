@@ -11,7 +11,7 @@ import (
 
 func isValidInitiativeStatus(status string) bool {
 	switch status {
-	case "active", "completed", "archived":
+	case "active", "completed":
 		return true
 	default:
 		return false

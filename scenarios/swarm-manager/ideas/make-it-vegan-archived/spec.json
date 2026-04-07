@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T20:47:51Z",
   "created": "2026-02-05T20:47:51Z",
   "description": "Research if foods are vegan, find vegan alternatives and substitutes",
   "name": "make-it-vegan-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "saas-application",
     "saas-applications",

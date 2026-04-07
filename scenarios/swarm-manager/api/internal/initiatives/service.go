@@ -20,7 +20,8 @@ type EventLogger interface {
 	EmitInitiativeItemAdded(name, item string)
 	EmitInitiativeItemRemoved(name, item string)
 	EmitInitiativeStatusChanged(name, from, to string)
-	EmitInitiativeArchived(name string)
+	EmitInitiativeArchived(name, previousStatus, archivedAt string)
+	EmitInitiativeUnarchived(name, archivedAt string)
 	EmitInitiativeViewed(name string)
 }
 
@@ -211,7 +212,7 @@ func (s *Service) Delete(name string) error {
 		return err
 	}
 	if s.eventLogger != nil {
-		s.eventLogger.EmitInitiativeArchived(name)
+		s.eventLogger.EmitInitiativeArchived(name, "", "")
 	}
 	s.invalidateTopologyGraph()
 	return nil
@@ -271,6 +272,9 @@ func (s *Service) ComputeRollup(init *Initiative) (*RollupStatus, error) {
 			rollup.InProgress++
 		default:
 			rollup.Pending++
+		}
+		if item.ArchivedAt != nil {
+			rollup.Archived++
 		}
 	}
 	return rollup, nil

@@ -5,6 +5,7 @@
     "scenarios/swarm-manager/.vrooli/initiatives/**",
     "packages/proto/schemas/swarm-manager/**"
   ],
+  "archived_at": "2026-03-27T19:34:34Z",
   "created": "2026-03-26T21:08:47Z",
   "depends_on": [
     "research/swarm-manager-dashboard-ux"
@@ -15,7 +16,7 @@
   "kind": "execute",
   "name": "swarm-manager-initiative-enhancements",
   "priority": 2,
-  "status": "archived",
+  "status": "backlog",
   "tags": [],
   "title": "Add Priority Field to Initiatives and Expand Rollup/Aggregation APIs",
   "updated": "2026-03-27T18:40:24Z"

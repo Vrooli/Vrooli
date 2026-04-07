@@ -21,7 +21,7 @@ import { useBacklogDetail } from "../../contexts/BacklogDetailContext";
 import { useBacklogDetailUIStore } from "../../stores";
 import type { useBacklogDetailData } from "../../hooks/useBacklogDetailData";
 import type { useBacklogHandlers } from "../../hooks/useBacklogHandlers";
-import type { BacklogFile, BacklogKind } from "../../types";
+import type { BacklogFile, BacklogKind, ItemBlockingInfo } from "../../types";
 import type { BacklogItem } from "../../types/domain";
 import type { ReadinessIndicatorData } from "../../lib/maturity";
 
@@ -33,6 +33,7 @@ export interface BacklogDialogsProps {
   agentDialogTargetIds: Set<string>;
   agentDialogRequirementIds: Set<string>;
   upsertItem: (item: BacklogItem) => void;
+  blockingInfo?: ItemBlockingInfo | null;
 }
 
 export function BacklogDialogs({
@@ -43,6 +44,7 @@ export function BacklogDialogs({
   agentDialogTargetIds,
   agentDialogRequirementIds,
   upsertItem,
+  blockingInfo,
 }: BacklogDialogsProps) {
   const { backlogKind, name, item } = useBacklogDetail();
   const ui = useBacklogDetailUIStore();
@@ -198,6 +200,19 @@ export function BacklogDialogs({
             data.refetchItem();
           }
         }}
+      />
+
+      <ConfirmDialog
+        isOpen={ui.workshopBlockingConfirm.show}
+        onClose={ui.closeWorkshopBlockingConfirm}
+        onConfirm={handlers.handleWorkshopBlockingOverride}
+        title="Dependencies Not Ready"
+        description={
+          blockingInfo?.blockingDepKeys.length
+            ? `This item is blocked by incomplete dependencies: ${blockingInfo.blockingDepKeys.join(", ")}. Do you want to proceed anyway?`
+            : "This item has incomplete dependencies. Do you want to proceed anyway?"
+        }
+        confirmLabel="Override and Proceed"
       />
     </>
   );

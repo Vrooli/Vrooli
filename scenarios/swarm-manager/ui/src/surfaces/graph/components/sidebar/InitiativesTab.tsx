@@ -3,7 +3,7 @@
  */
 
 import { useEffect } from "react";
-import { FolderKanban } from "lucide-react";
+import { Archive, FolderKanban } from "lucide-react";
 import { cn } from "../../../../lib/utils";
 import { formatRelativeTime } from "../../../../lib/format-utils";
 import { useInitiativeStore } from "../../../../stores/initiative-store";
@@ -22,12 +22,16 @@ interface InitiativesTabProps {
 const STATUS_COLORS: Record<string, string> = {
   active: "bg-cyan-500/20 text-cyan-300",
   completed: "bg-green-500/20 text-green-300",
-  archived: "bg-slate-700/40 text-slate-500",
 };
 
 function applyFilters(items: InitiativeWithRollup[], filters: InitiativeFilters): InitiativeWithRollup[] {
-  if (filters.statuses.length === 0) return items;
-  return items.filter((iwr) => filters.statuses.includes(iwr.initiative.status as "active" | "completed" | "archived"));
+  return items.filter((iwr) => {
+    // Hide archived initiatives unless showArchived is on
+    const initiative = iwr.initiative as { archivedAt?: string; status: string };
+    if (initiative.archivedAt != null && !filters.showArchived) return false;
+    if (filters.statuses.length > 0 && !filters.statuses.includes(iwr.initiative.status as "active" | "completed")) return false;
+    return true;
+  });
 }
 
 function applySort(items: InitiativeWithRollup[], sort: SortConfig): InitiativeWithRollup[] {
@@ -109,6 +113,12 @@ export function InitiativesTab({ searchQuery, filters, sort, onItemClick }: Init
             className="w-full rounded-lg border border-slate-800/80 bg-slate-900/50 p-2.5 text-left transition-colors hover:border-slate-700/80 hover:bg-slate-800/60"
             data-testid="sidebar-initiative-item"
           >
+            {(initiative as { archivedAt?: string }).archivedAt != null && (
+              <div className="mb-1.5 flex items-center gap-1.5 rounded border border-amber-500/20 bg-amber-500/5 px-2 py-1 text-[11px] text-amber-400/80">
+                <Archive className="h-3 w-3 shrink-0" />
+                Archived
+              </div>
+            )}
             <div className="flex items-start justify-between gap-2">
               <p className="line-clamp-2 text-[13px] font-medium leading-snug text-slate-100">
                 {initiative.title || initiative.name}

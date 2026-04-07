@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-06T03:07:14Z",
   "created": "2026-02-06T03:07:14Z",
   "description": "Gamified chore tracking with points, achievements, and cute quirky UX for making cleaning fun",
   "name": "chore-tracking-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "personal-assistant",
     "lifestyle",

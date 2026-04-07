@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T20:46:56Z",
   "created": "2026-02-05T20:46:56Z",
   "description": "Comprehensive suite of financial calculators for retirement planning, investment analysis, and budgeting - foundational capability for all financial scenarios",
   "name": "financial-calculators-hub-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "finance",
     "calculators",

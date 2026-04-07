@@ -51,6 +51,7 @@ export function useBacklogDetailData({
   agentRunIsActive,
 }: UseBacklogDetailDataOptions) {
   const allBacklogItems = useBacklogStore((state) => state.items);
+  const blockingMap = useBacklogStore((state) => state.blockingMap);
 
   // -----------------------------------------------------------------------
   // Queries
@@ -99,11 +100,14 @@ export function useBacklogDetailData({
     createTargetMutation,
     updateTargetMutation,
     deleteTargetMutation,
+    archiveMutation,
+    unarchiveMutation,
     batchReviewMutation,
     workshopDeleteRoundMutation,
     workshopResetMutation,
     fileActionMutation,
     updateError,
+    archiveError,
     deleteError,
     agentErrorMsg,
     invalidateFiles,
@@ -132,9 +136,10 @@ export function useBacklogDetailData({
 
   const itemActions: ItemActions | null = useMemo(() => {
     if (!item) return null;
+    const itemKey = `${item.kind}/${item.name}`;
     return getItemActions({
       item,
-      allItems: allBacklogItems,
+      blockingInfo: blockingMap[itemKey] ?? null,
       readinessReady: readinessData ? readinessData.ready : null,
       pendingSynthesis: readinessData?.pendingSynthesis ?? false,
       agentRunning: agentRunIsActive,
@@ -143,7 +148,7 @@ export function useBacklogDetailData({
       ),
       hasExecutionHistory: (executionHistory?.length ?? 0) > 0,
     });
-  }, [item, allBacklogItems, readinessData, agentRunIsActive, workshopRounds, executionHistory]);
+  }, [item, blockingMap, readinessData, agentRunIsActive, workshopRounds, executionHistory]);
 
   const isLocked = itemActions?.locked ?? false;
   const isTerminal = itemActions?.terminal ?? false;
@@ -274,7 +279,10 @@ export function useBacklogDetailData({
     deleteError,
     resetDeleteMutation: () => deleteMutation.reset(),
 
-    runAgent: (payload: { mode?: string; prompt: string; contextPaths?: string[]; contextTargetIds?: string[]; contextRequirementIds?: string[] }) =>
+    isArchiving: archiveMutation.isPending || unarchiveMutation.isPending,
+    archiveError,
+
+    runAgent: (payload: { mode?: string; prompt: string; contextPaths?: string[]; contextTargetIds?: string[]; contextRequirementIds?: string[]; confirm?: boolean; force?: boolean }) =>
       agentMutation.mutate(payload),
     isRunningAgent: agentMutation.isPending,
     agentError: agentErrorMsg,
@@ -340,6 +348,8 @@ export function useBacklogDetailData({
       status: statusMutation,
       acceptanceGlob: acceptanceGlobMutation,
       delete: deleteMutation,
+      archiveMutation,
+      unarchiveMutation,
       agent: agentMutation,
       workshopSave: workshopSaveMutation,
       updateReqs: updateReqsMutation,

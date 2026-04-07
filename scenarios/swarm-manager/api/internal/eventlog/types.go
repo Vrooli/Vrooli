@@ -36,6 +36,8 @@ const (
 	EventBacklogBlocked           EventType = "backlog.blocked"
 	EventBacklogUnblocked         EventType = "backlog.unblocked"
 	EventBacklogArchived          EventType = "backlog.archived"
+	EventBacklogUnarchived        EventType = "backlog.unarchived"
+	EventBacklogDeleted           EventType = "backlog.deleted"
 )
 
 // Initiative events.
@@ -45,6 +47,7 @@ const (
 	EventInitiativeItemRemoved   EventType = "initiative.item_removed"
 	EventInitiativeStatusChanged EventType = "initiative.status_changed"
 	EventInitiativeArchived      EventType = "initiative.archived"
+	EventInitiativeUnarchived    EventType = "initiative.unarchived"
 )
 
 // Execution events.
@@ -255,6 +258,17 @@ type ReviewFailedPayload struct {
 	ExecutionID  string  `json:"execution_id"`
 	Reason       string  `json:"reason"`
 	DurationSecs float64 `json:"duration_seconds"`
+}
+
+// ArchivePayload records an archive event with context about what was archived.
+type ArchivePayload struct {
+	PreviousStatus string `json:"previous_status"`
+	ArchivedAt     string `json:"archived_at"`
+}
+
+// UnarchivePayload records an unarchive event.
+type UnarchivePayload struct {
+	ArchivedAt string `json:"archived_at"`
 }
 
 // ViewPayload records a view event. Intentionally minimal.

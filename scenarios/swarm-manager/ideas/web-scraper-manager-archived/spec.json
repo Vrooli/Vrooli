@@ -1,9 +1,10 @@
 {
+  "archived_at": "2026-02-05T21:22:51Z",
   "created": "2026-02-05T21:22:51Z",
   "description": "Unified dashboard for managing web scraping across multiple platforms (Huginn, Browserless, Agent-S2) with orchestrated workflows and data export",
   "name": "web-scraper-manager-archived",
   "priority": 5,
-  "status": "archived",
+  "status": "completed",
   "tags": [
     "business-application",
     "data-collection",

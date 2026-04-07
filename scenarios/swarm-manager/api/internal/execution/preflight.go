@@ -41,7 +41,8 @@ func (s *Service) processPreflightForItem(item backlogItem, checkQueueable bool)
 		preflight.SuggestedSteerProfileID = "production-ready"
 	}
 
-	if checkQueueable && !isQueueableStatus(item.Kind, item.Status) {
+	isArchived := item.ArchivedAt != nil
+	if checkQueueable && !isQueueableStatus(item.Kind, item.Status) && !(isArchived && strings.ToLower(strings.TrimSpace(item.Kind)) == "idea") {
 		preflight.BlockingReasons = append(preflight.BlockingReasons, fmt.Sprintf("backlog item cannot be queued from current status: %s", item.Status))
 	}
 
@@ -86,7 +87,7 @@ func resolveTargetScenario(item backlogItem) (string, bool) {
 	if source != "" {
 		return source, true
 	}
-	return strings.TrimSpace(item.Name), strings.EqualFold(strings.TrimSpace(item.Status), backlogStatusArchived)
+	return strings.TrimSpace(item.Name), item.ArchivedAt != nil
 }
 
 func hasNonForceableExecutionReasons(reasons []string) bool {
