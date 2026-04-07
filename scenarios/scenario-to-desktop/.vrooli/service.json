@@ -119,7 +119,7 @@
         },
         {
           "name": "build-ui",
-          "run": "cd ui && npm run build",
+          "run": "cd ui && pnpm run build",
           "description": "Build production UI with Vite",
           "condition": {
             "file_exists": "ui/package.json"
@@ -146,7 +146,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && npm run start",
+          "run": "cd ui && node server.js",
           "description": "Start UI server in background (serves ui/dist production bundle)",
           "background": true,
           "condition": {

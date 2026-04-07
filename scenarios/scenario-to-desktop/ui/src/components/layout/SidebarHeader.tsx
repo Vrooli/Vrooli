@@ -22,7 +22,7 @@ function formatTimestamp(unix: number | undefined): string {
 }
 
 /** Format Unix timestamp to short time-only string (for same-day display) */
-function formatTimestampShort(unix: number | undefined): string {
+function _formatTimestampShort(unix: number | undefined): string {
   if (!unix) return "-";
   const date = new Date(unix * 1000);
   const now = new Date();

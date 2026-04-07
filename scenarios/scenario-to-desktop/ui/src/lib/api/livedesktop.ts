@@ -59,7 +59,7 @@ export async function startDesktopSession(config: DesktopSessionConfig): Promise
     body: JSON.stringify(config),
   });
   await throwIfNotOk(res);
-  return res.json();
+  return (await res.json()) as DesktopSession;
 }
 
 export async function stopDesktopSession(id: string): Promise<void> {
@@ -79,13 +79,13 @@ export async function heartbeatSession(id: string): Promise<void> {
 export async function getDesktopSession(id: string): Promise<DesktopSession> {
   const res = await fetch(buildUrl(`/livedesktop/sessions/${encodeURIComponent(id)}`));
   await throwIfNotOk(res);
-  return res.json();
+  return (await res.json()) as DesktopSession;
 }
 
 export async function listDesktopSessions(): Promise<DesktopSession[]> {
   const res = await fetch(buildUrl("/livedesktop/sessions"));
   await throwIfNotOk(res);
-  return res.json();
+  return (await res.json()) as DesktopSession[];
 }
 
 export async function launchAppOnDesktop(id: string, appPath?: string): Promise<void> {
@@ -100,7 +100,7 @@ export async function launchAppOnDesktop(id: string, appPath?: string): Promise<
 export async function findArtifact(id: string): Promise<string> {
   const res = await fetch(buildUrl(`/livedesktop/sessions/${encodeURIComponent(id)}/artifact`));
   await throwIfNotOk(res);
-  const data: { artifact_path: string } = await res.json();
+  const data = (await res.json()) as { artifact_path: string };
   return data.artifact_path;
 }
 
@@ -126,7 +126,7 @@ export async function executeDesktopControl(id: string, req: ControlRequest): Pr
     body: JSON.stringify(req),
   });
   await throwIfNotOk(res);
-  return res.json();
+  return (await res.json()) as ControlResult;
 }
 
 /**

@@ -38,7 +38,7 @@ export function VncCanvas({ sessionId }: VncCanvasProps) {
         setConnectionStatus("connected");
       });
 
-      rfb.addEventListener("disconnect", (e: CustomEvent) => {
+      rfb.addEventListener("disconnect", (e: CustomEvent<{ clean: boolean }>) => {
         if (e.detail?.clean) {
           setConnectionStatus("disconnected");
         } else {
@@ -46,7 +46,7 @@ export function VncCanvas({ sessionId }: VncCanvasProps) {
         }
       });
 
-      rfb.addEventListener("securityfailure", (e: CustomEvent) => {
+      rfb.addEventListener("securityfailure", (e: CustomEvent<{ reason?: string }>) => {
         setError(`VNC security error: ${e.detail?.reason ?? "unknown"}`);
       });
 

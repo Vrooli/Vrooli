@@ -5,8 +5,8 @@
 
 import { useEffect, useRef } from "react";
 import { usePipelineStore } from "../store";
-import { useScenarioState, type UseScenarioStateResult } from "./useScenarioState";
-import type { FormState, SmokeTestStageDetails } from "../lib/api";
+import { useScenarioState } from "./useScenarioState";
+import type { FormState } from "../lib/api";
 import type { ViewMode } from "./useUrlState";
 
 interface UseServerSyncOptions {

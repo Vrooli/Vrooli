@@ -21,13 +21,13 @@ export interface CapturesSummary {
 export async function listCaptures(scenario: string): Promise<Capture[]> {
   const res = await fetch(buildUrl(`/captures/${encodeURIComponent(scenario)}`));
   await throwIfNotOk(res);
-  return res.json();
+  return (await res.json()) as Capture[];
 }
 
 export async function getCapturesSummary(scenario: string): Promise<CapturesSummary> {
   const res = await fetch(buildUrl(`/captures/${encodeURIComponent(scenario)}/summary`));
   await throwIfNotOk(res);
-  return res.json();
+  return (await res.json()) as CapturesSummary;
 }
 
 export function buildCaptureFileUrl(scenario: string, captureId: string): string {
