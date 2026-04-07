@@ -220,6 +220,11 @@ func (s *FileStore) SaveItem(item BacklogItem) error {
 	} else {
 		delete(merged, "note")
 	}
+	if len(item.SuggestedSkills) > 0 {
+		merged["suggested_skills"] = item.SuggestedSkills
+	} else {
+		delete(merged, "suggested_skills")
+	}
 
 	if item.ArchivedAt != nil {
 		merged["archived_at"] = *item.ArchivedAt

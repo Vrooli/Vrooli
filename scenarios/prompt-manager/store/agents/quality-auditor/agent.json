@@ -1,0 +1,18 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "quality-auditor",
+  "displayName": "Quality Auditor",
+  "description": "Performs deep structural audits of scenarios using steer skills on a daily rotation.",
+  "status": "active",
+  "appearance": {
+    "body": "#059669",
+    "head": "#10B981",
+    "accent": "#6EE7B7"
+  },
+  "tags": ["quality", "auditing", "structural-analysis"],
+  "fileOrder": ["SOUL.md", "AGENTS.md"],
+  "revision": 1,
+  "createdAt": "2026-04-07T00:00:00Z",
+  "updatedAt": "2026-04-07T00:00:00Z"
+}

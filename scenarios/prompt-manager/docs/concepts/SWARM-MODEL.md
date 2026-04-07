@@ -218,7 +218,7 @@ prompt-manager (teams analyze)          swarm-manager (staging/review)
 ┌──────────────────────────┐            ┌──────────────────────────────┐
 │  Feature Team  → idea    │──┐         │                              │
 │  QA Team       → fix     │──┼─ plans ▶│  Backlog (review all plans)  │
-│  Refactor Team → execute │──┘         │         ↓                    │
+│                          │──┘         │         ↓                    │
 │                          │            │  Idea Agent (refine plans)   │
 └──────────────────────────┘            │         ↓                    │
                                         │  Generator / Improver        │
@@ -238,7 +238,6 @@ prompt-manager (teams analyze)          swarm-manager (staging/review)
 |------|-------------|---------|
 | Feature Team | `idea` or `execute` | New capabilities and enhancements |
 | QA Team | `fix` or `execute` | Quality issues and test improvements |
-| Refactor Team | `execute` or `fix` | Structural improvements |
 
 See [swarm-manager-recommendations SKILL.md](../../../store/skills/packs/core/swarm-manager-recommendations/SKILL.md) for the full team-to-backlog contract.
 

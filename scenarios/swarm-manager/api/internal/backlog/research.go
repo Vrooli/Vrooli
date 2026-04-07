@@ -176,6 +176,10 @@ func buildVariableMap(item BacklogItem, itemFolder string) map[string]string {
 	}
 	vars["CLARIFICATION_NOTES"] = strings.Join(clarNotes, "\n")
 
+	if len(item.SuggestedSkills) > 0 {
+		vars["SUGGESTED_SKILLS"] = strings.Join(item.SuggestedSkills, " ")
+	}
+
 	return vars
 }
 

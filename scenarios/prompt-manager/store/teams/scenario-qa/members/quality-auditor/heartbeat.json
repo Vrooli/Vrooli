@@ -1,0 +1,11 @@
+{
+  "kind": "heartbeat-config",
+  "schemaVersion": 1,
+  "teamId": "scenario-qa",
+  "agentId": "quality-auditor",
+  "enabled": true,
+  "schedule": "0 3 * * *",
+  "revision": 1,
+  "createdAt": "2026-04-07T00:00:00Z",
+  "updatedAt": "2026-04-07T00:00:00Z"
+}

@@ -13,7 +13,7 @@ prompt-manager                         swarm-manager
 │  ┌──────────────────┐  │             │                                  │
 │  │ Feature Team     │──┼── idea ────▶│  ┌──────────┐                    │
 │  │ QA Team          │──┼── fix ─────▶│  │ BACKLOG  │  Operator reviews  │
-│  │ Refactor Team    │──┼── execute ─▶│  │ items    │  plans, uses       │
+│  │                  │──┼── execute ─▶│  │ items    │  plans, uses       │
 │  │                  │  │            ▶│  └────┬─────┘  Workshop loop     │
 │  └──────────────────┘  │             │       │        to refine          │
 │                        │             │       ▼                           │

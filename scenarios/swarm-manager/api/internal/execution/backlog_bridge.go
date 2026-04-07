@@ -25,6 +25,7 @@ type backlogItem struct {
 	AcceptanceAllow    []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny     []string `json:"acceptance_deny,omitempty"`
 	ArchivedAt         *string  `json:"archived_at,omitempty"`
+	SuggestedSkills    []string `json:"suggested_skills,omitempty"`
 }
 
 func (s *Service) loadBacklogItem(kind, name string) (backlogItem, error) {

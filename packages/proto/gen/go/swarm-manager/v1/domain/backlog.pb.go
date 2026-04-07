@@ -67,10 +67,14 @@ type BacklogItem struct {
 	// Archiving is orthogonal to status — items retain their terminal status when archived.
 	// @format rfc3339
 	ArchivedAt *string `protobuf:"bytes,19,opt,name=archived_at,json=archivedAt,proto3,oneof" json:"archived_at,omitempty"`
-	// Raw JSON string containing the plan validation report.
+	// Raw JSON string containing the plan validation report (PlanValidationResult).
+	// Ephemeral data — regenerated on read when plan.md is newer than the report.
 	PlanValidationJson *string `protobuf:"bytes,20,opt,name=plan_validation_json,json=planValidationJson,proto3,oneof" json:"plan_validation_json,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Skill IDs recommended by the creating agent. Workshop and execution agents
+	// should read these skills before proceeding.
+	SuggestedSkills []string `protobuf:"bytes,21,rep,name=suggested_skills,json=suggestedSkills,proto3" json:"suggested_skills,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *BacklogItem) Reset() {
@@ -227,6 +231,13 @@ func (x *BacklogItem) GetPlanValidationJson() string {
 		return *x.PlanValidationJson
 	}
 	return ""
+}
+
+func (x *BacklogItem) GetSuggestedSkills() []string {
+	if x != nil {
+		return x.SuggestedSkills
+	}
+	return nil
 }
 
 // BacklogFile represents a file or directory within a backlog item folder.
@@ -587,7 +598,7 @@ var File_swarm_manager_v1_domain_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\n" +
-	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\x9e\x06\n" +
+	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\x99\a\n" +
 	"\vBacklogItem\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
@@ -610,12 +621,15 @@ const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\fspawned_from\x18\x11 \x01(\tH\x02R\vspawnedFrom\x88\x01\x01\x12\x17\n" +
 	"\x04note\x18\x12 \x01(\tH\x03R\x04note\x88\x01\x01\x12$\n" +
 	"\varchived_at\x18\x13 \x01(\tH\x04R\n" +
-	"archivedAt\x88\x01\x01B\r\n" +
+	"archivedAt\x88\x01\x01\x125\n" +
+	"\x14plan_validation_json\x18\x14 \x01(\tH\x05R\x12planValidationJson\x88\x01\x01\x12)\n" +
+	"\x10suggested_skills\x18\x15 \x03(\tR\x0fsuggestedSkillsB\r\n" +
 	"\v_initiativeB\t\n" +
 	"\a_effortB\x0f\n" +
 	"\r_spawned_fromB\a\n" +
 	"\x05_noteB\x0e\n" +
-	"\f_archived_atJ\x04\b\n" +
+	"\f_archived_atB\x17\n" +
+	"\x15_plan_validation_jsonJ\x04\b\n" +
 	"\x10\vJ\x04\b\x0e\x10\x0f\"\xd9\x01\n" +
 	"\vBacklogFile\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1b\n" +

@@ -73,6 +73,7 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 		DeliverablePath:    deliverablePath,
 		DeliverableContent: deliverableContent,
 		IdeaHandoff:        ideaHandoff,
+		SuggestedSkills:    item.SuggestedSkills,
 	})
 	record.PromptTrace = &PromptTrace{
 		Purpose:        "process",

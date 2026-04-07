@@ -204,6 +204,13 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
 
    When the item kind matches a row above, embed that skill in plan.md's Required Reading **in addition to** whatever discovery finds. This is not optional — it ensures operational knowledge is always available to the executing agent.
 
+   **Suggested skills from the item creator:**
+   {{#if SUGGESTED_SKILLS}}
+   This item includes suggested skills from the agent that created it: `{{SUGGESTED_SKILLS}}`
+   Read these skills before proceeding: `prompt-manager skill read {{SUGGESTED_SKILLS}}`
+   These are **additive** — include them in plan.md's Required Reading alongside kind-specific required skills AND whatever plan-skill-discovery finds. Do NOT skip discovery just because suggested skills exist. The suggested skills provide domain context from the creating agent; discovery finds additional relevant skills the creator may not have considered.
+   {{/if}}
+
    **On round 1 (full discovery):**
    a. Classify the work using the item's kind, title, description, and tags
    b. Decompose into 2-5 focused concepts. For example, for a fix item titled "SQLite migration fails on large tables":

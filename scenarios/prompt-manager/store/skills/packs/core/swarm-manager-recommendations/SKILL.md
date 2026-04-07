@@ -11,7 +11,6 @@ This skill is mandatory for teams that produce recommendations/findings for exec
 
 - Scenario Feature Team -> `idea` or `execute`
 - Scenario QA Team -> `fix` or `execute`
-- Scenario Refactor Team -> `execute` or `fix`
 
 Do not directly edit target-scenario code as part of this workflow.
 

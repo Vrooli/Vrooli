@@ -13,5 +13,5 @@
 
 ## Coordination Points
 - Receive audit requests from director-swarm.
-- Refer bugs to debug team, code smells to refactor team.
+- Create `fix` backlog items in swarm-manager for bugs, `execute` items for code smells.
 - Share quality patterns with meta-optimization.

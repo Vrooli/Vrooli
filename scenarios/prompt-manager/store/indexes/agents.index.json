@@ -7,16 +7,6 @@
       "status": "active"
     },
     {
-      "id": "code-auditor",
-      "displayName": "Code Auditor",
-      "status": "active"
-    },
-    {
-      "id": "complexity-analyst",
-      "displayName": "Complexity Analyst",
-      "status": "active"
-    },
-    {
       "id": "content-creator",
       "displayName": "Content Creator",
       "status": "active"
@@ -34,11 +24,6 @@
     {
       "id": "director",
       "displayName": "Director",
-      "status": "active"
-    },
-    {
-      "id": "doc-reviewer",
-      "displayName": "Doc Reviewer",
       "status": "active"
     },
     {
@@ -107,18 +92,8 @@
       "status": "active"
     },
     {
-      "id": "refactor-engineer",
-      "displayName": "Refactor Engineer",
-      "status": "active"
-    },
-    {
-      "id": "refactor-lead",
-      "displayName": "Refactor Lead",
-      "status": "active"
-    },
-    {
-      "id": "regression-guard",
-      "displayName": "Regression Guard",
+      "id": "quality-auditor",
+      "displayName": "Quality Auditor",
       "status": "active"
     },
     {
@@ -141,10 +116,5 @@
       "displayName": "Team Optimizer",
       "status": "active"
     },
-    {
-      "id": "test-strategist",
-      "displayName": "Test Strategist",
-      "status": "active"
-    }
   ]
 }

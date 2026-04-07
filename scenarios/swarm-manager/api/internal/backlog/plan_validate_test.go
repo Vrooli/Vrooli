@@ -349,6 +349,116 @@ func TestFormatGapReport_Passed(t *testing.T) {
 	}
 }
 
+func TestValidateSuggestedSkills(t *testing.T) {
+	tests := []struct {
+		name            string
+		planContent     string
+		suggestedSkills []string
+		wantCount       int
+	}{
+		{
+			name:            "nil skills returns no warnings",
+			planContent:     "some plan content",
+			suggestedSkills: nil,
+			wantCount:       0,
+		},
+		{
+			name:            "empty skills returns no warnings",
+			planContent:     "some plan content",
+			suggestedSkills: []string{},
+			wantCount:       0,
+		},
+		{
+			name:            "skill present in plan",
+			planContent:     "## Required Reading\nprompt-manager skill read scientific-debugging\n",
+			suggestedSkills: []string{"scientific-debugging"},
+			wantCount:       0,
+		},
+		{
+			name:            "skill missing from plan",
+			planContent:     "## Required Reading\nprompt-manager skill read other-skill\n",
+			suggestedSkills: []string{"scientific-debugging"},
+			wantCount:       1,
+		},
+		{
+			name:            "multiple skills all present",
+			planContent:     "prompt-manager skill read refactor screaming-architecture-audit\n",
+			suggestedSkills: []string{"refactor", "screaming-architecture-audit"},
+			wantCount:       0,
+		},
+		{
+			name:            "one present one missing",
+			planContent:     "prompt-manager skill read refactor\n",
+			suggestedSkills: []string{"refactor", "screaming-architecture-audit"},
+			wantCount:       1,
+		},
+		{
+			name:            "case insensitive match",
+			planContent:     "prompt-manager skill read Scientific-Debugging\n",
+			suggestedSkills: []string{"scientific-debugging"},
+			wantCount:       0,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			warnings := ValidateSuggestedSkills(tt.planContent, tt.suggestedSkills)
+			if len(warnings) != tt.wantCount {
+				t.Errorf("ValidateSuggestedSkills() returned %d warnings, want %d: %v", len(warnings), tt.wantCount, warnings)
+			}
+		})
+	}
+}
+
+func TestLoadOrRefreshValidationReport_SuggestedSkills(t *testing.T) {
+	dir := t.TempDir()
+
+	// Write plan.md that references "refactor" but not "screaming-architecture-audit"
+	plan := completePlanBase()
+	plan = strings.ReplaceAll(plan, "prompt-manager skill read implementation-plan-authoring",
+		"prompt-manager skill read implementation-plan-authoring refactor")
+	if err := os.WriteFile(filepath.Join(dir, "plan.md"), []byte(plan), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write spec.json with suggested_skills
+	spec := map[string]any{
+		"name":             "test-item",
+		"title":            "Test",
+		"description":      "Test",
+		"status":           "ready",
+		"priority":         5,
+		"tags":             []string{},
+		"created":          "2026-04-07T00:00:00Z",
+		"updated":          "2026-04-07T00:00:00Z",
+		"kind":             "execute",
+		"suggested_skills": []string{"refactor", "screaming-architecture-audit"},
+	}
+	specData, _ := json.MarshalIndent(spec, "", "  ")
+	if err := os.WriteFile(filepath.Join(dir, "spec.json"), specData, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := LoadOrRefreshValidationReport(dir, KindExecute)
+	if err != nil {
+		t.Fatalf("LoadOrRefreshValidationReport: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	// Should have a warning about screaming-architecture-audit being missing
+	found := false
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "screaming-architecture-audit") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected warning about missing screaming-architecture-audit, got warnings: %v", result.Warnings)
+	}
+}
+
 // --- helpers ---
 
 // completePlanBase returns a valid plan with all 13 sections and required elements.

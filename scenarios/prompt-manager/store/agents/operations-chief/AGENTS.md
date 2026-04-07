@@ -19,7 +19,7 @@
 ## Team Deployment Patterns
 - **Bug reported**: Create a `fix` backlog item in swarm-manager.
 - **Quality concern**: Recommend scenario-qa team if approved.
-- **Code debt**: Recommend scenario-refactor team if approved.
+- **Code debt**: Create an `execute` backlog item in swarm-manager.
 - **New capability needed**: Recommend scenario-feature team if approved.
 - **Marketing opportunity**: Recommend marketing-crew if approved.
 - **Revenue question**: Recommend revenue-research team if approved.

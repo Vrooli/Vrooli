@@ -6,22 +6,12 @@
     {
       "id": "lead",
       "name": "Lead",
-      "description": "Orchestrates quality assessment, prioritizes areas, synthesizes findings."
+      "description": "Runs GCT-driven reviews and creates backlog items for quality issues."
     },
     {
       "id": "auditor",
-      "name": "Auditor",
-      "description": "Reviews code for anti-patterns, security issues, and architecture violations."
-    },
-    {
-      "id": "tester",
-      "name": "Tester",
-      "description": "Assesses test coverage and recommends testing improvements."
-    },
-    {
-      "id": "reviewer",
-      "name": "Reviewer",
-      "description": "Audits documentation health and bidirectional traceability."
+      "name": "Deep Auditor",
+      "description": "Investigates scenarios through steer-skill lenses for structural quality findings."
     }
   ]
 }

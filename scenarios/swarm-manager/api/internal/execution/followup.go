@@ -70,6 +70,7 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 		DeliverableContent: workshop.LoadPlanContentByName(itemDir, deliverablePath),
 		ReviewFeedback:     buildFinalizationFeedback(effectiveFinalization(*record)),
 		IdeaHandoff:        ideaHandoff,
+		SuggestedSkills:    item.SuggestedSkills,
 	})
 
 	fixupRecord := Record{
@@ -229,6 +230,7 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 		ReviewFeedback:     buildFinalizationFeedback(effectiveFinalization(*parent)),
 		FollowUpNote:       strings.TrimSpace(req.Context),
 		IdeaHandoff:        ideaHandoff,
+		SuggestedSkills:    item.SuggestedSkills,
 	})
 
 	now := nowRFC3339()

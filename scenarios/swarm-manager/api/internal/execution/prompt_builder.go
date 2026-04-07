@@ -21,6 +21,7 @@ type executionPromptParams struct {
 	ReviewFeedback     string // review summary for fixup runs
 	FollowUpNote       string // user-provided context for follow-up/custom runs
 	IdeaHandoff        *handoff.Package
+	SuggestedSkills    []string
 }
 
 func buildProcessingTitle(item backlogItem) string {
@@ -57,6 +58,16 @@ func buildExecutionPrompt(p executionPromptParams) string {
 	b.WriteString(fmt.Sprintf("Item folder: %s\n", p.ItemFolder))
 	b.WriteString(fmt.Sprintf("Run type: %s\n", p.RunType))
 	b.WriteString("</execution-context>\n")
+
+	// Suggested skills — recommended by the creating agent.
+	if len(p.SuggestedSkills) > 0 {
+		b.WriteString("\n<suggested-skills>\n")
+		b.WriteString("Before executing, read these skills for required context:\n")
+		for _, skill := range p.SuggestedSkills {
+			b.WriteString(fmt.Sprintf("  prompt-manager skill read %s\n", skill))
+		}
+		b.WriteString("</suggested-skills>\n")
+	}
 
 	// Review feedback — only for fixup runs.
 	if strings.TrimSpace(p.ReviewFeedback) != "" {

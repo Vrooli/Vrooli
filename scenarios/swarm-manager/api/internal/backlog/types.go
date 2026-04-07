@@ -65,6 +65,7 @@ type BacklogItem struct {
 	AcceptanceDeny  []string             `json:"acceptance_deny,omitempty"`
 	SpawnedFrom     string               `json:"spawned_from,omitempty"`
 	Note            string               `json:"note,omitempty"`
+	SuggestedSkills []string             `json:"suggested_skills,omitempty"`
 	CreatedBy       *identity.Provenance `json:"created_by,omitempty"`
 	ArchivedAt      *string              `json:"archived_at,omitempty"`
 }
@@ -214,6 +215,9 @@ func backlogToProto(item BacklogItem) *domainpb.BacklogItem {
 	}
 	if strings.TrimSpace(item.Note) != "" {
 		result.Note = &item.Note
+	}
+	if len(item.SuggestedSkills) > 0 {
+		result.SuggestedSkills = item.SuggestedSkills
 	}
 	if item.ArchivedAt != nil {
 		result.ArchivedAt = item.ArchivedAt

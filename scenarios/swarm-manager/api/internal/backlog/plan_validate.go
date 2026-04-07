@@ -167,6 +167,23 @@ func ValidatePlanCompleteness(planContent string, kind BacklogKind) PlanValidati
 	}
 }
 
+// ValidateSuggestedSkills checks that each suggested skill appears in the plan
+// content (typically within a `prompt-manager skill read` command). Returns
+// warnings for any missing skills.
+func ValidateSuggestedSkills(planContent string, suggestedSkills []string) []string {
+	if len(suggestedSkills) == 0 {
+		return nil
+	}
+	lower := strings.ToLower(planContent)
+	var warnings []string
+	for _, skill := range suggestedSkills {
+		if !strings.Contains(lower, strings.ToLower(skill)) {
+			warnings = append(warnings, fmt.Sprintf("Suggested skill %q not found in plan Required Reading", skill))
+		}
+	}
+	return warnings
+}
+
 // WriteValidationReport writes a PlanValidationResult as validation-report.json
 // to the item directory.
 func WriteValidationReport(itemDir string, result PlanValidationResult) error {
@@ -222,6 +239,18 @@ func LoadOrRefreshValidationReport(itemDir string, kind BacklogKind) (*PlanValid
 	// Stale or missing report — re-validate.
 	content := LoadPlanContentByName(itemDir, deliverable)
 	result := ValidatePlanCompleteness(content, kind)
+
+	// Check suggested_skills from spec.json, if present.
+	specPath := filepath.Join(itemDir, "spec.json")
+	if specData, readErr := os.ReadFile(specPath); readErr == nil {
+		var spec struct {
+			SuggestedSkills []string `json:"suggested_skills"`
+		}
+		if json.Unmarshal(specData, &spec) == nil {
+			result.Warnings = append(result.Warnings, ValidateSuggestedSkills(content, spec.SuggestedSkills)...)
+		}
+	}
+
 	if writeErr := WriteValidationReport(itemDir, result); writeErr != nil {
 		return &result, writeErr
 	}

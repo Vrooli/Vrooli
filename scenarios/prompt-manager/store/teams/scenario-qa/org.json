@@ -5,15 +5,7 @@
   "edges": [
     {
       "managerAgentId": "qa-lead",
-      "reportAgentId": "code-auditor"
-    },
-    {
-      "managerAgentId": "qa-lead",
-      "reportAgentId": "test-strategist"
-    },
-    {
-      "managerAgentId": "qa-lead",
-      "reportAgentId": "doc-reviewer"
+      "reportAgentId": "quality-auditor"
     }
   ]
 }

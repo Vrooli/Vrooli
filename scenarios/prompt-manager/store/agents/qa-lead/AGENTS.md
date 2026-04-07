@@ -7,19 +7,17 @@
 - Identify the target scenario for assessment.
 
 ## Workflow
-1. **Select scope** — Which scenario, which quality dimensions.
-2. **Assign auditors** — code-auditor for architecture/security, test-strategist for coverage, doc-reviewer for documentation.
-3. **Collect findings** — Gather reports from all auditors.
-4. **Synthesize** — Merge findings into a unified quality report with severity ratings.
-5. **Recommend** — Prioritize issues, recommend which team should address each.
-6. **Deliver** — Present quality report to director-swarm or requesting team.
+1. **Select scope** — Get priority scenarios from review-queue.
+2. **Run GCT reviews** — Run git-control-tower review for each scenario.
+3. **Create backlog items** — Create fix/execute items for failing dimensions, grouped by category when violations are large.
+4. **Wire dependencies** — Update depends_on on related backlog items.
+5. **Log findings** — Record reviewed scenarios and created items in knowledge log.
 
 ## Skills
 - `prompt-manager skill read progress` — Priority ordering for audit findings.
 - `prompt-manager skill read screaming-architecture-audit` — Architecture assessment.
 
 ## Coordination
-- Assign specific audit scopes to code-auditor, test-strategist, doc-reviewer.
-- Synthesize findings into quality reports for director-swarm.
-- Create `fix` backlog items in swarm-manager for bugs. Refer code smells to scenario-refactor team.
+- Synthesize GCT findings into backlog items for director-swarm.
+- Create `fix` backlog items in swarm-manager for bugs. Create `execute` items for code smells.
 - Share quality patterns with meta-optimization for improving audit skills.

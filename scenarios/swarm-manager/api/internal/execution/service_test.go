@@ -1256,6 +1256,44 @@ func TestBuildExecutionPrompt_NoTitle(t *testing.T) {
 	}
 }
 
+func TestBuildExecutionPrompt_SuggestedSkills(t *testing.T) {
+	prompt := buildExecutionPrompt(executionPromptParams{
+		Kind:               "execute",
+		Name:               "refactor-api",
+		Title:              "Refactor API",
+		ItemFolder:         "/tmp/execute/refactor-api",
+		RunType:            "process",
+		DeliverablePath:    "plan.md",
+		DeliverableContent: "# Plan\nRefactor.",
+		SuggestedSkills:    []string{"refactor", "screaming-architecture-audit"},
+	})
+
+	if !strings.Contains(prompt, "<suggested-skills>") || !strings.Contains(prompt, "</suggested-skills>") {
+		t.Error("missing suggested-skills tags")
+	}
+	if !strings.Contains(prompt, "prompt-manager skill read refactor") {
+		t.Error("missing refactor skill in suggested-skills")
+	}
+	if !strings.Contains(prompt, "prompt-manager skill read screaming-architecture-audit") {
+		t.Error("missing screaming-architecture-audit skill in suggested-skills")
+	}
+}
+
+func TestBuildExecutionPrompt_NoSuggestedSkills(t *testing.T) {
+	prompt := buildExecutionPrompt(executionPromptParams{
+		Kind:               "fix",
+		Name:               "bug-fix",
+		ItemFolder:         "/tmp/fix/bug-fix",
+		RunType:            "process",
+		DeliverablePath:    "plan.md",
+		DeliverableContent: "fix it",
+	})
+
+	if strings.Contains(prompt, "<suggested-skills>") {
+		t.Error("should not include suggested-skills when none provided")
+	}
+}
+
 func TestBuildFinalizationFeedback_NilResult(t *testing.T) {
 	if got := buildFinalizationFeedback(nil); got != "" {
 		t.Errorf("expected empty string for nil result, got %q", got)

@@ -19,10 +19,9 @@ Each dimension is rated:
 - **F** — Failing. Fundamental problems requiring immediate action.
 
 ## Audit Workflow
-1. qa-lead selects scenario and scopes the audit.
-2. code-auditor, test-strategist, doc-reviewer work in parallel.
-3. qa-lead synthesizes findings into unified quality report and Swarm Manager backlog items.
-4. Report is delivered to director-swarm with prioritized recommendations.
+1. **qa-lead** (every 6h): Runs GCT reviews on priority scenarios, creates fix/execute backlog items for failing dimensions, wires depends_on on related items.
+2. **quality-auditor** (daily): Picks a scenario + steer skill, investigates structural quality, creates execute backlog items with draft plans and suggested skills.
+3. All findings become Swarm Manager backlog items — the team never modifies target scenario code directly.
 
 ## Swarm Manager Contract (Mandatory)
 - Use the shared `swarm-manager-recommendations` skill for all QA handoffs.
@@ -31,7 +30,7 @@ Each dimension is rated:
 
 ## Cross-Team Coordination
 - Bugs discovered during code audits become `fix` backlog items in swarm-manager.
-- **Refactor Team** receives code smell findings for cleanup.
+- Code smell findings become `execute` backlog items in swarm-manager for structural improvements.
 - **Feature Team** receives quality gates for new features.
 - **Marketing Crew** can reference quality improvements in content.
 - **Meta Optimization** receives feedback on audit skill effectiveness.

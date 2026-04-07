@@ -32,7 +32,7 @@ Generate authentic marketing content that communicates Vrooli progress, vision, 
 ## Cross-Team Data Sources
 - **Feature Team** — Completed features for announcements.
 - **Swarm Manager fix items** — Interesting debugging stories.
-- **Refactor Team** — Major code quality improvements.
+- **Swarm Manager execute items** — Major code quality improvements.
 - **Director Swarm** — Strategic messaging and priorities.
 - **Revenue Research** — Market positioning insights.
 

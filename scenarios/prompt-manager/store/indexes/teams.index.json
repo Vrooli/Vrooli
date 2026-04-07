@@ -29,12 +29,7 @@
     {
       "id": "scenario-qa",
       "displayName": "Scenario QA Team",
-      "memberCount": 4
+      "memberCount": 2
     },
-    {
-      "id": "scenario-refactor",
-      "displayName": "Scenario Refactor Team",
-      "memberCount": 4
-    }
   ]
 }

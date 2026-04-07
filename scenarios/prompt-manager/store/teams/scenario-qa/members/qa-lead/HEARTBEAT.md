@@ -28,6 +28,13 @@ For each scenario with red or yellow readiness:
 - Set priority based on readiness: red=2, yellow=4
 - Set acceptance_allow to `["scenarios/<scenario>/**"]`
 
+#### Splitting Large Findings
+When a GCT dimension has many violations:
+- If ≤5 violations in a dimension: create one backlog item for that dimension
+- If >5 violations: group by category (e.g., lint_issues, complex_functions, tech_debt_markers, missing_tests) and create one item per category with significant violations
+- Each item should target roughly 5-10 files to keep work achievable in one focused session
+- Name pattern for split items: `qa-<scenario>-<dimension>-<category>-YYYYMMDD`
+
 ### Step 3.5: Wire Dependencies on Related Backlog Items
 For each fix/chore item created in Step 3:
 1. Query existing non-terminal backlog items targeting the same scenario:
@@ -44,14 +51,24 @@ For each fix/chore item created in Step 3:
 4. Log each wired dependency:
    `[YYYY-MM-DD] Wired depends_on: <target-kind>/<target-name> → <fix-kind>/<fix-name>`
 
+### Step 3.75: Create Execute Items for Code Quality Improvements
+For each scenario where GCT review returns a codeQuality dimension with score below 70:
+1. Create an `execute` backlog item via `swarm-manager backlog create`
+2. Name pattern: `qa-<scenario>-code-quality-YYYYMMDD`
+3. Set `suggested_skills` to `["refactor"]`
+4. Include GCT code quality breakdown as evidence (categories + violation counts)
+5. Set tags: `["preemptive-qa", "<scenario-name>", "code-quality"]`
+6. Set priority based on score: <40 → priority 2, 40-60 → priority 4, 60-70 → priority 6
+7. Set acceptance_allow to `["scenarios/<scenario>/**"]`
+8. Apply the same depends_on wiring from Step 3.5 to these items
+
 ### Step 4: Track & Coordinate
 - Record each reviewed scenario in the knowledge log:
   `[YYYY-MM-DD] Reviewed <scenario>: <readiness> (code_quality: X, tests: Y, standards: Z)`
-- Record any created fix items:
+- Record any created fix/execute items:
   `[YYYY-MM-DD] Created <kind>/<name> for <scenario>`
 - If a scenario has critical (red) failures across 2+ dimensions, set fix item
   priority to 1 (critical) so it is workshopped and executed promptly
-- If test failures look like regressions, message test-strategist for analysis
 
 ## Fallback
 - Review any pending audit requests from team inbox
