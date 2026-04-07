@@ -87,6 +87,16 @@ export interface SpatialNavController {
   enterSpatialMode(): void;
   /** Manually exit spatial mode (normally auto-detected via mouse). */
   exitSpatialMode(): void;
+  /**
+   * Push a modal scope — constrains all spatial navigation to within
+   * `element` (e.g., a dialog).  Auto-focuses the first focusable child.
+   * Supports nesting (dialog opens dialog).
+   */
+  pushScope(element: HTMLElement): void;
+  /**
+   * Pop the current modal scope, restoring the previous one (or root).
+   */
+  popScope(): void;
 }
 
 // ---------------------------------------------------------------------------
@@ -216,6 +226,12 @@ export function initSpatialNav(options?: SpatialNavBridgeOptions): SpatialNavCon
     },
     exitSpatialMode() {
       spatialNav.exitSpatialMode();
+    },
+    pushScope(element) {
+      spatialNav.pushScope(element);
+    },
+    popScope() {
+      spatialNav.popScope();
     },
   };
 }

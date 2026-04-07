@@ -20,7 +20,7 @@ import { injectSpatialStyles, removeSpatialStyles } from './spatialNavStyles.js'
 // ---------------------------------------------------------------------------
 
 export type Direction = 'up' | 'down' | 'left' | 'right';
-export type FocusGroupMode = 'spatial' | 'passthrough' | 'grid';
+export type FocusGroupMode = 'spatial' | 'passthrough' | 'grid' | 'modal';
 
 export interface FocusGroupOptions {
   /**
@@ -183,6 +183,11 @@ export class SpatialNavManager {
   private styleElement: HTMLStyleElement | null = null;
   /** Guard to prevent onNativeFocus from interfering during programmatic focus. */
   private focusingProgrammatically = false;
+  /**
+   * Modal scope stack.  When non-empty, spatial navigation is constrained to
+   * the top element (e.g., a dialog).  Supports nesting (dialog opens dialog).
+   */
+  private scopeStack: HTMLElement[] = [];
 
   // Bound listeners
   private readonly onMouseMove: () => void;
@@ -374,6 +379,41 @@ export class SpatialNavManager {
   }
 
   // -----------------------------------------------------------------------
+  // Modal scope management
+  // -----------------------------------------------------------------------
+
+  /**
+   * Push a modal scope — all spatial navigation is constrained to within
+   * `element` until `popScope()` is called.  Supports nesting.
+   * Automatically focuses the first focusable element inside the scope.
+   */
+  pushScope(element: HTMLElement): void {
+    this.scopeStack.push(element);
+
+    // Focus the first focusable element inside the new scope.
+    if (this.active) {
+      const candidates = this.getFocusableElements(element);
+      if (candidates.length > 0) {
+        this.focusElement(candidates[0]);
+      }
+    }
+  }
+
+  /**
+   * Pop the current modal scope, restoring the previous one (or root).
+   */
+  popScope(): void {
+    this.scopeStack.pop();
+  }
+
+  /**
+   * The currently active scope element, or `undefined` if no modal scope.
+   */
+  get activeScope(): HTMLElement | undefined {
+    return this.scopeStack[this.scopeStack.length - 1];
+  }
+
+  // -----------------------------------------------------------------------
   // Cleanup
   // -----------------------------------------------------------------------
 
@@ -492,8 +532,18 @@ export class SpatialNavManager {
   // -----------------------------------------------------------------------
 
   private getFocusableElements(container?: HTMLElement): HTMLElement[] {
-    const root = container ?? this.rootElement;
-    const nodes = root.querySelectorAll<HTMLElement>(this.focusableSelector);
+    // When a modal scope is active, constrain to within it — ignoring
+    // both the provided container and the root element.
+    const scope = this.activeScope;
+    const root = scope ?? container ?? this.rootElement;
+
+    // If a scope is active and a container was requested, only use the
+    // container if it's inside the scope (otherwise we'd escape the modal).
+    const searchRoot = scope && container && scope.contains(container)
+      ? container
+      : root;
+
+    const nodes = searchRoot.querySelectorAll<HTMLElement>(this.focusableSelector);
     const result: HTMLElement[] = [];
 
     for (const node of nodes) {
@@ -674,11 +724,16 @@ export class SpatialNavManager {
 
   /**
    * Find the innermost registered focus group containing the element.
+   * When a modal scope is active, only groups within the scope are considered.
    */
   private findContainingGroup(el: HTMLElement): FocusGroupEntry | null {
+    const scope = this.activeScope;
     let best: FocusGroupEntry | null = null;
 
     for (const group of this.groups) {
+      // Skip groups outside the active modal scope.
+      if (scope && !scope.contains(group.element)) continue;
+
       if (group.element.contains(el)) {
         // Pick the innermost (most deeply nested) group.
         if (!best || best.element.contains(group.element)) {

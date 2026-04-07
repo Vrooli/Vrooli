@@ -858,4 +858,122 @@ describe('SpatialNavManager', () => {
       mgr.dispose();
     });
   });
+
+  describe('modal scope (pushScope / popScope)', () => {
+    it('constrains navigation to within the scoped element', () => {
+      // Page buttons (behind the dialog)
+      const pageBtn = makeButton('page', { top: 100, left: 100, width: 80, height: 40 });
+      root = setupDOM(pageBtn);
+
+      // Dialog (portaled, separate from root)
+      const dialog = document.createElement('div');
+      const dlgBtn1 = makeButton('dlg1', { top: 200, left: 100, width: 80, height: 40 });
+      const dlgBtn2 = makeButton('dlg2', { top: 200, left: 300, width: 80, height: 40 });
+      dialog.append(dlgBtn1, dlgBtn2);
+      document.body.appendChild(dialog);
+
+      const mgr = new SpatialNavManager({
+        rootElement: root,
+        getBoundingClientRect: mockGetRect,
+        injectDefaultFocusStyle: false,
+        isVisible: () => true,
+      });
+
+      mgr.enterSpatialMode();
+      // Without scope, first focusable is pageBtn
+      expect(document.activeElement).toBe(pageBtn);
+
+      // Push dialog scope — should auto-focus first dialog button
+      mgr.pushScope(dialog);
+      expect(document.activeElement).toBe(dlgBtn1);
+
+      // Navigate right — stays within dialog
+      mgr.moveFocus('right');
+      expect(document.activeElement).toBe(dlgBtn2);
+
+      // Navigate right again — no candidate in dialog, should NOT jump to pageBtn
+      const moved = mgr.moveFocus('right');
+      expect(moved).toBe(false);
+      expect(document.activeElement).toBe(dlgBtn2);
+
+      mgr.dispose();
+      dialog.remove();
+    });
+
+    it('popScope restores navigation to the full page', () => {
+      const a = makeButton('a', { top: 100, left: 100, width: 80, height: 40 });
+      const b = makeButton('b', { top: 100, left: 300, width: 80, height: 40 });
+      root = setupDOM(a, b);
+
+      const dialog = document.createElement('div');
+      const dlgBtn = makeButton('dlg', { top: 200, left: 100, width: 80, height: 40 });
+      dialog.appendChild(dlgBtn);
+      document.body.appendChild(dialog);
+
+      const mgr = new SpatialNavManager({
+        rootElement: root,
+        getBoundingClientRect: mockGetRect,
+        injectDefaultFocusStyle: false,
+        isVisible: () => true,
+      });
+
+      mgr.enterSpatialMode();
+      mgr.pushScope(dialog);
+      expect(document.activeElement).toBe(dlgBtn);
+
+      mgr.popScope();
+      // After pop, navigation should work across the full page again
+      // Focus is still on dlgBtn, but moveFocus should find candidates in root
+      mgr.moveFocus('right');
+      // dlgBtn is at left:100, b is at left:300 — b is to the right
+      expect(document.activeElement).toBe(b);
+
+      mgr.dispose();
+      dialog.remove();
+    });
+
+    it('supports nested scopes (dialog within dialog)', () => {
+      root = setupDOM(makeButton('page', { top: 0, left: 0, width: 80, height: 40 }));
+
+      const dialog1 = document.createElement('div');
+      const d1btn1 = makeButton('d1a', { top: 100, left: 100, width: 80, height: 40 });
+      const d1btn2 = makeButton('d1b', { top: 100, left: 300, width: 80, height: 40 });
+      dialog1.append(d1btn1, d1btn2);
+      document.body.appendChild(dialog1);
+
+      const dialog2 = document.createElement('div');
+      const d2btn = makeButton('d2', { top: 200, left: 200, width: 80, height: 40 });
+      dialog2.appendChild(d2btn);
+      document.body.appendChild(dialog2);
+
+      const mgr = new SpatialNavManager({
+        rootElement: root,
+        getBoundingClientRect: mockGetRect,
+        injectDefaultFocusStyle: false,
+        isVisible: () => true,
+      });
+
+      mgr.enterSpatialMode();
+      mgr.pushScope(dialog1);
+      expect(document.activeElement).toBe(d1btn1);
+
+      mgr.pushScope(dialog2);
+      expect(document.activeElement).toBe(d2btn);
+
+      // While in inner scope, can't reach dialog1 buttons
+      const moved = mgr.moveFocus('left');
+      expect(moved).toBe(false);
+      expect(document.activeElement).toBe(d2btn);
+
+      // Pop inner — back to dialog1 scope
+      mgr.popScope();
+      // Now navigation should find dialog1 buttons
+      mgr.moveFocus('right');
+      expect(document.activeElement).toBe(d1btn2);
+
+      mgr.dispose();
+      dialog1.remove();
+      dialog2.remove();
+    });
+  });
 });
