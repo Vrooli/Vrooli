@@ -277,6 +277,72 @@ func TestList_FilterBySpawnedFrom(t *testing.T) {
 	}
 }
 
+func TestList_FilterByScenario(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	createTestItem(t, rootDir, KindExecute, BacklogItem{
+		Name: "sm-task", Title: "SM Task", Status: StatusBacklog, Priority: 5,
+		Tags: []string{}, Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
+		AcceptanceAllow: []string{"scenarios/swarm-manager/**"},
+	})
+	createTestItem(t, rootDir, KindFix, BacklogItem{
+		Name: "tg-fix", Title: "TG Fix", Status: StatusBacklog, Priority: 3,
+		Tags: []string{}, Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
+		AcceptanceAllow: []string{"scenarios/test-genie/**"},
+	})
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name: "no-scope", Title: "No Scope", Status: StatusBacklog, Priority: 7,
+		Tags: []string{}, Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
+	})
+
+	t.Run("single scenario", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/v1/backlog?scenario=swarm-manager", nil)
+		w := httptest.NewRecorder()
+		h.List(w, req)
+		testutil.AssertStatusOK(t, w)
+		resp := testutil.DecodeJSON[backlogListResponse](t, w)
+		if len(resp.Items) != 1 {
+			t.Fatalf("expected 1 item, got %d", len(resp.Items))
+		}
+		if resp.Items[0].Name != "sm-task" {
+			t.Errorf("expected 'sm-task', got %q", resp.Items[0].Name)
+		}
+	})
+
+	t.Run("multiple scenarios", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/v1/backlog?scenario=swarm-manager,test-genie", nil)
+		w := httptest.NewRecorder()
+		h.List(w, req)
+		testutil.AssertStatusOK(t, w)
+		resp := testutil.DecodeJSON[backlogListResponse](t, w)
+		if len(resp.Items) != 2 {
+			t.Fatalf("expected 2 items, got %d", len(resp.Items))
+		}
+	})
+
+	t.Run("no filter", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/v1/backlog", nil)
+		w := httptest.NewRecorder()
+		h.List(w, req)
+		testutil.AssertStatusOK(t, w)
+		resp := testutil.DecodeJSON[backlogListResponse](t, w)
+		if len(resp.Items) != 3 {
+			t.Fatalf("expected 3 items, got %d", len(resp.Items))
+		}
+	})
+
+	t.Run("no match", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/v1/backlog?scenario=nonexistent", nil)
+		w := httptest.NewRecorder()
+		h.List(w, req)
+		testutil.AssertStatusOK(t, w)
+		resp := testutil.DecodeJSON[backlogListResponse](t, w)
+		if len(resp.Items) != 0 {
+			t.Fatalf("expected 0 items, got %d", len(resp.Items))
+		}
+	})
+}
+
 // ---------------------------------------------------------------------------
 // List blocking map tests
 // ---------------------------------------------------------------------------

@@ -23,6 +23,9 @@ import {
   type SpatialNavOptions,
 } from './spatialNav.js';
 import { emitShortcutIntent } from './iframeBridgeChild.js';
+// Activation overlay is available as a standalone export for scenarios that
+// want an explicit "press any button" prompt.  It is NOT wired into
+// initSpatialNav — see `showActivationOverlay` in './activationOverlay.js'.
 
 // ---------------------------------------------------------------------------
 // Re-exports (so consumers only need `@vrooli/iframe-bridge/spatial`)
@@ -42,6 +45,12 @@ export {
   injectSpatialStyles,
   removeSpatialStyles,
 } from './spatialNavStyles.js';
+export {
+  showActivationOverlay,
+  type ActivationOverlayOptions,
+  type ActivationOverlayHandle,
+  type DismissReason,
+} from './activationOverlay.js';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -119,7 +128,14 @@ export function initSpatialNav(options?: SpatialNavBridgeOptions): SpatialNavCon
   });
 
   const handleAction = (action: GamepadAction): void => {
-    // Any gamepad action activates spatial mode.
+    // B/back always navigates back — this is the only guaranteed escape on
+    // console browsers where the virtual cursor may not be available.
+    if (action === 'back') {
+      spatialNav.goBack();
+      return;
+    }
+
+    // Any other gamepad action activates spatial mode.
     if (!spatialNav.isActive()) {
       spatialNav.enterSpatialMode();
     }
@@ -141,9 +157,6 @@ export function initSpatialNav(options?: SpatialNavBridgeOptions): SpatialNavCon
     switch (action) {
       case 'select':
         spatialNav.selectFocused();
-        break;
-      case 'back':
-        spatialNav.goBack();
         break;
       case 'page-next':
         if (!spatialNav.cycleFocusGroup('next') && hostRelay) {

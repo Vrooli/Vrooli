@@ -170,6 +170,26 @@ export class GamepadInputManager {
     }
   }
 
+  /**
+   * Returns `true` if no buttons are pressed and sticks are within dead zone.
+   * Used by the bridge to wait for neutral state before allowing mode re-entry.
+   */
+  isNeutral(): boolean {
+    const gamepads = this.getGamepads();
+    for (const pad of gamepads) {
+      if (!pad || pad.mapping !== 'standard') continue;
+      // Check buttons
+      for (const [idxStr] of Object.entries(BUTTON_ACTION_MAP)) {
+        const btn = pad.buttons[Number(idxStr)];
+        if (btn?.pressed) return false;
+      }
+      // Check left stick
+      const action = axesToAction(pad.axes[0] ?? 0, pad.axes[1] ?? 0, this.deadZone);
+      if (action) return false;
+    }
+    return true;
+  }
+
   /** Stop polling and remove all event listeners. */
   dispose(): void {
     this.stop();

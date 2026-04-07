@@ -28,6 +28,22 @@ For each scenario with red or yellow readiness:
 - Set priority based on readiness: red=2, yellow=4
 - Set acceptance_allow to `["scenarios/<scenario>/**"]`
 
+### Step 3.5: Wire Dependencies on Related Backlog Items
+For each fix/chore item created in Step 3:
+1. Query existing non-terminal backlog items targeting the same scenario:
+   `swarm-manager backlog list --scenario <scenario-name> --status backlog,researching,ready,queued --json`
+2. From the results, exclude:
+   - The fix/chore item itself (same kind/name)
+   - Items tagged `preemptive-qa` (avoids circular dependencies between QA-created items)
+   - Items that already list this fix in their `depends_on`
+3. For each remaining item:
+   a. Read its current `depends_on` array from the JSON response
+   b. Append `<kind>/<fix-item-name>` to produce the merged list
+   c. Update: `swarm-manager backlog update --kind <kind> --name <name> --data '{"depends_on":[<merged-list>]}'`
+   Note: The update API replaces `depends_on` entirely — always merge with existing values.
+4. Log each wired dependency:
+   `[YYYY-MM-DD] Wired depends_on: <target-kind>/<target-name> → <fix-kind>/<fix-name>`
+
 ### Step 4: Track & Coordinate
 - Record each reviewed scenario in the knowledge log:
   `[YYYY-MM-DD] Reviewed <scenario>: <readiness> (code_quality: X, tests: Y, standards: Z)`

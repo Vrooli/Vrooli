@@ -65,22 +65,31 @@ export function GraphWorkspaceHUD({
       className="pointer-events-auto absolute left-3 right-3 top-3 z-20 flex flex-col gap-1.5"
       data-testid="graph-hud"
     >
-      {/* Row 1: Sidebar toggle + Settings/Help/Agents */}
+      {/* Row 1: Sidebar toggle + (lg: LensNav) + Settings/Help/Agents */}
       <div className="flex h-10 items-center justify-between">
-        {/* Left: Sidebar toggle (only when collapsed) */}
-        {sidebarCollapsed ? (
-          <button
-            type="button"
-            onClick={onToggleSidebar}
-            className="rounded-lg border border-slate-700/60 bg-slate-900/80 p-2 text-slate-400 transition-colors hover:bg-slate-800/80 hover:text-slate-200"
-            aria-label="Open sidebar"
-            data-testid="sidebar-toggle-open"
-          >
-            <Menu className="h-4 w-4" />
-          </button>
-        ) : (
-          <div />
-        )}
+        {/* Left: Sidebar toggle + lens nav on large screens */}
+        <div className="flex items-center gap-1.5">
+          {sidebarCollapsed && (
+            <button
+              type="button"
+              onClick={onToggleSidebar}
+              className="rounded-lg border border-slate-700/60 bg-slate-900/80 p-2 text-slate-400 transition-colors hover:bg-slate-800/80 hover:text-slate-200"
+              aria-label="Open sidebar"
+              data-testid="sidebar-toggle-open"
+            >
+              <Menu className="h-4 w-4" />
+            </button>
+          )}
+          {/* Lens nav inline on large screens */}
+          <div className="hidden lg:block">
+            <LensNav
+              activeLens={lens}
+              focusNodeLabel={focusNodeLabel}
+              onLensChange={onLensChange}
+              onReturnToAtlas={onReturnToAtlas}
+            />
+          </div>
+        </div>
 
         {/* Right: Command Post + Stats + Settings + Help + Agents */}
         <div className="flex items-center gap-1.5">
@@ -128,13 +137,15 @@ export function GraphWorkspaceHUD({
         </div>
       </div>
 
-      {/* Row 2: Lens navigation */}
-      <LensNav
-        activeLens={lens}
-        focusNodeLabel={focusNodeLabel}
-        onLensChange={onLensChange}
-        onReturnToAtlas={onReturnToAtlas}
-      />
+      {/* Row 2: Lens navigation (small/medium screens only — inlined into row 1 on lg) */}
+      <div className="lg:hidden">
+        <LensNav
+          activeLens={lens}
+          focusNodeLabel={focusNodeLabel}
+          onLensChange={onLensChange}
+          onReturnToAtlas={onReturnToAtlas}
+        />
+      </div>
 
       {/* Row 3: On-screen pan/zoom for TV and accessibility (toggled via Settings) */}
       {showNavControls && <GraphNavControls />}

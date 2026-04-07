@@ -301,7 +301,6 @@ describe('initSpatialNav (bridge)', () => {
     root.append(a);
 
     const backSpy = vi.spyOn(window.history, 'back').mockImplementation(() => { /* noop */ });
-    // jsdom starts with history.length === 1, but goBack requires > 1
     Object.defineProperty(window.history, 'length', { value: 2, configurable: true });
 
     controller = initSpatialNav({
@@ -314,7 +313,7 @@ describe('initSpatialNav (bridge)', () => {
 
     controller.enterSpatialMode();
 
-    // Press B button (back)
+    // Press B button (back) — should navigate back
     currentGamepad = makeGamepad({ buttons: { 1: { pressed: true, touched: true, value: 1 } } });
     window.dispatchEvent(new Event('gamepadconnected'));
     flushRAF();
@@ -404,4 +403,5 @@ describe('initSpatialNav (bridge)', () => {
     // Should NOT have activated since autoActivate is false
     expect(controller.isActive()).toBe(false);
   });
+
 });

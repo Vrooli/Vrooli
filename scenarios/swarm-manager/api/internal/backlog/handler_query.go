@@ -12,6 +12,7 @@ import (
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/depgraph"
 	"swarm-manager/internal/httputil"
+	"swarm-manager/internal/pathutil"
 )
 
 // List returns all backlog items.
@@ -38,6 +39,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 	items = filterByStatus(items, statusFilter)
 	items = filterByArchived(items, archivedFilter)
+	items = filterByScenario(items, parseScenariosQuery(r))
 
 	if sf := r.URL.Query().Get("spawned_from"); sf != "" {
 		filtered := items[:0]
@@ -211,6 +213,49 @@ func filterByArchived(items []BacklogItem, filter archivedFilter) []BacklogItem 
 			filtered = append(filtered, item)
 		} else if filter == archivedOnly && isArchived {
 			filtered = append(filtered, item)
+		}
+	}
+	return filtered
+}
+
+// parseScenariosQuery reads the "scenario" (or "scenarios") query parameter.
+// Returns nil when no filter is specified.
+func parseScenariosQuery(r *http.Request) []string {
+	query := r.URL.Query()
+	raw := strings.TrimSpace(query.Get("scenario"))
+	if raw == "" {
+		raw = strings.TrimSpace(query.Get("scenarios"))
+	}
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		s := strings.TrimSpace(p)
+		if s != "" {
+			result = append(result, s)
+		}
+	}
+	return result
+}
+
+// filterByScenario keeps items whose AcceptanceAllow targets at least one of the given scenarios.
+func filterByScenario(items []BacklogItem, scenarios []string) []BacklogItem {
+	if len(scenarios) == 0 {
+		return items
+	}
+	allow := make(map[string]bool, len(scenarios))
+	for _, s := range scenarios {
+		allow[s] = true
+	}
+	filtered := make([]BacklogItem, 0, len(items))
+	for _, item := range items {
+		for _, s := range pathutil.ScenariosFromGlobs(item.AcceptanceAllow) {
+			if allow[s] {
+				filtered = append(filtered, item)
+				break
+			}
 		}
 	}
 	return filtered

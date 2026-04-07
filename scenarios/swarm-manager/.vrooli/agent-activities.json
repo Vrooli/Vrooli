@@ -3347,5 +3347,51 @@
       "skill_id": "swarm-manager-workshop"
     },
     "updated_at": "2026-04-07T13:27:24Z"
+  },
+  {
+    "activity_id": "1da5adf3a4044b57",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "workshop-finalization-validation-gates",
+    "owner_title": "Add Pre And Post Finalization Validation Gates For Plan Quality",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "3533ad6c-a5f2-467f-acae-2ac766b6f5d5",
+    "run_id": "f8f264fd-9ab4-4cf8-bab8-deb032d7f836",
+    "status": "failed",
+    "requested_at": "2026-04-07T16:00:51Z",
+    "started_at": "2026-04-07T16:00:51Z",
+    "finished_at": "2026-04-07T16:18:50Z",
+    "failure_reason": "process terminated unexpectedly (detected by reconciler after 16m59s without heartbeat, tag=swarm-manager:backlog:execute:workshop-finalization-validation-gates:research)",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-07T16:24:53Z"
+  },
+  {
+    "activity_id": "26f4fe5ce87404b6",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "workshop-finalization-validation-gates",
+    "owner_title": "Add Pre And Post Finalization Validation Gates For Plan Quality",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "c03b89d7-8115-4749-924b-19145cd7f5c6",
+    "run_id": "1cd2f080-2485-4e98-b913-f08543170e3c",
+    "status": "failed",
+    "requested_at": "2026-04-07T16:25:34Z",
+    "started_at": "2026-04-07T16:25:34Z",
+    "finished_at": "2026-04-07T16:46:15Z",
+    "failure_reason": "process terminated unexpectedly (detected by reconciler after 16m40s without heartbeat, tag=swarm-manager:backlog:execute:workshop-finalization-validation-gates:research)",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-07T16:46:16Z"
   }
 ]

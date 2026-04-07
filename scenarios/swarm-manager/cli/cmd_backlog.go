@@ -21,6 +21,7 @@ func (a *App) cmdBacklogList(args []string) error {
 	kindFlag := fs.String("kind", "", "Comma-separated kinds to filter by")
 	statusFlag := fs.String("status", "", "Comma-separated statuses to filter by")
 	archivedFlag := fs.String("archived", "false", "Show archived items: true, false (default), or all")
+	scenarioFlag := fs.String("scenario", "", "Comma-separated scenario names to filter by")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -35,6 +36,9 @@ func (a *App) cmdBacklogList(args []string) error {
 	}
 	if strings.TrimSpace(*archivedFlag) != "" {
 		query.Set("archived", strings.TrimSpace(*archivedFlag))
+	}
+	if strings.TrimSpace(*scenarioFlag) != "" {
+		query.Set("scenario", strings.TrimSpace(*scenarioFlag))
 	}
 
 	body, err := a.getV1("/backlog", query)
@@ -66,6 +70,9 @@ func (a *App) cmdBacklogList(args []string) error {
 	}
 	if statuses := strings.TrimSpace(query.Get("statuses")); statuses != "" {
 		fmt.Printf("  Filtered statuses: %s\n", statuses)
+	}
+	if scenario := strings.TrimSpace(query.Get("scenario")); scenario != "" {
+		fmt.Printf("  Filtered scenarios: %s\n", scenario)
 	}
 
 	printSection("Results")

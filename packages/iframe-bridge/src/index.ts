@@ -42,4 +42,8 @@ export {
   type FocusGroupMode,
   type FocusGroupOptions,
   type SpatialNavOptions,
+  showActivationOverlay,
+  type ActivationOverlayOptions,
+  type ActivationOverlayHandle,
+  type DismissReason,
 } from './spatialNavBridge.js';
