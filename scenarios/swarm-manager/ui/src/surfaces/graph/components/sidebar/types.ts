@@ -45,12 +45,15 @@ export const DEFAULT_SORT: Record<SidebarTab, SortConfig> = {
 // Filter Definitions
 // ============================================================================
 
+export type ValidationStatusFilter = "passed" | "failed" | "none" | "";
+
 export interface BacklogFilters {
   statuses: BacklogStatus[];
   kinds: BacklogKind[];
   priorityMin: number | null;
   priorityMax: number | null;
   showArchived: boolean;
+  validationStatus: ValidationStatusFilter;
 }
 
 export interface CaptureFilters {
@@ -77,7 +80,7 @@ export interface TabFilters {
 
 export const DEFAULT_FILTERS: TabFilters = {
   activity: {},
-  backlog: { statuses: [], kinds: [], priorityMin: null, priorityMax: null, showArchived: false },
+  backlog: { statuses: [], kinds: [], priorityMin: null, priorityMax: null, showArchived: false, validationStatus: "" },
   captures: { statuses: [] },
   initiatives: { statuses: [], showArchived: false },
   executions: { statuses: [], modes: [] },

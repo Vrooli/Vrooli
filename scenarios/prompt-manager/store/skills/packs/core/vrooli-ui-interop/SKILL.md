@@ -583,7 +583,7 @@ Unlike the bridge init, spatial nav works in all contexts (not just iframes), so
 
 ### Focus Groups — `<SpatialGroup>` Component
 
-Complex UIs should register focus groups to control navigation behavior per-container:
+Complex UIs should register focus groups to control navigation behavior per-container. The `<SpatialGroup>` wrapper renders with `display: contents` so it generates no layout box — it won't break flex/grid parent layouts.
 
 ```tsx
 import { useSpatialNav } from "./hooks/useSpatialNav";
@@ -611,11 +611,74 @@ function App() {
 
 | Mode | When to use | Examples |
 |---|---|---|
-| `spatial` (default) | Standard UI — D-pad moves between focusable children | Lists, forms, buttons, cards, nav menus, detail views, modals, toolbars |
+| `spatial` (default) | Standard UI — D-pad moves between focusable children | Lists, forms, buttons, cards, nav menus, toolbars |
 | `passthrough` | Component handles arrow keys for its own internal purpose | Canvas/graph views, map views, drawing tools, rich text editors, video players |
 | `grid` | Uniform grid layout | Image galleries, dashboard cards, calendar views |
+| `modal` | Overlay that must trap D-pad focus inside it | Dialogs, drawers, floating panels, command overlays, help panels |
 
-**Rule of thumb:** If the component already handles arrow keys for panning, cursor movement, or cell navigation, use `passthrough`. Otherwise use `spatial`.
+**Rule of thumb:** If the component already handles arrow keys for panning, cursor movement, or cell navigation, use `passthrough`. If it's an overlay/dialog that appears on top of other content, use `modal`. Otherwise use `spatial`.
+
+### Modal Focus Trapping (Critical)
+
+**Every overlay, dialog, drawer, floating panel, and full-screen overlay MUST trap spatial navigation inside it while open.** Without this, D-pad navigation leaks through to elements behind the overlay, which is confusing and unusable on consoles.
+
+There are two approaches:
+
+**Approach 1 — `<SpatialGroup mode="modal">` (preferred for new components):**
+
+```tsx
+<SpatialGroup controllerRef={spatialNav} mode="modal">
+  <MyDialog>{children}</MyDialog>
+</SpatialGroup>
+```
+
+When mode is `modal`, SpatialGroup calls `pushScope(element)` on mount and `popScope()` on unmount, constraining all D-pad navigation to within that element. Scopes nest correctly (dialog within dialog works).
+
+**Approach 2 — `SpatialNavContext` + manual scope (for existing/portaled components):**
+
+Components rendered via `createPortal` or deeply nested components that can't receive `controllerRef` as a prop should use context:
+
+```tsx
+// In your root layout (e.g., GraphWorkspace):
+import { SpatialNavProvider } from "./hooks/SpatialNavContext";
+
+function GraphWorkspace() {
+  const spatialNav = useSpatialNav();
+  return (
+    <SpatialNavProvider controllerRef={spatialNav}>
+      {/* All descendants can now access the controller */}
+    </SpatialNavProvider>
+  );
+}
+
+// In any overlay component (Dialog, Drawer, FloatingPanel, etc.):
+import { useSpatialNavContext } from "./hooks/SpatialNavContext";
+
+function MyOverlay({ isOpen, children }) {
+  const spatialNavRef = useSpatialNavContext();
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const ctrl = spatialNavRef?.current;
+    const el = overlayRef.current;
+    if (!isOpen || !ctrl || !el) return;
+    ctrl.pushScope(el);
+    return () => { ctrl.popScope(); };
+  }, [isOpen, spatialNavRef]);
+
+  if (!isOpen) return null;
+  return <div ref={overlayRef}>{children}</div>;
+}
+```
+
+**Checklist for overlay components — ALL of these need scope management:**
+- `Dialog` / `AlertDialog` components
+- `Drawer` / side-panel components
+- `FloatingPanel` (draggable non-modal panels)
+- Full-screen overlays (command post, settings, help panels)
+- Any custom overlay div that appears on top of other content
+
+Missing scope management on even one overlay type will cause D-pad to navigate behind it on consoles.
 
 ### Mode Switching
 
@@ -623,7 +686,7 @@ Mode switching between cursor and spatial navigation is automatic:
 - **D-pad press → enter spatial mode.** Browser cursor is hidden via CSS, a visible focus ring appears on the nearest focusable element.
 - **Mouse move / touch → exit spatial mode.** Cursor is restored, focus ring disappears.
 - **Bumper buttons (LB/RB)** cycle between top-level focus groups regardless of mode.
-- **B button** exits a passthrough zone and returns to the parent spatial context.
+- **B button** calls `history.back()` — this is the only reliable escape mechanism on console browsers where the virtual cursor may not be available. On Xbox Edge, this navigates back one page; inside a single-page app, it pops the last history entry.
 
 ### Iframe Safety
 
@@ -712,8 +775,9 @@ The automated scanner verifies 21 compliance checks mapped to slots [A]-[I] plus
 | 19 | No h-screen | §4.5 | medium | No `h-screen` class usage in ui/src/ (use `h-full` with height chain) |
 | 20 | Spatial nav init | [H] | medium | `initSpatialNav` in main.tsx or `// spatial-nav: disabled` opt-out comment |
 | 21 | Focus visible styles | — | low | `focus-visible` classes or `data-spatial-focus` styling in UI component files |
+| 22 | Modal scope trapping | §4.6 | high | All overlay components (Dialog, Drawer, FloatingPanel, custom overlays) call `pushScope`/`popScope` or use `<SpatialGroup mode="modal">` |
 
-Checks 5, 9, 10, 13, 14, 16, and 17 are conditional — they skip automatically when the feature isn't used (no router, no keyboard shortcuts, no bridge call, no custom server, no server file). Checks 20-21 support an explicit opt-out comment.
+Checks 5, 9, 10, 13, 14, 16, and 17 are conditional — they skip automatically when the feature isn't used (no router, no keyboard shortcuts, no bridge call, no custom server, no server file). Checks 20-22 support an explicit opt-out comment (`// spatial-nav: disabled`).
 
 ---
 

@@ -99,6 +99,19 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("workshop round saved", "kind", kind, "name", name, "file", roundFile, "bytes", fileSize)
 
+	// Post-finalization validation: write validation-report.json when a finalize round is saved.
+	if round.Mode == "finalize" && kind != KindResearch {
+		deliverable := DeliverableForKind(kind)
+		planContent := LoadPlanContentByName(itemDir, deliverable)
+		valResult := ValidatePlanCompleteness(planContent, kind)
+		if writeErr := WriteValidationReport(itemDir, valResult); writeErr != nil {
+			slog.Error("failed to write validation report", "kind", kind, "name", name, "err", writeErr)
+		} else {
+			slog.Info("post-finalization validation", "kind", kind, "name", name, "passed", valResult.Passed,
+				"missing", len(valResult.SectionsMissing), "warnings", len(valResult.Warnings))
+		}
+	}
+
 	// Determine auto-advance.
 	autoAdvance := &apipb.WorkshopAutoAdvance{Triggered: false, Reason: "disabled"}
 

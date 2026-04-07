@@ -26,6 +26,7 @@ import { DependencyIndicator } from "./dependency-indicator";
 import { ScenarioBadge } from "./scenario-badge";
 import { AgentRunningBadge } from "./agent-running-badge";
 import { CircuitBrokenBadge } from "./circuit-broken-badge";
+import { ValidationBadge } from "./validation-badge";
 import { NoteIndicator } from "../ui/note-indicator";
 import { ReadinessBar } from "./readiness-bar";
 import { AutoAdvanceCountdown } from "./auto-advance-countdown";
@@ -145,6 +146,7 @@ export function BacklogCard({
           <ScenarioBadge acceptanceAllow={item.acceptanceAllow} />
           <AgentRunningBadge backlogKind={item.kind as BacklogKind} backlogName={item.name} />
           <CircuitBrokenBadge backlogKind={item.kind as BacklogKind} backlogName={item.name} />
+          <ValidationBadge validationJson={item.planValidationJson} />
           <NoteIndicator note={item.note} />
         </div>
         <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">

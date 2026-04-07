@@ -1,0 +1,111 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-07T20:15:00Z",
+  "execution_id": "285ab59feff279da",
+  "status": "complete",
+  "agent_assessment": "Implementation covers all 14 rollout checklist items from the plan. Core validation logic (plan_validate.go) correctly checks 13 mandatory sections with normalized fuzzy matching, plus additional required elements (prompt-manager, greenfield, restart, idea-specific checks). All 15 unit tests pass. Pre-finalization gate in research.go injects advisory gap report into finalize agent prompt. Post-finalization gate in workshop_save.go writes validation-report.json on mode=='finalize'. Queue blocking in queue_ops.go adds forceable BlockingReason when validation fails. API exposes plan_validation_json on single-item GET and dedicated /validation endpoint. UI components (ValidationBadge, ValidationReport) integrate into backlog-card and detail page. One notable gap: the list endpoint (handler_query.go:69) uses backlogToProto() instead of backlogToProtoWithValidation(), meaning planValidationJson will be empty in list responses. This affects the ValidationBadge on cards and client-side validation_status filtering in BacklogTab.tsx. However, the backend validation_status query parameter filter works correctly (reads from disk). Research items are properly excluded throughout.",
+  "classification": "ready_with_notes",
+  "notes": [
+    "List endpoint (handler_query.go:69) uses backlogToProto() not backlogToProtoWithValidation() — planValidationJson is missing from list responses, so ValidationBadge on cards will always be empty and client-side validation filter in BacklogTab won't work. Backend query param filter still works since it reads from disk.",
+    "All 15 unit tests pass (validation logic, I/O, stale report refresh, fuzzy matching, gap formatting)",
+    "contains() helper used in tests is defined in batch_handler_test.go:465 (same package) — not a bug",
+    "No integration tests for pre/post-finalization gates, queue blocking, or /validation endpoint exist yet (plan called for them but only unit tests were implemented)"
+  ],
+  "evidence": [
+    {
+      "id": "e1",
+      "type": "cli_output",
+      "title": "Unit tests — all 15 pass",
+      "description": "Ran all TestValidatePlan*, TestWriteAndLoad*, TestLoadValidation*, TestLoadOrRefresh*, TestFormatGap* tests. All 15 pass in 0.014s total.",
+      "verified": false,
+      "test_results": [
+        {"name": "TestValidatePlanCompleteness_CompletePlan", "passed": true, "output_summary": "All 13 sections detected, Passed=true"},
+        {"name": "TestValidatePlanCompleteness_MissingSections", "passed": true, "output_summary": "Detects missing sections correctly"},
+        {"name": "TestValidatePlanCompleteness_MissingPromptManager", "passed": true, "output_summary": "Critical warning, Passed=false"},
+        {"name": "TestValidatePlanCompleteness_MissingGreenfield", "passed": true, "output_summary": "Critical warning, Passed=false"},
+        {"name": "TestValidatePlanCompleteness_MissingRestart", "passed": true, "output_summary": "Warning (non-critical), Passed still true if sections present"},
+        {"name": "TestValidatePlanCompleteness_IdeaMissingTemplate", "passed": true, "output_summary": "Idea-specific warning for missing scenario-generation"},
+        {"name": "TestValidatePlanCompleteness_IdeaMissingUI", "passed": true, "output_summary": "Idea-specific warning for missing UI mention"},
+        {"name": "TestValidatePlanCompleteness_EmptyPlan", "passed": true, "output_summary": "All 13 sections missing, all critical warnings"},
+        {"name": "TestValidatePlanCompleteness_ResearchKindSkipped", "passed": true, "output_summary": "Research kind returns Passed=true immediately"},
+        {"name": "TestValidatePlanCompleteness_FuzzyMatching", "passed": true, "output_summary": "8 subtests: numbered headers, lowercase, hyphenated, h3 rejection, 'and' vs '+' variants"},
+        {"name": "TestWriteAndLoadValidationReport", "passed": true, "output_summary": "Round-trip persistence to validation-report.json"},
+        {"name": "TestLoadValidationReport_NotExist", "passed": true, "output_summary": "Returns nil for missing report"},
+        {"name": "TestLoadOrRefreshValidationReport_StaleReport", "passed": true, "output_summary": "Re-validates when plan.md mtime > report mtime"},
+        {"name": "TestFormatGapReport", "passed": true, "output_summary": "Formats missing sections and warnings as markdown checklist"},
+        {"name": "TestFormatGapReport_Passed", "passed": true, "output_summary": "Returns empty string when validation passed"}
+      ]
+    },
+    {
+      "id": "e2",
+      "type": "custom",
+      "title": "Go build verification — compiles clean",
+      "description": "go build ./internal/backlog/... succeeds with no errors. go vet also clean. New plan_validate.go integrates without issues.",
+      "verified": false
+    },
+    {
+      "id": "e3",
+      "type": "custom",
+      "title": "Pre-finalization gate integration (research.go)",
+      "description": "Lines 299-312: After existing pre-finalization checks, loads plan.md via DeliverableForKind/LoadPlanContentByName, runs ValidatePlanCompleteness, formats gap report. Gap report injected into agent prompt at line 347-349. Skips research kind. Advisory only — does not block finalization. Matches plan spec exactly.",
+      "verified": false
+    },
+    {
+      "id": "e4",
+      "type": "custom",
+      "title": "Post-finalization gate integration (workshop_save.go)",
+      "description": "Lines 102-113: After saving finalize round, checks round.Mode=='finalize' && kind!=KindResearch, loads plan.md, validates, writes validation-report.json via WriteValidationReport. Logs pass/fail with section counts. Matches plan spec.",
+      "verified": false
+    },
+    {
+      "id": "e5",
+      "type": "custom",
+      "title": "Queue blocking integration (queue_ops.go)",
+      "description": "Lines 148-166: Loads validation report from disk, checks Passed field. If failed, constructs descriptive message with missing sections and warnings, appends forceable BlockingReason. Integrates cleanly with existing blocking flow. Matches plan spec.",
+      "verified": false
+    },
+    {
+      "id": "e6",
+      "type": "custom",
+      "title": "API surface — /validation endpoint + proto field",
+      "description": "handler.go:225 registers GET /api/v1/backlog/{kind}/{name}/validation. handler_query.go:116-154 implements GetValidation — always re-runs validation fresh, caches result. Single-item GET at line 107 uses backlogToProtoWithValidation which includes plan_validation_json. Proto field added as optional string plan_validation_json = 20.",
+      "verified": false
+    },
+    {
+      "id": "e7",
+      "type": "custom",
+      "title": "List endpoint gap — planValidationJson missing from list responses",
+      "description": "handler_query.go:69 uses backlogToProto() (not backlogToProtoWithValidation) for list items. This means planValidationJson is never populated in list responses. Impact: ValidationBadge on backlog cards will always render null. Client-side validation filter in BacklogTab.tsx won't match any items. Backend validation_status query param filter still works (reads from disk). This is a functional gap vs the plan spec which says 'API exposes plan_validation_json raw JSON string on BacklogItem GET and list'.",
+      "verified": false
+    },
+    {
+      "id": "e8",
+      "type": "custom",
+      "title": "UI components — ValidationBadge and ValidationReport",
+      "description": "validation-badge.tsx: Parses planValidationJson, renders green/yellow/red pill with icons (CheckCircle/AlertTriangle/XCircle). Follows CircuitBrokenBadge pattern. Returns null if no data. validation-report.tsx: Collapsible panel with ShieldCheck icon, shows sections present (green), missing (red), warnings (yellow), timestamp. Integrated in backlog-card.tsx:149 and BacklogDetailsPage.tsx:453,526.",
+      "verified": false
+    },
+    {
+      "id": "e9",
+      "type": "custom",
+      "title": "UI filter — validation status chips in FilterBar",
+      "description": "FilterBar.tsx adds VALIDATION_STATUSES (passed/failed/none) as filter chips. BacklogTab.tsx:51-62 implements client-side filtering on planValidationJson. types.ts adds ValidationStatusFilter type and validationStatus field to BacklogFilters. Note: client-side filter depends on planValidationJson being in list response (see e7 gap).",
+      "verified": false
+    }
+  ],
+  "request_threads": [],
+  "improvement_suggestions": [
+    {
+      "category": "test_coverage",
+      "description": "Add integration tests for pre-finalization gate (verify gap report appears in assembled finalize prompt), post-finalization gate (verify validation-report.json written after WorkshopSave with mode='finalize'), queue blocking (failed validation blocks without force, passes with force), and /validation endpoint. The plan specified these but only unit tests were implemented.",
+      "evidence_id": "e1",
+      "priority": "medium"
+    },
+    {
+      "category": "other",
+      "description": "Fix list endpoint to use backlogToProtoWithValidation (or populate planValidationJson) so that ValidationBadge renders on backlog cards and client-side validation filtering works. Currently handler_query.go:69 uses backlogToProto() which omits validation data from list responses.",
+      "evidence_id": "e7",
+      "priority": "high"
+    }
+  ]
+}

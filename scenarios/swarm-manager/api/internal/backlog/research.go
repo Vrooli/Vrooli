@@ -269,6 +269,8 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[backlog] research", apierr.Conflict("initialize is only available for items in 'backlog' status"))
 		return
 	}
+	// Pre-finalization gap report — advisory context injected into the finalize prompt.
+	var preFinalizeGapReport string
 	if mode == ResearchModeFinalize {
 		itemDir := h.store.ItemDir(kind, item.Name)
 		latestRound, roundCount, loadErr := LoadLatestRound(itemDir)
@@ -292,6 +294,21 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		if !NeedsSynthesis(latestRound) {
 			apierr.MapError(w, "[backlog] research", apierr.Conflict("finalize is only available when the latest workshop answers have not been synthesized yet"))
 			return
+		}
+
+		// Pre-finalization validation: check plan.md for gaps and pass to agent.
+		if kind != KindResearch {
+			deliverable := DeliverableForKind(kind)
+			planContent := LoadPlanContentByName(itemDir, deliverable)
+			if planContent == "" {
+				preFinalizeGapReport = "## Plan Validation Gaps\nplan.md does not exist yet — create all 13 mandatory sections.\n"
+			} else {
+				valResult := ValidatePlanCompleteness(planContent, kind)
+				preFinalizeGapReport = FormatGapReport(valResult)
+			}
+			if preFinalizeGapReport != "" {
+				slog.Info("pre-finalization validation gaps found", "kind", kind, "name", name)
+			}
 		}
 	}
 
@@ -325,6 +342,10 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 	}
 	if strings.TrimSpace(readOptionalString(req.Prompt)) != "" {
 		prompt = prompt + "\n\nAdditional context from user:\n" + strings.TrimSpace(readOptionalString(req.Prompt))
+		trace.Prompt = prompt
+	}
+	if preFinalizeGapReport != "" {
+		prompt = prompt + "\n\n" + preFinalizeGapReport
 		trace.Prompt = prompt
 	}
 

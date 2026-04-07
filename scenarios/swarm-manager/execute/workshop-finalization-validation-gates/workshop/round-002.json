@@ -1,0 +1,141 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-07T18:45:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 3,
+    "problem_clarity": 3,
+    "risk_awareness": 3,
+    "scope_defined": 3,
+    "testable": 3
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Post-finalization validation trigger point",
+      "context": "The finalize agent first writes plan.md via the file-upload endpoint, then calls WorkshopSave with a mode='finalize' round. Two viable trigger points: (A) in WorkshopSave after saving a finalize round (line ~86-100 of workshop_save.go), or (B) as a separate goroutine that watches for the finalize round to appear. Option A is simpler and guarantees plan.md is already written since the agent writes it before saving the round.",
+      "options": [
+        {
+          "key": "A",
+          "label": "In WorkshopSave after saving a finalize round",
+          "rationale": "After line 100 (round file written), check if round.Mode == 'finalize'. If so, load plan.md, run ValidatePlanCompleteness, and write validation-report.json. This is synchronous, simple, and plan.md is guaranteed to exist since the finalize agent writes it before submitting the round. Recommended because it avoids async complexity and uses the natural save hook.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Background goroutine watching for finalize completion",
+          "rationale": "Start a watcher after spawnWorkshopAsync that polls for the finalize round file. More flexible but adds async complexity, race conditions, and a polling loop that's harder to test."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Validation data in API response: proto field vs JSON passthrough",
+      "context": "The backlogToProto() function in types.go (lines 169-206) serializes BacklogItem to protobuf. Plan validation data needs to appear in the GET response. Two approaches: define a new PlanValidation proto message type, or pass validation-report.json content as a raw JSON string field on the proto.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Raw JSON string field on BacklogItem proto",
+          "rationale": "Add a `string plan_validation_json` field to the BacklogItem proto. Handler reads validation-report.json and sets the field as raw JSON string. UI parses it client-side. Avoids proto schema complexity, the validation format is internal/ephemeral anyway. Recommended for simplicity — matches how other optional metadata is surfaced.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Typed PlanValidation proto message",
+          "rationale": "Define PlanValidation message with repeated string sections_present, sections_missing, warnings, and bool passed. Strongly typed but adds proto schema surface area for what is fundamentally regenerable validation data."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Stale validation-report.json handling",
+      "context": "If plan.md is manually edited after finalization, validation-report.json becomes stale. The plan mentions re-generating on GET if plan.md mtime \u003e report mtime, but this adds latency to every GET request and I/O overhead.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Re-validate on GET when plan.md is newer",
+          "rationale": "Compare mtimes in the GET handler. If plan.md is newer, re-run ValidatePlanCompleteness and update the report. Ensures freshness but adds ~1ms of I/O per request when stale. Acceptable for low-traffic backlog endpoints.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Only validate on finalization, accept staleness",
+          "rationale": "Simpler — validation-report.json is only written during finalization. If plan.md changes later, the report may be wrong. Users can trigger re-validation via the dedicated endpoint. Avoids GET latency but risks showing outdated status."
+        },
+        {
+          "key": "C",
+          "label": "Re-validate only on dedicated validation endpoint",
+          "rationale": "GET returns cached report as-is. The dedicated /validation endpoint always re-validates. Middle ground but the list view may show stale badges."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Minimum section content threshold",
+      "context": "A section header like '## Testing Plan' with no content underneath (or just '\u003c!-- TBD --\u003e') technically passes header detection but is effectively empty. Should validation check for non-trivial content under each header?",
+      "options": [
+        {
+          "key": "A",
+          "label": "Header presence only — no content check",
+          "rationale": "Just check that the ## header exists. Simple, avoids false negatives from short-but-valid sections. A finalize agent that creates headers but leaves them empty is unlikely — the skill instructions are clear about filling sections.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Header present AND at least N non-empty lines before next header",
+          "rationale": "Extract content between headers, require at least 2-3 non-whitespace/non-comment lines. Catches truly empty sections but risks false positives on intentionally brief sections like Non-goals."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Codebase exploration confirmed all insertion points from round 1. Key finding: in WorkshopSave, the finalize agent writes plan.md BEFORE calling WorkshopSave with the finalize round, so the post-validation hook at line ~100 of workshop_save.go is guaranteed to have plan.md available. No race condition risk."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "The existing BlockingReason system (blocking.go:12-15) is minimal: just Message + Forceable. Adding a plan_validation_failed reason is trivial — append to the reasons slice in queue_ops.go during preflight evaluation, alongside existing dependency blocking and pending-decisions blocking. The force flag override works identically."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Skill discovery found seam-discovery-and-enforcement and test skills as potentially relevant. The seam-discovery skill is already in the plan's Required Reading. The test skill covers general test patterns but doesn't add material value beyond what the plan already specifies. No new skills needed for round 2."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "This plan appears ready for execution. All 5 readiness dimensions are at 3, all round 1 decisions are resolved, and the implementation strategy has been validated against actual codebase insertion points. Consider reviewing the two remaining decisions (d3, d4) and queuing."
+    }
+  ],
+  "plan_updates": "Refined post-finalization timing based on codebase exploration (finalize agent writes plan.md before round, so validation in WorkshopSave is safe). Added detail on proto field approach. Validated all insertion points against actual code. Two new decisions on stale-report handling and content threshold."
+}

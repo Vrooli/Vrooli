@@ -3416,5 +3416,141 @@
       "skill_id": "swarm-manager-workshop"
     },
     "updated_at": "2026-04-07T17:55:30Z"
+  },
+  {
+    "activity_id": "f8cb75bfe90d166e",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "workshop-finalization-validation-gates",
+    "owner_title": "Add Pre And Post Finalization Validation Gates For Plan Quality",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "3406008a-e704-455c-88d8-e2eb9db0d610",
+    "run_id": "b7bc0720-4f65-4ad4-a67a-678670f90ab6",
+    "status": "complete",
+    "requested_at": "2026-04-07T18:55:44Z",
+    "started_at": "2026-04-07T18:55:45Z",
+    "finished_at": "2026-04-07T19:00:29Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-07T19:08:07Z"
+  },
+  {
+    "activity_id": "5453b856ff9bf0e3",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "workshop-finalization-validation-gates",
+    "owner_title": "Add Pre And Post Finalization Validation Gates For Plan Quality",
+    "purpose": "finalize",
+    "interaction_type": "spawn",
+    "task_id": "e1dc8bcc-f8f4-46d8-bb92-eed18ebdb06e",
+    "run_id": "5965d92c-fbd6-4a44-a2d4-e9b96cda6618",
+    "status": "complete",
+    "requested_at": "2026-04-07T19:09:23Z",
+    "started_at": "2026-04-07T19:09:23Z",
+    "finished_at": "2026-04-07T19:11:58Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "finalize",
+      "skill_id": "swarm-manager-workshop-finalize"
+    },
+    "updated_at": "2026-04-07T19:12:01Z"
+  },
+  {
+    "activity_id": "06cd97f13133ad4e",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "workshop-finalization-validation-gates",
+    "owner_title": "Add Pre And Post Finalization Validation Gates For Plan Quality",
+    "execution_id": "285ab59feff279da",
+    "purpose": "process",
+    "interaction_type": "spawn",
+    "task_id": "e8cdefe7-0ad6-4c1e-ae9e-63641457a613",
+    "run_id": "c35dd626-f077-42e3-ae51-34a2c620512f",
+    "status": "complete",
+    "requested_at": "2026-04-07T19:14:02Z",
+    "started_at": "2026-04-07T19:14:02Z",
+    "finished_at": "2026-04-07T19:27:35Z",
+    "requested_by": "swarm-manager-ui",
+    "metadata": {
+      "entrypoint": "execution.start",
+      "mode": "yolo",
+      "operation": "generator"
+    },
+    "updated_at": "2026-04-07T19:27:36Z"
+  },
+  {
+    "activity_id": "625602197e593bac",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "workshop-finalization-validation-gates",
+    "owner_title": "Add Pre And Post Finalization Validation Gates For Plan Quality",
+    "execution_id": "285ab59feff279da",
+    "purpose": "review",
+    "interaction_type": "spawn",
+    "task_id": "696fab94-a80b-4a77-a540-c3819728c53f",
+    "run_id": "9b45949b-f8ae-4e92-b05e-3b5d4bbec607",
+    "status": "complete",
+    "requested_at": "2026-04-07T19:27:36Z",
+    "started_at": "2026-04-07T19:27:36Z",
+    "finished_at": "2026-04-07T19:31:35Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "review.start",
+      "round_number": "001"
+    },
+    "updated_at": "2026-04-07T19:31:46Z"
+  },
+  {
+    "activity_id": "1cbf5aedb32404ed",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "workshop-finalization-validation-gates",
+    "owner_title": "Add Pre And Post Finalization Validation Gates For Plan Quality",
+    "execution_id": "a48dd24349880f9a",
+    "purpose": "fixup",
+    "interaction_type": "continue",
+    "task_id": "e8cdefe7-0ad6-4c1e-ae9e-63641457a613",
+    "run_id": "c35dd626-f077-42e3-ae51-34a2c620512f",
+    "status": "complete",
+    "requested_at": "2026-04-07T19:33:35Z",
+    "started_at": "2026-04-07T19:14:02Z",
+    "finished_at": "2026-04-07T19:34:10Z",
+    "requested_by": "swarm-manager:follow-up",
+    "metadata": {
+      "entrypoint": "execution.follow_up",
+      "follow_up_type": "fixup",
+      "parent_execution": "285ab59feff279da",
+      "run_mode": "continue"
+    },
+    "updated_at": "2026-04-07T19:34:10Z"
+  },
+  {
+    "activity_id": "1b6bbd9f32ca536f",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "workshop-finalization-validation-gates",
+    "owner_title": "Add Pre And Post Finalization Validation Gates For Plan Quality",
+    "execution_id": "a48dd24349880f9a",
+    "purpose": "review",
+    "interaction_type": "spawn",
+    "task_id": "5bca378f-8049-49a3-a4ff-a7cc07c6cdd7",
+    "run_id": "e86c4079-a2e1-4693-af62-8e3fd4bf1cd0",
+    "status": "failed",
+    "requested_at": "2026-04-07T19:34:10Z",
+    "started_at": "2026-04-07T19:34:10Z",
+    "finished_at": "2026-04-07T19:52:06Z",
+    "failure_reason": "process terminated unexpectedly (detected by reconciler after 16m55s without heartbeat, tag=swarm-manager:backlog:execute:workshop-finalization-validation-gates:review)",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "review.start",
+      "round_number": "003"
+    },
+    "updated_at": "2026-04-07T19:54:34Z"
   }
 ]

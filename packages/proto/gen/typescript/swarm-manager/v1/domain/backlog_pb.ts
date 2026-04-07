@@ -145,6 +145,14 @@ export type BacklogItem = Message<"swarm_manager.v1.BacklogItem"> & {
    * @generated from field: optional string archived_at = 19;
    */
   archivedAt?: string;
+
+  /**
+   * Raw JSON string containing the plan validation report.
+   * Ephemeral data — regenerated on read when plan.md is newer than the report.
+   *
+   * @generated from field: optional string plan_validation_json = 20;
+   */
+  planValidationJson?: string;
 };
 
 /**

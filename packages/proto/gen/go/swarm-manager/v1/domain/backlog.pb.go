@@ -66,7 +66,9 @@ type BacklogItem struct {
 	// RFC3339 timestamp when the item was archived. Null/unset means not archived.
 	// Archiving is orthogonal to status — items retain their terminal status when archived.
 	// @format rfc3339
-	ArchivedAt    *string `protobuf:"bytes,19,opt,name=archived_at,json=archivedAt,proto3,oneof" json:"archived_at,omitempty"`
+	ArchivedAt *string `protobuf:"bytes,19,opt,name=archived_at,json=archivedAt,proto3,oneof" json:"archived_at,omitempty"`
+	// Raw JSON string containing the plan validation report.
+	PlanValidationJson *string `protobuf:"bytes,20,opt,name=plan_validation_json,json=planValidationJson,proto3,oneof" json:"plan_validation_json,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -216,6 +218,13 @@ func (x *BacklogItem) GetNote() string {
 func (x *BacklogItem) GetArchivedAt() string {
 	if x != nil && x.ArchivedAt != nil {
 		return *x.ArchivedAt
+	}
+	return ""
+}
+
+func (x *BacklogItem) GetPlanValidationJson() string {
+	if x != nil && x.PlanValidationJson != nil {
+		return *x.PlanValidationJson
 	}
 	return ""
 }

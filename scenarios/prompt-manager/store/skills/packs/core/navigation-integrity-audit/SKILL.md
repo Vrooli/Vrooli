@@ -137,11 +137,13 @@ Avoid superficial changes (e.g. renaming buttons without fixing their behavior, 
 When a scenario has spatial navigation enabled (`initSpatialNav()` in `main.tsx`), verify gamepad-driven navigation is coherent:
 
 * **Reachability:** All interactive elements (buttons, links, inputs, tabs) must be reachable via D-pad directional navigation. Walk through every major view with only D-pad + A/B buttons.
-* **No focus traps:** Every focus group must have an escape path. Pressing B (back) should exit passthrough zones. Bumper buttons (LB/RB) should cycle between top-level groups.
+* **No focus traps:** Every focus group must have an escape path. Bumper buttons (LB/RB) should cycle between top-level groups.
 * **Passthrough zone identification:** Components that handle arrow keys internally (graph canvases, map views, rich text editors, video players) should be registered as `passthrough` focus groups. Verify D-pad input within these zones goes to the component, not the spatial nav engine.
 * **Focus order matches visual layout:** Spatial navigation should move focus to the visually nearest element in the pressed direction. If focus jumps to an unexpected element, the layout or focus group boundaries need adjustment.
-* **B-button / back behavior:** B button should match the user's expectation of "go back one step" — exiting a passthrough zone, closing a modal, or navigating to the previous page, in that priority order.
+* **Modal scope trapping (critical):** Every overlay — dialogs, drawers, floating panels, command overlays, help panels — must trap D-pad focus inside it while open. Verify by opening each overlay type and pressing D-pad: focus must stay within the overlay, never leak to elements behind it. Check that closing the overlay restores navigation to the previous scope. Nested overlays (dialog within dialog) must also work correctly.
+* **B-button / back behavior:** B button calls `history.back()` — it navigates the browser back one step. This is the only reliable escape on console browsers. Verify it works from any state.
 * **Focus ring visibility:** The focus ring (default blue or scenario-custom) must be clearly visible on all backgrounds. Check both light and dark mode if applicable.
+* **No dual selection:** Only one element should show the focus ring at a time. After navigating, verify the previous element's ring disappears before the new one appears. Stale `data-spatial-focus` attributes indicate a bug in the spatial nav engine.
 
 This check complements Section 5 (Shortcut & Accelerator Consistency) — keyboard shortcuts and gamepad navigation should be coherent with each other.
 

@@ -48,6 +48,18 @@ function applyFilters(items: BacklogItem[], filters: BacklogFilters): BacklogIte
     if (filters.kinds.length > 0 && !filters.kinds.includes(item.kind)) return false;
     if (filters.priorityMin !== null && item.priority < filters.priorityMin) return false;
     if (filters.priorityMax !== null && item.priority > filters.priorityMax) return false;
+    if (filters.validationStatus) {
+      const json = item.planValidationJson;
+      if (filters.validationStatus === "none") {
+        if (json) return false;
+      } else if (filters.validationStatus === "passed") {
+        if (!json) return false;
+        try { if (!JSON.parse(json).passed) return false; } catch { return false; }
+      } else if (filters.validationStatus === "failed") {
+        if (!json) return false;
+        try { if (JSON.parse(json).passed) return false; } catch { return false; }
+      }
+    }
     return true;
   });
 }
@@ -72,7 +84,7 @@ function applySort(items: BacklogItem[], sort: SortConfig, allItems: BacklogItem
 }
 
 function hasActiveFilters(filters: BacklogFilters): boolean {
-  return filters.statuses.length > 0 || filters.kinds.length > 0 || filters.priorityMin !== null || filters.priorityMax !== null || filters.showArchived;
+  return filters.statuses.length > 0 || filters.kinds.length > 0 || filters.priorityMin !== null || filters.priorityMax !== null || filters.showArchived || filters.validationStatus !== "";
 }
 
 export function BacklogTab({ searchQuery, filters, sort, onItemClick }: BacklogTabProps) {

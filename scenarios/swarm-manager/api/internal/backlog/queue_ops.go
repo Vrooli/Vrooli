@@ -144,6 +144,26 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	blockingReasons = append(blockingReasons, depReasons...)
+
+	// Check plan validation: failed validation produces a forceable blocker.
+	valReport, valErr := LoadValidationReport(itemDir)
+	if valErr != nil {
+		slog.Warn("failed to load validation report for queue check", "kind", kind, "name", name, "err", valErr)
+	}
+	if valReport != nil && !valReport.Passed {
+		missingStr := strings.Join(valReport.SectionsMissing, ", ")
+		msg := "plan validation failed"
+		if missingStr != "" {
+			msg += ": missing sections: " + missingStr
+		}
+		if len(valReport.Warnings) > 0 {
+			msg += "; warnings: " + strings.Join(valReport.Warnings, "; ")
+		}
+		blockingReasons = append(blockingReasons, BlockingReason{
+			Message:   msg,
+			Forceable: true,
+		})
+	}
 	blockingReasons = DedupeReasons(blockingReasons)
 
 	// Convert to proto representation.

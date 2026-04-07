@@ -14,8 +14,8 @@
   "kind": "execute",
   "name": "workshop-finalization-validation-gates",
   "priority": 2,
-  "status": "backlog",
+  "status": "completed",
   "tags": [],
   "title": "Add Pre And Post Finalization Validation Gates For Plan Quality",
-  "updated": "2026-04-06T01:02:51Z"
+  "updated": "2026-04-07T19:38:30Z"
 }

@@ -4,6 +4,7 @@
 package backlog
 
 import (
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -163,6 +164,21 @@ func sanitizeName(name string) string {
 		}
 	}
 	return result.String()
+}
+
+// backlogToProtoWithValidation converts a BacklogItem to its protobuf representation,
+// including the plan validation report loaded from the item directory.
+func backlogToProtoWithValidation(item BacklogItem, itemDir string) *domainpb.BacklogItem {
+	result := backlogToProto(item)
+	if item.Kind != KindResearch {
+		report, err := LoadOrRefreshValidationReport(itemDir, item.Kind)
+		if err == nil && report != nil {
+			data, _ := json.Marshal(report)
+			jsonStr := string(data)
+			result.PlanValidationJson = &jsonStr
+		}
+	}
+	return result
 }
 
 // backlogToProto converts a BacklogItem to its protobuf representation.

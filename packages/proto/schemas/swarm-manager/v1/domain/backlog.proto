@@ -97,6 +97,14 @@ message BacklogItem {
   // Archiving is orthogonal to status — items retain their terminal status when archived.
   // @format rfc3339
   optional string archived_at = 19;
+
+  // Raw JSON string containing the plan validation report (PlanValidationResult).
+  // Ephemeral data — regenerated on read when plan.md is newer than the report.
+  optional string plan_validation_json = 20;
+
+  // Skill IDs recommended by the creating agent. Workshop and execution agents
+  // should read these skills before proceeding.
+  repeated string suggested_skills = 21;
 }
 
 // BacklogFile represents a file or directory within a backlog item folder.
