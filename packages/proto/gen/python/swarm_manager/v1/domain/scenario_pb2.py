@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from buf.validate import validate_pb2 as buf_dot_validate_dot_validate__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n&swarm-manager/v1/domain/scenario.proto\x12\x10swarm_manager.v1\x1a\x1b\x62uf/validate/validate.proto\"\xf6\x02\n\x08Scenario\x12\x1b\n\x04name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\x12*\n\x0c\x64isplay_name\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x0b\x64isplayName\x12 \n\x0b\x64\x65scription\x18\x03 \x01(\tR\x0b\x64\x65scription\x12?\n\x06status\x18\x04 \x01(\tB\'\xbaH$r\"R\x07runningR\x07stoppedR\x05\x65rrorR\x07unknownR\x06status\x12%\n\x08priority\x18\x05 \x01(\x05\x42\t\xbaH\x06\x1a\x04\x18\n(\x01R\x08priority\x12=\n\x12\x63ompleteness_score\x18\x06 \x01(\x05\x42\t\xbaH\x06\x1a\x04\x18\x64(\x00H\x00R\x11\x63ompletenessScore\x88\x01\x01\x12#\n\ris_greenfield\x18\x07 \x01(\x08R\x0cisGreenfield\x12\x1c\n\x04tags\x18\x08 \x03(\tB\x08\xbaH\x05\x92\x01\x02\x18\x01R\x04tagsB\x15\n\x13_completeness_score\"7\n\x10ScenarioMetadata\x12#\n\ris_greenfield\x18\x01 \x01(\x08R\x0cisGreenfieldBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n&swarm-manager/v1/domain/scenario.proto\x12\x10swarm_manager.v1\x1a\x1b\x62uf/validate/validate.proto\"\x96\x04\n\x08Scenario\x12\x1b\n\x04name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\x12*\n\x0c\x64isplay_name\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x0b\x64isplayName\x12 \n\x0b\x64\x65scription\x18\x03 \x01(\tR\x0b\x64\x65scription\x12?\n\x06status\x18\x04 \x01(\tB\'\xbaH$r\"R\x07runningR\x07stoppedR\x05\x65rrorR\x07unknownR\x06status\x12%\n\x08priority\x18\x05 \x01(\x05\x42\t\xbaH\x06\x1a\x04\x18\n(\x01R\x08priority\x12=\n\x12\x63ompleteness_score\x18\x06 \x01(\x05\x42\t\xbaH\x06\x1a\x04\x18\x64(\x00H\x00R\x11\x63ompletenessScore\x88\x01\x01\x12#\n\ris_greenfield\x18\x07 \x01(\x08R\x0cisGreenfield\x12\x1c\n\x04tags\x18\x08 \x03(\tB\x08\xbaH\x05\x92\x01\x02\x18\x01R\x04tags\x12\x41\n\x1alast_review_classification\x18\t \x01(\tH\x01R\x18lastReviewClassification\x88\x01\x01\x12)\n\x0elast_review_at\x18\n \x01(\tH\x02R\x0clastReviewAt\x88\x01\x01\x42\x15\n\x13_completeness_scoreB\x1d\n\x1b_last_review_classificationB\x11\n\x0f_last_review_at\"7\n\x10ScenarioMetadata\x12#\n\ris_greenfield\x18\x01 \x01(\x08R\x0cisGreenfieldBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -46,7 +46,7 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_SCENARIO'].fields_by_name['tags']._loaded_options = None
   _globals['_SCENARIO'].fields_by_name['tags']._serialized_options = b'\272H\005\222\001\002\030\001'
   _globals['_SCENARIO']._serialized_start=90
-  _globals['_SCENARIO']._serialized_end=464
-  _globals['_SCENARIOMETADATA']._serialized_start=466
-  _globals['_SCENARIOMETADATA']._serialized_end=521
+  _globals['_SCENARIO']._serialized_end=624
+  _globals['_SCENARIOMETADATA']._serialized_start=626
+  _globals['_SCENARIOMETADATA']._serialized_end=681
 # @@protoc_insertion_point(module_scope)

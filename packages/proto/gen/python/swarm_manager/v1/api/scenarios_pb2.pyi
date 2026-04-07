@@ -89,3 +89,41 @@ class SpecSyncArchiveResponse(_message.Message):
     status: str
     message: str
     def __init__(self, execution_id: _Optional[str] = ..., status: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
+
+class ScenarioReviewQueueRequest(_message.Message):
+    __slots__ = ("limit", "exclude_tag")
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    EXCLUDE_TAG_FIELD_NUMBER: _ClassVar[int]
+    limit: int
+    exclude_tag: str
+    def __init__(self, limit: _Optional[int] = ..., exclude_tag: _Optional[str] = ...) -> None: ...
+
+class ScenarioReviewQueueItem(_message.Message):
+    __slots__ = ("scenario_name", "pending_backlog_count", "last_review_classification", "last_review_at", "recent_execution_count", "composite_score", "primary_signal", "cooldown_until")
+    SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
+    PENDING_BACKLOG_COUNT_FIELD_NUMBER: _ClassVar[int]
+    LAST_REVIEW_CLASSIFICATION_FIELD_NUMBER: _ClassVar[int]
+    LAST_REVIEW_AT_FIELD_NUMBER: _ClassVar[int]
+    RECENT_EXECUTION_COUNT_FIELD_NUMBER: _ClassVar[int]
+    COMPOSITE_SCORE_FIELD_NUMBER: _ClassVar[int]
+    PRIMARY_SIGNAL_FIELD_NUMBER: _ClassVar[int]
+    COOLDOWN_UNTIL_FIELD_NUMBER: _ClassVar[int]
+    scenario_name: str
+    pending_backlog_count: int
+    last_review_classification: str
+    last_review_at: str
+    recent_execution_count: int
+    composite_score: float
+    primary_signal: str
+    cooldown_until: str
+    def __init__(self, scenario_name: _Optional[str] = ..., pending_backlog_count: _Optional[int] = ..., last_review_classification: _Optional[str] = ..., last_review_at: _Optional[str] = ..., recent_execution_count: _Optional[int] = ..., composite_score: _Optional[float] = ..., primary_signal: _Optional[str] = ..., cooldown_until: _Optional[str] = ...) -> None: ...
+
+class ScenarioReviewQueueResponse(_message.Message):
+    __slots__ = ("items", "total_scenarios", "excluded_count")
+    ITEMS_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_SCENARIOS_FIELD_NUMBER: _ClassVar[int]
+    EXCLUDED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    items: _containers.RepeatedCompositeFieldContainer[ScenarioReviewQueueItem]
+    total_scenarios: int
+    excluded_count: int
+    def __init__(self, items: _Optional[_Iterable[_Union[ScenarioReviewQueueItem, _Mapping]]] = ..., total_scenarios: _Optional[int] = ..., excluded_count: _Optional[int] = ...) -> None: ...

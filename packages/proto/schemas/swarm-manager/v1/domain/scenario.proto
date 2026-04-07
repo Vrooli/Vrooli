@@ -55,6 +55,13 @@ message Scenario {
 
   // Categorization tags.
   repeated string tags = 8 [(buf.validate.field).repeated = { unique: true }];
+
+  // Classification from the most recent GCT review.
+  // One of: ready, ready_with_notes, needs_work, not_assessable.
+  optional string last_review_classification = 9;
+
+  // RFC3339 timestamp of the most recent GCT review.
+  optional string last_review_at = 10;
 }
 
 // ScenarioMetadata stores editable metadata for a scenario.

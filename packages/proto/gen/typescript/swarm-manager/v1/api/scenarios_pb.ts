@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/api/scenarios.proto.
  */
 export const file_swarm_manager_v1_api_scenarios: GenFile = /*@__PURE__*/
-  fileDesc("CiRzd2FybS1tYW5hZ2VyL3YxL2FwaS9zY2VuYXJpb3MucHJvdG8SEHN3YXJtX21hbmFnZXIudjEiRgoVTGlzdFNjZW5hcmlvc1Jlc3BvbnNlEi0KCXNjZW5hcmlvcxgBIAMoCzIaLnN3YXJtX21hbmFnZXIudjEuU2NlbmFyaW8iQAoQU2NlbmFyaW9SZXNwb25zZRIsCghzY2VuYXJpbxgBIAEoCzIaLnN3YXJtX21hbmFnZXIudjEuU2NlbmFyaW8iTQodVXBkYXRlU2NlbmFyaW9NZXRhZGF0YVJlcXVlc3QSGgoNaXNfZ3JlZW5maWVsZBgBIAEoCEgAiAEBQhAKDl9pc19ncmVlbmZpZWxkIoMBChRQcmVzZXJ2ZUZpbGVzUmVxdWVzdBINCgVwYXRocxgBIAMoCRJRCgZwcmVzZXQYAiABKAlCPLpIOXI3UgBSDWRvY3VtZW50YXRpb25SDHJlcXVpcmVtZW50c1IIcGxhbm5pbmdSDGFsbC1wbGFubmluZ0gAiAEBQgkKB19wcmVzZXQibwoVRGVsZXRlU2NlbmFyaW9SZXF1ZXN0EkMKDnByZXNlcnZlX2ZpbGVzGAEgASgLMiYuc3dhcm1fbWFuYWdlci52MS5QcmVzZXJ2ZUZpbGVzUmVxdWVzdEgAiAEBQhEKD19wcmVzZXJ2ZV9maWxlcyKqAQoWRGVsZXRlU2NlbmFyaW9SZXNwb25zZRIVCgRuYW1lGAEgASgJQge6SARyAhABEhAKCGFyY2hpdmVkGAIgASgIEhgKB21lc3NhZ2UYAyABKAlCB7pIBHICEAESHgoRYmFja2xvZ19pZGVhX25hbWUYBCABKAlIAIgBARIXCg9wcmVzZXJ2ZWRfZmlsZXMYBSADKAlCFAoSX2JhY2tsb2dfaWRlYV9uYW1lIrABCgxTY2VuYXJpb0ZpbGUSFQoEbmFtZRgBIAEoCUIHukgEcgIQARIVCgRwYXRoGAIgASgJQge6SARyAhABEiQKBHR5cGUYAyABKAlCFrpIE3IRUgRmaWxlUglkaXJlY3RvcnkSEQoEc2l6ZRgEIAEoA0gAiAEBEjAKCGNoaWxkcmVuGAUgAygLMh4uc3dhcm1fbWFuYWdlci52MS5TY2VuYXJpb0ZpbGVCBwoFX3NpemUiRgoVU2NlbmFyaW9GaWxlc1Jlc3BvbnNlEi0KBWZpbGVzGAEgAygLMh4uc3dhcm1fbWFuYWdlci52MS5TY2VuYXJpb0ZpbGUicAoWU3BlY1N5bmNBcmNoaXZlUmVxdWVzdBJDCg5wcmVzZXJ2ZV9maWxlcxgBIAEoCzImLnN3YXJtX21hbmFnZXIudjEuUHJlc2VydmVGaWxlc1JlcXVlc3RIAIgBAUIRCg9fcHJlc2VydmVfZmlsZXMiawoXU3BlY1N5bmNBcmNoaXZlUmVzcG9uc2USHQoMZXhlY3V0aW9uX2lkGAEgASgJQge6SARyAhABEhcKBnN0YXR1cxgCIAEoCUIHukgEcgIQARIYCgdtZXNzYWdlGAMgASgJQge6SARyAhABQklaR2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9hcGk7YXBpYgZwcm90bzM", [file_buf_validate_validate, file_swarm_manager_v1_domain_scenario]);
+  fileDesc("CiRzd2FybS1tYW5hZ2VyL3YxL2FwaS9zY2VuYXJpb3MucHJvdG8SEHN3YXJtX21hbmFnZXIudjEiRgoVTGlzdFNjZW5hcmlvc1Jlc3BvbnNlEi0KCXNjZW5hcmlvcxgBIAMoCzIaLnN3YXJtX21hbmFnZXIudjEuU2NlbmFyaW8iQAoQU2NlbmFyaW9SZXNwb25zZRIsCghzY2VuYXJpbxgBIAEoCzIaLnN3YXJtX21hbmFnZXIudjEuU2NlbmFyaW8iTQodVXBkYXRlU2NlbmFyaW9NZXRhZGF0YVJlcXVlc3QSGgoNaXNfZ3JlZW5maWVsZBgBIAEoCEgAiAEBQhAKDl9pc19ncmVlbmZpZWxkIoMBChRQcmVzZXJ2ZUZpbGVzUmVxdWVzdBINCgVwYXRocxgBIAMoCRJRCgZwcmVzZXQYAiABKAlCPLpIOXI3UgBSDWRvY3VtZW50YXRpb25SDHJlcXVpcmVtZW50c1IIcGxhbm5pbmdSDGFsbC1wbGFubmluZ0gAiAEBQgkKB19wcmVzZXQibwoVRGVsZXRlU2NlbmFyaW9SZXF1ZXN0EkMKDnByZXNlcnZlX2ZpbGVzGAEgASgLMiYuc3dhcm1fbWFuYWdlci52MS5QcmVzZXJ2ZUZpbGVzUmVxdWVzdEgAiAEBQhEKD19wcmVzZXJ2ZV9maWxlcyKqAQoWRGVsZXRlU2NlbmFyaW9SZXNwb25zZRIVCgRuYW1lGAEgASgJQge6SARyAhABEhAKCGFyY2hpdmVkGAIgASgIEhgKB21lc3NhZ2UYAyABKAlCB7pIBHICEAESHgoRYmFja2xvZ19pZGVhX25hbWUYBCABKAlIAIgBARIXCg9wcmVzZXJ2ZWRfZmlsZXMYBSADKAlCFAoSX2JhY2tsb2dfaWRlYV9uYW1lIrABCgxTY2VuYXJpb0ZpbGUSFQoEbmFtZRgBIAEoCUIHukgEcgIQARIVCgRwYXRoGAIgASgJQge6SARyAhABEiQKBHR5cGUYAyABKAlCFrpIE3IRUgRmaWxlUglkaXJlY3RvcnkSEQoEc2l6ZRgEIAEoA0gAiAEBEjAKCGNoaWxkcmVuGAUgAygLMh4uc3dhcm1fbWFuYWdlci52MS5TY2VuYXJpb0ZpbGVCBwoFX3NpemUiRgoVU2NlbmFyaW9GaWxlc1Jlc3BvbnNlEi0KBWZpbGVzGAEgAygLMh4uc3dhcm1fbWFuYWdlci52MS5TY2VuYXJpb0ZpbGUicAoWU3BlY1N5bmNBcmNoaXZlUmVxdWVzdBJDCg5wcmVzZXJ2ZV9maWxlcxgBIAEoCzImLnN3YXJtX21hbmFnZXIudjEuUHJlc2VydmVGaWxlc1JlcXVlc3RIAIgBAUIRCg9fcHJlc2VydmVfZmlsZXMiawoXU3BlY1N5bmNBcmNoaXZlUmVzcG9uc2USHQoMZXhlY3V0aW9uX2lkGAEgASgJQge6SARyAhABEhcKBnN0YXR1cxgCIAEoCUIHukgEcgIQARIYCgdtZXNzYWdlGAMgASgJQge6SARyAhABIm8KGlNjZW5hcmlvUmV2aWV3UXVldWVSZXF1ZXN0Eh0KBWxpbWl0GAEgASgFQgm6SAYaBBgyKAFIAIgBARIYCgtleGNsdWRlX3RhZxgCIAEoCUgBiAEBQggKBl9saW1pdEIOCgxfZXhjbHVkZV90YWciyAIKF1NjZW5hcmlvUmV2aWV3UXVldWVJdGVtEhUKDXNjZW5hcmlvX25hbWUYASABKAkSHQoVcGVuZGluZ19iYWNrbG9nX2NvdW50GAIgASgFEicKGmxhc3RfcmV2aWV3X2NsYXNzaWZpY2F0aW9uGAMgASgJSACIAQESGwoObGFzdF9yZXZpZXdfYXQYBCABKAlIAYgBARIeChZyZWNlbnRfZXhlY3V0aW9uX2NvdW50GAUgASgFEhcKD2NvbXBvc2l0ZV9zY29yZRgGIAEoARIWCg5wcmltYXJ5X3NpZ25hbBgHIAEoCRIbCg5jb29sZG93bl91bnRpbBgIIAEoCUgCiAEBQh0KG19sYXN0X3Jldmlld19jbGFzc2lmaWNhdGlvbkIRCg9fbGFzdF9yZXZpZXdfYXRCEQoPX2Nvb2xkb3duX3VudGlsIogBChtTY2VuYXJpb1Jldmlld1F1ZXVlUmVzcG9uc2USOAoFaXRlbXMYASADKAsyKS5zd2FybV9tYW5hZ2VyLnYxLlNjZW5hcmlvUmV2aWV3UXVldWVJdGVtEhcKD3RvdGFsX3NjZW5hcmlvcxgCIAEoBRIWCg5leGNsdWRlZF9jb3VudBgDIAEoBUJJWkdnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvYXBpO2FwaWIGcHJvdG8z", [file_buf_validate_validate, file_swarm_manager_v1_domain_scenario]);
 
 /**
  * ListScenariosResponse returns all scenarios.
@@ -297,4 +297,137 @@ export type SpecSyncArchiveResponse = Message<"swarm_manager.v1.SpecSyncArchiveR
  */
 export const SpecSyncArchiveResponseSchema: GenMessage<SpecSyncArchiveResponse> = /*@__PURE__*/
   messageDesc(file_swarm_manager_v1_api_scenarios, 9);
+
+/**
+ * ScenarioReviewQueueRequest configures the review queue query.
+ *
+ * @generated from message swarm_manager.v1.ScenarioReviewQueueRequest
+ */
+export type ScenarioReviewQueueRequest = Message<"swarm_manager.v1.ScenarioReviewQueueRequest"> & {
+  /**
+   * Maximum scenarios to return (1-50, default 5).
+   *
+   * @generated from field: optional int32 limit = 1;
+   */
+  limit?: number;
+
+  /**
+   * Tag used to identify QA-created fix items for exclusion (default: "preemptive-qa").
+   *
+   * @generated from field: optional string exclude_tag = 2;
+   */
+  excludeTag?: string;
+};
+
+/**
+ * Describes the message swarm_manager.v1.ScenarioReviewQueueRequest.
+ * Use `create(ScenarioReviewQueueRequestSchema)` to create a new message.
+ */
+export const ScenarioReviewQueueRequestSchema: GenMessage<ScenarioReviewQueueRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_scenarios, 10);
+
+/**
+ * ScenarioReviewQueueItem represents a single scenario's review priority.
+ *
+ * @generated from message swarm_manager.v1.ScenarioReviewQueueItem
+ */
+export type ScenarioReviewQueueItem = Message<"swarm_manager.v1.ScenarioReviewQueueItem"> & {
+  /**
+   * Scenario name.
+   *
+   * @generated from field: string scenario_name = 1;
+   */
+  scenarioName: string;
+
+  /**
+   * Number of pending (non-terminal) backlog items targeting this scenario.
+   *
+   * @generated from field: int32 pending_backlog_count = 2;
+   */
+  pendingBacklogCount: number;
+
+  /**
+   * Classification from the most recent GCT review (ready, ready_with_notes, needs_work, not_assessable).
+   *
+   * @generated from field: optional string last_review_classification = 3;
+   */
+  lastReviewClassification?: string;
+
+  /**
+   * RFC3339 timestamp of the most recent GCT review.
+   *
+   * @generated from field: optional string last_review_at = 4;
+   */
+  lastReviewAt?: string;
+
+  /**
+   * Number of executions targeting this scenario in the last 30 days.
+   *
+   * @generated from field: int32 recent_execution_count = 5;
+   */
+  recentExecutionCount: number;
+
+  /**
+   * Composite priority score (higher = more urgent).
+   *
+   * @generated from field: double composite_score = 6;
+   */
+  compositeScore: number;
+
+  /**
+   * Which signal drove this scenario to the top: "workload", "recent_activity", "staleness".
+   *
+   * @generated from field: string primary_signal = 7;
+   */
+  primarySignal: string;
+
+  /**
+   * If recently reviewed, when cooldown expires (RFC3339). Empty if no cooldown.
+   *
+   * @generated from field: optional string cooldown_until = 8;
+   */
+  cooldownUntil?: string;
+};
+
+/**
+ * Describes the message swarm_manager.v1.ScenarioReviewQueueItem.
+ * Use `create(ScenarioReviewQueueItemSchema)` to create a new message.
+ */
+export const ScenarioReviewQueueItemSchema: GenMessage<ScenarioReviewQueueItem> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_scenarios, 11);
+
+/**
+ * ScenarioReviewQueueResponse returns prioritized scenarios for quality review.
+ *
+ * @generated from message swarm_manager.v1.ScenarioReviewQueueResponse
+ */
+export type ScenarioReviewQueueResponse = Message<"swarm_manager.v1.ScenarioReviewQueueResponse"> & {
+  /**
+   * Ranked list of scenarios needing quality review.
+   *
+   * @generated from field: repeated swarm_manager.v1.ScenarioReviewQueueItem items = 1;
+   */
+  items: ScenarioReviewQueueItem[];
+
+  /**
+   * Total number of scenarios considered (before exclusion and limit).
+   *
+   * @generated from field: int32 total_scenarios = 2;
+   */
+  totalScenarios: number;
+
+  /**
+   * Number of scenarios excluded due to pending QA fix items.
+   *
+   * @generated from field: int32 excluded_count = 3;
+   */
+  excludedCount: number;
+};
+
+/**
+ * Describes the message swarm_manager.v1.ScenarioReviewQueueResponse.
+ * Use `create(ScenarioReviewQueueResponseSchema)` to create a new message.
+ */
+export const ScenarioReviewQueueResponseSchema: GenMessage<ScenarioReviewQueueResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_scenarios, 12);
 

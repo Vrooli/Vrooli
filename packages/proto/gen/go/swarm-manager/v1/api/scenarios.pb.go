@@ -580,6 +580,234 @@ func (x *SpecSyncArchiveResponse) GetMessage() string {
 	return ""
 }
 
+// ScenarioReviewQueueRequest configures the review queue query.
+type ScenarioReviewQueueRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Maximum scenarios to return (1-50, default 5).
+	Limit *int32 `protobuf:"varint,1,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
+	// Tag used to identify QA-created fix items for exclusion (default: "preemptive-qa").
+	ExcludeTag    *string `protobuf:"bytes,2,opt,name=exclude_tag,json=excludeTag,proto3,oneof" json:"exclude_tag,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScenarioReviewQueueRequest) Reset() {
+	*x = ScenarioReviewQueueRequest{}
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioReviewQueueRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioReviewQueueRequest) ProtoMessage() {}
+
+func (x *ScenarioReviewQueueRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioReviewQueueRequest.ProtoReflect.Descriptor instead.
+func (*ScenarioReviewQueueRequest) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ScenarioReviewQueueRequest) GetLimit() int32 {
+	if x != nil && x.Limit != nil {
+		return *x.Limit
+	}
+	return 0
+}
+
+func (x *ScenarioReviewQueueRequest) GetExcludeTag() string {
+	if x != nil && x.ExcludeTag != nil {
+		return *x.ExcludeTag
+	}
+	return ""
+}
+
+// ScenarioReviewQueueItem represents a single scenario's review priority.
+type ScenarioReviewQueueItem struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Scenario name.
+	ScenarioName string `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	// Number of pending (non-terminal) backlog items targeting this scenario.
+	PendingBacklogCount int32 `protobuf:"varint,2,opt,name=pending_backlog_count,json=pendingBacklogCount,proto3" json:"pending_backlog_count,omitempty"`
+	// Classification from the most recent GCT review (ready, ready_with_notes, needs_work, not_assessable).
+	LastReviewClassification *string `protobuf:"bytes,3,opt,name=last_review_classification,json=lastReviewClassification,proto3,oneof" json:"last_review_classification,omitempty"`
+	// RFC3339 timestamp of the most recent GCT review.
+	LastReviewAt *string `protobuf:"bytes,4,opt,name=last_review_at,json=lastReviewAt,proto3,oneof" json:"last_review_at,omitempty"`
+	// Number of executions targeting this scenario in the last 30 days.
+	RecentExecutionCount int32 `protobuf:"varint,5,opt,name=recent_execution_count,json=recentExecutionCount,proto3" json:"recent_execution_count,omitempty"`
+	// Composite priority score (higher = more urgent).
+	CompositeScore float64 `protobuf:"fixed64,6,opt,name=composite_score,json=compositeScore,proto3" json:"composite_score,omitempty"`
+	// Which signal drove this scenario to the top: "workload", "recent_activity", "staleness".
+	PrimarySignal string `protobuf:"bytes,7,opt,name=primary_signal,json=primarySignal,proto3" json:"primary_signal,omitempty"`
+	// If recently reviewed, when cooldown expires (RFC3339). Empty if no cooldown.
+	CooldownUntil *string `protobuf:"bytes,8,opt,name=cooldown_until,json=cooldownUntil,proto3,oneof" json:"cooldown_until,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScenarioReviewQueueItem) Reset() {
+	*x = ScenarioReviewQueueItem{}
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioReviewQueueItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioReviewQueueItem) ProtoMessage() {}
+
+func (x *ScenarioReviewQueueItem) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioReviewQueueItem.ProtoReflect.Descriptor instead.
+func (*ScenarioReviewQueueItem) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ScenarioReviewQueueItem) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+func (x *ScenarioReviewQueueItem) GetPendingBacklogCount() int32 {
+	if x != nil {
+		return x.PendingBacklogCount
+	}
+	return 0
+}
+
+func (x *ScenarioReviewQueueItem) GetLastReviewClassification() string {
+	if x != nil && x.LastReviewClassification != nil {
+		return *x.LastReviewClassification
+	}
+	return ""
+}
+
+func (x *ScenarioReviewQueueItem) GetLastReviewAt() string {
+	if x != nil && x.LastReviewAt != nil {
+		return *x.LastReviewAt
+	}
+	return ""
+}
+
+func (x *ScenarioReviewQueueItem) GetRecentExecutionCount() int32 {
+	if x != nil {
+		return x.RecentExecutionCount
+	}
+	return 0
+}
+
+func (x *ScenarioReviewQueueItem) GetCompositeScore() float64 {
+	if x != nil {
+		return x.CompositeScore
+	}
+	return 0
+}
+
+func (x *ScenarioReviewQueueItem) GetPrimarySignal() string {
+	if x != nil {
+		return x.PrimarySignal
+	}
+	return ""
+}
+
+func (x *ScenarioReviewQueueItem) GetCooldownUntil() string {
+	if x != nil && x.CooldownUntil != nil {
+		return *x.CooldownUntil
+	}
+	return ""
+}
+
+// ScenarioReviewQueueResponse returns prioritized scenarios for quality review.
+type ScenarioReviewQueueResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Ranked list of scenarios needing quality review.
+	Items []*ScenarioReviewQueueItem `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	// Total number of scenarios considered (before exclusion and limit).
+	TotalScenarios int32 `protobuf:"varint,2,opt,name=total_scenarios,json=totalScenarios,proto3" json:"total_scenarios,omitempty"`
+	// Number of scenarios excluded due to pending QA fix items.
+	ExcludedCount int32 `protobuf:"varint,3,opt,name=excluded_count,json=excludedCount,proto3" json:"excluded_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScenarioReviewQueueResponse) Reset() {
+	*x = ScenarioReviewQueueResponse{}
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioReviewQueueResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioReviewQueueResponse) ProtoMessage() {}
+
+func (x *ScenarioReviewQueueResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioReviewQueueResponse.ProtoReflect.Descriptor instead.
+func (*ScenarioReviewQueueResponse) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ScenarioReviewQueueResponse) GetItems() []*ScenarioReviewQueueItem {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+func (x *ScenarioReviewQueueResponse) GetTotalScenarios() int32 {
+	if x != nil {
+		return x.TotalScenarios
+	}
+	return 0
+}
+
+func (x *ScenarioReviewQueueResponse) GetExcludedCount() int32 {
+	if x != nil {
+		return x.ExcludedCount
+	}
+	return 0
+}
+
 var File_swarm_manager_v1_api_scenarios_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_scenarios_proto_rawDesc = "" +
@@ -621,7 +849,29 @@ const file_swarm_manager_v1_api_scenarios_proto_rawDesc = "" +
 	"\x17SpecSyncArchiveResponse\x12*\n" +
 	"\fexecution_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vexecutionId\x12\x1f\n" +
 	"\x06status\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06status\x12!\n" +
-	"\amessage\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\amessageBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
+	"\amessage\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\amessage\"\x82\x01\n" +
+	"\x1aScenarioReviewQueueRequest\x12$\n" +
+	"\x05limit\x18\x01 \x01(\x05B\t\xbaH\x06\x1a\x04\x182(\x01H\x00R\x05limit\x88\x01\x01\x12$\n" +
+	"\vexclude_tag\x18\x02 \x01(\tH\x01R\n" +
+	"excludeTag\x88\x01\x01B\b\n" +
+	"\x06_limitB\x0e\n" +
+	"\f_exclude_tag\"\xd7\x03\n" +
+	"\x17ScenarioReviewQueueItem\x12#\n" +
+	"\rscenario_name\x18\x01 \x01(\tR\fscenarioName\x122\n" +
+	"\x15pending_backlog_count\x18\x02 \x01(\x05R\x13pendingBacklogCount\x12A\n" +
+	"\x1alast_review_classification\x18\x03 \x01(\tH\x00R\x18lastReviewClassification\x88\x01\x01\x12)\n" +
+	"\x0elast_review_at\x18\x04 \x01(\tH\x01R\flastReviewAt\x88\x01\x01\x124\n" +
+	"\x16recent_execution_count\x18\x05 \x01(\x05R\x14recentExecutionCount\x12'\n" +
+	"\x0fcomposite_score\x18\x06 \x01(\x01R\x0ecompositeScore\x12%\n" +
+	"\x0eprimary_signal\x18\a \x01(\tR\rprimarySignal\x12*\n" +
+	"\x0ecooldown_until\x18\b \x01(\tH\x02R\rcooldownUntil\x88\x01\x01B\x1d\n" +
+	"\x1b_last_review_classificationB\x11\n" +
+	"\x0f_last_review_atB\x11\n" +
+	"\x0f_cooldown_until\"\xae\x01\n" +
+	"\x1bScenarioReviewQueueResponse\x12?\n" +
+	"\x05items\x18\x01 \x03(\v2).swarm_manager.v1.ScenarioReviewQueueItemR\x05items\x12'\n" +
+	"\x0ftotal_scenarios\x18\x02 \x01(\x05R\x0etotalScenarios\x12%\n" +
+	"\x0eexcluded_count\x18\x03 \x01(\x05R\rexcludedCountBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
 var (
 	file_swarm_manager_v1_api_scenarios_proto_rawDescOnce sync.Once
@@ -635,7 +885,7 @@ func file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_api_scenarios_proto_rawDescData
 }
 
-var file_swarm_manager_v1_api_scenarios_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_swarm_manager_v1_api_scenarios_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_swarm_manager_v1_api_scenarios_proto_goTypes = []any{
 	(*ListScenariosResponse)(nil),         // 0: swarm_manager.v1.ListScenariosResponse
 	(*ScenarioResponse)(nil),              // 1: swarm_manager.v1.ScenarioResponse
@@ -647,20 +897,24 @@ var file_swarm_manager_v1_api_scenarios_proto_goTypes = []any{
 	(*ScenarioFilesResponse)(nil),         // 7: swarm_manager.v1.ScenarioFilesResponse
 	(*SpecSyncArchiveRequest)(nil),        // 8: swarm_manager.v1.SpecSyncArchiveRequest
 	(*SpecSyncArchiveResponse)(nil),       // 9: swarm_manager.v1.SpecSyncArchiveResponse
-	(*domain.Scenario)(nil),               // 10: swarm_manager.v1.Scenario
+	(*ScenarioReviewQueueRequest)(nil),    // 10: swarm_manager.v1.ScenarioReviewQueueRequest
+	(*ScenarioReviewQueueItem)(nil),       // 11: swarm_manager.v1.ScenarioReviewQueueItem
+	(*ScenarioReviewQueueResponse)(nil),   // 12: swarm_manager.v1.ScenarioReviewQueueResponse
+	(*domain.Scenario)(nil),               // 13: swarm_manager.v1.Scenario
 }
 var file_swarm_manager_v1_api_scenarios_proto_depIdxs = []int32{
-	10, // 0: swarm_manager.v1.ListScenariosResponse.scenarios:type_name -> swarm_manager.v1.Scenario
-	10, // 1: swarm_manager.v1.ScenarioResponse.scenario:type_name -> swarm_manager.v1.Scenario
+	13, // 0: swarm_manager.v1.ListScenariosResponse.scenarios:type_name -> swarm_manager.v1.Scenario
+	13, // 1: swarm_manager.v1.ScenarioResponse.scenario:type_name -> swarm_manager.v1.Scenario
 	3,  // 2: swarm_manager.v1.DeleteScenarioRequest.preserve_files:type_name -> swarm_manager.v1.PreserveFilesRequest
 	6,  // 3: swarm_manager.v1.ScenarioFile.children:type_name -> swarm_manager.v1.ScenarioFile
 	6,  // 4: swarm_manager.v1.ScenarioFilesResponse.files:type_name -> swarm_manager.v1.ScenarioFile
 	3,  // 5: swarm_manager.v1.SpecSyncArchiveRequest.preserve_files:type_name -> swarm_manager.v1.PreserveFilesRequest
-	6,  // [6:6] is the sub-list for method output_type
-	6,  // [6:6] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	11, // 6: swarm_manager.v1.ScenarioReviewQueueResponse.items:type_name -> swarm_manager.v1.ScenarioReviewQueueItem
+	7,  // [7:7] is the sub-list for method output_type
+	7,  // [7:7] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_api_scenarios_proto_init() }
@@ -674,13 +928,15 @@ func file_swarm_manager_v1_api_scenarios_proto_init() {
 	file_swarm_manager_v1_api_scenarios_proto_msgTypes[5].OneofWrappers = []any{}
 	file_swarm_manager_v1_api_scenarios_proto_msgTypes[6].OneofWrappers = []any{}
 	file_swarm_manager_v1_api_scenarios_proto_msgTypes[8].OneofWrappers = []any{}
+	file_swarm_manager_v1_api_scenarios_proto_msgTypes[10].OneofWrappers = []any{}
+	file_swarm_manager_v1_api_scenarios_proto_msgTypes[11].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_api_scenarios_proto_rawDesc), len(file_swarm_manager_v1_api_scenarios_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

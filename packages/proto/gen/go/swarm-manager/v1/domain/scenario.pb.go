@@ -41,7 +41,12 @@ type Scenario struct {
 	// Whether this scenario is greenfield.
 	IsGreenfield bool `protobuf:"varint,7,opt,name=is_greenfield,json=isGreenfield,proto3" json:"is_greenfield,omitempty"`
 	// Categorization tags.
-	Tags          []string `protobuf:"bytes,8,rep,name=tags,proto3" json:"tags,omitempty"`
+	Tags []string `protobuf:"bytes,8,rep,name=tags,proto3" json:"tags,omitempty"`
+	// Classification from the most recent GCT review.
+	// One of: ready, ready_with_notes, needs_work, not_assessable.
+	LastReviewClassification *string `protobuf:"bytes,9,opt,name=last_review_classification,json=lastReviewClassification,proto3,oneof" json:"last_review_classification,omitempty"`
+	// RFC3339 timestamp of the most recent GCT review.
+	LastReviewAt  *string `protobuf:"bytes,10,opt,name=last_review_at,json=lastReviewAt,proto3,oneof" json:"last_review_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -132,6 +137,20 @@ func (x *Scenario) GetTags() []string {
 	return nil
 }
 
+func (x *Scenario) GetLastReviewClassification() string {
+	if x != nil && x.LastReviewClassification != nil {
+		return *x.LastReviewClassification
+	}
+	return ""
+}
+
+func (x *Scenario) GetLastReviewAt() string {
+	if x != nil && x.LastReviewAt != nil {
+		return *x.LastReviewAt
+	}
+	return ""
+}
+
 // ScenarioMetadata stores editable metadata for a scenario.
 type ScenarioMetadata struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -182,7 +201,7 @@ var File_swarm_manager_v1_domain_scenario_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_scenario_proto_rawDesc = "" +
 	"\n" +
-	"&swarm-manager/v1/domain/scenario.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xf6\x02\n" +
+	"&swarm-manager/v1/domain/scenario.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\x96\x04\n" +
 	"\bScenario\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12*\n" +
 	"\fdisplay_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vdisplayName\x12 \n" +
@@ -192,8 +211,13 @@ const file_swarm_manager_v1_domain_scenario_proto_rawDesc = "" +
 	"(\x01R\bpriority\x12=\n" +
 	"\x12completeness_score\x18\x06 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x00H\x00R\x11completenessScore\x88\x01\x01\x12#\n" +
 	"\ris_greenfield\x18\a \x01(\bR\fisGreenfield\x12\x1c\n" +
-	"\x04tags\x18\b \x03(\tB\b\xbaH\x05\x92\x01\x02\x18\x01R\x04tagsB\x15\n" +
-	"\x13_completeness_score\"7\n" +
+	"\x04tags\x18\b \x03(\tB\b\xbaH\x05\x92\x01\x02\x18\x01R\x04tags\x12A\n" +
+	"\x1alast_review_classification\x18\t \x01(\tH\x01R\x18lastReviewClassification\x88\x01\x01\x12)\n" +
+	"\x0elast_review_at\x18\n" +
+	" \x01(\tH\x02R\flastReviewAt\x88\x01\x01B\x15\n" +
+	"\x13_completeness_scoreB\x1d\n" +
+	"\x1b_last_review_classificationB\x11\n" +
+	"\x0f_last_review_at\"7\n" +
 	"\x10ScenarioMetadata\x12#\n" +
 	"\ris_greenfield\x18\x01 \x01(\bR\fisGreenfieldBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
 

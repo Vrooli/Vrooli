@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/domain/scenario.proto.
  */
 export const file_swarm_manager_v1_domain_scenario: GenFile = /*@__PURE__*/
-  fileDesc("CiZzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9zY2VuYXJpby5wcm90bxIQc3dhcm1fbWFuYWdlci52MSKdAgoIU2NlbmFyaW8SFQoEbmFtZRgBIAEoCUIHukgEcgIQARIdCgxkaXNwbGF5X25hbWUYAiABKAlCB7pIBHICEAESEwoLZGVzY3JpcHRpb24YAyABKAkSNwoGc3RhdHVzGAQgASgJQie6SCRyIlIHcnVubmluZ1IHc3RvcHBlZFIFZXJyb3JSB3Vua25vd24SGwoIcHJpb3JpdHkYBSABKAVCCbpIBhoEGAooARIqChJjb21wbGV0ZW5lc3Nfc2NvcmUYBiABKAVCCbpIBhoEGGQoAEgAiAEBEhUKDWlzX2dyZWVuZmllbGQYByABKAgSFgoEdGFncxgIIAMoCUIIukgFkgECGAFCFQoTX2NvbXBsZXRlbmVzc19zY29yZSIpChBTY2VuYXJpb01ldGFkYXRhEhUKDWlzX2dyZWVuZmllbGQYASABKAhCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_buf_validate_validate]);
+  fileDesc("CiZzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9zY2VuYXJpby5wcm90bxIQc3dhcm1fbWFuYWdlci52MSKVAwoIU2NlbmFyaW8SFQoEbmFtZRgBIAEoCUIHukgEcgIQARIdCgxkaXNwbGF5X25hbWUYAiABKAlCB7pIBHICEAESEwoLZGVzY3JpcHRpb24YAyABKAkSNwoGc3RhdHVzGAQgASgJQie6SCRyIlIHcnVubmluZ1IHc3RvcHBlZFIFZXJyb3JSB3Vua25vd24SGwoIcHJpb3JpdHkYBSABKAVCCbpIBhoEGAooARIqChJjb21wbGV0ZW5lc3Nfc2NvcmUYBiABKAVCCbpIBhoEGGQoAEgAiAEBEhUKDWlzX2dyZWVuZmllbGQYByABKAgSFgoEdGFncxgIIAMoCUIIukgFkgECGAESJwoabGFzdF9yZXZpZXdfY2xhc3NpZmljYXRpb24YCSABKAlIAYgBARIbCg5sYXN0X3Jldmlld19hdBgKIAEoCUgCiAEBQhUKE19jb21wbGV0ZW5lc3Nfc2NvcmVCHQobX2xhc3RfcmV2aWV3X2NsYXNzaWZpY2F0aW9uQhEKD19sYXN0X3Jldmlld19hdCIpChBTY2VuYXJpb01ldGFkYXRhEhUKDWlzX2dyZWVuZmllbGQYASABKAhCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_buf_validate_validate]);
 
 /**
  * Scenario represents a deployed application in the Vrooli ecosystem.
@@ -75,6 +75,21 @@ export type Scenario = Message<"swarm_manager.v1.Scenario"> & {
    * @generated from field: repeated string tags = 8;
    */
   tags: string[];
+
+  /**
+   * Classification from the most recent GCT review.
+   * One of: ready, ready_with_notes, needs_work, not_assessable.
+   *
+   * @generated from field: optional string last_review_classification = 9;
+   */
+  lastReviewClassification?: string;
+
+  /**
+   * RFC3339 timestamp of the most recent GCT review.
+   *
+   * @generated from field: optional string last_review_at = 10;
+   */
+  lastReviewAt?: string;
 };
 
 /**
