@@ -1,8 +1,8 @@
 // Re-export everything from each module for backward compatibility
 // This allows existing imports from "../lib/api" to continue working
 
-// Client (error handling)
-export { ApiError, throwIfNotOk, buildUrl } from "./client";
+// Client (error handling + typed fetch helpers)
+export { ApiError, throwIfNotOk, buildUrl, fetchJson, mutateJson, mutateVoid } from "./client";
 export type { RecoveryAction, ApiErrorResponse } from "./client";
 
 // Types (all type definitions)

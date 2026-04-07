@@ -1,96 +1,94 @@
-import { buildUrl, throwIfNotOk } from "./client";
+import { fetchJson, mutateJson } from "./client";
 import type {
-  SigningConfig,
-  SigningConfigResponse,
-  SigningValidationResult,
-  SigningReadinessResponse,
-  ToolDetectionResult,
-  DiscoveredCertificate,
-  GenerateKeyResponse,
   WindowsSigningConfig,
   MacOSSigningConfig,
   LinuxSigningConfig,
+  SigningConfig,
 } from "./types";
+import {
+  SigningConfigResponseSchema,
+  SigningValidationResultSchema,
+  SigningReadinessResponseSchema,
+  GenerateKeyResponseSchema,
+  DeleteSigningResponseSchema,
+  DeletePlatformSigningResponseSchema,
+  PrerequisitesResponseSchema,
+  CertificateDiscoveryResponseSchema,
+} from "./schemas/signing";
 
-export async function fetchSigningConfig(scenario: string): Promise<SigningConfigResponse> {
-  const response = await fetch(buildUrl(`/signing/${encodeURIComponent(scenario)}`));
-  await throwIfNotOk(response);
-  return await response.json() as SigningConfigResponse;
+export function fetchSigningConfig(scenario: string) {
+  return fetchJson(
+    `/signing/${encodeURIComponent(scenario)}`,
+    SigningConfigResponseSchema,
+  );
 }
 
-export async function saveSigningConfig(scenario: string, config: SigningConfig): Promise<SigningConfigResponse> {
-  const response = await fetch(buildUrl(`/signing/${encodeURIComponent(scenario)}`), {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(config)
-  });
-  await throwIfNotOk(response);
-  return await response.json() as SigningConfigResponse;
+export function saveSigningConfig(scenario: string, config: SigningConfig) {
+  return mutateJson(
+    `/signing/${encodeURIComponent(scenario)}`,
+    SigningConfigResponseSchema,
+    { method: "PUT", body: config },
+  );
 }
 
-export async function updatePlatformSigningConfig(
+export function updatePlatformSigningConfig(
   scenario: string,
   platform: "windows" | "macos" | "linux",
-  config: WindowsSigningConfig | MacOSSigningConfig | LinuxSigningConfig
-): Promise<SigningConfigResponse> {
-  const response = await fetch(buildUrl(`/signing/${encodeURIComponent(scenario)}/${platform}`), {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(config)
-  });
-  await throwIfNotOk(response);
-  return await response.json() as SigningConfigResponse;
+  config: WindowsSigningConfig | MacOSSigningConfig | LinuxSigningConfig,
+) {
+  return mutateJson(
+    `/signing/${encodeURIComponent(scenario)}/${platform}`,
+    SigningConfigResponseSchema,
+    { method: "PATCH", body: config },
+  );
 }
 
-export async function deleteSigningConfig(scenario: string): Promise<{ status: string; scenario: string }> {
-  const response = await fetch(buildUrl(`/signing/${encodeURIComponent(scenario)}`), {
-    method: "DELETE"
-  });
-  await throwIfNotOk(response);
-  return await response.json() as { status: string; scenario: string };
+export function deleteSigningConfig(scenario: string) {
+  return mutateJson(
+    `/signing/${encodeURIComponent(scenario)}`,
+    DeleteSigningResponseSchema,
+    { method: "DELETE" },
+  );
 }
 
-export async function deletePlatformSigningConfig(
+export function deletePlatformSigningConfig(
   scenario: string,
-  platform: "windows" | "macos" | "linux"
-): Promise<{ status: string; scenario: string; platform: string }> {
-  const response = await fetch(buildUrl(`/signing/${encodeURIComponent(scenario)}/${platform}`), {
-    method: "DELETE"
-  });
-  await throwIfNotOk(response);
-  return await response.json() as { status: string; scenario: string; platform: string };
+  platform: "windows" | "macos" | "linux",
+) {
+  return mutateJson(
+    `/signing/${encodeURIComponent(scenario)}/${platform}`,
+    DeletePlatformSigningResponseSchema,
+    { method: "DELETE" },
+  );
 }
 
-export async function validateSigningConfig(scenario: string): Promise<SigningValidationResult> {
-  const response = await fetch(buildUrl(`/signing/${encodeURIComponent(scenario)}/validate`), {
-    method: "POST"
-  });
-  await throwIfNotOk(response);
-  return await response.json() as SigningValidationResult;
+export function validateSigningConfig(scenario: string) {
+  return mutateJson(
+    `/signing/${encodeURIComponent(scenario)}/validate`,
+    SigningValidationResultSchema,
+    { method: "POST" },
+  );
 }
 
-export async function checkSigningReadiness(scenario: string): Promise<SigningReadinessResponse> {
-  const response = await fetch(buildUrl(`/signing/${encodeURIComponent(scenario)}/ready`));
-  await throwIfNotOk(response);
-  return await response.json() as SigningReadinessResponse;
+export function checkSigningReadiness(scenario: string) {
+  return fetchJson(
+    `/signing/${encodeURIComponent(scenario)}/ready`,
+    SigningReadinessResponseSchema,
+  );
 }
 
-export async function fetchSigningPrerequisites(): Promise<{ tools: ToolDetectionResult[] }> {
-  const response = await fetch(buildUrl("/signing/prerequisites"));
-  await throwIfNotOk(response);
-  return await response.json() as { tools: ToolDetectionResult[] };
+export function fetchSigningPrerequisites() {
+  return fetchJson("/signing/prerequisites", PrerequisitesResponseSchema);
 }
 
-export async function discoverCertificates(platform: "windows" | "macos" | "linux"): Promise<{
-  platform: string;
-  certificates: DiscoveredCertificate[];
-}> {
-  const response = await fetch(buildUrl(`/signing/discover/${platform}`));
-  await throwIfNotOk(response);
-  return await response.json() as { platform: string; certificates: DiscoveredCertificate[] };
+export function discoverCertificates(platform: "windows" | "macos" | "linux") {
+  return fetchJson(
+    `/signing/discover/${platform}`,
+    CertificateDiscoveryResponseSchema,
+  );
 }
 
-export async function generateLinuxSigningKey(
+export function generateLinuxSigningKey(
   scenario: string,
   payload: {
     name?: string;
@@ -100,13 +98,11 @@ export async function generateLinuxSigningKey(
     homedir?: string;
     expiry?: string;
     force?: boolean;
-  }
-): Promise<GenerateKeyResponse> {
-  const response = await fetch(buildUrl(`/signing/${encodeURIComponent(scenario)}/linux/generate-key`), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...payload, export_public: true })
-  });
-  await throwIfNotOk(response);
-  return await response.json() as GenerateKeyResponse;
+  },
+) {
+  return mutateJson(
+    `/signing/${encodeURIComponent(scenario)}/linux/generate-key`,
+    GenerateKeyResponseSchema,
+    { method: "POST", body: { ...payload, export_public: true } },
+  );
 }

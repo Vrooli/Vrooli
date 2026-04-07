@@ -129,6 +129,13 @@ export type DesktopRecord = z.infer<typeof DesktopRecordSchema>;
 /**
  * Desktop records response with build status.
  */
+export const ScreenRecordingViewSchema = z.object({
+  recorded: z.boolean(),
+  duration_ms: z.number().optional(),
+  file_size_bytes: z.number().optional(),
+  error: z.string().optional(),
+});
+
 export const DesktopRecordResponseSchema = z.object({
   records: z.array(
     z.object({
@@ -136,6 +143,8 @@ export const DesktopRecordResponseSchema = z.object({
       build_status: BuildStatusSchema.optional(),
       has_build: z.boolean(),
       build_state: z.string().optional(),
+      smoke_test_id: z.string().optional(),
+      screen_recording: ScreenRecordingViewSchema.optional(),
     })
   ),
 });

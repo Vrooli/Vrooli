@@ -13,7 +13,6 @@ import (
 
 	"scenario-to-desktop-api/agentmanager"
 	"scenario-to-desktop-api/domain"
-	"scenario-to-desktop-api/persistence"
 	"scenario-to-desktop-api/pipeline"
 	"scenario-to-desktop-api/shared/path"
 	"scenario-to-desktop-api/tasks/fix"
@@ -25,20 +24,52 @@ type PipelineStore interface {
 	Get(pipelineID string) (*pipeline.Status, bool)
 }
 
+// InvestigationStore defines the interface for investigation persistence.
+// This interface captures only the methods used by the tasks service,
+// allowing the concrete persistence.InvestigationStore to satisfy it.
+type InvestigationStore interface {
+	Create(inv *domain.Investigation) error
+	Get(id string) (*domain.Investigation, error)
+	GetForPipeline(pipelineID, id string) (*domain.Investigation, error)
+	GetActive(pipelineID string) (*domain.Investigation, error)
+	List(pipelineID string, limit int) ([]*domain.Investigation, error)
+	Update(id string, fn func(inv *domain.Investigation)) error
+	UpdateStatus(id string, status domain.InvestigationStatus) error
+	UpdateProgress(id string, progress int) error
+	UpdateRunID(id, runID string) error
+	UpdateFindings(id, findings string, details json.RawMessage) error
+	UpdateError(id, errorMsg string) error
+	UpdateErrorWithDetails(id, errorMsg string, details json.RawMessage) error
+	SetCancel(id string, cancel context.CancelFunc)
+	TakeCancel(id string) context.CancelFunc
+	ClearCancel(id string)
+}
+
+// AgentExecutor defines the interface for agent-manager interactions.
+// This interface captures only the methods used by the tasks service,
+// allowing the concrete agentmanager.AgentService to satisfy it.
+type AgentExecutor interface {
+	IsAvailable(ctx context.Context) bool
+	ExecuteAsync(ctx context.Context, req agentmanager.ExecuteRequest) (string, error)
+	GetRunStatus(ctx context.Context, runID string) (*domainpb.Run, error)
+	StopRun(ctx context.Context, runID string) error
+	ResolveURL(ctx context.Context) (string, error)
+}
+
 // Service orchestrates task execution for both investigation and fix workflows.
 type Service struct {
-	invStore      *persistence.InvestigationStore
+	invStore      InvestigationStore
 	pipelineStore PipelineStore
-	agentSvc      *agentmanager.AgentService
+	agentSvc      AgentExecutor
 	progressHub   ProgressBroadcaster
 	handlers      *HandlerRegistry
 }
 
 // NewService creates a new task service with registered handlers.
 func NewService(
-	invStore *persistence.InvestigationStore,
+	invStore InvestigationStore,
 	pipelineStore PipelineStore,
-	agentSvc *agentmanager.AgentService,
+	agentSvc AgentExecutor,
 	hub ProgressBroadcaster,
 ) *Service {
 	s := &Service{

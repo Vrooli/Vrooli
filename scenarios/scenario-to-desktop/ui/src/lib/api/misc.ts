@@ -1,18 +1,23 @@
-import { buildUrl, throwIfNotOk } from "./client";
-import type {
-  HealthResponse,
-  DocsManifest,
-  DocsContentResponse,
-  DesktopRecordResponse,
-  ProbeResponse,
-  ProxyHintsResponse,
-  BundleManifestResponse,
-  WineCheckResponse,
-  WineInstallStatus,
-  TelemetryUploadRequest,
-  ScenarioPortResponse,
-} from "./types";
-import type { TelemetryInsights, TelemetrySummary, TelemetryTailResponse } from "../../domain/types";
+import { buildUrl, fetchJson, mutateJson, mutateVoid, throwIfNotOk } from "./client";
+import { parseOrThrow } from "./safeParse";
+import {
+  DocsManifestSchema,
+  DocsContentResponseSchema,
+  ProxyHintsResponseSchema,
+  BundleManifestResponseSchema,
+  WineCheckResponseSchema,
+  WineInstallStatusSchema,
+  TelemetryInsightsSchema,
+  TelemetrySummarySchema,
+  TelemetryTailResponseSchema,
+  ScenarioPortResponseSchema,
+  MoveRecordResponseSchema,
+  StatusResponseSchema,
+  InstallIdResponseSchema,
+  OutputPathResponseSchema,
+} from "./schemas/misc";
+import { HealthResponseSchema, ProbeResponseSchema, DesktopRecordResponseSchema } from "./schemas";
+import type { DesktopRecordResponse, BundleManifestResponse } from "./types";
 
 // ==================== Icon Functions ====================
 
@@ -21,24 +26,18 @@ export const getIconPreviewUrl = (path: string): string =>
 
 // ==================== Health & System Functions ====================
 
-export async function fetchHealth(): Promise<HealthResponse> {
-  const response = await fetch(buildUrl("/health"));
-  await throwIfNotOk(response);
-  return await response.json() as HealthResponse;
+export function fetchHealth() {
+  return fetchJson("/health", HealthResponseSchema);
 }
 
 // ==================== Docs Functions ====================
 
-export async function fetchDocsManifest(): Promise<DocsManifest> {
-  const response = await fetch(buildUrl("/docs/manifest"));
-  await throwIfNotOk(response);
-  return await response.json() as DocsManifest;
+export function fetchDocsManifest() {
+  return fetchJson("/docs/manifest", DocsManifestSchema);
 }
 
-export async function fetchDocContent(path: string): Promise<DocsContentResponse> {
-  const response = await fetch(buildUrl(`/docs/content?path=${encodeURIComponent(path)}`));
-  await throwIfNotOk(response);
-  return await response.json() as DocsContentResponse;
+export function fetchDocContent(path: string) {
+  return fetchJson(`/docs/content?path=${encodeURIComponent(path)}`, DocsContentResponseSchema);
 }
 
 // ==================== Desktop Record Functions ====================
@@ -46,143 +45,129 @@ export async function fetchDocContent(path: string): Promise<DocsContentResponse
 export async function fetchDesktopRecords(): Promise<DesktopRecordResponse> {
   const response = await fetch(buildUrl("/desktop/records"));
   await throwIfNotOk(response);
-  return await response.json() as DesktopRecordResponse;
+  // Schema validates shape; explicit return type bridges Zod's widened
+  // union inference (e.g. `string` from z.union([enum, z.string()])) back
+  // to the narrower hand-written interface.
+  return parseOrThrow(DesktopRecordResponseSchema, await response.json()) as DesktopRecordResponse;
 }
 
-export async function moveDesktopRecord(
+export function moveDesktopRecord(
   recordId: string,
   payload: { target?: "destination" | "custom"; destination_path?: string } = {}
-): Promise<{ record_id: string; from: string; to: string; status: string }> {
-  const response = await fetch(buildUrl(`/desktop/records/${recordId}/move`), {
+) {
+  return mutateJson(`/desktop/records/${recordId}/move`, MoveRecordResponseSchema, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
+    body: payload,
   });
-  await throwIfNotOk(response);
-  return await response.json() as { record_id: string; from: string; to: string; status: string };
 }
 
 export function getDownloadUrl(scenarioName: string, platform: string): string {
   return buildUrl(`/desktop/download/${scenarioName}/${platform}`);
 }
 
-export async function deleteDesktopBuild(scenarioName: string): Promise<{ status: string }> {
-  const response = await fetch(buildUrl(`/desktop/delete/${scenarioName}`), {
-    method: "DELETE"
+export function deleteDesktopBuild(scenarioName: string) {
+  return mutateJson(`/desktop/delete/${scenarioName}`, StatusResponseSchema, {
+    method: "DELETE",
   });
-  await throwIfNotOk(response);
-  return await response.json() as { status: string };
 }
 
 // ==================== Probe Functions ====================
 
-export async function probeEndpoints(payload: {
+export function probeEndpoints(payload: {
   proxy_url?: string;
   server_url?: string;
   api_url?: string;
   timeout_ms?: number;
-}): Promise<ProbeResponse> {
-  const response = await fetch(buildUrl("/desktop/probe"), {
+}) {
+  return mutateJson("/desktop/probe", ProbeResponseSchema, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
+    body: payload,
   });
-  await throwIfNotOk(response);
-  return await response.json() as ProbeResponse;
 }
 
-export async function fetchProxyHints(scenarioName: string): Promise<ProxyHintsResponse> {
-  const response = await fetch(buildUrl(`/desktop/proxy-hints/${encodeURIComponent(scenarioName)}`));
-  await throwIfNotOk(response);
-  return await response.json() as ProxyHintsResponse;
+export function fetchProxyHints(scenarioName: string) {
+  return fetchJson(
+    `/desktop/proxy-hints/${encodeURIComponent(scenarioName)}`,
+    ProxyHintsResponseSchema,
+  );
 }
 
 // ==================== Bundle Manifest Functions ====================
 
-export async function fetchBundleManifest(payload: { bundle_manifest_path: string }): Promise<BundleManifestResponse> {
+export async function fetchBundleManifest(
+  payload: { bundle_manifest_path: string },
+): Promise<BundleManifestResponse> {
   const response = await fetch(buildUrl("/desktop/bundle-manifest"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
   });
   await throwIfNotOk(response);
-  return await response.json() as BundleManifestResponse;
+  return parseOrThrow(BundleManifestResponseSchema, await response.json()) as BundleManifestResponse;
 }
 
 // ==================== Wine Functions ====================
 
-export async function checkWineStatus(): Promise<WineCheckResponse> {
-  const response = await fetch(buildUrl("/system/wine/check"));
-  await throwIfNotOk(response);
-  return await response.json() as WineCheckResponse;
+export function checkWineStatus() {
+  return fetchJson("/system/wine/check", WineCheckResponseSchema);
 }
 
-export async function startWineInstall(method: string): Promise<{ install_id: string }> {
-  const response = await fetch(buildUrl("/system/wine/install"), {
+export function startWineInstall(method: string) {
+  return mutateJson("/system/wine/install", InstallIdResponseSchema, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ method })
+    body: { method },
   });
-  await throwIfNotOk(response);
-  return await response.json() as { install_id: string };
 }
 
-export async function fetchWineInstallStatus(installId: string): Promise<WineInstallStatus> {
-  const response = await fetch(buildUrl(`/system/wine/install/status/${installId}`));
-  await throwIfNotOk(response);
-  return await response.json() as WineInstallStatus;
+export function fetchWineInstallStatus(installId: string) {
+  return fetchJson(`/system/wine/install/status/${installId}`, WineInstallStatusSchema);
 }
 
 // ==================== Telemetry Functions ====================
 
-export async function fetchTelemetryInsights(scenarioName: string): Promise<TelemetryInsights> {
-  const response = await fetch(
-    buildUrl(`/deployment/telemetry/${encodeURIComponent(scenarioName)}/insights`)
+export function fetchTelemetryInsights(scenarioName: string) {
+  return fetchJson(
+    `/deployment/telemetry/${encodeURIComponent(scenarioName)}/insights`,
+    TelemetryInsightsSchema,
   );
-  await throwIfNotOk(response);
-  return (await response.json()) as TelemetryInsights;
 }
 
-export async function uploadTelemetry(payload: TelemetryUploadRequest): Promise<{ output_path: string }> {
-  const response = await fetch(buildUrl("/deployment/telemetry"), {
+export function uploadTelemetry(payload: {
+  scenario_name: string;
+  deployment_mode?: string;
+  source?: string;
+  events: unknown[];
+}) {
+  return mutateJson("/deployment/telemetry", OutputPathResponseSchema, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+    body: {
       deployment_mode: "external-server",
       source: "desktop-upload",
-      ...payload
-    })
+      ...payload,
+    },
   });
-  await throwIfNotOk(response);
-  return await response.json() as { output_path: string };
 }
 
-export async function deleteTelemetry(scenarioName: string): Promise<void> {
-  const response = await fetch(
-    buildUrl(`/deployment/telemetry/${encodeURIComponent(scenarioName)}`),
-    { method: "DELETE" }
+export function deleteTelemetry(scenarioName: string) {
+  return mutateVoid(
+    `/deployment/telemetry/${encodeURIComponent(scenarioName)}`,
+    { method: "DELETE" },
   );
-  await throwIfNotOk(response);
 }
 
-export async function fetchTelemetrySummary(scenarioName: string): Promise<TelemetrySummary> {
-  const response = await fetch(
-    buildUrl(`/deployment/telemetry/${encodeURIComponent(scenarioName)}/summary`)
+export function fetchTelemetrySummary(scenarioName: string) {
+  return fetchJson(
+    `/deployment/telemetry/${encodeURIComponent(scenarioName)}/summary`,
+    TelemetrySummarySchema,
   );
-  await throwIfNotOk(response);
-  return await response.json() as TelemetrySummary;
 }
 
-export async function fetchTelemetryTail(
-  scenarioName: string,
-  limit = 200
-): Promise<TelemetryTailResponse> {
+export function fetchTelemetryTail(scenarioName: string, limit = 200) {
   const params = new URLSearchParams({ limit: String(limit) });
-  const response = await fetch(
-    buildUrl(`/deployment/telemetry/${encodeURIComponent(scenarioName)}/tail?${params.toString()}`)
+  return fetchJson(
+    `/deployment/telemetry/${encodeURIComponent(scenarioName)}/tail?${params.toString()}`,
+    TelemetryTailResponseSchema,
   );
-  await throwIfNotOk(response);
-  return await response.json() as TelemetryTailResponse;
 }
 
 export const getTelemetryDownloadUrl = (scenarioName: string): string =>
@@ -190,8 +175,9 @@ export const getTelemetryDownloadUrl = (scenarioName: string): string =>
 
 // ==================== Port Functions ====================
 
-export async function fetchScenarioPort(scenario: string, portName: string): Promise<ScenarioPortResponse> {
-  const response = await fetch(buildUrl(`/ports/${encodeURIComponent(scenario)}/${encodeURIComponent(portName)}`));
-  await throwIfNotOk(response);
-  return await response.json() as ScenarioPortResponse;
+export function fetchScenarioPort(scenario: string, portName: string) {
+  return fetchJson(
+    `/ports/${encodeURIComponent(scenario)}/${encodeURIComponent(portName)}`,
+    ScenarioPortResponseSchema,
+  );
 }

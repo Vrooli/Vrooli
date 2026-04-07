@@ -1,4 +1,6 @@
 import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
+import type { ZodSchema } from "zod";
+import { parseOrThrow } from "./safeParse";
 
 const API_BASE = resolveApiBase({ appendSuffix: true });
 export const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
@@ -118,4 +120,69 @@ export async function throwIfNotOk(response: Response): Promise<void> {
   if (!response.ok) {
     throw await parseApiError(response);
   }
+}
+
+/**
+ * Fetch a GET endpoint and validate the JSON response against a Zod schema.
+ *
+ * Combines buildUrl + fetch + throwIfNotOk + Zod validation into a single call,
+ * replacing the error-prone `response.json() as T` pattern with runtime validation
+ * at the system boundary.
+ *
+ * @example
+ * ```ts
+ * const health = await fetchJson("/health", HealthResponseSchema);
+ * ```
+ */
+export async function fetchJson<T>(path: string, schema: ZodSchema<T>): Promise<T> {
+  const response = await fetch(buildUrl(path));
+  await throwIfNotOk(response);
+  return parseOrThrow(schema, await response.json());
+}
+
+/**
+ * Send a mutation request (POST/PUT/PATCH/DELETE) and validate the JSON response
+ * against a Zod schema.
+ *
+ * @example
+ * ```ts
+ * const result = await mutateJson("/desktop/probe", ProbeResponseSchema, {
+ *   method: "POST",
+ *   body: { proxy_url: "http://localhost:3000" },
+ * });
+ * ```
+ */
+export async function mutateJson<T>(
+  path: string,
+  schema: ZodSchema<T>,
+  options: {
+    method: "POST" | "PUT" | "PATCH" | "DELETE";
+    body?: unknown;
+  },
+): Promise<T> {
+  const init: RequestInit = { method: options.method };
+  if (options.body !== undefined) {
+    init.headers = { "Content-Type": "application/json" };
+    init.body = JSON.stringify(options.body);
+  }
+  const response = await fetch(buildUrl(path), init);
+  await throwIfNotOk(response);
+  return parseOrThrow(schema, await response.json());
+}
+
+/**
+ * Send a mutation request that returns no body (e.g., DELETE operations).
+ * Only checks for HTTP errors; does not parse a response body.
+ */
+export async function mutateVoid(
+  path: string,
+  options: { method: "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown },
+): Promise<void> {
+  const init: RequestInit = { method: options.method };
+  if (options.body !== undefined) {
+    init.headers = { "Content-Type": "application/json" };
+    init.body = JSON.stringify(options.body);
+  }
+  const response = await fetch(buildUrl(path), init);
+  await throwIfNotOk(response);
 }

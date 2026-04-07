@@ -60,6 +60,78 @@ export {
   DesktopRecordResponseSchema,
 } from "./build";
 
+// Export from misc (docs, wine, telemetry, ports, inline response types)
+export {
+  DocsDocumentSchema,
+  DocsSectionSchema,
+  DocsNavigationSchema,
+  DocsManifestSchema,
+  DocsContentResponseSchema,
+  ProxyHintSchema,
+  ProxyHintsResponseSchema,
+  BundleManifestResponseSchema,
+  WineInstallMethodSchema,
+  WineCheckResponseSchema,
+  WineInstallStatusSchema,
+  TelemetryInsightSessionSchema,
+  TelemetryInsightSmokeTestSchema,
+  TelemetryInsightErrorSchema,
+  TelemetryInsightsSchema,
+  TelemetrySummarySchema,
+  TelemetryEventSchema,
+  TelemetryTailEntrySchema,
+  TelemetryTailResponseSchema,
+  ScenarioPortResponseSchema,
+  MoveRecordResponseSchema,
+  StatusResponseSchema,
+  InstallIdResponseSchema,
+  OutputPathResponseSchema,
+} from "./misc";
+
+// Export from signing (signing config, validation, readiness, certificates)
+export {
+  WindowsSigningConfigSchema,
+  MacOSSigningConfigSchema,
+  LinuxSigningConfigSchema,
+  SigningConfigSchema,
+  SigningConfigResponseSchema,
+  PlatformValidationSchema as SigningPlatformValidationSchema,
+  SigningValidationErrorSchema,
+  SigningValidationWarningSchema,
+  SigningValidationResultSchema,
+  PlatformStatusSchema as SigningPlatformStatusSchema,
+  SigningReadinessResponseSchema,
+  ToolDetectionResultSchema,
+  DiscoveredCertificateSchema,
+  GenerateKeyResponseSchema,
+  DeleteSigningResponseSchema,
+  DeletePlatformSigningResponseSchema,
+  PrerequisitesResponseSchema,
+  CertificateDiscoveryResponseSchema,
+} from "./signing";
+
+// Export from scenarios (state management, validation, listing)
+export {
+  FormStateSchema,
+  InputFingerprintSchema,
+  StageStateSchema,
+  CompressedLogSchema,
+  BuildArtifactSchema,
+  ScenarioStateSchema,
+  ScenarioStageStatusSchema,
+  StateChangeSchema,
+  ValidationStatusSchema,
+  LoadStateResponseSchema,
+  SaveStateResponseSchema,
+  CheckStalenessResponseSchema,
+  GetLogsResponseSchema,
+  DesktopBuildArtifactSchema,
+  DesktopConnectionConfigSchema,
+  ScenarioDesktopStatusSchema,
+  ScenariosResponseSchema,
+  TemplateListResponseSchema,
+} from "./scenarios";
+
 // Export from pipeline (excluding re-exports that would conflict with common)
 export {
   PipelineConfigSchema,

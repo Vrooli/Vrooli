@@ -1,6 +1,15 @@
-import { buildUrl, throwIfNotOk } from "./client";
-import type { BundlePreflightResponse, TemplateInfo } from "./types";
-import type { ScenariosResponse } from "../../components/scenario-inventory/types";
+import { buildUrl, fetchJson, mutateJson, mutateVoid, throwIfNotOk } from "./client";
+import { parseOrThrow } from "./safeParse";
+import {
+  LoadStateResponseSchema,
+  SaveStateResponseSchema,
+  CheckStalenessResponseSchema,
+  GetLogsResponseSchema,
+  ValidationStatusSchema,
+  ScenariosResponseSchema,
+  TemplateListResponseSchema,
+} from "./schemas/scenarios";
+import type { BundlePreflightResponse } from "./types";
 
 // ==================== Scenario State Types ====================
 
@@ -206,8 +215,8 @@ export interface SaveStateOptions {
 
 export async function fetchScenarioState(
   scenarioName: string,
-  options?: LoadStateOptions
-): Promise<LoadStateResponse> {
+  options?: LoadStateOptions,
+) {
   const params = new URLSearchParams();
   if (options?.includeLogs) params.set("include_logs", "true");
   if (options?.validateManifest) params.set("validate_manifest", "true");
@@ -220,23 +229,23 @@ export async function fetchScenarioState(
   const response = await fetch(url);
   // Special case: 404 means state doesn't exist yet (not an error)
   if (response.status === 404) {
-    return { state: null, found: false };
+    return { state: null, found: false } as const;
   }
   await throwIfNotOk(response);
-  return await response.json() as LoadStateResponse;
+  return parseOrThrow(LoadStateResponseSchema, await response.json());
 }
 
-export async function saveScenarioState(
+export function saveScenarioState(
   scenarioName: string,
   formState: FormState,
-  options?: SaveStateOptions
-): Promise<SaveStateResponse> {
-  const response = await fetch(
-    buildUrl(`/scenarios/${encodeURIComponent(scenarioName)}/state`),
+  options?: SaveStateOptions,
+) {
+  return mutateJson(
+    `/scenarios/${encodeURIComponent(scenarioName)}/state`,
+    SaveStateResponseSchema,
     {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+      body: {
         form_state: formState,
         manifest_path: options?.manifestPath,
         compute_hash: options?.computeHash,
@@ -244,81 +253,63 @@ export async function saveScenarioState(
         build_artifacts: options?.buildArtifacts,
         stage_results: options?.stageResults,
         expected_hash: options?.expectedHash,
-      }),
-    }
+      },
+    },
   );
-  await throwIfNotOk(response);
-  return await response.json() as SaveStateResponse;
 }
 
-export async function deleteScenarioState(scenarioName: string): Promise<void> {
-  const response = await fetch(
-    buildUrl(`/scenarios/${encodeURIComponent(scenarioName)}/state`),
-    { method: "DELETE" }
+export function deleteScenarioState(scenarioName: string) {
+  return mutateVoid(
+    `/scenarios/${encodeURIComponent(scenarioName)}/state`,
+    { method: "DELETE" },
   );
-  await throwIfNotOk(response);
 }
 
-export async function checkStateStaleness(
+export function checkStateStaleness(
   scenarioName: string,
-  currentConfig: InputFingerprint
-): Promise<CheckStalenessResponse> {
-  const response = await fetch(
-    buildUrl(`/scenarios/${encodeURIComponent(scenarioName)}/state/check`),
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ current_config: currentConfig }),
-    }
+  currentConfig: InputFingerprint,
+) {
+  return mutateJson(
+    `/scenarios/${encodeURIComponent(scenarioName)}/state/check`,
+    CheckStalenessResponseSchema,
+    { method: "POST", body: { current_config: currentConfig } },
   );
-  await throwIfNotOk(response);
-  return await response.json() as CheckStalenessResponse;
 }
 
 export async function getScenarioLogs(
   scenarioName: string,
-  serviceId: string
-): Promise<GetLogsResponse | null> {
-  const response = await fetch(
-    buildUrl(
-      `/scenarios/${encodeURIComponent(scenarioName)}/state/logs/${encodeURIComponent(serviceId)}`
-    )
+  serviceId: string,
+) {
+  const url = buildUrl(
+    `/scenarios/${encodeURIComponent(scenarioName)}/state/logs/${encodeURIComponent(serviceId)}`
   );
+  const response = await fetch(url);
   // Special case: 404 means logs don't exist (not an error)
   if (response.status === 404) {
     return null;
   }
   await throwIfNotOk(response);
-  return await response.json() as GetLogsResponse;
+  return parseOrThrow(GetLogsResponseSchema, await response.json());
 }
 
-export async function invalidateScenarioStage(
+export function invalidateScenarioStage(
   scenarioName: string,
   fromStage: string,
-  reason?: string
-): Promise<ValidationStatus> {
-  const response = await fetch(
-    buildUrl(`/scenarios/${encodeURIComponent(scenarioName)}/state/invalidate`),
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ from_stage: fromStage, reason }),
-    }
+  reason?: string,
+) {
+  return mutateJson(
+    `/scenarios/${encodeURIComponent(scenarioName)}/state/invalidate`,
+    ValidationStatusSchema,
+    { method: "POST", body: { from_stage: fromStage, reason } },
   );
-  await throwIfNotOk(response);
-  return await response.json() as ValidationStatus;
 }
 
 // ==================== Other Scenario Functions ====================
 
-export async function fetchScenarioDesktopStatus(): Promise<ScenariosResponse> {
-  const response = await fetch(buildUrl("/scenarios/desktop-status"));
-  await throwIfNotOk(response);
-  return await response.json() as ScenariosResponse;
+export function fetchScenarioDesktopStatus() {
+  return fetchJson("/scenarios/desktop-status", ScenariosResponseSchema);
 }
 
-export async function fetchTemplates(): Promise<{ templates: TemplateInfo[] }> {
-  const response = await fetch(buildUrl("/templates"));
-  await throwIfNotOk(response);
-  return await response.json() as { templates: TemplateInfo[] };
+export function fetchTemplates() {
+  return fetchJson("/templates", TemplateListResponseSchema);
 }
