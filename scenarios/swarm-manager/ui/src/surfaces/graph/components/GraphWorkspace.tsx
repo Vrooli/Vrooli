@@ -39,6 +39,7 @@ import { CommandPostOverlay } from "../../../components/command-post";
 import { useCommandPostBadgeCount } from "../../../hooks/useCommandPostBadgeCount";
 import { useSpatialNav } from "../../../hooks/useSpatialNav";
 import { SpatialGroup } from "../../../hooks/SpatialGroup";
+import { SpatialNavProvider } from "../../../hooks/SpatialNavContext";
 
 const BacklogDetailsPage = lazy(() =>
   import("../../../pages/BacklogDetailsPage").then((m) => ({
@@ -235,6 +236,7 @@ export function GraphWorkspace() {
   );
 
   return (
+    <SpatialNavProvider controllerRef={spatialNav}>
     <div className="flex h-screen bg-slate-950 text-slate-50" data-testid="graph-workspace">
       {/* Sidebar (activity feed) — spatial nav for list items */}
       <SpatialGroup controllerRef={spatialNav} mode="spatial">
@@ -329,5 +331,6 @@ export function GraphWorkspace() {
       <StatsPanel isOpen={showStatsPanel} onClose={() => setShowStatsPanel(false)} />
       <SettingsDrawer isOpen={showSettingsDrawer} onClose={() => setShowSettingsDrawer(false)} />
     </div>
+    </SpatialNavProvider>
   );
 }

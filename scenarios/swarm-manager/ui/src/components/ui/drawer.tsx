@@ -8,12 +8,13 @@
  * close, scroll lock, and optional footer.
  */
 
-import { useRef, useId, type ReactNode } from 'react'
+import { useRef, useEffect, useId, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useModalBehavior } from '../../hooks/useModalBehavior'
 import { useIsMobile } from '../../hooks/useMediaQuery'
+import { useSpatialNavContext } from '../../hooks/SpatialNavContext'
 
 export interface DrawerProps {
   /** Whether the drawer is visible */
@@ -56,6 +57,17 @@ export function Drawer({
     disableCloseOnOutsideClick: true,
   })
 
+  // Push a spatial nav modal scope so D-pad navigation is trapped inside the drawer.
+  const spatialNavRef = useSpatialNavContext();
+  const scopeRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const ctrl = spatialNavRef?.current;
+    const el = scopeRef.current;
+    if (!isOpen || !ctrl || !el) return;
+    ctrl.pushScope(el);
+    return () => { ctrl.popScope(); };
+  }, [isOpen, spatialNavRef]);
+
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       onClose()
@@ -66,6 +78,7 @@ export function Drawer({
 
   return createPortal(
     <div
+      ref={scopeRef}
       className="fixed inset-0 z-50 flex"
       onMouseDown={handleBackdropClick}
     >

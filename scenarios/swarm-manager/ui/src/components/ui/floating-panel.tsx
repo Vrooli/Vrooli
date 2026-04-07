@@ -16,6 +16,7 @@ import { GripVertical, X, Minus } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useModalBehavior } from '../../hooks/useModalBehavior'
 import { useIsMobile } from '../../hooks/useMediaQuery'
+import { useSpatialNavContext } from '../../hooks/SpatialNavContext'
 
 interface Position {
   x: number
@@ -57,6 +58,16 @@ export function FloatingPanel({
     ref: panelRef,
     disableCloseOnOutsideClick: true,
   })
+
+  // Push a spatial nav modal scope so D-pad navigation is trapped inside the panel.
+  const spatialNavRef = useSpatialNavContext();
+  useEffect(() => {
+    const ctrl = spatialNavRef?.current;
+    const el = panelRef.current;
+    if (!isOpen || !ctrl || !el) return;
+    ctrl.pushScope(el);
+    return () => { ctrl.popScope(); };
+  }, [isOpen, spatialNavRef]);
 
   const clampPosition = useCallback((next: Position): Position => {
     const panelWidth = panelRef.current?.offsetWidth ?? 560

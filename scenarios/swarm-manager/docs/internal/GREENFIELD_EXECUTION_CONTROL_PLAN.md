@@ -143,7 +143,6 @@ Prompt Manager team outputs are not yet enforced through a single structured too
 - In `prompt-manager`, create a new tool skill:
   - Purpose: teach exact Swarm Manager usage patterns.
   - Required output contracts per team:
-    - Scenario Debug Team -> `fix`
     - Scenario Feature Team -> `idea` or `execute` (explicit rule set)
     - Scenario QA Team -> `fix` or `execute`
     - Scenario Refactor Team -> `execute` or `fix`
@@ -157,7 +156,7 @@ Prompt Manager team outputs are not yet enforced through a single structured too
   - `createdByTeam`
   - `sourceRunId`
 - Run `prompt-manager skill read skill-authoring-tools skill-principles cli-steer visited-tracker-tools` to learn how to properly implement this skill, and to see an example of another tool skill. It's important that the swarm-manager CLI is a thin wrapper over its API, and by default outputs maximally useful "human" output, per cli-steer instructions
-- Agents in the corresponding Teams (Scenario Debug Team, Scenario Feature Team, Scenario QA Team, Scenario Refactor Team) have their files updated to prohibit direct scenario code edits.
+- Agents in the corresponding Teams (Scenario Feature Team, Scenario QA Team, Scenario Refactor Team) have their files updated to prohibit direct scenario code edits.
 
 ### Acceptance criteria
 - All Agents that are member of the four Prompt Manager teams reference the shared tool skill, if they are meant to create the recommendations (not sure the exact setup, but I suspect the leader team member is the only one that's meant to use the swarm-manager skill and author recommendations).

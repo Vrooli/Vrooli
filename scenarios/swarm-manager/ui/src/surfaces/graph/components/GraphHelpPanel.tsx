@@ -4,11 +4,13 @@
  * Sections: node shapes, status colors, edge types, interactions, lenses.
  */
 
+import { useEffect, useRef } from "react";
 import { HelpCircle, X, Mouse, MousePointerClick } from "lucide-react";
 import { ENTITY_SHAPE_INFO } from "../lib/entity-shapes";
 import { STATUS_GROUP_INFO } from "../lib/status-colors";
 import { EDGE_STYLES } from "../lib/edge-styles";
 import { cn } from "../../../lib/utils";
+import { useSpatialNavContext } from "../../../hooks/SpatialNavContext";
 
 interface GraphHelpPanelProps {
   isOpen: boolean;
@@ -28,10 +30,22 @@ function ShapePreview({ cssClass, clipPath }: { cssClass: string; clipPath: stri
 }
 
 export function GraphHelpPanel({ isOpen, onClose }: GraphHelpPanelProps) {
+  // Push a spatial nav modal scope so D-pad navigation is trapped inside.
+  const spatialNavRef = useSpatialNavContext();
+  const panelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const ctrl = spatialNavRef?.current;
+    const el = panelRef.current;
+    if (!isOpen || !ctrl || !el) return;
+    ctrl.pushScope(el);
+    return () => { ctrl.popScope(); };
+  }, [isOpen, spatialNavRef]);
+
   if (!isOpen) return null;
 
   return (
     <div
+      ref={panelRef}
       className="absolute right-14 top-14 z-40 w-80 max-h-[70vh] overflow-y-auto rounded-lg border border-slate-700/60 bg-slate-900/95 backdrop-blur-sm shadow-xl"
       data-testid="graph-help-panel"
     >

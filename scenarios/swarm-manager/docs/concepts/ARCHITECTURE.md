@@ -11,10 +11,10 @@ prompt-manager                         swarm-manager
 ┌────────────────────────┐             ┌──────────────────────────────────┐
 │  Agent Teams           │             │  STAGING / REVIEW / EXECUTION    │
 │  ┌──────────────────┐  │             │                                  │
-│  │ Debug Team       │──┼── fix ─────▶│  ┌──────────┐                    │
-│  │ Feature Team     │──┼── idea ────▶│  │ BACKLOG  │  Operator reviews  │
-│  │ QA Team          │──┼── fix ─────▶│  │ items    │  plans, uses       │
-│  │ Refactor Team    │──┼── execute ─▶│  └────┬─────┘  Workshop loop     │
+│  │ Feature Team     │──┼── idea ────▶│  ┌──────────┐                    │
+│  │ QA Team          │──┼── fix ─────▶│  │ BACKLOG  │  Operator reviews  │
+│  │ Refactor Team    │──┼── execute ─▶│  │ items    │  plans, uses       │
+│  │                  │  │            ▶│  └────┬─────┘  Workshop loop     │
 │  └──────────────────┘  │             │       │        to refine          │
 │                        │             │       ▼                           │
 │  Skills define how     │             │  ┌──────────┐                    │

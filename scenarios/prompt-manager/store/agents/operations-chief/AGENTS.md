@@ -17,7 +17,7 @@
 8. **Report status** — Regular readiness and sequencing updates to director.
 
 ## Team Deployment Patterns
-- **Bug reported**: Recommend scenario-debug team if approved.
+- **Bug reported**: Create a `fix` backlog item in swarm-manager.
 - **Quality concern**: Recommend scenario-qa team if approved.
 - **Code debt**: Recommend scenario-refactor team if approved.
 - **New capability needed**: Recommend scenario-feature team if approved.

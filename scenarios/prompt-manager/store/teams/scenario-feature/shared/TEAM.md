@@ -31,7 +31,7 @@ A feature is done when:
 ## Cross-Team Coordination
 - **Director Swarm** provides feature priorities and requirements.
 - **QA Team** validates feature quality post-implementation.
-- **Debug Team** handles bugs found during feature work.
+- Bugs found during feature work become `fix` backlog items in swarm-manager.
 - **Marketing Crew** gets notified of completed features for content.
 - **Revenue Research** may originate feature ideas based on market analysis.
 

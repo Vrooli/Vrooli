@@ -9,7 +9,6 @@ This skill is mandatory for teams that produce recommendations/findings for exec
 
 ### 2. Team-to-Backlog Contract
 
-- Scenario Debug Team -> `fix`
 - Scenario Feature Team -> `idea` or `execute`
 - Scenario QA Team -> `fix` or `execute`
 - Scenario Refactor Team -> `execute` or `fix`

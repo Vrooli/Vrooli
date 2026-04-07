@@ -198,8 +198,9 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
    | Item Kind | Required Skill | Why |
    |-----------|---------------|-----|
    | `idea` | `scenario-generation` | Scenario scaffolding, PRD/requirements tooling, ecosystem-manager integration |
+   | `fix` | `scientific-debugging` | Hypothesis-driven root cause analysis, experiment design, regression test planning |
 
-   For other kinds (`fix`, `execute`, `chore`), no kind-specific skill is required — discovery is sufficient. Research items use `swarm-manager-workshop-research` and are not handled by this skill.
+   For `execute` and `chore` kinds, no kind-specific skill is required — discovery is sufficient. Research items use `swarm-manager-workshop-research` and are not handled by this skill.
 
    When the item kind matches a row above, embed that skill in plan.md's Required Reading **in addition to** whatever discovery finds. This is not optional — it ensures operational knowledge is always available to the executing agent.
 

@@ -6,11 +6,12 @@
  * scroll lock, and loading guard.
  */
 
-import { useRef, useId, type ReactNode } from 'react'
+import { useRef, useEffect, useId, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useModalBehavior } from '../../hooks/useModalBehavior'
+import { useSpatialNavContext } from '../../hooks/SpatialNavContext'
 
 export interface DialogProps {
   /** Whether the dialog is visible */
@@ -68,6 +69,17 @@ export function Dialog({
     isLoading,
   })
 
+  // Push a spatial nav modal scope so D-pad navigation is trapped inside the dialog.
+  const spatialNavRef = useSpatialNavContext();
+  const scopeRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const ctrl = spatialNavRef?.current;
+    const el = scopeRef.current;
+    if (!isOpen || !ctrl || !el) return;
+    ctrl.pushScope(el);
+    return () => { ctrl.popScope(); };
+  }, [isOpen, spatialNavRef]);
+
   const handleBackdropClick = (e: React.MouseEvent) => {
     // Only close if the click target is the backdrop/container itself, not the panel
     if (e.target === e.currentTarget && !isLoading) {
@@ -79,6 +91,7 @@ export function Dialog({
 
   return createPortal(
     <div
+      ref={scopeRef}
       className={cn("fixed inset-0 z-50 flex items-center justify-center", containerClassName)}
       onMouseDown={handleBackdropClick}
     >

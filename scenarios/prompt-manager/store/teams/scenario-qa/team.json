@@ -4,7 +4,7 @@
   "id": "scenario-qa",
   "displayName": "Scenario QA Team",
   "mission": "Ensure scenario quality through comprehensive code auditing, test coverage analysis, and documentation verification.",
-  "enabled": false,
+  "enabled": true,
   "spawnMode": "multi-process",
   "shared": {
     "path": "shared/",

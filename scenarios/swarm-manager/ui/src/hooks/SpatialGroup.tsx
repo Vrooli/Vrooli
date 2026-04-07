@@ -18,6 +18,8 @@ interface SpatialGroupProps {
  * - `mode="spatial"` — D-pad navigates between focusable children (default UI).
  * - `mode="passthrough"` — raw input flows to the component (graphs, canvases).
  * - `mode="grid"` — children treated as a grid for row/col navigation.
+ * - `mode="modal"` — pushes a scope that traps spatial navigation inside
+ *   (for dialogs/modals).  Auto-focuses the first focusable child.
  *
  * ```tsx
  * const spatialNav = useSpatialNav();
@@ -27,8 +29,8 @@ interface SpatialGroupProps {
  *   <button>Item 2</button>
  * </SpatialGroup>
  *
- * <SpatialGroup controllerRef={spatialNav} mode="passthrough">
- *   <GraphCanvas />
+ * <SpatialGroup controllerRef={spatialNav} mode="modal">
+ *   <Dialog>...</Dialog>
  * </SpatialGroup>
  * ```
  */
@@ -45,6 +47,12 @@ export function SpatialGroup({
     const el = ref.current;
     const ctrl = controllerRef.current;
     if (!el || !ctrl) return;
+
+    if (mode === 'modal') {
+      ctrl.pushScope(el);
+      return () => { ctrl.popScope(); };
+    }
+
     return ctrl.registerGroup(el, mode, options);
   }, [mode, controllerRef, options]);
 

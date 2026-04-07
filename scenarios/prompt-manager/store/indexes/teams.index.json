@@ -21,12 +21,7 @@
       "displayName": "Revenue Research Team",
       "memberCount": 5
     },
-    {
-      "id": "scenario-debug",
-      "displayName": "Scenario Debug Team",
-      "memberCount": 4
-    },
-    {
+{
       "id": "scenario-feature",
       "displayName": "Scenario Feature Team",
       "memberCount": 4

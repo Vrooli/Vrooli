@@ -21,6 +21,6 @@
 
 ## Coordination
 - Receive completed feature notifications from scenario-feature team.
-- Receive resolved bug stories from scenario-debug team.
+- Review completed `fix` backlog items in swarm-manager for debugging stories.
 - Request current state from director-swarm for strategic messaging.
 - Share content calendar with director-swarm for alignment.

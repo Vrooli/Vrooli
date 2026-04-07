@@ -5,7 +5,7 @@
  * Escape key closes the overlay.
  */
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { selectors } from "../../consts/selectors";
@@ -17,6 +17,7 @@ import { aggregateCrossItemQuestions } from "../../lib/command-post-utils";
 import { backlogService } from "../../services";
 import { SummaryView } from "./SummaryView";
 import { DecisionStreamView } from "./DecisionStreamView";
+import { useSpatialNavContext } from "../../hooks/SpatialNavContext";
 
 interface CommandPostOverlayProps {
   isOpen: boolean;
@@ -76,10 +77,22 @@ export function CommandPostOverlay({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, handleKeyDown]);
 
+  // Push a spatial nav modal scope so D-pad navigation is trapped inside.
+  const spatialNavRef = useSpatialNavContext();
+  const overlayRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const ctrl = spatialNavRef?.current;
+    const el = overlayRef.current;
+    if (!isOpen || !ctrl || !el) return;
+    ctrl.pushScope(el);
+    return () => { ctrl.popScope(); };
+  }, [isOpen, spatialNavRef]);
+
   if (!isOpen) return null;
 
   return (
     <div
+      ref={overlayRef}
       className="absolute inset-0 z-[60] overflow-y-auto bg-slate-950"
       data-testid={selectors.commandPost.overlay}
     >

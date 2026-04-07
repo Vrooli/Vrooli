@@ -147,7 +147,7 @@ When classified as **Needs work**, delegate remediation using specific findings 
 |-----------|------------|------------------|
 | Code quality issues | scenario-refactor | `topIssues` categories and counts |
 | Standards violations | scenario-qa | `topViolations` with file, line, recommendation |
-| Test failures | scenario-debug | `failures` with phase, error, remediation |
+| Test failures | swarm-manager `fix` item | `failures` with phase, error, remediation |
 | Untraced changes | Investigation | `untracedFiles` list for human review |
 
 Include specific findings — don't just say "fix quality issues." Cite the exact issues, files, and severity from the detail fields.

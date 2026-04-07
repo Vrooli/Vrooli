@@ -216,10 +216,10 @@ Teams do not execute their plans directly. Instead, they deposit findings into [
 ```
 prompt-manager (teams analyze)          swarm-manager (staging/review)
 ┌──────────────────────────┐            ┌──────────────────────────────┐
-│  Debug Team    → fix     │──┐         │                              │
-│  Feature Team  → idea    │──┼─ plans ▶│  Backlog (review all plans)  │
-│  QA Team       → fix     │──┤         │         ↓                    │
-│  Refactor Team → execute │──┘         │  Idea Agent (refine plans)   │
+│  Feature Team  → idea    │──┐         │                              │
+│  QA Team       → fix     │──┼─ plans ▶│  Backlog (review all plans)  │
+│  Refactor Team → execute │──┘         │         ↓                    │
+│                          │            │  Idea Agent (refine plans)   │
 └──────────────────────────┘            │         ↓                    │
                                         │  Generator / Improver        │
                                         │  (build/iterate scenarios)   │
@@ -236,7 +236,6 @@ prompt-manager (teams analyze)          swarm-manager (staging/review)
 
 | Team | Backlog Kind | Purpose |
 |------|-------------|---------|
-| Debug Team | `fix` | Bug fixes and regressions |
 | Feature Team | `idea` or `execute` | New capabilities and enhancements |
 | QA Team | `fix` or `execute` | Quality issues and test improvements |
 | Refactor Team | `execute` or `fix` | Structural improvements |

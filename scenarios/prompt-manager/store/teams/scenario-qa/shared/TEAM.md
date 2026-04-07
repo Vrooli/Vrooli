@@ -30,7 +30,7 @@ Each dimension is rated:
 - QA team does not directly modify target scenario code under this workflow.
 
 ## Cross-Team Coordination
-- **Debug Team** receives bugs discovered during code audits.
+- Bugs discovered during code audits become `fix` backlog items in swarm-manager.
 - **Refactor Team** receives code smell findings for cleanup.
 - **Feature Team** receives quality gates for new features.
 - **Marketing Crew** can reference quality improvements in content.

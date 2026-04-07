@@ -21,5 +21,5 @@
 ## Coordination
 - Assign specific audit scopes to code-auditor, test-strategist, doc-reviewer.
 - Synthesize findings into quality reports for director-swarm.
-- Refer bugs to scenario-debug team, code smells to scenario-refactor team.
+- Create `fix` backlog items in swarm-manager for bugs. Refer code smells to scenario-refactor team.
 - Share quality patterns with meta-optimization for improving audit skills.

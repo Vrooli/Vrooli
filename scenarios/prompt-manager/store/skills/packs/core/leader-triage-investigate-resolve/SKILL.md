@@ -120,9 +120,9 @@ Invoke `scientific-debugging` methodology through team delegation. This phase ma
 
 **Leader actions:**
 1. Read the debugging skill: `prompt-manager skill read scientific-debugging`
-2. **Delegate hypothesis generation** — Send the triage report to hypothesis-generator
+2. **Generate hypotheses** — Based on the triage report, produce 2-5 falsifiable hypotheses
 3. **Prioritize hypotheses** — Review returned hypotheses; rank by likelihood using evidence and recency
-4. **Delegate experimentation** — Send top hypothesis to experiment-runner with a specific test plan
+4. **Design and run experiments** — Test the top hypothesis with a specific, minimal experiment
 5. **Evaluate results:**
    - If confirmed → proceed to Gate 2
    - If rejected → cycle back to step 2 with new information
@@ -174,7 +174,7 @@ Read the skill first: prompt-manager skill read scientific-debugging
 |-------------|-------------------|-------------|
 | Evidence supports hypothesis | Confirmed | Proceed to Gate 2 |
 | Evidence contradicts hypothesis | Rejected | Delegate new hypothesis generation with updated evidence |
-| Evidence is inconclusive | Needs refinement | Design a more targeted test; re-delegate to experiment-runner |
+| Evidence is inconclusive | Needs refinement | Design a more targeted test; re-run the experiment |
 | Unexpected evidence found | New information | Incorporate into next hypothesis cycle |
 | 3+ hypotheses rejected | Investigation stalled | Re-examine symptoms; consider re-triaging (different problem than assumed) |
 
@@ -203,7 +203,7 @@ Coordinate fix implementation, verification, and documentation.
 **Entry criteria:** Gate 2 is satisfied (root cause confirmed with evidence).
 
 **Leader actions:**
-1. **Delegate fix implementation** — Send root cause and requirements to fix-engineer
+1. **Plan fix implementation** — Document root cause and requirements for the fix
 2. **Review the fix** — Verify it addresses root cause, not just symptoms
 3. **Verify regression test** — Confirm a failing test was written before the fix, and it passes after
 4. **Verify full test suite** — Confirm no regressions introduced
@@ -319,7 +319,7 @@ Before declaring the pipeline complete:
 | **Fixing without understanding** | Symptom returns or moves to a different area | Confirm root cause with evidence before fixing |
 | **Fixing without regression test** | Bug recurs later with no safety net | Always write failing test before implementing fix |
 | **Skipping verification** | Fix may not actually resolve the original problem | Always reproduce original steps after fix to confirm resolution |
-| **Leader implementing the fix** | Defeats pipeline purpose; leader should coordinate, not code | Delegate to fix-engineer; review the output |
+| **Fixing without a plan** | Rushed fixes miss root cause | Document root cause and fix approach before implementing |
 | **Triaging by gut feeling** | Inconsistent severity assessment across bugs | Use the severity matrix from `triage-methodology` |
 | **Not logging hypotheses** | Knowledge from rejected hypotheses is lost | Record every hypothesis, test, and result in the hypothesis log |
 

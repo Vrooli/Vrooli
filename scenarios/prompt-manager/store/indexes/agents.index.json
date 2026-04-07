@@ -32,11 +32,6 @@
       "status": "active"
     },
     {
-      "id": "debug-lead",
-      "displayName": "Debug Lead",
-      "status": "active"
-    },
-    {
       "id": "director",
       "displayName": "Director",
       "status": "active"
@@ -44,11 +39,6 @@
     {
       "id": "doc-reviewer",
       "displayName": "Doc Reviewer",
-      "status": "active"
-    },
-    {
-      "id": "experiment-runner",
-      "displayName": "Experiment Runner",
       "status": "active"
     },
     {
@@ -74,16 +64,6 @@
     {
       "id": "feature-reviewer",
       "displayName": "Feature Reviewer",
-      "status": "active"
-    },
-    {
-      "id": "fix-engineer",
-      "displayName": "Fix Engineer",
-      "status": "active"
-    },
-    {
-      "id": "hypothesis-generator",
-      "displayName": "Hypothesis Generator",
       "status": "active"
     },
     {

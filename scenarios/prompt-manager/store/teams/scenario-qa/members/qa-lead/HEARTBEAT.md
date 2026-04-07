@@ -49,8 +49,8 @@ For each fix/chore item created in Step 3:
   `[YYYY-MM-DD] Reviewed <scenario>: <readiness> (code_quality: X, tests: Y, standards: Z)`
 - Record any created fix items:
   `[YYYY-MM-DD] Created <kind>/<name> for <scenario>`
-- If a scenario has critical (red) failures across 2+ dimensions, message the
-  debug team lead for deeper investigation
+- If a scenario has critical (red) failures across 2+ dimensions, set fix item
+  priority to 1 (critical) so it is workshopped and executed promptly
 - If test failures look like regressions, message test-strategist for analysis
 
 ## Fallback

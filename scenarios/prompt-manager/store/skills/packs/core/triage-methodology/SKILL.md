@@ -130,7 +130,7 @@ Use Triage Methodology when:
 | Problem Type | Approach | Pipeline |
 |-------------|----------|----------|
 | Bug with unknown root cause | Hypothesis-driven debugging | `leader-triage-investigate-resolve` |
-| Bug with known root cause | Direct fix | Assign fix-engineer directly |
+| Bug with known root cause | Direct fix | Create swarm-manager `fix` backlog item |
 | Performance degradation | Profiling and optimization | Specialized performance methodology |
 | Security concern | Containment then investigation | Escalate to security review |
 | Quality finding from audit | Planned remediation | Add to improvement backlog |

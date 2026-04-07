@@ -3393,5 +3393,28 @@
       "skill_id": "swarm-manager-workshop"
     },
     "updated_at": "2026-04-07T16:46:16Z"
+  },
+  {
+    "activity_id": "f4337bdd4f17edac",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "workshop-finalization-validation-gates",
+    "owner_title": "Add Pre And Post Finalization Validation Gates For Plan Quality",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "af8e029e-48f8-49ed-949e-305bf694ea99",
+    "run_id": "28c71b1e-c26c-4636-a223-8f5a8fc3c75b",
+    "status": "failed",
+    "requested_at": "2026-04-07T17:36:23Z",
+    "started_at": "2026-04-07T17:36:23Z",
+    "finished_at": "2026-04-07T17:55:26Z",
+    "failure_reason": "process terminated unexpectedly (detected by reconciler after 17m3s without heartbeat, tag=swarm-manager:backlog:execute:workshop-finalization-validation-gates:research)",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-07T17:55:30Z"
   }
 ]

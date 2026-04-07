@@ -30,7 +30,7 @@ Improve scenario code quality plans, reduce complexity, and modernize patterns w
 
 ## Cross-Team Coordination
 - **QA Team** provides code smell findings that feed our priorities.
-- **Debug Team** may need us to simplify complex code causing bugs.
+- Fix backlog items may depend on refactoring to resolve root causes.
 - **Feature Team** benefits from cleaner code that is easier to extend.
 - **Director Swarm** approves refactoring scope and priorities.
 
