@@ -3563,16 +3563,17 @@
     "interaction_type": "spawn",
     "task_id": "d5b29ff9-4c35-4924-ad08-015d534465fd",
     "run_id": "c878de71-fe76-42d8-93fc-a25bc553914f",
-    "status": "running",
+    "status": "complete",
     "requested_at": "2026-04-07T21:41:27Z",
     "started_at": "2026-04-07T21:41:27Z",
+    "finished_at": "2026-04-07T21:48:05Z",
     "requested_by": "swarm-manager",
     "metadata": {
       "entrypoint": "backlog.research",
       "mode": "workshop",
       "skill_id": "swarm-manager-workshop-research"
     },
-    "updated_at": "2026-04-07T21:41:27Z"
+    "updated_at": "2026-04-07T22:14:27Z"
   },
   {
     "activity_id": "dfc593577edc7201",
@@ -3584,15 +3585,149 @@
     "interaction_type": "spawn",
     "task_id": "73731ee1-1407-4b50-a7de-7e5bc6d1c745",
     "run_id": "bc71fc37-bcbd-44a1-97e2-12302307a944",
-    "status": "running",
+    "status": "complete",
     "requested_at": "2026-04-07T21:42:56Z",
     "started_at": "2026-04-07T21:42:56Z",
+    "finished_at": "2026-04-07T21:46:59Z",
     "requested_by": "swarm-manager",
     "metadata": {
       "entrypoint": "backlog.research",
       "mode": "workshop",
       "skill_id": "swarm-manager-workshop-research"
     },
-    "updated_at": "2026-04-07T21:42:56Z"
+    "updated_at": "2026-04-07T22:14:27Z"
+  },
+  {
+    "activity_id": "22cb4ec90df96799",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "dm-releases-and-release-platforms-tables",
+    "owner_title": "Add Releases And Release Platforms Tables To Deployment Manager",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "7f23df3e-1538-460d-95df-53d55d454688",
+    "run_id": "fb076a0e-37b8-4ad5-bd3a-9bde71b9f441",
+    "status": "complete",
+    "requested_at": "2026-04-07T21:45:11Z",
+    "started_at": "2026-04-07T21:45:11Z",
+    "finished_at": "2026-04-07T21:48:11Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-07T22:14:27Z"
+  },
+  {
+    "activity_id": "a4e61886fa5896ad",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "lpbs-release-id-correlation-column",
+    "owner_title": "Add Release ID Correlation Column To LPBS Download Artifacts",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "d3d08f0c-789e-4db5-8e2d-ac9dd4f02f42",
+    "run_id": "daffae54-93d5-411a-a546-275c190c0957",
+    "status": "complete",
+    "requested_at": "2026-04-07T21:45:34Z",
+    "started_at": "2026-04-07T21:45:34Z",
+    "finished_at": "2026-04-07T21:49:09Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-07T22:14:27Z"
+  },
+  {
+    "activity_id": "9d7fd7e4dc222e1c",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "lpbs-publish-webhook",
+    "owner_title": "Add webhook/event notification on LPBS artifact publish",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "77d6f419-acd5-4559-9c78-c25a1c1a2984",
+    "run_id": "4c1e2b96-e8f3-475f-9612-3c4ecb4e48cc",
+    "status": "complete",
+    "requested_at": "2026-04-07T21:45:59Z",
+    "started_at": "2026-04-07T21:45:59Z",
+    "finished_at": "2026-04-07T21:50:27Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-07T22:14:27Z"
+  },
+  {
+    "activity_id": "1824d860ee1b88bd",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "lpbs-payment-guardrails-and-reconciliation-plan",
+    "owner_title": "Plan LPBS Payment Guardrails And Reconciliation",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "5bf7ba69-a127-40c4-aa96-050d6c0bd462",
+    "run_id": "ad7e8f5a-df47-43c2-8ed3-8ecbcef6b99d",
+    "status": "complete",
+    "requested_at": "2026-04-07T22:15:06Z",
+    "started_at": "2026-04-07T22:15:06Z",
+    "finished_at": "2026-04-07T22:18:09Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop-research"
+    },
+    "updated_at": "2026-04-07T22:36:03Z"
+  },
+  {
+    "activity_id": "368e2a26d80a6c4b",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "lpbs-desktop-release-contract-hardening",
+    "owner_title": "Harden The LPBS Desktop Release Contract",
+    "purpose": "finalize",
+    "interaction_type": "spawn",
+    "task_id": "b0143422-377e-4a84-a5c5-6a9628476978",
+    "run_id": "bdb699ed-a9d5-43a3-87a1-332b290a1884",
+    "status": "complete",
+    "requested_at": "2026-04-07T22:17:15Z",
+    "started_at": "2026-04-07T22:17:15Z",
+    "finished_at": "2026-04-07T22:19:38Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "auto_triggered": "true",
+      "entrypoint": "backlog.workshop_auto_advance",
+      "mode": "finalize",
+      "skill_id": "swarm-manager-workshop-finalize"
+    },
+    "updated_at": "2026-04-07T22:36:03Z"
+  },
+  {
+    "activity_id": "5c9dc1fa8c709e00",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "lpbs-desktop-release-contract-hardening",
+    "owner_title": "Harden The LPBS Desktop Release Contract",
+    "execution_id": "a08f53da8a984348",
+    "purpose": "process",
+    "interaction_type": "spawn",
+    "task_id": "720107a2-ef55-4306-9e2b-452e43e216e8",
+    "run_id": "ac4911d0-c4d4-430a-8ba4-a97f3c5fc77e",
+    "status": "running",
+    "requested_at": "2026-04-08T00:04:04Z",
+    "started_at": "2026-04-08T00:04:04Z",
+    "requested_by": "swarm-manager-ui",
+    "metadata": {
+      "entrypoint": "execution.start",
+      "mode": "yolo",
+      "operation": "generator"
+    },
+    "updated_at": "2026-04-08T00:04:05Z"
   }
 ]

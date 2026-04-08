@@ -5,9 +5,15 @@
   ],
   "created": "2026-04-04T00:00:00Z",
   "depends_on": [
+    "chore/qa-scenario-to-desktop-standards-setup-20260407",
+    "chore/qa-scenario-to-desktop-standards-tests-20260407",
+    "chore/qa-scenario-to-desktop-standards-ui-20260407",
     "execute/dm-releases-and-release-platforms-tables",
+    "execute/qa-deployment-manager-code-quality-20260407",
+    "execute/qa-scenario-to-desktop-code-quality-20260407",
     "execute/s2d-pipeline-release-id-and-channel",
-    "fix/lpbs-upsert-asset-hardcoded-variant-key"
+    "fix/lpbs-upsert-asset-hardcoded-variant-key",
+    "fix/qa-deployment-manager-tests-20260407"
   ],
   "description": "Wire release record creation into the DM orchestrator pipeline end-to-end.\n\n1. **Mint UUID at pipeline start** — only for non-dry-run, non-skip-packaging deployments (check `DryRun` and `SkipPackaging` flags).\n2. **Create `releases` row** with status `pending` and `release_platforms` rows for each target platform.\n3. **Add `ReleaseID` and `Channel` to `DeployDesktopRequest`** (orchestrator.go:24-55) so they flow through to S2D.\n4. **Update `release_platforms`** as S2D reports per-platform build/upload results.\n5. **Set status to `published`** when all platforms complete (or `failed` on error).\n6. **Atomically supersede** the previous `published` release for the same profile+channel in the same transaction.\n7. **Skip `CheckReleaseGate`** for nightly releases; enforce for beta and stable.",
   "effort": "L",
@@ -24,5 +30,5 @@
     "desktop-release"
   ],
   "title": "Integrate Release Record Creation Into DM Orchestrator Pipeline",
-  "updated": "2026-04-04T00:00:00Z"
+  "updated": "2026-04-07T22:13:29Z"
 }

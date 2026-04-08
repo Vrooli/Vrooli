@@ -10,6 +10,16 @@
   ],
   "created": "2026-03-26T16:35:54Z",
   "depends_on": [
+    "chore/qa-prompt-manager-tidiness-20260407",
+    "chore/qa-scenario-to-desktop-standards-setup-20260407",
+    "chore/qa-scenario-to-desktop-standards-tests-20260407",
+    "chore/qa-scenario-to-desktop-standards-ui-20260407",
+    "execute/qa-deployment-manager-code-quality-20260407",
+    "execute/qa-scenario-to-desktop-code-quality-20260407",
+    "fix/qa-deployment-manager-tests-20260407",
+    "fix/qa-prompt-manager-standards-requirements-20260407",
+    "fix/qa-prompt-manager-standards-structure-20260407",
+    "fix/qa-prompt-manager-tests-20260407",
     "research/desktop-release-control-plane-audit"
   ],
   "description": "Inventory the parts of the deployment and release workflow that still require shell, IDE, or ad hoc local-machine intervention instead of Vrooli-native operator surfaces.\n\nThe audit should cover deployment-manager, scenario-to-desktop, LPBS release readiness, scenario-to-cloud where relevant, and the prompt-manager deployment skills. The output should be an exact gap list rather than a vague UX opinion.",
@@ -26,5 +36,5 @@
     "audit"
   ],
   "title": "Audit Remaining Non Mobile Operable Deployment Actions",
-  "updated": "2026-03-26T16:35:54Z"
+  "updated": "2026-04-07T22:13:30Z"
 }

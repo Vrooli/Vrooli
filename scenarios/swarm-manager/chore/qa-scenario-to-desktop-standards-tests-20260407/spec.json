@@ -1,0 +1,21 @@
+{
+  "acceptance_allow": [
+    "scenarios/scenario-to-desktop/**"
+  ],
+  "created": "2026-04-07T22:10:52Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "GCT standards warnings: missing *_test.go files in runtime/infra and runtime/testutil.",
+  "kind": "chore",
+  "name": "qa-scenario-to-desktop-standards-tests-20260407",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "scenario-to-desktop",
+    "standards"
+  ],
+  "title": "Add missing tests in scenario-to-desktop runtime",
+  "updated": "2026-04-07T22:10:52Z"
+}

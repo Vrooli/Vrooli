@@ -3,8 +3,13 @@
     "scenarios/deployment-manager/api/**"
   ],
   "created": "2026-03-30T18:01:13Z",
+  "depends_on": [
+    "execute/qa-deployment-manager-code-quality-20260407",
+    "fix/qa-deployment-manager-tests-20260407"
+  ],
   "description": "Currently, after all required platforms are approved in deployment-manager, a human or skill must manually invoke `POST /deploy-desktop` to start the deployment. Add an optional auto-deploy flag on deployment profiles that, when all required platform approvals for the latest commit are satisfied, automatically triggers the deployment pipeline. This eliminates the manual step between approval and deploy.\n\nSource: research/desktop-release-control-plane-audit conclusion — Finding 9 gap #4.",
   "effort": "S",
+  "initiative": "desktop-release-governance",
   "kind": "execute",
   "name": "desktop-approval-auto-deploy",
   "priority": 3,
@@ -15,6 +20,5 @@
     "approval-gating"
   ],
   "title": "Automate deployment trigger after all platform approvals are complete",
-  "updated": "2026-03-30T18:01:13Z",
-  "initiative": "desktop-release-governance"
+  "updated": "2026-04-07T22:13:30Z"
 }

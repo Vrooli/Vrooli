@@ -6,6 +6,10 @@
   ],
   "created": "2026-03-26T18:33:10Z",
   "depends_on": [
+    "chore/qa-scenario-to-desktop-standards-setup-20260407",
+    "chore/qa-scenario-to-desktop-standards-tests-20260407",
+    "chore/qa-scenario-to-desktop-standards-ui-20260407",
+    "execute/qa-scenario-to-desktop-code-quality-20260407",
     "research/desktop-runtime-discovery-precedence-contract"
   ],
   "description": "Implement the runtime pieces needed for bundled desktop apps to participate in the same discovery model on every supported platform.\n\nThis should cover:\n- Windows parity for the current bundle-local Vrooli discovery shim behavior\n- consistent handling of `vrooli scenario port` style lookups inside downloaded apps\n- runtime precedence so downloaded apps override same-scenario local swarm instances by default\n- documentation and tests for the bundle-local discovery contract\n- preserving room for a future explicit override layer without blocking the default behavior now\n\nGoal: bundled apps resolve the right peer services consistently across macOS, Windows, and Linux.",
@@ -17,5 +21,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Implement Cross Platform Bundled Discovery Parity",
-  "updated": "2026-03-26T18:33:10Z"
+  "updated": "2026-04-07T22:13:14Z"
 }

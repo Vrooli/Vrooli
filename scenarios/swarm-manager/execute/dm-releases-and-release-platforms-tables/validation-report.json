@@ -9,17 +9,13 @@
     "Implementation Strategy",
     "Contract Decisions",
     "Testing Plan",
+    "Rollout/Validation Checklist",
     "Risks + Mitigations",
     "Non-goals/Prohibited Patterns",
     "Definition of Done"
   ],
-  "sections_missing": [
-    "Rollout/Validation Checklist"
-  ],
-  "warnings": [
-    "No greenfield declaration found",
-    "No `vrooli scenario restart` final cleanup step found"
-  ],
-  "passed": false,
-  "validated_at": "2026-04-07T19:37:44Z"
+  "sections_missing": null,
+  "warnings": null,
+  "passed": true,
+  "validated_at": "2026-04-07T22:13:18Z"
 }

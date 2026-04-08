@@ -38,7 +38,7 @@ LPBS has a functional update endpoint and artifact storage layer, but the releas
 - Post-release verification endpoint (lightweight + optional deep S3 check)
 - Update policy defaults (schema + API, seam for per-app override)
 - Constant-time API key comparison fix
-- Auth middleware extraction for update-family endpoints
+- Auth middleware extraction (`requireUpdateAPIKey`) for update-family endpoints
 - Relevant skill updates (landing-page-deploy-setup, landing-page-desktop-upload)
 - Test coverage for all new and modified endpoints
 
@@ -78,7 +78,7 @@ LPBS has a functional update endpoint and artifact storage layer, but the releas
 - `download_artifacts` — S3 object references (sha256, sha512, size_bytes, original_filename, platform, release_version)
 - `download_storage_settings` — S3 bucket config
 
-### is_current Architecture (clarified round 2)
+### is_current Architecture
 The "current" artifact for a given slot is determined by `download_assets.artifact_id` FK join, NOT by a stored boolean column. This is already implemented:
 - `ListArtifactsByApp()` computes `is_current` via `CASE WHEN da.artifact_id = a.id THEN true ELSE false END`
 - `GetCurrentArtifactByFilename()` joins download_artifacts with download_assets on artifact_id
@@ -98,34 +98,36 @@ The completed research defines:
 
 After implementation:
 1. `UpsertAsset` accepts `variant_key` as a parameter (no hardcoded default)
-2. `download_artifacts` has a `release_id` TEXT column for DM correlation
-3. `download_apps` has an `update_policy` JSONB column with configurable defaults
-4. Update manifests include `releaseNotes` when release notes are available
-5. `GET /api/v1/updates/{app_key}/channels` returns available channels with latest version per platform
-6. `GET /api/v1/updates/{app_key}/verify?channel=X&platform=Y&expected_version=Z&deep=false` confirms update endpoint correctness
-7. Update API key comparison uses `crypto/subtle.ConstantTimeCompare`
-8. Shared `requireUpdateAPIKey` middleware for all update-family endpoints
+2. `download_artifacts` has a `release_id` TEXT column for DM correlation (added in IF NOT EXISTS DDL)
+3. `download_apps` has an `update_policy` JSONB column with defaults `{"check_interval_hours": 4, "update_mode": "optional", "allow_downgrade": false}`
+4. Update manifests include `releaseNotes` as plain text passthrough when `download_assets.release_notes` is non-empty; field omitted when empty
+5. `GET /api/v1/updates/{app_key}/channels` returns available channels with latest version per platform, gated by same API-key logic as update endpoint
+6. `GET /api/v1/updates/{app_key}/verify?channel=X&platform=Y&expected_version=Z&deep=false` confirms update endpoint correctness — lightweight by default, optional deep S3 check with `deep=true`
+7. Update API key comparison uses `crypto/subtle.ConstantTimeCompare` via extracted `requireUpdateAPIKey` middleware
+8. `requireUpdateAPIKey` middleware shared across update file, channel discovery, and verification endpoints
 9. `GET/PUT /api/v1/admin/download-apps/{app_key}/update-policy` for per-app policy management
 10. All new/modified endpoints have test coverage
 11. Skills updated to document new capabilities
 
 ## 6. Implementation Strategy
 
+**This is greenfield work.** Do not include compatibility shims, legacy wrappers, dead code, unused re-exports, `// removed` comments, or renamed `_unused` variables.
+
 ### Phase 1: Schema & Core Fixes (foundation)
-1. **Add `release_id` TEXT column to `download_artifacts`** — Add to IF NOT EXISTS DDL in main.go with index. Nullable, no default.
-2. **Add `update_policy` JSONB column to `download_apps`** — Add to DDL. Default: `{"check_interval_hours": 4, "update_mode": "optional", "allow_downgrade": false}` (pending d1 confirmation).
-3. **Fix `UpsertAsset` hardcoded variant_key** — Add `VariantKey` field to `DownloadAsset` struct, parameterize in INSERT.
-4. **Fix API key timing attack** — Use `crypto/subtle.ConstantTimeCompare` in a new `requireUpdateAPIKey` middleware (pending d4 confirmation).
+1. **Add `release_id` TEXT column to `download_artifacts`** — Add `ALTER TABLE ... ADD COLUMN IF NOT EXISTS release_id TEXT` to the IF NOT EXISTS DDL block in main.go. Add index: `CREATE INDEX IF NOT EXISTS idx_download_artifacts_release_id ON download_artifacts(release_id)`. Nullable, no default.
+2. **Add `update_policy` JSONB column to `download_apps`** — Add `ALTER TABLE ... ADD COLUMN IF NOT EXISTS update_policy JSONB NOT NULL DEFAULT '{"check_interval_hours": 4, "update_mode": "optional", "allow_downgrade": false}'::jsonb` to DDL. This provides conservative defaults per the settled policy: 4-hour check interval, optional updates, no downgrade.
+3. **Fix `UpsertAsset` hardcoded variant_key** — Add `VariantKey` field to `DownloadAsset` struct, parameterize in the INSERT/upsert statement. Callers pass the variant_key instead of relying on the hardcoded `'default'`.
+4. **Extract `requireUpdateAPIKey` middleware** — Create a new middleware function that loads the app by app_key, checks if `update_api_key` is set, and if so validates the `X-Update-Key` header using `crypto/subtle.ConstantTimeCompare`. Apply this middleware to the existing update file handler, replacing the inline comparison. This middleware will also be used by the new endpoints in Phase 2.
 
 ### Phase 2: Endpoint Enhancements
-5. **Add release notes to manifest** — Extend `buildElectronManifest()` to include `releaseNotes` field from `download_assets.release_notes`. Omit field when notes are empty (pending d2 confirmation on format).
-6. **Add channel discovery endpoint** — `GET /api/v1/updates/{app_key}/channels`. Same API-key gating as update endpoint. Returns `[{channel, platform, version, updated_at}]` aggregated from download_assets.
-7. **Add post-release verification endpoint** — `GET /api/v1/updates/{app_key}/verify?channel=X&platform=Y&expected_version=Z&deep=false`. Default: lightweight version+sha512 match. With `deep=true`: also HEAD S3 object and test presign. Response: `{match: bool, actual_version: string, actual_sha512: string, artifact_accessible?: bool, presign_valid?: bool}`.
-8. **Update policy CRUD endpoint** — `GET/PUT /api/v1/admin/download-apps/{app_key}/update-policy` (requireAdmin). Returns/sets the JSONB update_policy for an app.
+5. **Add release notes to manifest** — Extend `buildElectronManifest()` to include `releaseNotes` field from `download_assets.release_notes` as plain text passthrough. Omit the field entirely when notes are empty (no `releaseNotesFormat` field needed since it's plain text).
+6. **Add channel discovery endpoint** — `GET /api/v1/updates/{app_key}/channels`. Gated by `requireUpdateAPIKey` middleware (same behavior as update endpoint: public if no key set, gated if set). Returns `[{channel, platform, version, updated_at}]` aggregated from download_assets joined with download_artifacts.
+7. **Add post-release verification endpoint** — `GET /api/v1/updates/{app_key}/verify?channel=X&platform=Y&expected_version=Z&deep=false`. Gated by `requireUpdateAPIKey`. Default (lightweight): checks manifest version+sha512 match expected. With `deep=true`: also HEADs the S3 object and tests presign generation. Response: `{match: bool, actual_version: string, actual_sha512: string, artifact_accessible?: bool, presign_valid?: bool}`. The `artifact_accessible` and `presign_valid` fields are only present when `deep=true`.
+8. **Update policy CRUD endpoint** — `GET/PUT /api/v1/admin/download-apps/{app_key}/update-policy` (requireAdmin). GET returns the current `update_policy` JSONB for the app (defaults applied if column is at default). PUT accepts and validates `{check_interval_hours: int, update_mode: "optional"|"recommended"|"mandatory", allow_downgrade: bool}` and writes to the JSONB column.
 
 ### Phase 3: S2D Integration
-9. **Extend S2D upload flow** — Pass `release_id` in artifact commit, pass `channel` → `variant_key` in asset apply.
-10. **Update artifact commit handler** — Accept and store `release_id` in download_artifacts.
+9. **Extend S2D upload flow** — Pass `release_id` in artifact commit request body. Pass `channel` → `variant_key` mapping in asset apply step.
+10. **Update artifact commit handler** — Accept and store `release_id` in download_artifacts when provided.
 
 ### Phase 4: Skills & Verification
 11. **Update `landing-page-desktop-upload` skill** — Document release_id flow, channel handling, verification steps.
@@ -153,11 +155,11 @@ After implementation:
 - **is_current strategy**: Keep existing computed JOIN approach — no schema change (d3→A, corrected in round 2)
 - **Verification endpoint**: Combined lightweight + optional deep S3 check (d4→other, resolved round 2)
 
-### Pending (round 2)
-- **d1**: Update policy JSONB schema shape (minimal vs full)
-- **d2**: Release notes format in manifest (passthrough vs markdown-aware)
-- **d3**: Migration strategy (existing DDL block vs numbered migrations)
-- **d4**: Auth middleware extraction vs inline check for update-family endpoints
+### Settled (from round 2)
+- **Update policy JSONB schema**: Minimal — `{check_interval_hours: int, update_mode: string, allow_downgrade: bool}` (d1→A). Additional fields like `mandatory_after_days`, `rollback_window_hours`, `min_version` can be added later via JSONB without migration.
+- **Release notes format**: Plain text passthrough — serve `download_assets.release_notes` as-is in the `releaseNotes` YAML field; omit when empty (d2→A). LPBS is format-agnostic; the content producer controls the format.
+- **Migration strategy**: Add both columns in the existing IF NOT EXISTS DDL block in main.go (d3→A). No numbered migration system needed for 2 additive columns.
+- **Auth middleware extraction**: Extract `requireUpdateAPIKey(appKey)` middleware shared across update file, channel discovery, and verification endpoints (d4→A). Single place for constant-time API key check, header name, and error response.
 
 ## 8. Testing Plan
 
@@ -176,7 +178,7 @@ After implementation:
 
 ## 9. Rollout/Validation Checklist
 
-- [ ] Schema additions apply cleanly on fresh DB (IF NOT EXISTS)
+- [ ] Schema additions apply cleanly on fresh DB (IF NOT EXISTS / ADD COLUMN IF NOT EXISTS)
 - [ ] Existing data is preserved (all additions are nullable or have defaults)
 - [ ] Update endpoint serves manifests for default and non-default channels
 - [ ] Release notes appear in manifest YAML when populated, omitted when empty
@@ -185,6 +187,7 @@ After implementation:
 - [ ] Verification endpoint correctly reports S3 accessibility (deep mode)
 - [ ] S2D upload flow passes release_id through to LPBS
 - [ ] Update policy endpoint returns defaults for unconfigured apps
+- [ ] requireUpdateAPIKey middleware correctly gates all update-family endpoints
 - [ ] All tests pass with `go test ./... -timeout 300s`
 - [ ] Scenario restarts cleanly
 
@@ -192,12 +195,12 @@ After implementation:
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| DDL additions break existing data | High | All additions use IF NOT EXISTS, nullable columns, or columns with defaults |
+| DDL additions break existing data | High | All additions use ADD COLUMN IF NOT EXISTS, nullable columns, or columns with defaults |
 | S2D upload flow breaks if LPBS expects new fields | Medium | New fields are optional; old S2D versions continue to work without release_id |
 | Channel discovery performance on large datasets | Low | Index on (app_key, variant_key, platform) already exists via unique constraint |
 | Update policy schema evolution | Low | JSONB column allows additive changes without migrations |
-| Deep verification adds S3 latency | Low | Deep mode is opt-in; default is lightweight check only |
-| requireUpdateAPIKey middleware changes auth behavior | Medium | Middleware replicates exact existing inline logic; comprehensive test coverage |
+| Deep verification adds S3 latency | Low | Deep mode is opt-in via `deep=true`; default is lightweight check only |
+| requireUpdateAPIKey middleware changes auth behavior | Medium | Middleware replicates exact existing inline logic with constant-time fix; comprehensive test coverage |
 
 ## 11. Non-goals / Prohibited Patterns
 
@@ -210,14 +213,14 @@ After implementation:
 
 ## 12. Definition of Done
 
-1. DDL additions apply cleanly (release_id on artifacts, update_policy on apps)
+1. DDL additions apply cleanly (release_id on artifacts, update_policy on apps) via IF NOT EXISTS pattern
 2. `UpsertAsset` accepts parameterized variant_key
 3. `download_artifacts` stores release_id when provided
-4. Update manifests include release notes when available
-5. Channel discovery endpoint works with correct gating
+4. Update manifests include plain text release notes when available, omit when empty
+5. Channel discovery endpoint works with correct API-key gating
 6. Post-release verification endpoint works (lightweight + deep modes)
-7. Update policy defaults are configurable per-app via admin endpoint
-8. API key comparison is timing-safe via extracted middleware
+7. Update policy defaults are configurable per-app via admin endpoint with minimal schema
+8. API key comparison is timing-safe via extracted `requireUpdateAPIKey` middleware
 9. All tests pass
 10. Scenario restarts and is healthy
 11. Skills updated with new capabilities

@@ -6,7 +6,15 @@
   ],
   "created": "2026-03-26T18:33:10Z",
   "depends_on": [
-    "execute/lpbs-desktop-release-contract-hardening"
+    "chore/qa-prompt-manager-tidiness-20260407",
+    "chore/qa-scenario-to-desktop-standards-setup-20260407",
+    "chore/qa-scenario-to-desktop-standards-tests-20260407",
+    "chore/qa-scenario-to-desktop-standards-ui-20260407",
+    "execute/lpbs-desktop-release-contract-hardening",
+    "execute/qa-scenario-to-desktop-code-quality-20260407",
+    "fix/qa-prompt-manager-standards-requirements-20260407",
+    "fix/qa-prompt-manager-standards-structure-20260407",
+    "fix/qa-prompt-manager-tests-20260407"
   ],
   "description": "Implement the canonical generated-desktop update behavior so apps ship with a sensible default instead of each release inventing its own UX.\n\nThis should cover:\n- startup update checks by default for production-ready desktop builds\n- background download behavior for available updates\n- a low-friction customer-visible prompt when an update is ready to apply\n- per-app override hooks for future manual-only or disabled policies\n- documentation and configuration seams so LPBS-backed updates and scenario-to-desktop defaults stay aligned\n\nGoal: generated apps default to a non-invasive auto-update flow that is consistent, configurable, and ready to test end to end.",
   "effort": "M",
@@ -17,5 +25,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Set The Canonical Desktop Update Policy And Overrides",
-  "updated": "2026-03-26T18:33:10Z"
+  "updated": "2026-04-07T22:13:13Z"
 }

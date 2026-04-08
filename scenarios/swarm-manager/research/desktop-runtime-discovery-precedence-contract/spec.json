@@ -5,6 +5,12 @@
     "docs/**"
   ],
   "created": "2026-03-26T18:33:10Z",
+  "depends_on": [
+    "chore/qa-scenario-to-desktop-standards-setup-20260407",
+    "chore/qa-scenario-to-desktop-standards-tests-20260407",
+    "chore/qa-scenario-to-desktop-standards-ui-20260407",
+    "execute/qa-scenario-to-desktop-code-quality-20260407"
+  ],
   "description": "Define how downloaded desktop apps discover each other and coexist with a locally running swarm.\n\nThis should specify:\n- default precedence when a downloaded app and a local-swarm instance of the same scenario both exist\n- resolution semantics for inter-scenario calls that use the standard discovery package\n- how bundled apps expose Vrooli-compatible discovery behavior\n- the cross-platform contract expected for macOS, Windows, and Linux\n- the future seam for explicit override/configuration without blocking the default behavior now\n- the regression cases required to prove downloaded-app plus downloaded-app and downloaded-app plus local-swarm topologies work correctly\n\nWorking assumption from planning: downloaded desktop apps should win over same-scenario local swarm instances by default.\n\nGoal: Vrooli desktop apps behave like one coherent ecosystem instead of isolated bundles.",
   "effort": "M",
   "initiative": "desktop-runtime-interop",
@@ -14,5 +20,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Define The Desktop Runtime Discovery And Precedence Contract",
-  "updated": "2026-03-26T18:33:10Z"
+  "updated": "2026-04-07T22:13:13Z"
 }

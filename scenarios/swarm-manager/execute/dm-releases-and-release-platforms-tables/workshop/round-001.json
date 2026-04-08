@@ -2,13 +2,13 @@
   "round": 1,
   "generated_at": "2026-04-04T18:30:00Z",
   "mode": "workshop",
-  "pending_synthesis": false,
+  "pending_synthesis": true,
   "readiness": {
-    "problem_clarity": 3,
-    "scope_defined": 3,
     "approach_solid": 2,
-    "testable": 2,
-    "risk_awareness": 2
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
   },
   "items": [
     {
@@ -22,13 +22,24 @@
       "topic": "Package placement for release types and repository",
       "context": "The research conclusion places releases alongside deployments. The existing codebase has approvals_types.go, approvals_repository.go, and published_versions.go all in the deployments/ package. However, releases could warrant their own package (like validation/ or codesigning/) since they have distinct types, repo, and handler.",
       "options": [
-        {"key": "A", "label": "Keep in deployments/ package", "rationale": "Follows the existing pattern where approvals and published_versions live. Releases are tightly coupled to deployments (FK to deployments table). Avoids import cycles. Recommended because it's consistent and the types are closely related.", "recommended": true},
-        {"key": "B", "label": "Create separate releases/ package", "rationale": "Cleaner separation of concerns, dedicated package for a growing domain concept. But adds import complexity since releases reference deployment_approvals."},
-        {"key": "C", "label": "Other", "rationale": "Provide your own package organization approach."}
+        {
+          "key": "A",
+          "label": "Keep in deployments/ package",
+          "rationale": "Follows the existing pattern where approvals and published_versions live. Releases are tightly coupled to deployments (FK to deployments table). Avoids import cycles. Recommended because it's consistent and the types are closely related.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Create separate releases/ package",
+          "rationale": "Cleaner separation of concerns, dedicated package for a growing domain concept. But adds import complexity since releases reference deployment_approvals."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own package organization approach."
+        }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d2",
@@ -36,14 +47,29 @@
       "topic": "Supersede race condition protection",
       "context": "When two releases for the same (profile, channel) publish concurrently, both could see the other as 'publishing' and neither supersedes the other. The plan uses a transaction, but row-level locking adds complexity. The research notes this risk (Limitation section).",
       "options": [
-        {"key": "A", "label": "SELECT ... FOR UPDATE lock on the previous published release", "rationale": "Serializes concurrent publishes for the same (profile, channel). Strongest guarantee. Small performance cost since publishes are infrequent. Recommended because correctness matters more than throughput here.", "recommended": true},
-        {"key": "B", "label": "Advisory lock on (profile_id, channel) hash", "rationale": "Prevents concurrent publishes at the application level. More explicit but requires lock management and cleanup."},
-        {"key": "C", "label": "Simple transaction without locking (accept rare inconsistency)", "rationale": "Simplest implementation. Concurrent publishes for same profile+channel are extremely unlikely in practice. A periodic reconciliation job could catch any drift."},
-        {"key": "D", "label": "Other", "rationale": "Provide your own concurrency approach."}
+        {
+          "key": "A",
+          "label": "SELECT ... FOR UPDATE lock on the previous published release",
+          "rationale": "Serializes concurrent publishes for the same (profile, channel). Strongest guarantee. Small performance cost since publishes are infrequent. Recommended because correctness matters more than throughput here.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Advisory lock on (profile_id, channel) hash",
+          "rationale": "Prevents concurrent publishes at the application level. More explicit but requires lock management and cleanup."
+        },
+        {
+          "key": "C",
+          "label": "Simple transaction without locking (accept rare inconsistency)",
+          "rationale": "Simplest implementation. Concurrent publishes for same profile+channel are extremely unlikely in practice. A periodic reconciliation job could catch any drift."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own concurrency approach."
+        }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d3",
@@ -51,13 +77,24 @@
       "topic": "Handler scope for this task",
       "context": "The description says 'handler scaffolding for release history API endpoints.' This could range from minimal stubs to fully functional CRUD handlers. The orchestrator integration is a separate backlog item, so the Create endpoint may not have a real caller yet.",
       "options": [
-        {"key": "A", "label": "Full CRUD handlers (List, Get, Create) with working implementations", "rationale": "Handlers are straightforward wrappers around the repository. Having them working from day one means the release history API is immediately usable for debugging and manual testing. Recommended because the effort is low and the value is immediate.", "recommended": true},
-        {"key": "B", "label": "Read-only handlers (List, Get) only — defer Create to orchestrator integration", "rationale": "Create won't have a real caller until orchestrator integration. Read-only handlers are sufficient for the API contract. Reduces surface area to test."},
-        {"key": "C", "label": "Other", "rationale": "Provide your own handler scope."}
+        {
+          "key": "A",
+          "label": "Full CRUD handlers (List, Get, Create) with working implementations",
+          "rationale": "Handlers are straightforward wrappers around the repository. Having them working from day one means the release history API is immediately usable for debugging and manual testing. Recommended because the effort is low and the value is immediate.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Read-only handlers (List, Get) only — defer Create to orchestrator integration",
+          "rationale": "Create won't have a real caller until orchestrator integration. Read-only handlers are sufficient for the API contract. Reduces surface area to test."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own handler scope."
+        }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d4",
@@ -65,13 +102,24 @@
       "topic": "released_by field handling",
       "context": "The research schema includes a 'released_by' TEXT column on releases. The current DM API has no authentication/user identity system — handlers don't extract a user from the request. This field would be empty until orchestrator integration passes it.",
       "options": [
-        {"key": "A", "label": "Include column, accept NULL/empty for now", "rationale": "Matches the research schema exactly. The column exists for when orchestrator integration populates it. No wasted effort. Recommended because it's forward-compatible with zero cost.", "recommended": true},
-        {"key": "B", "label": "Omit column, add it in orchestrator integration task", "rationale": "Avoids a column that's always empty. Cleaner initial state. But means a follow-up migration."},
-        {"key": "C", "label": "Other", "rationale": "Provide your own approach."}
+        {
+          "key": "A",
+          "label": "Include column, accept NULL/empty for now",
+          "rationale": "Matches the research schema exactly. The column exists for when orchestrator integration populates it. No wasted effort. Recommended because it's forward-compatible with zero cost.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Omit column, add it in orchestrator integration task",
+          "rationale": "Avoids a column that's always empty. Cleaner initial state. But means a follow-up migration."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach."
+        }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     }
   ],
   "plan_updates": "Created initial plan.md with all 13 mandatory sections. Scaffolded 5-phase implementation strategy (migration, types, repository, handlers, wiring). Documented API contract, status transitions, supersede transaction pattern, and testing plan. Corrected migration number from 004 to 005."

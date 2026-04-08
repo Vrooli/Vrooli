@@ -2,13 +2,13 @@
   "round": 2,
   "generated_at": "2026-04-07T19:00:00Z",
   "mode": "workshop",
-  "pending_synthesis": false,
+  "pending_synthesis": true,
   "readiness": {
-    "problem_clarity": 3,
-    "scope_defined": 3,
     "approach_solid": 2,
-    "testable": 2,
-    "risk_awareness": 2
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
   },
   "items": [
     {
@@ -19,7 +19,7 @@
     {
       "id": "i2",
       "type": "info",
-      "text": "d4 resolution (verification endpoint): Based on user's 'best long-term solution' direction, the verification endpoint will combine options A and B from round 1. Default behavior: lightweight version+sha512 match (fast, no S3 calls). Optional deep=true query parameter: also HEAD the S3 object to confirm artifact accessibility and generate a test presign. This gives quick post-deploy smoke testing by default while allowing thorough validation when needed. Route: GET /api/v1/updates/{app_key}/verify?channel=X&platform=Y&expected_version=Z&deep=false. Response: {match: bool, actual_version: string, actual_sha512: string, artifact_accessible?: bool, presign_valid?: bool}. Same API-key gating as the update endpoint."
+      "text": "d4 resolution (verification endpoint): Based on user's 'best long-term solution' direction, the verification endpoint will combine options A and B from round 1. Default behavior: lightweight version+sha512 match (fast, no S3 calls). Optional deep=true query parameter: also HEAD the S3 object to confirm artifact accessibility and generate a test presign. This gives quick post-deploy smoke testing by default while allowing thorough validation when needed. Route: GET /api/v1/updates/{app_key}/verify?channel=X\u0026platform=Y\u0026expected_version=Z\u0026deep=false. Response: {match: bool, actual_version: string, actual_sha512: string, artifact_accessible?: bool, presign_valid?: bool}. Same API-key gating as the update endpoint."
     },
     {
       "id": "d1",
@@ -44,9 +44,7 @@
           "rationale": "Provide your own policy schema shape."
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d2",
@@ -71,9 +69,7 @@
           "rationale": "Provide your own format strategy."
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d3",
@@ -98,9 +94,7 @@
           "rationale": "Provide your own migration approach."
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d4",
@@ -125,9 +119,7 @@
           "rationale": "Provide your own auth sharing approach."
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     }
   ],
   "plan_updates": "Corrected is_current misconception (no schema change needed — already computed via JOIN). Resolved d4 from round 1 as combined lightweight+deep verification endpoint. Refined Phase 1 to remove is_current migration. Added concrete verification endpoint spec to Phase 2. Round 2 decisions will further refine update_policy schema, release notes format, migration strategy, and auth middleware extraction."

@@ -6,8 +6,12 @@
   ],
   "created": "2026-03-26T16:36:02Z",
   "depends_on": [
-    "research/legacy-vrooli-bridge-signal-extraction",
-    "chore/archive-and-remove-legacy-vrooli-bridge"
+    "chore/archive-and-remove-legacy-vrooli-bridge",
+    "chore/qa-prompt-manager-tidiness-20260407",
+    "fix/qa-prompt-manager-standards-requirements-20260407",
+    "fix/qa-prompt-manager-standards-structure-20260407",
+    "fix/qa-prompt-manager-tests-20260407",
+    "research/legacy-vrooli-bridge-signal-extraction"
   ],
   "description": "Define the new bridge from first principles as trusted Vrooli-to-Vrooli collaboration between machines.\n\nThe specification should cover:\n- node identity and trust establishment\n- permission and capability model\n- request-response versus long-running task/session behavior\n- observability and debugging expectations\n- failure handling and reconnection\n- the first concrete use case: remote validation and emulator transport\n- how the bridge remains general enough for future trusted cross-server collaboration beyond validation",
   "effort": "L",
@@ -23,5 +27,5 @@
     "greenfield"
   ],
   "title": "Define The Greenfield Bridge From First Principles",
-  "updated": "2026-03-26T16:36:02Z"
+  "updated": "2026-04-07T22:12:46Z"
 }

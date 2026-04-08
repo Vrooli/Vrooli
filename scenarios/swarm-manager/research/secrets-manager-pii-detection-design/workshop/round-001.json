@@ -1,0 +1,131 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-07T16:42:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 2,
+    "scope_defined": 2,
+    "approach_solid": 1,
+    "testable": 1,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Secrets Manager has ZERO PII-specific detection patterns. The 8 existing vulnerability patterns (api/security_scanner.go:26-100) cover hardcoded secrets, SQL injection, CORS, etc. but nothing for emails, phones, SSNs, credit cards, or IP addresses. The VulnerabilityPattern struct is easily extensible — adding PII patterns requires defining new entries, not changing the scanning engine."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Current scanning is entirely directory-based via walkAndScan() (api/security_scan.go:86-196) which traverses scenarios/ and resources/ directories. There is no mechanism to scan a specific list of files. A new file-list endpoint is required for GCT integration since GCT knows which files are staged for commit."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "GCT's existing review integration pattern (review_deps.go) passes scenario names or paths to review services, NOT file lists. A file-list-based scan endpoint in Secrets Manager would be a new contract pattern for GCT. However, the capability registry and health-check discovery would work identically — only the request/response shapes differ."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "No allowlist/exemption system exists. Vulnerabilities can only be marked 'accepted' per-finding after detection. There are no path-pattern exemptions (e.g., skip *_test.go), no per-pattern suppressions, and no time-bound exemptions. Test files and fixtures are scanned identically to production code."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "File-list scan endpoint contract design",
+      "context": "GCT needs to scan staged files (which can be from any location — resources, scenarios, project-level files) before commit. The endpoint must accept arbitrary file paths, not be scoped to a single scenario. Two main design approaches for the response format.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Flat findings list — POST /api/v1/security/scan-files with {files: [...paths], options: {pii: true, secrets: true}} returning {findings: [{file, line, type, severity, pattern, snippet}]}",
+          "rationale": "Simple, stateless, easy for GCT to consume. Each call is independent. Mirrors how linters return results. No DB write required for ad-hoc scans.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Scan-run model — POST creates a scan run (with ID), GET retrieves results. Findings persisted to DB with fingerprints for cross-run tracking.",
+          "rationale": "Enables historical trend tracking, deduplication across runs, and status management (accepted/resolved). More complex but richer for dashboard display.",
+          "recommended": false
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own endpoint design"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "PII pattern storage and configuration",
+      "context": "Generic PII patterns (email, phone, SSN, IP, AWS key regex) need to be defined somewhere. Custom watchlist values (user's personal email, home directory, etc.) are literal strings, not regex. The question is where patterns live and how they're managed.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Built-in patterns in Go source + watchlist in DB table",
+          "rationale": "Generic PII patterns are code-versioned alongside existing vulnerability patterns (same file, same struct). Custom watchlist values stored in a new DB table with CRUD API. Clean separation: generic = code, personal = data.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "All patterns in DB (both generic and custom)",
+          "rationale": "Fully dynamic — can add/modify/disable patterns without code deploy. More flexible but loses version control on pattern changes. Needs seed migration for built-in patterns.",
+          "recommended": false
+        },
+        {
+          "key": "C",
+          "label": "Config file (YAML/JSON) for all patterns + watchlist",
+          "rationale": "File-based, version-controllable, editable without DB. But requires restart to pick up changes and doesn't fit well with per-user watchlist management.",
+          "recommended": false
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Allowlist granularity and storage",
+      "context": "Test files, fixtures, and certain paths should be exempt from PII scanning. The orchestration summary established path-pattern exemptions (e.g., *_test.go, testdata/, fixtures/). The question is the granularity and how exemptions are managed.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Path-glob exemptions only — allowlist is a list of glob patterns that skip entire files",
+          "rationale": "Simplest model. A file either gets scanned or doesn't. Covers the primary use case (test files, fixtures, vendor). Easy to understand and configure. Stored in DB table or config.",
+          "recommended": false
+        },
+        {
+          "key": "B",
+          "label": "Path-glob + per-pattern exemptions — can exempt specific finding types for specific paths",
+          "rationale": "More precise: 'skip PII checks in test files but still check for hardcoded secrets' or 'allow email patterns in config.example files'. Two-dimensional: (path pattern × finding type). Stored in DB with a simple rules table.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own exemption model"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i5",
+      "type": "info",
+      "text": "The codebase does NOT need major modernization. It uses Go modules, structured logging, PostgreSQL with proper schema, and has a comprehensive test framework. Adding PII detection is an extension of the existing pattern system, not a rewrite. Key additions needed: new pattern definitions in security_scanner.go, new DB tables for watchlist + allowlist, and a new scan endpoint handler."
+    }
+  ],
+  "plan_updates": "Created initial conclusion.md scaffold with research question, summary, methodology, 6 findings, and limitations. Actions section is TBD pending decision resolution."
+}

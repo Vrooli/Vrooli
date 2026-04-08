@@ -1,0 +1,21 @@
+{
+  "acceptance_allow": [
+    "scenarios/deployment-manager/**"
+  ],
+  "created": "2026-04-07T22:11:37Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "GCT tests failing for docs validation, playbooks registry missing, and UI build.",
+  "kind": "fix",
+  "name": "qa-deployment-manager-tests-20260407",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "deployment-manager",
+    "tests"
+  ],
+  "title": "Fix deployment-manager test failures",
+  "updated": "2026-04-07T22:11:37Z"
+}

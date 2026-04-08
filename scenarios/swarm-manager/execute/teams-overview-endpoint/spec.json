@@ -6,7 +6,11 @@
   ],
   "created": "2026-04-06T19:35:58Z",
   "depends_on": [
-    "execute/team-schema-v2-migration"
+    "chore/qa-prompt-manager-tidiness-20260407",
+    "execute/team-schema-v2-migration",
+    "fix/qa-prompt-manager-standards-requirements-20260407",
+    "fix/qa-prompt-manager-standards-structure-20260407",
+    "fix/qa-prompt-manager-tests-20260407"
   ],
   "description": "Create a new API endpoint and CLI command that returns an organizational overview of all teams with their v2 schema properties. This serves two consumers: (1) the meta-optimization team, which needs a single surface to assess organizational health, team coverage gaps, and coordination issues, and (2) the project-wiki maintenance agent, which needs to read all teams' contribution declarations.\n\n**API endpoint:** GET /api/v1/teams/overview — returns all teams with: id, displayName, mission, enabled, objectives, kpis, consumers, contributions, computed dependencies (if the research determines these should be computed from HEARTBEAT.md/skill references), member count, last heartbeat timestamp, and a health summary (e.g., are objectives defined? are KPIs being tracked?).\n\n**CLI command:** prompt-manager teams overview — human-readable table or structured output showing the same data. Should support --format json for programmatic consumption by other scenarios.\n\nThe endpoint should aggregate data from team.json, org.json (for member count), and heartbeat.json (for last execution time). It should work even if some teams are still on schema v1 (graceful degradation with empty arrays for missing fields).\n\nUpdate the meta-optimization team's HEARTBEAT.md to reference this new surface as a primary input for organizational health assessment, alongside their existing DTV and prompt-manager graph queries.",
   "effort": "M",
@@ -16,5 +20,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Add Teams Overview Endpoint And CLI Command",
-  "updated": "2026-04-06T19:35:58Z"
+  "updated": "2026-04-07T22:12:46Z"
 }

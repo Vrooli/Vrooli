@@ -8,10 +8,20 @@
   ],
   "created": "2026-03-26T16:35:48Z",
   "depends_on": [
+    "chore/qa-prompt-manager-tidiness-20260407",
+    "chore/qa-scenario-to-desktop-standards-setup-20260407",
+    "chore/qa-scenario-to-desktop-standards-tests-20260407",
+    "chore/qa-scenario-to-desktop-standards-ui-20260407",
     "execute/deployment-manager-approval-gate-surfaces",
     "execute/deployment-manager-visual-validation-approval-flow",
+    "execute/lpbs-desktop-release-contract-hardening",
+    "execute/qa-deployment-manager-code-quality-20260407",
+    "execute/qa-scenario-to-desktop-code-quality-20260407",
     "execute/scenario-to-desktop-approval-gate-integration",
-    "execute/lpbs-desktop-release-contract-hardening"
+    "fix/qa-deployment-manager-tests-20260407",
+    "fix/qa-prompt-manager-standards-requirements-20260407",
+    "fix/qa-prompt-manager-standards-structure-20260407",
+    "fix/qa-prompt-manager-tests-20260407"
   ],
   "description": "Move the real LPBS desktop release flow into deployment-manager so the operator can drive end-to-end desktop release from the canonical deployment control plane.\n\nThe finished state should preserve prompt-manager skills as automation clients and helpers, but deployment-manager should become the authoritative surface for release gating, release execution, LPBS publication, and operator-visible status.",
   "effort": "L",
@@ -28,5 +38,5 @@
     "automation"
   ],
   "title": "Make Deployment Manager Own LPBS Desktop Release Orchestration",
-  "updated": "2026-03-26T16:35:48Z"
+  "updated": "2026-04-07T22:13:29Z"
 }
