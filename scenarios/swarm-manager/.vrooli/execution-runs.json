@@ -4085,5 +4085,162 @@
     },
     "created_at": "2026-04-08T03:17:55Z",
     "updated_at": "2026-04-08T03:18:42Z"
+  },
+  {
+    "execution_id": "1c58df700797080d",
+    "backlog_kind": "research",
+    "backlog_name": "secrets-manager-pii-detection-design",
+    "previous_status": "backlog",
+    "task_id": "f5eb5121-19ab-47e2-b8b1-5d53ebc7e80a",
+    "run_id": "e70d8f36-80df-4f76-bb7d-d3fcaed8cd02",
+    "status": "completed",
+    "mode": "yolo",
+    "started_at": "2026-04-08T16:13:45Z",
+    "finished_at": "2026-04-08T16:18:10Z",
+    "started_by": "swarm-manager-ui",
+    "operation": "generator",
+    "prompt_trace": {
+      "purpose": "process",
+      "prompt": "\u003cexecution-context\u003e\nBacklog item: research/secrets-manager-pii-detection-design\nTitle: Design PII detection system for Secrets Manager\nItem folder: /home/matthalloran8/Vrooli/scenarios/swarm-manager/research/secrets-manager-pii-detection-design\nRun type: process\n\u003c/execution-context\u003e\n\n\u003cresearch-conclusion path=\"conclusion.md\"\u003e\n# Research Conclusion: Design PII detection system for Secrets Manager\n\n## Research Question\nHow should the PII detection subsystem be designed for Secrets Manager — including custom watchlist support, allowlist exemptions, and a file-list-based scan endpoint — so that Git Control Tower can invoke it during pre-commit security review?\n\n## Summary\nSecrets Manager has a mature security scanning infrastructure (8 vulnerability patterns, regex + AST-based scanning, progressive scan with caching, PostgreSQL persistence with fingerprint deduplication) but **zero PII-specific detection** and **no allowlist/exemption system**. The existing `VulnerabilityPattern` struct, `scanFileForVulnerabilities()` function, and `security_scan_runs`/`security_vulnerabilities` persistence layer provide a solid foundation that can be extended without architectural changes. The design uses a **scan-run model** (persisted results with scan ID) for GCT integration, **built-in PII patterns in Go source** with a **DB-stored custom watchlist** (AES-256-GCM encrypted at rest), a **two-dimensional allowlist** (path-glob × finding-type exemptions), **synchronous-with-timeout** endpoint behavior, and **tiered PII severity** classification.\n\n## Methodology\n- Read all secrets-manager source code: API handlers, scanner, persistence, schema, tests, types\n- Analyzed the `walkAndScan()` pipeline end-to-end: directory traversal → pattern matching → fingerprinting → DB persistence\n- Examined all GCT review client implementations: tidiness-manager, test-genie, scenario-auditor\n- Analyzed GCT capability registry, service discovery, and health-check patterns\n- Reviewed initiative orchestration summary for strategic decisions\n- Compared scan-run patterns across existing GCT integrations (auditor uses jobID polling)\n\n## Findings\n\n### Finding 1: Current scanning is directory-based only\nThe core scanning function `walkAndScan()` (`api/security_scan.go:84-196`) traverses directories with extension filtering, file-size limits, and per-component caps. There is no mechanism to scan a specific list of files. The scan endpoint (`GET /api/v1/security/scan`) accepts `?component` and `?severity` filters but not file paths. A new `scanFileList()` function is needed that iterates caller-provided paths, applies allowlist filtering, then delegates to the existing `scanFileForVulnerabilities()` for pattern matching.\n\n### Finding 2: No PII patterns exist but the pattern system is easily extensible\nThe 8 vulnerability patterns in `api/security_scanner.go:26-100` cover hardcoded secrets, SQL injection, CORS, debug code, etc. — nothing for PII. The `VulnerabilityPattern` struct (lines 102-110) has fields for `Type`, `Severity`, `Pattern` (regex), `Description`, `Title`, `Recommendation`, and `CanAutoFix`. Adding PII regex patterns (email, phone, SSN, credit card, IP address, AWS key) requires only new entries in the patterns slice — no engine changes.\n\n### Finding 3: No allowlist/exemption system exists\nVulnerabilities can be marked `accepted` via status updates (`POST /api/v1/security/vulnerabilities/{id}/status`), but this is per-finding post-detection. There are no path-pattern exemptions, no per-pattern suppressions, and no time-bound exemptions. Test files are scanned identically to production code.\n\n### Finding 4: GCT review integration uses scenario paths, not file lists — but scan-run model aligns with auditor\nCurrent GCT review clients pass scenario names or paths (`TidinessLightScanRequest.ScenarioPath`, `TestExecutionRequest.ScenarioName`). A file-list endpoint is a **new contract pattern** for GCT. However, the scenario-auditor already uses a scan-run ID pattern (`AuditorCheckJobResponse.JobID` with polling via `GET /api/v1/standards/check/jobs/{jobID}`), so the scan-run model chosen for secrets-manager aligns with existing GCT patterns. The capability registry and health-check discovery would work identically — only the request/response contract differs.\n\n### Finding 5: Infrastructure is modernization-ready, not modernization-required\nThe codebase uses Go modules, structured logging, PostgreSQL with proper schema, gorilla/mux routing, and has a comprehensive test framework. Adding PII detection requires **extending** the existing system, not rewriting it.\n\n### Finding 6: Watchlist requires a two-tier pattern system\nPII detection has two layers: (1) generic regex patterns (emails, phones, SSNs, IPs, AWS keys) built into Go source alongside existing vulnerability patterns, and (2) a user-uploaded custom watchlist of personal literal values stored in a DB table with CRUD API. Custom watchlist values are literal strings (e.g., \"matt@example.com\", \"/home/matthalloran8\") — they need exact or substring matching, not regex compilation.\n\n### Finding 7: Existing persistence layer is reusable for file-list scans\nThe `security_scan_runs` and `security_vulnerabilities` tables already support the scan-run model. `persistSecurityScan()` (security_scan.go:608-674) handles INSERT with ON CONFLICT for fingerprint deduplication and status transitions (open → in_progress → resolved/accepted/regressed). The file-list scan endpoint can reuse this persistence layer entirely — no new scan/vulnerability tables needed.\n\n### Finding 8: Watchlist values require application-level encryption\nCustom watchlist entries contain the exact values users want to protect (their actual email, phone, home directory path). Storing these in plaintext makes the database a PII target. Since values must be decryptable for literal-string matching (not hashed), application-level AES-256-GCM encryption with a server-managed key (from environment variable) is the chosen approach. This protects data at rest, supports key rotation, requires no PostgreSQL extensions, and uses standard Go `crypto/aes`. The small performance cost of decrypting N watchlist values per scan is acceptable.\n\n### Finding 9: Synchronous-with-timeout endpoint behavior\nThe `POST /api/v1/security/scan-files` endpoint blocks and returns full results inline for typical commits (1-50 files, expected under 2s). If a scan exceeds a 10-second timeout, it returns partial results along with the scan-run ID so GCT can poll `GET /api/v1/security/scan-runs/{id}` for the remainder. The scan run is persisted regardless (for history/dedup), giving GCT results in a single call for ~95% of cases while gracefully handling large commits.\n\n### Finding 10: Tiered PII severity classification\nBuilt-in PII patterns use tiered severity reflecting regulatory risk:\n- **Critical**: SSN, credit card numbers (PCI, GDPR legal consequences)\n- **High**: Email addresses, phone numbers (sensitive personal data)\n- **Medium**: IP addresses, home directory paths (lower-impact exposure)\n- **High**: Custom watchlist values (user explicitly flagged these for detection)\n\nThis aligns with the existing vulnerability pattern severity range (critical to low) and gives GCT meaningful severity data for commit gating decisions.\n\n### Finding 11: Proposed database schema for watchlist and allowlist\nTwo new tables following existing schema conventions:\n- **`pii_watchlist`** — id (UUID PK), label (TEXT), encrypted_value (BYTEA), value_type (TEXT: email/phone/path/custom), created_at (TIMESTAMPTZ). Stores user-provided personal values with AES-256-GCM encryption.\n- **`scan_allowlist_rules`** — id (UUID PK), path_pattern (TEXT glob), excluded_types (TEXT[] — vulnerability/PII types to skip, or '*' for all), description (TEXT), enabled (BOOLEAN DEFAULT true), created_at (TIMESTAMPTZ). Implements the two-dimensional exemption model (path × finding-type).\n\n## Limitations\n- Have not benchmarked pattern matching performance with large file lists (hundreds of staged files)\n- Have not evaluated false-positive rates for generic PII patterns (email regex matching Go import paths, IP addresses in config files, etc.)\n- Custom watchlist UX design is deferred to the execute item\n- RBAC implications of watchlist management not explored (currently no auth system in secrets-manager)\n- Encryption key management details (rotation procedure, backup strategy, key loss recovery) not fully designed — deferred to implementation\n\n## Actions\n\n### Action 1: Create backlog item — Implement PII scanner extension for Secrets Manager\n- **Kind**: execute (already exists as `execute/secrets-manager-pii-scanner` in initiative)\n- **Description**: Add PII detection patterns to `security_scanner.go`, implement `scanFileList()` function, create `POST /api/v1/security/scan-files` endpoint with scan-run persistence, add `pii_watchlist` and `scan_allowlist_rules` tables with migrations, implement CRUD endpoints for watchlist and allowlist management. Follow the existing `VulnerabilityPattern` struct and `persistSecurityScan()` patterns.\n- **Key design decisions to carry forward**:\n  - Scan-run model with persistence (round 1, d1 → option B)\n  - Built-in patterns in Go source + DB-stored watchlist (round 1, d2 → option A)\n  - Path-glob × finding-type allowlist (round 1, d3 → option B)\n  - Synchronous-with-timeout endpoint: block and return inline, fall back to polling at 10s (round 2, d1 → option A)\n  - AES-256-GCM encryption for watchlist values with env-var key (round 2, d2 → option A)\n  - Tiered PII severity: SSN/CC=critical, email/phone=high, IP/path=medium, custom watchlist=high (round 2, d3 → option A)\n\n### Action 2: Update document — Add API contract specification to execute item\n- **File**: The `execute/secrets-manager-pii-scanner` plan should include the full API contract for the scan-files endpoint so GCT can implement the client:\n  - `POST /api/v1/security/scan-files` — request: `{files: [...paths], options: {pii: bool, secrets: bool, watchlist: bool}}`, response: `{scan_id: string, status: \"complete\"|\"partial\", findings: [{file, line, type, severity, pattern, snippet}], metrics: {files_scanned, findings_count, duration_ms}}`\n  - `GET /api/v1/security/scan-runs/{id}` — polling endpoint for async/partial results\n  - CRUD for `/api/v1/security/watchlist` (encrypted storage)\n  - CRUD for `/api/v1/security/allowlist-rules` (path-glob × finding-type)\n\n\u003c/research-conclusion\u003e\n",
+      "prompt_revision": "sha256:aa62ccc40c43b705",
+      "used_fallback": false,
+      "captured_at": "2026-04-08T16:13:44Z"
+    },
+    "finalization": {
+      "eligible": true,
+      "status": "completed",
+      "phase": "completed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-04-08T16:17:23Z",
+      "completed_at": "2026-04-08T16:18:10Z",
+      "warnings": [
+        {
+          "code": "restart_retry",
+          "scenario_name": "secrets-manager",
+          "message": "restart attempt 1 failed: vrooli scenario restart secrets-manager failed: exit status 1 (output: [INFO]    Restarting scenario: secrets-manager\n[INFO]    Stopping scenario: secrets-manager\n[INFO]    Stopping secrets-manager:start-api process group (PGID: 3115972)\n[INFO]    Stopped 1 process groups for scenario: secrets-manager\n\u001b[0;32m[SUCCESS] Scenario 'secrets-manager' stopped successfully\n[INFO]    Running scenario 'secrets-manager' with direct lifecycle execution\n[INFO]    Starting scenario 'secrets-manager'...\n[INFO]    Running setup before develop...\n[INFO]    Environment setup complete for scenario: secrets-manager\n[WARNING] Postgres not running, skipping database creation for: vrooli_secrets_manager\n[INFO]    Install CLI, build API, initialize database, and produce a production UI bundle\n[INFO]    [1/7] install-cli\n  → Install the secrets-manager CLI\n✅ secrets-manager installed to /home/matthalloran8/.local/bin/secrets-manager\n[INFO]    [2/7] build-api\n  → Build the Go API server binary (secrets-manager-api) inside api/ directory for lifecycle execution\n[INFO]    [3/7] initialize-database\n  → Ensure the tracking schema exists\nNOTICE:  extension \"uuid-ossp\" already exists, skipping\nNOTICE:  relation \"resource_secrets\" already exists, skipping\nNOTICE:  column \"classification\" of relation \"resource_secrets\" already exists, skipping\nNOTICE:  column \"owner_team\" of relation \"resource_secrets\" already exists, skipping\nNOTICE:  column \"owner_contact\" of relation \"resource_secrets\" already exists, skipping\nNOTICE:  column \"rotation_period_days\" of relation \"resource_secrets\" already exists, skipping\nNOTICE:  column \"last_rotated_at\" of relation \"resource_secrets\" already exists, skipping\nNOTICE:  relation \"secret_validations\" already exists, skipping\nNOTICE:  relation \"secret_scans\" already exists, skipping\nNOTICE:  relation \"secret_provisions\" already exists, skipping\nNOTICE:  relation \"secret_deployment_strategies\" already exists, skipping\nNOTICE:  relation \"scenario_secret_strategy_overrides\" already exists, skipping\nNOTICE:  relation \"deployment_manifests\" already exists, skipping\nNOTICE:  relation \"security_scan_runs\" already exists, skipping\nNOTICE:  relation \"security_vulnerabilities\" already exists, skipping\nNOTICE:  relation \"deployment_campaigns\" already exists, skipping\nNOTICE:  trigger \"update_scenario_overrides_updated_at\" for relation \"scenario_secret_strategy_overrides\" does not exist, skipping\nERROR:  trigger \"update_scenario_overrides_updated_at\" for relation \"scenario_secret_strategy_overrides\" already exists\nERROR:  tuple concurrently updated\nNOTICE:  relation \"idx_resource_secrets_resource_name\" already exists, skipping\nNOTICE:  relation \"idx_resource_secrets_required\" already exists, skipping\nNOTICE:  relation \"idx_secret_validations_status\" already exists, skipping\nNOTICE:  relation \"idx_secret_validations_timestamp\" already exists, skipping\nNOTICE:  relation \"idx_secret_deploy_strat_tier\" already exists, skipping\nNOTICE:  relation \"idx_secret_deploy_strat_secret\" already exists, skipping\nNOTICE:  relation \"idx_deployment_manifests_tier\" already exists, skipping\nNOTICE:  relation \"idx_scenario_overrides_scenario\" already exists, skipping\nNOTICE:  relation \"idx_scenario_overrides_secret\" already exists, skipping\nNOTICE:  relation \"idx_scenario_overrides_tier\" already exists, skipping\nNOTICE:  relation \"idx_security_scans_completed_at\" already exists, skipping\nNOTICE:  relation \"idx_security_vuln_component\" already exists, skipping\nNOTICE:  relation \"idx_security_vuln_status\" already exists, skipping\nNOTICE:  relation \"idx_security_vuln_severity\" already exists, skipping\n[INFO]    [4/7] seed-database\n  → Seed baseline secret definitions\nNOTICE:  🔐 Secrets Manager seed data loaded successfully:\nNOTICE:     📦 Resources: 14 resources\nNOTICE:     🔑 Total secrets: 50 secrets\nNOTICE:     ⚠️  Required secrets: 12 secrets\nNOTICE:     ✅ Database schema ready for secret management\n[INFO]    [5/7] install-ui-deps\n  → Install UI dependencies\nProgress: resolved 1, reused 0, downloaded 0, added 0\nPackages: +2\n++\n ERR_PNPM_ENOTEMPTY  ENOTEMPTY: directory not empty, rename '/home/matthalloran8/Vrooli/scenarios/secrets-manager/ui/node_modules/.pnpm/@vrooli+api-base@file+..+..+..+packages+api-base_express@4.21.2_ws@8.18.3/node_modules/@vrooli/api-base_tmp_1189812' -\u003e '/home/matthalloran8/Vrooli/scenarios/secrets-manager/ui/node_modules/.pnpm/@vrooli+api-base@file+..+..+..+packages+api-base_express@4.21.2_ws@8.18.3/node_modules/@vrooli/api-base'\n[ERROR]   Step failed: setup.secrets-manager.install-ui-deps\n[ERROR]   Setup failed); retrying once",
+          "retryable": true,
+          "created_at": "2026-04-08T16:17:29Z"
+        },
+        {
+          "code": "finalization_infrastructure",
+          "scenario_name": "secrets-manager",
+          "message": "trigger review for secrets-manager: review run returned status 409: {\"error\":\"a review run is already in progress for this scenario\"}",
+          "created_at": "2026-04-08T16:17:43Z"
+        },
+        {
+          "code": "review_agent_failed",
+          "message": "spawn review agent: agent-manager request failed: status 400: {\"code\":\"VALIDATION_FIELD\",\"message\":\"validation error on contextAttachments[0].content: required for note attachments\",\"details\":{\"fields\":{\"field\":{\"string_value\":\"contextAttachments[0].content\"},\"message\":{\"string_value\":\"required for note attachments\"},\"recovery\":{\"string_value\":\"fix_input\"},\"request_id\":{\"string_value\":\"449341db-aa9f-40a5-9d4c-da7b91c2e316\"},\"retryable\":{\"bool_value\":false},\"user_message\":{\"string_value\":\"Invalid value for contextAttachments[0].content: required for note attachments\"}}}}",
+          "created_at": "2026-04-08T16:17:43Z"
+        },
+        {
+          "code": "finalization_infrastructure",
+          "scenario_name": "secrets-manager",
+          "message": "trigger review for secrets-manager: review run returned status 409: {\"error\":\"a review run is already in progress for this scenario\"}",
+          "created_at": "2026-04-08T16:17:48Z"
+        },
+        {
+          "code": "review_agent_failed",
+          "message": "spawn review agent: agent-manager request failed: status 400: {\"code\":\"VALIDATION_FIELD\",\"message\":\"validation error on contextAttachments[0].content: required for note attachments\",\"details\":{\"fields\":{\"field\":{\"string_value\":\"contextAttachments[0].content\"},\"message\":{\"string_value\":\"required for note attachments\"},\"recovery\":{\"string_value\":\"fix_input\"},\"request_id\":{\"string_value\":\"da3e23ab-5d04-4963-a80e-4fce200c11c8\"},\"retryable\":{\"bool_value\":false},\"user_message\":{\"string_value\":\"Invalid value for contextAttachments[0].content: required for note attachments\"}}}}",
+          "created_at": "2026-04-08T16:17:48Z"
+        },
+        {
+          "code": "review_agent_failed",
+          "message": "spawn review agent: agent-manager request failed: status 400: {\"code\":\"VALIDATION_FIELD\",\"message\":\"validation error on contextAttachments[0].content: required for note attachments\",\"details\":{\"fields\":{\"field\":{\"string_value\":\"contextAttachments[0].content\"},\"message\":{\"string_value\":\"required for note attachments\"},\"recovery\":{\"string_value\":\"fix_input\"},\"request_id\":{\"string_value\":\"64f2388b-2db0-4088-907a-36747d4c8779\"},\"retryable\":{\"bool_value\":false},\"user_message\":{\"string_value\":\"Invalid value for contextAttachments[0].content: required for note attachments\"}}}}",
+          "created_at": "2026-04-08T16:18:10Z"
+        }
+      ],
+      "affected_scenarios": [
+        "secrets-manager"
+      ],
+      "aggregate_classification": "ready_with_notes",
+      "aggregate_summary": "secrets-manager ready with notes; 6 warning(s)",
+      "scenarios": [
+        {
+          "scenario_name": "secrets-manager",
+          "restart": {
+            "status": "completed",
+            "attempts": 2,
+            "started_at": "2026-04-08T16:17:29Z",
+            "finished_at": "2026-04-08T16:17:38Z"
+          },
+          "health": {
+            "status": "completed",
+            "scenario_status": "running",
+            "health_status": "healthy",
+            "schema_valid": true,
+            "details": "scenario is healthy",
+            "checked_at": "2026-04-08T16:17:48Z"
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "60d7aceb-faa0-4fe3-869e-7833499d4313",
+            "result": {
+              "job_id": "60d7aceb-faa0-4fe3-869e-7833499d4313",
+              "classification": "ready_with_notes",
+              "dimensions": [
+                {
+                  "name": "codeQuality",
+                  "status": "red",
+                  "details": "0.0 score, 117 violations"
+                },
+                {
+                  "name": "tests",
+                  "status": "yellow",
+                  "details": "4/11 passed"
+                },
+                {
+                  "name": "standards",
+                  "status": "red",
+                  "details": "2 blocking violations"
+                },
+                {
+                  "name": "visual",
+                  "status": "red"
+                },
+                {
+                  "name": "provenance",
+                  "status": "green"
+                }
+              ],
+              "raw_dimensions": {
+                "codeQuality": {
+                  "available": true,
+                  "score": 0,
+                  "violations": 117,
+                  "stale": false
+                },
+                "tests": {
+                  "available": true,
+                  "passed": false,
+                  "total": 11,
+                  "passedCount": 4,
+                  "failedCount": 7,
+                  "lastRun": "2026-04-08T16:18:06.863321925Z"
+                },
+                "standards": {
+                  "available": true,
+                  "blockingViolations": 2,
+                  "warnings": 36,
+                  "totalViolations": 38
+                },
+                "visual": {
+                  "available": true,
+                  "screenshotCount": 0,
+                  "stale": false
+                },
+                "provenance": {
+                  "available": true,
+                  "tracedFiles": 1
+                }
+              },
+              "summary": "Scenario secrets-manager readiness: yellow",
+              "reviewed_at": "2026-04-08T16:18:10Z"
+            }
+          }
+        }
+      ]
+    },
+    "created_at": "2026-04-08T16:13:44Z",
+    "updated_at": "2026-04-08T16:18:10Z"
   }
 ]

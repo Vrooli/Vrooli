@@ -1,0 +1,144 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-08T18:30:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 2,
+    "approach_solid": 1,
+    "testable": 2,
+    "risk_awareness": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Scope strategy: 107 complex functions and 48 long files",
+      "context": "Round 1 plan addresses ~15 files, but fresh analysis reveals the true scale: 54 files with 200+ lines, 67 files with complexity_max >= 6, and 43 files with complexity_max >= 10. The targets (complex_functions < 20, long_files < 10) require touching 80+ files — far more than the current 5-phase plan covers. Many of the largest files aren't even mentioned: execution/service_test.go (1408 lines), backlog/handler_test.go (1188 lines), ideas/handler_test.go (1065 lines), cli/app_test.go (1088 lines), ideas/handler.go (712 lines), review/service.go (731 lines). The plan must be expanded or the item split.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Expand this item: comprehensive multi-pass execution",
+          "rationale": "Keep one backlog item but expand the plan to cover all ~80 files in prioritized waves (Tier 1: production code with complexity >= 10, Tier 2: test files over 500 lines, Tier 3: remaining long/complex files). This is the most thorough approach but makes the item very large. Recommended because the refactoring patterns are repetitive (extract helpers, split handlers, table-driven tests) and a single agent can apply them systematically.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Split into sub-items by package",
+          "rationale": "Create separate backlog items for each major package (backlog, initiatives, execution, scenarios, cli, etc.). Enables parallel execution by multiple agents. Risk: duplication of shared infrastructure work (testutil, fileserve extraction)."
+        },
+        {
+          "key": "C",
+          "label": "Target top-30 files only, accept partial improvement",
+          "rationale": "Focus on the highest-leverage 30 files and aim for score >= 50 instead of >= 70. Faster to execute but may not meet success criteria."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "C",
+      "freeform": null,
+      "notes": ""
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Production file refactoring approach for 500+ line handlers/services",
+      "context": "Several production files are 500-731 lines with high complexity: review/service.go (731 lines), ideas/handler.go (712 lines, complexity 17), promptmanager/client.go (564 lines), agentmanager/service.go (539 lines), backlog/handler.go (508 lines), backlog/research.go (501 lines), backlog/import_parser.go (460 lines), backlog/batch_handler.go (445 lines), scenarios/handler.go (438 lines). These aren't just duplication — they contain genuinely complex business logic. The plan needs a concrete decomposition strategy.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Extract sub-handlers and helper functions within the same package",
+          "rationale": "Split large handler files into multiple files by concern (e.g., handler_create.go, handler_update.go, handler_delete.go). Extract complex logic into named helper functions. Stays within Go conventions, no new packages needed, lowest risk of breaking imports. Recommended because it directly reduces per-file line counts and per-function complexity without architectural changes.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Extract shared domain logic into new internal packages",
+          "rationale": "Create packages like internal/fileops, internal/validation for cross-cutting logic. Reduces duplication across packages but requires more import refactoring and risks circular dependencies."
+        },
+        {
+          "key": "C",
+          "label": "Focus only on function complexity, not file length",
+          "rationale": "Break complex functions into smaller ones but keep them in the same file. Addresses complex_functions metric without changing file structure. May not reduce long_files count enough."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": ""
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "CLI code inclusion",
+      "context": "The CLI directory has significant violations too: cli/app_test.go (1088 lines, complexity 13, 43 functions), cli/cmd_initiatives.go (561 lines, complexity 29), and likely others. The acceptance_allow glob 'scenarios/swarm-manager/**' covers CLI files. The current plan only mentions api/ files.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Include CLI files in scope",
+          "rationale": "CLI files contribute to the violation counts and are within acceptance_allow. cmd_initiatives.go at complexity 29 is one of the worst offenders. Including them is necessary to hit the targets. Recommended.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Exclude CLI, handle in separate item",
+          "rationale": "CLI refactoring has different patterns (cobra command decomposition) than API handler refactoring. Separating keeps each item focused. Risk: this item may not reach score targets without CLI improvements."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "B",
+      "freeform": null,
+      "notes": ""
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Test file decomposition strategy for 600-1400 line test files",
+      "context": "The largest test files are: execution/service_test.go (1408), backlog/handler_test.go (1188), cli/app_test.go (1088), ideas/handler_test.go (1065), scenarios/handler_test.go (927 via wc -l / 757 via tidiness), backlog/import_test.go (840), backlog/store_test.go (795), batch_queue_handler_test.go (751), workshop_save_test.go (696), batch_handler_test.go (651). These are 2-5x larger than handler_update_test.go (472 lines) which round 1 planned to refactor. The round 1 decision (d4: extract test helpers) works for repetitive setup, but these massive files may need splitting.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Split large test files by test category + extract shared helpers",
+          "rationale": "For files over 500 lines, split into focused test files (e.g., handler_create_test.go, handler_update_test.go, handler_delete_test.go). Combined with extracting shared test setup into testutil or per-package helpers. Recommended because it addresses both the line count and complexity metrics simultaneously.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Extract helpers only, keep single test files",
+          "rationale": "Use table-driven tests and shared helpers to reduce line counts without splitting files. Simpler change but may not reduce files below thresholds for the 1000+ line files."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": ""
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "An existing internal/testutil package already exists with helpers.go, helpers_test.go, mocks.go, and wrappers_test.go. The round 1 decision (d3) to extract errorWriter here is straightforward — no new package creation needed."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Fresh tidiness-manager scan shows the top complexity offenders not in the current plan: cli/cmd_initiatives.go (complexity 29), backlog/store_test.go (complexity 29), ideas/handler.go (complexity 17), cli/app_test.go (complexity 13), initiatives/handler.go (complexity 12, already in plan), workshop/workshop_test.go (complexity 13), scenarios/handler_test.go (complexity 11). The files.go pair (complexity 35 each) are the worst and are already planned."
+    }
+  ],
+  "plan_updates": "Round 2 identifies a major scope gap: the plan covers ~15 files but 48+ long files and 107+ complex functions need remediation. Pending decisions on scope strategy, production file decomposition, CLI inclusion, and test file splitting before the plan can be expanded to cover the full violation set."
+}

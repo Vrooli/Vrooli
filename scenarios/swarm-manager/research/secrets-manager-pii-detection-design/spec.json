@@ -9,8 +9,8 @@
   "kind": "research",
   "name": "secrets-manager-pii-detection-design",
   "priority": 1,
-  "status": "backlog",
+  "status": "completed",
   "tags": [],
   "title": "Design PII detection system for Secrets Manager",
-  "updated": "2026-04-06T18:43:38Z"
+  "updated": "2026-04-08T16:18:10Z"
 }
