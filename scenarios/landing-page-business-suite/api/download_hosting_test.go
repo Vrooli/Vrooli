@@ -596,6 +596,75 @@ func TestDownloadHostingService_CommitArtifact_GitCommitHash(t *testing.T) {
 	}
 }
 
+func TestDownloadHostingService_CommitArtifact_ReleaseID(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	cleanupDownloadStorageSettings(t, db)
+	cleanupDownloadArtifacts(t, db)
+
+	mockStorage := &mockDownloadStorage{
+		headEtag:        "relid123",
+		headSize:        4096,
+		headContentType: "application/octet-stream",
+	}
+	mockProvider := &mockStorageProvider{storage: mockStorage}
+
+	service := NewDownloadHostingService(db, mockProvider)
+	ctx := context.Background()
+
+	_, err := db.Exec(`
+		INSERT INTO download_storage_settings (bundle_key, provider, bucket, region, signed_url_ttl_seconds)
+		VALUES ('release_id_test', 's3', 'test-bucket', 'us-east-1', 900)
+	`)
+	if err != nil {
+		t.Fatalf("Failed to insert settings: %v", err)
+	}
+
+	releaseID := "550e8400-e29b-41d4-a716-446655440000"
+	req := CommitArtifactRequest{
+		Bucket:           "test-bucket",
+		ObjectKey:        "artifacts/relid-app/1.0.0/app.zip",
+		OriginalFilename: "app.zip",
+		ContentType:      "application/zip",
+		Platform:         "linux",
+		ReleaseVersion:   "1.0.0",
+		ReleaseID:        releaseID,
+	}
+
+	artifact, err := service.CommitArtifact(ctx, "release_id_test", req)
+	if err != nil {
+		t.Fatalf("CommitArtifact failed: %v", err)
+	}
+	if artifact.ReleaseID != releaseID {
+		t.Errorf("Expected ReleaseID %q, got %q", releaseID, artifact.ReleaseID)
+	}
+
+	// Verify round-trip via GetArtifact
+	fetched, err := service.GetArtifact(ctx, "release_id_test", artifact.ID)
+	if err != nil {
+		t.Fatalf("GetArtifact failed: %v", err)
+	}
+	if fetched.ReleaseID != releaseID {
+		t.Errorf("GetArtifact: expected ReleaseID %q, got %q", releaseID, fetched.ReleaseID)
+	}
+
+	// Verify committing without release_id still works
+	req2 := CommitArtifactRequest{
+		Bucket:           "test-bucket",
+		ObjectKey:        "artifacts/relid-app/1.0.0/app-no-relid.zip",
+		OriginalFilename: "app-no-relid.zip",
+		Platform:         "windows",
+		ReleaseVersion:   "1.0.0",
+	}
+	artifact2, err := service.CommitArtifact(ctx, "release_id_test", req2)
+	if err != nil {
+		t.Fatalf("CommitArtifact without release_id failed: %v", err)
+	}
+	if artifact2.ReleaseID != "" {
+		t.Errorf("Expected empty ReleaseID, got %q", artifact2.ReleaseID)
+	}
+}
+
 func TestDownloadHostingService_CommitArtifact_Upsert(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()

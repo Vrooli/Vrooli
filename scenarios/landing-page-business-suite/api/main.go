@@ -805,6 +805,9 @@ func ensureSchema(db *sql.DB) error {
 		`ALTER TABLE download_artifacts ADD COLUMN IF NOT EXISTS sha512 TEXT;`,
 		`ALTER TABLE download_artifacts ADD COLUMN IF NOT EXISTS git_commit_hash TEXT;`,
 		`ALTER TABLE download_apps ADD COLUMN IF NOT EXISTS update_api_key TEXT;`,
+		`ALTER TABLE download_artifacts ADD COLUMN IF NOT EXISTS release_id TEXT;`,
+		`CREATE INDEX IF NOT EXISTS idx_download_artifacts_release_id ON download_artifacts(release_id);`,
+		`ALTER TABLE download_apps ADD COLUMN IF NOT EXISTS update_policy JSONB NOT NULL DEFAULT '{"check_interval_hours": 4, "update_mode": "optional", "allow_downgrade": false}'::jsonb;`,
 		`CREATE TABLE IF NOT EXISTS credit_wallets (
 			id SERIAL PRIMARY KEY,
 			customer_email VARCHAR(255) UNIQUE NOT NULL,

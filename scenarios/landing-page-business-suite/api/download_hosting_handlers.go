@@ -206,6 +206,7 @@ func handleAdminApplyDownloadArtifact(downloads *DownloadService, hosting *Downl
 		var payload struct {
 			AppKey              string                 `json:"app_key"`
 			Platform            string                 `json:"platform"`
+			VariantKey          string                 `json:"variant_key"`
 			ArtifactID          int64                  `json:"artifact_id"`
 			ReleaseVersion      string                 `json:"release_version"`
 			ReleaseNotes        string                 `json:"release_notes"`
@@ -257,6 +258,7 @@ func handleAdminApplyDownloadArtifact(downloads *DownloadService, hosting *Downl
 			BundleKey:           plans.BundleKey(),
 			AppKey:              appKey,
 			Platform:            platform,
+			VariantKey:          payload.VariantKey,
 			ArtifactURL:         "",
 			ArtifactSource:      "managed",
 			ArtifactID:          &id,

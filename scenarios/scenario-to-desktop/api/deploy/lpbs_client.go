@@ -81,6 +81,8 @@ type UploadRequest struct {
 	ReleaseVersion string
 	ReleaseNotes   string
 	GitCommitHash  string
+	ReleaseID      string
+	Channel        string
 }
 
 // UploadResult is the outcome of a single artifact upload.
@@ -305,19 +307,23 @@ func (c *LPBSClient) uploadToS3(ctx context.Context, presign *presignResponse, b
 }
 
 func (c *LPBSClient) proxyCommit(ctx context.Context, req *UploadRequest, presign *presignResponse, filename, contentType, sha512Hex string) (int64, error) {
+	commitPayload := map[string]interface{}{
+		"bucket":            presign.Bucket,
+		"object_key":        presign.ObjectKey,
+		"original_filename": filename,
+		"content_type":      contentType,
+		"app_key":           req.AppKey,
+		"platform":          req.Platform,
+		"release_version":   req.ReleaseVersion,
+		"sha512":            sha512Hex,
+		"git_commit_hash":   req.GitCommitHash,
+	}
+	if req.ReleaseID != "" {
+		commitPayload["release_id"] = req.ReleaseID
+	}
 	body, err := c.ProxyRequest(ctx, req.RemoteProfile, "POST",
 		"/admin/download-artifacts/commit",
-		map[string]interface{}{
-			"bucket":            presign.Bucket,
-			"object_key":        presign.ObjectKey,
-			"original_filename": filename,
-			"content_type":      contentType,
-			"app_key":           req.AppKey,
-			"platform":          req.Platform,
-			"release_version":   req.ReleaseVersion,
-			"sha512":            sha512Hex,
-			"git_commit_hash":   req.GitCommitHash,
-		})
+		commitPayload)
 	if err != nil {
 		return 0, fmt.Errorf("commit artifact: %w", err)
 	}
@@ -339,6 +345,13 @@ func (c *LPBSClient) proxyApply(ctx context.Context, req *UploadRequest, artifac
 	}
 	if strings.TrimSpace(req.ReleaseNotes) != "" {
 		payload["release_notes"] = strings.TrimSpace(req.ReleaseNotes)
+	}
+	if req.Channel != "" {
+		variantKey := req.Channel
+		if variantKey == "stable" {
+			variantKey = "default"
+		}
+		payload["variant_key"] = variantKey
 	}
 
 	_, err := c.ProxyRequest(ctx, req.RemoteProfile, "POST",

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 )
 
 // DownloadService provides helpers for retrieving bundle download metadata.
@@ -42,6 +43,7 @@ type DownloadAsset struct {
 	ReleaseVersion      string                 `json:"release_version"`
 	ReleaseNotes        string                 `json:"release_notes,omitempty"`
 	Checksum            string                 `json:"checksum,omitempty"`
+	VariantKey          string                 `json:"variant_key,omitempty"`
 	RequiresEntitlement bool                   `json:"requires_entitlement"`
 	Metadata            map[string]interface{} `json:"metadata,omitempty"`
 	// Artifact info (populated when artifact_source is 'managed')
@@ -124,6 +126,7 @@ type DownloadApp struct {
 	Metadata        map[string]interface{} `json:"metadata,omitempty"`
 	DisplayOrder    int                    `json:"display_order"`
 	UpdateAPIKey    string                 `json:"update_api_key,omitempty"`
+	UpdatePolicy    map[string]interface{} `json:"update_policy,omitempty"`
 	Platforms       []DownloadAsset        `json:"platforms,omitempty"`
 }
 
@@ -137,11 +140,12 @@ type appScanTargets struct {
 	installStepsBytes []byte
 	storefrontBytes   []byte
 	metadataBytes     []byte
+	updatePolicyBytes []byte
 }
 
 // scanDest returns the ordered slice of scan destinations matching the standard app SELECT columns:
 // id, bundle_key, app_key, name, tagline, description, icon_url, screenshot_url,
-// install_overview, install_steps, storefronts, metadata, display_order, update_api_key
+// install_overview, install_steps, storefronts, metadata, display_order, update_api_key, update_policy
 func (t *appScanTargets) scanDest() []interface{} {
 	return []interface{}{
 		&t.app.ID,
@@ -158,6 +162,7 @@ func (t *appScanTargets) scanDest() []interface{} {
 		&t.metadataBytes,
 		&t.app.DisplayOrder,
 		&t.updateAPIKey,
+		&t.updatePolicyBytes,
 	}
 }
 
@@ -182,6 +187,12 @@ func (t *appScanTargets) hydrate() DownloadApp {
 		var meta map[string]interface{}
 		if err := json.Unmarshal(t.metadataBytes, &meta); err == nil {
 			t.app.Metadata = meta
+		}
+	}
+	if len(t.updatePolicyBytes) > 0 {
+		var policy map[string]interface{}
+		if err := json.Unmarshal(t.updatePolicyBytes, &policy); err == nil {
+			t.app.UpdatePolicy = policy
 		}
 	}
 	return t.app
@@ -262,7 +273,7 @@ func (s *DownloadService) ListAssets(bundleKey string) ([]DownloadAsset, error) 
 func (s *DownloadService) ListApps(bundleKey string) ([]DownloadApp, error) {
 	query := `
 		SELECT id, bundle_key, app_key, name, tagline, description,
-		       icon_url, screenshot_url, install_overview, install_steps, storefronts, metadata, display_order, update_api_key
+		       icon_url, screenshot_url, install_overview, install_steps, storefronts, metadata, display_order, update_api_key, update_policy
 		FROM download_apps
 		WHERE bundle_key = $1
 		ORDER BY display_order, name
@@ -309,7 +320,7 @@ func (s *DownloadService) ListApps(bundleKey string) ([]DownloadApp, error) {
 func (s *DownloadService) GetApp(bundleKey, appKey string) (*DownloadApp, error) {
 	query := `
 		SELECT id, bundle_key, app_key, name, tagline, description,
-		       icon_url, screenshot_url, install_overview, install_steps, storefronts, metadata, display_order, update_api_key
+		       icon_url, screenshot_url, install_overview, install_steps, storefronts, metadata, display_order, update_api_key, update_policy
 		FROM download_apps
 		WHERE bundle_key = $1 AND app_key = $2
 		LIMIT 1
@@ -557,6 +568,10 @@ func (s *DownloadService) UpsertAsset(ctx context.Context, asset DownloadAsset) 
 	asset.ReleaseVersion = strings.TrimSpace(asset.ReleaseVersion)
 	asset.ReleaseNotes = strings.TrimSpace(asset.ReleaseNotes)
 	asset.Checksum = strings.TrimSpace(asset.Checksum)
+	asset.VariantKey = strings.TrimSpace(asset.VariantKey)
+	if asset.VariantKey == "" {
+		asset.VariantKey = "default"
+	}
 
 	assetSource := strings.TrimSpace(asset.ArtifactSource)
 	if assetSource == "" {
@@ -593,7 +608,7 @@ func (s *DownloadService) UpsertAsset(ctx context.Context, asset DownloadAsset) 
 		INSERT INTO download_assets (
 			bundle_key, app_key, platform, artifact_url, artifact_source, artifact_id,
 			release_version, release_notes, checksum, requires_entitlement, metadata, variant_key, updated_at
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'default', NOW())
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12, NOW())
 		ON CONFLICT (bundle_key, app_key, platform, variant_key) DO UPDATE SET
 			artifact_url = EXCLUDED.artifact_url,
 			artifact_source = EXCLUDED.artifact_source,
@@ -605,12 +620,74 @@ func (s *DownloadService) UpsertAsset(ctx context.Context, asset DownloadAsset) 
 			metadata = EXCLUDED.metadata,
 			updated_at = NOW()
 	`, asset.BundleKey, asset.AppKey, asset.Platform, asset.ArtifactURL, assetSource, artifactID,
-		asset.ReleaseVersion, asset.ReleaseNotes, asset.Checksum, asset.RequiresEntitlement, metadataBytes)
+		asset.ReleaseVersion, asset.ReleaseNotes, asset.Checksum, asset.RequiresEntitlement, metadataBytes, asset.VariantKey)
 	if err != nil {
 		return nil, fmt.Errorf("upsert download asset: %w", err)
 	}
 
 	return s.GetAsset(asset.BundleKey, asset.AppKey, asset.Platform)
+}
+
+// ListChannels returns available channels with latest version per platform for an app.
+func (s *DownloadService) ListChannels(bundleKey, appKey string) ([]ChannelInfo, error) {
+	rows, err := s.db.Query(`
+		SELECT
+			da.variant_key,
+			da.platform,
+			COALESCE(art.release_version, da.release_version) AS version,
+			COALESCE(art.updated_at, NOW()) AS updated_at
+		FROM download_assets da
+		LEFT JOIN download_artifacts art ON da.artifact_id = art.id
+		WHERE da.bundle_key = $1 AND da.app_key = $2
+		ORDER BY da.variant_key, da.platform
+	`, bundleKey, appKey)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var channels []ChannelInfo
+	for rows.Next() {
+		var variantKey, platform, version string
+		var updatedAt time.Time
+		if err := rows.Scan(&variantKey, &platform, &version, &updatedAt); err != nil {
+			return nil, err
+		}
+		channel := variantKey
+		if variantKey == "default" {
+			channel = "stable"
+		}
+		channels = append(channels, ChannelInfo{
+			Channel:   channel,
+			Platform:  platform,
+			Version:   version,
+			UpdatedAt: updatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		})
+	}
+
+	if channels == nil {
+		channels = []ChannelInfo{}
+	}
+	return channels, nil
+}
+
+// UpdateAppPolicy updates the update_policy JSONB column for an app.
+func (s *DownloadService) UpdateAppPolicy(bundleKey, appKey string, policy UpdatePolicy) error {
+	policyBytes, err := json.Marshal(policy)
+	if err != nil {
+		return fmt.Errorf("marshal policy: %w", err)
+	}
+	result, err := s.db.Exec(`
+		UPDATE download_apps SET update_policy = $3, updated_at = NOW()
+		WHERE bundle_key = $1 AND app_key = $2
+	`, bundleKey, appKey, policyBytes)
+	if err != nil {
+		return fmt.Errorf("update policy: %w", err)
+	}
+	if rows, _ := result.RowsAffected(); rows == 0 {
+		return ErrDownloadAppNotFound
+	}
+	return nil
 }
 
 type downloadAssetLookup interface {

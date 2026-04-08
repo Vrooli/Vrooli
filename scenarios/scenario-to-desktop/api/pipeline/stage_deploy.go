@@ -178,6 +178,8 @@ func (s *DeployStage) Execute(ctx context.Context, input *StageInput) *StageResu
 			FilePath:       artifactPath,
 			ReleaseVersion: releaseVersion,
 			GitCommitHash:  gitCommitHash,
+			ReleaseID:      cfg.ReleaseID,
+			Channel:        cfg.Channel,
 		})
 		if err != nil {
 			failStage(result, s.timeProvider, errors.ErrDeployFailed(

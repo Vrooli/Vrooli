@@ -240,6 +240,14 @@ type DeployConfig struct {
 
 	// UpdateURL is auto-derived from the remote profile if empty.
 	UpdateURL string `json:"update_url,omitempty"`
+
+	// ReleaseID is the deployment-manager release UUID for traceability.
+	// When set, stored on the LPBS artifact for correlation.
+	ReleaseID string `json:"release_id,omitempty"`
+
+	// Channel is the update channel (e.g. "stable", "beta", "nightly").
+	// Maps to variant_key on the LPBS asset. Defaults to "stable" if empty.
+	Channel string `json:"channel,omitempty"`
 }
 
 // DeployResult contains the outcome of the deploy stage.
