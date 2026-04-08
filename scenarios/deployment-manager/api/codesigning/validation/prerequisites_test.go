@@ -285,12 +285,12 @@ func TestPrerequisiteChecker_MacOS_NotarytoolNotFound(t *testing.T) {
 	config := &codesigning.SigningConfig{
 		Enabled: true,
 		MacOS: &codesigning.MacOSSigningConfig{
-			Identity:        "Developer ID Application: Test",
-			TeamID:          "ABC123XYZ0",
-			HardenedRuntime: true,
-			Notarize:        true,
-			AppleAPIKeyID:   "KEY123",
-			AppleAPIKeyFile: "./AuthKey.p8",
+			Identity:         "Developer ID Application: Test",
+			TeamID:           "ABC123XYZ0",
+			HardenedRuntime:  true,
+			Notarize:         true,
+			AppleAPIKeyID:    "KEY123",
+			AppleAPIKeyFile:  "./AuthKey.p8",
 			AppleAPIIssuerID: "ISSUER",
 		},
 	}
@@ -329,9 +329,9 @@ func TestPrerequisiteChecker_MacOS_APIKeyFileNotFound(t *testing.T) {
 	config := &codesigning.SigningConfig{
 		Enabled: true,
 		MacOS: &codesigning.MacOSSigningConfig{
-			Identity:         "Developer ID Application: Test",
-			TeamID:           "ABC123XYZ0",
-			AppleAPIKeyFile:  "./nonexistent.p8",
+			Identity:        "Developer ID Application: Test",
+			TeamID:          "ABC123XYZ0",
+			AppleAPIKeyFile: "./nonexistent.p8",
 		},
 	}
 

@@ -309,7 +309,7 @@ func validateMacOSEnvVars(config *codesigning.SigningConfig, result *codesigning
 	mac := config.MacOS
 
 	envVars := map[string]string{
-		"apple_id_env":       mac.AppleIDEnv,
+		"apple_id_env":          mac.AppleIDEnv,
 		"apple_id_password_env": mac.AppleIDPasswordEnv,
 	}
 

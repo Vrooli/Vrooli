@@ -19,12 +19,12 @@ import (
 	"deployment-manager/dependencies"
 	"deployment-manager/deployments"
 	"deployment-manager/fitness"
-	visualvalidation "deployment-manager/validation"
 	"deployment-manager/health"
 	"deployment-manager/profiles"
 	"deployment-manager/secrets"
 	"deployment-manager/swaps"
 	"deployment-manager/telemetry"
+	visualvalidation "deployment-manager/validation"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -39,18 +39,18 @@ type Server struct {
 	Router *mux.Router
 
 	// Domain handlers
-	HealthHandler       *health.Handler
-	FitnessHandler      *fitness.Handler
-	TelemetryHandler    *telemetry.Handler
-	SecretsHandler      *secrets.Handler
-	DependenciesHandler *dependencies.Handler
-	SwapsHandler        *swaps.Handler
-	DeploymentsHandler  *deployments.Handler
-	BundlesHandler      *bundles.Handler
-	ProfilesHandler     *profiles.Handler
-	SigningHandler      *codesigning.Handler
-	BuildHandler        *build.Handler
-	ValidationHandler   *visualvalidation.Handler
+	HealthHandler            *health.Handler
+	FitnessHandler           *fitness.Handler
+	TelemetryHandler         *telemetry.Handler
+	SecretsHandler           *secrets.Handler
+	DependenciesHandler      *dependencies.Handler
+	SwapsHandler             *swaps.Handler
+	DeploymentsHandler       *deployments.Handler
+	BundlesHandler           *bundles.Handler
+	ProfilesHandler          *profiles.Handler
+	SigningHandler           *codesigning.Handler
+	BuildHandler             *build.Handler
+	ValidationHandler        *visualvalidation.Handler
 	ApprovalsHandler         *deployments.ApprovalsHandler
 	PublishedVersionsHandler *deployments.PublishedVersionsHandler
 	Orchestrator             *deployments.Orchestrator
@@ -119,23 +119,23 @@ func New() (*Server, error) {
 	}
 
 	srv := &Server{
-		Config:              cfg,
-		DB:                  db,
-		Router:              mux.NewRouter(),
-		ProfilesRepo:        profilesRepo,
-		SigningRepo:         signingRepo,
-		HealthHandler:       health.NewHandler(db),
-		FitnessHandler:      fitness.NewHandler(logFn),
-		TelemetryHandler:    telemetry.NewHandler(logFn),
-		SecretsHandler:      secrets.NewHandler(profilesRepo, logFn),
-		DependenciesHandler: dependencies.NewHandler(logFn),
-		SwapsHandler:        swaps.NewHandler(profilesRepo, logFn),
-		DeploymentsHandler:  deployments.NewHandlerWithSigning(logFn, signingValidatorAdapter),
-		BundlesHandler:      bundles.NewHandlerWithSigning(secrets.NewClient(), profilesRepo, signingRepo, logFn),
-		ProfilesHandler:     profiles.NewHandler(profilesRepo, logFn),
-		SigningHandler:      codesigning.NewHandler(signingRepo, signingValidator, signingChecker, logFn),
-		BuildHandler:        build.NewHandler(profilesRepo, logFn),
-		ValidationHandler:   visualvalidation.NewHandler(visualvalidation.NewSQLRepository(db), approvalsRepo, db, validationVideoDir(), logFn),
+		Config:                   cfg,
+		DB:                       db,
+		Router:                   mux.NewRouter(),
+		ProfilesRepo:             profilesRepo,
+		SigningRepo:              signingRepo,
+		HealthHandler:            health.NewHandler(db),
+		FitnessHandler:           fitness.NewHandler(logFn),
+		TelemetryHandler:         telemetry.NewHandler(logFn),
+		SecretsHandler:           secrets.NewHandler(profilesRepo, logFn),
+		DependenciesHandler:      dependencies.NewHandler(logFn),
+		SwapsHandler:             swaps.NewHandler(profilesRepo, logFn),
+		DeploymentsHandler:       deployments.NewHandlerWithSigning(logFn, signingValidatorAdapter),
+		BundlesHandler:           bundles.NewHandlerWithSigning(secrets.NewClient(), profilesRepo, signingRepo, logFn),
+		ProfilesHandler:          profiles.NewHandler(profilesRepo, logFn),
+		SigningHandler:           codesigning.NewHandler(signingRepo, signingValidator, signingChecker, logFn),
+		BuildHandler:             build.NewHandler(profilesRepo, logFn),
+		ValidationHandler:        visualvalidation.NewHandler(visualvalidation.NewSQLRepository(db), approvalsRepo, db, validationVideoDir(), logFn),
 		ApprovalsHandler:         deployments.NewApprovalsHandler(approvalsRepo, logFn),
 		PublishedVersionsHandler: deployments.NewPublishedVersionsHandler(publishedVersionsRepo, logFn),
 		Orchestrator:             deployments.NewOrchestratorFull(profilesRepo, approvalsRepo, publishedVersionsRepo, logFn),

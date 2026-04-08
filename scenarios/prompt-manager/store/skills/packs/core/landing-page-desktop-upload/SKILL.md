@@ -43,6 +43,9 @@ Required reading:
 - `{{PLATFORMS}}` target platforms (example: `linux` or `linux,win`)
 - `{{CHANNEL}}` update channel (default: `stable`)
 
+Optional input:
+- `{{RELEASE_ID}}` deployment-manager release UUID for traceability. When provided, stored on the LPBS artifact for correlation with DM release records.
+
 Conditional input:
 - `{{APP_NAME}}` only required when `{{APP_KEY}}` does not already exist and must be onboarded
 
@@ -168,6 +171,21 @@ scenario-to-desktop --auto-start pipeline run {{TARGET}} \
   --app-key {{APP_KEY}}
 ```
 
+When `{{RELEASE_ID}}` is available (from deployment-manager), pass it for traceability:
+
+```bash
+scenario-to-desktop --auto-start pipeline run {{TARGET}} \
+  --platforms {{PLATFORMS}} \
+  --clean --wait --timeout 1800 \
+  --deploy-to landing-page-business-suite \
+  --remote-profile {{PROFILE_TAG}} \
+  --app-key {{APP_KEY}} \
+  --release-id {{RELEASE_ID}} \
+  --channel {{CHANNEL}}
+```
+
+The `--release-id` flag stores the DM release UUID on the LPBS artifact for end-to-end traceability. The `--channel` flag maps to the LPBS `variant_key` (e.g., `stable` → `default`, `beta` → `beta`). Both are optional; omitting them preserves backward compatibility.
+
 If this fails, troubleshoot in `scenario-to-desktop`.
 
 Pass condition:
@@ -178,7 +196,26 @@ Pass condition:
 Verify update manifest endpoint(s) based on platform.
 
 Primary rule:
-- Prefer the manifest URL(s) printed by `scenario-to-desktop ... --wait` on success (source of truth).
+- Prefer the LPBS verification endpoint for automated checks (fastest, most reliable).
+- Fall back to manifest URL checks when the verification endpoint is not available.
+
+##### Option A: Verification endpoint (preferred)
+
+```bash
+# Lightweight check — confirms version+sha512 match
+curl -fsS "https://{{DOMAIN}}/api/v1/updates/{{APP_KEY}}/verify?channel={{CHANNEL}}&platform={{PLATFORM}}&expected_version={{VERSION}}"
+
+# Deep check — also verifies S3 object accessibility and presign generation
+curl -fsS "https://{{DOMAIN}}/api/v1/updates/{{APP_KEY}}/verify?channel={{CHANNEL}}&platform={{PLATFORM}}&expected_version={{VERSION}}&deep=true"
+```
+
+Response fields:
+- `match` (bool): whether actual version and sha512 match expected
+- `actual_version`, `actual_sha512`: what the endpoint currently serves
+- `artifact_accessible` (deep only): S3 HEAD check passed
+- `presign_valid` (deep only): presigned URL generation succeeded
+
+##### Option B: Manifest URL check (fallback)
 
 Electron-updater manifest filename mapping:
 
@@ -188,23 +225,33 @@ Electron-updater manifest filename mapping:
 | `mac` | `latest-mac.yml` |
 | `linux` | `latest-linux.yml` |
 
-Manifest checks:
-
 ```bash
-# Linux example (fallback)
+# Linux example
 curl -fsS "https://{{DOMAIN}}/api/v1/updates/{{APP_KEY}}/{{CHANNEL}}/latest-linux.yml"
 ```
 
 Note:
 - Some deployments may return `405` for `HEAD` requests on manifest URLs. Use `GET` (`curl -fsS ...`) as the authoritative check.
+- Manifests now include `releaseNotes` when release notes were provided during upload.
 
 When redeploying the same version:
 - Confirm `sha512` and/or `releaseDate` changes (don’t rely only on `version`).
+
+##### Channel discovery
+
+To enumerate available channels and their latest versions per platform:
+
+```bash
+curl -fsS "https://{{DOMAIN}}/api/v1/updates/{{APP_KEY}}/channels"
+```
+
+Returns `[{channel, platform, version, updated_at}]`.
 
 Discovery fallback (when manifest URL returns 404 but Stage 3 succeeded):
 - Run `scenario-to-desktop pipeline status <pipeline_id> --verbose` and use the printed update URL to confirm you’re checking the correct domain/app key.
 
 Pass condition:
+- Verification endpoint reports `match: true` for each platform in `{{PLATFORMS}}`, OR
 - Manifest request(s) succeed for each platform in `{{PLATFORMS}}`.
 
 ---

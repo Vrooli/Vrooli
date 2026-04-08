@@ -29,9 +29,9 @@ type mockConfigResolver struct {
 func (m *mockConfigResolver) ResolveAnalyzerURL() (string, error) {
 	return m.analyzerURL, m.analyzerURLErr
 }
-func (m *mockConfigResolver) ResolveSecretsManagerURL() (string, error) { return "", nil }
+func (m *mockConfigResolver) ResolveSecretsManagerURL() (string, error)  { return "", nil }
 func (m *mockConfigResolver) ResolveDesktopPackagerURL() (string, error) { return "", nil }
-func (m *mockConfigResolver) ResolveTelemetryDir() string               { return "/tmp" }
+func (m *mockConfigResolver) ResolveTelemetryDir() string                { return "/tmp" }
 
 // setMockConfig installs a mock config resolver and returns a cleanup function.
 func setMockConfig(url string, err error) func() {

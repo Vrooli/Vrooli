@@ -25,13 +25,15 @@ func newMockProfileRepo() *mockProfileRepo {
 	}
 }
 
-func (m *mockProfileRepo) List(_ context.Context) ([]profiles.Profile, error)   { return nil, nil }
+func (m *mockProfileRepo) List(_ context.Context) ([]profiles.Profile, error) { return nil, nil }
 func (m *mockProfileRepo) Get(_ context.Context, _ string) (*profiles.Profile, error) {
 	return nil, nil
 }
+
 func (m *mockProfileRepo) Create(_ context.Context, _ *profiles.Profile) (string, error) {
 	return "", nil
 }
+
 func (m *mockProfileRepo) Update(_ context.Context, _ string, _ map[string]interface{}) (*profiles.Profile, error) {
 	return nil, nil
 }
@@ -39,9 +41,11 @@ func (m *mockProfileRepo) Delete(_ context.Context, _ string) (bool, error) { re
 func (m *mockProfileRepo) GetVersions(_ context.Context, _ string) ([]profiles.Version, error) {
 	return nil, nil
 }
+
 func (m *mockProfileRepo) GetScenarioAndTier(_ context.Context, _ string) (string, int, error) {
 	return "", 0, nil
 }
+
 func (m *mockProfileRepo) GetSwaps(_ context.Context, idOrName string) ([]profiles.Swap, error) {
 	if s, ok := m.swaps[idOrName]; ok {
 		return s, nil

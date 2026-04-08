@@ -423,6 +423,37 @@ Command timing note:
 
 ---
 
+### 6.1. Update Policy Configuration (Optional)
+
+LPBS supports per-app update policies that control auto-update behavior for desktop clients.
+
+Default policy (applied automatically when an app is created):
+- `check_interval_hours: 4` — how often the client checks for updates
+- `update_mode: "optional"` — updates are presented but not forced (`recommended` or `mandatory` also available)
+- `allow_downgrade: false` — clients cannot roll back to older versions
+
+To view an app's current policy:
+
+```bash
+curl -fsS "http://localhost:<port>/api/v1/admin/download-apps/{{APP_KEY}}/update-policy" \
+  -H "Cookie: <admin_session>"
+```
+
+To update an app's policy:
+
+```bash
+curl -fsS -X PUT "http://localhost:<port>/api/v1/admin/download-apps/{{APP_KEY}}/update-policy" \
+  -H "Cookie: <admin_session>" \
+  -H "Content-Type: application/json" \
+  -d '{"check_interval_hours": 12, "update_mode": "mandatory", "allow_downgrade": false}'
+```
+
+Note:
+- The policy is stored as JSONB and can be extended with additional fields in the future without migration.
+- Policy configuration is optional for basic release flows; the defaults are conservative and suitable for most apps.
+
+---
+
 ### 7. Guardrails
 
 - Use lifecycle commands only (`vrooli scenario start`, Makefile lifecycle).

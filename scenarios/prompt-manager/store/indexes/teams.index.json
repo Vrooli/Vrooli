@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-03T16:34:33Z",
+  "generatedAt": "2026-04-08T10:25:03Z",
   "items": [
     {
       "id": "director-swarm",
@@ -21,7 +21,7 @@
       "displayName": "Revenue Research Team",
       "memberCount": 5
     },
-{
+    {
       "id": "scenario-feature",
       "displayName": "Scenario Feature Team",
       "memberCount": 4
@@ -30,6 +30,6 @@
       "id": "scenario-qa",
       "displayName": "Scenario QA Team",
       "memberCount": 2
-    },
+    }
   ]
 }

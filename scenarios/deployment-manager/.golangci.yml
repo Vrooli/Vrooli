@@ -1,0 +1,17 @@
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - funlen
+    - cyclop
+    - gocognit
+
+linters-settings:
+  funlen:
+    lines: 100
+    statements: 60
+  cyclop:
+    max-complexity: 15
+  gocognit:
+    min-complexity: 20

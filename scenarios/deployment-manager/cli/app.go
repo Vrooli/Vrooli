@@ -36,14 +36,14 @@ type App struct {
 	core        *cliapp.ScenarioApp
 	api         *cliutil.APIClient
 	http        *cliutil.HTTPClient
-	overview     *overview.Commands
-	profiles     *profiles.Commands
-	swaps        *swaps.Commands
-	deployments  *deployments.Commands
-	bundles      *bundles.Commands
-	signing      *signing.Commands
-	validations  *validations.Commands
-	approvals    *approvals.Commands
+	overview    *overview.Commands
+	profiles    *profiles.Commands
+	swaps       *swaps.Commands
+	deployments *deployments.Commands
+	bundles     *bundles.Commands
+	signing     *signing.Commands
+	validations *validations.Commands
+	approvals   *approvals.Commands
 }
 
 // NewApp constructs the CLI application.

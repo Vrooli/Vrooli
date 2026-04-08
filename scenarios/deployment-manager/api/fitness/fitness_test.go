@@ -117,10 +117,10 @@ func TestCalculateScore(t *testing.T) {
 // [REQ:DM-P0-004] TestGetTierFitnessPolicy tests tier policy retrieval
 func TestGetTierFitnessPolicy(t *testing.T) {
 	tests := []struct {
-		name         string
-		tier         int
-		wantErr      bool
-		wantOverall  int
+		name           string
+		tier           int
+		wantErr        bool
+		wantOverall    int
 		checkSubscores bool
 	}{
 		{

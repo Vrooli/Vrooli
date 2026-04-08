@@ -28,6 +28,24 @@ For each scenario with red or yellow readiness:
 - Set priority based on readiness: red=2, yellow=4
 - Set acceptance_allow to `["scenarios/<scenario>/**"]`
 
+#### Description Quality Requirements
+The `description` field and `notes.md` must be written so an agent with **zero prior context** can understand the problem fully. Do NOT just echo the GCT score summary.
+
+**`description` field** must include:
+- The dimension and score, plus total violation count
+- The top 3-5 specific files affected (extract from GCT topIssues/topViolations)
+- A concrete example of the worst violation (e.g., "function deployRelease in orchestrator.go has cyclomatic complexity 47")
+- The measurable success target (e.g., "bring code quality score from 0 to ≥70")
+- The command to reproduce: `git-control-tower review-run <scenario> --json`
+
+**`notes.md`** must be self-contained and include these sections:
+- **Problem**: What is wrong, with specific file paths and violation categories
+- **Top Violations**: List the 5-10 worst offenders by file path, category, and count/severity. Extract these from the GCT JSON — do not just reference the JSON file
+- **Impact**: What downstream work is blocked or degraded by this issue
+- **Reproduction**: The exact command to see the violations
+- **Success Criteria**: Concrete measurable targets (scores, violation counts) that define "done"
+- **Proposed Action**: Specific steps, ordered by impact (e.g., "1. Refactor orchestrator.go:deployRelease — split into smaller functions. 2. Split handler.go (1200 lines) into per-resource handler files.")
+
 #### Splitting Large Findings
 When a GCT dimension has many violations:
 - If ≤5 violations in a dimension: create one backlog item for that dimension
@@ -61,6 +79,7 @@ For each scenario where GCT review returns a codeQuality dimension with score be
 6. Set priority based on score: <40 → priority 2, 40-60 → priority 4, 60-70 → priority 6
 7. Set acceptance_allow to `["scenarios/<scenario>/**"]`
 8. Apply the same depends_on wiring from Step 3.5 to these items
+9. Follow the **Description Quality Requirements** from Step 3 — the description and notes.md must be equally detailed for execute items
 
 ### Step 4: Track & Coordinate
 - Record each reviewed scenario in the knowledge log:

@@ -91,7 +91,6 @@ uid           [ultimate] Another User <another@example.com>
 
 	detector := &testableLinuxDetector{LinuxDetector: NewLinuxDetector(fs, cmd, env)}
 	certs, err := detector.DiscoverCertificates(ctx)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -139,7 +138,6 @@ func TestLinuxDetector_ListGPGKeys_NoKeys(t *testing.T) {
 
 	detector := &testableLinuxDetector{LinuxDetector: NewLinuxDetector(fs, cmd, env)}
 	certs, err := detector.DiscoverCertificates(ctx)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -209,7 +207,6 @@ func TestLinuxDetector_ListKeysWithHomedir(t *testing.T) {
 
 	detector := NewLinuxDetector(fs, cmd, env)
 	_, err := detector.ListKeysForSigning(ctx, "/custom/gnupg")
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

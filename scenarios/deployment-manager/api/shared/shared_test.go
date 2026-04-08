@@ -659,24 +659,27 @@ func TestSetAndGetConfigResolver(t *testing.T) {
 
 // staticConfigResolver is a test double for ConfigResolver.
 type staticConfigResolver struct {
-	analyzerURL   string
-	analyzerErr   error
-	secretsURL    string
-	secretsErr    error
-	desktopURL    string
-	desktopErr    error
-	telemetryDir  string
+	analyzerURL  string
+	analyzerErr  error
+	secretsURL   string
+	secretsErr   error
+	desktopURL   string
+	desktopErr   error
+	telemetryDir string
 }
 
 func (s *staticConfigResolver) ResolveAnalyzerURL() (string, error) {
 	return s.analyzerURL, s.analyzerErr
 }
+
 func (s *staticConfigResolver) ResolveSecretsManagerURL() (string, error) {
 	return s.secretsURL, s.secretsErr
 }
+
 func (s *staticConfigResolver) ResolveDesktopPackagerURL() (string, error) {
 	return s.desktopURL, s.desktopErr
 }
+
 func (s *staticConfigResolver) ResolveTelemetryDir() string {
 	if s.telemetryDir != "" {
 		return s.telemetryDir
