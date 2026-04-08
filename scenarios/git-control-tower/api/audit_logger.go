@@ -103,15 +103,8 @@ func (l *SQLiteAuditLogger) Log(ctx context.Context, entry AuditEntry) error {
 	return nil
 }
 
-func (l *SQLiteAuditLogger) Query(ctx context.Context, req AuditQueryRequest) (*AuditQueryResponse, error) {
-	if !l.IsConfigured() {
-		return &AuditQueryResponse{
-			Entries:   []AuditEntry{},
-			Timestamp: time.Now().UTC(),
-		}, nil
-	}
-
-	// Build query with filters
+// buildAuditFilterQuery builds the WHERE clause and args for audit log queries.
+func buildAuditFilterQuery(req AuditQueryRequest) (string, []interface{}) {
 	query := `
 		SELECT id, operation, repo_dir, branch, paths,
 		       commit_hash, commit_message, success, error_message,
@@ -119,7 +112,7 @@ func (l *SQLiteAuditLogger) Query(ctx context.Context, req AuditQueryRequest) (*
 		FROM git_audit_log
 		WHERE 1=1
 	`
-	args := []interface{}{}
+	var args []interface{}
 
 	if req.Operation != "" {
 		query += " AND operation = ?"
@@ -137,15 +130,68 @@ func (l *SQLiteAuditLogger) Query(ctx context.Context, req AuditQueryRequest) (*
 		query += " AND created_at <= ?"
 		args = append(args, formatTimestamp(req.Until))
 	}
+	return query, args
+}
 
-	// Get total count
+// scanAuditEntry scans a single row into an AuditEntry.
+func scanAuditEntry(rows *sql.Rows) (AuditEntry, error) {
+	var entry AuditEntry
+	var pathsJSON sql.NullString
+	var metadataJSON sql.NullString
+	var errorMessage sql.NullString
+	var createdAt string
+
+	err := rows.Scan(
+		&entry.ID,
+		&entry.Operation,
+		&entry.RepoDir,
+		&entry.Branch,
+		&pathsJSON,
+		&entry.CommitHash,
+		&entry.CommitMessage,
+		&entry.Success,
+		&errorMessage,
+		&createdAt,
+		&metadataJSON,
+	)
+	if err != nil {
+		return entry, fmt.Errorf("failed to scan audit entry: %w", err)
+	}
+
+	entry.Error = errorMessage.String
+	entry.Timestamp = parseTimestamp(createdAt)
+
+	if pathsJSON.Valid && strings.TrimSpace(pathsJSON.String) != "" {
+		if err := json.Unmarshal([]byte(pathsJSON.String), &entry.Paths); err != nil {
+			entry.Paths = nil
+		}
+	}
+
+	if metadataJSON.Valid && strings.TrimSpace(metadataJSON.String) != "" {
+		if err := json.Unmarshal([]byte(metadataJSON.String), &entry.Metadata); err != nil {
+			entry.Metadata = nil
+		}
+	}
+
+	return entry, nil
+}
+
+func (l *SQLiteAuditLogger) Query(ctx context.Context, req AuditQueryRequest) (*AuditQueryResponse, error) {
+	if !l.IsConfigured() {
+		return &AuditQueryResponse{
+			Entries:   []AuditEntry{},
+			Timestamp: time.Now().UTC(),
+		}, nil
+	}
+
+	query, args := buildAuditFilterQuery(req)
+
 	countQuery := "SELECT COUNT(*) FROM (" + query + ") AS filtered"
 	var total int
 	if err := l.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
 		return nil, fmt.Errorf("failed to count audit entries: %w", err)
 	}
 
-	// Add ordering and pagination
 	query += " ORDER BY created_at DESC"
 	if req.Limit > 0 {
 		query += " LIMIT ?"
@@ -164,44 +210,10 @@ func (l *SQLiteAuditLogger) Query(ctx context.Context, req AuditQueryRequest) (*
 
 	entries := []AuditEntry{}
 	for rows.Next() {
-		var entry AuditEntry
-		var pathsJSON sql.NullString
-		var metadataJSON sql.NullString
-		var errorMessage sql.NullString
-		var createdAt string
-
-		err := rows.Scan(
-			&entry.ID,
-			&entry.Operation,
-			&entry.RepoDir,
-			&entry.Branch,
-			&pathsJSON,
-			&entry.CommitHash,
-			&entry.CommitMessage,
-			&entry.Success,
-			&errorMessage,
-			&createdAt,
-			&metadataJSON,
-		)
+		entry, err := scanAuditEntry(rows)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan audit entry: %w", err)
+			return nil, err
 		}
-
-		entry.Error = errorMessage.String
-		entry.Timestamp = parseTimestamp(createdAt)
-
-		if pathsJSON.Valid && strings.TrimSpace(pathsJSON.String) != "" {
-			if err := json.Unmarshal([]byte(pathsJSON.String), &entry.Paths); err != nil {
-				entry.Paths = nil
-			}
-		}
-
-		if metadataJSON.Valid && strings.TrimSpace(metadataJSON.String) != "" {
-			if err := json.Unmarshal([]byte(metadataJSON.String), &entry.Metadata); err != nil {
-				entry.Metadata = nil
-			}
-		}
-
 		entries = append(entries, entry)
 	}
 

@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/pathfilter"
 )
 
 // FileDeps contains dependencies for file operations
@@ -73,45 +75,17 @@ func getDefaultFileTree(ctx context.Context, deps FileDeps, pattern string, limi
 	seenPaths := make(map[string]bool)
 
 	// Get tracked files
-	tracked, err := deps.Git.ListTrackedFiles(ctx, deps.RepoDir)
-	if err == nil {
-		for _, path := range tracked {
-			if ctx.Err() != nil {
-				return files, false, true // Cancelled
-			}
-			if len(files) >= limit {
-				return files, true, false // Truncated
-			}
-			if matchesPattern(path, pattern) && !seenPaths[path] {
-				seenPaths[path] = true
-				files = append(files, FileInfo{
-					Path:     path,
-					Language: LanguageFromExtension(path),
-					Status:   FileStatusTracked,
-				})
-			}
-		}
+	tracked, _ := deps.Git.ListTrackedFiles(ctx, deps.RepoDir)
+	files, truncated, cancelled := collectFileInfos(ctx, files, seenPaths, tracked, pattern, limit, FileStatusTracked)
+	if truncated || cancelled {
+		return files, truncated, cancelled
 	}
 
 	// Get untracked files
-	untracked, err := deps.Git.ListUntrackedFiles(ctx, deps.RepoDir)
-	if err == nil {
-		for _, path := range untracked {
-			if ctx.Err() != nil {
-				return files, false, true // Cancelled
-			}
-			if len(files) >= limit {
-				return files, true, false // Truncated
-			}
-			if matchesPattern(path, pattern) && !seenPaths[path] {
-				seenPaths[path] = true
-				files = append(files, FileInfo{
-					Path:     path,
-					Language: LanguageFromExtension(path),
-					Status:   FileStatusUntracked,
-				})
-			}
-		}
+	untracked, _ := deps.Git.ListUntrackedFiles(ctx, deps.RepoDir)
+	files, truncated, cancelled = collectFileInfos(ctx, files, seenPaths, untracked, pattern, limit, FileStatusUntracked)
+	if truncated || cancelled {
+		return files, truncated, cancelled
 	}
 
 	// Sort files by path for consistent output
@@ -122,37 +96,42 @@ func getDefaultFileTree(ctx context.Context, deps FileDeps, pattern string, limi
 	return files, false, false
 }
 
+// collectFileInfos appends matching paths to files, returning early on limit or cancellation.
+func collectFileInfos(ctx context.Context, files []FileInfo, seen map[string]bool, paths []string, pattern string, limit int, status FileStatus) ([]FileInfo, bool, bool) {
+	for _, path := range paths {
+		if ctx.Err() != nil {
+			return files, false, true
+		}
+		if len(files) >= limit {
+			return files, true, false
+		}
+		if matchesPattern(path, pattern) && !seen[path] {
+			seen[path] = true
+			files = append(files, FileInfo{
+				Path:     path,
+				Language: LanguageFromExtension(path),
+				Status:   status,
+			})
+		}
+	}
+	return files, false, false
+}
+
 // getDeepFileTree walks the entire directory tree
 func getDeepFileTree(ctx context.Context, repoDir string, pattern string, limit int) ([]FileInfo, bool, bool) {
 	files := make([]FileInfo, 0, limit)
-
-	// Directories to exclude from deep search
-	excludeDirs := map[string]bool{
-		".git":         true,
-		"node_modules": true,
-		"vendor":       true,
-		"__pycache__":  true,
-		".next":        true,
-		".nuxt":        true,
-		"dist":         true,
-		"build":        true,
-		"target":       true,
-		".cache":       true,
-	}
 
 	err := filepath.WalkDir(repoDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil // Skip files with errors
 		}
 
-		// Check for cancellation
 		if ctx.Err() != nil {
 			return filepath.SkipAll
 		}
 
-		// Skip excluded directories
 		if d.IsDir() {
-			if excludeDirs[d.Name()] {
+			if pathfilter.SkipDir(d.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -192,221 +171,4 @@ func getDeepFileTree(ctx context.Context, repoDir string, pattern string, limit 
 	})
 
 	return files, truncated, cancelled
-}
-
-// GetDirectoryContents returns immediate children of a directory
-func GetDirectoryContents(ctx context.Context, deps FileDeps, dirPath string) (*DirListResponse, error) {
-	if deps.Git == nil {
-		return nil, fmt.Errorf("git runner is required")
-	}
-	repoDir := strings.TrimSpace(deps.RepoDir)
-	if repoDir == "" {
-		return nil, fmt.Errorf("repo dir is required")
-	}
-
-	// Validate depth to prevent traversal attacks
-	if dirPath != "" {
-		depth := strings.Count(dirPath, "/") + 1
-		if depth > MaxDirDepth {
-			return nil, fmt.Errorf("path exceeds maximum depth of %d", MaxDirDepth)
-		}
-	}
-
-	// Resolve full path from repo root
-	fullPath := repoDir
-	if dirPath != "" {
-		// Clean and validate the path to prevent directory traversal
-		cleaned := filepath.Clean(dirPath)
-		if strings.HasPrefix(cleaned, "..") || filepath.IsAbs(cleaned) {
-			return nil, fmt.Errorf("invalid path: %s", dirPath)
-		}
-		fullPath = filepath.Join(repoDir, cleaned)
-	}
-
-	// Read directory entries (fast - doesn't stat each file)
-	dirEntries, err := os.ReadDir(fullPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("directory not found: %s", dirPath)
-		}
-		return nil, fmt.Errorf("failed to read directory: %w", err)
-	}
-
-	// Get tracked files to determine tracking status
-	// Build a set for O(1) lookup and also track which prefixes have tracked files
-	trackedFiles := make(map[string]bool)
-	trackedPrefixes := make(map[string]bool)
-	trackedList, err := deps.Git.ListTrackedFiles(ctx, repoDir)
-	if err == nil {
-		for _, f := range trackedList {
-			trackedFiles[f] = true
-			// Mark all parent directories as having tracked content
-			parts := strings.Split(f, "/")
-			for i := 1; i < len(parts); i++ {
-				prefix := strings.Join(parts[:i], "/")
-				trackedPrefixes[prefix] = true
-			}
-		}
-	}
-
-	entries := make([]DirEntry, 0, len(dirEntries))
-	for _, de := range dirEntries {
-		// Check for cancellation
-		if ctx.Err() != nil {
-			break
-		}
-
-		name := de.Name()
-
-		// Only skip .git directory - show all other files/folders like an IDE
-		if name == ".git" {
-			continue
-		}
-
-		entryPath := name
-		if dirPath != "" {
-			entryPath = dirPath + "/" + name
-		}
-
-		entry := DirEntry{
-			Name:  name,
-			Path:  entryPath,
-			IsDir: de.IsDir(),
-		}
-
-		if de.IsDir() {
-			// Folder is "tracked" if it contains any tracked files
-			entry.Tracked = trackedPrefixes[entryPath]
-		} else {
-			entry.Language = LanguageFromExtension(name)
-			entry.Tracked = trackedFiles[entryPath]
-		}
-
-		entries = append(entries, entry)
-	}
-
-	// Sort entries: folders first, then alphabetically
-	sort.Slice(entries, func(i, j int) bool {
-		if entries[i].IsDir && !entries[j].IsDir {
-			return true
-		}
-		if !entries[i].IsDir && entries[j].IsDir {
-			return false
-		}
-		return entries[i].Name < entries[j].Name
-	})
-
-	return &DirListResponse{
-		Path:      dirPath,
-		Entries:   entries,
-		Timestamp: time.Now().UTC(),
-	}, nil
-}
-
-// DeletePath removes a file or directory from the filesystem
-// This is a filesystem delete, NOT a git rm. Tracked files will show as "deleted" in git status.
-func DeletePath(ctx context.Context, deps FileDeps, req DeletePathRequest) (*DeletePathResponse, error) {
-	repoDir := strings.TrimSpace(deps.RepoDir)
-	if repoDir == "" {
-		return nil, fmt.Errorf("repo dir is required")
-	}
-
-	reqPath := strings.TrimSpace(req.Path)
-	if reqPath == "" {
-		return &DeletePathResponse{
-			Success:   false,
-			Path:      reqPath,
-			Error:     "path is required",
-			Timestamp: time.Now().UTC(),
-		}, nil
-	}
-
-	// Clean and validate the path to prevent directory traversal
-	cleaned := filepath.Clean(reqPath)
-	if strings.HasPrefix(cleaned, "..") || filepath.IsAbs(cleaned) {
-		return &DeletePathResponse{
-			Success:   false,
-			Path:      reqPath,
-			Error:     "invalid path: potential directory traversal",
-			Timestamp: time.Now().UTC(),
-		}, nil
-	}
-
-	// Block deleting critical paths
-	dangerousPaths := []string{".git", ".gitignore", ".gitattributes"}
-	cleanedLower := strings.ToLower(cleaned)
-	for _, dangerous := range dangerousPaths {
-		if cleanedLower == dangerous || strings.HasPrefix(cleanedLower, dangerous+"/") {
-			return &DeletePathResponse{
-				Success:   false,
-				Path:      reqPath,
-				Error:     "cannot delete protected path",
-				Timestamp: time.Now().UTC(),
-			}, nil
-		}
-	}
-
-	fullPath := filepath.Join(repoDir, cleaned)
-
-	// Check if path exists and get info
-	info, err := os.Stat(fullPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return &DeletePathResponse{
-				Success:   false,
-				Path:      reqPath,
-				Error:     "path does not exist",
-				Timestamp: time.Now().UTC(),
-			}, nil
-		}
-		return nil, fmt.Errorf("failed to stat path: %w", err)
-	}
-
-	isDir := info.IsDir()
-
-	// Delete the path
-	if isDir {
-		err = os.RemoveAll(fullPath)
-	} else {
-		err = os.Remove(fullPath)
-	}
-
-	if err != nil {
-		return &DeletePathResponse{
-			Success:   false,
-			Path:      reqPath,
-			IsDir:     isDir,
-			Error:     fmt.Sprintf("failed to delete: %v", err),
-			Timestamp: time.Now().UTC(),
-		}, nil
-	}
-
-	return &DeletePathResponse{
-		Success:   true,
-		Path:      reqPath,
-		IsDir:     isDir,
-		Timestamp: time.Now().UTC(),
-	}, nil
-}
-
-// matchesPattern checks if a path matches a glob pattern
-func matchesPattern(path, pattern string) bool {
-	if pattern == "" {
-		return true
-	}
-
-	// Support simple glob patterns
-	matched, err := filepath.Match(pattern, filepath.Base(path))
-	if err == nil && matched {
-		return true
-	}
-
-	// Also try matching against the full path
-	matched, err = filepath.Match(pattern, path)
-	if err == nil && matched {
-		return true
-	}
-
-	// Support partial string matching for fuzzy search
-	return strings.Contains(strings.ToLower(path), strings.ToLower(pattern))
 }

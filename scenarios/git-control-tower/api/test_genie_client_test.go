@@ -44,8 +44,11 @@ func TestTestGenieClient_ExecuteSuite(t *testing.T) {
 	defer server.Close()
 
 	client := &TestGenieClient{
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-		resolver:   discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "test-genie",
+		},
 	}
 
 	result, err := client.ExecuteSuite(context.Background(), TestExecutionRequest{
@@ -78,8 +81,11 @@ func TestTestGenieClient_ExecuteSuite_ServerError(t *testing.T) {
 	defer server.Close()
 
 	client := &TestGenieClient{
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-		resolver:   discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "test-genie",
+		},
 	}
 
 	_, err := client.ExecuteSuite(context.Background(), TestExecutionRequest{
@@ -115,8 +121,11 @@ func TestTestGenieClient_ListExecutions(t *testing.T) {
 	defer server.Close()
 
 	client := &TestGenieClient{
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-		resolver:   discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "test-genie",
+		},
 	}
 
 	result, err := client.ListExecutions(context.Background(), "git-control-tower", 10)
@@ -152,8 +161,11 @@ func TestTestGenieClient_GetExecution(t *testing.T) {
 	defer server.Close()
 
 	client := &TestGenieClient{
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-		resolver:   discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "test-genie",
+		},
 	}
 
 	result, err := client.GetExecution(context.Background(), "exec-001")

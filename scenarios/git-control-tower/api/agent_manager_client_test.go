@@ -34,8 +34,11 @@ func TestAgentManagerClient_ListProfiles(t *testing.T) {
 	defer server.Close()
 
 	client := &AgentManagerClient{
-		httpClient:     &http.Client{Timeout: 5 * time.Second},
-		resolver:       discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "agent-manager",
+		},
 		maxRetries:     0,
 		retryBaseDelay: time.Millisecond,
 	}
@@ -59,11 +62,49 @@ func TestAgentManagerClient_CreateTaskAndRun(t *testing.T) {
 	t.Parallel()
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v1/tasks", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/v1/tasks", handleFakeTaskCreate(t))
+	mux.HandleFunc("/api/v1/runs", handleFakeRunCreate(t))
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	client := newTestAgentManagerClient(server.URL)
+
+	t.Run("create task", func(t *testing.T) {
+		taskResp, err := client.CreateTask(context.Background(), agentTaskCreateRequest{
+			Task: agentTaskData{
+				Title:     "GCT review: my-app",
+				ScopePath: "scenarios/my-app/",
+			},
+		})
+		if err != nil {
+			t.Fatalf("CreateTask returned error: %v", err)
+		}
+		if taskResp.Task.ID != "task-001" {
+			t.Errorf("expected task ID task-001, got %s", taskResp.Task.ID)
+		}
+	})
+
+	t.Run("create run", func(t *testing.T) {
+		runResp, err := client.CreateRun(context.Background(), agentRunCreateInternalRequest{
+			TaskID:  "task-001",
+			RunMode: 1,
+			Tag:     "gct-my-app",
+		})
+		if err != nil {
+			t.Fatalf("CreateRun returned error: %v", err)
+		}
+		if runResp.Run.ID != "run-001" {
+			t.Errorf("expected run ID run-001, got %s", runResp.Run.ID)
+		}
+	})
+}
+
+func handleFakeTaskCreate(t *testing.T) http.HandlerFunc {
+	t.Helper()
+	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
-		// Verify snake_case request body.
 		var raw map[string]interface{}
 		if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
 			t.Errorf("decode request: %v", err)
@@ -80,12 +121,15 @@ func TestAgentManagerClient_CreateTaskAndRun(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"task": map[string]string{"id": "task-001"},
 		})
-	})
-	mux.HandleFunc("/api/v1/runs", func(w http.ResponseWriter, r *http.Request) {
+	}
+}
+
+func handleFakeRunCreate(t *testing.T) http.HandlerFunc {
+	t.Helper()
+	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
-		// Verify snake_case field names.
 		var raw map[string]interface{}
 		if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
 			t.Errorf("decode request: %v", err)
@@ -101,40 +145,18 @@ func TestAgentManagerClient_CreateTaskAndRun(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"run": map[string]string{"id": "run-001"},
 		})
-	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	}
+}
 
-	client := &AgentManagerClient{
-		httpClient:     &http.Client{Timeout: 5 * time.Second},
-		resolver:       discovery.NewStaticResolver(server.URL),
+func newTestAgentManagerClient(serverURL string) *AgentManagerClient {
+	return &AgentManagerClient{
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(serverURL),
+			serviceName: "agent-manager",
+		},
 		maxRetries:     0,
 		retryBaseDelay: time.Millisecond,
-	}
-
-	taskResp, err := client.CreateTask(context.Background(), agentTaskCreateRequest{
-		Task: agentTaskData{
-			Title:     "GCT review: my-app",
-			ScopePath: "scenarios/my-app/",
-		},
-	})
-	if err != nil {
-		t.Fatalf("CreateTask returned error: %v", err)
-	}
-	if taskResp.Task.ID != "task-001" {
-		t.Errorf("expected task ID task-001, got %s", taskResp.Task.ID)
-	}
-
-	runResp, err := client.CreateRun(context.Background(), agentRunCreateInternalRequest{
-		TaskID:  taskResp.Task.ID,
-		RunMode: 1,
-		Tag:     "gct-my-app",
-	})
-	if err != nil {
-		t.Fatalf("CreateRun returned error: %v", err)
-	}
-	if runResp.Run.ID != "run-001" {
-		t.Errorf("expected run ID run-001, got %s", runResp.Run.ID)
 	}
 }
 
@@ -170,8 +192,11 @@ func TestAgentManagerClient_GetRun(t *testing.T) {
 	defer server.Close()
 
 	client := &AgentManagerClient{
-		httpClient:     &http.Client{Timeout: 5 * time.Second},
-		resolver:       discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "agent-manager",
+		},
 		maxRetries:     0,
 		retryBaseDelay: time.Millisecond,
 	}
@@ -231,8 +256,11 @@ func TestAgentManagerClient_GetRunEvents(t *testing.T) {
 	defer server.Close()
 
 	client := &AgentManagerClient{
-		httpClient:     &http.Client{Timeout: 5 * time.Second},
-		resolver:       discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "agent-manager",
+		},
 		maxRetries:     0,
 		retryBaseDelay: time.Millisecond,
 	}
@@ -272,8 +300,11 @@ func TestAgentManagerClient_GetRunDiff(t *testing.T) {
 	defer server.Close()
 
 	client := &AgentManagerClient{
-		httpClient:     &http.Client{Timeout: 5 * time.Second},
-		resolver:       discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "agent-manager",
+		},
 		maxRetries:     0,
 		retryBaseDelay: time.Millisecond,
 	}
@@ -308,8 +339,11 @@ func TestAgentManagerClient_ServerError(t *testing.T) {
 	defer server.Close()
 
 	client := &AgentManagerClient{
-		httpClient:     &http.Client{Timeout: 5 * time.Second},
-		resolver:       discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "agent-manager",
+		},
 		maxRetries:     0,
 		retryBaseDelay: time.Millisecond,
 	}
@@ -348,8 +382,11 @@ func TestAgentManagerClient_ContinueRun(t *testing.T) {
 	defer server.Close()
 
 	client := &AgentManagerClient{
-		httpClient:     &http.Client{Timeout: 5 * time.Second},
-		resolver:       discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "agent-manager",
+		},
 		maxRetries:     0,
 		retryBaseDelay: time.Millisecond,
 	}
@@ -383,8 +420,11 @@ func TestAgentManagerClient_StopRun(t *testing.T) {
 	defer server.Close()
 
 	client := &AgentManagerClient{
-		httpClient:     &http.Client{Timeout: 5 * time.Second},
-		resolver:       discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "agent-manager",
+		},
 		maxRetries:     0,
 		retryBaseDelay: time.Millisecond,
 	}
@@ -450,6 +490,14 @@ func TestNormalizeEventType(t *testing.T) {
 	}
 }
 
+// assertStringField checks a named string field on the API run.
+func assertStringField(t *testing.T, label, got, want string) {
+	t.Helper()
+	if got != want {
+		t.Errorf("%s: got %s, want %s", label, got, want)
+	}
+}
+
 func TestWireRunToAPI(t *testing.T) {
 	t.Parallel()
 
@@ -480,21 +528,12 @@ func TestWireRunToAPI(t *testing.T) {
 
 	got := wireRunToAPI(&w)
 
-	if got.ID != "run-123" {
-		t.Errorf("ID: got %s", got.ID)
-	}
-	if got.Status != "needs_review" {
-		t.Errorf("Status: got %s, want needs_review", got.Status)
-	}
-	if got.Phase != "reviewing" {
-		t.Errorf("Phase: got %s, want reviewing", got.Phase)
-	}
-	if got.SessionID != "sess-789" {
-		t.Errorf("SessionID: got %s", got.SessionID)
-	}
-	if got.ApprovalState != "pending" {
-		t.Errorf("ApprovalState: got %s, want pending", got.ApprovalState)
-	}
+	assertStringField(t, "ID", got.ID, "run-123")
+	assertStringField(t, "Status", got.Status, "needs_review")
+	assertStringField(t, "Phase", got.Phase, "reviewing")
+	assertStringField(t, "SessionID", got.SessionID, "sess-789")
+	assertStringField(t, "ApprovalState", got.ApprovalState, "pending")
+
 	if got.Summary == nil {
 		t.Fatal("Summary is nil")
 	}
@@ -512,84 +551,68 @@ func TestWireRunToAPI(t *testing.T) {
 	}
 }
 
+// assertEventData extracts the Data map from an API event and checks the expected key-value pairs.
+func assertEventData(t *testing.T, got AgentRunEvent, wantType string, wantData map[string]interface{}) {
+	t.Helper()
+	if got.EventType != wantType {
+		t.Errorf("EventType: got %s, want %s", got.EventType, wantType)
+	}
+	data, ok := got.Data.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected Data to be map, got %T", got.Data)
+	}
+	for key, want := range wantData {
+		if data[key] != want {
+			t.Errorf("data[%s]: got %v, want %v", key, data[key], want)
+		}
+	}
+}
+
 func TestWireRunEventToAPI(t *testing.T) {
 	t.Parallel()
 
 	t.Run("message event", func(t *testing.T) {
 		w := wireRunEvent{
-			ID:        "evt-1",
-			RunID:     "run-1",
-			Sequence:  1,
-			EventType: "RUN_EVENT_TYPE_MESSAGE",
-			Timestamp: "2024-01-01T00:00:00Z",
-			Message:   &wireMessageData{Role: "assistant", Content: "hello"},
+			ID: "evt-1", RunID: "run-1", Sequence: 1,
+			EventType: "RUN_EVENT_TYPE_MESSAGE", Timestamp: "2024-01-01T00:00:00Z",
+			Message: &wireMessageData{Role: "assistant", Content: "hello"},
 		}
-		got := wireRunEventToAPI(&w)
-		if got.EventType != "message" {
-			t.Errorf("EventType: got %s, want message", got.EventType)
-		}
-		data, ok := got.Data.(map[string]interface{})
-		if !ok {
-			t.Fatal("expected Data to be map")
-		}
-		if data["content"] != "hello" {
-			t.Errorf("content: got %v", data["content"])
-		}
-		if data["role"] != "assistant" {
-			t.Errorf("role: got %v, want assistant", data["role"])
-		}
+		assertEventData(t, wireRunEventToAPI(&w), "message", map[string]interface{}{
+			"role": "assistant", "content": "hello",
+		})
 	})
 
 	t.Run("user message event", func(t *testing.T) {
 		w := wireRunEvent{
-			ID:        "evt-u1",
-			RunID:     "run-1",
-			Sequence:  10,
-			EventType: "RUN_EVENT_TYPE_MESSAGE",
-			Timestamp: "2024-01-01T00:00:05Z",
-			Message:   &wireMessageData{Role: "user", Content: "fix the bug"},
+			ID: "evt-u1", RunID: "run-1", Sequence: 10,
+			EventType: "RUN_EVENT_TYPE_MESSAGE", Timestamp: "2024-01-01T00:00:05Z",
+			Message: &wireMessageData{Role: "user", Content: "fix the bug"},
 		}
-		got := wireRunEventToAPI(&w)
-		data := got.Data.(map[string]interface{})
-		if data["role"] != "user" {
-			t.Errorf("role: got %v, want user", data["role"])
-		}
-		if data["content"] != "fix the bug" {
-			t.Errorf("content: got %v", data["content"])
-		}
+		assertEventData(t, wireRunEventToAPI(&w), "message", map[string]interface{}{
+			"role": "user", "content": "fix the bug",
+		})
 	})
 
 	t.Run("tool_call event", func(t *testing.T) {
 		w := wireRunEvent{
-			ID:        "evt-2",
-			RunID:     "run-1",
-			Sequence:  2,
+			ID: "evt-2", RunID: "run-1", Sequence: 2,
 			EventType: "RUN_EVENT_TYPE_TOOL_CALL",
 			ToolCall:  &wireToolCallData{ToolName: "read_file", Input: json.RawMessage(`"main.go"`)},
 		}
-		got := wireRunEventToAPI(&w)
-		if got.EventType != "tool_call" {
-			t.Errorf("EventType: got %s", got.EventType)
-		}
-		data := got.Data.(map[string]interface{})
-		if data["name"] != "read_file" {
-			t.Errorf("name: got %v", data["name"])
-		}
+		assertEventData(t, wireRunEventToAPI(&w), "tool_call", map[string]interface{}{
+			"name": "read_file",
+		})
 	})
 
 	t.Run("tool_call event with object input", func(t *testing.T) {
 		w := wireRunEvent{
-			ID:        "evt-2b",
-			RunID:     "run-1",
-			Sequence:  2,
+			ID: "evt-2b", RunID: "run-1", Sequence: 2,
 			EventType: "RUN_EVENT_TYPE_TOOL_CALL",
 			ToolCall:  &wireToolCallData{ToolName: "Bash", Input: json.RawMessage(`{"command":"ls","description":"list files"}`)},
 		}
 		got := wireRunEventToAPI(&w)
+		assertEventData(t, got, "tool_call", map[string]interface{}{"name": "Bash"})
 		data := got.Data.(map[string]interface{})
-		if data["name"] != "Bash" {
-			t.Errorf("name: got %v", data["name"])
-		}
 		input, ok := data["input"].(map[string]interface{})
 		if !ok {
 			t.Fatalf("input should be map, got %T", data["input"])
@@ -601,44 +624,24 @@ func TestWireRunEventToAPI(t *testing.T) {
 
 	t.Run("status event", func(t *testing.T) {
 		w := wireRunEvent{
-			ID:        "evt-3",
-			RunID:     "run-1",
-			Sequence:  3,
+			ID: "evt-3", RunID: "run-1", Sequence: 3,
 			EventType: "RUN_EVENT_TYPE_STATUS",
 			Status:    &wireStatusData{OldStatus: "RUN_STATUS_RUNNING", NewStatus: "RUN_STATUS_NEEDS_REVIEW"},
 		}
-		got := wireRunEventToAPI(&w)
-		if got.EventType != "status_change" {
-			t.Errorf("EventType: got %s, want status_change", got.EventType)
-		}
-		data := got.Data.(map[string]interface{})
-		if data["newStatus"] != "needs_review" {
-			t.Errorf("newStatus: got %v", data["newStatus"])
-		}
-		if data["oldStatus"] != "running" {
-			t.Errorf("oldStatus: got %v", data["oldStatus"])
-		}
+		assertEventData(t, wireRunEventToAPI(&w), "status_change", map[string]interface{}{
+			"newStatus": "needs_review", "oldStatus": "running",
+		})
 	})
 
 	t.Run("error event", func(t *testing.T) {
 		w := wireRunEvent{
-			ID:        "evt-4",
-			RunID:     "run-1",
-			Sequence:  4,
+			ID: "evt-4", RunID: "run-1", Sequence: 4,
 			EventType: "RUN_EVENT_TYPE_ERROR",
 			Error:     &wireErrorData{Message: "something broke", Code: "INTERNAL"},
 		}
-		got := wireRunEventToAPI(&w)
-		if got.EventType != "error" {
-			t.Errorf("EventType: got %s", got.EventType)
-		}
-		data := got.Data.(map[string]interface{})
-		if data["message"] != "something broke" {
-			t.Errorf("message: got %v", data["message"])
-		}
-		if data["code"] != "INTERNAL" {
-			t.Errorf("code: got %v", data["code"])
-		}
+		assertEventData(t, wireRunEventToAPI(&w), "error", map[string]interface{}{
+			"message": "something broke", "code": "INTERNAL",
+		})
 	})
 }
 
@@ -687,8 +690,11 @@ func TestRetryOnTransportError(t *testing.T) {
 	defer server.Close()
 
 	client := &AgentManagerClient{
-		httpClient:     &http.Client{Timeout: 5 * time.Second},
-		resolver:       discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "agent-manager",
+		},
 		maxRetries:     2,
 		retryBaseDelay: time.Millisecond,
 	}
@@ -719,8 +725,11 @@ func TestNoRetryOn4xx(t *testing.T) {
 	defer server.Close()
 
 	client := &AgentManagerClient{
-		httpClient:     &http.Client{Timeout: 5 * time.Second},
-		resolver:       discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "agent-manager",
+		},
 		maxRetries:     2,
 		retryBaseDelay: time.Millisecond,
 	}
@@ -750,8 +759,11 @@ func TestReResolveOnTransportFailure(t *testing.T) {
 	defer server.Close()
 
 	client := &AgentManagerClient{
-		httpClient:     &http.Client{Timeout: 2 * time.Second},
-		resolver:       discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 2 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "agent-manager",
+		},
 		maxRetries:     2,
 		retryBaseDelay: time.Millisecond,
 	}

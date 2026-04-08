@@ -2,19 +2,14 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   Loader2,
   Square,
-  CheckCircle2,
-  XCircle,
-  AlertTriangle,
   ChevronDown,
   ChevronRight,
-  X,
   Send,
   Bot,
-  ArrowDown,
-  Wrench,
   Clock,
   ExternalLink,
   Image,
+  ArrowDown,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import {
@@ -36,82 +31,27 @@ import { ContextPreviewPopover } from "./ContextPreviewPopover";
 import { AttachmentPreview } from "./AttachmentPreview";
 import { useAttachments } from "../hooks/useAttachments";
 import {
+  StatusBadge,
+  formatDuration,
+  UserBubble,
+  AgentBubble,
+  ToolGroupBubble,
+  ErrorBubble,
+  SummaryCard,
+  DiffSection,
+  ActionButtons,
+} from "./AgentTabBubbles";
+import {
   RUN_STATUS,
   ACTIVE_STATUSES,
   uploadAgentAttachment,
   type AgentContextItem,
-  type AgentRun,
   type AgentRunEvent,
-  type AgentRunStatus,
-  type AgentRunDiffFile,
-  type AgentRunSummary,
-  type AgentRunActions,
   type RepoFileStats,
 } from "../lib/api";
+import { buildChatMessages } from "./AgentTabTypes";
 
 const AGENT_PROFILE_KEY = "gct.agent.defaultProfileId";
-
-// ── Helpers ─────────────────────────────────────────────────────────
-
-function humanizeNumber(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 10_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toLocaleString();
-}
-
-function formatDuration(start?: string, end?: string): string | null {
-  if (!start || !end) return null;
-  const ms = new Date(end).getTime() - new Date(start).getTime();
-  if (ms < 0) return null;
-  const secs = Math.floor(ms / 1000);
-  const mins = Math.floor(secs / 60);
-  const rem = secs % 60;
-  if (mins === 0) return `${rem}s`;
-  return `${mins}m ${rem}s`;
-}
-
-// ── Chat message types ──────────────────────────────────────────────
-
-type ChatMessage =
-  | { type: "user"; text: string; contextCount: number; timestamp: string }
-  | { type: "agent-message"; text: string; timestamp: string }
-  | { type: "tool-group"; tools: { name: string; result?: string }[]; timestamp: string }
-  | { type: "status"; status: AgentRunStatus; phase?: string; timestamp: string }
-  | { type: "error"; text: string; timestamp: string }
-  | { type: "summary"; summary: AgentRunSummary; run?: AgentRun; timestamp: string }
-  | { type: "diff"; files: AgentRunDiffFile[]; runId: string; actions: AgentRunActions }
-  | { type: "action-prompt"; actions: AgentRunActions; runId: string };
-
-// ── Status helpers ──────────────────────────────────────────────────
-
-const STATUS_COLORS: Record<AgentRunStatus, string> = {
-  pending: "bg-slate-500",
-  starting: "bg-blue-500",
-  running: "bg-blue-500 animate-pulse",
-  needs_review: "bg-amber-500",
-  complete: "bg-emerald-500",
-  failed: "bg-red-500",
-  cancelled: "bg-slate-600",
-};
-
-const STATUS_LABELS: Record<AgentRunStatus, string> = {
-  pending: "Pending",
-  starting: "Starting",
-  running: "Running",
-  needs_review: "Needs Review",
-  complete: "Complete",
-  failed: "Failed",
-  cancelled: "Cancelled",
-};
-
-function StatusBadge({ status }: { status: AgentRunStatus }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className={`h-2 w-2 rounded-full ${STATUS_COLORS[status]}`} />
-      <span className="text-xs text-slate-300">{STATUS_LABELS[status]}</span>
-    </span>
-  );
-}
 
 // ── Props ───────────────────────────────────────────────────────────
 
@@ -131,105 +71,6 @@ interface AgentTabProps {
   fileStats?: RepoFileStats;
   activeRunId?: string | null;
   onActiveRunIdChange?: (id: string | null) => void;
-}
-
-// ── Build chat messages from events ─────────────────────────────────
-
-function buildChatMessages(
-  events: AgentRunEvent[],
-  activeRun: AgentRun | null,
-  diffFiles: AgentRunDiffFile[] | null,
-  runId: string | null,
-  promptPreview?: string,
-): ChatMessage[] {
-  const messages: ChatMessage[] = [];
-
-  // Walk events
-  let i = 0;
-  while (i < events.length) {
-    const evt = events[i]!;
-    const data = evt.data as Record<string, unknown> | undefined;
-
-    if (evt.eventType === "message") {
-      const text = (data?.content ?? "") as string;
-      const role = (data?.role ?? "") as string;
-      if (text) {
-        if (role === "user") {
-          messages.push({ type: "user", text, contextCount: 0, timestamp: evt.timestamp });
-        } else {
-          messages.push({ type: "agent-message", text, timestamp: evt.timestamp });
-        }
-      }
-    } else if (evt.eventType === "tool_call") {
-      // Group consecutive tool_call/tool_result pairs
-      const tools: { name: string; result?: string }[] = [];
-      while (i < events.length) {
-        const e = events[i]!;
-        if (e.eventType !== "tool_call" && e.eventType !== "tool_result") break;
-        const d = e.data as Record<string, unknown> | undefined;
-        if (e.eventType === "tool_call") {
-          tools.push({ name: (d?.name ?? "tool") as string });
-        } else if (e.eventType === "tool_result" && tools.length > 0) {
-          const last = tools[tools.length - 1]!;
-          if (!last.result) {
-            last.result = ((d?.result ?? d?.content ?? "") as string).slice(0, 500);
-          }
-        }
-        i++;
-      }
-      if (tools.length > 0) {
-        messages.push({ type: "tool-group", tools, timestamp: evt.timestamp });
-      }
-      continue; // already advanced i
-    } else if (evt.eventType === "error") {
-      const text = (data?.message ?? data?.error ?? "") as string;
-      if (text) {
-        messages.push({ type: "error", text, timestamp: evt.timestamp });
-      }
-    } else if (evt.eventType === "status_change") {
-      const status = (data?.status ?? data?.newStatus) as AgentRunStatus | undefined;
-      if (status) {
-        messages.push({ type: "status", status, phase: data?.phase as string | undefined, timestamp: evt.timestamp });
-      }
-    }
-    i++;
-  }
-
-  // Append error from run
-  if (activeRun?.errorMsg && !messages.some((m) => m.type === "error" && m.text === activeRun.errorMsg)) {
-    messages.push({ type: "error", text: activeRun.errorMsg, timestamp: new Date().toISOString() });
-  }
-
-  // If no user/agent messages were produced from events, fall back to
-  // showing the run's promptPreview as a synthetic user message so the
-  // chat never appears empty for a run that clearly had interaction.
-  const preview = activeRun?.promptPreview || promptPreview;
-  if (
-    preview &&
-    !messages.some((m) => m.type === "user" || m.type === "agent-message")
-  ) {
-    messages.unshift({
-      type: "user",
-      text: preview,
-      contextCount: 0,
-      timestamp: activeRun?.createdAt ?? new Date().toISOString(),
-    });
-  }
-
-  // Append summary
-  if (activeRun?.summary) {
-    messages.push({ type: "summary", summary: activeRun.summary, run: activeRun, timestamp: new Date().toISOString() });
-  }
-
-  // Append diff + action-prompt when needs_review
-  if (activeRun?.status === RUN_STATUS.NEEDS_REVIEW && activeRun.actions && runId) {
-    if (diffFiles && diffFiles.length > 0) {
-      messages.push({ type: "diff", files: diffFiles, runId, actions: activeRun.actions });
-    }
-    messages.push({ type: "action-prompt", actions: activeRun.actions, runId });
-  }
-
-  return messages;
 }
 
 // ── Main component ──────────────────────────────────────────────────
@@ -832,227 +673,6 @@ export function AgentTab({
             Start New Run
           </Button>
         </div>
-      )}
-    </div>
-  );
-}
-
-// ── Bubble components ───────────────────────────────────────────────
-
-function UserBubble({ text, contextCount, timestamp }: { text: string; contextCount: number; timestamp: string }) {
-  return (
-    <div className="flex justify-end">
-      <div className="max-w-[80%] rounded-lg px-3 py-2 bg-blue-900/40 border border-blue-800/50">
-        <p className="text-sm text-slate-200 whitespace-pre-wrap">{text}</p>
-        <div className="flex items-center justify-end gap-2 mt-1">
-          {contextCount > 0 && (
-            <span className="text-[10px] text-blue-400/70">{contextCount} context item{contextCount > 1 ? "s" : ""}</span>
-          )}
-          <span className="text-[10px] text-slate-500">{new Date(timestamp).toLocaleTimeString()}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AgentBubble({ text, timestamp }: { text: string; timestamp: string }) {
-  return (
-    <div className="flex justify-start gap-2">
-      <div className="h-6 w-6 rounded-full bg-slate-700 flex items-center justify-center shrink-0 mt-1">
-        <Bot className="h-3.5 w-3.5 text-slate-400" />
-      </div>
-      <div className="max-w-[80%] rounded-lg px-3 py-2 bg-slate-800/60 border border-slate-700">
-        <p className="text-sm text-slate-300 whitespace-pre-wrap">{text}</p>
-        <span className="text-[10px] text-slate-500 block mt-1">{new Date(timestamp).toLocaleTimeString()}</span>
-      </div>
-    </div>
-  );
-}
-
-function ToolGroupBubble({ tools, timestamp }: { tools: { name: string; result?: string }[]; timestamp: string }) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <div className="flex justify-start gap-2">
-      <div className="h-6 w-6 rounded-full bg-slate-700 flex items-center justify-center shrink-0 mt-1">
-        <Wrench className="h-3.5 w-3.5 text-amber-400" />
-      </div>
-      <div className="max-w-[80%] rounded-lg bg-slate-800/40 border border-slate-700/50">
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-400 hover:text-slate-300"
-        >
-          {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-          Used {tools.length} tool{tools.length > 1 ? "s" : ""}
-          <span className="text-[10px] text-slate-600 ml-auto">{new Date(timestamp).toLocaleTimeString()}</span>
-        </button>
-        {expanded && (
-          <div className="px-3 pb-2 space-y-1.5 border-t border-slate-700/50 pt-2">
-            {tools.map((tool, i) => (
-              <div key={i} className="text-[11px]">
-                <span className="text-amber-400/80 font-mono">{tool.name}</span>
-                {tool.result && (
-                  <pre className="mt-0.5 text-slate-500 overflow-hidden text-ellipsis whitespace-nowrap max-w-full">
-                    {tool.result.slice(0, 200)}
-                  </pre>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ErrorBubble({ text }: { text: string }) {
-  return (
-    <div className="flex justify-start gap-2">
-      <div className="h-6 w-6 rounded-full bg-red-950/50 flex items-center justify-center shrink-0 mt-1">
-        <AlertTriangle className="h-3.5 w-3.5 text-red-400" />
-      </div>
-      <div className="max-w-[80%] rounded-lg px-3 py-2 bg-red-950/30 border border-red-900/40">
-        <p className="text-xs text-red-300">{text}</p>
-      </div>
-    </div>
-  );
-}
-
-function SummaryCard({ summary, run, sandboxReviewUrl }: { summary: AgentRunSummary; run?: AgentRun; sandboxReviewUrl?: string }) {
-  const duration = run ? formatDuration(run.startedAt, run.endedAt) : null;
-  const totalFiles = (summary.filesModified?.length ?? 0) + (summary.filesCreated?.length ?? 0) + (summary.filesDeleted?.length ?? 0);
-
-  return (
-    <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-3 space-y-2">
-      <h4 className="text-xs font-medium text-slate-400">Summary</h4>
-      {run?.promptPreview && (
-        <p className="text-[11px] text-slate-500 truncate">{run.promptPreview}</p>
-      )}
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-400">
-        {summary.tokensUsed != null && (
-          <span>{humanizeNumber(summary.tokensUsed)} tokens</span>
-        )}
-        {summary.turnsUsed != null && (
-          <span>{summary.turnsUsed} turns</span>
-        )}
-        {summary.costEstimate != null && summary.costEstimate > 0 && (
-          <span>${summary.costEstimate.toFixed(2)}</span>
-        )}
-        {duration && <span>{duration}</span>}
-      </div>
-      {totalFiles > 0 && (
-        <div className="flex gap-4 text-[11px] text-slate-400">
-          {(summary.filesModified?.length ?? 0) > 0 && <span>Modified: {summary.filesModified!.length}</span>}
-          {(summary.filesCreated?.length ?? 0) > 0 && <span>Created: {summary.filesCreated!.length}</span>}
-          {(summary.filesDeleted?.length ?? 0) > 0 && <span>Deleted: {summary.filesDeleted!.length}</span>}
-        </div>
-      )}
-      {totalFiles === 0 && (
-        <div className="text-[11px] text-slate-500">No file changes</div>
-      )}
-      {sandboxReviewUrl && (
-        <a
-          href={sandboxReviewUrl}
-          target="_blank"
-          rel="noopener"
-          className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded border transition-colors text-amber-400 border-amber-800 hover:bg-amber-950/50"
-        >
-          <ExternalLink className="h-3 w-3" />
-          Review in Sandbox
-        </a>
-      )}
-    </div>
-  );
-}
-
-function DiffSection({ files, isLoading }: { files: AgentRunDiffFile[]; isLoading: boolean }) {
-  if (isLoading) {
-    return (
-      <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-        <div className="flex items-center gap-2 text-xs text-slate-400">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          Loading diff...
-        </div>
-      </div>
-    );
-  }
-
-  if (!files.length) {
-    return (
-      <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-        <p className="text-xs text-slate-500">No file changes</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="rounded-lg border border-slate-800 bg-slate-900/50 divide-y divide-slate-800">
-      {files.map((file) => (
-        <div key={file.path} className="p-3">
-          <div className="flex items-center justify-between mb-1">
-            <code className="text-xs text-slate-300">{file.path}</code>
-            <div className="flex items-center gap-2 text-[11px]">
-              <span className={`${file.changeType === "added" ? "text-emerald-400" : file.changeType === "deleted" ? "text-red-400" : "text-blue-400"}`}>
-                {file.changeType}
-              </span>
-              <span className="text-emerald-500">+{file.additions}</span>
-              <span className="text-red-500">-{file.deletions}</span>
-            </div>
-          </div>
-          {file.patch && (
-            <pre className="mt-2 p-2 bg-slate-950 rounded text-[11px] text-slate-400 overflow-x-auto max-h-48">{file.patch}</pre>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function ActionButtons({
-  runId,
-  actions,
-  approve,
-  reject,
-}: {
-  runId: string;
-  actions: AgentRunActions;
-  approve: ReturnType<typeof useApproveAgentRun>;
-  reject: ReturnType<typeof useRejectAgentRun>;
-}) {
-  return (
-    <div className="flex items-center gap-2 justify-center py-2">
-      {actions.canApprove && (
-        <>
-          <Button
-            variant="default"
-            size="sm"
-            onClick={() => approve.mutate({ runId, request: {} })}
-            disabled={approve.isPending}
-            className="h-8 text-xs gap-1 bg-emerald-700 hover:bg-emerald-600"
-          >
-            {approve.isPending ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <CheckCircle2 className="h-3 w-3" />
-            )}
-            Approve
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => reject.mutate({ runId, request: {} })}
-            disabled={reject.isPending}
-            className="h-8 text-xs gap-1 text-red-400 border-red-800 hover:bg-red-950/50"
-          >
-            {reject.isPending ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <XCircle className="h-3 w-3" />
-            )}
-            Reject
-          </Button>
-        </>
       )}
     </div>
   );

@@ -1317,8 +1317,7 @@ export default function App() {
     } else {
       setPrimaryPanel("diff");
     }
-    // TODO: Use lineNumber to scroll to the specific line in the source viewer
-    // This would require adding state and passing it to DiffViewer
+    // Scrolling to a specific lineNumber would require adding state and passing it to DiffViewer
   }, [isMobile, showRelatedFiles]);
 
   // Handle showing related files panel

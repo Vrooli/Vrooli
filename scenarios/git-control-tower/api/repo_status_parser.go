@@ -20,43 +20,68 @@ func ParsePorcelainV2Status(output []byte) (*RepoStatus, error) {
 			continue
 		}
 
-		switch {
-		case strings.HasPrefix(record, "#"):
-			parseBranchHeader(status, record)
-		case strings.HasPrefix(record, "1 "):
-			if err := parseChangedRecord(status, record); err != nil {
-				return nil, err
-			}
-		case strings.HasPrefix(record, "2 "):
-			var orig string
-			if i+1 < len(records) {
-				orig = strings.TrimSpace(string(records[i+1]))
-				i++
-			}
-			if err := parseRenamedRecord(status, record, orig); err != nil {
-				return nil, err
-			}
-		case strings.HasPrefix(record, "u "):
-			if err := parseUnmergedRecord(status, record); err != nil {
-				return nil, err
-			}
-		case strings.HasPrefix(record, "? "):
-			path := strings.TrimSpace(strings.TrimPrefix(record, "?"))
-			unquoted := unquoteGitPath(path)
-			status.Files.Untracked = append(status.Files.Untracked, unquoted)
-			recordStatus(status, unquoted, "??")
-		case strings.HasPrefix(record, "! "):
-			path := strings.TrimSpace(strings.TrimPrefix(record, "!"))
-			unquoted := unquoteGitPath(path)
-			status.Files.Ignored = append(status.Files.Ignored, unquoted)
-			recordStatus(status, unquoted, "!!")
-		default:
-			// Keep for debugging; avoid hard failing on unrecognized future record types.
-			status.Raw["unparsed"] = appendRaw(status.Raw["unparsed"], record)
+		consumed, err := parseStatusRecord(status, record, records, i)
+		if err != nil {
+			return nil, err
 		}
+		i += consumed
 	}
 
 	return status, nil
+}
+
+// parseStatusRecord dispatches a single porcelain v2 record and returns additional
+// records consumed (for rename entries that span two NUL-separated fields).
+func parseStatusRecord(status *RepoStatus, record string, records [][]byte, i int) (int, error) {
+	switch {
+	case strings.HasPrefix(record, "#"):
+		parseBranchHeader(status, record)
+	case strings.HasPrefix(record, "1 "):
+		if err := parseChangedRecord(status, record); err != nil {
+			return 0, err
+		}
+	case strings.HasPrefix(record, "2 "):
+		return parseRenameEntry(status, record, records, i)
+	case strings.HasPrefix(record, "u "):
+		if err := parseUnmergedRecord(status, record); err != nil {
+			return 0, err
+		}
+	case strings.HasPrefix(record, "? "):
+		parseUntrackedRecord(status, record)
+	case strings.HasPrefix(record, "! "):
+		parseIgnoredRecord(status, record)
+	default:
+		status.Raw["unparsed"] = appendRaw(status.Raw["unparsed"], record)
+	}
+	return 0, nil
+}
+
+// parseRenameEntry handles "2 " records that consume an extra NUL-delimited field.
+func parseRenameEntry(status *RepoStatus, record string, records [][]byte, i int) (int, error) {
+	var orig string
+	consumed := 0
+	if i+1 < len(records) {
+		orig = strings.TrimSpace(string(records[i+1]))
+		consumed = 1
+	}
+	if err := parseRenamedRecord(status, record, orig); err != nil {
+		return 0, err
+	}
+	return consumed, nil
+}
+
+func parseUntrackedRecord(status *RepoStatus, record string) {
+	path := strings.TrimSpace(strings.TrimPrefix(record, "?"))
+	unquoted := unquoteGitPath(path)
+	status.Files.Untracked = append(status.Files.Untracked, unquoted)
+	recordStatus(status, unquoted, "??")
+}
+
+func parseIgnoredRecord(status *RepoStatus, record string) {
+	path := strings.TrimSpace(strings.TrimPrefix(record, "!"))
+	unquoted := unquoteGitPath(path)
+	status.Files.Ignored = append(status.Files.Ignored, unquoted)
+	recordStatus(status, unquoted, "!!")
 }
 
 func parseBranchHeader(status *RepoStatus, record string) {

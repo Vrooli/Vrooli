@@ -16,4 +16,3 @@ func TestAPIPathFromBaseURL(t *testing.T) {
 		t.Fatalf("expected empty, got %q", got)
 	}
 }
-

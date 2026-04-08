@@ -95,42 +95,15 @@ func (s *Server) handleAgentRunCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Step 1: Create a Task
-	taskData := agentTaskData{
-		Title:       fmt.Sprintf("GCT review: %s", req.ScenarioSlug),
-		Description: req.Prompt,
-		ScopePath:   fmt.Sprintf("scenarios/%s/", req.ScenarioSlug),
-	}
-	if len(req.AttachmentIDs) > 0 {
-		for _, aid := range req.AttachmentIDs {
-			taskData.ContextAttachments = append(taskData.ContextAttachments, agentContextAttachment{
-				Type:         "image",
-				AttachmentID: aid,
-				Label:        "Uploaded image",
-			})
-		}
-	}
 	taskResp, err := s.agentManagerClient.CreateTask(hctx.Ctx, agentTaskCreateRequest{
-		Task: taskData,
+		Task: buildAgentTaskData(req),
 	})
 	if err != nil {
 		hctx.Resp.InternalError(fmt.Sprintf("create task: %s", err.Error()))
 		return
 	}
 
-	// Step 2: Create a Run (with tag for filtering)
-	runReq := agentRunCreateInternalRequest{
-		TaskID:  taskResp.Task.ID,
-		RunMode: 1, // RUN_MODE_SANDBOXED
-		Tag:     fmt.Sprintf("gct-%s", req.ScenarioSlug),
-	}
-	if req.ProfileID != "" {
-		runReq.AgentProfileID = req.ProfileID
-	} else if req.ProfileKey != "" {
-		runReq.ProfileRef = &agentProfileRef{ProfileKey: req.ProfileKey}
-	}
-
-	runResp, err := s.agentManagerClient.CreateRun(hctx.Ctx, runReq)
+	runResp, err := s.agentManagerClient.CreateRun(hctx.Ctx, buildAgentRunRequest(taskResp.Task.ID, req))
 	if err != nil {
 		hctx.Resp.InternalError(fmt.Sprintf("create run: %s", err.Error()))
 		return
@@ -140,6 +113,36 @@ func (s *Server) handleAgentRunCreate(w http.ResponseWriter, r *http.Request) {
 		RunID:  runResp.Run.ID,
 		TaskID: taskResp.Task.ID,
 	})
+}
+
+func buildAgentTaskData(req AgentRunRequest) agentTaskData {
+	taskData := agentTaskData{
+		Title:       fmt.Sprintf("GCT review: %s", req.ScenarioSlug),
+		Description: req.Prompt,
+		ScopePath:   fmt.Sprintf("scenarios/%s/", req.ScenarioSlug),
+	}
+	for _, aid := range req.AttachmentIDs {
+		taskData.ContextAttachments = append(taskData.ContextAttachments, agentContextAttachment{
+			Type:         "image",
+			AttachmentID: aid,
+			Label:        "Uploaded image",
+		})
+	}
+	return taskData
+}
+
+func buildAgentRunRequest(taskID string, req AgentRunRequest) agentRunCreateInternalRequest {
+	runReq := agentRunCreateInternalRequest{
+		TaskID:  taskID,
+		RunMode: 1, // RUN_MODE_SANDBOXED
+		Tag:     fmt.Sprintf("gct-%s", req.ScenarioSlug),
+	}
+	if req.ProfileID != "" {
+		runReq.AgentProfileID = req.ProfileID
+	} else if req.ProfileKey != "" {
+		runReq.ProfileRef = &agentProfileRef{ProfileKey: req.ProfileKey}
+	}
+	return runReq
 }
 
 // handleAgentRunList proxies GET /api/v1/agent/runs to agent-manager.
@@ -220,253 +223,4 @@ func (s *Server) handleAgentRunDetail(w http.ResponseWriter, r *http.Request) {
 
 	apiRun := wireRunToAPI(&wireResp.Run)
 	hctx.Resp.OK(apiRun)
-}
-
-// handleAgentRunEvents proxies GET /api/v1/agent/runs/{id}/events to agent-manager.
-func (s *Server) handleAgentRunEvents(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
-	if hctx == nil {
-		return
-	}
-	defer hctx.Cancel()
-
-	if !s.capabilities.IsAvailable(hctx.Ctx, "agent-manager") {
-		hctx.Resp.ServiceUnavailable("agent-manager is not available")
-		return
-	}
-
-	vars := mux.Vars(r)
-	id := vars["id"]
-	if strings.TrimSpace(id) == "" {
-		hctx.Resp.BadRequest("run ID is required")
-		return
-	}
-
-	afterSequence := -1 // default: include all events (sequence > -1)
-	if raw := strings.TrimSpace(r.URL.Query().Get("afterSequence")); raw != "" {
-		parsed, err := strconv.Atoi(raw)
-		if err != nil || parsed < -1 {
-			hctx.Resp.BadRequest("afterSequence must be -1 or a non-negative integer")
-			return
-		}
-		afterSequence = parsed
-	}
-
-	limit := 100
-	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
-		parsed, err := strconv.Atoi(raw)
-		if err != nil || parsed <= 0 {
-			hctx.Resp.BadRequest("limit must be a positive integer")
-			return
-		}
-		if parsed > 500 {
-			parsed = 500
-		}
-		limit = parsed
-	}
-
-	wireResp, err := s.agentManagerClient.GetRunEvents(hctx.Ctx, id, afterSequence, limit)
-	if err != nil {
-		hctx.Resp.InternalError(err.Error())
-		return
-	}
-
-	events := make([]AgentRunEvent, 0, len(wireResp.Events))
-	for i := range wireResp.Events {
-		events = append(events, wireRunEventToAPI(&wireResp.Events[i]))
-	}
-
-	hctx.Resp.OK(AgentRunEventsResponse{
-		Events: events,
-	})
-}
-
-// handleAgentRunDiff proxies GET /api/v1/agent/runs/{id}/diff to agent-manager.
-func (s *Server) handleAgentRunDiff(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
-	if hctx == nil {
-		return
-	}
-	defer hctx.Cancel()
-
-	if !s.capabilities.IsAvailable(hctx.Ctx, "agent-manager") {
-		hctx.Resp.ServiceUnavailable("agent-manager is not available")
-		return
-	}
-
-	vars := mux.Vars(r)
-	id := vars["id"]
-	if strings.TrimSpace(id) == "" {
-		hctx.Resp.BadRequest("run ID is required")
-		return
-	}
-
-	wireResp, err := s.agentManagerClient.GetRunDiff(hctx.Ctx, id)
-	if err != nil {
-		hctx.Resp.InternalError(err.Error())
-		return
-	}
-
-	resp := AgentRunDiffResponse{RunID: id}
-	if wireResp.Diff != nil {
-		resp.Content = wireResp.Diff.Content
-		files := make([]AgentRunDiffFile, 0, len(wireResp.Diff.Files))
-		for i := range wireResp.Diff.Files {
-			files = append(files, wireFileDiffToAPI(&wireResp.Diff.Files[i]))
-		}
-		resp.Files = files
-	}
-
-	hctx.Resp.OK(resp)
-}
-
-// handleAgentRunContinue proxies POST /api/v1/agent/runs/{id}/continue to agent-manager.
-func (s *Server) handleAgentRunContinue(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 120*time.Second)
-	if hctx == nil {
-		return
-	}
-	defer hctx.Cancel()
-
-	if !s.capabilities.IsAvailable(hctx.Ctx, "agent-manager") {
-		hctx.Resp.ServiceUnavailable("agent-manager is not available")
-		return
-	}
-
-	vars := mux.Vars(r)
-	id := vars["id"]
-	if strings.TrimSpace(id) == "" {
-		hctx.Resp.BadRequest("run ID is required")
-		return
-	}
-
-	var req AgentContinueRequest
-	if !ParseJSONBody(w, r, &req) {
-		return
-	}
-
-	wireResp, err := s.agentManagerClient.ContinueRun(hctx.Ctx, id, req)
-	if err != nil {
-		hctx.Resp.InternalError(err.Error())
-		return
-	}
-
-	resp := AgentContinueResponse{
-		Success: wireResp.Success,
-	}
-	if wireResp.Run != nil {
-		apiRun := wireRunToAPI(wireResp.Run)
-		resp.Run = &apiRun
-	}
-
-	hctx.Resp.OK(resp)
-}
-
-// handleAgentRunApprove proxies POST /api/v1/agent/runs/{id}/approve to agent-manager.
-func (s *Server) handleAgentRunApprove(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 30*time.Second)
-	if hctx == nil {
-		return
-	}
-	defer hctx.Cancel()
-
-	if !s.capabilities.IsAvailable(hctx.Ctx, "agent-manager") {
-		hctx.Resp.ServiceUnavailable("agent-manager is not available")
-		return
-	}
-
-	vars := mux.Vars(r)
-	id := vars["id"]
-	if strings.TrimSpace(id) == "" {
-		hctx.Resp.BadRequest("run ID is required")
-		return
-	}
-
-	var req AgentApproveRequest
-	if !ParseJSONBody(w, r, &req) {
-		return
-	}
-
-	wireResp, err := s.agentManagerClient.ApproveRun(hctx.Ctx, id, req)
-	if err != nil {
-		hctx.Resp.InternalError(err.Error())
-		return
-	}
-
-	resp := AgentApproveResponse{}
-	if wireResp.Result != nil {
-		resp.Success = wireResp.Result.Success
-		resp.FilesApplied = wireResp.Result.FilesApplied
-		resp.CommitHash = wireResp.Result.CommitHash
-		resp.Message = wireResp.Result.Message
-	}
-
-	hctx.Resp.OK(resp)
-}
-
-// handleAgentRunReject proxies POST /api/v1/agent/runs/{id}/reject to agent-manager.
-func (s *Server) handleAgentRunReject(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 30*time.Second)
-	if hctx == nil {
-		return
-	}
-	defer hctx.Cancel()
-
-	if !s.capabilities.IsAvailable(hctx.Ctx, "agent-manager") {
-		hctx.Resp.ServiceUnavailable("agent-manager is not available")
-		return
-	}
-
-	vars := mux.Vars(r)
-	id := vars["id"]
-	if strings.TrimSpace(id) == "" {
-		hctx.Resp.BadRequest("run ID is required")
-		return
-	}
-
-	var req AgentRejectRequest
-	if !ParseJSONBody(w, r, &req) {
-		return
-	}
-
-	wireResp, err := s.agentManagerClient.RejectRun(hctx.Ctx, id, req)
-	if err != nil {
-		hctx.Resp.InternalError(err.Error())
-		return
-	}
-
-	hctx.Resp.OK(AgentRejectResponse{
-		Status: wireResp.Status,
-	})
-}
-
-// handleAgentRunStop proxies POST /api/v1/agent/runs/{id}/stop to agent-manager.
-func (s *Server) handleAgentRunStop(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
-	if hctx == nil {
-		return
-	}
-	defer hctx.Cancel()
-
-	if !s.capabilities.IsAvailable(hctx.Ctx, "agent-manager") {
-		hctx.Resp.ServiceUnavailable("agent-manager is not available")
-		return
-	}
-
-	vars := mux.Vars(r)
-	id := vars["id"]
-	if strings.TrimSpace(id) == "" {
-		hctx.Resp.BadRequest("run ID is required")
-		return
-	}
-
-	wireResp, err := s.agentManagerClient.StopRun(hctx.Ctx, id)
-	if err != nil {
-		hctx.Resp.InternalError(err.Error())
-		return
-	}
-
-	hctx.Resp.OK(AgentStopResponse{
-		Status: wireResp.Status,
-	})
 }

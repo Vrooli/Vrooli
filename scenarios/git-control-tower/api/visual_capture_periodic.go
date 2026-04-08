@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -99,41 +100,58 @@ func (p *PeriodicCapture) run(ctx context.Context) {
 	}
 }
 
+// acquireRepoLockIfNeeded acquires the per-repo lock if a RepoLock is configured.
+// Returns the unlock function (may be nil) and any error.
+func (p *PeriodicCapture) acquireRepoLockIfNeeded(ctx context.Context, repoPath string) (func(), error) {
+	if p.repoLock == nil {
+		return nil, nil
+	}
+	unlock, err := p.repoLock.Acquire(ctx, repoPath)
+	if err != nil {
+		return nil, fmt.Errorf("lock acquisition timed out for %s: %w", repoPath, err)
+	}
+	return unlock, nil
+}
+
+// shouldCaptureScope returns true if the scope is a scenario and its last capture
+// is older than the configured interval.
+func (p *PeriodicCapture) shouldCaptureScope(scope string, repoID int64) (string, bool) {
+	if !isScenarioScope(scope) {
+		return "", false
+	}
+	slug := scopeSlug(scope)
+	existing, err := p.storage.ListSnapshotSets(repoID, slug)
+	if err == nil && len(existing) > 0 && time.Since(existing[0].CreatedAt) < p.config.Interval {
+		return slug, false
+	}
+	return slug, true
+}
+
 func (p *PeriodicCapture) tick(ctx context.Context) {
 	// DESIGN DECISION: Periodic timer captures screenshots ONLY.
 	// Workflow execution is too heavy for background periodic runs.
 	// Workflows are triggered manually via POST /api/v1/repo/workflow-capture.
 
-	// Check BAS availability
 	if !p.capabilities.IsAvailable(ctx, "browser-automation-studio") {
 		return
 	}
 
-	// Get active repo
 	active, err := p.repos.GetActive(ctx)
 	if err != nil || active == nil {
 		return
 	}
 
-	// Acquire per-repo lock to avoid .git/index.lock contention with
-	// concurrent HTTP handlers that may be staging, committing, etc.
-	var unlock func()
-	if p.repoLock != nil {
-		var lockErr error
-		unlock, lockErr = p.repoLock.Acquire(ctx, active.Path)
-		if lockErr != nil {
-			log.Printf("periodic capture: lock acquisition timed out for %s: %v", active.Path, lockErr)
-			return
-		}
+	unlock, err := p.acquireRepoLockIfNeeded(ctx, active.Path)
+	if err != nil {
+		log.Printf("periodic capture: %v", err)
+		return
 	}
 
-	// Get repo status to find changed scenarios
 	status, err := GetRepoStatus(ctx, RepoStatusDeps{
 		Git:     p.git,
 		RepoDir: active.Path,
 	})
 
-	// Release the lock before the (potentially slow) BAS capture loop.
 	if unlock != nil {
 		unlock()
 	}
@@ -143,35 +161,25 @@ func (p *PeriodicCapture) tick(ctx context.Context) {
 		return
 	}
 
-	// Extract scenario scopes with changes
 	for scope := range status.Scopes {
-		if !isScenarioScope(scope) {
+		slug, ok := p.shouldCaptureScope(scope, active.ID)
+		if !ok {
 			continue
 		}
-		slug := scopeSlug(scope)
 
-		// Check if last capture is recent enough
-		existing, err := p.storage.ListSnapshotSets(active.ID, slug)
-		if err == nil && len(existing) > 0 {
-			if time.Since(existing[0].CreatedAt) < p.config.Interval {
-				continue
-			}
-		}
-
-		req := VisualCaptureRequest{
-			ScenarioSlug: slug,
-			Mode:         CaptureModeCapture,
-			TriggerType:  "periodic",
-		}
-		meta, err := CaptureScenario(ctx, VisualCaptureDeps{
+		meta, captureErr := CaptureScenario(ctx, VisualCaptureDeps{
 			BAS:     p.basClient,
 			Storage: p.storage,
 			FS:      p.fs,
 			RepoDir: active.Path,
 			RepoID:  active.ID,
-		}, req)
-		if err != nil {
-			log.Printf("periodic capture: failed for %s: %v", slug, err)
+		}, VisualCaptureRequest{
+			ScenarioSlug: slug,
+			Mode:         CaptureModeCapture,
+			TriggerType:  "periodic",
+		})
+		if captureErr != nil {
+			log.Printf("periodic capture: failed for %s: %v", slug, captureErr)
 			continue
 		}
 		log.Printf("periodic capture: captured %s (%d screenshots)", slug, meta.ScreenshotCount)

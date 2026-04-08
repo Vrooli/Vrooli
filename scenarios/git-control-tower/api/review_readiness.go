@@ -32,30 +32,52 @@ func DefaultReadinessThresholds() ReadinessThresholds {
 //   - Yellow: at least partial progress on required dimensions
 //   - Red: no meaningful progress
 func CalculateReadiness(dims ReviewDimensions, thresholds ReadinessThresholds) Readiness {
-	screenshotsOk := !thresholds.RequireScreenshots ||
-		(dims.Visual != nil && dims.Visual.Available && dims.Visual.ScreenshotCount > 0)
-
-	hasTests := dims.Tests != nil && dims.Tests.Available && dims.Tests.Total > 0
+	screenshotsOk := screenshotsMet(dims, thresholds)
+	hasTests := testsAvailable(dims)
 	testsOk := !thresholds.RequireTests || (hasTests && meetsPassRate(dims.Tests, thresholds.TestMinPassRate))
-
-	qualityOk := dims.CodeQuality != nil && dims.CodeQuality.Available &&
-		!dims.CodeQuality.Stale && dims.CodeQuality.Score >= thresholds.CodeQualityMinScore
-
-	standardsOk := dims.Standards == nil || !dims.Standards.Available ||
-		(dims.Standards.BlockingViolations <= thresholds.MaxBlockingViolations &&
-			(thresholds.MaxWarnings < 0 || dims.Standards.Warnings <= thresholds.MaxWarnings))
+	qualityOk := codeQualityMet(dims, thresholds)
+	standardsOk := standardsMet(dims, thresholds)
 
 	if screenshotsOk && testsOk && qualityOk && standardsOk {
 		return ReadinessGreen
 	}
 
 	// Yellow: at least some positive signal exists.
-	hasScreenshots := dims.Visual != nil && dims.Visual.Available && dims.Visual.ScreenshotCount > 0
-	hasPartialTests := hasTests
-	if hasScreenshots || hasPartialTests || qualityOk {
+	hasScreenshots := hasVisualScreenshots(dims)
+	if hasScreenshots || hasTests || qualityOk {
 		return ReadinessYellow
 	}
 	return ReadinessRed
+}
+
+// screenshotsMet checks if the screenshots requirement is satisfied.
+func screenshotsMet(dims ReviewDimensions, thresholds ReadinessThresholds) bool {
+	return !thresholds.RequireScreenshots || hasVisualScreenshots(dims)
+}
+
+// hasVisualScreenshots returns true if visual captures are available with screenshots.
+func hasVisualScreenshots(dims ReviewDimensions) bool {
+	return dims.Visual != nil && dims.Visual.Available && dims.Visual.ScreenshotCount > 0
+}
+
+// testsAvailable returns true if tests are available with at least one test.
+func testsAvailable(dims ReviewDimensions) bool {
+	return dims.Tests != nil && dims.Tests.Available && dims.Tests.Total > 0
+}
+
+// codeQualityMet checks if code quality meets the threshold.
+func codeQualityMet(dims ReviewDimensions, thresholds ReadinessThresholds) bool {
+	return dims.CodeQuality != nil && dims.CodeQuality.Available &&
+		!dims.CodeQuality.Stale && dims.CodeQuality.Score >= thresholds.CodeQualityMinScore
+}
+
+// standardsMet checks if standards violations are within thresholds.
+func standardsMet(dims ReviewDimensions, thresholds ReadinessThresholds) bool {
+	if dims.Standards == nil || !dims.Standards.Available {
+		return true
+	}
+	return dims.Standards.BlockingViolations <= thresholds.MaxBlockingViolations &&
+		(thresholds.MaxWarnings < 0 || dims.Standards.Warnings <= thresholds.MaxWarnings)
 }
 
 // CalculateDimensionStatuses returns per-dimension status (green/yellow/red/skipped)
@@ -63,65 +85,82 @@ func CalculateReadiness(dims ReviewDimensions, thresholds ReadinessThresholds) R
 // dimension coloring — consumers should use these statuses directly.
 func CalculateDimensionStatuses(dims ReviewDimensions, thresholds ReadinessThresholds) map[string]string {
 	statuses := make(map[string]string)
-
-	// Code quality.
-	if dims.CodeQuality == nil || !dims.CodeQuality.Available {
-		statuses["codeQuality"] = "skipped"
-	} else if dims.CodeQuality.Stale {
-		statuses["codeQuality"] = "yellow"
-	} else if dims.CodeQuality.Score >= thresholds.CodeQualityMinScore && dims.CodeQuality.Violations == 0 {
-		statuses["codeQuality"] = "green"
-	} else if dims.CodeQuality.Score >= thresholds.CodeQualityMinScore {
-		statuses["codeQuality"] = "yellow"
-	} else {
-		statuses["codeQuality"] = "red"
-	}
-
-	// Tests.
-	if dims.Tests == nil || !dims.Tests.Available {
-		statuses["tests"] = "skipped"
-	} else if dims.Tests.Total == 0 {
-		statuses["tests"] = "yellow"
-	} else if meetsPassRate(dims.Tests, thresholds.TestMinPassRate) {
-		statuses["tests"] = "green"
-	} else if dims.Tests.PassedCount > 0 {
-		statuses["tests"] = "yellow"
-	} else {
-		statuses["tests"] = "red"
-	}
-
-	// Standards.
-	if dims.Standards == nil || !dims.Standards.Available {
-		statuses["standards"] = "skipped"
-	} else if dims.Standards.BlockingViolations > thresholds.MaxBlockingViolations {
-		statuses["standards"] = "red"
-	} else if thresholds.MaxWarnings >= 0 && dims.Standards.Warnings > thresholds.MaxWarnings {
-		statuses["standards"] = "yellow"
-	} else if dims.Standards.Warnings > 0 {
-		statuses["standards"] = "yellow"
-	} else {
-		statuses["standards"] = "green"
-	}
-
-	// Visual.
-	if dims.Visual == nil || !dims.Visual.Available {
-		statuses["visual"] = "skipped"
-	} else if dims.Visual.ScreenshotCount > 0 && !dims.Visual.Stale {
-		statuses["visual"] = "green"
-	} else if dims.Visual.ScreenshotCount > 0 {
-		statuses["visual"] = "yellow"
-	} else {
-		statuses["visual"] = "red"
-	}
-
-	// Provenance (informational — does not affect overall readiness).
-	if dims.Provenance == nil || !dims.Provenance.Available {
-		statuses["provenance"] = "skipped"
-	} else {
-		statuses["provenance"] = "green"
-	}
-
+	statuses["codeQuality"] = codeQualityStatus(dims.CodeQuality, thresholds)
+	statuses["tests"] = testsStatus(dims.Tests, thresholds)
+	statuses["standards"] = standardsStatus(dims.Standards, thresholds)
+	statuses["visual"] = visualStatus(dims.Visual)
+	statuses["provenance"] = provenanceStatus(dims.Provenance)
 	return statuses
+}
+
+// codeQualityStatus returns the status for the code quality dimension.
+func codeQualityStatus(cq *CodeQualityDimension, thresholds ReadinessThresholds) string {
+	if cq == nil || !cq.Available {
+		return "skipped"
+	}
+	if cq.Stale {
+		return "yellow"
+	}
+	if cq.Score >= thresholds.CodeQualityMinScore && cq.Violations == 0 {
+		return "green"
+	}
+	if cq.Score >= thresholds.CodeQualityMinScore {
+		return "yellow"
+	}
+	return "red"
+}
+
+// testsStatus returns the status for the tests dimension.
+func testsStatus(tests *TestsDimension, thresholds ReadinessThresholds) string {
+	if tests == nil || !tests.Available {
+		return "skipped"
+	}
+	if tests.Total == 0 {
+		return "yellow"
+	}
+	if meetsPassRate(tests, thresholds.TestMinPassRate) {
+		return "green"
+	}
+	if tests.PassedCount > 0 {
+		return "yellow"
+	}
+	return "red"
+}
+
+// standardsStatus returns the status for the standards dimension.
+func standardsStatus(std *StandardsDimension, thresholds ReadinessThresholds) string {
+	if std == nil || !std.Available {
+		return "skipped"
+	}
+	if std.BlockingViolations > thresholds.MaxBlockingViolations {
+		return "red"
+	}
+	if (thresholds.MaxWarnings >= 0 && std.Warnings > thresholds.MaxWarnings) || std.Warnings > 0 {
+		return "yellow"
+	}
+	return "green"
+}
+
+// visualStatus returns the status for the visual dimension.
+func visualStatus(vis *VisualDimension) string {
+	if vis == nil || !vis.Available {
+		return "skipped"
+	}
+	if vis.ScreenshotCount > 0 && !vis.Stale {
+		return "green"
+	}
+	if vis.ScreenshotCount > 0 {
+		return "yellow"
+	}
+	return "red"
+}
+
+// provenanceStatus returns the status for the provenance dimension.
+func provenanceStatus(prov *ProvenanceDimension) string {
+	if prov == nil || !prov.Available {
+		return "skipped"
+	}
+	return "green"
 }
 
 // meetsPassRate checks if the test pass rate meets the required threshold.

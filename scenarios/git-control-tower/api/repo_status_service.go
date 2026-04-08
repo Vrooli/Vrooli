@@ -1,15 +1,9 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
-	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -34,13 +28,7 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 	}
 	parsed.RepoDir = repoDir
 	parsed.Timestamp = time.Now().UTC()
-	parsed.Author = RepoAuthorStatus{}
-	if name, err := deps.Git.ConfigGet(ctx, repoDir, "user.name"); err == nil {
-		parsed.Author.Name = name
-	}
-	if email, err := deps.Git.ConfigGet(ctx, repoDir, "user.email"); err == nil {
-		parsed.Author.Email = email
-	}
+	parsed.Author = resolveAuthor(ctx, deps, repoDir)
 
 	parsed.Summary = RepoStatusSummary{
 		Staged:    len(parsed.Files.Staged),
@@ -51,26 +39,9 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 	}
 	parsed.Scopes = detectScopes(parsed.Files)
 
-	stagedStats := map[string]DiffStats{}
-	var stagedBinaries []string
-	if numstat, err := deps.Git.DiffNumstat(ctx, repoDir, true); err == nil {
-		stagedStats, stagedBinaries = parseNumstatOutput(numstat)
-	}
-
-	unstagedStats := map[string]DiffStats{}
-	var unstagedBinaries []string
-	if numstat, err := deps.Git.DiffNumstat(ctx, repoDir, false); err == nil {
-		unstagedStats, unstagedBinaries = parseNumstatOutput(numstat)
-	}
-
-	untrackedStats := map[string]DiffStats{}
-	for _, path := range parsed.Files.Untracked {
-		stats, err := buildUntrackedStats(repoDir, path)
-		if err != nil {
-			continue
-		}
-		untrackedStats[path] = stats
-	}
+	stagedStats, stagedBinaries := collectDiffStats(ctx, deps, repoDir, true)
+	unstagedStats, unstagedBinaries := collectDiffStats(ctx, deps, repoDir, false)
+	untrackedStats := collectUntrackedStats(repoDir, parsed.Files.Untracked)
 
 	if len(stagedStats) > 0 || len(unstagedStats) > 0 || len(untrackedStats) > 0 {
 		parsed.FileStats = RepoFileStats{
@@ -80,7 +51,45 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 		}
 	}
 
-	// Collect binary files from numstat results (no extra git calls needed)
+	parsed.Files.Binary = collectBinaryFiles(stagedBinaries, unstagedBinaries, untrackedStats)
+	parsed.FileHotspots = computeFileHotspots(ctx, deps, repoDir, parsed.Files)
+	sortFileStatus(&parsed.Files, parsed.Scopes)
+
+	return parsed, nil
+}
+
+func resolveAuthor(ctx context.Context, deps RepoStatusDeps, repoDir string) RepoAuthorStatus {
+	author := RepoAuthorStatus{}
+	if name, err := deps.Git.ConfigGet(ctx, repoDir, "user.name"); err == nil {
+		author.Name = name
+	}
+	if email, err := deps.Git.ConfigGet(ctx, repoDir, "user.email"); err == nil {
+		author.Email = email
+	}
+	return author
+}
+
+func collectDiffStats(ctx context.Context, deps RepoStatusDeps, repoDir string, staged bool) (map[string]DiffStats, []string) {
+	numstat, err := deps.Git.DiffNumstat(ctx, repoDir, staged)
+	if err != nil {
+		return map[string]DiffStats{}, nil
+	}
+	return parseNumstatOutput(numstat)
+}
+
+func collectUntrackedStats(repoDir string, untracked []string) map[string]DiffStats {
+	stats := map[string]DiffStats{}
+	for _, path := range untracked {
+		s, err := buildUntrackedStats(repoDir, path)
+		if err != nil {
+			continue
+		}
+		stats[path] = s
+	}
+	return stats
+}
+
+func collectBinaryFiles(stagedBinaries, unstagedBinaries []string, untrackedStats map[string]DiffStats) []string {
 	binarySet := map[string]struct{}{}
 	for _, p := range stagedBinaries {
 		binarySet[p] = struct{}{}
@@ -88,301 +97,56 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 	for _, p := range unstagedBinaries {
 		binarySet[p] = struct{}{}
 	}
-	// Also include untracked binaries
 	for path, stats := range untrackedStats {
 		if stats.IsBinary {
 			binarySet[path] = struct{}{}
 		}
 	}
-	if len(binarySet) > 0 {
-		parsed.Files.Binary = make([]string, 0, len(binarySet))
-		for path := range binarySet {
-			parsed.Files.Binary = append(parsed.Files.Binary, path)
-		}
+	if len(binarySet) == 0 {
+		return nil
 	}
-
-	// Compute file hotspots from recent git log
-	if hotspots, err := deps.Git.LogFileFrequency(ctx, repoDir, 50); err == nil {
-		// Filter to only files present in current changes
-		changedFiles := map[string]struct{}{}
-		for _, p := range parsed.Files.Staged {
-			changedFiles[p] = struct{}{}
-		}
-		for _, p := range parsed.Files.Unstaged {
-			changedFiles[p] = struct{}{}
-		}
-		for _, p := range parsed.Files.Untracked {
-			changedFiles[p] = struct{}{}
-		}
-		filtered := map[string]int{}
-		for path, count := range hotspots {
-			if _, ok := changedFiles[path]; ok {
-				filtered[path] = count
-			}
-		}
-		if len(filtered) > 0 {
-			parsed.FileHotspots = filtered
-		}
+	result := make([]string, 0, len(binarySet))
+	for path := range binarySet {
+		result = append(result, path)
 	}
-
-	sort.Strings(parsed.Files.Staged)
-	sort.Strings(parsed.Files.Unstaged)
-	sort.Strings(parsed.Files.Untracked)
-	sort.Strings(parsed.Files.Conflicts)
-	sort.Strings(parsed.Files.Ignored)
-	sort.Strings(parsed.Files.Binary)
-	for key := range parsed.Scopes {
-		sort.Strings(parsed.Scopes[key])
-	}
-
-	return parsed, nil
+	return result
 }
 
-func parseNumstatOutput(out []byte) (map[string]DiffStats, []string) {
-	stats := map[string]DiffStats{}
-	var binaries []string
-	raw := strings.TrimSpace(string(out))
-	if raw == "" {
-		return stats, binaries
-	}
-	lines := strings.Split(raw, "\n")
-	for _, line := range lines {
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
-		parts := strings.SplitN(line, "\t", 3)
-		if len(parts) < 3 {
-			continue
-		}
-		path := strings.TrimSpace(parts[2])
-		if path == "" {
-			continue
-		}
-		additions := strings.TrimSpace(parts[0])
-		deletions := strings.TrimSpace(parts[1])
-		if additions == "-" || deletions == "-" {
-			binaries = append(binaries, path)
-			stats[path] = DiffStats{Files: 1, IsBinary: true}
-			continue
-		}
-		add := parseNumstatValue(parts[0])
-		del := parseNumstatValue(parts[1])
-		stats[path] = DiffStats{
-			Additions: add,
-			Deletions: del,
-			Files:     1,
-			NetLines:  add - del,
-		}
-	}
-	return stats, binaries
-}
-
-func parseNumstatValue(value string) int {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" || trimmed == "-" {
-		return 0
-	}
-	num, err := strconv.Atoi(trimmed)
+func computeFileHotspots(ctx context.Context, deps RepoStatusDeps, repoDir string, files RepoFilesStatus) map[string]int {
+	hotspots, err := deps.Git.LogFileFrequency(ctx, repoDir, 50)
 	if err != nil {
-		return 0
+		return nil
 	}
-	if num < 0 {
-		return 0
+	changedFiles := map[string]struct{}{}
+	for _, p := range files.Staged {
+		changedFiles[p] = struct{}{}
 	}
-	return num
-}
-
-func buildUntrackedStats(repoDir string, path string) (DiffStats, error) {
-	fullPath := path
-	if !filepath.IsAbs(path) {
-		fullPath = filepath.Join(repoDir, path)
+	for _, p := range files.Unstaged {
+		changedFiles[p] = struct{}{}
 	}
-	lines, isBinary, err := countFileLines(fullPath)
-	if err != nil {
-		return DiffStats{}, err
+	for _, p := range files.Untracked {
+		changedFiles[p] = struct{}{}
 	}
-	if isBinary {
-		return DiffStats{Files: 1, IsBinary: true, IsNewFile: true}, nil
-	}
-	return DiffStats{Files: 1, Additions: lines, NetLines: lines, IsNewFile: true}, nil
-}
-
-func countFileLines(path string) (int, bool, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return 0, false, err
-	}
-	defer file.Close()
-
-	buf := make([]byte, 32*1024)
-	lines := 0
-	hasContent := false
-	var lastByte byte
-
-	for {
-		n, readErr := file.Read(buf)
-		if n > 0 {
-			hasContent = true
-			if bytes.IndexByte(buf[:n], 0) >= 0 {
-				return 0, true, nil
-			}
-			for _, b := range buf[:n] {
-				if b == '\n' {
-					lines++
-				}
-			}
-			lastByte = buf[n-1]
-		}
-		if readErr == io.EOF {
-			break
-		}
-		if readErr != nil {
-			return 0, false, readErr
+	filtered := map[string]int{}
+	for path, count := range hotspots {
+		if _, ok := changedFiles[path]; ok {
+			filtered[path] = count
 		}
 	}
-
-	if hasContent && lastByte != '\n' {
-		lines++
-	}
-
-	return lines, false, nil
-}
-
-func GetRepoHistory(ctx context.Context, deps RepoHistoryDeps) (*RepoHistory, error) {
-	if deps.Git == nil {
-		return nil, fmt.Errorf("git runner is required")
-	}
-	repoDir := strings.TrimSpace(deps.RepoDir)
-	if repoDir == "" {
-		return nil, fmt.Errorf("repo dir is required")
-	}
-
-	limit := deps.Limit
-	if limit <= 0 {
-		limit = 30
-	}
-
-	out, err := deps.Git.LogGraph(ctx, repoDir, limit, deps.GrepPattern)
-	if err != nil {
-		return nil, err
-	}
-
-	raw := strings.TrimRight(string(out), "\n")
-	lines := []string{}
-	if raw != "" {
-		lines = strings.Split(raw, "\n")
-	}
-	if len(lines) > 0 {
-		lines = filterHistoryLines(lines)
-	}
-
-	history := &RepoHistory{
-		RepoDir:     repoDir,
-		Lines:       lines,
-		Limit:       limit,
-		GrepPattern: deps.GrepPattern,
-		Timestamp:   time.Now().UTC(),
-	}
-
-	if deps.IncludeFiles {
-		detailsRaw, err := deps.Git.LogDetails(ctx, repoDir, limit, deps.GrepPattern)
-		if err != nil {
-			return nil, err
-		}
-		entries := parseHistoryDetails(detailsRaw)
-		history.Entries = entries
-	}
-
-	return history, nil
-}
-
-var commitHashPattern = regexp.MustCompile(`[0-9a-f]{7,}`)
-
-func filterHistoryLines(lines []string) []string {
-	filtered := make([]string, 0, len(lines))
-	for _, line := range lines {
-		if commitHashPattern.MatchString(line) {
-			filtered = append(filtered, line)
-		}
+	if len(filtered) == 0 {
+		return nil
 	}
 	return filtered
 }
 
-func parseHistoryDetails(out []byte) []RepoHistoryEntry {
-	raw := strings.TrimSpace(string(out))
-	if raw == "" {
-		return []RepoHistoryEntry{}
+func sortFileStatus(files *RepoFilesStatus, scopes map[string][]string) {
+	sort.Strings(files.Staged)
+	sort.Strings(files.Unstaged)
+	sort.Strings(files.Untracked)
+	sort.Strings(files.Conflicts)
+	sort.Strings(files.Ignored)
+	sort.Strings(files.Binary)
+	for key := range scopes {
+		sort.Strings(scopes[key])
 	}
-
-	blocks := strings.Split(raw, "\n\n")
-	entries := make([]RepoHistoryEntry, 0, len(blocks))
-	for _, block := range blocks {
-		block = strings.TrimSpace(block)
-		if block == "" {
-			continue
-		}
-		lines := strings.Split(block, "\n")
-		if len(lines) == 0 {
-			continue
-		}
-		header := lines[0]
-		parts := strings.Split(header, "\x00")
-		if len(parts) < 4 {
-			continue
-		}
-		entry := RepoHistoryEntry{
-			Hash:    strings.TrimSpace(parts[0]),
-			Author:  strings.TrimSpace(parts[1]),
-			Date:    strings.TrimSpace(parts[2]),
-			Subject: strings.TrimSpace(parts[3]),
-			Files:   []string{},
-		}
-		for _, line := range lines[1:] {
-			path := strings.TrimSpace(line)
-			if path == "" {
-				continue
-			}
-			entry.Files = append(entry.Files, path)
-		}
-		if entry.Hash == "" {
-			continue
-		}
-		entries = append(entries, entry)
-	}
-
-	return entries
-}
-
-func detectScopes(files RepoFilesStatus) map[string][]string {
-	scopes := map[string][]string{}
-	for _, path := range append(append(append(files.Staged, files.Unstaged...), files.Untracked...), files.Conflicts...) {
-		key := scopeKeyForPath(path)
-		scopes[key] = append(scopes[key], path)
-	}
-	for _, path := range files.Ignored {
-		key := scopeKeyForPath(path)
-		scopes[key] = append(scopes[key], path)
-	}
-	return scopes
-}
-
-func scopeKeyForPath(path string) string {
-	trimmed := strings.TrimLeft(path, "/")
-	parts := strings.Split(trimmed, "/")
-	if len(parts) >= 2 && parts[0] == "scenarios" {
-		return "scenario:" + parts[1]
-	}
-	if len(parts) >= 2 && parts[0] == "resources" {
-		return "resource:" + parts[1]
-	}
-	if len(parts) >= 2 && parts[0] == "packages" {
-		return "package:" + parts[1]
-	}
-	if len(parts) >= 2 && parts[0] == "apps" {
-		return "app:" + parts[1]
-	}
-	if len(parts) >= 2 && parts[0] == "services" {
-		return "service:" + parts[1]
-	}
-	return "other"
 }

@@ -310,8 +310,8 @@ describe("testFailureContextItems", () => {
   it("includes verification hint in markdown", () => {
     const items = testFailureContextItems([makeTestPhase()], "my-scenario");
     expect(items).toHaveLength(1);
-    expect(items[0]!.markdown).toContain("`vrooli scenario test my-scenario`");
-    expect(items[0]!.markdown).toContain("test-genie");
+    expect(items[0]?.markdown).toContain("`vrooli scenario test my-scenario`");
+    expect(items[0]?.markdown).toContain("test-genie");
   });
 
   it("filters out non-failed phases", () => {
@@ -320,12 +320,12 @@ describe("testFailureContextItems", () => {
       "s",
     );
     expect(items).toHaveLength(1);
-    expect(items[0]!.id).toBe("test-integration");
+    expect(items[0]?.id).toBe("test-integration");
   });
 
   it("includes phase metadata in markdown", () => {
     const items = testFailureContextItems([makeTestPhase()], "s");
-    const md = items[0]!.markdown;
+    const md = items[0]?.markdown;
     expect(md).toContain('### Fix: Test failure in "unit-tests"');
     expect(md).toContain("**Duration:** 12s");
     expect(md).toContain("**Classification:** assertion-failure");
@@ -337,12 +337,12 @@ describe("codeQualityContextItems", () => {
   it("includes verification hint in markdown", () => {
     const items = codeQualityContextItems([makeTidinessIssue()], "my-scenario");
     expect(items).toHaveLength(1);
-    expect(items[0]!.markdown).toContain("`tidiness-manager scan my-scenario`");
+    expect(items[0]?.markdown).toContain("`tidiness-manager scan my-scenario`");
   });
 
   it("includes issue details in markdown", () => {
     const items = codeQualityContextItems([makeTidinessIssue()], "s");
-    const md = items[0]!.markdown;
+    const md = items[0]?.markdown;
     expect(md).toContain("### Fix: Unused import");
     expect(md).toContain("`src/utils.ts`:5");
     expect(md).toContain("**Category:** lint");
@@ -354,12 +354,12 @@ describe("ruleViolationContextItems", () => {
   it("includes verification hint in markdown", () => {
     const items = ruleViolationContextItems([makeViolation()], "my-scenario");
     expect(items).toHaveLength(1);
-    expect(items[0]!.markdown).toContain("`scenario-auditor scan my-scenario`");
+    expect(items[0]?.markdown).toContain("`scenario-auditor scan my-scenario`");
   });
 
   it("includes violation details in markdown", () => {
     const items = ruleViolationContextItems([makeViolation()], "s");
-    const md = items[0]!.markdown;
+    const md = items[0]?.markdown;
     expect(md).toContain("### Fix: Missing test target");
     expect(md).toContain("**Rule:** makefile-lifecycle");
     expect(md).toContain("**Severity:** high");

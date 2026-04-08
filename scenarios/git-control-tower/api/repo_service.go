@@ -157,16 +157,32 @@ func (s *RepoService) Resolve(ctx context.Context, r *http.Request) (ResolvedRep
 		return ResolvedRepo{ID: repo.ID, Path: repo.Path, Source: "explicit"}, nil
 	}
 
-	if s.store != nil {
-		if active, err := s.store.GetActive(ctx); err == nil && active != nil {
-			if err := s.validateRepo(ctx, active.Path); err != nil {
-				return ResolvedRepo{}, newRepoError(RepoErrorInvalid, "active repository is not accessible", err)
-			}
-			_ = s.store.TouchLastOpened(ctx, active.ID)
-			return ResolvedRepo{ID: active.ID, Path: active.Path, Source: "active"}, nil
-		}
+	if resolved, resolveErr, tried := s.resolveFromActive(ctx); tried {
+		return resolved, resolveErr
 	}
 
+	return s.resolveFromRoot(ctx)
+}
+
+// resolveFromActive attempts to resolve from the active repo in the store.
+// Returns (repo, nil, true) on success, (empty, err, true) on validation failure,
+// or (empty, nil, false) if no active repo was found.
+func (s *RepoService) resolveFromActive(ctx context.Context) (ResolvedRepo, error, bool) {
+	if s.store == nil {
+		return ResolvedRepo{}, nil, false
+	}
+	active, err := s.store.GetActive(ctx)
+	if err != nil || active == nil {
+		return ResolvedRepo{}, nil, false
+	}
+	if err := s.validateRepo(ctx, active.Path); err != nil {
+		return ResolvedRepo{}, newRepoError(RepoErrorInvalid, "active repository is not accessible", err), true
+	}
+	_ = s.store.TouchLastOpened(ctx, active.ID)
+	return ResolvedRepo{ID: active.ID, Path: active.Path, Source: "active"}, nil, true
+}
+
+func (s *RepoService) resolveFromRoot(ctx context.Context) (ResolvedRepo, error) {
 	root := strings.TrimSpace(s.git.ResolveRepoRoot(ctx))
 	if root == "" {
 		return ResolvedRepo{}, newRepoError(RepoErrorMissing, "repository root could not be resolved", nil)

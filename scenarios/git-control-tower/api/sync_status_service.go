@@ -156,6 +156,30 @@ func generateSafetyWarnings(resp *SyncStatusResponse, status *RepoStatus) []stri
 	return warnings
 }
 
+func recommendUncommittedActions(summary RepoStatusSummary) []string {
+	var recs []string
+	if summary.Staged > 0 {
+		recs = append(recs, "Commit staged changes or stash them")
+	}
+	if summary.Unstaged > 0 {
+		recs = append(recs, "Stage and commit changes, or stash them")
+	}
+	return recs
+}
+
+func recommendSyncDirection(needsPull, needsPush bool) string {
+	if needsPull && needsPush {
+		return "Pull remote changes first, then push"
+	}
+	if needsPull {
+		return "Pull to update local branch"
+	}
+	if needsPush {
+		return "Push to update remote branch"
+	}
+	return ""
+}
+
 // generateRecommendations creates suggested actions.
 func generateRecommendations(resp *SyncStatusResponse, status *RepoStatus) []string {
 	var recs []string
@@ -170,20 +194,11 @@ func generateRecommendations(resp *SyncStatusResponse, status *RepoStatus) []str
 	}
 
 	if resp.HasUncommittedChanges {
-		if status.Summary.Staged > 0 {
-			recs = append(recs, "Commit staged changes or stash them")
-		}
-		if status.Summary.Unstaged > 0 {
-			recs = append(recs, "Stage and commit changes, or stash them")
-		}
+		recs = append(recs, recommendUncommittedActions(status.Summary)...)
 	}
 
-	if resp.NeedsPull && resp.NeedsPush {
-		recs = append(recs, "Pull remote changes first, then push")
-	} else if resp.NeedsPull {
-		recs = append(recs, "Pull to update local branch")
-	} else if resp.NeedsPush {
-		recs = append(recs, "Push to update remote branch")
+	if rec := recommendSyncDirection(resp.NeedsPull, resp.NeedsPush); rec != "" {
+		recs = append(recs, rec)
 	}
 
 	if len(recs) == 0 && !resp.HasUncommittedChanges && !resp.NeedsPush && !resp.NeedsPull {

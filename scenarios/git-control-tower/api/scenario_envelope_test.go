@@ -55,6 +55,19 @@ func TestParseServiceJSON_FullData(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
+	t.Run("service fields", func(t *testing.T) {
+		assertEnvelopeServiceFields(t, env)
+	})
+	t.Run("dependencies", func(t *testing.T) {
+		assertEnvelopeDependencies(t, env)
+	})
+	t.Run("lifecycle", func(t *testing.T) {
+		assertEnvelopeLifecycle(t, env)
+	})
+}
+
+func assertEnvelopeServiceFields(t *testing.T, env *ScenarioEnvelopeResponse) {
+	t.Helper()
 	if env.Name != "my-scenario" {
 		t.Errorf("Name = %q, want %q", env.Name, "my-scenario")
 	}
@@ -70,8 +83,10 @@ func TestParseServiceJSON_FullData(t *testing.T) {
 	if len(env.Tags) != 2 || env.Tags[0] != "web" || env.Tags[1] != "api" {
 		t.Errorf("Tags = %v, want [web api]", env.Tags)
 	}
+}
 
-	// Dependencies.
+func assertEnvelopeDependencies(t *testing.T, env *ScenarioEnvelopeResponse) {
+	t.Helper()
 	if len(env.Dependencies.Scenarios) != 2 {
 		t.Errorf("got %d scenario deps, want 2", len(env.Dependencies.Scenarios))
 	}
@@ -84,12 +99,13 @@ func TestParseServiceJSON_FullData(t *testing.T) {
 	if env.Dependencies.Resources["postgres"] != "Database" {
 		t.Errorf("postgres dep = %q, want %q", env.Dependencies.Resources["postgres"], "Database")
 	}
+}
 
-	// Lifecycle — test command is last step in lifecycle.test.
+func assertEnvelopeLifecycle(t *testing.T, env *ScenarioEnvelopeResponse) {
+	t.Helper()
 	if env.Lifecycle.TestCommand != "test-genie execute my-scenario --preset comprehensive" {
 		t.Errorf("TestCommand = %q, want test-genie command", env.Lifecycle.TestCommand)
 	}
-	// Build command is first setup step whose name contains "build".
 	if env.Lifecycle.BuildCommand != "go build -o api ." {
 		t.Errorf("BuildCommand = %q, want %q", env.Lifecycle.BuildCommand, "go build -o api .")
 	}

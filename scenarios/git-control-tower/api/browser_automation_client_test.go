@@ -27,8 +27,11 @@ func TestBASClient_GetScreenshotData(t *testing.T) {
 	defer server.Close()
 
 	client := &BrowserAutomationClient{
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-		resolver:   discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "browser-automation-studio",
+		},
 	}
 
 	data, contentType, err := client.GetScreenshotData(context.Background(), "/api/v1/screenshots/artifacts/ss-1.png")
@@ -55,8 +58,11 @@ func TestBASClient_GetScreenshotData_ServerError(t *testing.T) {
 	defer server.Close()
 
 	client := &BrowserAutomationClient{
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-		resolver:   discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "browser-automation-studio",
+		},
 	}
 
 	_, _, err := client.GetScreenshotData(context.Background(), "/api/v1/screenshots/artifacts/ss-1.png")
@@ -83,8 +89,11 @@ func TestBASClient_ExecuteAdhocWorkflow(t *testing.T) {
 	defer server.Close()
 
 	client := &BrowserAutomationClient{
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-		resolver:   discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "browser-automation-studio",
+		},
 	}
 
 	resp, err := client.ExecuteAdhocWorkflow(context.Background(), BASExecuteAdhocRequest{
@@ -116,8 +125,11 @@ func TestBASClient_ExecuteAdhocWorkflow_RequiresVideo(t *testing.T) {
 	defer server.Close()
 
 	client := &BrowserAutomationClient{
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-		resolver:   discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "browser-automation-studio",
+		},
 	}
 
 	resp, err := client.ExecuteAdhocWorkflow(context.Background(), BASExecuteAdhocRequest{
@@ -152,8 +164,11 @@ func TestBASClient_PollExecutionCompletion(t *testing.T) {
 	defer server.Close()
 
 	client := &BrowserAutomationClient{
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-		resolver:   discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "browser-automation-studio",
+		},
 	}
 
 	detail, err := client.PollExecutionCompletion(context.Background(), "exec-poll", 10*time.Millisecond)
@@ -184,8 +199,11 @@ func TestBASClient_PollExecutionCompletion_Failed(t *testing.T) {
 	defer server.Close()
 
 	client := &BrowserAutomationClient{
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-		resolver:   discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "browser-automation-studio",
+		},
 	}
 
 	detail, err := client.PollExecutionCompletion(context.Background(), "exec-fail", 10*time.Millisecond)
@@ -221,8 +239,11 @@ func TestBASClient_GetScreenshots(t *testing.T) {
 	defer server.Close()
 
 	client := &BrowserAutomationClient{
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-		resolver:   discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "browser-automation-studio",
+		},
 	}
 
 	resp, err := client.GetScreenshots(context.Background(), "exec-456")
@@ -257,8 +278,11 @@ func TestBASClient_GetRecordedVideos(t *testing.T) {
 	defer server.Close()
 
 	client := &BrowserAutomationClient{
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-		resolver:   discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "browser-automation-studio",
+		},
 	}
 
 	resp, err := client.GetRecordedVideos(context.Background(), "exec-789")
@@ -289,8 +313,11 @@ func TestBASClient_GetVideoData(t *testing.T) {
 	defer server.Close()
 
 	client := &BrowserAutomationClient{
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-		resolver:   discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "browser-automation-studio",
+		},
 	}
 
 	data, contentType, err := client.GetVideoData(context.Background(), "/api/v1/recordings/assets/exec-789/artifacts/videos/vid-1.webm")

@@ -103,8 +103,8 @@ export function CommitPanel({
   const showPushAction = Boolean(onPush && aheadCount > 0);
   const pushDisabled = isPushing || !canPush;
   const handlePushClick = onPush ?? (() => {});
-  const pushTargetLabel = pushTarget ? `Target: ${pushTarget}` : undefined;
-  const sourceLabel =
+  const _pushTargetLabel = pushTarget ? `Target: ${pushTarget}` : undefined;
+  const _sourceLabel =
     sourceBranch && pushTarget && !pushTarget.endsWith(`/${sourceBranch}`)
       ? `from ${sourceBranch}`
       : undefined;

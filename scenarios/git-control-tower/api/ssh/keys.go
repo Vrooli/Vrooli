@@ -12,18 +12,33 @@ import (
 
 // DiscoverKeys scans the SSH directory for SSH key files.
 func DiscoverKeys(platform Platform, sshDir string) ([]KeyInfo, error) {
-	if sshDir == "" {
-		var err error
-		sshDir, err = platform.GetSSHDir()
-		if err != nil {
-			return nil, err
-		}
+	sshDir, err := resolveSSHDir(platform, sshDir)
+	if err != nil {
+		return nil, err
 	}
 
-	// Check if directory exists
+	entries, err := readSSHDirEntries(sshDir)
+	if err != nil || entries == nil {
+		return []KeyInfo{}, err
+	}
+
+	return collectKeys(platform, sshDir, entries), nil
+}
+
+// resolveSSHDir returns the SSH directory, using the platform default if empty.
+func resolveSSHDir(platform Platform, sshDir string) (string, error) {
+	if sshDir != "" {
+		return sshDir, nil
+	}
+	return platform.GetSSHDir()
+}
+
+// readSSHDirEntries reads directory entries from the SSH directory.
+// Returns nil entries (no error) if the directory does not exist.
+func readSSHDirEntries(sshDir string) ([]os.DirEntry, error) {
 	info, err := os.Stat(sshDir)
 	if os.IsNotExist(err) {
-		return []KeyInfo{}, nil
+		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("cannot access SSH directory: %w", err)
@@ -31,89 +46,56 @@ func DiscoverKeys(platform Platform, sshDir string) ([]KeyInfo, error) {
 	if !info.IsDir() {
 		return nil, fmt.Errorf("~/.ssh is not a directory")
 	}
-
-	// Read directory contents
 	entries, err := os.ReadDir(sshDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read SSH directory: %w", err)
 	}
+	return entries, nil
+}
 
+// isKeyCandidate returns true if the directory entry should be considered as a potential SSH key.
+func isKeyCandidate(entry os.DirEntry) bool {
+	if entry.IsDir() {
+		return false
+	}
+	name := entry.Name()
+	return !strings.HasSuffix(name, ".pub") && !IsProtectedFile(name)
+}
+
+// collectKeys parses all key candidates from the given directory entries.
+func collectKeys(platform Platform, sshDir string, entries []os.DirEntry) []KeyInfo {
 	keys := []KeyInfo{}
 	for _, entry := range entries {
-		if entry.IsDir() {
+		if !isKeyCandidate(entry) {
 			continue
 		}
-
-		name := entry.Name()
-		// Skip public keys, known_hosts, config, etc.
-		if strings.HasSuffix(name, ".pub") ||
-			IsProtectedFile(name) {
-			continue
-		}
-
-		keyPath := filepath.Join(sshDir, name)
-		keyInfo, err := parseKeyFile(platform, keyPath)
+		keyInfo, err := parseKeyFile(platform, filepath.Join(sshDir, entry.Name()))
 		if err != nil {
-			// Skip files that aren't valid SSH keys
 			continue
 		}
 		keys = append(keys, keyInfo)
 	}
-
-	return keys, nil
+	return keys
 }
 
 // parseKeyFile extracts information from an SSH key file.
 func parseKeyFile(platform Platform, keyPath string) (KeyInfo, error) {
-	// Read the first few bytes to check if it's a private key
-	file, err := os.Open(keyPath)
+	firstLine, err := readFirstLine(keyPath)
 	if err != nil {
 		return KeyInfo{}, err
 	}
-	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
-	if !scanner.Scan() {
-		return KeyInfo{}, fmt.Errorf("empty file")
-	}
-
-	firstLine := scanner.Text()
 	if !strings.HasPrefix(firstLine, "-----BEGIN") {
 		return KeyInfo{}, fmt.Errorf("not a PEM-encoded key")
 	}
 
-	// Determine key type from header
-	keyType := KeyTypeUnknown
-	if strings.Contains(firstLine, "OPENSSH PRIVATE KEY") {
-		// OpenSSH format - need to check public key for actual type
-		keyType = KeyTypeUnknown // Will be determined from fingerprint output
-	} else if strings.Contains(firstLine, "RSA PRIVATE KEY") {
-		keyType = KeyTypeRSA
-	} else if strings.Contains(firstLine, "DSA PRIVATE KEY") {
-		keyType = KeyTypeDSA
-	} else if strings.Contains(firstLine, "EC PRIVATE KEY") {
-		keyType = KeyTypeECDSA
-	}
-
-	// Check if public key exists
+	keyType := keyTypeFromPEMHeader(firstLine)
 	pubKeyPath := keyPath + ".pub"
-	hasPublic := false
-	if _, err := os.Stat(pubKeyPath); err == nil {
-		hasPublic = true
-	}
+	hasPublic := fileExists(pubKeyPath)
 
-	// Get fingerprint and more info using ssh-keygen
 	fingerprint, keyTypeFromFP, bits, comment := getKeyFingerprint(platform, pubKeyPath)
-
 	if keyType == KeyTypeUnknown && keyTypeFromFP != KeyTypeUnknown {
 		keyType = keyTypeFromFP
-	}
-
-	// Get file modification time
-	stat, _ := os.Stat(keyPath)
-	createdAt := ""
-	if stat != nil {
-		createdAt = stat.ModTime().Format(time.RFC3339)
 	}
 
 	return KeyInfo{
@@ -123,9 +105,53 @@ func parseKeyFile(platform Platform, keyPath string) (KeyInfo, error) {
 		Bits:        bits,
 		Fingerprint: fingerprint,
 		Comment:     comment,
-		CreatedAt:   createdAt,
+		CreatedAt:   fileModTime(keyPath),
 		HasPublic:   hasPublic,
 	}, nil
+}
+
+// readFirstLine reads the first line of a file.
+func readFirstLine(path string) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	if !scanner.Scan() {
+		return "", fmt.Errorf("empty file")
+	}
+	return scanner.Text(), nil
+}
+
+// keyTypeFromPEMHeader determines the key type from a PEM header line.
+func keyTypeFromPEMHeader(header string) KeyType {
+	switch {
+	case strings.Contains(header, "RSA PRIVATE KEY"):
+		return KeyTypeRSA
+	case strings.Contains(header, "DSA PRIVATE KEY"):
+		return KeyTypeDSA
+	case strings.Contains(header, "EC PRIVATE KEY"):
+		return KeyTypeECDSA
+	default:
+		return KeyTypeUnknown
+	}
+}
+
+// fileExists returns true if the file at path exists.
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+// fileModTime returns the modification time of a file as an RFC3339 string, or empty on error.
+func fileModTime(path string) string {
+	stat, err := os.Stat(path)
+	if err != nil {
+		return ""
+	}
+	return stat.ModTime().Format(time.RFC3339)
 }
 
 // getKeyFingerprint uses ssh-keygen to get the fingerprint of a public key.

@@ -49,6 +49,14 @@ func (r *GoModResolver) Init(repoRoot string) error {
 	return r.initError
 }
 
+// parseGoWorkLine processes a single line from a use block or single-line use directive.
+func (r *GoModResolver) parseGoWorkLine(line, repoRoot string) {
+	modDir := strings.Trim(line, "\t \"")
+	if modDir != "" && !strings.HasPrefix(modDir, "//") {
+		r.addModuleFromDir(repoRoot, modDir)
+	}
+}
+
 // parseGoWork parses a go.work file to find workspace modules
 func (r *GoModResolver) parseGoWork(workPath, repoRoot string) error {
 	file, err := os.Open(workPath)
@@ -57,13 +65,12 @@ func (r *GoModResolver) parseGoWork(workPath, repoRoot string) error {
 	}
 	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
+	sc := bufio.NewScanner(file)
 	inUseBlock := false
 
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
 
-		// Handle use block
 		if strings.HasPrefix(line, "use (") {
 			inUseBlock = true
 			continue
@@ -73,15 +80,10 @@ func (r *GoModResolver) parseGoWork(workPath, repoRoot string) error {
 			continue
 		}
 		if inUseBlock {
-			// Parse module directory from use block
-			modDir := strings.Trim(line, "\t \"")
-			if modDir != "" && !strings.HasPrefix(modDir, "//") {
-				r.addModuleFromDir(repoRoot, modDir)
-			}
+			r.parseGoWorkLine(line, repoRoot)
 			continue
 		}
 
-		// Handle single-line use directives
 		if strings.HasPrefix(line, "use ") {
 			modDir := strings.TrimSpace(strings.TrimPrefix(line, "use "))
 			modDir = strings.Trim(modDir, "\"")
@@ -91,7 +93,7 @@ func (r *GoModResolver) parseGoWork(workPath, repoRoot string) error {
 		}
 	}
 
-	return scanner.Err()
+	return sc.Err()
 }
 
 // scanGoModFiles walks the directory tree to find go.mod files
@@ -154,17 +156,8 @@ func (r *GoModResolver) addModuleFromGoMod(goModPath, modDir string) {
 	}
 }
 
-// Resolve resolves a Go module import to a file path
-func (r *GoModResolver) Resolve(importSource string, fromFile string, repoRoot string) string {
-	// Initialize if needed (ignore errors - continue even with initialization errors)
-	_ = r.Init(repoRoot)
-
-	// Skip relative imports
-	if strings.HasPrefix(importSource, ".") {
-		return ""
-	}
-
-	// Skip standard library imports (no dots in the first path segment)
+// isStdLibImport returns true if the import source looks like a Go standard library import.
+func isStdLibImport(importSource string) bool {
 	firstSlash := strings.Index(importSource, "/")
 	var firstSegment string
 	if firstSlash == -1 {
@@ -172,53 +165,57 @@ func (r *GoModResolver) Resolve(importSource string, fromFile string, repoRoot s
 	} else {
 		firstSegment = importSource[:firstSlash]
 	}
-	if !strings.Contains(firstSegment, ".") {
-		return "" // Standard library
-	}
+	return !strings.Contains(firstSegment, ".")
+}
 
-	// Find the longest matching module prefix
-	var longestMatch string
-	var matchedDir string
-	for modulePath, moduleDir := range r.modules {
-		if importSource == modulePath || strings.HasPrefix(importSource, modulePath+"/") {
-			if len(modulePath) > len(longestMatch) {
-				longestMatch = modulePath
-				matchedDir = moduleDir
+// findLongestModuleMatch finds the longest matching module prefix for an import.
+func (r *GoModResolver) findLongestModuleMatch(importSource string) (modulePath, moduleDir string, found bool) {
+	for mp, md := range r.modules {
+		if importSource == mp || strings.HasPrefix(importSource, mp+"/") {
+			if len(mp) > len(modulePath) {
+				modulePath = mp
+				moduleDir = md
+				found = true
 			}
 		}
 	}
+	return
+}
 
-	if longestMatch == "" {
-		return "" // No matching module found
-	}
-
-	// Calculate the sub-path within the module
+// buildLocalPath computes the local filesystem path for an import within a matched module.
+func buildLocalPath(importSource, longestMatch, matchedDir string) string {
 	subPath := strings.TrimPrefix(importSource, longestMatch)
 	subPath = strings.TrimPrefix(subPath, "/")
 
-	// Build the local file path
-	var localPath string
 	if matchedDir == "" {
-		localPath = subPath
-	} else {
-		localPath = filepath.Join(matchedDir, subPath)
+		return subPath
 	}
+	return filepath.Join(matchedDir, subPath)
+}
 
-	// Try to find the actual file
-	// For Go, imports can refer to packages (directories) or specific files
+// resolveGoPackageDir tries to find a non-test .go file in a package directory.
+func resolveGoPackageDir(absLocalPath, localPath string) string {
+	entries, err := os.ReadDir(absLocalPath)
+	if err != nil {
+		return ""
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".go") &&
+			!strings.HasSuffix(entry.Name(), "_test.go") {
+			return filepath.Join(localPath, entry.Name())
+		}
+	}
+	return ""
+}
+
+// resolveLocalFile tries various strategies to resolve a local path to an actual file.
+func resolveLocalFile(localPath, repoRoot string) string {
 	absLocalPath := filepath.Join(repoRoot, localPath)
 
-	// Check if it's a directory (package)
+	// Check if it's a directory (package) - find a .go file
 	if info, err := os.Stat(absLocalPath); err == nil && info.IsDir() {
-		// Find a .go file in this directory (preferring non-test files)
-		entries, err := os.ReadDir(absLocalPath)
-		if err == nil {
-			for _, entry := range entries {
-				if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".go") &&
-					!strings.HasSuffix(entry.Name(), "_test.go") {
-					return filepath.Join(localPath, entry.Name())
-				}
-			}
+		if result := resolveGoPackageDir(absLocalPath, localPath); result != "" {
+			return result
 		}
 	}
 
@@ -234,6 +231,26 @@ func (r *GoModResolver) Resolve(importSource string, fromFile string, repoRoot s
 	}
 
 	return ""
+}
+
+// Resolve resolves a Go module import to a file path
+func (r *GoModResolver) Resolve(importSource string, fromFile string, repoRoot string) string {
+	_ = r.Init(repoRoot)
+
+	if strings.HasPrefix(importSource, ".") {
+		return ""
+	}
+	if isStdLibImport(importSource) {
+		return ""
+	}
+
+	longestMatch, matchedDir, found := r.findLongestModuleMatch(importSource)
+	if !found {
+		return ""
+	}
+
+	localPath := buildLocalPath(importSource, longestMatch, matchedDir)
+	return resolveLocalFile(localPath, repoRoot)
 }
 
 // GetModules returns the discovered modules (for testing/debugging)

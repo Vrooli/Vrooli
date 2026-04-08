@@ -36,8 +36,11 @@ func TestAuditorClient_StartCheck(t *testing.T) {
 	defer server.Close()
 
 	client := &AuditorClient{
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-		resolver:   discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "scenario-auditor",
+		},
 	}
 
 	result, err := client.StartCheck(context.Background(), "my-scenario", "full")
@@ -64,8 +67,11 @@ func TestAuditorClient_StartCheck_ServerError(t *testing.T) {
 	defer server.Close()
 
 	client := &AuditorClient{
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-		resolver:   discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "scenario-auditor",
+		},
 	}
 
 	_, err := client.StartCheck(context.Background(), "my-scenario", "full")
@@ -101,8 +107,11 @@ func TestAuditorClient_GetJobStatus(t *testing.T) {
 	defer server.Close()
 
 	client := &AuditorClient{
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-		resolver:   discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "scenario-auditor",
+		},
 	}
 
 	result, err := client.GetJobStatus(context.Background(), "standards-abc123")
@@ -142,8 +151,11 @@ func TestAuditorClient_ListRules(t *testing.T) {
 	defer server.Close()
 
 	client := &AuditorClient{
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-		resolver:   discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "scenario-auditor",
+		},
 	}
 
 	result, err := client.ListRules(context.Background())
@@ -175,8 +187,11 @@ func TestAuditorClient_ApplyFix(t *testing.T) {
 	defer server.Close()
 
 	client := &AuditorClient{
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-		resolver:   discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "scenario-auditor",
+		},
 	}
 
 	result, err := client.ApplyFix(context.Background(), AuditorFixRequest{
@@ -218,8 +233,11 @@ func TestAuditorClient_GetViolations(t *testing.T) {
 	defer server.Close()
 
 	client := &AuditorClient{
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-		resolver:   discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "scenario-auditor",
+		},
 	}
 
 	result, err := client.GetViolations(context.Background(), "my-scenario")

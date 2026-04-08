@@ -10,14 +10,11 @@ import (
 	"net/http"
 	"sync"
 	"time"
-
-	"github.com/vrooli/api-core/discovery"
 )
 
 // AgentManagerClient is a lightweight HTTP client for agent-manager APIs.
 type AgentManagerClient struct {
-	httpClient     *http.Client
-	resolver       *discovery.Resolver
+	BaseClient
 	maxRetries     int
 	retryBaseDelay time.Duration
 
@@ -28,7 +25,7 @@ type AgentManagerClient struct {
 // NewAgentManagerClient creates a new agent-manager client with the given timeout.
 func NewAgentManagerClient(timeout time.Duration) *AgentManagerClient {
 	return &AgentManagerClient{
-		httpClient:     &http.Client{Timeout: timeout},
+		BaseClient:     NewBaseClient("agent-manager", timeout),
 		maxRetries:     2,
 		retryBaseDelay: 200 * time.Millisecond,
 	}
@@ -42,13 +39,7 @@ func (c *AgentManagerClient) resolveBaseURL(ctx context.Context) (string, error)
 		return cached, nil
 	}
 
-	var url string
-	var err error
-	if c.resolver != nil {
-		url, err = c.resolver.ResolveScenarioURLDefault(ctx, "agent-manager")
-	} else {
-		url, err = discovery.ResolveScenarioURLDefault(ctx, "agent-manager")
-	}
+	url, err := c.BaseClient.resolveBaseURL(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -68,11 +59,10 @@ func (c *AgentManagerClient) clearCachedURL() {
 // isRetryable returns true for transport-level errors and gateway status codes.
 func isRetryable(err error, statusCode int) bool {
 	if err != nil {
-		// Connection refused, timeout, DNS errors.
 		if _, ok := err.(net.Error); ok {
 			return true
 		}
-		return true // Any transport error is retryable.
+		return true
 	}
 	switch statusCode {
 	case http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
@@ -253,7 +243,7 @@ func (c *AgentManagerClient) UploadAttachment(ctx context.Context, body io.Reade
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, parseAgentManagerError(resp)
+		return nil, c.parseError(resp)
 	}
 
 	var result wireUploadAttachmentResponse
@@ -269,70 +259,45 @@ func (c *AgentManagerClient) doJSON(ctx context.Context, path string, body, resu
 		return fmt.Errorf("marshal request: %w", err)
 	}
 
-	var lastErr error
-	for attempt := 0; attempt <= c.maxRetries; attempt++ {
-		if attempt > 0 {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(c.retryDelay(attempt - 1)):
-			}
-		}
-
-		baseURL, err := c.resolveBaseURL(ctx)
-		if err != nil {
-			lastErr = fmt.Errorf("resolve agent-manager url: %w", err)
-			c.clearCachedURL()
-			continue
-		}
-
+	return c.doWithRetry(ctx, func(baseURL string) (*http.Response, error) {
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+path, bytes.NewReader(bodyBytes))
 		if err != nil {
-			return fmt.Errorf("create request: %w", err)
+			return nil, fmt.Errorf("create request: %w", err)
 		}
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Accept", "application/json")
-
-		resp, err := c.httpClient.Do(req)
-		if err != nil {
-			lastErr = fmt.Errorf("agent-manager request failed: %w", err)
-			c.clearCachedURL()
-			if isRetryable(err, 0) {
-				continue
-			}
-			return lastErr
-		}
-
-		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-			amErr := parseAgentManagerError(resp)
-			resp.Body.Close()
-			if isRetryable(nil, resp.StatusCode) {
-				lastErr = amErr
-				c.clearCachedURL()
-				continue
-			}
-			return amErr
-		}
-
-		decodeErr := json.NewDecoder(resp.Body).Decode(result)
-		resp.Body.Close()
-		if decodeErr != nil {
-			return fmt.Errorf("decode response: %w", decodeErr)
-		}
-		return nil
-	}
-	return lastErr
+		return c.httpClient.Do(req)
+	}, result, func(code int) bool {
+		return code == http.StatusOK || code == http.StatusCreated
+	})
 }
 
 func (c *AgentManagerClient) doGet(ctx context.Context, path string, result interface{}) error {
+	return c.doWithRetry(ctx, func(baseURL string) (*http.Response, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+path, nil)
+		if err != nil {
+			return nil, fmt.Errorf("create request: %w", err)
+		}
+		req.Header.Set("Accept", "application/json")
+		return c.httpClient.Do(req)
+	}, result, func(code int) bool {
+		return code == http.StatusOK
+	})
+}
+
+// doWithRetry executes an HTTP request with retry logic.
+// makeReq builds the request given a resolved base URL.
+// isSuccess checks whether a status code indicates success.
+func (c *AgentManagerClient) doWithRetry(
+	ctx context.Context,
+	makeReq func(baseURL string) (*http.Response, error),
+	result interface{},
+	isSuccess func(int) bool,
+) error {
 	var lastErr error
 	for attempt := 0; attempt <= c.maxRetries; attempt++ {
-		if attempt > 0 {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(c.retryDelay(attempt - 1)):
-			}
+		if err := c.waitForRetry(ctx, attempt); err != nil {
+			return err
 		}
 
 		baseURL, err := c.resolveBaseURL(ctx)
@@ -342,13 +307,7 @@ func (c *AgentManagerClient) doGet(ctx context.Context, path string, result inte
 			continue
 		}
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+path, nil)
-		if err != nil {
-			return fmt.Errorf("create request: %w", err)
-		}
-		req.Header.Set("Accept", "application/json")
-
-		resp, err := c.httpClient.Do(req)
+		resp, err := makeReq(baseURL)
 		if err != nil {
 			lastErr = fmt.Errorf("agent-manager request failed: %w", err)
 			c.clearCachedURL()
@@ -358,8 +317,8 @@ func (c *AgentManagerClient) doGet(ctx context.Context, path string, result inte
 			return lastErr
 		}
 
-		if resp.StatusCode != http.StatusOK {
-			amErr := parseAgentManagerError(resp)
+		if !isSuccess(resp.StatusCode) {
+			amErr := c.parseError(resp)
 			resp.Body.Close()
 			if isRetryable(nil, resp.StatusCode) {
 				lastErr = amErr
@@ -379,19 +338,15 @@ func (c *AgentManagerClient) doGet(ctx context.Context, path string, result inte
 	return lastErr
 }
 
-func parseAgentManagerError(resp *http.Response) error {
-	body, _ := io.ReadAll(resp.Body)
-	var errResp struct {
-		Error   string `json:"error"`
-		Message string `json:"message"`
+// waitForRetry sleeps with backoff for retry attempts > 0, respecting context cancellation.
+func (c *AgentManagerClient) waitForRetry(ctx context.Context, attempt int) error {
+	if attempt == 0 {
+		return nil
 	}
-	if err := json.Unmarshal(body, &errResp); err == nil {
-		if errResp.Error != "" {
-			return fmt.Errorf("agent-manager error: %s", errResp.Error)
-		}
-		if errResp.Message != "" {
-			return fmt.Errorf("agent-manager error: %s", errResp.Message)
-		}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(c.retryDelay(attempt - 1)):
+		return nil
 	}
-	return fmt.Errorf("agent-manager error: status %d, body: %s", resp.StatusCode, string(body))
 }

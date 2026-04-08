@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -140,35 +141,50 @@ func ParseServiceJSON(data []byte, slug string) (*ScenarioEnvelopeResponse, erro
 		return nil, fmt.Errorf("invalid service.json: %w", err)
 	}
 
-	// Ensure non-nil slices/maps for clean JSON output.
 	tags := svc.Service.Tags
 	if tags == nil {
 		tags = []string{}
 	}
 
-	scenarioDeps := make(map[string]string, len(svc.Dependencies.Scenarios))
-	for name, dep := range svc.Dependencies.Scenarios {
+	return &ScenarioEnvelopeResponse{
+		Name:         svc.Service.Name,
+		DisplayName:  svc.Service.DisplayName,
+		Description:  svc.Service.Description,
+		Path:         fmt.Sprintf("scenarios/%s", slug),
+		Tags:         tags,
+		Dependencies: extractDependencies(svc.Dependencies),
+		Lifecycle:    extractLifecycle(svc.Lifecycle, slug),
+	}, nil
+}
+
+// extractDependencies converts serviceJSONDependencies to ScenarioEnvelopeDependencies.
+func extractDependencies(deps serviceJSONDependencies) ScenarioEnvelopeDependencies {
+	scenarioDeps := make(map[string]string, len(deps.Scenarios))
+	for name, dep := range deps.Scenarios {
 		scenarioDeps[name] = dep.Description
 	}
-
-	resourceDeps := make(map[string]string, len(svc.Dependencies.Resources))
-	for name, dep := range svc.Dependencies.Resources {
+	resourceDeps := make(map[string]string, len(deps.Resources))
+	for name, dep := range deps.Resources {
 		resourceDeps[name] = dep.Description
 	}
+	return ScenarioEnvelopeDependencies{
+		Scenarios: scenarioDeps,
+		Resources: resourceDeps,
+	}
+}
 
-	// Extract test command: use the last step in lifecycle.test (typically the actual test runner).
+// extractLifecycle extracts test and build commands from the lifecycle configuration.
+func extractLifecycle(lc serviceJSONLifecycle, slug string) ScenarioEnvelopeLifecycle {
 	testCmd := fmt.Sprintf("vrooli scenario test %s", slug)
-	if svc.Lifecycle.Test != nil && len(svc.Lifecycle.Test.Steps) > 0 {
-		last := svc.Lifecycle.Test.Steps[len(svc.Lifecycle.Test.Steps)-1]
-		if last.Run != "" {
+	if lc.Test != nil && len(lc.Test.Steps) > 0 {
+		if last := lc.Test.Steps[len(lc.Test.Steps)-1]; last.Run != "" {
 			testCmd = last.Run
 		}
 	}
 
-	// Extract build command: first setup step whose name contains "build".
 	var buildCmd string
-	if svc.Lifecycle.Setup != nil {
-		for _, step := range svc.Lifecycle.Setup.Steps {
+	if lc.Setup != nil {
+		for _, step := range lc.Setup.Steps {
 			if containsBuild(step.Name) && step.Run != "" {
 				buildCmd = step.Run
 				break
@@ -176,35 +192,15 @@ func ParseServiceJSON(data []byte, slug string) (*ScenarioEnvelopeResponse, erro
 		}
 	}
 
-	return &ScenarioEnvelopeResponse{
-		Name:        svc.Service.Name,
-		DisplayName: svc.Service.DisplayName,
-		Description: svc.Service.Description,
-		Path:        fmt.Sprintf("scenarios/%s", slug),
-		Tags:        tags,
-		Dependencies: ScenarioEnvelopeDependencies{
-			Scenarios: scenarioDeps,
-			Resources: resourceDeps,
-		},
-		Lifecycle: ScenarioEnvelopeLifecycle{
-			TestCommand:  testCmd,
-			BuildCommand: buildCmd,
-		},
-	}, nil
+	return ScenarioEnvelopeLifecycle{
+		TestCommand:  testCmd,
+		BuildCommand: buildCmd,
+	}
 }
 
 // containsBuild checks if a step name indicates a build step (case-insensitive substring match).
 func containsBuild(name string) bool {
-	for i := 0; i+5 <= len(name); i++ {
-		if (name[i] == 'b' || name[i] == 'B') &&
-			(name[i+1] == 'u' || name[i+1] == 'U') &&
-			(name[i+2] == 'i' || name[i+2] == 'I') &&
-			(name[i+3] == 'l' || name[i+3] == 'L') &&
-			(name[i+4] == 'd' || name[i+4] == 'D') {
-			return true
-		}
-	}
-	return false
+	return strings.Contains(strings.ToLower(name), "build")
 }
 
 // =============================================================================

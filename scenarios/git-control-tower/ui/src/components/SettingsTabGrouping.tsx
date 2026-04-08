@@ -2,6 +2,14 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "./ui/button";
 import type { GroupingRule } from "./FileList";
 
+
+/** Extract the prefixes array from a rule, falling back to the singular prefix field. */
+function getRulePrefixes(rule: GroupingRule): string[] {
+  if (rule.prefixes && rule.prefixes.length > 0) return rule.prefixes;
+  if (rule.prefix) return [rule.prefix];
+  return [""];
+}
+
 interface SettingsTabGroupingProps {
   groupingEnabled: boolean;
   onToggleGrouping: () => void;
@@ -17,12 +25,6 @@ function createRule(): GroupingRule {
     prefixes: [""],
     mode: "prefix"
   };
-}
-
-function getRulePrefixes(rule: GroupingRule) {
-  if (Array.isArray(rule.prefixes) && rule.prefixes.length > 0) return rule.prefixes;
-  if (typeof rule.prefix === "string" && rule.prefix.trim()) return [rule.prefix];
-  return [""];
 }
 
 export function SettingsTabGrouping({
@@ -164,13 +166,13 @@ export function SettingsTabGrouping({
                         </Button>
                       </div>
                       <div className="space-y-2">
-                        {prefixes.map((prefix, prefixIndex) => (
+                        {prefixes.map((prefix: string, prefixIndex: number) => (
                           <div key={`${rule.id}-prefix-${prefixIndex}`} className="flex items-center gap-2">
                             <input
                               type="text"
                               value={prefix}
                               onChange={(event) => {
-                                const nextPrefixes = prefixes.map((item, itemIndex) =>
+                                const nextPrefixes = prefixes.map((item: string, itemIndex: number) =>
                                   itemIndex === prefixIndex ? event.target.value : item
                                 );
                                 const nextRules = rules.map((item) =>
@@ -187,7 +189,7 @@ export function SettingsTabGrouping({
                               type="button"
                               className="h-10 w-10 inline-flex items-center justify-center rounded-full border border-slate-800 text-slate-400 hover:bg-slate-800/60 active:bg-slate-700 touch-target"
                               onClick={() => {
-                                const nextPrefixes = prefixes.filter((_, itemIndex) => itemIndex !== prefixIndex);
+                                const nextPrefixes = prefixes.filter((_: string, itemIndex: number) => itemIndex !== prefixIndex);
                                 const normalizedPrefixes = nextPrefixes.length > 0 ? nextPrefixes : [""];
                                 const nextRules = rules.map((item) =>
                                   item.id === rule.id
@@ -348,13 +350,13 @@ export function SettingsTabGrouping({
                         </Button>
                       </div>
                       <div className="space-y-2">
-                        {prefixes.map((prefix, prefixIndex) => (
+                        {prefixes.map((prefix: string, prefixIndex: number) => (
                           <div key={`${rule.id}-prefix-${prefixIndex}`} className="flex items-center gap-2">
                             <input
                               type="text"
                               value={prefix}
                               onChange={(event) => {
-                                const nextPrefixes = prefixes.map((item, itemIndex) =>
+                                const nextPrefixes = prefixes.map((item: string, itemIndex: number) =>
                                   itemIndex === prefixIndex ? event.target.value : item
                                 );
                                 const nextRules = rules.map((item) =>
@@ -371,7 +373,7 @@ export function SettingsTabGrouping({
                               type="button"
                               className="h-7 w-7 inline-flex items-center justify-center rounded-full border border-slate-800 text-slate-400 hover:bg-slate-800/60"
                               onClick={() => {
-                                const nextPrefixes = prefixes.filter((_, itemIndex) => itemIndex !== prefixIndex);
+                                const nextPrefixes = prefixes.filter((_: string, itemIndex: number) => itemIndex !== prefixIndex);
                                 const normalizedPrefixes = nextPrefixes.length > 0 ? nextPrefixes : [""];
                                 const nextRules = rules.map((item) =>
                                   item.id === rule.id

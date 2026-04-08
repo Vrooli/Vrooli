@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -169,39 +170,45 @@ func (s *Server) handleSaveFileContent(w http.ResponseWriter, r *http.Request) {
 		RepoDir: hctx.RepoDir,
 	}, req)
 	if err != nil {
-		var tooLarge *FileTooLargeError
-		if errors.As(err, &tooLarge) {
-			hctx.Resp.PayloadTooLarge(tooLarge.Error())
-			return
-		}
-		var unsupported *UnsupportedBinaryError
-		if errors.As(err, &unsupported) {
-			hctx.Resp.UnsupportedMediaType(unsupported.Error())
-			return
-		}
-		var conflict *FileContentConflictError
-		if errors.As(err, &conflict) {
-			hctx.Resp.JSON(http.StatusConflict, SaveFileContentConflictResponse{
-				Error:       conflict.Error(),
-				Path:        conflict.Path,
-				CurrentHash: conflict.CurrentHash,
-				Timestamp:   time.Now().UTC(),
-			})
-			return
-		}
-		if strings.Contains(err.Error(), "invalid path") {
-			hctx.Resp.BadRequest(err.Error())
-			return
-		}
-		if strings.Contains(err.Error(), "file not found") || strings.Contains(err.Error(), "directory") {
-			hctx.Resp.NotFound(err.Error())
-			return
-		}
-		hctx.Resp.InternalError(err.Error())
+		respondSaveFileError(hctx.Resp, err)
 		return
 	}
 
 	hctx.Resp.OK(result)
+}
+
+// respondSaveFileError maps SaveFileContent errors to appropriate HTTP responses.
+func respondSaveFileError(resp *HTTPResponse, err error) {
+	var tooLarge *FileTooLargeError
+	if errors.As(err, &tooLarge) {
+		resp.PayloadTooLarge(tooLarge.Error())
+		return
+	}
+	var unsupported *UnsupportedBinaryError
+	if errors.As(err, &unsupported) {
+		resp.UnsupportedMediaType(unsupported.Error())
+		return
+	}
+	var conflict *FileContentConflictError
+	if errors.As(err, &conflict) {
+		resp.JSON(http.StatusConflict, SaveFileContentConflictResponse{
+			Error:       conflict.Error(),
+			Path:        conflict.Path,
+			CurrentHash: conflict.CurrentHash,
+			Timestamp:   time.Now().UTC(),
+		})
+		return
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "invalid path") {
+		resp.BadRequest(msg)
+		return
+	}
+	if strings.Contains(msg, "file not found") || strings.Contains(msg, "directory") {
+		resp.NotFound(msg)
+		return
+	}
+	resp.InternalError(msg)
 }
 
 // handleContentSearch handles GET /api/v1/repo/search/content
@@ -213,7 +220,31 @@ func (s *Server) handleContentSearch(w http.ResponseWriter, r *http.Request) {
 	}
 	defer hctx.Cancel()
 
-	// Parse query parameters
+	req, err := parseContentSearchRequest(r)
+	if err != nil {
+		hctx.Resp.BadRequest(err.Error())
+		return
+	}
+
+	result, searchErr := SearchContent(hctx.Ctx, ContentSearchDeps{
+		Git:     hctx.Git,
+		RepoDir: hctx.RepoDir,
+	}, req)
+	if searchErr != nil {
+		// Check if it's a validation error
+		if strings.Contains(searchErr.Error(), "query") || strings.Contains(searchErr.Error(), "regex") {
+			hctx.Resp.BadRequest(searchErr.Error())
+			return
+		}
+		hctx.Resp.InternalError(searchErr.Error())
+		return
+	}
+
+	hctx.Resp.OK(result)
+}
+
+// parseContentSearchRequest parses and validates query parameters for content search.
+func parseContentSearchRequest(r *http.Request) (ContentSearchRequest, error) {
 	query := r.URL.Query()
 	req := ContentSearchRequest{
 		Query:         query.Get("query"),
@@ -224,49 +255,29 @@ func (s *Server) handleContentSearch(w http.ResponseWriter, r *http.Request) {
 		Exclude:       query.Get("exclude"),
 	}
 
-	// Parse context_lines
 	if contextStr := query.Get("context_lines"); contextStr != "" {
 		contextLines, err := strconv.Atoi(contextStr)
 		if err != nil || contextLines < 0 {
-			hctx.Resp.BadRequest("context_lines must be a non-negative integer")
-			return
+			return req, fmt.Errorf("context_lines must be a non-negative integer")
 		}
 		req.ContextLines = contextLines
 	}
 
-	// Parse limit
 	if limitStr := query.Get("limit"); limitStr != "" {
 		limit, err := strconv.Atoi(limitStr)
 		if err != nil || limit <= 0 {
-			hctx.Resp.BadRequest("limit must be a positive integer")
-			return
+			return req, fmt.Errorf("limit must be a positive integer")
 		}
 		req.Limit = limit
 	}
 
-	// Parse timeout
 	if timeoutStr := query.Get("timeout"); timeoutStr != "" {
 		timeout, err := strconv.Atoi(timeoutStr)
 		if err != nil || timeout <= 0 {
-			hctx.Resp.BadRequest("timeout must be a positive integer")
-			return
+			return req, fmt.Errorf("timeout must be a positive integer")
 		}
 		req.Timeout = timeout
 	}
 
-	result, err := SearchContent(hctx.Ctx, ContentSearchDeps{
-		Git:     hctx.Git,
-		RepoDir: hctx.RepoDir,
-	}, req)
-	if err != nil {
-		// Check if it's a validation error
-		if strings.Contains(err.Error(), "query") || strings.Contains(err.Error(), "regex") {
-			hctx.Resp.BadRequest(err.Error())
-			return
-		}
-		hctx.Resp.InternalError(err.Error())
-		return
-	}
-
-	hctx.Resp.OK(result)
+	return req, nil
 }

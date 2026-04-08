@@ -38,8 +38,11 @@ func testCaptureSetup(t *testing.T, basHandler http.HandlerFunc) (VisualCaptureD
 	}
 
 	basClient := &BrowserAutomationClient{
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-		resolver:   discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "browser-automation-studio",
+		},
 	}
 
 	return VisualCaptureDeps{
@@ -162,11 +165,12 @@ func TestSanitizeFilename(t *testing.T) {
 	}
 }
 
-func TestCaptureScenario_BASPartialFailure(t *testing.T) {
-	t.Parallel()
-
+// partialFailureHandler returns a BAS handler where failExecIDs return empty screenshots.
+func partialFailureHandler(t *testing.T, failExecIDs map[string]bool) http.HandlerFunc {
+	t.Helper()
 	var execCount int32
-	deps, _ := testCaptureSetup(t, func(w http.ResponseWriter, r *http.Request) {
+
+	return func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/api/v1/workflows/execute-adhoc" && r.Method == http.MethodPost:
 			n := atomic.AddInt32(&execCount, 1)
@@ -178,8 +182,7 @@ func TestCaptureScenario_BASPartialFailure(t *testing.T) {
 		case strings.HasPrefix(r.URL.Path, "/api/v1/executions/") && strings.HasSuffix(r.URL.Path, "/screenshots"):
 			execID := strings.TrimPrefix(r.URL.Path, "/api/v1/executions/")
 			execID = strings.TrimSuffix(execID, "/screenshots")
-			if execID == "exec-2" {
-				// Second page returns no screenshots (simulate failure)
+			if failExecIDs[execID] {
 				_ = json.NewEncoder(w).Encode(BASScreenshotsResponse{Total: 0})
 				return
 			}
@@ -210,7 +213,13 @@ func TestCaptureScenario_BASPartialFailure(t *testing.T) {
 		default:
 			w.WriteHeader(404)
 		}
-	})
+	}
+}
+
+func TestCaptureScenario_BASPartialFailure(t *testing.T) {
+	t.Parallel()
+
+	deps, _ := testCaptureSetup(t, partialFailureHandler(t, map[string]bool{"exec-2": true}))
 
 	meta, err := CaptureScenario(context.Background(), deps, VisualCaptureRequest{
 		ScenarioSlug: "test-app",
@@ -273,88 +282,140 @@ func TestCaptureScenario_FullFlow(t *testing.T) {
 	}
 }
 
-func TestBuildScreenshotWorkflow(t *testing.T) {
-	t.Parallel()
-
-	wfJSON, err := buildScreenshotWorkflow("my-app", LighthousePage{Path: "/dashboard", Label: "Dashboard"}, CapturePreset{Name: "Desktop Dark", Width: 1920, Height: 1080, Theme: "dark"})
+// workflowMap parses buildScreenshotWorkflow output into a generic map for assertion helpers.
+func workflowMap(t *testing.T, scenario string, page LighthousePage, preset CapturePreset) map[string]interface{} {
+	t.Helper()
+	wfJSON, err := buildScreenshotWorkflow(scenario, page, preset)
 	if err != nil {
 		t.Fatalf("buildScreenshotWorkflow returned error: %v", err)
 	}
-
 	var wf map[string]interface{}
 	if err := json.Unmarshal(wfJSON, &wf); err != nil {
 		t.Fatalf("failed to unmarshal workflow JSON: %v", err)
 	}
+	return wf
+}
 
-	// Check settings
-	settings := wf["settings"].(map[string]interface{})
-	if int(settings["viewport_width"].(float64)) != 1920 {
-		t.Errorf("expected viewport_width 1920, got %v", settings["viewport_width"])
+// workflowNodes extracts the nodes slice from a workflow map.
+func workflowNodes(t *testing.T, wf map[string]interface{}) []map[string]interface{} {
+	t.Helper()
+	raw := wf["nodes"].([]interface{})
+	out := make([]map[string]interface{}, len(raw))
+	for i, r := range raw {
+		out[i] = r.(map[string]interface{})
 	}
-	bp := settings["browser_profile"].(map[string]interface{})
-	fp := bp["fingerprint"].(map[string]interface{})
-	if fp["color_scheme"] != "dark" {
-		t.Errorf("expected color_scheme dark, got %v", fp["color_scheme"])
-	}
+	return out
+}
 
-	// 4 nodes: navigate → wait-settled → set-theme → screenshot
-	nodes := wf["nodes"].([]interface{})
+// nodeAction returns the "action" sub-map for a workflow node.
+func nodeAction(t *testing.T, node map[string]interface{}) map[string]interface{} {
+	t.Helper()
+	return node["action"].(map[string]interface{})
+}
+
+// workflowEdges extracts the edges as typed maps from a workflow map.
+func workflowEdges(t *testing.T, wf map[string]interface{}) []map[string]interface{} {
+	t.Helper()
+	raw := wf["edges"].([]interface{})
+	out := make([]map[string]interface{}, len(raw))
+	for i, r := range raw {
+		out[i] = r.(map[string]interface{})
+	}
+	return out
+}
+
+func TestBuildScreenshotWorkflow(t *testing.T) {
+	t.Parallel()
+
+	wf := workflowMap(t, "my-app", LighthousePage{Path: "/dashboard", Label: "Dashboard"}, CapturePreset{Name: "Desktop Dark", Width: 1920, Height: 1080, Theme: "dark"})
+	nodes := workflowNodes(t, wf)
 	if len(nodes) != 4 {
 		t.Fatalf("expected 4 nodes, got %d", len(nodes))
 	}
 
-	// Navigate node
-	navNode := nodes[0].(map[string]interface{})
-	nav := navNode["action"].(map[string]interface{})["navigate"].(map[string]interface{})
-	if nav["scenario"] != "my-app" {
-		t.Errorf("expected scenario my-app, got %v", nav["scenario"])
-	}
-	if nav["scenario_path"] != "/dashboard" {
-		t.Errorf("expected scenario_path /dashboard, got %v", nav["scenario_path"])
-	}
+	t.Run("settings", func(t *testing.T) {
+		assertWorkflowSettings(t, wf, 1920, "dark")
+	})
 
-	// Settle node (evaluate with spinner poll)
-	settleNode := nodes[1].(map[string]interface{})
-	settleAction := settleNode["action"].(map[string]interface{})
-	if settleAction["type"] != "ACTION_TYPE_EVALUATE" {
-		t.Errorf("expected ACTION_TYPE_EVALUATE, got %v", settleAction["type"])
+	t.Run("navigate node", func(t *testing.T) {
+		assertNavigateNode(t, nodes[0], "my-app", "/dashboard")
+	})
+
+	t.Run("settle node", func(t *testing.T) {
+		assertSettleNode(t, nodes[1])
+	})
+
+	t.Run("theme node", func(t *testing.T) {
+		action := nodeAction(t, nodes[2])
+		expr := action["evaluate"].(map[string]interface{})["expression"].(string)
+		if !strings.Contains(expr, "colorScheme") {
+			t.Errorf("theme expression should set colorScheme, got: %s", expr)
+		}
+	})
+
+	t.Run("screenshot node", func(t *testing.T) {
+		action := nodeAction(t, nodes[3])
+		if action["type"] != "ACTION_TYPE_SCREENSHOT" {
+			t.Errorf("expected ACTION_TYPE_SCREENSHOT, got %v", action["type"])
+		}
+	})
+
+	t.Run("edges", func(t *testing.T) {
+		assertWorkflowEdges(t, wf)
+	})
+}
+
+func assertWorkflowSettings(t *testing.T, wf map[string]interface{}, wantWidth int, wantColorScheme string) {
+	t.Helper()
+	settings := wf["settings"].(map[string]interface{})
+	if int(settings["viewport_width"].(float64)) != wantWidth {
+		t.Errorf("expected viewport_width %d, got %v", wantWidth, settings["viewport_width"])
 	}
-	expr := settleAction["evaluate"].(map[string]interface{})["expression"].(string)
+	bp := settings["browser_profile"].(map[string]interface{})
+	fp := bp["fingerprint"].(map[string]interface{})
+	if fp["color_scheme"] != wantColorScheme {
+		t.Errorf("expected color_scheme %s, got %v", wantColorScheme, fp["color_scheme"])
+	}
+}
+
+func assertNavigateNode(t *testing.T, node map[string]interface{}, wantScenario, wantPath string) {
+	t.Helper()
+	nav := nodeAction(t, node)["navigate"].(map[string]interface{})
+	if nav["scenario"] != wantScenario {
+		t.Errorf("expected scenario %s, got %v", wantScenario, nav["scenario"])
+	}
+	if nav["scenario_path"] != wantPath {
+		t.Errorf("expected scenario_path %s, got %v", wantPath, nav["scenario_path"])
+	}
+}
+
+func assertSettleNode(t *testing.T, node map[string]interface{}) {
+	t.Helper()
+	action := nodeAction(t, node)
+	if action["type"] != "ACTION_TYPE_EVALUATE" {
+		t.Errorf("expected ACTION_TYPE_EVALUATE, got %v", action["type"])
+	}
+	expr := action["evaluate"].(map[string]interface{})["expression"].(string)
 	if !strings.Contains(expr, "animate-spin") {
 		t.Errorf("settle expression should check for animate-spin spinners")
 	}
+}
 
-	// Theme node
-	themeNode := nodes[2].(map[string]interface{})
-	themeAction := themeNode["action"].(map[string]interface{})
-	themeExpr := themeAction["evaluate"].(map[string]interface{})["expression"].(string)
-	if !strings.Contains(themeExpr, "colorScheme") {
-		t.Errorf("theme expression should set colorScheme, got: %s", themeExpr)
-	}
-
-	// Screenshot node
-	ssNode := nodes[3].(map[string]interface{})
-	ssAction := ssNode["action"].(map[string]interface{})
-	if ssAction["type"] != "ACTION_TYPE_SCREENSHOT" {
-		t.Errorf("expected ACTION_TYPE_SCREENSHOT, got %v", ssAction["type"])
-	}
-
-	// Check edges: navigate→wait-settled→set-theme→screenshot
-	edges := wf["edges"].([]interface{})
+func assertWorkflowEdges(t *testing.T, wf map[string]interface{}) {
+	t.Helper()
+	edges := workflowEdges(t, wf)
 	if len(edges) != 3 {
 		t.Fatalf("expected 3 edges, got %d", len(edges))
 	}
-	e1 := edges[0].(map[string]interface{})
-	if e1["source"] != "navigate" || e1["target"] != "wait-settled" {
-		t.Errorf("expected edge navigate->wait-settled, got %v->%v", e1["source"], e1["target"])
+	wantEdges := []struct{ source, target string }{
+		{"navigate", "wait-settled"},
+		{"wait-settled", "set-theme"},
+		{"set-theme", "screenshot"},
 	}
-	e2 := edges[1].(map[string]interface{})
-	if e2["source"] != "wait-settled" || e2["target"] != "set-theme" {
-		t.Errorf("expected edge wait-settled->set-theme, got %v->%v", e2["source"], e2["target"])
-	}
-	e3 := edges[2].(map[string]interface{})
-	if e3["source"] != "set-theme" || e3["target"] != "screenshot" {
-		t.Errorf("expected edge set-theme->screenshot, got %v->%v", e3["source"], e3["target"])
+	for i, want := range wantEdges {
+		if edges[i]["source"] != want.source || edges[i]["target"] != want.target {
+			t.Errorf("edge %d: got %v->%v, want %v->%v", i, edges[i]["source"], edges[i]["target"], want.source, want.target)
+		}
 	}
 }
 

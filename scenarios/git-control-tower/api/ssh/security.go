@@ -57,14 +57,22 @@ func ValidateKeyFilename(filename string) error {
 	if len(filename) > 64 {
 		return fmt.Errorf("filename too long (max 64 characters)")
 	}
-	// Must start with alphanumeric or underscore
-	if len(filename) > 0 {
-		c := filename[0]
-		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_') {
-			return fmt.Errorf("filename must start with alphanumeric character or underscore")
-		}
+	if err := validateFilenameFirstChar(filename[0]); err != nil {
+		return err
 	}
-	// Check for null bytes and other problematic characters
+	return validateFilenameChars(filename)
+}
+
+// validateFilenameFirstChar checks that the first character is alphanumeric or underscore.
+func validateFilenameFirstChar(c byte) error {
+	if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' {
+		return nil
+	}
+	return fmt.Errorf("filename must start with alphanumeric character or underscore")
+}
+
+// validateFilenameChars checks for null bytes and other problematic characters.
+func validateFilenameChars(filename string) error {
 	for _, c := range filename {
 		if c == 0 || c == '\n' || c == '\r' {
 			return fmt.Errorf("filename contains invalid characters")

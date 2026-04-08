@@ -467,20 +467,16 @@ func TestStorage_GetSnapshotSet_ParsesPresetDimensions(t *testing.T) {
 		t.Fatalf("expected 2 screenshots, got %d", len(detail.Screenshots))
 	}
 
-	foundDesktop := false
-	foundMobile := false
-	for _, sf := range detail.Screenshots {
-		if sf.ViewportWidth == 1440 && sf.ViewportHeight == 900 && sf.Theme == "light" {
-			foundDesktop = true
+	assertHasPresetScreenshot(t, detail.Screenshots, 1440, 900, "light", "1440x900 light")
+	assertHasPresetScreenshot(t, detail.Screenshots, 390, 844, "dark", "390x844 dark")
+}
+
+func assertHasPresetScreenshot(t *testing.T, screenshots []SnapshotFile, wantW, wantH int, wantTheme, label string) {
+	t.Helper()
+	for _, sf := range screenshots {
+		if sf.ViewportWidth == wantW && sf.ViewportHeight == wantH && sf.Theme == wantTheme {
+			return
 		}
-		if sf.ViewportWidth == 390 && sf.ViewportHeight == 844 && sf.Theme == "dark" {
-			foundMobile = true
-		}
 	}
-	if !foundDesktop {
-		t.Error("expected screenshot with preset 1440x900 light")
-	}
-	if !foundMobile {
-		t.Error("expected screenshot with preset 390x844 dark")
-	}
+	t.Errorf("expected screenshot with preset %s", label)
 }

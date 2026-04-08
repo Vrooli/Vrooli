@@ -15,6 +15,12 @@ type HealthDeps struct {
 	GroupingDeps GroupingDeps
 }
 
+// normalizedRule pairs a grouping rule with its normalized prefixes.
+type normalizedRule struct {
+	rule     GroupingRule
+	prefixes []string
+}
+
 // AnalyzeGitignoreHealth inspects the root .gitignore and suggests entries
 // that could be moved into group-level .gitignore files.
 func AnalyzeGitignoreHealth(deps HealthDeps) (*GitignoreHealthResponse, error) {
@@ -36,111 +42,9 @@ func AnalyzeGitignoreHealth(deps HealthDeps) (*GitignoreHealthResponse, error) {
 	}
 
 	lines := strings.Split(string(raw), "\n")
-
-	// Count non-blank, non-comment lines.
-	entryCount := 0
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed != "" && !strings.HasPrefix(trimmed, "#") {
-			entryCount++
-		}
-	}
-
-	// Normalize prefixes to have trailing slash.
-	type normalizedRule struct {
-		rule     GroupingRule
-		prefixes []string
-	}
-	var rules []normalizedRule
-	for _, r := range cfg.Rules {
-		var normed []string
-		for _, p := range r.Prefixes {
-			normed = append(normed, normalizePrefix(p))
-		}
-		rules = append(rules, normalizedRule{rule: r, prefixes: normed})
-	}
-
-	var suggestions []GitignoreSuggestion
-
-	for lineIdx, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "!") {
-			continue
-		}
-		lineNum := lineIdx + 1
-
-		for _, nr := range rules {
-			for _, prefix := range nr.prefixes {
-				mode := nr.rule.Mode
-				if mode == "" {
-					mode = "prefix"
-				}
-
-				if !strings.HasPrefix(trimmed, prefix) {
-					continue
-				}
-
-				remainder := trimmed[len(prefix):]
-
-				if mode == "prefix" {
-					groupDir := prefix
-					targetPattern := remainder
-					hasGI := groupGitignoreExists(deps, groupDir)
-					suggestions = append(suggestions, GitignoreSuggestion{
-						Line:          lineNum,
-						Pattern:       trimmed,
-						Type:          "single_group",
-						GroupLabel:    nr.rule.Label,
-						GroupDir:      groupDir,
-						TargetPattern: targetPattern,
-						HasGitignore:  hasGI,
-					})
-				} else {
-					// segment mode
-					if remainder == "" {
-						continue
-					}
-					slashIdx := strings.Index(remainder, "/")
-					var segment, after string
-					if slashIdx < 0 {
-						segment = remainder
-						after = ""
-					} else {
-						segment = remainder[:slashIdx]
-						after = remainder[slashIdx+1:]
-					}
-
-					if containsWildcard(segment) {
-						// cross_group: wildcard in segment
-						hasGI := groupGitignoreExists(deps, prefix)
-						suggestions = append(suggestions, GitignoreSuggestion{
-							Line:          lineNum,
-							Pattern:       trimmed,
-							Type:          "cross_group",
-							GroupLabel:    nr.rule.Label,
-							GroupDir:      prefix,
-							TargetPattern: remainder,
-							HasGitignore:  hasGI,
-						})
-					} else {
-						// single_group
-						groupDir := prefix + segment + "/"
-						targetPattern := after
-						hasGI := groupGitignoreExists(deps, groupDir)
-						suggestions = append(suggestions, GitignoreSuggestion{
-							Line:          lineNum,
-							Pattern:       trimmed,
-							Type:          "single_group",
-							GroupLabel:    segment,
-							GroupDir:      groupDir,
-							TargetPattern: targetPattern,
-							HasGitignore:  hasGI,
-						})
-					}
-				}
-			}
-		}
-	}
+	entryCount := countGitignoreEntries(lines)
+	rules := normalizeRules(cfg.Rules)
+	suggestions := collectSuggestions(deps, lines, rules)
 
 	sort.Slice(suggestions, func(i, j int) bool {
 		return suggestions[i].Line < suggestions[j].Line
@@ -152,24 +56,132 @@ func AnalyzeGitignoreHealth(deps HealthDeps) (*GitignoreHealthResponse, error) {
 	}, nil
 }
 
+// countGitignoreEntries counts non-blank, non-comment lines.
+func countGitignoreEntries(lines []string) int {
+	count := 0
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed != "" && !strings.HasPrefix(trimmed, "#") {
+			count++
+		}
+	}
+	return count
+}
+
+// normalizeRules normalizes prefixes to have trailing slashes.
+func normalizeRules(rules []GroupingRule) []normalizedRule {
+	var result []normalizedRule
+	for _, r := range rules {
+		var normed []string
+		for _, p := range r.Prefixes {
+			normed = append(normed, normalizePrefix(p))
+		}
+		result = append(result, normalizedRule{rule: r, prefixes: normed})
+	}
+	return result
+}
+
+// collectSuggestions scans gitignore lines against rules and collects suggestions.
+func collectSuggestions(deps HealthDeps, lines []string, rules []normalizedRule) []GitignoreSuggestion {
+	var suggestions []GitignoreSuggestion
+	for lineIdx, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "!") {
+			continue
+		}
+		lineNum := lineIdx + 1
+		for _, nr := range rules {
+			suggestions = matchRulePrefixes(deps, trimmed, lineNum, nr, suggestions)
+		}
+	}
+	return suggestions
+}
+
+// matchRulePrefixes checks a single line against all prefixes of a rule.
+func matchRulePrefixes(deps HealthDeps, trimmed string, lineNum int, nr normalizedRule, suggestions []GitignoreSuggestion) []GitignoreSuggestion {
+	for _, prefix := range nr.prefixes {
+		if !strings.HasPrefix(trimmed, prefix) {
+			continue
+		}
+		mode := nr.rule.Mode
+		if mode == "" {
+			mode = "prefix"
+		}
+		remainder := trimmed[len(prefix):]
+
+		if mode == "prefix" {
+			suggestions = append(suggestions, buildPrefixSuggestion(deps, trimmed, lineNum, nr.rule.Label, prefix, remainder))
+		} else {
+			suggestions = appendSegmentSuggestion(deps, trimmed, lineNum, nr.rule.Label, prefix, remainder, suggestions)
+		}
+	}
+	return suggestions
+}
+
+// buildPrefixSuggestion builds a single_group suggestion for prefix mode.
+func buildPrefixSuggestion(deps HealthDeps, pattern string, lineNum int, label, groupDir, targetPattern string) GitignoreSuggestion {
+	return GitignoreSuggestion{
+		Line:          lineNum,
+		Pattern:       pattern,
+		Type:          "single_group",
+		GroupLabel:    label,
+		GroupDir:      groupDir,
+		TargetPattern: targetPattern,
+		HasGitignore:  groupGitignoreExists(deps, groupDir),
+	}
+}
+
+// appendSegmentSuggestion handles segment mode matching and appends suggestions.
+func appendSegmentSuggestion(deps HealthDeps, pattern string, lineNum int, label, prefix, remainder string, suggestions []GitignoreSuggestion) []GitignoreSuggestion {
+	if remainder == "" {
+		return suggestions
+	}
+	slashIdx := strings.Index(remainder, "/")
+	var segment, after string
+	if slashIdx < 0 {
+		segment = remainder
+	} else {
+		segment = remainder[:slashIdx]
+		after = remainder[slashIdx+1:]
+	}
+
+	if containsWildcard(segment) {
+		suggestions = append(suggestions, GitignoreSuggestion{
+			Line:          lineNum,
+			Pattern:       pattern,
+			Type:          "cross_group",
+			GroupLabel:    label,
+			GroupDir:      prefix,
+			TargetPattern: remainder,
+			HasGitignore:  groupGitignoreExists(deps, prefix),
+		})
+	} else {
+		groupDir := prefix + segment + "/"
+		suggestions = append(suggestions, GitignoreSuggestion{
+			Line:          lineNum,
+			Pattern:       pattern,
+			Type:          "single_group",
+			GroupLabel:    segment,
+			GroupDir:      groupDir,
+			TargetPattern: after,
+			HasGitignore:  groupGitignoreExists(deps, groupDir),
+		})
+	}
+	return suggestions
+}
+
 // MoveGitignoreEntry moves a single entry from the root .gitignore into a
 // group-level .gitignore, validating the line number and pattern before acting.
 func MoveGitignoreEntry(deps HealthDeps, req GitignoreMoveRequest) (*GitignoreMoveResponse, error) {
 	if !isCleanSubpath(req.GroupDir) {
-		return &GitignoreMoveResponse{
-			Success: false,
-			Error:   "invalid group directory",
-		}, nil
+		return &GitignoreMoveResponse{Success: false, Error: "invalid group directory"}, nil
 	}
 
 	targetGitignore := filepath.Join(deps.RepoDir, req.GroupDir, ".gitignore")
-
-	// Add entry to group .gitignore first.
 	if err := ensureIgnoreEntriesFS(deps.FS, targetGitignore, []string{req.TargetPattern}); err != nil {
 		return nil, fmt.Errorf("add to group .gitignore: %w", err)
 	}
 
-	// Remove from root .gitignore.
 	rootGitignore := filepath.Join(deps.RepoDir, ".gitignore")
 	raw, err := deps.FS.ReadFile(rootGitignore)
 	if err != nil {
@@ -177,24 +189,33 @@ func MoveGitignoreEntry(deps HealthDeps, req GitignoreMoveRequest) (*GitignoreMo
 	}
 
 	lines := strings.Split(string(raw), "\n")
-	targetIdx := req.Line - 1
-	if targetIdx < 0 || targetIdx >= len(lines) {
-		return &GitignoreMoveResponse{
-			Success: false,
-			Error:   fmt.Sprintf("line %d out of range (file has %d lines)", req.Line, len(lines)),
-		}, nil
-	}
-	if strings.TrimSpace(lines[targetIdx]) != strings.TrimSpace(req.Pattern) {
-		return &GitignoreMoveResponse{
-			Success: false,
-			Error:   fmt.Sprintf("pattern mismatch at line %d: expected %q, got %q", req.Line, req.Pattern, strings.TrimSpace(lines[targetIdx])),
-		}, nil
+	if errMsg := validateLineMatch(lines, req.Line, req.Pattern); errMsg != "" {
+		return &GitignoreMoveResponse{Success: false, Error: errMsg}, nil
 	}
 
-	// Remove the line.
-	lines = append(lines[:targetIdx], lines[targetIdx+1:]...)
+	lines = append(lines[:req.Line-1], lines[req.Line:]...)
+	newContent := strings.Join(collapseBlankLines(lines), "\n")
+	if err := deps.FS.WriteFile(rootGitignore, []byte(newContent), 0o644); err != nil {
+		return nil, fmt.Errorf("write root .gitignore: %w", err)
+	}
 
-	// Collapse consecutive blank lines.
+	return &GitignoreMoveResponse{Success: true, RemovedFrom: rootGitignore, AddedTo: targetGitignore}, nil
+}
+
+// validateLineMatch checks that the line number is in range and the pattern matches.
+func validateLineMatch(lines []string, lineNum int, pattern string) string {
+	idx := lineNum - 1
+	if idx < 0 || idx >= len(lines) {
+		return fmt.Sprintf("line %d out of range (file has %d lines)", lineNum, len(lines))
+	}
+	if strings.TrimSpace(lines[idx]) != strings.TrimSpace(pattern) {
+		return fmt.Sprintf("pattern mismatch at line %d: expected %q, got %q", lineNum, pattern, strings.TrimSpace(lines[idx]))
+	}
+	return ""
+}
+
+// collapseBlankLines removes consecutive blank lines from a slice.
+func collapseBlankLines(lines []string) []string {
 	var collapsed []string
 	prevBlank := false
 	for _, l := range lines {
@@ -205,63 +226,74 @@ func MoveGitignoreEntry(deps HealthDeps, req GitignoreMoveRequest) (*GitignoreMo
 		collapsed = append(collapsed, l)
 		prevBlank = blank
 	}
-
-	newContent := strings.Join(collapsed, "\n")
-	if err := deps.FS.WriteFile(rootGitignore, []byte(newContent), 0o644); err != nil {
-		return nil, fmt.Errorf("write root .gitignore: %w", err)
-	}
-
-	return &GitignoreMoveResponse{
-		Success:     true,
-		RemovedFrom: rootGitignore,
-		AddedTo:     targetGitignore,
-	}, nil
+	return collapsed
 }
 
 // ensureIgnoreEntriesFS is like ensureIgnoreEntries but uses FileIO instead of
 // os directly, enabling test injection.
 func ensureIgnoreEntriesFS(fs FileIO, gitignorePath string, entries []string) error {
-	var content string
-	raw, err := fs.ReadFile(gitignorePath)
+	content, err := readOrCreateGitignore(fs, gitignorePath)
 	if err != nil {
-		if !os.IsNotExist(err) {
-			return fmt.Errorf("read .gitignore: %w", err)
-		}
-		// Create parent directory for new .gitignore files.
-		if mkErr := fs.MkdirAll(filepath.Dir(gitignorePath), 0o755); mkErr != nil {
-			return fmt.Errorf("create directory: %w", mkErr)
-		}
-	} else {
-		content = string(raw)
+		return err
 	}
 
+	existing := parseExistingEntries(content)
+	toAdd := filterNewEntries(entries, existing)
+	if len(toAdd) == 0 {
+		return nil
+	}
+
+	newContent := appendEntries(content, toAdd)
+	if err := fs.WriteFile(gitignorePath, []byte(newContent), 0o644); err != nil {
+		return fmt.Errorf("write .gitignore: %w", err)
+	}
+	return nil
+}
+
+// readOrCreateGitignore reads an existing gitignore or creates its parent directory.
+func readOrCreateGitignore(fs FileIO, gitignorePath string) (string, error) {
+	raw, err := fs.ReadFile(gitignorePath)
+	if err == nil {
+		return string(raw), nil
+	}
+	if !os.IsNotExist(err) {
+		return "", fmt.Errorf("read .gitignore: %w", err)
+	}
+	if mkErr := fs.MkdirAll(filepath.Dir(gitignorePath), 0o755); mkErr != nil {
+		return "", fmt.Errorf("create directory: %w", mkErr)
+	}
+	return "", nil
+}
+
+// parseExistingEntries extracts normalized entry names from gitignore content.
+func parseExistingEntries(content string) map[string]bool {
 	existing := map[string]bool{}
 	for _, line := range strings.Split(content, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
-		normalized := strings.TrimPrefix(trimmed, "/")
-		existing[normalized] = true
+		existing[strings.TrimPrefix(trimmed, "/")] = true
 	}
+	return existing
+}
 
+// filterNewEntries returns entries not already present in the existing set.
+func filterNewEntries(entries []string, existing map[string]bool) []string {
 	var toAdd []string
 	for _, entry := range entries {
 		normalized := strings.TrimPrefix(strings.TrimSpace(entry), "/")
-		if normalized == "" {
-			continue
-		}
-		if existing[normalized] {
+		if normalized == "" || existing[normalized] {
 			continue
 		}
 		existing[normalized] = true
 		toAdd = append(toAdd, normalized)
 	}
+	return toAdd
+}
 
-	if len(toAdd) == 0 {
-		return nil
-	}
-
+// appendEntries appends new entries to existing gitignore content.
+func appendEntries(content string, toAdd []string) string {
 	var builder strings.Builder
 	builder.WriteString(content)
 	if content != "" && !strings.HasSuffix(content, "\n") {
@@ -271,11 +303,7 @@ func ensureIgnoreEntriesFS(fs FileIO, gitignorePath string, entries []string) er
 		builder.WriteString(entry)
 		builder.WriteString("\n")
 	}
-
-	if err := fs.WriteFile(gitignorePath, []byte(builder.String()), 0o644); err != nil {
-		return fmt.Errorf("write .gitignore: %w", err)
-	}
-	return nil
+	return builder.String()
 }
 
 // normalizePrefix ensures the prefix ends with a trailing slash.

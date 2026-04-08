@@ -38,8 +38,11 @@ func TestTidinessManagerClient_GetTidinessScore(t *testing.T) {
 	defer server.Close()
 
 	client := &TidinessManagerClient{
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-		resolver:   discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "tidiness-manager",
+		},
 	}
 
 	result, err := client.GetTidinessScore(context.Background(), "my-scenario")
@@ -69,8 +72,11 @@ func TestTidinessManagerClient_GetTidinessScore_ServerError(t *testing.T) {
 	defer server.Close()
 
 	client := &TidinessManagerClient{
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-		resolver:   discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "tidiness-manager",
+		},
 	}
 
 	_, err := client.GetTidinessScore(context.Background(), "my-scenario")
@@ -101,8 +107,11 @@ func TestTidinessManagerClient_GetIssues(t *testing.T) {
 	defer server.Close()
 
 	client := &TidinessManagerClient{
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-		resolver:   discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "tidiness-manager",
+		},
 	}
 
 	result, err := client.GetIssues(context.Background(), "my-scenario", "", "", "", 100)
@@ -136,8 +145,11 @@ func TestTidinessManagerClient_GetStaleness(t *testing.T) {
 	defer server.Close()
 
 	client := &TidinessManagerClient{
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-		resolver:   discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "tidiness-manager",
+		},
 	}
 
 	result, err := client.GetStaleness(context.Background(), "my-scenario")
@@ -181,8 +193,11 @@ func TestTidinessManagerClient_TriggerLightScan(t *testing.T) {
 	defer server.Close()
 
 	client := &TidinessManagerClient{
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-		resolver:   discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "tidiness-manager",
+		},
 	}
 
 	result, err := client.TriggerLightScan(context.Background(), TidinessLightScanRequest{
@@ -220,8 +235,11 @@ func TestTidinessManagerClient_GetScenarioDetail(t *testing.T) {
 	defer server.Close()
 
 	client := &TidinessManagerClient{
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-		resolver:   discovery.NewStaticResolver(server.URL),
+		BaseClient: BaseClient{
+			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			resolver:    discovery.NewStaticResolver(server.URL),
+			serviceName: "tidiness-manager",
+		},
 	}
 
 	result, err := client.GetScenarioDetail(context.Background(), "my-scenario")

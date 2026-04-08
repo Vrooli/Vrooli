@@ -9,7 +9,7 @@ import type { GroupingRule } from "./FileList";
 import { HistoryFiltersModal } from "./HistoryFiltersModal";
 import { parseCommitGroup, buildContinueMessage } from "../lib/commitGroup";
 import { useIsMobile } from "../hooks";
-import { useLongPress } from "../hooks/useLongPress";
+
 
 interface GitHistoryProps {
   lines?: string[];

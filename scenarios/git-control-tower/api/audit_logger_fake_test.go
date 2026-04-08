@@ -60,7 +60,18 @@ func (l *FakeAuditLogger) Query(_ context.Context, req AuditQueryRequest) (*Audi
 		return nil, l.QueryError
 	}
 
-	// Filter entries based on request
+	filtered := l.filterEntries(req)
+	total := len(filtered)
+	filtered = paginateEntries(filtered, req.Offset, req.Limit)
+
+	return &AuditQueryResponse{
+		Entries:   filtered,
+		Total:     total,
+		Timestamp: time.Now().UTC(),
+	}, nil
+}
+
+func (l *FakeAuditLogger) filterEntries(req AuditQueryRequest) []AuditEntry {
 	var filtered []AuditEntry
 	for _, e := range l.Entries {
 		if req.Operation != "" && e.Operation != req.Operation {
@@ -77,26 +88,20 @@ func (l *FakeAuditLogger) Query(_ context.Context, req AuditQueryRequest) (*Audi
 		}
 		filtered = append(filtered, e)
 	}
+	return filtered
+}
 
-	total := len(filtered)
-
-	// Apply pagination
-	if req.Offset > 0 {
-		if req.Offset >= len(filtered) {
-			filtered = []AuditEntry{}
-		} else {
-			filtered = filtered[req.Offset:]
+func paginateEntries(entries []AuditEntry, offset, limit int) []AuditEntry {
+	if offset > 0 {
+		if offset >= len(entries) {
+			return []AuditEntry{}
 		}
+		entries = entries[offset:]
 	}
-	if req.Limit > 0 && req.Limit < len(filtered) {
-		filtered = filtered[:req.Limit]
+	if limit > 0 && limit < len(entries) {
+		entries = entries[:limit]
 	}
-
-	return &AuditQueryResponse{
-		Entries:   filtered,
-		Total:     total,
-		Timestamp: time.Now().UTC(),
-	}, nil
+	return entries
 }
 
 // --- Test helpers ---

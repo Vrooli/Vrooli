@@ -41,106 +41,144 @@ func CaptureWorkflows(ctx context.Context, deps WorkflowCaptureDeps, req Workflo
 		allowedModes = []string{"observer"}
 	}
 
-	// Discover workflow files
 	workflows, err := discoverWorkflows(deps.FS, deps.RepoDir, req.ScenarioSlug)
 	if err != nil {
 		return nil, fmt.Errorf("discover workflows: %w", err)
 	}
 
-	// Filter by execution mode
 	filtered := filterByExecutionMode(workflows, allowedModes)
 
-	captureID := fmt.Sprintf("%d", time.Now().UnixNano())
 	role := SnapshotRoleCapture
 	if mode == CaptureModeBaseline {
 		role = SnapshotRoleBaseline
 	}
 
-	// Pre-capture cleanup
 	if err := prepareForWorkflowCapture(deps.Storage, deps.RepoID, req.ScenarioSlug, mode); err != nil {
 		log.Printf("WARNING: workflow capture cleanup failed for %s: %v", req.ScenarioSlug, err)
 	}
 
-	// Compute scenario root so BAS can resolve @selector/ references via selectors.manifest.json
 	scenarioRoot := filepath.Join(deps.RepoDir, "scenarios", req.ScenarioSlug)
 
+	results, videos, totalSize := executeFilteredWorkflows(ctx, deps, filtered, scenarioRoot)
+	results = appendSkippedWorkflows(results, workflows, allowedModes)
+	status, captureErr := computeCaptureStatus(results, filtered)
+
+	result := &WorkflowCaptureResult{
+		ID:              fmt.Sprintf("%d", time.Now().UnixNano()),
+		ScenarioSlug:    req.ScenarioSlug,
+		Role:            role,
+		WorkflowResults: results,
+		CreatedAt:       time.Now().UTC(),
+		Status:          status,
+		Error:           captureErr,
+		SizeBytes:       totalSize,
+	}
+
+	if err := deps.Storage.SaveWorkflowCaptureResult(deps.RepoID, req.ScenarioSlug, result, videos); err != nil {
+		return nil, fmt.Errorf("save workflow capture: %w", err)
+	}
+
+	return result, nil
+}
+
+// executeFilteredWorkflows runs each filtered workflow and collects results and video data.
+func executeFilteredWorkflows(ctx context.Context, deps WorkflowCaptureDeps, filtered []discoveredWorkflow, scenarioRoot string) ([]WorkflowExecutionResult, map[string][]byte, int64) {
 	var results []WorkflowExecutionResult
 	var totalSize int64
 	videos := map[string][]byte{}
 
 	for _, wf := range filtered {
-		wfResult := WorkflowExecutionResult{
-			WorkflowName:  wf.Name,
-			ExecutionMode: wf.ExecutionMode,
-			Status:        "passed",
-			VideoStatus:   "none",
-		}
-
-		start := time.Now()
-
-		// Execute the workflow via BAS (adhoc endpoint returns immediately)
-		execResp, err := deps.BAS.ExecuteAdhocWorkflow(ctx, BASExecuteAdhocRequest{
-			FlowDefinition: wf.Definition,
-			Parameters: map[string]interface{}{
-				"project_root": scenarioRoot,
-			},
-		}, true)
-		if err != nil {
-			wfResult.DurationMs = time.Since(start).Milliseconds()
-			wfResult.Status = "error"
-			wfResult.Error = err.Error()
-			results = append(results, wfResult)
-			continue
-		}
-
-		wfResult.ExecutionID = execResp.ExecutionID
-
-		// Poll until the execution completes (adhoc endpoint doesn't wait)
-		detail, pollErr := deps.BAS.PollExecutionCompletion(ctx, execResp.ExecutionID, 500*time.Millisecond)
-		wfResult.DurationMs = time.Since(start).Milliseconds()
-
-		if pollErr != nil {
-			wfResult.Status = "error"
-			wfResult.Error = fmt.Sprintf("poll completion: %v", pollErr)
-			results = append(results, wfResult)
-			continue
-		}
-
-		if detail.Status != "EXECUTION_STATUS_COMPLETED" {
-			wfResult.Status = "failed"
-			wfResult.Error = detail.Error
-		}
-
-		// Fetch recorded videos
-		videosResp, err := deps.BAS.GetRecordedVideos(ctx, execResp.ExecutionID)
-		if err != nil {
-			log.Printf("WARNING: failed to get recorded videos for %s: %v", wf.Name, err)
-			wfResult.VideoStatus = "failed"
-		} else if len(videosResp.Videos) > 0 {
-			wfResult.VideoCount = len(videosResp.Videos)
-			wfResult.VideoStatus = "captured"
-
-			// Download each video
-			for i, vid := range videosResp.Videos {
-				if vid.StorageURL == "" {
-					log.Printf("WARNING: no storage URL for video %s in %s", vid.ArtifactID, wf.Name)
-					continue
-				}
-				data, _, fetchErr := deps.BAS.GetVideoData(ctx, vid.StorageURL)
-				if fetchErr != nil {
-					log.Printf("WARNING: failed to fetch video %s for %s: %v", vid.ArtifactID, wf.Name, fetchErr)
-					continue
-				}
-				filename := fmt.Sprintf("%s_%d.webm", sanitizeFilename(wf.Name), i)
-				videos[filename] = data
-				totalSize += int64(len(data))
-			}
-		}
-
+		wfResult, wfVideos, wfSize := executeSingleWorkflow(ctx, deps, wf, scenarioRoot)
 		results = append(results, wfResult)
+		for k, v := range wfVideos {
+			videos[k] = v
+		}
+		totalSize += wfSize
 	}
 
-	// Mark skipped workflows
+	return results, videos, totalSize
+}
+
+// executeSingleWorkflow runs one workflow, polls for completion, and fetches video artifacts.
+func executeSingleWorkflow(ctx context.Context, deps WorkflowCaptureDeps, wf discoveredWorkflow, scenarioRoot string) (WorkflowExecutionResult, map[string][]byte, int64) {
+	wfResult := WorkflowExecutionResult{
+		WorkflowName:  wf.Name,
+		ExecutionMode: wf.ExecutionMode,
+		Status:        "passed",
+		VideoStatus:   "none",
+	}
+
+	start := time.Now()
+
+	execResp, err := deps.BAS.ExecuteAdhocWorkflow(ctx, BASExecuteAdhocRequest{
+		FlowDefinition: wf.Definition,
+		Parameters: map[string]interface{}{
+			"project_root": scenarioRoot,
+		},
+	}, true)
+	if err != nil {
+		wfResult.DurationMs = time.Since(start).Milliseconds()
+		wfResult.Status = "error"
+		wfResult.Error = err.Error()
+		return wfResult, nil, 0
+	}
+
+	wfResult.ExecutionID = execResp.ExecutionID
+
+	detail, pollErr := deps.BAS.PollExecutionCompletion(ctx, execResp.ExecutionID, 500*time.Millisecond)
+	wfResult.DurationMs = time.Since(start).Milliseconds()
+
+	if pollErr != nil {
+		wfResult.Status = "error"
+		wfResult.Error = fmt.Sprintf("poll completion: %v", pollErr)
+		return wfResult, nil, 0
+	}
+
+	if detail.Status != "EXECUTION_STATUS_COMPLETED" {
+		wfResult.Status = "failed"
+		wfResult.Error = detail.Error
+	}
+
+	videos, totalSize := fetchWorkflowVideos(ctx, deps.BAS, execResp.ExecutionID, wf.Name, &wfResult)
+	return wfResult, videos, totalSize
+}
+
+// fetchWorkflowVideos downloads recorded videos for a workflow execution.
+func fetchWorkflowVideos(ctx context.Context, bas *BrowserAutomationClient, executionID, wfName string, wfResult *WorkflowExecutionResult) (map[string][]byte, int64) {
+	videosResp, err := bas.GetRecordedVideos(ctx, executionID)
+	if err != nil {
+		log.Printf("WARNING: failed to get recorded videos for %s: %v", wfName, err)
+		wfResult.VideoStatus = "failed"
+		return nil, 0
+	}
+	if len(videosResp.Videos) == 0 {
+		return nil, 0
+	}
+
+	wfResult.VideoCount = len(videosResp.Videos)
+	wfResult.VideoStatus = "captured"
+
+	videos := map[string][]byte{}
+	var totalSize int64
+	for i, vid := range videosResp.Videos {
+		if vid.StorageURL == "" {
+			log.Printf("WARNING: no storage URL for video %s in %s", vid.ArtifactID, wfName)
+			continue
+		}
+		data, _, fetchErr := bas.GetVideoData(ctx, vid.StorageURL)
+		if fetchErr != nil {
+			log.Printf("WARNING: failed to fetch video %s for %s: %v", vid.ArtifactID, wfName, fetchErr)
+			continue
+		}
+		filename := fmt.Sprintf("%s_%d.webm", sanitizeFilename(wfName), i)
+		videos[filename] = data
+		totalSize += int64(len(data))
+	}
+	return videos, totalSize
+}
+
+// appendSkippedWorkflows adds skipped entries for workflows not in the allowed modes.
+func appendSkippedWorkflows(results []WorkflowExecutionResult, workflows []discoveredWorkflow, allowedModes []string) []WorkflowExecutionResult {
 	for _, wf := range workflows {
 		if !isInAllowedModes(wf.ExecutionMode, allowedModes) {
 			results = append(results, WorkflowExecutionResult{
@@ -151,9 +189,11 @@ func CaptureWorkflows(ctx context.Context, deps WorkflowCaptureDeps, req Workflo
 			})
 		}
 	}
+	return results
+}
 
-	status := "complete"
-	var captureErr string
+// computeCaptureStatus determines the overall capture status from workflow results.
+func computeCaptureStatus(results []WorkflowExecutionResult, filtered []discoveredWorkflow) (string, string) {
 	hasFailure := false
 	for _, r := range results {
 		if r.Status == "error" || r.Status == "failed" {
@@ -161,37 +201,15 @@ func CaptureWorkflows(ctx context.Context, deps WorkflowCaptureDeps, req Workflo
 			break
 		}
 	}
-	if hasFailure && len(filtered) > 0 {
-		allFailed := true
-		for _, r := range results {
-			if r.Status == "passed" {
-				allFailed = false
-				break
-			}
-		}
-		if allFailed {
-			status = "failed"
-			captureErr = "all workflow executions failed"
+	if !hasFailure || len(filtered) == 0 {
+		return "complete", ""
+	}
+	for _, r := range results {
+		if r.Status == "passed" {
+			return "complete", ""
 		}
 	}
-
-	result := &WorkflowCaptureResult{
-		ID:              captureID,
-		ScenarioSlug:    req.ScenarioSlug,
-		Role:            role,
-		WorkflowResults: results,
-		CreatedAt:       time.Now().UTC(),
-		Status:          status,
-		Error:           captureErr,
-		SizeBytes:       totalSize,
-	}
-
-	// Save to storage
-	if err := deps.Storage.SaveWorkflowCaptureResult(deps.RepoID, req.ScenarioSlug, result, videos); err != nil {
-		return nil, fmt.Errorf("save workflow capture: %w", err)
-	}
-
-	return result, nil
+	return "failed", "all workflow executions failed"
 }
 
 // discoverWorkflows walks scenario BAS directories to find workflow JSON files.

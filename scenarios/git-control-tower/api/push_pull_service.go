@@ -21,22 +21,13 @@ func lookupCredential(ctx context.Context, deps PushPullDeps, remote string) *St
 	return resolveCredentialForRemote(ctx, deps.Git, deps.CredStore, deps.RepoDir, remote)
 }
 
-// PushToRemote pushes commits to the remote repository.
-func PushToRemote(ctx context.Context, deps PushPullDeps, req PushRequest) (*PushResponse, error) {
-	if deps.Git == nil {
-		return nil, fmt.Errorf("git runner is required")
-	}
-	repoDir := strings.TrimSpace(deps.RepoDir)
-	if repoDir == "" {
-		return nil, fmt.Errorf("repo dir is required")
-	}
-
-	remote := strings.TrimSpace(req.Remote)
-
-	// Get current branch if not specified
-	branch := req.Branch
+// resolvePushTarget resolves the remote and branch for a push operation.
+func resolvePushTarget(ctx context.Context, deps PushPullDeps, repoDir string, reqRemote string, reqBranch string) (string, string) {
+	remote := strings.TrimSpace(reqRemote)
+	branch := reqBranch
 	remoteFromUpstream := ""
 	branchFromUpstream := ""
+
 	if branch == "" {
 		status, err := GetRepoStatus(ctx, RepoStatusDeps{
 			Git:     deps.Git,
@@ -62,38 +53,43 @@ func PushToRemote(ctx context.Context, deps PushPullDeps, req PushRequest) (*Pus
 	if remote == "" {
 		remote = "origin"
 	}
+	return remote, branch
+}
+
+func pushFailure(remote, branch, errMsg string) *PushResponse {
+	return &PushResponse{
+		Success:   false,
+		Remote:    remote,
+		Branch:    branch,
+		Error:     errMsg,
+		Timestamp: time.Now().UTC(),
+	}
+}
+
+// PushToRemote pushes commits to the remote repository.
+func PushToRemote(ctx context.Context, deps PushPullDeps, req PushRequest) (*PushResponse, error) {
+	if deps.Git == nil {
+		return nil, fmt.Errorf("git runner is required")
+	}
+	repoDir := strings.TrimSpace(deps.RepoDir)
+	if repoDir == "" {
+		return nil, fmt.Errorf("repo dir is required")
+	}
+
+	remote, branch := resolvePushTarget(ctx, deps, repoDir, req.Remote, req.Branch)
 	if branch == "" {
-		return &PushResponse{
-			Success:   false,
-			Remote:    remote,
-			Branch:    branch,
-			Error:     "branch could not be resolved for push",
-			Timestamp: time.Now().UTC(),
-		}, nil
+		return pushFailure(remote, branch, "branch could not be resolved for push"), nil
 	}
 
 	headOID, headErr := resolveRefOID(ctx, deps, repoDir, "HEAD")
 	if headErr != nil {
-		return &PushResponse{
-			Success:   false,
-			Remote:    remote,
-			Branch:    branch,
-			Error:     headErr.Error(),
-			Timestamp: time.Now().UTC(),
-		}, nil
+		return pushFailure(remote, branch, headErr.Error()), nil
 	}
 	preRemoteOID, preRemoteKnown := resolveRemoteOID(ctx, deps, repoDir, remote, branch)
 
 	cred := lookupCredential(ctx, deps, remote)
-	err := deps.Git.Push(ctx, repoDir, remote, branch, req.SetUpstream, cred)
-	if err != nil {
-		return &PushResponse{
-			Success:   false,
-			Remote:    remote,
-			Branch:    branch,
-			Error:     err.Error(),
-			Timestamp: time.Now().UTC(),
-		}, nil
+	if err := deps.Git.Push(ctx, repoDir, remote, branch, req.SetUpstream, cred); err != nil {
+		return pushFailure(remote, branch, err.Error()), nil
 	}
 
 	resp := &PushResponse{
@@ -102,9 +98,7 @@ func PushToRemote(ctx context.Context, deps PushPullDeps, req PushRequest) (*Pus
 		Branch:    branch,
 		Timestamp: time.Now().UTC(),
 	}
-
 	verifyPushResult(ctx, deps, repoDir, remote, branch, headOID, preRemoteOID, preRemoteKnown, resp)
-
 	return resp, nil
 }
 
@@ -149,6 +143,72 @@ func PullFromRemote(ctx context.Context, deps PushPullDeps, req PullRequest) (*P
 	}, nil
 }
 
+// resolveUpstreamBranch resolves the branch for an upstream action, falling back to HEAD.
+func resolveUpstreamBranch(ctx context.Context, deps PushPullDeps, repoDir string, branch string) string {
+	if branch != "" {
+		return branch
+	}
+	status, err := GetRepoStatus(ctx, RepoStatusDeps{
+		Git:     deps.Git,
+		RepoDir: repoDir,
+	})
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(status.Branch.Head)
+}
+
+func handleFetchAction(ctx context.Context, deps PushPullDeps, repoDir string, resp *UpstreamActionResponse) {
+	if resp.Remote == "" {
+		resp.Remote = "origin"
+	}
+	cred := lookupCredential(ctx, deps, resp.Remote)
+	if err := deps.Git.FetchRemote(ctx, repoDir, resp.Remote, cred); err != nil {
+		resp.Error = err.Error()
+		return
+	}
+	resp.Success = true
+}
+
+func handlePushSetUpstreamAction(ctx context.Context, deps PushPullDeps, repoDir string, resp *UpstreamActionResponse) {
+	if resp.Remote == "" {
+		resp.Remote = "origin"
+	}
+	resp.Branch = resolveUpstreamBranch(ctx, deps, repoDir, resp.Branch)
+	if resp.Branch == "" {
+		resp.Error = "branch could not be resolved for push"
+		return
+	}
+	pushResp, err := PushToRemote(ctx, deps, PushRequest{
+		Remote:      resp.Remote,
+		Branch:      resp.Branch,
+		SetUpstream: true,
+	})
+	if err != nil {
+		resp.Error = err.Error()
+		return
+	}
+	resp.Success = pushResp.Success
+	resp.Error = pushResp.Error
+}
+
+func handleSetUpstreamAction(ctx context.Context, deps PushPullDeps, repoDir string, resp *UpstreamActionResponse) {
+	if resp.Upstream == "" {
+		resp.Error = "upstream is required"
+		return
+	}
+	resp.Branch = resolveUpstreamBranch(ctx, deps, repoDir, resp.Branch)
+	if resp.Branch == "" {
+		resp.Error = "branch could not be resolved for upstream"
+		return
+	}
+	if err := deps.Git.SetUpstream(ctx, repoDir, resp.Branch, resp.Upstream); err != nil {
+		resp.Error = err.Error()
+		return
+	}
+	resp.Success = true
+}
+
 // RunUpstreamAction executes a safe, whitelisted upstream action.
 func RunUpstreamAction(ctx context.Context, deps PushPullDeps, req UpstreamActionRequest) (*UpstreamActionResponse, error) {
 	if deps.Git == nil {
@@ -168,73 +228,18 @@ func RunUpstreamAction(ctx context.Context, deps PushPullDeps, req UpstreamActio
 		Timestamp: time.Now().UTC(),
 	}
 
-	resolveBranch := func() string {
-		if resp.Branch != "" {
-			return resp.Branch
-		}
-		status, err := GetRepoStatus(ctx, RepoStatusDeps{
-			Git:     deps.Git,
-			RepoDir: repoDir,
-		})
-		if err != nil {
-			return ""
-		}
-		return strings.TrimSpace(status.Branch.Head)
-	}
-
 	switch action {
 	case "fetch":
-		if resp.Remote == "" {
-			resp.Remote = "origin"
-		}
-		cred := lookupCredential(ctx, deps, resp.Remote)
-		if err := deps.Git.FetchRemote(ctx, repoDir, resp.Remote, cred); err != nil {
-			resp.Error = err.Error()
-			return resp, nil
-		}
-		resp.Success = true
-		return resp, nil
+		handleFetchAction(ctx, deps, repoDir, resp)
 	case "push_set_upstream":
-		if resp.Remote == "" {
-			resp.Remote = "origin"
-		}
-		resp.Branch = resolveBranch()
-		if resp.Branch == "" {
-			resp.Error = "branch could not be resolved for push"
-			return resp, nil
-		}
-		pushResp, err := PushToRemote(ctx, deps, PushRequest{
-			Remote:      resp.Remote,
-			Branch:      resp.Branch,
-			SetUpstream: true,
-		})
-		if err != nil {
-			resp.Error = err.Error()
-			return resp, nil
-		}
-		resp.Success = pushResp.Success
-		resp.Error = pushResp.Error
-		return resp, nil
+		handlePushSetUpstreamAction(ctx, deps, repoDir, resp)
 	case "set_upstream":
-		if resp.Upstream == "" {
-			resp.Error = "upstream is required"
-			return resp, nil
-		}
-		resp.Branch = resolveBranch()
-		if resp.Branch == "" {
-			resp.Error = "branch could not be resolved for upstream"
-			return resp, nil
-		}
-		if err := deps.Git.SetUpstream(ctx, repoDir, resp.Branch, resp.Upstream); err != nil {
-			resp.Error = err.Error()
-			return resp, nil
-		}
-		resp.Success = true
-		return resp, nil
+		handleSetUpstreamAction(ctx, deps, repoDir, resp)
 	default:
 		resp.Error = "unsupported action"
-		return resp, nil
 	}
+
+	return resp, nil
 }
 
 func resolveRefOID(ctx context.Context, deps PushPullDeps, repoDir string, ref string) (string, error) {

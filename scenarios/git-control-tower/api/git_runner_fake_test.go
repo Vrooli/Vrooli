@@ -329,47 +329,63 @@ func (f *FakeGitRunner) RevParse(ctx context.Context, repoDir string, args ...st
 		return nil, f.RevParseError
 	}
 
-	// Handle common rev-parse queries
 	for _, arg := range args {
-		switch arg {
-		case "HEAD":
-			if f.Branch.OID == "" {
-				return nil, fmt.Errorf("fatal: ambiguous argument 'HEAD'")
-			}
-			return []byte(f.Branch.OID + "\n"), nil
-		case "@{u}":
-			upstream := strings.TrimSpace(f.Branch.Upstream)
-			if upstream == "" {
-				return nil, fmt.Errorf("fatal: no upstream configured")
-			}
-			if ref, ok := f.RemoteBranches[upstream]; ok {
-				return []byte(ref.OID + "\n"), nil
-			}
-			return nil, fmt.Errorf("fatal: unknown upstream ref")
-		case "--is-inside-work-tree":
-			if f.IsRepository {
-				return []byte("true\n"), nil
-			}
-			return nil, fmt.Errorf("fatal: not a git repository")
-		case "--show-toplevel":
-			if f.IsRepository {
-				return []byte(repoDir + "\n"), nil
-			}
-			return nil, fmt.Errorf("fatal: not a git repository")
-		}
-
-		if ref, ok := f.RemoteBranches[arg]; ok {
-			return []byte(ref.OID + "\n"), nil
-		}
-		if strings.HasPrefix(arg, "refs/remotes/") {
-			key := strings.TrimPrefix(arg, "refs/remotes/")
-			if ref, ok := f.RemoteBranches[key]; ok {
-				return []byte(ref.OID + "\n"), nil
-			}
+		if out, err, handled := f.revParseSingleArg(repoDir, arg); handled {
+			return out, err
 		}
 	}
 
 	return []byte(""), nil
+}
+
+// revParseSingleArg resolves a single rev-parse argument.
+// Returns (output, error, true) if handled, or (nil, nil, false) if the arg is unrecognized.
+func (f *FakeGitRunner) revParseSingleArg(repoDir, arg string) ([]byte, error, bool) {
+	switch arg {
+	case "HEAD":
+		if f.Branch.OID == "" {
+			return nil, fmt.Errorf("fatal: ambiguous argument 'HEAD'"), true
+		}
+		return []byte(f.Branch.OID + "\n"), nil, true
+	case "@{u}":
+		return f.revParseUpstream()
+	case "--is-inside-work-tree":
+		if f.IsRepository {
+			return []byte("true\n"), nil, true
+		}
+		return nil, fmt.Errorf("fatal: not a git repository"), true
+	case "--show-toplevel":
+		if f.IsRepository {
+			return []byte(repoDir + "\n"), nil, true
+		}
+		return nil, fmt.Errorf("fatal: not a git repository"), true
+	}
+
+	return f.revParseRefLookup(arg)
+}
+
+func (f *FakeGitRunner) revParseUpstream() ([]byte, error, bool) {
+	upstream := strings.TrimSpace(f.Branch.Upstream)
+	if upstream == "" {
+		return nil, fmt.Errorf("fatal: no upstream configured"), true
+	}
+	if ref, ok := f.RemoteBranches[upstream]; ok {
+		return []byte(ref.OID + "\n"), nil, true
+	}
+	return nil, fmt.Errorf("fatal: unknown upstream ref"), true
+}
+
+func (f *FakeGitRunner) revParseRefLookup(arg string) ([]byte, error, bool) {
+	if ref, ok := f.RemoteBranches[arg]; ok {
+		return []byte(ref.OID + "\n"), nil, true
+	}
+	if strings.HasPrefix(arg, "refs/remotes/") {
+		key := strings.TrimPrefix(arg, "refs/remotes/")
+		if ref, ok := f.RemoteBranches[key]; ok {
+			return []byte(ref.OID + "\n"), nil, true
+		}
+	}
+	return nil, nil, false
 }
 
 // LastCommitMessage returns the simulated last commit subject.
@@ -870,128 +886,4 @@ func (f *FakeGitRunner) LogFileFrequency(ctx context.Context, repoDir string, co
 		result[k] = v
 	}
 	return result, nil
-}
-
-// --- Test helpers ---
-
-// AddStagedFile adds a file to the staged state.
-func (f *FakeGitRunner) AddStagedFile(path string) *FakeGitRunner {
-	f.Staged[path] = "+staged content"
-	return f
-}
-
-// AddUnstagedFile adds a file to the unstaged (modified) state.
-func (f *FakeGitRunner) AddUnstagedFile(path string) *FakeGitRunner {
-	f.Unstaged[path] = "+modified content"
-	return f
-}
-
-// AddUntrackedFile adds an untracked file.
-func (f *FakeGitRunner) AddUntrackedFile(path string) *FakeGitRunner {
-	f.Untracked = append(f.Untracked, path)
-	return f
-}
-
-// AddConflictFile adds a file with merge conflicts.
-func (f *FakeGitRunner) AddConflictFile(path string) *FakeGitRunner {
-	f.Conflicts = append(f.Conflicts, path)
-	return f
-}
-
-// WithBranch sets the branch state.
-func (f *FakeGitRunner) WithBranch(head, upstream string, ahead, behind int) *FakeGitRunner {
-	f.Branch.Head = head
-	f.Branch.Upstream = upstream
-	f.Branch.Ahead = ahead
-	f.Branch.Behind = behind
-	if _, exists := f.LocalBranches[head]; !exists {
-		f.LocalBranches[head] = FakeBranchRef{
-			Name:         head,
-			Upstream:     upstream,
-			OID:          f.Branch.OID,
-			LastCommitAt: "2025-01-01 00:00:00 +0000",
-		}
-	}
-	return f
-}
-
-func (f *FakeGitRunner) WithLocalBranch(name, upstream string, oid string) *FakeGitRunner {
-	if oid == "" {
-		oid = "abc123def456"
-	}
-	f.LocalBranches[name] = FakeBranchRef{
-		Name:         name,
-		Upstream:     upstream,
-		OID:          oid,
-		LastCommitAt: "2025-01-01 00:00:00 +0000",
-	}
-	return f
-}
-
-func (f *FakeGitRunner) WithRemoteBranch(name string, oid string) *FakeGitRunner {
-	if oid == "" {
-		oid = "abc123def456"
-	}
-	f.RemoteBranches[name] = FakeBranchRef{
-		Name:         name,
-		OID:          oid,
-		LastCommitAt: "2025-01-01 00:00:00 +0000",
-	}
-	return f
-}
-
-// WithFileFrequency sets the simulated file frequency data.
-func (f *FakeGitRunner) WithFileFrequency(freq map[string]int) *FakeGitRunner {
-	f.FileFrequency = freq
-	return f
-}
-
-// WithNotARepository simulates a non-git directory.
-func (f *FakeGitRunner) WithNotARepository() *FakeGitRunner {
-	f.IsRepository = false
-	return f
-}
-
-// WithGitUnavailable simulates git not being installed.
-func (f *FakeGitRunner) WithGitUnavailable() *FakeGitRunner {
-	f.GitAvailable = false
-	return f
-}
-
-// WithRepoRoot sets the repository root path.
-func (f *FakeGitRunner) WithRepoRoot(root string) *FakeGitRunner {
-	f.RepoRoot = root
-	return f
-}
-
-// WithRemoteURL sets the remote URL.
-func (f *FakeGitRunner) WithRemoteURL(url string) *FakeGitRunner {
-	f.RemoteURL = url
-	return f
-}
-
-// AssertCalled verifies a method was called.
-func (f *FakeGitRunner) AssertCalled(method string) bool {
-	for _, call := range f.Calls {
-		if call.Method == method {
-			return true
-		}
-	}
-	return false
-}
-
-// AssertNotCalled verifies a method was not called.
-func (f *FakeGitRunner) AssertNotCalled(method string) bool {
-	return !f.AssertCalled(method)
-}
-
-// CallCount returns the number of times a method was called.
-func (f *FakeGitRunner) CallCount(method string) int {
-	count := 0
-	for _, call := range f.Calls {
-		if call.Method == method {
-			count++
-		}
-	}
-	return count
 }

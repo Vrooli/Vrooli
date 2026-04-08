@@ -158,12 +158,6 @@ describe("CodeQualityPickerModal", () => {
   });
 
   describe("severity filtering", () => {
-    /** Find a severity chip by its aria-pressed attribute and name. */
-    function getSeverityChip(name: RegExp) {
-      return screen.getByRole("button", { name, pressed: true }) ??
-        screen.getByRole("button", { name, pressed: false });
-    }
-
     it("hides issues when severity is toggled off", async () => {
       const user = userEvent.setup();
       const issues = makeIssueSet();
@@ -313,7 +307,7 @@ describe("CodeQualityPickerModal", () => {
       await user.click(screen.getByText(`Attach ${issues.length - 1} selected`));
 
       expect(onAttachItems).toHaveBeenCalledTimes(1);
-      const attachedItems = onAttachItems.mock.calls[0]![0];
+      const attachedItems = onAttachItems.mock.calls[0]?.[0];
       expect(attachedItems).toHaveLength(issues.length - 1);
       expect(attachedItems[0].kind).toBe("code-quality-issue");
       expect(onClose).toHaveBeenCalled();
