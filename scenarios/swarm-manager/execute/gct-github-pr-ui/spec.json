@@ -4,7 +4,10 @@
   ],
   "created": "2026-04-06T18:43:38Z",
   "depends_on": [
-    "execute/gct-github-pr-api"
+    "execute/gct-github-pr-api",
+    "fix/qa-git-control-tower-tests-20260408",
+    "fix/qa-git-control-tower-standards-20260408",
+    "execute/qa-git-control-tower-code-quality-20260408"
   ],
   "description": "Build Pull Requests UI in Git Control Tower. Create PR from current branch, list open PRs, view PR details, merge PR. Show review panel results in PR context. Reuse existing UI patterns (panels, modals, action menus) for consistency. Follow established component patterns from BranchSelector and CommitPanel.",
   "effort": "L",
@@ -15,5 +18,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Pull Requests panel — create, list, view, merge PRs from GCT",
-  "updated": "2026-04-06T18:43:38Z"
+  "updated": "2026-04-08T04:14:18Z"
 }

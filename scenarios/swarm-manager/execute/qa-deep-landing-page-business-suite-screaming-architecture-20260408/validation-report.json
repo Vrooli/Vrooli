@@ -1,0 +1,25 @@
+{
+  "sections_present": [
+    "Purpose",
+    "Required Reading",
+    "Problem Statement",
+    "Scope",
+    "Current Technical Context",
+    "Target End State",
+    "Implementation Strategy",
+    "Contract Decisions",
+    "Testing Plan",
+    "Rollout/Validation Checklist",
+    "Risks + Mitigations",
+    "Non-goals/Prohibited Patterns",
+    "Definition of Done"
+  ],
+  "sections_missing": null,
+  "warnings": [
+    "No greenfield declaration found",
+    "No `vrooli scenario restart` final cleanup step found",
+    "Suggested skill \"screaming-architecture-audit\" not found in plan Required Reading"
+  ],
+  "passed": false,
+  "validated_at": "2026-04-08T08:41:34Z"
+}

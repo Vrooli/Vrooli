@@ -7,7 +7,10 @@
   "created": "2026-03-27T18:40:16Z",
   "depends_on": [
     "execute/swarm-manager-topology-impact-views",
-    "execute/swarm-manager-flow-and-ops-views"
+    "execute/swarm-manager-flow-and-ops-views",
+    "fix/qa-swarm-manager-tests-20260408",
+    "fix/qa-swarm-manager-standards-20260408",
+    "execute/qa-swarm-manager-code-quality-20260408"
   ],
   "description": "Remove the old MainLayout tab bar, BacklogPage list view, ScenariosPage list view, ExecutionPage list view, and any dead routes/components after the graph workspace is live.\n\nThis cleanup should:\n- remove PromptsPage as a top-level route (content moves to reference drawer)\n- remove SettingsPage as a top-level route (content moves to settings modal)\n- clean up unused stores, services, and types from the old tabbed model\n- verify 301 redirects from old paths (`/backlog/:kind/:name`, `/scenarios/:name`, `/execution`) work correctly\n- update agent-manager deep links to use new `/graph?...` URLs directly instead of relying on redirects\n- delete stale dashboard-specific code paths, docs, and compatibility shims\n- leave the codebase cleaner than before, with dead branches and stale abstractions removed\n\nThis item exists specifically to prevent the refactor from shipping with long-lived duplicate surfaces or legacy compatibility baggage.",
   "effort": "M",
@@ -23,5 +26,5 @@
     "legacy-removal"
   ],
   "title": "Remove Legacy Tabbed Surfaces and Obsolete Dashboard Assumptions",
-  "updated": "2026-03-27T22:00:00Z"
+  "updated": "2026-04-08T04:14:19Z"
 }

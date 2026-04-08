@@ -1,8 +1,8 @@
 /**
  * SummaryView — The landing/triage view inside the Command Post overlay.
  *
- * Consumes stores directly, computes action groups via groupActionItems(),
- * and renders ActionGroupCards, a prioritized ActionFeedItem list,
+ * Consumes stores directly, computes action groups via sortedGroupActionItems(),
+ * and renders ActionGroupCards, a prioritized BacklogCard feed,
  * snoozed section, and recent activity section.
  *
  * Cards act as filters: tapping a card body filters the "Needs Attention"
@@ -10,20 +10,22 @@
  */
 
 import { useMemo, useState, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useBacklogStore } from "../../stores/backlog-store";
 import { useExecutionStore } from "../../stores/execution-store";
 import { useCaptureStore } from "../../stores/capture-store";
 import { useSnoozeStore, useSnoozedKeys } from "../../stores/snooze-store";
-import { groupActionItems, type ActionGroup, type ActionGroupId } from "../../lib/command-post-utils";
-import { backlogService } from "../../services";
-import type { FeedbackItem, MaturityItem } from "../../lib/feed";
+import { useDetailSelectionStore } from "../../stores/detail-selection-store";
+import { sortedGroupActionItems, type ActionGroup, type ActionGroupId, type ActionableItem } from "../../lib/command-post-utils";
+import { getItemActions } from "../../lib/backlog-queue-utils";
+import { useCommandPostItemActions } from "../../hooks/useCommandPostItemActions";
 import type { DetailSelection } from "../../stores/detail-selection-store";
 import type { RunBacklogTarget } from "../backlog/run-backlog-modal";
+import type { BacklogKind } from "../../types";
 import { RunBacklogModal } from "../backlog/run-backlog-modal";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 import { ActionGroupCard } from "./ActionGroupCard";
-import { ActionFeedItem } from "./ActionFeedItem";
+import { BacklogCard } from "../backlog/backlog-card";
+import { ExecutionCaptureCard } from "./ExecutionCaptureCard";
 import { SnoozedSection } from "./SnoozedSection";
 import { RecentSection } from "./RecentSection";
 import { EmptyState } from "./EmptyState";
@@ -45,50 +47,75 @@ export function SummaryView({
   onClose,
 }: SummaryViewProps) {
   const backlogItems = useBacklogStore((s) => s.items);
+  const blockingMap = useBacklogStore((s) => s.blockingMap);
   const executions = useExecutionStore((s) => s.items);
   const captures = useCaptureStore((s) => s.captures);
   const snoozeEntries = useSnoozeStore((s) => s.entries);
   const snooze = useSnoozeStore((s) => s.snooze);
   const unsnooze = useSnoozeStore((s) => s.unsnooze);
   const snoozedKeys = useSnoozedKeys();
+  const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
 
   const [runModalTargets, setRunModalTargets] = useState<RunBacklogTarget[] | undefined>();
   const [activeFilter, setActiveFilter] = useState<ActionGroupId | null>(null);
   const [pendingBulkAction, setPendingBulkAction] = useState<{ group: ActionGroup; targets: RunBacklogTarget[] } | null>(null);
 
-  const summaryQuery = useQuery({
-    queryKey: ["backlog-summary"],
-    queryFn: () => backlogService.getBacklogSummary(),
-    staleTime: 60_000,
+  // ── Shared item action wiring ──────────────────────────────────────
+  const itemActionsHook = useCommandPostItemActions({
+    onSelectBacklog: (kind, name) => {
+      selectBacklog(kind, name);
+      onClose();
+    },
+    onRunItem: (kind, name, title) => {
+      setRunModalTargets([{ kind, name, title }]);
+    },
   });
 
+  const {
+    getItemCallbacks,
+    activeRunKeys,
+    readinessMap,
+    pendingQuestionsMap,
+    attentionReasonsMap,
+    completedSteppers,
+    transitionItems,
+    handleStepperCompleted,
+    workshopBlockingConfirm,
+    setWorkshopBlockingConfirm,
+    confirmWorkshopOverride,
+  } = itemActionsHook;
+
+  // ── Feed/feedback/maturity maps for groupActionItems ───────────────
+  // These maps are derived from the same summary query inside the hook,
+  // but groupActionItems needs FeedbackItem/MaturityItem maps. We build
+  // them from the hook's attentionReasonsMap source data via a separate
+  // lightweight derivation from the summary query.
   const feedbackMap = useMemo(() => {
-    const map = new Map<string, FeedbackItem>();
-    for (const item of summaryQuery.data?.feedback?.items ?? []) {
-      map.set(`${item.kind}/${item.name}`, {
-        kind: item.kind,
-        name: item.name,
-        pendingDecisions: item.pending_decisions ?? 0,
-      });
+    // Build from pendingQuestionsMap — if an item has pending questions,
+    // it has pending decisions
+    const map = new Map<string, { kind: string; name: string; pendingDecisions: number }>();
+    for (const [key, questions] of pendingQuestionsMap) {
+      const [kind, name] = key.split("/");
+      if (kind && name) {
+        map.set(key, { kind, name, pendingDecisions: questions.length });
+      }
     }
     return map;
-  }, [summaryQuery.data?.feedback]);
+  }, [pendingQuestionsMap]);
 
   const maturityMap = useMemo(() => {
-    const map = new Map<string, MaturityItem>();
-    for (const item of summaryQuery.data?.maturity?.items ?? []) {
-      map.set(`${item.kind}/${item.name}`, {
-        kind: item.kind,
-        name: item.name,
-        ready: item.ready ?? false,
-        pendingItems: item.pending_items ?? 0,
-      });
+    const map = new Map<string, { kind: string; name: string; ready: boolean; pendingItems: number }>();
+    for (const [key, data] of readinessMap) {
+      const [kind, name] = key.split("/");
+      if (kind && name) {
+        map.set(key, { kind, name, ready: data.ready, pendingItems: data.pendingItems });
+      }
     }
     return map;
-  }, [summaryQuery.data?.maturity]);
+  }, [readinessMap]);
 
   const groups = useMemo(
-    () => groupActionItems(backlogItems, executions, captures, feedbackMap, maturityMap, snoozedKeys),
+    () => sortedGroupActionItems(backlogItems, executions, captures, feedbackMap, maturityMap, snoozedKeys),
     [backlogItems, executions, captures, feedbackMap, maturityMap, snoozedKeys],
   );
 
@@ -171,13 +198,6 @@ export function SummaryView({
     [],
   );
 
-  const handleRunItem = useCallback(
-    (kind: string, name: string) => {
-      setRunModalTargets([{ kind: kind as RunBacklogTarget["kind"], name }]);
-    },
-    [],
-  );
-
   if (totalCount === 0) {
     return <EmptyState onSwitchLens={onSwitchLens} />;
   }
@@ -214,13 +234,21 @@ export function SummaryView({
           )}
         </div>
         {visibleItems.map((item) => (
-          <ActionFeedItem
+          <FeedItem
             key={item.key}
             item={item}
-            onNavigate={() => navigateToItem(item)}
-            onSnooze={handleSnooze}
-            onRun={handleRunItem}
-            onEnterDecisionStream={onEnterDecisionStream}
+            backlogItems={backlogItems}
+            blockingMap={blockingMap}
+            readinessMap={readinessMap}
+            pendingQuestionsMap={pendingQuestionsMap}
+            attentionReasonsMap={attentionReasonsMap}
+            activeRunKeys={activeRunKeys}
+            completedSteppers={completedSteppers}
+            transitionItems={transitionItems}
+            getItemCallbacks={getItemCallbacks}
+            handleStepperCompleted={handleStepperCompleted}
+            handleSnooze={handleSnooze}
+            navigateToItem={navigateToItem}
           />
         ))}
         {visibleItems.length === 0 && activeFilter && (
@@ -252,6 +280,20 @@ export function SummaryView({
         confirmLabel="Proceed"
       />
 
+      {/* Workshop blocking override confirmation */}
+      <ConfirmDialog
+        isOpen={!!workshopBlockingConfirm}
+        onClose={() => setWorkshopBlockingConfirm(null)}
+        onConfirm={confirmWorkshopOverride}
+        title="Dependencies Not Ready"
+        description={
+          workshopBlockingConfirm?.blockingDepKeys.length
+            ? `This item is blocked by incomplete dependencies: ${workshopBlockingConfirm.blockingDepKeys.join(", ")}. Do you want to proceed anyway?`
+            : "This item has incomplete dependencies. Do you want to proceed anyway?"
+        }
+        confirmLabel="Override and Proceed"
+      />
+
       {/* Run modal */}
       <RunBacklogModal
         isOpen={!!runModalTargets}
@@ -260,5 +302,92 @@ export function SummaryView({
         onSuccess={() => setRunModalTargets(undefined)}
       />
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// FeedItem — Renders BacklogCard for backlog items, ExecutionCaptureCard for others
+// ---------------------------------------------------------------------------
+
+interface FeedItemProps {
+  item: ActionableItem;
+  backlogItems: import("../../types").BacklogItem[];
+  blockingMap: Record<string, import("../../types").ItemBlockingInfo>;
+  readinessMap: Map<string, import("../../lib/maturity").ReadinessIndicatorData>;
+  pendingQuestionsMap: Map<string, import("../../types").PendingQuestion[]>;
+  attentionReasonsMap: Map<string, import("../../lib/feed").AttentionReason[]>;
+  activeRunKeys: Set<string>;
+  completedSteppers: Set<string>;
+  transitionItems: Map<string, import("../backlog/inline-question-stepper").StepperCompletionResult>;
+  getItemCallbacks: (item: import("../../types").BacklogItem) => import("../../hooks/useCommandPostItemActions").ItemCallbacks;
+  handleStepperCompleted: (itemKey: string, item: import("../../types").BacklogItem, result: import("../backlog/inline-question-stepper").StepperCompletionResult) => void;
+  handleSnooze: (key: string, expiresAt: number) => void;
+  navigateToItem: (item: { type: string; kind?: string; name?: string; executionId?: string }) => void;
+}
+
+function FeedItem({
+  item,
+  backlogItems,
+  blockingMap,
+  readinessMap,
+  pendingQuestionsMap,
+  attentionReasonsMap,
+  activeRunKeys,
+  completedSteppers,
+  transitionItems,
+  getItemCallbacks,
+  handleStepperCompleted,
+  handleSnooze,
+  navigateToItem,
+}: FeedItemProps) {
+  if (item.type === "backlog" && item.backlogItem) {
+    const bi = item.backlogItem;
+    const itemKey = `${bi.kind}/${bi.name}`;
+    const callbacks = getItemCallbacks(bi);
+    const readiness = readinessMap.get(itemKey);
+
+    return (
+      <button
+        type="button"
+        onClick={() => navigateToItem(item)}
+        className="group w-full rounded-lg border border-slate-800/80 bg-slate-900/50 p-2.5 text-left transition-colors hover:border-slate-700/80 hover:bg-slate-800/60"
+        data-testid={`command-post-feed-item-${item.key}`}
+      >
+        <BacklogCard
+          item={bi}
+          allItems={backlogItems}
+          readinessData={readiness}
+          itemActions={getItemActions({
+            item: bi,
+            blockingInfo: blockingMap[itemKey] ?? null,
+            readinessReady: readiness ? readiness.ready : null,
+            pendingSynthesis: readiness?.pendingSynthesis ?? false,
+            agentRunning: activeRunKeys.has(itemKey),
+            hasPendingDecisions: (pendingQuestionsMap.get(itemKey)?.length ?? 0) > 0,
+            hasExecutionHistory: bi.status === "completed" || bi.status === "failed",
+          })}
+          attentionReasons={attentionReasonsMap.get(itemKey) ?? []}
+          pendingQuestions={pendingQuestionsMap.get(itemKey)}
+          isStepperCompleted={completedSteppers.has(itemKey)}
+          transitionResult={transitionItems.get(itemKey)}
+          onStepperCompleted={(result) => handleStepperCompleted(itemKey, bi, result)}
+          batchMode={false}
+          isSelected={false}
+          onToggleSelection={() => {}}
+          showSnooze
+          onSnooze={handleSnooze}
+          {...callbacks}
+        />
+      </button>
+    );
+  }
+
+  // Execution/capture items: minimal card
+  return (
+    <ExecutionCaptureCard
+      item={item}
+      onNavigate={() => navigateToItem(item)}
+      onSnooze={handleSnooze}
+    />
   );
 }

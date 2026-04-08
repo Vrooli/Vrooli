@@ -1,0 +1,21 @@
+{
+  "acceptance_allow": [
+    "scenarios/command-center/**"
+  ],
+  "created": "2026-04-08T04:13:30Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "Review run failed: all checks failed or were skipped. Scenario directory not found in repo.\n\nTop affected path:\n- scenarios/command-center/** (missing)\n\nWorst violation example: git-control-tower review-run command-center --json returned status=failed (job 5b86ae91-4839-4504-a007-60ca4a118449).\n\nSuccess target: review-run returns a valid readiness summary or scenario removed from review queue if deprecated.\n\nRepro: git-control-tower review-run command-center --json\nRepo check: ls scenarios/command-center\n\nContract:\ntargetScenario: command-center\nproblemOrOpportunity: Review queue includes a scenario that is missing from the repo, causing GCT review failures.\nproposedAction: Confirm scenario name/location, restore scenario or update review-queue metadata to remove/rename it.\nevidence: GCT review job 5b86ae91-4839-4504-a007-60ca4a118449 failed; scenarios/command-center directory missing.\nriskLevel: medium\nexecutionModeHint: chore\ncreatedByTeam: scenario-qa\nsourceRunId: 5b86ae91-4839-4504-a007-60ca4a118449",
+  "kind": "chore",
+  "name": "qa-command-center-review-failure-20260408",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "command-center",
+    "review-failure"
+  ],
+  "title": "Investigate command-center review failures (scenario missing)",
+  "updated": "2026-04-08T04:13:30Z"
+}

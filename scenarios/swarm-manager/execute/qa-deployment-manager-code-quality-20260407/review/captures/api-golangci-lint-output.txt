@@ -1,0 +1,119 @@
+codesigning/platforms/linux.go:84:1: cognitive complexity 30 of func `(*LinuxDetector).listGPGKeys` is high (> 20) (gocognit)
+func (d *LinuxDetector) listGPGKeys(ctx context.Context, homedir string) ([]DiscoveredCertificate, error) {
+^
+codesigning/platforms/macos.go:114:1: cognitive complexity 21 of func `(*MacOSDetector).listKeychainIdentities` is high (> 20) (gocognit)
+func (d *MacOSDetector) listKeychainIdentities(ctx context.Context) ([]DiscoveredCertificate, error) {
+^
+bundles/bundle_staging.go:121:1: cognitive complexity 36 of func `stageBundleArtifacts` is high (> 20) (gocognit)
+func stageBundleArtifacts(manifest *Manifest, scenarioRoot, outputDir string) (stageBundleResult, error) {
+^
+bundles/bundle_staging.go:69:1: cognitive complexity 34 of func `expandUIAssets` is high (> 20) (gocognit)
+func expandUIAssets(manifest *Manifest, scenarioRoot string) error {
+^
+bundles/handler.go:256:1: cognitive complexity 33 of func `(*Handler).ExportBundle` is high (> 20) (gocognit)
+func (h *Handler) ExportBundle(w http.ResponseWriter, r *http.Request) {
+^
+bundles/handler.go:161:1: cognitive complexity 22 of func `(*Handler).AssembleBundle` is high (> 20) (gocognit)
+func (h *Handler) AssembleBundle(w http.ResponseWriter, r *http.Request) {
+^
+bundles/validation.go:29:1: calculated cyclomatic complexity for function ValidateManifestBytes is 17, max is 15 (cyclop)
+func ValidateManifestBytes(data []byte) error {
+^
+bundles/assembly_handler_test.go:14:6: Function 'TestHandleAssembleBundle' is too long (120 > 100) (funlen)
+func TestHandleAssembleBundle(t *testing.T) {
+     ^
+bundles/export_handler_test.go:16:6: Function 'TestHandleExportBundle' is too long (129 > 100) (funlen)
+func TestHandleExportBundle(t *testing.T) {
+     ^
+dependencies/types.go:8:1: cognitive complexity 32 of func `DetectCircularDependencies` is high (> 20) (gocognit)
+func DetectCircularDependencies(analysisData map[string]interface{}) []string {
+^
+dependencies/handler_test.go:73:6: Function 'TestDetectCircularDependencies' is too long (171 > 100) (funlen)
+func TestDetectCircularDependencies(t *testing.T) {
+     ^
+deployments/orchestrator_helpers.go:152:1: cognitive complexity 40 of func `populateAssetMetadata` is high (> 20) (gocognit)
+func populateAssetMetadata(manifest *bundles.Manifest, scenarioDir string) error {
+^
+deployments/orchestrator_helpers.go:229:1: cognitive complexity 34 of func `expandUIAssets` is high (> 20) (gocognit)
+func expandUIAssets(manifest *bundles.Manifest, scenarioDir string) error {
+^
+deployments/orchestrator_helpers.go:587:1: cognitive complexity 23 of func `updateManifestBinaryPaths` is high (> 20) (gocognit)
+func updateManifestBinaryPaths(manifest *bundles.Manifest, results []build.BuildResult, scenarioDir, manifestDir string) {
+^
+deployments/orchestrator_helpers.go:369:1: cognitive complexity 22 of func `copyBuiltBinariesToBundle` is high (> 20) (gocognit)
+func copyBuiltBinariesToBundle(manifest *bundles.Manifest, manifestDir, bundleDir string, platforms []string) ([]string, error) {
+^
+deployments/orchestrator_helpers.go:286:1: calculated cyclomatic complexity for function resolveBuildPlatforms is 16, max is 15 (cyclop)
+func resolveBuildPlatforms(inputs []string) []string {
+^
+telemetry/handler_test.go:346:1: cognitive complexity 22 of func `TestParseJSONL` is high (> 20) (gocognit)
+func TestParseJSONL(t *testing.T) {
+^
+build/handler.go:62:1: cognitive complexity 28 of func `(*Handler).Build` is high (> 20) (gocognit)
+func (h *Handler) Build(w http.ResponseWriter, r *http.Request) {
+^
+build/auto_handler.go:112:1: cognitive complexity 25 of func `(*Handler).runAutoBuild` is high (> 20) (gocognit)
+func (h *Handler) runAutoBuild(buildID, scenarioDir string, targets []buildTarget, platforms []string) {
+^
+codesigning/generation/generator_test.go:57:1: cognitive complexity 26 of func `TestGenerator_GenerateElectronBuilder_Windows` is high (> 20) (gocognit)
+func TestGenerator_GenerateElectronBuilder_Windows(t *testing.T) {
+^
+codesigning/generation/generator_test.go:287:1: cognitive complexity 26 of func `TestGenerator_GenerateNotarizeScript` is high (> 20) (gocognit)
+func TestGenerator_GenerateNotarizeScript(t *testing.T) {
+^
+codesigning/generation/generator_test.go:138:1: cognitive complexity 25 of func `TestGenerator_GenerateElectronBuilder_MacOS` is high (> 20) (gocognit)
+func TestGenerator_GenerateElectronBuilder_MacOS(t *testing.T) {
+^
+codesigning/generation/generator_test.go:223:1: cognitive complexity 22 of func `TestGenerator_GenerateEntitlements` is high (> 20) (gocognit)
+func TestGenerator_GenerateEntitlements(t *testing.T) {
+^
+codesigning/generation/entitlements.go:64:1: calculated cyclomatic complexity for function generateEntitlementsPlist is 17, max is 15 (cyclop)
+func generateEntitlementsPlist(config *codesigning.MacOSSigningConfig, capabilities []string) ([]byte, error) {
+^
+secrets/secrets_test.go:63:1: cognitive complexity 40 of func `TestGenerateTemplate` is high (> 20) (gocognit)
+func TestGenerateTemplate(t *testing.T) {
+^
+codesigning/validation/prereqs_lnx.go:97:1: cognitive complexity 32 of func `(*prerequisiteChecker).discoverGPGKeys` is high (> 20) (gocognit)
+func (c *prerequisiteChecker) discoverGPGKeys(ctx context.Context) ([]codesigning.DiscoveredCertificate, error) {
+^
+fitness/fitness_test.go:118:1: cognitive complexity 32 of func `TestGetTierFitnessPolicy` is high (> 20) (gocognit)
+func TestGetTierFitnessPolicy(t *testing.T) {
+^
+fitness/fitness_test.go:8:1: cognitive complexity 24 of func `TestCalculateScore` is high (> 20) (gocognit)
+func TestCalculateScore(t *testing.T) {
+^
+server/main_test.go:137:1: cognitive complexity 32 of func `TestHealthEndpoint` is high (> 20) (gocognit)
+func TestHealthEndpoint(t *testing.T) {
+^
+server/integration_test.go:15:1: cognitive complexity 29 of func `TestEndToEndDependencyAnalysisAndSwap` is high (> 20) (gocognit)
+func TestEndToEndDependencyAnalysisAndSwap(t *testing.T) {
+^
+server/integration_test.go:112:1: cognitive complexity 28 of func `TestEndToEndProfileDeploymentWorkflow` is high (> 20) (gocognit)
+func TestEndToEndProfileDeploymentWorkflow(t *testing.T) {
+^
+server/main_test.go:62:1: cognitive complexity 28 of func `TestResolveDatabaseURL` is high (> 20) (gocognit)
+func TestResolveDatabaseURL(t *testing.T) {
+^
+server/routes.go:4:18: Function 'setupRoutes' has too many statements (62 > 60) (funlen)
+func (s *Server) setupRoutes() {
+                 ^
+API exit: 1
+signing/commands.go:434:1: cognitive complexity 32 of func `(*Commands).Discover` is high (> 20) (gocognit)
+func (c *Commands) Discover(args []string) error {
+^
+bundles/commands.go:198:20: Function 'Export' is too long (107 > 100) (funlen)
+func (c *Commands) Export(args []string) error {
+                   ^
+deployments/deploy_desktop.go:219:1: cognitive complexity 24 of func `printDeployDesktopResults` is high (> 20) (gocognit)
+func printDeployDesktopResults(resp DeployDesktopResponse) {
+^
+deployments/commands.go:300:20: Function 'Build' is too long (111 > 100) (funlen)
+func (c *Commands) Build(args []string) error {
+                   ^
+profiles/helpers.go:114:1: cognitive complexity 29 of func `valuesEqual` is high (> 20) (gocognit)
+func valuesEqual(a, b interface{}) bool {
+^
+app.go:98:1: calculated cyclomatic complexity for function runProfile is 17, max is 15 (cyclop)
+func (a *App) runProfile(args []string) error {
+^
+CLI exit: 1

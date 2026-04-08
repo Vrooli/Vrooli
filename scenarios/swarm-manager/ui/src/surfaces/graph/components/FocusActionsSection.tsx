@@ -36,7 +36,7 @@ import type {
 } from "../types";
 
 // ---------------------------------------------------------------------------
-// CTA icon/label map — mirrors ActionFeedItem.CTA_CONFIG
+// CTA icon/label map
 // ---------------------------------------------------------------------------
 
 const CTA_CONFIG: Record<string, { label: string; icon: React.ElementType }> = {

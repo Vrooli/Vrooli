@@ -8,7 +8,7 @@
  * (computed by `getItemActions()` in the parent) — this component only renders.
  */
 
-import { Archive, ArrowRight, CheckSquare, Loader2, Lock, MessageSquare, MessageSquareText, Play, Sparkles } from "lucide-react";
+import { Archive, ArrowRight, CheckSquare, Clock, Loader2, Lock, MessageSquare, MessageSquareText, Play, Sparkles } from "lucide-react";
 import { Button } from "../ui/button";
 import { TagList } from "../ui/tag-list";
 import { formatRelativeTime } from "../../lib";
@@ -30,6 +30,8 @@ import { ValidationBadge } from "./validation-badge";
 import { NoteIndicator } from "../ui/note-indicator";
 import { ReadinessBar } from "./readiness-bar";
 import { AutoAdvanceCountdown } from "./auto-advance-countdown";
+import { SnoozePopover } from "../command-post/SnoozePopover";
+import { snoozeKeyForBacklog } from "../../lib/snooze-utils";
 import { displayLimitsConfig } from "../../config";
 
 export interface BacklogCardProps {
@@ -63,6 +65,10 @@ export interface BacklogCardProps {
   onStatusChange?: (newStatus: BacklogStatus) => void;
   /** Whether a status change is in flight. */
   statusChangePending?: boolean;
+  /** When true, render a snooze popover in the action area. */
+  showSnooze?: boolean;
+  /** Callback when the user snoozes this item. */
+  onSnooze?: (key: string, expiresAt: number) => void;
 }
 
 export function BacklogCard({
@@ -90,6 +96,8 @@ export function BacklogCard({
   runningLabel = "Agent running…",
   onStatusChange,
   statusChangePending,
+  showSnooze,
+  onSnooze,
 }: BacklogCardProps) {
   const hasActiveStepper = itemActions.showDecisionStepper && (pendingQuestions?.length ?? 0) > 0 && !isStepperCompleted;
   const showBatchCheckbox = batchMode && (itemActions.canRun || itemActions.runDisabled || itemActions.canWorkshop || itemActions.workshopDisabled) && !itemActions.blocked;
@@ -99,6 +107,7 @@ export function BacklogCard({
     (itemActions.canFinalize || itemActions.finalizeDisabled || itemActions.canRun || itemActions.runDisabled || itemActions.canWorkshop || itemActions.workshopDisabled)
     && !itemActions.blocked
   );
+  const snoozeItemKey = snoozeKeyForBacklog(item.kind, item.name);
   const actionRowClass = "mt-3 flex flex-nowrap items-center gap-2 overflow-x-auto pb-1";
 
   return (
@@ -338,6 +347,11 @@ export function BacklogCard({
                   {itemActions.agentRunning ? runningLabel : workshopPending ? "Starting..." : workshopLabel}
                 </Button>
               )}
+              {showSnooze && onSnooze && (
+                <SnoozePopover itemKey={snoozeItemKey} onSnooze={onSnooze}>
+                  <Clock className="h-3.5 w-3.5" />
+                </SnoozePopover>
+              )}
             </div>
           )}
 
@@ -373,6 +387,20 @@ export function BacklogCard({
                   {archivePending ? "Archiving..." : "Archive"}
                 </Button>
               )}
+              {showSnooze && onSnooze && (
+                <SnoozePopover itemKey={snoozeItemKey} onSnooze={onSnooze}>
+                  <Clock className="h-3.5 w-3.5" />
+                </SnoozePopover>
+              )}
+            </div>
+          )}
+
+          {/* Standalone snooze when no action rows are shown */}
+          {showSnooze && onSnooze && !hasPrimaryActionRow && !itemActions.canFollowUp && !itemActions.canArchive && !itemActions.blocked && (
+            <div className={actionRowClass} onClick={(event) => event.preventDefault()}>
+              <SnoozePopover itemKey={snoozeItemKey} onSnooze={onSnooze}>
+                <Clock className="h-3.5 w-3.5" />
+              </SnoozePopover>
             </div>
           )}
 

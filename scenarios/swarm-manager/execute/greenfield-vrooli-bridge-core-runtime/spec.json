@@ -4,7 +4,12 @@
   ],
   "created": "2026-03-26T16:36:02Z",
   "depends_on": [
-    "idea/greenfield-vrooli-bridge-foundation-spec"
+    "idea/greenfield-vrooli-bridge-foundation-spec",
+    "fix/qa-vrooli-bridge-tests-20260408",
+    "fix/qa-vrooli-bridge-standards-ui-tooling-20260408",
+    "fix/qa-vrooli-bridge-standards-ui-server-20260408",
+    "fix/qa-vrooli-bridge-standards-requirements-20260408",
+    "execute/qa-vrooli-bridge-code-quality-20260408"
   ],
   "description": "Implement the new bridge runtime, API, and CLI as a greenfield scenario reusing the vrooli-bridge slot after retirement of the legacy implementation.\n\nThe job of this runtime is trusted-node connectivity and task/session transport between Vrooli machines. It is not a continuation of the legacy external-project documentation-injection mission.",
   "effort": "XL",
@@ -21,5 +26,5 @@
     "trusted-nodes"
   ],
   "title": "Implement The Greenfield Bridge Core Runtime",
-  "updated": "2026-03-26T16:36:02Z"
+  "updated": "2026-04-08T10:12:34Z"
 }

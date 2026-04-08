@@ -10,7 +10,12 @@
     "fix/qa-prompt-manager-standards-requirements-20260407",
     "fix/qa-prompt-manager-standards-structure-20260407",
     "fix/qa-prompt-manager-tests-20260407",
-    "research/legacy-vrooli-bridge-signal-extraction"
+    "research/legacy-vrooli-bridge-signal-extraction",
+    "fix/qa-vrooli-bridge-tests-20260408",
+    "fix/qa-vrooli-bridge-standards-ui-tooling-20260408",
+    "fix/qa-vrooli-bridge-standards-ui-server-20260408",
+    "fix/qa-vrooli-bridge-standards-requirements-20260408",
+    "execute/qa-vrooli-bridge-code-quality-20260408"
   ],
   "description": "After signal extraction, explicitly retire the current vrooli-bridge scenario so future bridge work is not anchored to the wrong mission.\n\nThis includes archiving or removing the legacy implementation and cleaning the most obvious references that would confuse a greenfield replacement.",
   "effort": "M",
@@ -26,5 +31,5 @@
     "replacement"
   ],
   "title": "Archive And Remove The Legacy Bridge Scenario",
-  "updated": "2026-04-07T22:12:46Z"
+  "updated": "2026-04-08T10:12:10Z"
 }

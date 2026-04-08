@@ -9,7 +9,8 @@
     "chore/qa-scenario-to-desktop-standards-tests-20260407",
     "chore/qa-scenario-to-desktop-standards-ui-20260407",
     "execute/qa-scenario-to-desktop-code-quality-20260407",
-    "research/emulator-extraction-and-service-plan"
+    "research/emulator-extraction-and-service-plan",
+    "chore/qa-vrooli-emulator-review-failure-20260408"
   ],
   "description": "Create the new dedicated emulator scenario, using vrooli-emulator as the working scenario name, as a reusable Linux-first validation service.\n\nThe implementation should reuse proven concepts from scenario-to-desktop livedesktop and smoketest work, but rehome them behind clean service boundaries so other deployment ramps and deployment-manager can consume one shared emulator app instead of each owning their own ad hoc validation logic.",
   "effort": "XL",
@@ -25,5 +26,5 @@
     "desktop-validation"
   ],
   "title": "Build The Dedicated Emulator Service Linux First",
-  "updated": "2026-04-07T22:13:14Z"
+  "updated": "2026-04-08T10:13:15Z"
 }

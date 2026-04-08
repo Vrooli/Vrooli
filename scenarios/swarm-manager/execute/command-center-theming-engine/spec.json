@@ -1,0 +1,20 @@
+{
+  "acceptance_allow": [
+    "scenarios/command-center/ui/**"
+  ],
+  "created": "2026-04-08T03:51:30Z",
+  "depends_on": [
+    "execute/command-center-scenario-scaffold",
+    "chore/qa-command-center-review-failure-20260408"
+  ],
+  "description": "Build the per-dashboard independent theming system. This is a critical differentiator — each dashboard page has its own complete visual identity, not just color variants of a shared design system.\n\n**Planned themes (from brainstorming session):**\n1. **\"Ground Control\" (Mission Control)** — Dark background with subtle star field particle effect. Electric blue primary accent. Mission control panel aesthetic (NASA JPL modernized). Clean monospace typography for hero KPIs. Subtle grid lines. Trajectory arc for velocity chart.\n2. **\"Bioluminescent\" (The Hive)** — Deep ocean dark with glowing greens, teals, cyans. Scenarios as organic pulsing nodes. Neural pathway connection lines. Completed scenarios glow brighter. Living system aesthetic.\n3. **\"Foundry\" (The Forge)** — Warm tones: deep charcoal with amber/orange/molten gold. Forge instrumentation styling. Temperature gauges for blocked ratio. Flowing metal animations for throughput. Velocity chart as rising sparks. Intensity and productivity.\n4. **\"Vault\" (Ledger)** — Rich dark green (old money/banking). Gold typography. Clean serif fonts for revenue numbers. Subtle paper texture overlay. Gold gradient charts. Leather-bound ledger aesthetic. Trust and gravitas.\n5. **\"Signal Tower\" (Broadcast)** — Electric purple and magenta on dark. Radiating wave animations. Social platform icons integrated. Conversion funnel as luminous narrowing beam. Visitor counts as flowing particles. Reach and energy.\n6. **\"Cosmos\" (Panorama)** — Deep black with subtle nebula gradient (purple/blue). Metric domains as planets/celestial bodies sized by importance. Sparklines as orbital paths. Central \"sun\" for system health. Planets orbit at distances proportional to attention needed. Slow, meditative animation. The \"leave it up on the TV\" page.\n\n**Technical requirements:**\n- CSS isolation per page — themes must not leak between dashboard routes\n- Each theme defines: background treatment (gradients, textures, particle effects), color palette, typography (font family, weights), animation style, chart styling (colors, gradients, line styles), card/panel styling, glow/shadow effects\n- Theme definitions should be data-driven (JSON/config) so new themes can be added without deep code changes\n- Smooth transition animations when auto-cycling between themed pages\n- All themes must be dark-mode (these are TV displays, bright backgrounds look bad on large screens)\n- Performance: particle effects and animations must be GPU-accelerated and not cause frame drops on lower-end devices (Xbox browser)",
+  "effort": "M",
+  "initiative": "command-center-foundation",
+  "kind": "execute",
+  "name": "command-center-theming-engine",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [],
+  "title": "Build per-dashboard independent theming system",
+  "updated": "2026-04-08T04:14:20Z"
+}

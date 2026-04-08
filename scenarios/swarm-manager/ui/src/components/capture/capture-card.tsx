@@ -17,9 +17,33 @@ import { useCaptureStore } from "../../stores/capture-store";
 import { formatRelativeTime } from "../../lib";
 import { selectors } from "../../consts/selectors";
 import { CaptureTriage } from "./capture-triage";
-import type { Capture } from "../../types";
+import type { Capture, CaptureFailureReason } from "../../types";
 import { NoteIndicator } from "../ui/note-indicator";
 import type { BacklogFormValues } from "../../types";
+
+/** User-facing failure messages keyed by categorized failure reason. */
+const FAILURE_MESSAGES: Record<CaptureFailureReason, { label: string; hint: string }> = {
+  dependency_unavailable: {
+    label: "Service unavailable",
+    hint: "Agent-manager or prompt-manager isn't running yet. Retry once services are healthy.",
+  },
+  classification_timeout: {
+    label: "Classification timed out",
+    hint: "The classification agent didn't finish in time. Retry to try again.",
+  },
+  prompt_missing: {
+    label: "Classification skill not found",
+    hint: "The prompt-manager may still be starting up, or the skill is misconfigured.",
+  },
+  agent_error: {
+    label: "Agent failed to start",
+    hint: "Check agent-manager logs for details.",
+  },
+  internal_error: {
+    label: "Unexpected error",
+    hint: "Something went wrong on the server. Retry or check logs.",
+  },
+};
 
 interface CaptureCardProps {
   capture: Capture;
@@ -101,21 +125,29 @@ export function CaptureCard({ capture, onEditItem, onClick, className }: Capture
         </div>
       )}
 
-      {/* Failed */}
-      {capture.status === "failed" && (
-        <div className="mt-1 flex items-center gap-2">
-          <span className="text-xs text-red-400">Classification failed</span>
-          <button
-            onClick={(e) => handleRetry(e)}
-            disabled={isRetrying}
-            className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200 disabled:opacity-50"
-            data-testid={selectors.captures.retryButton}
-          >
-            <RefreshCw className={`h-3 w-3 ${isRetrying ? "animate-spin" : ""}`} />
-            Retry
-          </button>
-        </div>
-      )}
+      {/* Failed — show categorized message with recovery hint */}
+      {capture.status === "failed" && (() => {
+        const info = capture.failureReason
+          ? FAILURE_MESSAGES[capture.failureReason] ?? FAILURE_MESSAGES.internal_error
+          : { label: "Classification failed", hint: "Retry to try again." };
+        return (
+          <div className="mt-1.5 space-y-0.5">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-red-400">{info.label}</span>
+              <button
+                onClick={(e) => handleRetry(e)}
+                disabled={isRetrying}
+                className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200 disabled:opacity-50"
+                data-testid={selectors.captures.retryButton}
+              >
+                <RefreshCw className={`h-3 w-3 ${isRetrying ? "animate-spin" : ""}`} />
+                Retry
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-500">{info.hint}</p>
+          </div>
+        );
+      })()}
 
       {/* No-op: nothing actionable */}
       {capture.status === "classified" && items.length === 0 && (

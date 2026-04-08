@@ -10,7 +10,7 @@
 import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
-import type { Capture, CaptureClassification } from "../types";
+import type { Capture, CaptureClassification, CaptureFailureReason } from "../types";
 
 export interface ClassifyResponse {
   taskId: string;
@@ -43,6 +43,7 @@ function mapCapture(raw: Record<string, unknown>): Capture {
     attachments: (raw.attachments as string[]) ?? [],
     created: (raw.created as string) ?? "",
     status: (raw.status as Capture["status"]) ?? "classifying",
+    failureReason: (raw.failure_reason as CaptureFailureReason) || undefined,
     note: (raw.note as string) ?? "",
     classification: cls
       ? {

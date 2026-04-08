@@ -1,0 +1,21 @@
+{
+  "acceptance_allow": [
+    "scenarios/git-control-tower/**"
+  ],
+  "created": "2026-04-08T04:13:04Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "Dimension: standards (0 blocking, 17 warnings). Readiness: yellow.\n\nTop affected files:\n- scenarios/git-control-tower/ui/tsconfig.json\n- scenarios/git-control-tower/ui/eslint.config.js\n- scenarios/git-control-tower/api/filerelations\n- scenarios/git-control-tower/api/filerelations/languages/golang\n- scenarios/git-control-tower/api/filerelations/languages/python\n\nWorst violation example: ui/tsconfig.json missing strict/noUncheckedIndexedAccess and required protective comment block (high severity).\n\nSuccess target: standards high violations=0; warnings reduced to \u003c=5; tests no longer fail due to standards.\n\nRepro: git-control-tower review-run git-control-tower --json\n\nContract:\ntargetScenario: git-control-tower\nproblemOrOpportunity: Standards warnings (including high severity) trigger test failures and undermine readiness.\nproposedAction: Add missing tests in filerelations subdirs and enforce TypeScript safety rules in ui config.\nevidence: GCT review job 0f98c32f-e0f5-445f-9bac-3738c96443b8 with 17 warnings and high severity tsconfig findings.\nriskLevel: medium\nexecutionModeHint: fix\ncreatedByTeam: scenario-qa\nsourceRunId: 0f98c32f-e0f5-445f-9bac-3738c96443b8",
+  "kind": "fix",
+  "name": "qa-git-control-tower-standards-20260408",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "git-control-tower",
+    "standards"
+  ],
+  "title": "Resolve standards warnings in git-control-tower",
+  "updated": "2026-04-08T04:13:04Z"
+}

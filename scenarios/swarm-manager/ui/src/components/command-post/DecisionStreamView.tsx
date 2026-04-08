@@ -8,7 +8,7 @@
  * Mobile-first: 44px touch targets, safe-area-inset-bottom padding,
  * collapsible context panel, and maximized vertical content space.
  */
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight, ExternalLink, Loader2, SkipForward, ArrowLeft, Moon, CheckCircle2, Info, Trash2 } from "lucide-react";
 import { cn } from "../../lib";
 import { selectors } from "../../consts/selectors";
@@ -25,6 +25,7 @@ import { ScenarioBadge } from "../backlog/scenario-badge";
 import { TagList } from "../ui/tag-list";
 import { useDecisionStreamLogic } from "../../hooks/useDecisionStreamLogic";
 import { useClarificationStore } from "../../stores/clarification-store";
+import { ScenarioNavigatorPopover } from "./ScenarioNavigatorPopover";
 import type { DecisionStreamResults } from "../../hooks/useDecisionStreamLogic";
 
 export type { DecisionStreamResults };
@@ -49,6 +50,17 @@ export function DecisionStreamView({
   onSnoozeItem,
   onOpenItem,
 }: DecisionStreamViewProps) {
+  // Navigator state
+  const [navigatorOpen, setNavigatorOpen] = useState(false);
+  const navigatorOpenRef = useRef(false);
+  const toggleNavigator = useCallback(() => {
+    setNavigatorOpen((prev) => {
+      const next = !prev;
+      navigatorOpenRef.current = next;
+      return next;
+    });
+  }, []);
+
   const {
     phase,
     current,
@@ -70,7 +82,12 @@ export function DecisionStreamView({
     skip,
     snoozeParent,
     deleteQuestion,
-  } = useDecisionStreamLogic({ questions, onComplete, onBack, onSnoozeItem });
+    parentGroups,
+    jumpToParent,
+    snoozeSpecificParent,
+    localAnswers,
+    skippedIds,
+  } = useDecisionStreamLogic({ questions, onComplete, onBack, onSnoozeItem, navigatorOpenRef, toggleNavigator });
 
   // Clarification
   const clarificationStore = useClarificationStore();
@@ -168,14 +185,32 @@ export function DecisionStreamView({
           </span>
         </div>
 
-        {/* Counter + context toggle */}
-        <div className="flex shrink-0 items-center gap-1">
-          <span
-            className="text-xs tabular-nums text-slate-500"
-            data-testid={selectors.commandPost.decisionStream.counter}
+        {/* Counter + navigator + context toggle */}
+        <div className="relative flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={toggleNavigator}
+            className="rounded px-1.5 py-0.5 text-xs tabular-nums text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-300"
+            title="Scenario navigator (G)"
+            data-testid={selectors.commandPost.decisionStream.navigatorButton}
           >
-            {safeIndex + 1}/{total}
-          </span>
+            <span data-testid={selectors.commandPost.decisionStream.counter}>
+              {safeIndex + 1}/{total}
+            </span>
+          </button>
+          <ScenarioNavigatorPopover
+            isOpen={navigatorOpen}
+            onClose={() => {
+              setNavigatorOpen(false);
+              navigatorOpenRef.current = false;
+            }}
+            parentGroups={parentGroups}
+            currentParentKey={current ? `${current.parentKind}/${current.parentName}` : ""}
+            localAnswers={localAnswers}
+            skippedIds={skippedIds}
+            onJumpTo={jumpToParent}
+            onSnoozeParent={snoozeSpecificParent}
+          />
           <button
             type="button"
             onClick={() => setContextExpanded((prev) => !prev)}

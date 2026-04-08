@@ -405,6 +405,10 @@ export const literalSelectors = {
       openItemLink: "ds-open-item",
       deleteButton: "ds-delete-question",
       deleteConfirm: "ds-delete-confirm",
+      navigatorButton: "ds-navigator-button",
+      navigatorPopover: "ds-navigator-popover",
+      navigatorRow: "ds-navigator-row",
+      navigatorSnooze: "ds-navigator-snooze",
     },
   },
   graphNavControls: {

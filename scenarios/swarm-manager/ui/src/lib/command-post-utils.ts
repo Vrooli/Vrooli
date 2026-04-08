@@ -19,6 +19,7 @@ import { getAttentionReasons, type AttentionReason, type FeedbackItem, type Matu
 import { getItemActions, type ActionContext, type PrimaryCta } from "./backlog-queue-utils";
 
 import { filterSnoozed, snoozeKeyForBacklog, snoozeKeyForCapture, snoozeKeyForExecution } from "./snooze-utils";
+import { sortBacklogItems, COMMAND_POST_COMPARE } from "./backlog-sort";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -48,6 +49,8 @@ export interface ActionableItem {
   captureId?: string;
   reasons: AttentionReason[];
   primaryCta: PrimaryCta;
+  /** Full BacklogItem reference — only populated for type: "backlog". */
+  backlogItem?: BacklogItem;
 }
 
 export interface CrossItemQuestion {
@@ -122,14 +125,26 @@ export function groupActionItems(
     snoozedKeys,
   );
   for (const cap of nonSnoozedCaptures) {
+    const key = snoozeKeyForCapture(cap.id);
+    const title = cap.text.slice(0, 80) || cap.id;
+
     if (cap.status === "classifying") {
       groups.get("needs-classification")?.push({
         type: "capture",
-        key: snoozeKeyForCapture(cap.id),
-        title: cap.text.slice(0, 80) || cap.id,
+        key,
+        title,
         captureId: cap.id,
         reasons: [],
         primaryCta: null,
+      });
+    } else if (cap.status === "classified" && (cap.classification?.items.length ?? 0) > 0) {
+      groups.get("needs-classification")?.push({
+        type: "capture",
+        key,
+        title,
+        captureId: cap.id,
+        reasons: [],
+        primaryCta: "review",
       });
     }
   }
@@ -174,6 +189,7 @@ export function groupActionItems(
       name: item.name,
       reasons,
       primaryCta: actions.primaryCta,
+      backlogItem: item,
     };
 
     // Classify into groups
@@ -197,6 +213,29 @@ export function groupActionItems(
     const items = groups.get(id) ?? [];
     return { id, label: GROUP_LABELS[id], count: items.length, items };
   });
+}
+
+// ---------------------------------------------------------------------------
+// sortedGroupActionItems
+// ---------------------------------------------------------------------------
+
+/**
+ * Classify items into action groups with dependency-aware ordering.
+ *
+ * Sorts backlog items before classification so items within each group
+ * appear in dependency-aware priority order (deps before dependents,
+ * then by priority ascending / recency descending).
+ */
+export function sortedGroupActionItems(
+  backlogItems: BacklogItem[],
+  executions: ExecutionRecord[],
+  captures: Capture[],
+  feedbackMap: Map<string, FeedbackItem>,
+  maturityMap: Map<string, MaturityItem>,
+  snoozedKeys: Set<string>,
+): ActionGroup[] {
+  const sorted = sortBacklogItems(backlogItems, COMMAND_POST_COMPARE, backlogItems);
+  return groupActionItems(sorted, executions, captures, feedbackMap, maturityMap, snoozedKeys);
 }
 
 // ---------------------------------------------------------------------------

@@ -1,0 +1,75 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-07T23:15:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 2,
+    "risk_awareness": 2
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The setup steps already have build-ui before show-urls (indices 3 and 4). The GCT warning is likely triggered because the build-ui step does not match the canonical pattern from docs/scenarios/PRODUCTION_BUNDLES.md — specifically, it's missing VITE_API_BASE_URL injection and the API_PORT guard."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "How closely to match the canonical build-ui pattern",
+      "context": "The PRODUCTION_BUNDLES.md canonical pattern uses inline shell conditionals (`if [ -f ui/package.json ]`) instead of the service.json `condition` field. The current step uses the `condition` field which is cleaner but differs from the doc pattern. The critical missing piece is the VITE_API_BASE_URL env var.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Full canonical pattern — inline conditionals + VITE_API_BASE_URL + API_PORT guard",
+          "rationale": "Exactly matches PRODUCTION_BUNDLES.md. Most likely to clear the GCT warning since the checker probably pattern-matches against this.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Minimal fix — keep condition field, just add VITE_API_BASE_URL to the run command",
+          "rationale": "Smaller diff, keeps the cleaner condition syntax. May or may not clear the GCT warning depending on what it checks."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Update install-ui-deps step to also match the canonical pattern",
+      "context": "The PRODUCTION_BUNDLES.md shows install-ui-deps using an inline conditional too. Current step uses the condition field. Updating both steps together would be consistent.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Yes — update both install-ui-deps and build-ui to use inline conditionals",
+          "rationale": "Consistent with the canonical pattern across both UI-related setup steps. Reduces chance of other GCT warnings.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "No — only update build-ui since that's what the GCT flagged",
+          "rationale": "Minimal scope, only fix what's broken."
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "This plan appears ready for execution after decisions are resolved. The change is a small config-only edit to service.json with clear verification steps."
+    }
+  ],
+  "plan_updates": "Created initial plan.md with problem statement, scope, approach, risks, and test plan based on analysis of service.json vs PRODUCTION_BUNDLES.md canonical patterns."
+}

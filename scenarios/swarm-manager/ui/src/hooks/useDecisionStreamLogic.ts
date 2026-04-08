@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useBacklogStore } from "../stores/backlog-store";
 import { backlogService } from "../services/backlog-service";
 import { OTHER_KEY, parseWorkshopRound, buildWorkshopRoundContent } from "../lib/workshop-files";
@@ -21,7 +21,7 @@ export interface DecisionStreamResults {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function groupByParent(questions: CrossItemQuestion[]): Map<string, CrossItemQuestion[]> {
+export function groupByParent(questions: CrossItemQuestion[]): Map<string, CrossItemQuestion[]> {
   const map = new Map<string, CrossItemQuestion[]>();
   for (const ciq of questions) {
     const key = `${ciq.parentKind}/${ciq.parentName}`;
@@ -45,6 +45,8 @@ export interface UseDecisionStreamLogicArgs {
   onComplete: (results: DecisionStreamResults) => void;
   onBack: () => void;
   onSnoozeItem: (key: string) => void;
+  navigatorOpenRef?: React.RefObject<boolean>;
+  toggleNavigator?: () => void;
 }
 
 export function useDecisionStreamLogic({
@@ -52,6 +54,8 @@ export function useDecisionStreamLogic({
   onComplete,
   onBack,
   onSnoozeItem,
+  navigatorOpenRef,
+  toggleNavigator,
 }: UseDecisionStreamLogicArgs) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [localAnswers, setLocalAnswers] = useState<Map<string, QuestionAnswer>>(() => new Map());
@@ -341,6 +345,27 @@ export function useDecisionStreamLogic({
   }, [current, snoozedItemKeys, onSnoozeItem]);
 
   // ---------------------------------------------------------------------------
+  // Navigator helpers
+  // ---------------------------------------------------------------------------
+
+  const parentGroups = useMemo(() => groupByParent(activeQuestions), [activeQuestions]);
+
+  const jumpToParent = useCallback((parentKey: string) => {
+    const idx = activeQuestions.findIndex(
+      (ciq) => `${ciq.parentKind}/${ciq.parentName}` === parentKey,
+    );
+    if (idx >= 0) setCurrentIndex(idx);
+  }, [activeQuestions]);
+
+  const snoozeSpecificParent = useCallback((kind: BacklogKind, name: string) => {
+    const key = snoozeKey(kind, name);
+    const newSnoozed = new Set(snoozedItemKeys);
+    newSnoozed.add(key);
+    setSnoozedItemKeys(newSnoozed);
+    onSnoozeItem(key);
+  }, [snoozedItemKeys, onSnoozeItem]);
+
+  // ---------------------------------------------------------------------------
   // Keyboard shortcuts
   // ---------------------------------------------------------------------------
 
@@ -349,6 +374,28 @@ export function useDecisionStreamLogic({
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "TEXTAREA" || tag === "INPUT") return;
       if (phase !== "answering" || !current) return;
+
+      // When navigator is open, intercept specific keys
+      if (navigatorOpenRef?.current) {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          toggleNavigator?.();
+          return;
+        }
+        const num = parseInt(e.key, 10);
+        if (num >= 1 && num <= 9) {
+          e.preventDefault();
+          const keys = Array.from(parentGroups.keys());
+          if (num <= keys.length) {
+            const targetKey = keys[num - 1];
+            if (targetKey) jumpToParent(targetKey);
+            toggleNavigator?.();
+          }
+          return;
+        }
+        // Swallow other keys while navigator is open
+        return;
+      }
 
       switch (e.key) {
         case "ArrowRight":
@@ -362,6 +409,11 @@ export function useDecisionStreamLogic({
         case "Enter":
           e.preventDefault();
           advance();
+          break;
+        case "g":
+        case "G":
+          e.preventDefault();
+          toggleNavigator?.();
           break;
         case "s":
         case "S":
@@ -405,7 +457,7 @@ export function useDecisionStreamLogic({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [phase, current, advance, goBack, snoozeParent, onBack, updateAnswer, contextExpanded]);
+  }, [phase, current, advance, goBack, snoozeParent, onBack, updateAnswer, contextExpanded, navigatorOpenRef, toggleNavigator, parentGroups, jumpToParent]);
 
   return {
     phase,
@@ -428,5 +480,10 @@ export function useDecisionStreamLogic({
     skip,
     snoozeParent,
     deleteQuestion,
+    parentGroups,
+    jumpToParent,
+    snoozeSpecificParent,
+    localAnswers,
+    skippedIds,
   };
 }

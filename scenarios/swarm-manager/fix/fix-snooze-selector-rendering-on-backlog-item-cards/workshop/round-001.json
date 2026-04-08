@@ -1,0 +1,78 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-07T23:30:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 2,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Portal implementation approach",
+      "context": "The existing Popover component (ui/popover.tsx) already implements createPortal + fixed positioning + viewport clamping + click-outside handling. StatusChipPopover uses it successfully in the same card context. The alternative is adding portal logic directly to SnoozePopover.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Reuse existing Popover component",
+          "rationale": "Proven pattern already used by StatusChipPopover in the same context. Gets portal, viewport clamping, and click-outside for free. Less code to maintain. Recommended because it's the established pattern and requires the least new code.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Add createPortal directly to SnoozePopover",
+          "rationale": "More control over positioning and behavior, but duplicates logic already in the Popover component. Makes sense only if SnoozePopover needs significantly different behavior."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "notes": ""
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Remove overflow-x-auto from action row",
+      "context": "The action row in backlog-card.tsx:111 uses overflow-x-auto, which is the direct cause of clipping. Even with a portal fix, the overflow-x-auto may cause other UI issues (e.g., horizontal scrollbar on narrow cards). Should we also clean up this overflow?",
+      "options": [
+        {
+          "key": "A",
+          "label": "Keep overflow-x-auto, only fix via portal",
+          "rationale": "Minimal change, focused fix. The overflow-x-auto may serve a purpose for long action rows on narrow screens. Recommended because it limits scope to the snooze issue only.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Replace overflow-x-auto with flex-wrap",
+          "rationale": "Prevents future clipping issues for any non-portaled content. But changes card layout and may cause visual regressions with wrapped buttons."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "notes": ""
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Root cause confirmed: SnoozePopover uses absolute positioning inside a container with overflow-x-auto (backlog-card.tsx:111). The existing Popover component (ui/popover.tsx) already solves this with createPortal to document.body + fixed positioning + viewport clamping. StatusChipPopover demonstrates this pattern working correctly in the same card context."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "SnoozePopover is used in 3 positions within backlog-card.tsx: primary action row (line ~350), terminal actions row (line ~390), and standalone row (line ~401). All three will benefit from the portal fix since they share the same card container constraints."
+    }
+  ],
+  "plan_updates": "Created initial plan with root cause analysis, scope definition, two approach options, testing strategy, risks, and acceptance criteria."
+}

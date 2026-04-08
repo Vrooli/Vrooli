@@ -1,0 +1,21 @@
+{
+  "acceptance_allow": [
+    "scenarios/vrooli-bridge/**"
+  ],
+  "created": "2026-04-08T10:08:42Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "Dimension: tests (failed 8/11). Readiness: yellow.\nTop affected files:\n- scenarios/vrooli-bridge/docs (missing)\n- scenarios/vrooli-bridge/bas/registry.json (missing)\n- scenarios/vrooli-bridge/requirements/index.json (requirements traceability)\n- scenarios/vrooli-bridge/ui/package.json (smoke bundle stale)\n- scenarios/vrooli-bridge/api/main.go (go test failing)\n\nWorst violation example: structure phase reports required directory missing: scenarios/vrooli-bridge/docs.\n\nSuccess target: tests pass 11/11 with no failures in structure, standards, lint, smoke, unit, playbooks, business, and performance phases.\n\nRepro: git-control-tower review-run vrooli-bridge --json\n\nContract:\ntargetScenario: vrooli-bridge\nproblemOrOpportunity: GCT tests failing across eight phases (structure, standards, lint, smoke, unit, playbooks, business, performance), blocking readiness.\nproposedAction: Create docs directory, regenerate bas registry, initialize requirements modules, fix standards violations and lint/type errors, resolve UI bundle staleness, and fix Go tests/build.\nevidence: GCT review job 52410c6c-9d09-43d0-ba37-7dca2e51f530 (tests failed 8/11).\nriskLevel: medium\nexecutionModeHint: fix\ncreatedByTeam: scenario-qa\nsourceRunId: 52410c6c-9d09-43d0-ba37-7dca2e51f530",
+  "kind": "fix",
+  "name": "qa-vrooli-bridge-tests-20260408",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "vrooli-bridge",
+    "tests"
+  ],
+  "title": "Fix vrooli-bridge test failures",
+  "updated": "2026-04-08T10:08:42Z"
+}

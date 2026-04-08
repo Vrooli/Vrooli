@@ -1,0 +1,21 @@
+{
+  "acceptance_allow": [
+    "scenarios/vrooli-emulator/**"
+  ],
+  "created": "2026-04-08T10:11:31Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "Review run failed: all checks failed or were skipped. Scenario directory not found in repo.\n\nTop affected path:\n- scenarios/vrooli-emulator/** (missing)\n\nWorst violation example: git-control-tower review-run vrooli-emulator --json returned status=failed (job 57748813-411b-4e1c-9375-2edf5b1dd14f).\n\nSuccess target: review-run returns a valid readiness summary or scenario removed from review queue if deprecated.\n\nRepro: git-control-tower review-run vrooli-emulator --json\nRepo check: ls scenarios/vrooli-emulator\n\nContract:\ntargetScenario: vrooli-emulator\nproblemOrOpportunity: Review queue includes a scenario that is missing from the repo, causing GCT review failures.\nproposedAction: Confirm scenario name/location, restore scenario or update review-queue metadata to remove/rename it.\nevidence: GCT review job 57748813-411b-4e1c-9375-2edf5b1dd14f failed; scenarios/vrooli-emulator directory missing.\nriskLevel: medium\nexecutionModeHint: chore\ncreatedByTeam: scenario-qa\nsourceRunId: 57748813-411b-4e1c-9375-2edf5b1dd14f",
+  "kind": "chore",
+  "name": "qa-vrooli-emulator-review-failure-20260408",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "vrooli-emulator",
+    "review-failure"
+  ],
+  "title": "Investigate vrooli-emulator review failures (scenario missing)",
+  "updated": "2026-04-08T10:11:31Z"
+}

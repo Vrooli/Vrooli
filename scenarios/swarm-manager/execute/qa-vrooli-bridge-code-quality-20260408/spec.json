@@ -1,0 +1,24 @@
+{
+  "acceptance_allow": [
+    "scenarios/vrooli-bridge/**"
+  ],
+  "created": "2026-04-08T10:11:01Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "Dimension: codeQuality (score 64.93/100, violations 17). Readiness: yellow.\nTop issues: lint_issues=10, complex_functions=3, long_files=2.\n\nTop affected files (tidiness-manager recommend-refactors):\n- scenarios/vrooli-bridge/api/main_test.go (line_count 1421, complexity_max 27)\n- scenarios/vrooli-bridge/api/test_helpers.go (line_count 374, complexity_max 12)\n- scenarios/vrooli-bridge/api/main.go (line_count 488, complexity_max 11)\n- scenarios/vrooli-bridge/ui/src/app.js (line_count 325, function_count 62)\n- scenarios/vrooli-bridge/ui/dist/app.js (line_count 325, generated artifact)\n\nWorst violation example: api/main_test.go at 1421 lines with complexity_max 27 (long file + complex functions).\n\nSuccess target: code quality score \u003e=70; complex_functions \u003c20; long_files \u003c10; lint_issues=0.\n\nRepro: git-control-tower review-run vrooli-bridge --json\nTidiness detail: tidiness-manager recommend-refactors vrooli-bridge --limit 10 --format json\n\nContract:\ntargetScenario: vrooli-bridge\nproblemOrOpportunity: Code quality score below 70 driven by lint issues, complex functions, and long files in core API and UI entrypoints.\nproposedAction: Refactor the highest-priority files (split long tests/helpers, extract smaller handlers, and reduce UI entrypoint size), then re-run GCT.\nevidence: GCT review job 52410c6c-9d09-43d0-ba37-7dca2e51f530 plus tidiness-manager recommendations.\nriskLevel: medium\nexecutionModeHint: execute\ncreatedByTeam: scenario-qa\nsourceRunId: 52410c6c-9d09-43d0-ba37-7dca2e51f530",
+  "kind": "execute",
+  "name": "qa-vrooli-bridge-code-quality-20260408",
+  "priority": 6,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "vrooli-bridge",
+    "code-quality"
+  ],
+  "suggested_skills": [
+    "refactor"
+  ],
+  "title": "Improve vrooli-bridge code quality to \u003e=70",
+  "updated": "2026-04-08T10:11:01Z"
+}

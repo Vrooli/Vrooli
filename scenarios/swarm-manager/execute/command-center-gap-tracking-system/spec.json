@@ -1,0 +1,20 @@
+{
+  "acceptance_allow": [
+    "scenarios/command-center/**"
+  ],
+  "created": "2026-04-08T03:51:30Z",
+  "depends_on": [
+    "execute/command-center-api-aggregator",
+    "chore/qa-command-center-review-failure-20260408"
+  ],
+  "description": "Implement the gap-tracking metadata system that makes dashboard data gaps into actionable signals for the Director Swarm and Feature teams.\n\n**Each metric widget has a dataSource status:**\n- **live** — Real data, pipeline connected and working\n- **gap** — Metric defined as valuable, but no data pipeline exists yet\n- **partial** — Some data available but incomplete\n\n**Implementation:**\n- Metric registry: A configuration file (JSON or Go struct) defining every metric across all dashboards with name, dashboard, description, dataSource status, and what's needed to make it live\n- GET /api/v1/gaps endpoint: Returns all gap/partial metrics grouped by dashboard, with descriptions of what data pipeline is missing and priority hints\n- CLI integration: command-center gaps command for human-readable output (consumed by Director Swarm agents)\n- Updating a metric from gap to live should be a single config change\n\n**The recursive feedback loop:**\n1. Dashboards designed with ideal metrics → many start as gap\n2. Director Swarm checks /api/v1/gaps during heartbeat → sees missing capabilities\n3. Director creates backlog proposals to build missing data pipelines\n4. Feature team executes → gap flips to live\n5. Dashboard becomes more useful → reveals new ideal metrics to add\n6. Cycle repeats\n\n**UX treatment for gaps:**\n- Gap metrics render beautifully within the dashboard's theme — NOT ugly \"N/A\" text\n- Subtle visual treatment: shimmer effect, \"coming soon\" glow, or translucent styling that fits the page's specific theme\n- Gap widgets still occupy their intended layout position so dashboard composition is visible even before all data is live\n- Dashboards can be deployed before all data sources exist — they look aspirational rather than broken\n\n**Initial gap inventory to seed:**\n- Mission Control: MRR/ARR hero number, total users across bundles, uptime %, compound intelligence counter, live cross-system activity feed\n- Hive: usage frequency per scenario, revenue attribution, maturity timeline, active-work overlay\n- Forge: cost per completed item (token spend), contributor leaderboard, per-initiative burndown, predicted completion dates, flow efficiency\n- Ledger: LTV per cohort, expansion revenue, net revenue retention, revenue forecasting, dunning success rate, trial-to-paid funnel\n- Broadcast: social media followers, post engagement, SEO rankings, funnel step conversion, campaign attribution, email metrics, CAC, content velocity, brand consistency, referral sources\n- Panorama: system pulse animation, anomaly/alert indicators, per-domain sparklines",
+  "effort": "M",
+  "initiative": "command-center-data-layer",
+  "kind": "execute",
+  "name": "command-center-gap-tracking-system",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [],
+  "title": "Build metric gap tracking infrastructure with /api/v1/gaps endpoint",
+  "updated": "2026-04-08T04:14:20Z"
+}

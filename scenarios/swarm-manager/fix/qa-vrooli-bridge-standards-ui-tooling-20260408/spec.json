@@ -1,0 +1,22 @@
+{
+  "acceptance_allow": [
+    "scenarios/vrooli-bridge/**"
+  ],
+  "created": "2026-04-08T10:09:19Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "Dimension: standards (blocking 3, warnings 7, total 10). Category: UI tooling/dependency config. Readiness: yellow.\nTop affected files:\n- scenarios/vrooli-bridge/ui/package.json (missing @vrooli/api-base and @vrooli/iframe-bridge)\n- scenarios/vrooli-bridge/ui/tsconfig.json (missing)\n- scenarios/vrooli-bridge/ui/eslint.config.js (missing)\n- scenarios/vrooli-bridge/.vrooli/service.json (npm usage)\n- scenarios/vrooli-bridge/ui/node_modules (unexpected install)\n\nWorst violation example: Missing @vrooli/api-base in ui/package.json (critical).\n\nSuccess target: standards blockingViolations=0, UI tooling config present, and pnpm workspace install enforced.\n\nRepro: git-control-tower review-run vrooli-bridge --json\n\nContract:\ntargetScenario: vrooli-bridge\nproblemOrOpportunity: Standards report missing UI dependencies and tooling config plus non-pnpm install guidance.\nproposedAction: Add required UI deps, create tsconfig/eslint config, update service.json to pnpm install, and clean node_modules if needed.\nevidence: GCT review job 52410c6c-9d09-43d0-ba37-7dca2e51f530 (standards blocking=3, warnings=7).\nriskLevel: medium\nexecutionModeHint: fix\ncreatedByTeam: scenario-qa\nsourceRunId: 52410c6c-9d09-43d0-ba37-7dca2e51f530",
+  "kind": "fix",
+  "name": "qa-vrooli-bridge-standards-ui-tooling-20260408",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "vrooli-bridge",
+    "standards",
+    "ui-tooling"
+  ],
+  "title": "Resolve vrooli-bridge standards: UI tooling and deps",
+  "updated": "2026-04-08T10:09:19Z"
+}

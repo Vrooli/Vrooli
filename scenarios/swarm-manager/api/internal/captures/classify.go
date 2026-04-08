@@ -3,8 +3,10 @@ package captures
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -15,6 +17,31 @@ import (
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/promptcatalog"
 )
+
+// classifyFailureReason maps a spawn error to a user-facing failure category.
+func classifyFailureReason(err error) string {
+	if errors.Is(err, agentmanager.ErrNotAvailable) {
+		return FailDependencyUnavailable
+	}
+	msg := err.Error()
+	// Prompt catalog entry not registered locally.
+	if strings.Contains(msg, "prompt catalog entry missing") {
+		return FailPromptMissing
+	}
+	// Prompt fetch failed — could be prompt-manager down (connection refused,
+	// timeout) or the skill genuinely not found. Either way the dependency
+	// chain is broken and the user should retry once services are healthy.
+	if strings.Contains(msg, "fetch classify prompt") {
+		if strings.Contains(msg, "connection refused") ||
+			strings.Contains(msg, "no such host") ||
+			strings.Contains(msg, "dial tcp") ||
+			strings.Contains(msg, "i/o timeout") {
+			return FailDependencyUnavailable
+		}
+		return FailPromptMissing
+	}
+	return FailAgentError
+}
 
 // Classify spawns a classification agent for a capture (for retry).
 func (h *Handler) Classify(w http.ResponseWriter, r *http.Request) {
@@ -29,8 +56,9 @@ func (h *Handler) Classify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update status to classifying.
+	// Update status to classifying, clearing any previous failure info.
 	cap.Status = "classifying"
+	cap.FailureReason = ""
 	cap.Classification = nil
 	if err := h.writeCapture(cap); err != nil {
 		apierr.MapError(w, "[captures] classify", apierr.Internal("failed to update capture"))
@@ -42,8 +70,24 @@ func (h *Handler) Classify(w http.ResponseWriter, r *http.Request) {
 
 	runResult, err := h.spawnClassifyAgent(r, cap)
 	if err != nil {
+		// Store categorized failure on the capture so the UI can display it.
+		reason := classifyFailureReason(err)
+		cap.Status = "failed"
+		cap.FailureReason = reason
+		_ = h.writeCapture(cap)
+
+		slog.Error("classification retry spawn failed",
+			"capture_id", id,
+			"failure_reason", reason,
+			"error", err,
+		)
+
 		if errors.Is(err, agentmanager.ErrNotAvailable) {
-			apierr.MapError(w, "[captures] classify", apierr.Unavailable("agent-manager is not available"))
+			apierr.MapError(w, "[captures] classify", apierr.Unavailable("agent-manager is not available — try again once it's running"))
+			return
+		}
+		if reason == FailPromptMissing {
+			apierr.MapError(w, "[captures] classify", apierr.Unavailable("classification skill not found — prompt-manager may not be ready"))
 			return
 		}
 		apierr.MapError(w, "[captures] classify", apierr.Internal("failed to spawn classification agent"))

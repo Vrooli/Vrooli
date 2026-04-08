@@ -111,9 +111,15 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	resp := map[string]any{"capture": cap}
 	runResult, err := h.spawnClassifyAgent(r, &cap)
 	if err != nil {
-		// Classification failed to start, but capture was created. Mark as failed.
-		slog.Error("classification spawn failed", "error", err)
+		// Classification failed to start, but capture was created. Mark as failed
+		// with a categorized reason so the UI can show actionable guidance.
 		cap.Status = "failed"
+		cap.FailureReason = classifyFailureReason(err)
+		slog.Error("classification spawn failed",
+			"capture_id", cap.ID,
+			"failure_reason", cap.FailureReason,
+			"error", err,
+		)
 		_ = h.writeCapture(&cap)
 		resp["capture"] = cap
 	} else {

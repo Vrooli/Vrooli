@@ -39,6 +39,7 @@ export function QuickCaptureInput({ onOpenForm }: QuickCaptureInputProps) {
     }
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Persist text draft to localStorage (debounced).
@@ -81,6 +82,7 @@ export function QuickCaptureInput({ onOpenForm }: QuickCaptureInputProps) {
     lastSubmitRef.current = now;
 
     setIsSubmitting(true);
+    setSubmitError(null);
     const savedText = text;
     setText("");
 
@@ -90,9 +92,12 @@ export function QuickCaptureInput({ onOpenForm }: QuickCaptureInputProps) {
       addCapture(response.capture);
       clearAll();
       try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
-    } catch {
+    } catch (err) {
       // Restore text on failure so user doesn't lose their thought.
       setText(savedText);
+      setSubmitError(
+        err instanceof Error ? err.message : "Failed to submit capture. Check that the server is running.",
+      );
     } finally {
       setIsSubmitting(false);
       inputRef.current?.focus();
@@ -189,9 +194,13 @@ export function QuickCaptureInput({ onOpenForm }: QuickCaptureInputProps) {
         />
       </div>
 
-      <p className="mt-1 px-1 text-xs text-slate-600">
-        Ctrl+Enter to capture
-      </p>
+      {submitError ? (
+        <p className="mt-1 px-1 text-xs text-red-400">{submitError}</p>
+      ) : (
+        <p className="mt-1 px-1 text-xs text-slate-600">
+          Ctrl+Enter to capture
+        </p>
+      )}
     </div>
   );
 }

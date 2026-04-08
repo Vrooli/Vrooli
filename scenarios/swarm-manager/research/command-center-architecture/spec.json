@@ -1,0 +1,19 @@
+{
+  "acceptance_allow": [
+    "scenarios/command-center/**"
+  ],
+  "created": "2026-04-08T03:51:30Z",
+  "depends_on": [
+    "chore/qa-command-center-review-failure-20260408"
+  ],
+  "description": "Research the overall architecture for a new \"command-center\" scenario — a collection of full-screen, visually stunning war-room dashboards designed for always-on display (TV, Xbox browser, kiosk). This is NOT a traditional admin panel; it's a beauty-first showcase piece where each dashboard page has its own immersive visual theme.\n\nKey research questions:\n1. **Scenario structure**: React+Vite UI with Go API backend. How should the project scaffold be organized? What templates to use?\n2. **Data connectivity**: The API is a read-only aggregator (NOT a new source of truth). It must query: (a) LPBS Postgres for subscription/payment/analytics data, (b) Swarm Manager's /api/v1/stats and /api/v1/overview endpoints, (c) Vrooli core's /scenarios REST API (port 8092) for scenario metadata/health, (d) Completeness scoring via `vrooli scenario completeness`. Design caching strategy (30-60s TTL) to avoid hammering upstream.\n3. **Theming architecture**: Each dashboard page needs a completely independent visual theme (not just color variants — genuinely distinct aesthetics). Research how to structure CSS/theme isolation so themes don't leak between pages.\n4. **Kiosk mode**: Full-screen by default, hidden controls, auto-cycle between pages on a timer, pin-to-single-page option. Research browser fullscreen APIs and Xbox browser constraints.\n5. **Gap tracking metadata**: Each metric widget needs a dataSource status field (live/gap/partial) baked into the config. Research how to structure this so a /api/v1/gaps endpoint can enumerate all unimplemented metrics programmatically.\n6. **Existing code review**: The swarm-manager already has StatsPanel, command-post components, and overview/stats APIs. LPBS has AdminAnalytics. Identify what patterns to reuse vs. what needs new implementation.\n7. **Note on existing archived items**: The swarm-manager-dashboard initiative (archived 2026-03-27) was about the swarm-manager's OWN internal dashboard UI. This command-center scenario is a separate, standalone scenario focused on TV-mode war-room displays aggregating data from MULTIPLE scenarios. No duplication.\n8. **Visualization libraries**: Evaluate D3.js, Three.js/React Three Fiber, Framer Motion, Recharts with custom renderers, or combinations for the level of visual richness needed (animated particle backgrounds, force-directed graphs, themed canvas elements).\n9. **TV/Xbox compatibility**: What rendering constraints exist for Xbox Edge browser? WebGL support? Touch vs controller input? Screen resolution targets (1080p and 4K).\n\n**Research target:** Architecture design for command-center scenario covering project structure, data aggregation patterns, theming isolation, kiosk UX, gap-tracking metadata system, and visualization technology selection",
+  "effort": "M",
+  "initiative": "command-center-foundation",
+  "kind": "research",
+  "name": "command-center-architecture",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [],
+  "title": "Research command-center scenario architecture and technology choices",
+  "updated": "2026-04-08T04:14:20Z"
+}

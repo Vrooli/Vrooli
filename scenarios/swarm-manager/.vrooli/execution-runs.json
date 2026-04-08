@@ -3104,9 +3104,10 @@
     "previous_status": "backlog",
     "task_id": "720107a2-ef55-4306-9e2b-452e43e216e8",
     "run_id": "ac4911d0-c4d4-430a-8ba4-a97f3c5fc77e",
-    "status": "running",
+    "status": "completed",
     "mode": "yolo",
     "started_at": "2026-04-08T00:04:04Z",
+    "finished_at": "2026-04-08T00:34:30Z",
     "started_by": "swarm-manager-ui",
     "operation": "generator",
     "force": true,
@@ -3117,7 +3118,972 @@
       "used_fallback": false,
       "captured_at": "2026-04-08T00:04:04Z"
     },
+    "finalization": {
+      "eligible": true,
+      "status": "completed",
+      "phase": "completed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-04-08T00:27:32Z",
+      "completed_at": "2026-04-08T00:34:30Z",
+      "warnings": [
+        {
+          "code": "restart_retry",
+          "scenario_name": "scenario-to-desktop",
+          "message": "restart attempt 1 failed: vrooli scenario restart scenario-to-desktop failed: exit status 1 (output: [INFO]    Restarting scenario: scenario-to-desktop\n[INFO]    Stopping scenario: scenario-to-desktop\n[INFO]    Stopping scenario-to-desktop:start-api process group (PGID: 3416651)\n[INFO]    Stopping scenario-to-desktop:start-ui process group (PGID: 3416734)\n[INFO]    Stopped 2 process groups for scenario: scenario-to-desktop\n\u001b[0;32m[SUCCESS] Scenario 'scenario-to-desktop' stopped successfully\n[INFO]    🔗 Ensuring dependency 'deployment-manager' for scenario 'scenario-to-desktop'\n[INFO]    🔗 Ensuring dependency 'app-issue-tracker' for scenario 'deployment-manager'\n\u001b[0;32m[SUCCESS] ✓ Scenario 'app-issue-tracker' is already running and healthy\n  API: http://localhost:19751\n  UI: http://localhost:36221\n[INFO]    🔗 Ensuring dependency 'scenario-dependency-analyzer' for scenario 'deployment-manager'\n\u001b[1;33m[WARNING] ⚠️  Scenario running but code is stale (UI bundle outdated: ui/dist/index.html Resources not populated), restarting...\n[INFO]    Stopping scenario-dependency-analyzer:start-api process group (PGID: 3414207)\n[INFO]    Stopping scenario-dependency-analyzer:start-ui process group (PGID: 3414316)\n[INFO]    Stopped 2 process groups for scenario: scenario-dependency-analyzer\n[INFO]    Running scenario 'scenario-dependency-analyzer' with direct lifecycle execution\n[INFO]    Starting scenario 'scenario-dependency-analyzer'...\n[INFO]    Running setup before develop...\n[INFO]    Environment setup complete for scenario: scenario-dependency-analyzer\n[WARNING] Postgres not running, skipping database creation for: vrooli_scenario_dependency_analyzer\n[INFO]    Initialize Scenario Dependency Analyzer with all dependencies\n[INFO]    [1/7] build-api\n  → Build Go dependency analysis API binary\n[INFO]    [2/7] install-cli\n  → Install scenario-dependency-analyzer CLI command globally\n✅ scenario-dependency-analyzer installed to /home/matthalloran8/.local/bin/scenario-dependency-analyzer\n[INFO]    [3/7] setup-database\n  → Initialize PostgreSQL schema and seed initial data\n[HEADER]  📦 Populating resources from path: /home/matthalloran8/Vrooli/scenarios/scenario-dependency-analyzer\n[INFO]    Detected scenario: scenario-dependency-analyzer\n[HEADER]  📦 Populating resources from scenario: scenario-dependency-analyzer\n[INFO]    Validating scenario structure...\n[INFO]    Validating scenario structure...\n[INFO]    ✅ Scenario structure is valid\n[INFO]    ✅ Scenario structure is valid\n[INFO]    Extracting resources from scenario configuration...\n[INFO]    Found 5 resource(s) to process: claude-code ollama postgres qdrant redis \n[INFO]    [1/5] Processing resource: claude-code\n[INFO]      → No initialization content for claude-code, skipping\n[INFO]    [2/5] Processing resource: ollama\n[INFO]      → No initialization content for ollama, skipping\n[INFO]    [3/5] Processing resource: postgres\n[INFO]      → Adding content to postgres...\n[INFO]      Added 2 items to postgres\n[SUCCESS]   ✅ Successfully populated postgres\n[INFO]    [4/5] Processing resource: qdrant\n[INFO]      → No initialization content for qdrant, skipping\n[INFO]    [5/5] Processing resource: redis\n[INFO]      → No initialization content for redis, skipping\n[HEADER]  📊 Population Summary\n[INFO]    Total resources: 5\n[INFO]    Successfully populated: 1\n[INFO]    Skipped (no content/CLI): 4\n[SUCCESS] ✅ Population phase complete!\n[INFO]    [4/7] install-ui-deps\n  → Install UI dependencies\n\nup to date, audited 375 packages in 657ms\n\n51 packages are looking for funding\n  run `npm fund` for details\n\n11 vulnerabilities (1 low, 4 moderate, 6 high)\n\nTo address issues that do not require attention, run:\n  npm audit fix\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\n[INFO]    [5/7] build-ui\n  → Build production UI bundle\n\n\u003e scenario-dependency-analyzer-ui@1.0.0 build\n\u003e tsc \u0026\u0026 vite build\n\nvite v5.4.21 building for production...\n[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`\ntransforming...\n✓ 2263 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   1.03 kB │ gzip:   0.54 kB\ndist/assets/index-BEa8rw41.css   29.31 kB │ gzip:   5.84 kB\ndist/assets/index-DFs4GjDd.js   476.09 kB │ gzip: 145.93 kB\n✓ built in 2.00s\n[INFO]    [6/7] verify-cli\n  → Verify CLI installation\n✅ CLI installed at:\n/home/matthalloran8/.vrooli/bin/scenario-dependency-analyzer\n[INFO]    [7/7] show-urls\n  → Display service access URLs and usage examples\n🔍 Scenario Dependency Analyzer initialized\\n  Graph Visualization: http://localhost:${UI_PORT}\\n  Analysis API: http://localhost:${API_PORT}\\n  CLI: scenario-dependency-analyzer --help\\n\\n📊 Quick Commands:\\n  scenario-dependency-analyzer analyze all\\n  scenario-dependency-analyzer graph combined --format html\\n  scenario-dependency-analyzer optimize all\n[SUCCESS] Phase 'setup' completed\n[INFO]    Starting develop phase...\n[INFO]    Environment setup complete for scenario: scenario-dependency-analyzer\n[INFO]    Scenario processes are currently running\n[WARNING] Postgres not running, skipping database creation for: vrooli_scenario_dependency_analyzer\n[INFO]    Start dependency analyzer with API server and visualization UI\n[INFO]    [1/3] start-api\n  → Start Go API server in background\n[INFO]    Previous log saved. View with: vrooli scenario logs scenario-dependency-analyzer --step start-api --previous\n[INFO]    Started background process: vrooli.develop.scenario-dependency-analyzer.start-api (PID: 366011)\n[INFO]    [2/3] start-ui\n  → Serve production UI bundle\n[INFO]    Previous log saved. View with: vrooli scenario logs scenario-dependency-analyzer --step start-ui --previous\n[ERROR]   Process vrooli.develop.scenario-dependency-analyzer.start-ui exited immediately (status: 0)\n[WARNING] Port 36900 appears free; check recent logs for other startup issues.\n[WARNING] Last log lines for vrooli.develop.scenario-dependency-analyzer.start-ui:\n[WARNING]     node:events:502\n[WARNING]           throw er; // Unhandled 'error' event\n[WARNING]           ^\n[WARNING]     \n[WARNING]     Error: listen EADDRINUSE: address already in use 0.0.0.0:36900\n[WARNING]         at Server.setupListenHandle [as _listen2] (node:net:1908:16)\n[WARNING]         at listenInCluster (node:net:1965:12)\n[WARNING]         at doListen (node:net:2139:7)\n[WARNING]         at process.processTicksAndRejections (node:internal/process/task_queues:83:21)\n[WARNING]     Emitted 'error' event on Server instance at:\n[WARNING]         at emitErrorNT (node:net:1944:8)\n[WARNING]         at process.processTicksAndRejections (node:internal/process/task_queues:82:21) {\n[WARNING]       code: 'EADDRINUSE',\n[WARNING]       errno: -98,\n[WARNING]       syscall: 'listen',\n[WARNING]       address: '0.0.0.0',\n[WARNING]       port: 36900\n[WARNING]     }\n[WARNING]     \n[WARNING]     Node.js v20.19.4\n[ERROR]   Background step failed: develop.scenario-dependency-analyzer.start-ui\n\u001b[0;31m[ERROR]   Failed to start dependency 'scenario-dependency-analyzer' required by 'deployment-manager'\n\u001b[0;31m[ERROR]   Failed to start dependency 'deployment-manager' required by 'scenario-to-desktop'); retrying once",
+          "retryable": true,
+          "created_at": "2026-04-08T00:28:42Z"
+        },
+        {
+          "code": "finalization_infrastructure",
+          "scenario_name": "landing-page-business-suite",
+          "message": "trigger review for landing-page-business-suite: review run returned status 409: {\"error\":\"a review run is already in progress for this scenario\"}",
+          "created_at": "2026-04-08T00:29:07Z"
+        },
+        {
+          "code": "finalization_infrastructure",
+          "scenario_name": "landing-page-business-suite",
+          "message": "trigger review for landing-page-business-suite: review run returned status 409: {\"error\":\"a review run is already in progress for this scenario\"}",
+          "created_at": "2026-04-08T00:29:10Z"
+        },
+        {
+          "code": "finalization_infrastructure",
+          "scenario_name": "prompt-manager",
+          "message": "trigger review for prompt-manager: review run returned status 409: {\"error\":\"a review run is already in progress for this scenario\"}",
+          "created_at": "2026-04-08T00:29:10Z"
+        },
+        {
+          "code": "review_agent_failed",
+          "message": "spawn review agent: another agent is already active for this backlog item: execute/lpbs-desktop-release-contract-hardening already has an active agent (activity=381a9f7d32ed57f2, status=running, purpose=review)",
+          "created_at": "2026-04-08T00:32:23Z"
+        },
+        {
+          "code": "review_agent_failed",
+          "message": "spawn review agent: another agent is already active for this backlog item: execute/lpbs-desktop-release-contract-hardening already has an active agent (activity=381a9f7d32ed57f2, status=running, purpose=review)",
+          "created_at": "2026-04-08T00:34:30Z"
+        }
+      ],
+      "affected_scenarios": [
+        "landing-page-business-suite",
+        "prompt-manager",
+        "scenario-to-desktop"
+      ],
+      "aggregate_classification": "ready_with_notes",
+      "aggregate_summary": "landing-page-business-suite ready with notes; prompt-manager ready with notes; scenario-to-desktop ready with notes; 6 warning(s)",
+      "scenarios": [
+        {
+          "scenario_name": "landing-page-business-suite",
+          "restart": {
+            "status": "completed",
+            "attempts": 1,
+            "started_at": "2026-04-08T00:27:32Z",
+            "finished_at": "2026-04-08T00:27:43Z"
+          },
+          "health": {
+            "status": "completed",
+            "scenario_status": "running",
+            "health_status": "healthy",
+            "schema_valid": true,
+            "details": "scenario is healthy",
+            "checked_at": "2026-04-08T00:27:45Z"
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "c167299b-2c59-4d00-8ba6-25de66ddb4ec",
+            "result": {
+              "job_id": "c167299b-2c59-4d00-8ba6-25de66ddb4ec",
+              "classification": "ready_with_notes",
+              "dimensions": [
+                {
+                  "name": "codeQuality",
+                  "status": "red",
+                  "details": "0.0 score, 177 violations"
+                },
+                {
+                  "name": "tests",
+                  "status": "yellow",
+                  "details": "8/11 passed"
+                },
+                {
+                  "name": "standards",
+                  "status": "yellow",
+                  "details": "23 warnings"
+                },
+                {
+                  "name": "visual",
+                  "status": "red"
+                },
+                {
+                  "name": "provenance",
+                  "status": "green"
+                }
+              ],
+              "raw_dimensions": {
+                "codeQuality": {
+                  "available": true,
+                  "score": 0,
+                  "violations": 177,
+                  "stale": false
+                },
+                "tests": {
+                  "available": true,
+                  "passed": false,
+                  "total": 11,
+                  "passedCount": 8,
+                  "failedCount": 3,
+                  "lastRun": "2026-04-08T00:31:21.309653971Z"
+                },
+                "standards": {
+                  "available": true,
+                  "blockingViolations": 0,
+                  "warnings": 23,
+                  "totalViolations": 23
+                },
+                "visual": {
+                  "available": true,
+                  "screenshotCount": 0,
+                  "stale": false
+                },
+                "provenance": {
+                  "available": true,
+                  "tracedFiles": 1
+                }
+              },
+              "summary": "Scenario landing-page-business-suite readiness: yellow",
+              "reviewed_at": "2026-04-08T00:31:24Z"
+            }
+          }
+        },
+        {
+          "scenario_name": "prompt-manager",
+          "restart": {
+            "status": "completed",
+            "attempts": 1,
+            "started_at": "2026-04-08T00:27:45Z",
+            "finished_at": "2026-04-08T00:28:20Z"
+          },
+          "health": {
+            "status": "completed",
+            "scenario_status": "running",
+            "health_status": "healthy",
+            "schema_valid": true,
+            "details": "scenario is healthy",
+            "checked_at": "2026-04-08T00:28:36Z"
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "85035dd2-63e7-4a53-9812-0f3a3f695992",
+            "result": {
+              "job_id": "85035dd2-63e7-4a53-9812-0f3a3f695992",
+              "classification": "ready_with_notes",
+              "dimensions": [
+                {
+                  "name": "codeQuality",
+                  "status": "yellow",
+                  "details": "100.0 score, 0 violations"
+                },
+                {
+                  "name": "tests",
+                  "status": "yellow",
+                  "details": "5/11 passed"
+                },
+                {
+                  "name": "standards",
+                  "status": "red",
+                  "details": "8 blocking violations"
+                },
+                {
+                  "name": "visual",
+                  "status": "green"
+                },
+                {
+                  "name": "provenance",
+                  "status": "green"
+                }
+              ],
+              "raw_dimensions": {
+                "codeQuality": {
+                  "available": true,
+                  "score": 100,
+                  "violations": 0,
+                  "stale": true
+                },
+                "tests": {
+                  "available": true,
+                  "passed": false,
+                  "total": 11,
+                  "passedCount": 5,
+                  "failedCount": 6,
+                  "lastRun": "2026-04-08T00:33:04.75667797Z"
+                },
+                "standards": {
+                  "available": true,
+                  "blockingViolations": 8,
+                  "warnings": 154,
+                  "totalViolations": 162
+                },
+                "visual": {
+                  "available": true,
+                  "screenshotCount": 5,
+                  "stale": false
+                },
+                "provenance": {
+                  "available": true,
+                  "tracedFiles": 1
+                }
+              },
+              "summary": "Scenario prompt-manager readiness: yellow",
+              "reviewed_at": "2026-04-08T00:33:05Z"
+            }
+          }
+        },
+        {
+          "scenario_name": "scenario-to-desktop",
+          "restart": {
+            "status": "completed",
+            "attempts": 1,
+            "started_at": "2026-04-08T00:28:36Z",
+            "finished_at": "2026-04-08T00:29:06Z"
+          },
+          "health": {
+            "status": "completed",
+            "scenario_status": "running",
+            "health_status": "healthy",
+            "schema_valid": true,
+            "details": "scenario is healthy",
+            "checked_at": "2026-04-08T00:29:10Z"
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "18a3d977-3fc4-4f55-95fc-99bcee1489ce",
+            "result": {
+              "job_id": "18a3d977-3fc4-4f55-95fc-99bcee1489ce",
+              "classification": "ready_with_notes",
+              "dimensions": [
+                {
+                  "name": "codeQuality",
+                  "status": "red",
+                  "details": "0.0 score, 229 violations"
+                },
+                {
+                  "name": "tests",
+                  "status": "green",
+                  "details": "11/11 passed"
+                },
+                {
+                  "name": "standards",
+                  "status": "yellow",
+                  "details": "8 warnings"
+                },
+                {
+                  "name": "visual",
+                  "status": "red"
+                },
+                {
+                  "name": "provenance",
+                  "status": "green"
+                }
+              ],
+              "raw_dimensions": {
+                "codeQuality": {
+                  "available": true,
+                  "score": 0,
+                  "violations": 229,
+                  "stale": false
+                },
+                "tests": {
+                  "available": true,
+                  "passed": true,
+                  "total": 11,
+                  "passedCount": 11,
+                  "failedCount": 0,
+                  "lastRun": "2026-04-08T00:34:26.073516579Z"
+                },
+                "standards": {
+                  "available": true,
+                  "blockingViolations": 0,
+                  "warnings": 8,
+                  "totalViolations": 8
+                },
+                "visual": {
+                  "available": true,
+                  "screenshotCount": 0,
+                  "stale": false
+                },
+                "provenance": {
+                  "available": true,
+                  "tracedFiles": 1
+                }
+              },
+              "summary": "Scenario scenario-to-desktop readiness: yellow",
+              "reviewed_at": "2026-04-08T00:34:30Z"
+            }
+          }
+        }
+      ]
+    },
     "created_at": "2026-04-08T00:04:04Z",
-    "updated_at": "2026-04-08T00:04:05Z"
+    "updated_at": "2026-04-08T00:34:30Z"
+  },
+  {
+    "execution_id": "827f4a646e7a1ec5",
+    "backlog_kind": "execute",
+    "backlog_name": "lpbs-desktop-release-contract-hardening",
+    "previous_status": "completed",
+    "task_id": "720107a2-ef55-4306-9e2b-452e43e216e8",
+    "run_id": "ac4911d0-c4d4-430a-8ba4-a97f3c5fc77e",
+    "status": "needs_fixup",
+    "mode": "yolo",
+    "started_at": "2026-04-08T00:37:31Z",
+    "finished_at": "2026-04-08T00:56:53Z",
+    "started_by": "swarm-manager:follow-up",
+    "operation": "followup",
+    "prompt_trace": {
+      "purpose": "followup",
+      "prompt": "\u003cexecution-context\u003e\nBacklog item: execute/lpbs-desktop-release-contract-hardening\nTitle: Harden The LPBS Desktop Release Contract\nItem folder: /home/matthalloran8/Vrooli/scenarios/swarm-manager/execute/lpbs-desktop-release-contract-hardening\nRun type: followup\n\u003c/execution-context\u003e\n\n\u003creview-feedback\u003e\nlanding-page-business-suite ready with notes; prompt-manager ready with notes; scenario-to-desktop ready with notes; 6 warning(s)\n- warning [restart_retry] scenario-to-desktop: restart attempt 1 failed: vrooli scenario restart scenario-to-desktop failed: exit status 1 (output: [INFO]    Restarting scenario: scenario-to-desktop\n[INFO]    Stopping scenario: scenario-to-desktop\n[INFO]    Stopping scenario-to-desktop:start-api process group (PGID: 3416651)\n[INFO]    Stopping scenario-to-desktop:start-ui process group (PGID: 3416734)\n[INFO]    Stopped 2 process groups for scenario: scenario-to-desktop\n\u001b[0;32m[SUCCESS] Scenario 'scenario-to-desktop' stopped successfully\n[INFO]    🔗 Ensuring dependency 'deployment-manager' for scenario 'scenario-to-desktop'\n[INFO]    🔗 Ensuring dependency 'app-issue-tracker' for scenario 'deployment-manager'\n\u001b[0;32m[SUCCESS] ✓ Scenario 'app-issue-tracker' is already running and healthy\n  API: http://localhost:19751\n  UI: http://localhost:36221\n[INFO]    🔗 Ensuring dependency 'scenario-dependency-analyzer' for scenario 'deployment-manager'\n\u001b[1;33m[WARNING] ⚠️  Scenario running but code is stale (UI bundle outdated: ui/dist/index.html Resources not populated), restarting...\n[INFO]    Stopping scenario-dependency-analyzer:start-api process group (PGID: 3414207)\n[INFO]    Stopping scenario-dependency-analyzer:start-ui process group (PGID: 3414316)\n[INFO]    Stopped 2 process groups for scenario: scenario-dependency-analyzer\n[INFO]    Running scenario 'scenario-dependency-analyzer' with direct lifecycle execution\n[INFO]    Starting scenario 'scenario-dependency-analyzer'...\n[INFO]    Running setup before develop...\n[INFO]    Environment setup complete for scenario: scenario-dependency-analyzer\n[WARNING] Postgres not running, skipping database creation for: vrooli_scenario_dependency_analyzer\n[INFO]    Initialize Scenario Dependency Analyzer with all dependencies\n[INFO]    [1/7] build-api\n  → Build Go dependency analysis API binary\n[INFO]    [2/7] install-cli\n  → Install scenario-dependency-analyzer CLI command globally\n✅ scenario-dependency-analyzer installed to /home/matthalloran8/.local/bin/scenario-dependency-analyzer\n[INFO]    [3/7] setup-database\n  → Initialize PostgreSQL schema and seed initial data\n[HEADER]  📦 Populating resources from path: /home/matthalloran8/Vrooli/scenarios/scenario-dependency-analyzer\n[INFO]    Detected scenario: scenario-dependency-analyzer\n[HEADER]  📦 Populating resources from scenario: scenario-dependency-analyzer\n[INFO]    Validating scenario structure...\n[INFO]    Validating scenario structure...\n[INFO]    ✅ Scenario structure is valid\n[INFO]    ✅ Scenario structure is valid\n[INFO]    Extracting resources from scenario configuration...\n[INFO]    Found 5 resource(s) to process: claude-code ollama postgres qdrant redis \n[INFO]    [1/5] Processing resource: claude-code\n[INFO]      → No initialization content for claude-code, skipping\n[INFO]    [2/5] Processing resource: ollama\n[INFO]      → No initialization content for ollama, skipping\n[INFO]    [3/5] Processing resource: postgres\n[INFO]      → Adding content to postgres...\n[INFO]      Added 2 items to postgres\n[SUCCESS]   ✅ Successfully populated postgres\n[INFO]    [4/5] Processing resource: qdrant\n[INFO]      → No initialization content for qdrant, skipping\n[INFO]    [5/5] Processing resource: redis\n[INFO]      → No initialization content for redis, skipping\n[HEADER]  📊 Population Summary\n[INFO]    Total resources: 5\n[INFO]    Successfully populated: 1\n[INFO]    Skipped (no content/CLI): 4\n[SUCCESS] ✅ Population phase complete!\n[INFO]    [4/7] install-ui-deps\n  → Install UI dependencies\n\nup to date, audited 375 packages in 657ms\n\n51 packages are looking for funding\n  run `npm fund` for details\n\n11 vulnerabilities (1 low, 4 moderate, 6 high)\n\nTo address issues that do not require attention, run:\n  npm audit fix\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\n[INFO]    [5/7] build-ui\n  → Build production UI bundle\n\n\u003e scenario-dependency-analyzer-ui@1.0.0 build\n\u003e tsc \u0026\u0026 vite build\n\nvite v5.4.21 building for production...\n[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`\ntransforming...\n✓ 2263 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   1.03 kB │ gzip:   0.54 kB\ndist/assets/index-BEa8rw41.css   29.31 kB │ gzip:   5.84 kB\ndist/assets/index-DFs4GjDd.js   476.09 kB │ gzip: 145.93 kB\n✓ built in 2.00s\n[INFO]    [6/7] verify-cli\n  → Verify CLI installation\n✅ CLI installed at:\n/home/matthalloran8/.vrooli/bin/scenario-dependency-analyzer\n[INFO]    [7/7] show-urls\n  → Display service access URLs and usage examples\n🔍 Scenario Dependency Analyzer initialized\\n  Graph Visualization: http://localhost:${UI_PORT}\\n  Analysis API: http://localhost:${API_PORT}\\n  CLI: scenario-dependency-analyzer --help\\n\\n📊 Quick Commands:\\n  scenario-dependency-analyzer analyze all\\n  scenario-dependency-analyzer graph combined --format html\\n  scenario-dependency-analyzer optimize all\n[SUCCESS] Phase 'setup' completed\n[INFO]    Starting develop phase...\n[INFO]    Environment setup complete for scenario: scenario-dependency-analyzer\n[INFO]    Scenario processes are currently running\n[WARNING] Postgres not running, skipping database creation for: vrooli_scenario_dependency_analyzer\n[INFO]    Start dependency analyzer with API server and visualization UI\n[INFO]    [1/3] start-api\n  → Start Go API server in background\n[INFO]    Previous log saved. View with: vrooli scenario logs scenario-dependency-analyzer --step start-api --previous\n[INFO]    Started background process: vrooli.develop.scenario-dependency-analyzer.start-api (PID: 366011)\n[INFO]    [2/3] start-ui\n  → Serve production UI bundle\n[INFO]    Previous log saved. View with: vrooli scenario logs scenario-dependency-analyzer --step start-ui --previous\n[ERROR]   Process vrooli.develop.scenario-dependency-analyzer.start-ui exited immediately (status: 0)\n[WARNING] Port 36900 appears free; check recent logs for other startup issues.\n[WARNING] Last log lines for vrooli.develop.scenario-dependency-analyzer.start-ui:\n[WARNING]     node:events:502\n[WARNING]           throw er; // Unhandled 'error' event\n[WARNING]           ^\n[WARNING]     \n[WARNING]     Error: listen EADDRINUSE: address already in use 0.0.0.0:36900\n[WARNING]         at Server.setupListenHandle [as _listen2] (node:net:1908:16)\n[WARNING]         at listenInCluster (node:net:1965:12)\n[WARNING]         at doListen (node:net:2139:7)\n[WARNING]         at process.processTicksAndRejections (node:internal/process/task_queues:83:21)\n[WARNING]     Emitted 'error' event on Server instance at:\n[WARNING]         at emitErrorNT (node:net:1944:8)\n[WARNING]         at process.processTicksAndRejections (node:internal/process/task_queues:82:21) {\n[WARNING]       code: 'EADDRINUSE',\n[WARNING]       errno: -98,\n[WARNING]       syscall: 'listen',\n[WARNING]       address: '0.0.0.0',\n[WARNING]       port: 36900\n[WARNING]     }\n[WARNING]     \n[WARNING]     Node.js v20.19.4\n[ERROR]   Background step failed: develop.scenario-dependency-analyzer.start-ui\n\u001b[0;31m[ERROR]   Failed to start dependency 'scenario-dependency-analyzer' required by 'deployment-manager'\n\u001b[0;31m[ERROR]   Failed to start dependency 'deployment-manager' required by 'scenario-to-desktop'); retrying once\n- warning [finalization_infrastructure] landing-page-business-suite: trigger review for landing-page-business-suite: review run returned status 409: {\"error\":\"a review run is already in progress for this scenario\"}\n- warning [finalization_infrastructure] landing-page-business-suite: trigger review for landing-page-business-suite: review run returned status 409: {\"error\":\"a review run is already in progress for this scenario\"}\n- warning [finalization_infrastructure] prompt-manager: trigger review for prompt-manager: review run returned status 409: {\"error\":\"a review run is already in progress for this scenario\"}\n- warning [review_agent_failed]: spawn review agent: another agent is already active for this backlog item: execute/lpbs-desktop-release-contract-hardening already has an active agent (activity=381a9f7d32ed57f2, status=running, purpose=review)\n- warning [review_agent_failed]: spawn review agent: another agent is already active for this backlog item: execute/lpbs-desktop-release-contract-hardening already has an active agent (activity=381a9f7d32ed57f2, status=running, purpose=review)\n- landing-page-business-suite review summary: Scenario landing-page-business-suite readiness: yellow\n- landing-page-business-suite codeQuality (red): 0.0 score, 177 violations\n- landing-page-business-suite tests (yellow): 8/11 passed\n- landing-page-business-suite standards (yellow): 23 warnings\n- landing-page-business-suite visual (red)\n- prompt-manager review summary: Scenario prompt-manager readiness: yellow\n- prompt-manager codeQuality (yellow): 100.0 score, 0 violations\n- prompt-manager tests (yellow): 5/11 passed\n- prompt-manager standards (red): 8 blocking violations\n- scenario-to-desktop review summary: Scenario scenario-to-desktop readiness: yellow\n- scenario-to-desktop codeQuality (red): 0.0 score, 229 violations\n- scenario-to-desktop standards (yellow): 8 warnings\n- scenario-to-desktop visual (red)\n\u003c/review-feedback\u003e\n\n\u003cfollow-up-context\u003e\nPlease fully implement and validate the rest of the plan that was not implemented\n\u003c/follow-up-context\u003e\n\n\u003cimplementation-plan path=\"plan.md\"\u003e\n# Implementation Plan: Harden The LPBS Desktop Release Contract\n\n## 1. Purpose\n\nMake the LPBS desktop release contract deterministic, inspectable, and commercially reliable. After this work, generated desktop apps ship a non-invasive auto-update flow by default, releases are traceable end-to-end, and the update endpoint guarantees are strong enough to sell through LPBS.\n\n## Required Reading\n\n```bash\nprompt-manager skill read cli-steer api-steer seam-discovery-and-enforcement\nprompt-manager skill read scenario-to-desktop landing-page-deploy-setup landing-page-desktop-upload\n```\n\n**Research dependency (completed):**\n```bash\nswarm-manager backlog file-get --kind research --name release-record-contract-and-history-model --path conclusion.md\n```\n\n## 2. Problem Statement\n\nLPBS has a functional update endpoint and artifact storage layer, but the release contract has gaps that prevent it from being a reliable commercial distribution surface:\n\n1. **Hardcoded variant_key**: `UpsertAsset` hardcodes `'default'` (download_service.go:596), blocking multi-channel releases.\n2. **No release_id correlation**: LPBS artifacts cannot be traced back to deployment-manager release records.\n3. **Release notes not served**: `download_assets.release_notes` exists but `buildElectronManifest()` (update_handlers.go:58-69) ignores it.\n4. **No channel discovery**: Desktop apps must hardcode channel names; no API to enumerate available channels/versions.\n5. **No current-version semantics at artifact level**: Current-version is determined by `download_assets.artifact_id` JOIN, but there's no verification or discovery API for this.\n6. **Update API key uses non-constant-time comparison**: `update_handlers.go` compares keys with Go string equality, not `subtle.ConstantTimeCompare`.\n7. **No post-release verification endpoint**: After a release, there's no way to programmatically verify that the update endpoint serves the expected version.\n8. **Update policy defaults are implicit**: No documented or configurable default policy for auto-update behavior.\n\n## 3. Scope\n\n### In Scope\n- LPBS API changes (new endpoints, schema additions, handler updates)\n- scenario-to-desktop upload flow changes (pass release_id, channel, release_notes)\n- Update endpoint enhancements (release notes in manifest, channel discovery)\n- Post-release verification endpoint (lightweight + optional deep S3 check)\n- Update policy defaults (schema + API, seam for per-app override)\n- Constant-time API key comparison fix\n- Auth middleware extraction (`requireUpdateAPIKey`) for update-family endpoints\n- Relevant skill updates (landing-page-deploy-setup, landing-page-desktop-upload)\n- Test coverage for all new and modified endpoints\n\n### Out of Scope\n- deployment-manager release record tables (separate initiative item)\n- Channel promotion logic in DM (separate initiative item)\n- Release history API in DM (separate initiative item)\n- DM orchestrator integration (separate initiative item)\n- Delta/patch updates\n- Code signing infrastructure\n- Bearer token / OAuth for update endpoints (future)\n- UI changes\n- **is_current column migration** — already computed dynamically via LEFT JOIN in `ListArtifactsByApp()` (download_hosting.go:981) and `GetCurrentArtifactByFilename()` (download_hosting.go:1016-1039). No schema change needed.\n\n## 4. Current Technical Context\n\n### Key Files — LPBS API\n| File | Role |\n|------|------|\n| `scenarios/landing-page-business-suite/api/update_handlers.go` | Update endpoint: manifest serving (lines 58-69), binary redirects, API key gating (lines 103-109), `channelToVariantKey()` (lines 50-55) |\n| `scenarios/landing-page-business-suite/api/update_handlers_test.go` | 13 test cases for update flows |\n| `scenarios/landing-page-business-suite/api/download_service.go` | Download app/asset CRUD, `UpsertAsset` with hardcoded variant_key (line 596), `GetAssetByVariant()` (lines 529-549) |\n| `scenarios/landing-page-business-suite/api/download_service_test.go` | Asset/app service tests |\n| `scenarios/landing-page-business-suite/api/download_hosting.go` | S3 artifact management, presign flows, `ListArtifactsByApp()` with computed is_current (line 981), `GetCurrentArtifactByFilename()` (lines 1016-1039) |\n| `scenarios/landing-page-business-suite/api/download_hosting_test.go` | Artifact lifecycle tests |\n| `scenarios/landing-page-business-suite/api/routes.go` | Route registration, `handleAdminSetArtifactAsCurrent` at POST `/api/v1/admin/download-assets/set-current` (line 126) |\n| `scenarios/landing-page-business-suite/api/main.go:742-806` | Table DDL with IF NOT EXISTS pattern |\n\n### Key Files — scenario-to-desktop\n| File | Role |\n|------|------|\n| `scenarios/scenario-to-desktop/` | Desktop app build + deploy pipeline |\n\n### Database Schema (current)\n- `download_apps` — app registry (app_key, update_api_key, metadata)\n- `download_assets` — per-platform asset binding (platform, variant_key, artifact_id, release_version, release_notes). Unique on (bundle_key, app_key, platform, variant_key).\n- `download_artifacts` — S3 object references (sha256, sha512, size_bytes, original_filename, platform, release_version)\n- `download_storage_settings` — S3 bucket config\n\n### is_current Architecture\nThe \"current\" artifact for a given slot is determined by `download_assets.artifact_id` FK join, NOT by a stored boolean column. This is already implemented:\n- `ListArtifactsByApp()` computes `is_current` via `CASE WHEN da.artifact_id = a.id THEN true ELSE false END`\n- `GetCurrentArtifactByFilename()` joins download_artifacts with download_assets on artifact_id\n- `handleAdminSetArtifactAsCurrent` updates `download_assets.artifact_id` to promote an artifact\n- No schema change needed — this is application-level logic matching the research conclusion\n\n### Research Findings (dependency: release-record-contract-and-history-model)\nThe completed research defines:\n- UUID-based release records owned by deployment-manager\n- Channel ordering: nightly → beta → stable (variant_key mapping: stable → \"default\")\n- `release_id` correlation column for LPBS `download_artifacts`\n- Parameterized variant_key in `UpsertAsset`\n- Commit-scoped approvals (no channel dimension)\n- Superseded status via application logic\n\n## 5. Target End State\n\nAfter implementation:\n1. `UpsertAsset` accepts `variant_key` as a parameter (no hardcoded default)\n2. `download_artifacts` has a `release_id` TEXT column for DM correlation (added in IF NOT EXISTS DDL)\n3. `download_apps` has an `update_policy` JSONB column with defaults `{\"check_interval_hours\": 4, \"update_mode\": \"optional\", \"allow_downgrade\": false}`\n4. Update manifests include `releaseNotes` as plain text passthrough when `download_assets.release_notes` is non-empty; field omitted when empty\n5. `GET /api/v1/updates/{app_key}/channels` returns available channels with latest version per platform, gated by same API-key logic as update endpoint\n6. `GET /api/v1/updates/{app_key}/verify?channel=X\u0026platform=Y\u0026expected_version=Z\u0026deep=false` confirms update endpoint correctness — lightweight by default, optional deep S3 check with `deep=true`\n7. Update API key comparison uses `crypto/subtle.ConstantTimeCompare` via extracted `requireUpdateAPIKey` middleware\n8. `requireUpdateAPIKey` middleware shared across update file, channel discovery, and verification endpoints\n9. `GET/PUT /api/v1/admin/download-apps/{app_key}/update-policy` for per-app policy management\n10. All new/modified endpoints have test coverage\n11. Skills updated to document new capabilities\n\n## 6. Implementation Strategy\n\n**This is greenfield work.** Do not include compatibility shims, legacy wrappers, dead code, unused re-exports, `// removed` comments, or renamed `_unused` variables.\n\n### Phase 1: Schema \u0026 Core Fixes (foundation)\n1. **Add `release_id` TEXT column to `download_artifacts`** — Add `ALTER TABLE ... ADD COLUMN IF NOT EXISTS release_id TEXT` to the IF NOT EXISTS DDL block in main.go. Add index: `CREATE INDEX IF NOT EXISTS idx_download_artifacts_release_id ON download_artifacts(release_id)`. Nullable, no default.\n2. **Add `update_policy` JSONB column to `download_apps`** — Add `ALTER TABLE ... ADD COLUMN IF NOT EXISTS update_policy JSONB NOT NULL DEFAULT '{\"check_interval_hours\": 4, \"update_mode\": \"optional\", \"allow_downgrade\": false}'::jsonb` to DDL. This provides conservative defaults per the settled policy: 4-hour check interval, optional updates, no downgrade.\n3. **Fix `UpsertAsset` hardcoded variant_key** — Add `VariantKey` field to `DownloadAsset` struct, parameterize in the INSERT/upsert statement. Callers pass the variant_key instead of relying on the hardcoded `'default'`.\n4. **Extract `requireUpdateAPIKey` middleware** — Create a new middleware function that loads the app by app_key, checks if `update_api_key` is set, and if so validates the `X-Update-Key` header using `crypto/subtle.ConstantTimeCompare`. Apply this middleware to the existing update file handler, replacing the inline comparison. This middleware will also be used by the new endpoints in Phase 2.\n\n### Phase 2: Endpoint Enhancements\n5. **Add release notes to manifest** — Extend `buildElectronManifest()` to include `releaseNotes` field from `download_assets.release_notes` as plain text passthrough. Omit the field entirely when notes are empty (no `releaseNotesFormat` field needed since it's plain text).\n6. **Add channel discovery endpoint** — `GET /api/v1/updates/{app_key}/channels`. Gated by `requireUpdateAPIKey` middleware (same behavior as update endpoint: public if no key set, gated if set). Returns `[{channel, platform, version, updated_at}]` aggregated from download_assets joined with download_artifacts.\n7. **Add post-release verification endpoint** — `GET /api/v1/updates/{app_key}/verify?channel=X\u0026platform=Y\u0026expected_version=Z\u0026deep=false`. Gated by `requireUpdateAPIKey`. Default (lightweight): checks manifest version+sha512 match expected. With `deep=true`: also HEADs the S3 object and tests presign generation. Response: `{match: bool, actual_version: string, actual_sha512: string, artifact_accessible?: bool, presign_valid?: bool}`. The `artifact_accessible` and `presign_valid` fields are only present when `deep=true`.\n8. **Update policy CRUD endpoint** — `GET/PUT /api/v1/admin/download-apps/{app_key}/update-policy` (requireAdmin). GET returns the current `update_policy` JSONB for the app (defaults applied if column is at default). PUT accepts and validates `{check_interval_hours: int, update_mode: \"optional\"|\"recommended\"|\"mandatory\", allow_downgrade: bool}` and writes to the JSONB column.\n\n### Phase 3: S2D Integration\n9. **Extend S2D upload flow** — Pass `release_id` in artifact commit request body. Pass `channel` → `variant_key` mapping in asset apply step.\n10. **Update artifact commit handler** — Accept and store `release_id` in download_artifacts when provided.\n\n### Phase 4: Skills \u0026 Verification\n11. **Update `landing-page-desktop-upload` skill** — Document release_id flow, channel handling, verification steps.\n12. **Update `landing-page-deploy-setup` skill** — Document update_policy configuration gate.\n\n### Final: Cleanup \u0026 Verification\n- Run `go build ./...` and fix ALL errors, even pre-existing\n- Run `gofumpt -w .` to format\n- Run `golangci-lint run` and fix ALL warnings in modified files\n- Run `go test ./... -timeout 300s` and fix any failures\n- `vrooli scenario restart landing-page-business-suite`\n- Verify health: `curl -s http://localhost:\u003cport\u003e/health`\n\n## 7. Contract Decisions\n\n### Settled (from research dependency)\n- **Release ID ownership**: deployment-manager owns the UUID; LPBS stores it as a correlation key\n- **Channel ordering**: nightly → beta → stable; stable maps to variant_key \"default\"\n- **Approval model**: commit-scoped, no channel dimension\n- **Superseded status**: application-level logic, not DB trigger\n\n### Settled (from round 1)\n- **Update policy defaults**: Conservative — 4h check interval, optional updates, no rollback window (d1→A)\n- **Channel discovery gating**: Same as update endpoint — public if no update_api_key, gated if set (d2→A)\n- **is_current strategy**: Keep existing computed JOIN approach — no schema change (d3→A, corrected in round 2)\n- **Verification endpoint**: Combined lightweight + optional deep S3 check (d4→other, resolved round 2)\n\n### Settled (from round 2)\n- **Update policy JSONB schema**: Minimal — `{check_interval_hours: int, update_mode: string, allow_downgrade: bool}` (d1→A). Additional fields like `mandatory_after_days`, `rollback_window_hours`, `min_version` can be added later via JSONB without migration.\n- **Release notes format**: Plain text passthrough — serve `download_assets.release_notes` as-is in the `releaseNotes` YAML field; omit when empty (d2→A). LPBS is format-agnostic; the content producer controls the format.\n- **Migration strategy**: Add both columns in the existing IF NOT EXISTS DDL block in main.go (d3→A). No numbered migration system needed for 2 additive columns.\n- **Auth middleware extraction**: Extract `requireUpdateAPIKey(appKey)` middleware shared across update file, channel discovery, and verification endpoints (d4→A). Single place for constant-time API key check, header name, and error response.\n\n## 8. Testing Plan\n\n| Area | Test Type | Coverage |\n|------|-----------|----------|\n| UpsertAsset variant_key parameterization | Unit + integration | Verify non-default variant_keys insert correctly |\n| release_id on artifact commit | Unit + integration | Verify column stored and queryable |\n| Release notes in manifest | Unit | Verify YAML output includes releaseNotes when present, omits when empty |\n| Channel discovery endpoint | Unit + integration | Verify correct aggregation across platforms/variants; verify API key gating |\n| Verification endpoint (lightweight) | Unit + integration | Verify match/mismatch responses for version+sha512 |\n| Verification endpoint (deep) | Unit + integration | Verify S3 HEAD and presign check when deep=true |\n| Update policy CRUD | Unit + integration | Verify default application, per-app override, and GET/PUT round-trip |\n| API key constant-time comparison | Unit | Verify timing-safe comparison works for match/mismatch |\n| requireUpdateAPIKey middleware | Unit | Verify gating behavior: no key set → allow, key set + correct → allow, key set + wrong → 401 |\n| Non-default channel update flow | Integration | End-to-end: beta channel artifact → manifest serve |\n\n## 9. Rollout/Validation Checklist\n\n- [ ] Schema additions apply cleanly on fresh DB (IF NOT EXISTS / ADD COLUMN IF NOT EXISTS)\n- [ ] Existing data is preserved (all additions are nullable or have defaults)\n- [ ] Update endpoint serves manifests for default and non-default channels\n- [ ] Release notes appear in manifest YAML when populated, omitted when empty\n- [ ] Channel discovery returns correct data for multi-platform apps\n- [ ] Verification endpoint correctly reports match/mismatch (lightweight mode)\n- [ ] Verification endpoint correctly reports S3 accessibility (deep mode)\n- [ ] S2D upload flow passes release_id through to LPBS\n- [ ] Update policy endpoint returns defaults for unconfigured apps\n- [ ] requireUpdateAPIKey middleware correctly gates all update-family endpoints\n- [ ] All tests pass with `go test ./... -timeout 300s`\n- [ ] Scenario restarts cleanly\n\n## 10. Risks + Mitigations\n\n| Risk | Impact | Mitigation |\n|------|--------|------------|\n| DDL additions break existing data | High | All additions use ADD COLUMN IF NOT EXISTS, nullable columns, or columns with defaults |\n| S2D upload flow breaks if LPBS expects new fields | Medium | New fields are optional; old S2D versions continue to work without release_id |\n| Channel discovery performance on large datasets | Low | Index on (app_key, variant_key, platform) already exists via unique constraint |\n| Update policy schema evolution | Low | JSONB column allows additive changes without migrations |\n| Deep verification adds S3 latency | Low | Deep mode is opt-in via `deep=true`; default is lightweight check only |\n| requireUpdateAPIKey middleware changes auth behavior | Medium | Middleware replicates exact existing inline logic with constant-time fix; comprehensive test coverage |\n\n## 11. Non-goals / Prohibited Patterns\n\n- **No compatibility shims**: This is greenfield work. No legacy wrappers or dead code.\n- **No DM schema changes**: Release records live in DM (separate backlog items).\n- **No UI changes**: API-only; UI can consume these endpoints later.\n- **No delta updates**: Full installer replacement only for now.\n- **No code signing**: Checksum integrity only; signing is a separate initiative.\n- **No is_current column**: Current-version is already computed via JOIN — do not add a stored flag.\n\n## 12. Definition of Done\n\n1. DDL additions apply cleanly (release_id on artifacts, update_policy on apps) via IF NOT EXISTS pattern\n2. `UpsertAsset` accepts parameterized variant_key\n3. `download_artifacts` stores release_id when provided\n4. Update manifests include plain text release notes when available, omit when empty\n5. Channel discovery endpoint works with correct API-key gating\n6. Post-release verification endpoint works (lightweight + deep modes)\n7. Update policy defaults are configurable per-app via admin endpoint with minimal schema\n8. API key comparison is timing-safe via extracted `requireUpdateAPIKey` middleware\n9. All tests pass\n10. Scenario restarts and is healthy\n11. Skills updated with new capabilities\n\n\u003c/implementation-plan\u003e\n",
+      "prompt_revision": "sha256:21b20cfd4c4017cf",
+      "used_fallback": false,
+      "captured_at": "2026-04-08T00:37:31Z"
+    },
+    "parent_execution_id": "a08f53da8a984348",
+    "finalization": {
+      "eligible": true,
+      "status": "completed",
+      "phase": "completed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-04-08T00:51:10Z",
+      "completed_at": "2026-04-08T00:56:53Z",
+      "warnings": [
+        {
+          "code": "review_skipped",
+          "scenario_name": "prompt-manager",
+          "message": "review skipped because restart/health checks did not pass",
+          "created_at": "2026-04-08T00:52:54Z"
+        },
+        {
+          "code": "review_skipped",
+          "scenario_name": "scenario-to-desktop",
+          "message": "review skipped because restart/health checks did not pass",
+          "created_at": "2026-04-08T00:52:54Z"
+        },
+        {
+          "code": "review_agent_failed",
+          "message": "render review skill: promptmanager: resolve URL: resolve prompt-manager: api-core discovery command_failed scenario=\"prompt-manager\" port=\"API_PORT\" err=exit status 1",
+          "created_at": "2026-04-08T00:52:54Z"
+        },
+        {
+          "code": "restart_retry",
+          "scenario_name": "scenario-to-desktop",
+          "message": "restart attempt 1 failed: vrooli scenario restart scenario-to-desktop failed: exit status 1 (output: [INFO]    Restarting scenario: scenario-to-desktop\n[INFO]    Stopping scenario: scenario-to-desktop\n[INFO]    Stopped 0 process groups for scenario: scenario-to-desktop\n\u001b[0;32m[SUCCESS] Scenario 'scenario-to-desktop' stopped successfully\n[INFO]    🔗 Ensuring dependency 'deployment-manager' for scenario 'scenario-to-desktop'\n[INFO]    🔗 Ensuring dependency 'app-issue-tracker' for scenario 'deployment-manager'\n\u001b[0;32m[SUCCESS] ✓ Scenario 'app-issue-tracker' is already running and healthy\n  API: http://localhost:19751\n  UI: http://localhost:36221\n[INFO]    🔗 Ensuring dependency 'scenario-dependency-analyzer' for scenario 'deployment-manager'\n[INFO]    Running scenario 'scenario-dependency-analyzer' with direct lifecycle execution\n[INFO]    Starting scenario 'scenario-dependency-analyzer'...\n[INFO]    Running setup before develop...\n[INFO]    Environment setup complete for scenario: scenario-dependency-analyzer\n[WARNING] Postgres not running, skipping database creation for: vrooli_scenario_dependency_analyzer\n[INFO]    Initialize Scenario Dependency Analyzer with all dependencies\n[INFO]    [1/7] build-api\n  → Build Go dependency analysis API binary\n[INFO]    [2/7] install-cli\n  → Install scenario-dependency-analyzer CLI command globally\n✅ scenario-dependency-analyzer installed to /home/matthalloran8/.local/bin/scenario-dependency-analyzer\n[INFO]    [3/7] setup-database\n  → Initialize PostgreSQL schema and seed initial data\n[HEADER]  📦 Populating resources from path: /home/matthalloran8/Vrooli/scenarios/scenario-dependency-analyzer\n[INFO]    Detected scenario: scenario-dependency-analyzer\n[HEADER]  📦 Populating resources from scenario: scenario-dependency-analyzer\n[INFO]    Validating scenario structure...\n[INFO]    Validating scenario structure...\n[INFO]    ✅ Scenario structure is valid\n[INFO]    ✅ Scenario structure is valid\n[INFO]    Extracting resources from scenario configuration...\n[INFO]    Found 5 resource(s) to process: claude-code ollama postgres qdrant redis \n[INFO]    [1/5] Processing resource: claude-code\n[INFO]      → No initialization content for claude-code, skipping\n[INFO]    [2/5] Processing resource: ollama\n[INFO]      → No initialization content for ollama, skipping\n[INFO]    [3/5] Processing resource: postgres\n[INFO]      → Adding content to postgres...\n[INFO]      Added 2 items to postgres\n[SUCCESS]   ✅ Successfully populated postgres\n[INFO]    [4/5] Processing resource: qdrant\n[INFO]      → No initialization content for qdrant, skipping\n[INFO]    [5/5] Processing resource: redis\n[INFO]      → No initialization content for redis, skipping\n[HEADER]  📊 Population Summary\n[INFO]    Total resources: 5\n[INFO]    Successfully populated: 1\n[INFO]    Skipped (no content/CLI): 4\n[SUCCESS] ✅ Population phase complete!\n[INFO]    [4/7] install-ui-deps\n  → Install UI dependencies\n\nup to date, audited 375 packages in 614ms\n\n51 packages are looking for funding\n  run `npm fund` for details\n\n11 vulnerabilities (1 low, 4 moderate, 6 high)\n\nTo address issues that do not require attention, run:\n  npm audit fix\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\n[INFO]    [5/7] build-ui\n  → Build production UI bundle\n\n\u003e scenario-dependency-analyzer-ui@1.0.0 build\n\u003e tsc \u0026\u0026 vite build\n\nvite v5.4.21 building for production...\n[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`\ntransforming...\n✓ 2263 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   1.03 kB │ gzip:   0.54 kB\ndist/assets/index-BEa8rw41.css   29.31 kB │ gzip:   5.84 kB\ndist/assets/index-DFs4GjDd.js   476.09 kB │ gzip: 145.93 kB\n✓ built in 2.14s\n[INFO]    [6/7] verify-cli\n  → Verify CLI installation\n✅ CLI installed at:\n/home/matthalloran8/.vrooli/bin/scenario-dependency-analyzer\n[INFO]    [7/7] show-urls\n  → Display service access URLs and usage examples\n🔍 Scenario Dependency Analyzer initialized\\n  Graph Visualization: http://localhost:${UI_PORT}\\n  Analysis API: http://localhost:${API_PORT}\\n  CLI: scenario-dependency-analyzer --help\\n\\n📊 Quick Commands:\\n  scenario-dependency-analyzer analyze all\\n  scenario-dependency-analyzer graph combined --format html\\n  scenario-dependency-analyzer optimize all\n[SUCCESS] Phase 'setup' completed\n[INFO]    Starting develop phase...\n[INFO]    Environment setup complete for scenario: scenario-dependency-analyzer\n[WARNING] Postgres not running, skipping database creation for: vrooli_scenario_dependency_analyzer\n[INFO]    Start dependency analyzer with API server and visualization UI\n[INFO]    [1/3] start-api\n  → Start Go API server in background\n[INFO]    Previous log saved. View with: vrooli scenario logs scenario-dependency-analyzer --step start-api --previous\n[INFO]    Started background process: vrooli.develop.scenario-dependency-analyzer.start-api (PID: 1233854)\n[INFO]    [2/3] start-ui\n  → Serve production UI bundle\n[INFO]    Previous log saved. View with: vrooli scenario logs scenario-dependency-analyzer --step start-ui --previous\n[INFO]    Started background process: vrooli.develop.scenario-dependency-analyzer.start-ui (PID: 1233929)\n[INFO]    [3/3] show-urls\n  → Display all running service URLs and CLI info\n🔍 Scenario Dependency Analyzer Services Running:\\n  Graph Visualization: http://localhost:${UI_PORT}\\n  Analysis API: http://localhost:${API_PORT}\\n  Database: postgres://${RESOURCE_PORTS[postgres]}\\n\\n📋 CLI Usage: scenario-dependency-analyzer --help\n[SUCCESS] Phase 'develop' completed\n[INFO]    🔗 Ensuring dependency 'secrets-manager' for scenario 'deployment-manager'\n\u001b[0;32m[SUCCESS] ✓ Scenario 'deployment-manager' is already running and healthy\n  API: http://localhost:18721\n  UI: http://localhost:36153\n[INFO]    Running scenario 'scenario-to-desktop' with direct lifecycle execution\n[INFO]    Starting scenario 'scenario-to-desktop'...\n[WARNING] Checker script not found: /home/matthalloran8/Vrooli/scripts/lib/setup-conditions/file-check.sh (VROOLI_ROOT=/home/matthalloran8/Vrooli, APP_ROOT=/home/matthalloran8/Vrooli)\n[INFO]    Running setup before develop...\n[INFO]    Environment setup complete for scenario: scenario-to-desktop\n[WARNING] Postgres not running, skipping database creation for: vrooli_app_monitor\n[INFO]    Initialize scenario-to-desktop\n[INFO]    [1/5] install-cli\n  → Install CLI command globally\nBuilding scenario-to-desktop from /home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/cli...\n✅ installed CLI to /home/matthalloran8/.vrooli/bin/scenario-to-desktop\n[INFO]    [2/5] build-api\n  → Build Go API binary\n[INFO]    [3/5] install-ui-deps\n  → Install UI dependencies\n WARN  Moving @vrooli/api-base that was installed by a different package manager to \"node_modules/.ignored\"\n WARN  Moving @vrooli/iframe-bridge that was installed by a different package manager to \"node_modules/.ignored\"\n WARN  Moving @vrooli/proto-types that was installed by a different package manager to \"node_modules/.ignored\"\nProgress: resolved 1, reused 0, downloaded 0, added 0\nPackages: +3\n+++\nProgress: resolved 609, reused 549, downloaded 0, added 3, done\n\n\u003e scenario-to-desktop-ui@1.0.0 postinstall /home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui\n\u003e bash -c 'set -e; mkdir -p node_modules/@vrooli; for pkg in api-base iframe-bridge; do rm -rf \"node_modules/@vrooli/$pkg\"; cp -a \"../../../packages/$pkg\" \"node_modules/@vrooli/$pkg\"; done; rm -rf node_modules/@vrooli/proto-types; cp -a ../../../packages/proto/gen/typescript node_modules/@vrooli/proto-types'\n\n\ndependencies:\n+ @vrooli/api-base 1.0.0\n+ @vrooli/iframe-bridge 0.1.0\n+ @vrooli/proto-types 1.0.0\n\nDone in 2s\n[INFO]    [4/5] build-ui\n  → Build production UI with Vite\n\n\u003e scenario-to-desktop-ui@1.0.0 build /home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui\n\u003e vite build\n\nvite v5.4.21 building for production...\n[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`\ntransforming...\n✓ 3 modules transformed.\nx Build failed in 171ms\nerror during build:\n[vite]: Rollup failed to resolve import \"@vrooli/iframe-bridge\" from \"/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/main.tsx\".\nThis is most likely unintended because it can break your application at runtime.\nIf you do want to externalize this module explicitly add it to\n`build.rollupOptions.external`\n    at viteWarn (file:///home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/node_modules/.pnpm/vite@5.4.21/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:65855:17)\n    at onwarn (file:///home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/node_modules/.pnpm/@vitejs+plugin-react@4.7.0_vite@5.4.21/node_modules/@vitejs/plugin-react/dist/index.js:90:7)\n    at onRollupWarning (file:///home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/node_modules/.pnpm/vite@5.4.21/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:65885:5)\n    at onwarn (file:///home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/node_modules/.pnpm/vite@5.4.21/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:65550:7)\n    at file:///home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/node_modules/.pnpm/rollup@4.53.2/node_modules/rollup/dist/es/shared/node-entry.js:20961:13\n    at Object.logger [as onLog] (file:///home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/node_modules/.pnpm/rollup@4.53.2/node_modules/rollup/dist/es/shared/node-entry.js:22834:9)\n    at ModuleLoader.handleInvalidResolvedId (file:///home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/node_modules/.pnpm/rollup@4.53.2/node_modules/rollup/dist/es/shared/node-entry.js:21578:26)\n    at file:///home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/node_modules/.pnpm/rollup@4.53.2/node_modules/rollup/dist/es/shared/node-entry.js:21536:26\n ELIFECYCLE  Command failed with exit code 1.\n[ERROR]   Step failed: setup.scenario-to-desktop.build-ui\n[ERROR]   Setup failed); retrying once",
+          "retryable": true,
+          "created_at": "2026-04-08T00:54:58Z"
+        },
+        {
+          "code": "finalization_infrastructure",
+          "scenario_name": "landing-page-business-suite",
+          "message": "trigger review for landing-page-business-suite: review run returned status 409: {\"error\":\"a review run is already in progress for this scenario\"}",
+          "created_at": "2026-04-08T00:55:07Z"
+        },
+        {
+          "code": "finalization_infrastructure",
+          "scenario_name": "landing-page-business-suite",
+          "message": "trigger review for landing-page-business-suite: review run returned status 409: {\"error\":\"a review run is already in progress for this scenario\"}",
+          "created_at": "2026-04-08T00:55:16Z"
+        },
+        {
+          "code": "finalization_infrastructure",
+          "scenario_name": "prompt-manager",
+          "message": "trigger review for prompt-manager: review run returned status 409: {\"error\":\"a review run is already in progress for this scenario\"}",
+          "created_at": "2026-04-08T00:55:16Z"
+        },
+        {
+          "code": "review_skipped",
+          "scenario_name": "scenario-to-desktop",
+          "message": "review skipped because restart/health checks did not pass",
+          "created_at": "2026-04-08T00:55:16Z"
+        },
+        {
+          "code": "review_agent_failed",
+          "message": "spawn review agent: another agent is already active for this backlog item: execute/lpbs-desktop-release-contract-hardening already has an active agent (activity=327488e0a2321a8c, status=running, purpose=review)",
+          "created_at": "2026-04-08T00:55:16Z"
+        },
+        {
+          "code": "finalization_infrastructure",
+          "scenario_name": "prompt-manager",
+          "message": "trigger review for prompt-manager: review run returned status 409: {\"error\":\"a review run is already in progress for this scenario\"}",
+          "created_at": "2026-04-08T00:56:28Z"
+        },
+        {
+          "code": "review_skipped",
+          "scenario_name": "scenario-to-desktop",
+          "message": "review skipped because restart/health checks did not pass",
+          "created_at": "2026-04-08T00:56:28Z"
+        },
+        {
+          "code": "review_agent_failed",
+          "message": "spawn review agent: another agent is already active for this backlog item: execute/lpbs-desktop-release-contract-hardening already has an active agent (activity=327488e0a2321a8c, status=running, purpose=review)",
+          "created_at": "2026-04-08T00:56:28Z"
+        },
+        {
+          "code": "review_skipped",
+          "scenario_name": "scenario-to-desktop",
+          "message": "review skipped because restart/health checks did not pass",
+          "created_at": "2026-04-08T00:56:53Z"
+        },
+        {
+          "code": "review_agent_failed",
+          "message": "spawn review agent: another agent is already active for this backlog item: execute/lpbs-desktop-release-contract-hardening already has an active agent (activity=327488e0a2321a8c, status=running, purpose=review)",
+          "created_at": "2026-04-08T00:56:53Z"
+        }
+      ],
+      "affected_scenarios": [
+        "landing-page-business-suite",
+        "prompt-manager",
+        "scenario-to-desktop"
+      ],
+      "aggregate_classification": "needs_work",
+      "aggregate_summary": "landing-page-business-suite ready with notes; prompt-manager ready with notes; scenario-to-desktop restart failed; 14 warning(s)",
+      "scenarios": [
+        {
+          "scenario_name": "landing-page-business-suite",
+          "restart": {
+            "status": "completed",
+            "attempts": 1,
+            "started_at": "2026-04-08T00:53:43Z",
+            "finished_at": "2026-04-08T00:53:54Z"
+          },
+          "health": {
+            "status": "completed",
+            "scenario_status": "running",
+            "health_status": "healthy",
+            "schema_valid": true,
+            "details": "scenario is healthy",
+            "checked_at": "2026-04-08T00:54:00Z"
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "f1a9582e-d0f3-480f-b3c1-69daa457d8d6",
+            "result": {
+              "job_id": "f1a9582e-d0f3-480f-b3c1-69daa457d8d6",
+              "classification": "ready_with_notes",
+              "dimensions": [
+                {
+                  "name": "codeQuality",
+                  "status": "red",
+                  "details": "0.0 score, 337 violations"
+                },
+                {
+                  "name": "tests",
+                  "status": "yellow",
+                  "details": "6/11 passed"
+                },
+                {
+                  "name": "standards",
+                  "status": "yellow",
+                  "details": "23 warnings"
+                },
+                {
+                  "name": "visual",
+                  "status": "red"
+                },
+                {
+                  "name": "provenance",
+                  "status": "green"
+                }
+              ],
+              "raw_dimensions": {
+                "codeQuality": {
+                  "available": true,
+                  "score": 0,
+                  "violations": 337,
+                  "stale": false
+                },
+                "tests": {
+                  "available": true,
+                  "passed": false,
+                  "total": 11,
+                  "passedCount": 6,
+                  "failedCount": 5,
+                  "lastRun": "2026-04-08T00:56:23.302556365Z"
+                },
+                "standards": {
+                  "available": true,
+                  "blockingViolations": 0,
+                  "warnings": 23,
+                  "totalViolations": 23
+                },
+                "visual": {
+                  "available": true,
+                  "screenshotCount": 0,
+                  "stale": false
+                },
+                "provenance": {
+                  "available": true,
+                  "tracedFiles": 1
+                }
+              },
+              "summary": "Scenario landing-page-business-suite readiness: yellow",
+              "reviewed_at": "2026-04-08T00:56:28Z"
+            }
+          }
+        },
+        {
+          "scenario_name": "prompt-manager",
+          "restart": {
+            "status": "completed",
+            "attempts": 1,
+            "started_at": "2026-04-08T00:54:00Z",
+            "finished_at": "2026-04-08T00:54:35Z"
+          },
+          "health": {
+            "status": "completed",
+            "scenario_status": "running",
+            "health_status": "healthy",
+            "schema_valid": true,
+            "details": "scenario is healthy",
+            "checked_at": "2026-04-08T00:54:41Z"
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "43344b82-5c7a-441d-907b-5a2d2a4238dc",
+            "result": {
+              "job_id": "43344b82-5c7a-441d-907b-5a2d2a4238dc",
+              "classification": "ready_with_notes",
+              "dimensions": [
+                {
+                  "name": "codeQuality",
+                  "status": "yellow",
+                  "details": "100.0 score, 0 violations"
+                },
+                {
+                  "name": "tests",
+                  "status": "yellow",
+                  "details": "6/11 passed"
+                },
+                {
+                  "name": "standards",
+                  "status": "red",
+                  "details": "8 blocking violations"
+                },
+                {
+                  "name": "visual",
+                  "status": "green"
+                },
+                {
+                  "name": "provenance",
+                  "status": "green"
+                }
+              ],
+              "raw_dimensions": {
+                "codeQuality": {
+                  "available": true,
+                  "score": 100,
+                  "violations": 0,
+                  "stale": true
+                },
+                "tests": {
+                  "available": true,
+                  "passed": false,
+                  "total": 11,
+                  "passedCount": 6,
+                  "failedCount": 5,
+                  "lastRun": "2026-04-08T00:56:52.466218447Z"
+                },
+                "standards": {
+                  "available": true,
+                  "blockingViolations": 8,
+                  "warnings": 154,
+                  "totalViolations": 162
+                },
+                "visual": {
+                  "available": true,
+                  "screenshotCount": 4,
+                  "stale": false
+                },
+                "provenance": {
+                  "available": true,
+                  "tracedFiles": 1
+                }
+              },
+              "summary": "Scenario prompt-manager readiness: yellow",
+              "reviewed_at": "2026-04-08T00:56:53Z"
+            }
+          }
+        },
+        {
+          "scenario_name": "scenario-to-desktop",
+          "restart": {
+            "status": "failed",
+            "attempts": 2,
+            "last_error": "vrooli scenario restart scenario-to-desktop failed: exit status 1 (output: [INFO]    Restarting scenario: scenario-to-desktop\n[INFO]    Stopping scenario: scenario-to-desktop\n[INFO]    Stopped 0 process groups for scenario: scenario-to-desktop\n\u001b[0;32m[SUCCESS] Scenario 'scenario-to-desktop' stopped successfully\n[INFO]    🔗 Ensuring dependency 'deployment-manager' for scenario 'scenario-to-desktop'\n[INFO]    🔗 Ensuring dependency 'app-issue-tracker' for scenario 'deployment-manager'\n\u001b[0;32m[SUCCESS] ✓ Scenario 'app-issue-tracker' is already running and healthy\n  API: http://localhost:19751\n  UI: http://localhost:36221\n[INFO]    🔗 Ensuring dependency 'scenario-dependency-analyzer' for scenario 'deployment-manager'\n\u001b[1;33m[WARNING] ⚠️  Scenario running but code is stale (Resources not populated), restarting...\n[INFO]    Stopping scenario-dependency-analyzer:start-api process group (PGID: 1235700)\n[INFO]    Stopping scenario-dependency-analyzer:start-ui process group (PGID: 1236012)\n[INFO]    Stopped 2 process groups for scenario: scenario-dependency-analyzer\n[INFO]    Running scenario 'scenario-dependency-analyzer' with direct lifecycle execution\n[INFO]    Starting scenario 'scenario-dependency-analyzer'...\n[INFO]    Running setup before develop...\n[INFO]    Environment setup complete for scenario: scenario-dependency-analyzer\n[INFO]    Scenario processes are currently running\n[WARNING] Postgres not running, skipping database creation for: vrooli_scenario_dependency_analyzer\n[INFO]    Initialize Scenario Dependency Analyzer with all dependencies\n[INFO]    [1/7] build-api\n  → Build Go dependency analysis API binary\n[INFO]    [2/7] install-cli\n  → Install scenario-dependency-analyzer CLI command globally\n✅ scenario-dependency-analyzer installed to /home/matthalloran8/.local/bin/scenario-dependency-analyzer\n[INFO]    [3/7] setup-database\n  → Initialize PostgreSQL schema and seed initial data\n[HEADER]  📦 Populating resources from path: /home/matthalloran8/Vrooli/scenarios/scenario-dependency-analyzer\n[INFO]    Detected scenario: scenario-dependency-analyzer\n[HEADER]  📦 Populating resources from scenario: scenario-dependency-analyzer\n[INFO]    Validating scenario structure...\n[INFO]    Validating scenario structure...\n[INFO]    ✅ Scenario structure is valid\n[INFO]    ✅ Scenario structure is valid\n[INFO]    Extracting resources from scenario configuration...\n[INFO]    Found 5 resource(s) to process: claude-code ollama postgres qdrant redis \n[INFO]    [1/5] Processing resource: claude-code\n[INFO]      → No initialization content for claude-code, skipping\n[INFO]    [2/5] Processing resource: ollama\n[INFO]      → No initialization content for ollama, skipping\n[INFO]    [3/5] Processing resource: postgres\n[INFO]      → Adding content to postgres...\n[INFO]      Added 2 items to postgres\n[SUCCESS]   ✅ Successfully populated postgres\n[INFO]    [4/5] Processing resource: qdrant\n[INFO]      → No initialization content for qdrant, skipping\n[INFO]    [5/5] Processing resource: redis\n[INFO]      → No initialization content for redis, skipping\n[HEADER]  📊 Population Summary\n[INFO]    Total resources: 5\n[INFO]    Successfully populated: 1\n[INFO]    Skipped (no content/CLI): 4\n[SUCCESS] ✅ Population phase complete!\n[INFO]    [4/7] install-ui-deps\n  → Install UI dependencies\n\nup to date, audited 375 packages in 814ms\n\n51 packages are looking for funding\n  run `npm fund` for details\n\n11 vulnerabilities (1 low, 4 moderate, 6 high)\n\nTo address issues that do not require attention, run:\n  npm audit fix\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\n[INFO]    [5/7] build-ui\n  → Build production UI bundle\n\n\u003e scenario-dependency-analyzer-ui@1.0.0 build\n\u003e tsc \u0026\u0026 vite build\n\nvite v5.4.21 building for production...\n[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`\ntransforming...\n✓ 2263 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   1.03 kB │ gzip:   0.54 kB\ndist/assets/index-BEa8rw41.css   29.31 kB │ gzip:   5.84 kB\ndist/assets/index-DFs4GjDd.js   476.09 kB │ gzip: 145.93 kB\n✓ built in 2.14s\n[INFO]    [6/7] verify-cli\n  → Verify CLI installation\n✅ CLI installed at:\n/home/matthalloran8/.vrooli/bin/scenario-dependency-analyzer\n[INFO]    [7/7] show-urls\n  → Display service access URLs and usage examples\n🔍 Scenario Dependency Analyzer initialized\\n  Graph Visualization: http://localhost:${UI_PORT}\\n  Analysis API: http://localhost:${API_PORT}\\n  CLI: scenario-dependency-analyzer --help\\n\\n📊 Quick Commands:\\n  scenario-dependency-analyzer analyze all\\n  scenario-dependency-analyzer graph combined --format html\\n  scenario-dependency-analyzer optimize all\n[SUCCESS] Phase 'setup' completed\n[INFO]    Starting develop phase...\n[INFO]    Environment setup complete for scenario: scenario-dependency-analyzer\n[INFO]    Scenario processes are currently running\n[WARNING] Postgres not running, skipping database creation for: vrooli_scenario_dependency_analyzer\n[INFO]    Start dependency analyzer with API server and visualization UI\n[INFO]    [1/3] start-api\n  → Start Go API server in background\n[INFO]    Previous log saved. View with: vrooli scenario logs scenario-dependency-analyzer --step start-api --previous\n[INFO]    Started background process: vrooli.develop.scenario-dependency-analyzer.start-api (PID: 1263910)\n[INFO]    [2/3] start-ui\n  → Serve production UI bundle\n[INFO]    Previous log saved. View with: vrooli scenario logs scenario-dependency-analyzer --step start-ui --previous\n[INFO]    Started background process: vrooli.develop.scenario-dependency-analyzer.start-ui (PID: 1264022)\n[INFO]    [3/3] show-urls\n  → Display all running service URLs and CLI info\n🔍 Scenario Dependency Analyzer Services Running:\\n  Graph Visualization: http://localhost:${UI_PORT}\\n  Analysis API: http://localhost:${API_PORT}\\n  Database: postgres://${RESOURCE_PORTS[postgres]}\\n\\n📋 CLI Usage: scenario-dependency-analyzer --help\n[SUCCESS] Phase 'develop' completed\n[INFO]    🔗 Ensuring dependency 'secrets-manager' for scenario 'deployment-manager'\n\u001b[0;32m[SUCCESS] ✓ Scenario 'deployment-manager' is already running and healthy\n  API: http://localhost:18721\n  UI: http://localhost:36153\n\u001b[1;33m[WARNING] Checker script not found: /home/matthalloran8/Vrooli/scripts/lib/setup-conditions/file-check.sh (VROOLI_ROOT=/home/matthalloran8/Vrooli, APP_ROOT=/home/matthalloran8/Vrooli)\n\u001b[1;33m[WARNING] ⚠️  Scenario running but code is stale (Forced rebuild (restart)), restarting...\n[INFO]    Stopping scenario-to-desktop:start-api process group (PGID: 1243319))",
+            "started_at": "2026-04-08T00:54:58Z",
+            "finished_at": "2026-04-08T00:55:16Z"
+          },
+          "health": {
+            "status": "failed",
+            "schema_valid": false,
+            "details": "restart command failed; health check skipped",
+            "checked_at": "2026-04-08T00:55:16Z"
+          },
+          "review": {
+            "status": "skipped",
+            "skip_reason": "restart/health checks did not pass"
+          }
+        }
+      ]
+    },
+    "created_at": "2026-04-08T00:37:31Z",
+    "updated_at": "2026-04-08T00:56:53Z"
+  },
+  {
+    "execution_id": "07ba3abf1a0fe1f1",
+    "backlog_kind": "execute",
+    "backlog_name": "qa-deployment-manager-code-quality-20260407",
+    "previous_status": "backlog",
+    "task_id": "026910dc-8ca3-42b0-aabf-7fa689c533f4",
+    "run_id": "7df40331-3565-4d56-a148-67d63a9ae27c",
+    "status": "completed",
+    "mode": "yolo",
+    "started_at": "2026-04-08T01:35:03Z",
+    "finished_at": "2026-04-08T01:56:23Z",
+    "started_by": "swarm-manager-ui",
+    "operation": "generator",
+    "prompt_trace": {
+      "purpose": "process",
+      "prompt": "\u003cexecution-context\u003e\nBacklog item: execute/qa-deployment-manager-code-quality-20260407\nTitle: Improve deployment-manager code quality\nItem folder: /home/matthalloran8/Vrooli/scenarios/swarm-manager/execute/qa-deployment-manager-code-quality-20260407\nRun type: process\n\u003c/execution-context\u003e\n\n\u003cimplementation-plan path=\"plan.md\"\u003e\n# Implementation Plan: Improve deployment-manager Code Quality\n\n## Purpose\n\nReduce 151 code quality violations (score 0) in the deployment-manager scenario to achieve a GCT score \u003e= 70. Primary violation categories: complex_functions (32), long_files (21), lint_issues (17).\n\n## Greenfield Constraint\n\nThis is a pure refactoring task — no backward-compatibility shims, no feature flags, no renamed `_unused` variables. All changes are internal restructuring. If a function signature needs to change for cleanliness, change all call sites directly.\n\n## Required Reading\n\n```bash\nprompt-manager skill read refactor seam-discovery-and-enforcement\nprompt-manager skill read cli-steer api-steer react-coherence\n```\n\n## Problem Statement\n\nThe deployment-manager scenario has a GCT code quality score of 0 with 151 violations across three main categories:\n\n1. **Complex functions (32)**: Several functions exceed reasonable complexity thresholds. The worst offender is `DeployDesktop` in `orchestrator.go` at ~515 lines — a monolithic handler managing the entire deployment workflow.\n2. **Long files (21)**: Multiple files exceed 600 lines, with `orchestrator.go` (1,364 lines), `prerequisites.go` (1,003 lines), and `profiles/commands.go` (831 lines) being the worst.\n3. **Lint issues (17)**: Missing golangci-lint configuration for Go code; TypeScript has CRITICAL comments missing in ESLint config.\n\n## Scope\n\n### In Scope\n- Refactoring complex Go functions in API and CLI into smaller, well-named helpers\n- Splitting long files into focused modules\n- Adding `.golangci.yml` configuration for Go linting (funlen, cyclop, gocognit — minimal config targeting GCT violation categories)\n- Adding CRITICAL comments to ESLint config\n- Maintaining all existing behavior and passing tests\n- Targeting the highest-impact violations to reach score \u003e= 70 (not necessarily all 151)\n\n### Out of Scope\n- Adding new features or changing API contracts\n- Migrating frameworks or build tools\n- Addressing test failures (docs, playbooks, UI build) — those are separate items\n- Rewriting the UI architecture\n- Fixing all 151 violations in one pass — focus on biggest offenders first\n- **TypeScript `as` type cast fixes** — these are mostly in generated shadcn/ui components and are lower-weight in GCT scoring; Go refactoring alone should reach the target\n\n## Current Technical Context\n\n### Worst Offenders by Category\n\n**Complex Functions (API):**\n| Function | File | Lines |\n|----------|------|-------|\n| `DeployDesktop` | `api/deployments/orchestrator.go` | ~515 |\n| `ExportBundle` | `api/bundles/handler.go` | ~143 |\n| `stageBundleArtifacts` | `api/bundles/handler.go` | ~84 |\n\n**Complex Functions (CLI):**\n| Function | File | Lines |\n|----------|------|-------|\n| `DeployDesktop` | `cli/deployments/commands.go` | ~141 |\n| `Build` | `cli/deployments/commands.go` | ~116 |\n\n**Complex Functions (UI):**\n| Component | File | Lines |\n|-----------|------|-------|\n| `GuidedFlow` | `ui/src/components/GuidedFlow.tsx` | ~513 |\n| `BundleTelemetry` | `ui/src/pages/BundleTelemetry.tsx` | ~442 |\n| `Analyze` | `ui/src/pages/Analyze.tsx` | ~414 |\n| `ProfileDetail` | `ui/src/pages/ProfileDetail.tsx` | ~412 |\n\n**Long Files (prioritized — fix these first, then tackle complex functions by size descending):**\n| File | Lines |\n|------|-------|\n| `api/deployments/orchestrator.go` | 1,364 |\n| `api/codesigning/validation/prerequisites.go` | 1,003 |\n| `cli/profiles/commands.go` | 831 |\n| `api/bundles/handler.go` | 748 |\n| `cli/deployments/commands.go` | 725 |\n| `api/deployments/desktop_client.go` | 651 |\n| `cli/signing/commands.go` | 621 |\n| `ui/src/components/GuidedFlow.tsx` | 513 |\n\n### Lint Configuration Status\n- **Go**: No `.golangci.yml` — only basic `go vet` runs\n- **TypeScript**: ESLint config exists but missing CRITICAL comments; `as` type casts in UI components (12 files) — **decided to skip `as` cast fixes** (generated shadcn code, lower GCT weight)\n\n### Codebase Structure\n- **API**: 15 packages, 33 test files, well-structured with clear package boundaries\n- **CLI**: 9 command packages, 10 test files, each with commands.go + test\n- **UI**: React/TypeScript with shadcn components, 10 component files, 13 pages\n\n## Settled Decisions\n\n### Round 1\n1. **Orchestrator refactoring**: Extract `DeployDesktop` into sequential phase functions within the same file (not separate files). Phases: validate, sign, assemble, build, publish.\n2. **Prerequisites splitting**: Split by platform into separate files without build tags (`prerequisites_windows.go`, `prerequisites_macos.go`, `prerequisites_linux.go`). All compile everywhere for cross-platform validation.\n3. **Score target**: Fix top violations to reach score \u003e= 70, then stop. Remaining minor violations addressed incrementally.\n4. **UI GuidedFlow**: Extract each step into its own file in a `GuidedFlow/` directory. Parent component becomes thin state coordinator.\n\n### Round 2\n5. **Violation prioritization**: Fix all long_files first (by line count descending), then complex_functions by size descending. Long files are often the root cause of complex functions — splitting files naturally breaks up functions. Start with orchestrator.go (1,364 lines) which has both the longest file AND most complex function.\n6. **TypeScript `as` casts**: Skip `as` cast fixes entirely. Focus lint effort on `.golangci.yml` and CRITICAL comments only. These are mostly in generated shadcn components and are lower-weight in GCT scoring. If Go refactoring alone gets to \u003e= 70, no UI lint changes needed beyond CRITICAL comments.\n\n## Target End State\n\n- GCT code quality score \u003e= 70\n- Highest-impact long_files violations resolved (files over 600 lines split)\n- Highest-impact complex_functions violations resolved (top ~15-20 functions)\n- `.golangci.yml` added with funlen + cyclop + gocognit linters\n- CRITICAL comments added to ESLint config\n- All existing passing tests still pass\n- No behavioral changes to API, CLI, or UI\n\n## Implementation Strategy\n\n**Prioritization order**: Fix long_files first (by line count descending), since splitting long files naturally reduces function complexity. Then address remaining complex_functions by size descending.\n\n### Phase 1: Go Lint Infrastructure\n- Add `.golangci.yml` with minimal complexity-focused linters: funlen, cyclop, gocognit\n- Run `golangci-lint run` to get a baseline violation list\n- Fix `gofumpt` formatting issues\n- **Checkpoint**: Run GCT to establish post-lint-config baseline\n\n### Phase 2: API Refactoring (Highest Impact)\nTackle long files first, then remaining complex functions:\n- **orchestrator.go (1,364 lines)**: Extract `DeployDesktop` into phased sub-functions within the same file:\n  - `deployValidate()` — input validation and prerequisite checks\n  - `deploySign()` — code signing orchestration\n  - `deployAssemble()` — manifest assembly\n  - `deployBuild()` — build execution per platform\n  - `deployPublish()` — publishing and notification\n- **prerequisites.go (1,003 lines)**: Split into `prerequisites_windows.go`, `prerequisites_macos.go`, `prerequisites_linux.go` without build tags\n- **bundles/handler.go (748 lines)**: Extract `ExportBundle` and `stageBundleArtifacts` into smaller helpers\n- **desktop_client.go (651 lines)**: Separate polling logic from API wrappers\n- **Checkpoint**: Run GCT — if score \u003e= 70, consider stopping early\n\n### Phase 3: CLI Refactoring\n- **profiles/commands.go (831 lines)**: Group related commands into separate files (CRUD, analysis, versioning)\n- **deployments/commands.go (725 lines)**: Extract payload building and output formatting helpers\n- **signing/commands.go (621 lines)**: Extract common signing patterns\n- **Checkpoint**: Run GCT — if score \u003e= 70, stop\n\n### Phase 4: UI Refactoring (only if score \u003c 70 after Phase 3)\n- **GuidedFlow.tsx (513 lines)**: Extract step components into `GuidedFlow/` directory (`StepProfileSelect.tsx`, `StepReadiness.tsx`, `StepExport.tsx`, `StepIssues.tsx`), plus `GuidedFlow/index.tsx` as thin coordinator\n- **Large page components**: Extract reusable sub-components from BundleTelemetry, Analyze, ProfileDetail (only if needed for score)\n- Add CRITICAL comments to ESLint config\n- **No `as` cast fixes** — skip per settled decision\n\n### Phase 5: Validation\n- Re-run GCT code quality review\n- Verify all tests pass\n- Confirm no behavioral regressions\n\n## Contract Decisions\n\n- No API contract changes — all refactoring is internal\n- No CLI flag or output format changes\n- No UI workflow changes — only component extraction\n\n## Testing Plan\n\n- Run `go build ./...` in both `api/` and `cli/` after Go changes to catch compilation errors\n- Run `go test ./... -timeout 300s` after each phase to ensure no regressions\n- Run `golangci-lint run` after Go changes to verify lint compliance\n- Run `pnpm lint` in `ui/` after TypeScript changes (if Phase 4 is reached)\n- Re-run GCT review after each phase to check if score \u003e= 70 (stop early if target met)\n\n## Rollout/Validation Checklist\n\n- [ ] Phase 1 complete: `.golangci.yml` added, `golangci-lint run` shows baseline; GCT checkpoint\n- [ ] Phase 2 complete: `go build ./...` and `go test ./...` pass in api/; GCT checkpoint\n- [ ] Phase 3 complete: `go build ./...` and `go test ./...` pass in cli/; GCT checkpoint — stop if \u003e= 70\n- [ ] Phase 4 complete (if needed): `pnpm lint` passes in ui/; GCT checkpoint\n- [ ] Phase 5 complete: GCT score \u003e= 70 confirmed\n- [ ] `vrooli scenario restart deployment-manager` — verify scenario starts cleanly\n\n## Risks + Mitigations\n\n| Risk | Likelihood | Impact | Mitigation |\n|------|-----------|--------|------------|\n| Refactoring introduces subtle behavioral changes | Medium | High | Run full test suite after each file change |\n| Go build tags needed for platform-specific files | Low | Medium | Decided: no build tags, plain file split |\n| Large number of files changed makes review difficult | Medium | Medium | Phase changes by component area |\n| Score \u003e= 70 not reached after Go refactoring alone | Low | Medium | GCT checkpoints after each phase; extend to UI if needed |\n| Skipping `as` cast fixes leaves lint_issues unresolved | Low | Low | Lower GCT weight; CRITICAL comments still addressed |\n\n## Non-goals / Prohibited Patterns\n\n- Do not add new abstractions that aren't justified by current complexity\n- Do not change function signatures on exported functions unless necessary for extraction\n- Do not introduce new dependencies\n- Do not \"fix\" working test assertions to match refactored code\n- Do not address the 3 failing test phases (docs, playbooks, performance) — those are separate items\n- Do not add compatibility shims or feature flags\n- Do not fix TypeScript `as` type casts in shadcn/ui components\n\n## Definition of Done\n\n- [ ] GCT code quality score \u003e= 70\n- [ ] Highest-impact long_files violations resolved (files over 600 lines split)\n- [ ] Highest-impact complex_functions violations resolved\n- [ ] `.golangci.yml` added with funlen + cyclop + gocognit\n- [ ] All existing passing tests still pass\n- [ ] `go build ./...` succeeds for API and CLI\n- [ ] `golangci-lint run` passes with new config\n- [ ] No behavioral changes to API, CLI, or UI\n- [ ] `vrooli scenario restart deployment-manager` succeeds\n\n\u003c/implementation-plan\u003e\n",
+      "prompt_revision": "sha256:3de1158bdc78104d",
+      "used_fallback": false,
+      "captured_at": "2026-04-08T01:35:03Z"
+    },
+    "finalization": {
+      "eligible": true,
+      "status": "completed",
+      "phase": "completed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-04-08T01:55:20Z",
+      "completed_at": "2026-04-08T01:56:23Z",
+      "warnings": [
+        {
+          "code": "finalization_infrastructure",
+          "scenario_name": "deployment-manager",
+          "message": "trigger review for deployment-manager: review run returned status 409: {\"error\":\"a review run is already in progress for this scenario\"}",
+          "created_at": "2026-04-08T01:55:49Z"
+        },
+        {
+          "code": "finalization_infrastructure",
+          "scenario_name": "deployment-manager",
+          "message": "trigger review for deployment-manager: review run returned status 409: {\"error\":\"a review run is already in progress for this scenario\"}",
+          "created_at": "2026-04-08T01:55:51Z"
+        },
+        {
+          "code": "review_agent_failed",
+          "message": "spawn review agent: another agent is already active for this backlog item: execute/qa-deployment-manager-code-quality-20260407 already has an active agent (activity=c8f4ae1d7f81dedc, status=running, purpose=review)",
+          "created_at": "2026-04-08T01:55:51Z"
+        },
+        {
+          "code": "review_agent_failed",
+          "message": "spawn review agent: another agent is already active for this backlog item: execute/qa-deployment-manager-code-quality-20260407 already has an active agent (activity=c8f4ae1d7f81dedc, status=running, purpose=review)",
+          "created_at": "2026-04-08T01:56:23Z"
+        }
+      ],
+      "affected_scenarios": [
+        "deployment-manager"
+      ],
+      "aggregate_classification": "ready_with_notes",
+      "aggregate_summary": "deployment-manager ready with notes; 4 warning(s)",
+      "scenarios": [
+        {
+          "scenario_name": "deployment-manager",
+          "restart": {
+            "status": "completed",
+            "attempts": 1,
+            "started_at": "2026-04-08T01:55:21Z",
+            "finished_at": "2026-04-08T01:55:48Z"
+          },
+          "health": {
+            "status": "completed",
+            "scenario_status": "running",
+            "health_status": "healthy",
+            "schema_valid": true,
+            "details": "scenario is healthy",
+            "checked_at": "2026-04-08T01:55:51Z"
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "4a2f2bf7-6f12-4483-a351-e0b62b0b47ed",
+            "result": {
+              "job_id": "4a2f2bf7-6f12-4483-a351-e0b62b0b47ed",
+              "classification": "ready_with_notes",
+              "dimensions": [
+                {
+                  "name": "codeQuality",
+                  "status": "red",
+                  "details": "0.0 score, 143 violations"
+                },
+                {
+                  "name": "tests",
+                  "status": "yellow",
+                  "details": "9/11 passed"
+                },
+                {
+                  "name": "standards",
+                  "status": "yellow",
+                  "details": "2 warnings"
+                },
+                {
+                  "name": "visual",
+                  "status": "red"
+                },
+                {
+                  "name": "provenance",
+                  "status": "green"
+                }
+              ],
+              "raw_dimensions": {
+                "codeQuality": {
+                  "available": true,
+                  "score": 0,
+                  "violations": 143,
+                  "stale": false
+                },
+                "tests": {
+                  "available": true,
+                  "passed": false,
+                  "total": 11,
+                  "passedCount": 9,
+                  "failedCount": 2,
+                  "lastRun": "2026-04-08T01:56:19.186006958Z"
+                },
+                "standards": {
+                  "available": true,
+                  "blockingViolations": 0,
+                  "warnings": 2,
+                  "totalViolations": 2
+                },
+                "visual": {
+                  "available": true,
+                  "screenshotCount": 0,
+                  "stale": false
+                },
+                "provenance": {
+                  "available": true,
+                  "tracedFiles": 1
+                }
+              },
+              "summary": "Scenario deployment-manager readiness: yellow",
+              "reviewed_at": "2026-04-08T01:56:23Z"
+            }
+          }
+        }
+      ]
+    },
+    "created_at": "2026-04-08T01:35:03Z",
+    "updated_at": "2026-04-08T01:56:23Z"
+  },
+  {
+    "execution_id": "8eb1397de6fd4cee",
+    "backlog_kind": "fix",
+    "backlog_name": "qa-prompt-manager-standards-structure-20260407",
+    "previous_status": "backlog",
+    "task_id": "8f0d51f5-975f-4457-92bd-fb268eed06d0",
+    "run_id": "1617a47f-68e1-4675-96a7-cac3e9e78ebd",
+    "status": "completed",
+    "mode": "yolo",
+    "started_at": "2026-04-08T01:39:19Z",
+    "finished_at": "2026-04-08T01:42:45Z",
+    "started_by": "swarm-manager-ui",
+    "operation": "generator",
+    "prompt_trace": {
+      "purpose": "process",
+      "prompt": "\u003cexecution-context\u003e\nBacklog item: fix/qa-prompt-manager-standards-structure-20260407\nTitle: Resolve prompt-manager standards: required structure\nItem folder: /home/matthalloran8/Vrooli/scenarios/swarm-manager/fix/qa-prompt-manager-standards-structure-20260407\nRun type: process\n\u003c/execution-context\u003e\n\n\u003cimplementation-plan path=\"plan.md\"\u003e\n# Implementation Plan: Resolve prompt-manager standards — required structure\n\n## Purpose\n\nEliminate the critical \"Scenario Required Structure\" standards violation for `prompt-manager` by rebuilding the CLI binary with the correct name (`cli/prompt-manager` instead of `cli/pm`). This is a targeted naming fix — the binary source code is unchanged.\n\n## Required Reading\n\n```bash\nprompt-manager skill read cli-steer api-steer utils-unification seam-discovery-and-enforcement\n```\n\n- `scenarios/prompt-manager/cli/main.go` — CLI entry point\n- `scenarios/prompt-manager/cli/app.go` — CLI command definitions\n- `scenarios/prompt-manager/cli/install.sh` — installer (already uses `--name \"prompt-manager\"`)\n- `scenarios/scenario-auditor/api/rules/structure/required_layout.go:112-116` — the rule that checks for `cli/\u003cscenario-name\u003e`\n\n## Problem Statement\n\nThe scenario-auditor's `Scenario Required Structure` rule expects a CLI binary at `cli/\u003cscenario-name\u003e`. For `prompt-manager`, this means `cli/prompt-manager` must exist.\n\nCurrently the CLI binary is committed as `cli/pm` — a short alias that does not match the scenario name. This causes a critical standards violation that blocks the standards audit.\n\n## Scope\n\n### In Scope\n- Rebuild the CLI binary as `cli/prompt-manager` (same Go source, different output name)\n- Remove the old `cli/pm` binary from git tracking\n- Verify the standards audit passes for this specific violation\n\n### Out of Scope\n- Other standards violations (P0 target requirements, docs, unit tests, etc.)\n- Changes to `install.sh` (already correctly uses `--name \"prompt-manager\"`)\n- Changes to `service.json` (no CLI binary path referenced there)\n- Refactoring CLI source code\n\n## Current Technical Context\n\n| File / Path | Role |\n|---|---|\n| `scenarios/prompt-manager/cli/pm` | Current binary (8.3 MB ELF Go executable, tracked in git) |\n| `scenarios/prompt-manager/cli/main.go` | Entry point — `package main` |\n| `scenarios/prompt-manager/cli/app.go` | CLI command definitions |\n| `scenarios/prompt-manager/cli/go.mod` | Module definition |\n| `scenarios/prompt-manager/cli/install.sh` | Installer — already passes `--name \"prompt-manager\"` |\n\nOther scenarios follow the `cli/\u003cscenario-name\u003e` convention correctly:\n- `swarm-manager/cli/swarm-manager`\n- `scenario-auditor/cli/scenario-auditor`\n\n## Target End State\n\n- `scenarios/prompt-manager/cli/prompt-manager` exists as a working binary\n- `scenarios/prompt-manager/cli/pm` no longer exists in the working tree or git index\n- `scenario-auditor audit prompt-manager --standards-only` no longer reports the \"Scenario Required Structure\" critical violation for `cli/prompt-manager`\n- All existing CLI functionality is preserved (same Go source, just different output name)\n\n## Greenfield Declaration\n\nThis is a rename/rebuild of a single binary. No compatibility shims, aliases, or symlinks for the old `pm` name are needed. The installed binary in `~/.vrooli/bin/` is already named `prompt-manager` via `install.sh`.\n\n## Implementation Strategy\n\n### Phase 1: Rebuild and replace the CLI binary\n\n1. Rebuild with the correct output name:\n   ```bash\n   cd scenarios/prompt-manager/cli \u0026\u0026 GOWORK=off go build -o prompt-manager .\n   ```\n2. Remove the old binary and stage the new one:\n   ```bash\n   git rm scenarios/prompt-manager/cli/pm\n   git add scenarios/prompt-manager/cli/prompt-manager\n   ```\n\nThis is a single-phase fix. No phased rollout is needed.\n\n## Contract Decisions\n\n| Decision | Choice | Rationale |\n|---|---|---|\n| Binary naming | `cli/prompt-manager` (match scenario name) | Follows established convention across all scenarios |\n| Git tracking | Track the binary in git | Consistent with other scenarios (swarm-manager, scenario-auditor) |\n| Old `cli/pm` | Remove completely, no alias/symlink | Greenfield — `install.sh` already installs as `prompt-manager` |\n\nThese decisions were confirmed in workshop round-001 (decisions d1=A, d2=A).\n\n## Testing Plan\n\nAll tests are automated verification commands:\n\n1. **Binary exists and is executable:**\n   ```bash\n   test -x scenarios/prompt-manager/cli/prompt-manager \u0026\u0026 echo PASS || echo FAIL\n   ```\n\n2. **Binary runs correctly:**\n   ```bash\n   scenarios/prompt-manager/cli/prompt-manager --help\n   # Expected: exits 0, prints help text\n   ```\n\n3. **Old binary removed:**\n   ```bash\n   test ! -f scenarios/prompt-manager/cli/pm \u0026\u0026 echo PASS || echo FAIL\n   ```\n\n4. **Standards audit passes for this violation:**\n   ```bash\n   scenario-auditor audit prompt-manager --standards-only --timeout 60\n   # Expected: \"Scenario Required Structure\" violation at cli/prompt-manager no longer present\n   ```\n\n## Rollout / Validation Checklist\n\n- [ ] Rebuild binary: `cd scenarios/prompt-manager/cli \u0026\u0026 GOWORK=off go build -o prompt-manager .`\n- [ ] Remove old binary: `git rm scenarios/prompt-manager/cli/pm`\n- [ ] Stage new binary: `git add scenarios/prompt-manager/cli/prompt-manager`\n- [ ] Verify: `scenarios/prompt-manager/cli/prompt-manager --help` exits 0\n- [ ] Verify: `scenario-auditor audit prompt-manager --standards-only --timeout 60` — no \"Scenario Required Structure\" critical violation\n- [ ] Run: `vrooli scenario restart prompt-manager` to confirm scenario health with renamed binary\n\n## Risks + Mitigations\n\n| Risk | Likelihood | Impact | Mitigation |\n|---|---|---|---|\n| Other code references `cli/pm` path directly | Low | Low | Grep for `cli/pm` references before committing; `install.sh` already uses `--name prompt-manager` |\n| Binary won't build due to dependency issues | Low | Medium | Same Go source that produced `pm`; only the output name changes |\n| Stale binary if Go deps have changed | Low | Low | Rebuild ensures binary matches current source |\n\n## Non-goals / Prohibited Patterns\n\n- **No symlinks or aliases** from `pm` → `prompt-manager`. Clean break.\n- **No changes to CLI source code** — this is purely a build output rename.\n- **No changes to `install.sh`** — it already works correctly.\n- **Do not address other standards violations** (P0 targets, docs, unit tests) — those are separate backlog items.\n\n## Definition of Done\n\n1. `scenarios/prompt-manager/cli/prompt-manager` exists and is executable\n2. `scenarios/prompt-manager/cli/pm` does not exist\n3. `scenarios/prompt-manager/cli/prompt-manager --help` exits 0\n4. `scenario-auditor audit prompt-manager --standards-only` does not report \"Scenario Required Structure\" critical violation for `cli/prompt-manager`\n5. `vrooli scenario restart prompt-manager` completes without error\n6. Greenfield: no compatibility shims, aliases, or symlinks exist for the old name\n\n\u003c/implementation-plan\u003e\n",
+      "prompt_revision": "sha256:e5826f4810885135",
+      "used_fallback": false,
+      "captured_at": "2026-04-08T01:39:19Z"
+    },
+    "finalization": {
+      "eligible": true,
+      "status": "completed",
+      "phase": "completed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-04-08T01:40:19Z",
+      "completed_at": "2026-04-08T01:42:45Z",
+      "warnings": [
+        {
+          "code": "restart_retry",
+          "scenario_name": "prompt-manager",
+          "message": "restart attempt 1 failed: vrooli scenario restart prompt-manager failed: exit status 1 (output: [INFO]    Restarting scenario: prompt-manager\n[INFO]    Stopping scenario: prompt-manager\n[INFO]    Stopped 0 process groups for scenario: prompt-manager\n\u001b[0;32m[SUCCESS] Scenario 'prompt-manager' stopped successfully\n[INFO]    🔗 Ensuring dependency 'agent-manager' for scenario 'prompt-manager'\n[INFO]    🔗 Ensuring dependency 'workspace-sandbox' for scenario 'agent-manager'\n\u001b[0;32m[SUCCESS] ✓ Scenario 'workspace-sandbox' is already running and healthy\n  API: http://localhost:15427\n  UI: http://localhost:36239\n\u001b[0;32m[SUCCESS] ✓ Scenario 'agent-manager' is already running and healthy\n  API: http://localhost:18800\n  UI: http://localhost:36238\n[INFO]    Running scenario 'prompt-manager' with direct lifecycle execution\n[INFO]    Starting scenario 'prompt-manager'...\n[INFO]    Running setup before develop...\n[INFO]    Environment setup complete for scenario: prompt-manager\n[WARNING] Postgres not running, skipping database creation for: vrooli_prompt_manager\n[INFO]    Build API \u0026 UI, install CLI\n[INFO]    [1/5] install-cli\n  → Install CLI into ~/.vrooli/bin\nBuilding prompt-manager from /home/matthalloran8/Vrooli/scenarios/prompt-manager/cli...\n✅ installed CLI to /home/matthalloran8/.vrooli/bin/prompt-manager\n[INFO]    [2/5] build-api\n  → Build Go API server\n[INFO]    [3/5] install-ui-deps\n  → Install UI dependencies\nProgress: resolved 1, reused 0, downloaded 0, added 0\n WARN  6 deprecated subdependencies found: glob@7.2.3, inflight@1.0.6, lodash.omit@4.5.0, lodash.pick@4.4.0, tar@6.2.1, whatwg-encoding@3.1.1\nPackages: +2\n++\nProgress: resolved 1096, reused 1050, downloaded 0, added 2, done\n\n WARN  Issues with peer dependencies found\n.\n├─┬ postprocessing 6.38.2\n│ └── ✕ unmet peer three@\"\u003e= 0.157.0 \u003c 0.183.0\": found 0.151.3\n└─┬ @react-three/postprocessing 3.0.4\n  ├── ✕ unmet peer three@\"\u003e= 0.156.0\": found 0.151.3\n  ├── ✕ unmet peer @react-three/fiber@^9.0.0: found 8.15.19\n  └── ✕ unmet peer react@^19.0: found 18.3.1\n\nDone in 1.4s\n[INFO]    [4/5] build-ui\n  → Build production UI bundle\n\n\u003e prompt-manager-ui@1.0.0 build /home/matthalloran8/Vrooli/scenarios/prompt-manager/ui\n\u003e tsc \u0026\u0026 vite build\n\nvite v5.4.21 building for production...\ntransforming...\n✓ 6133 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                                           1.29 kB │ gzip:   0.57 kB\ndist/assets/index-D8FVx3gl.css                          117.91 kB │ gzip:  19.14 kB\ndist/assets/vendor-rDnOVOIL.js                            0.10 kB │ gzip:   0.11 kB │ map:     0.10 kB\ndist/assets/clone-BK5PH7fH.js                             0.14 kB │ gzip:   0.15 kB │ map:     1.43 kB\ndist/assets/chunk-QZHKN3VN-Cjb4LmPV.js                    0.24 kB │ gzip:   0.21 kB │ map:     0.87 kB\ndist/assets/chunk-55IACEB6-B3kSY73Q.js                    0.28 kB │ gzip:   0.25 kB │ map:     1.10 kB\ndist/assets/chunk-4BX2VUAB-CYFg7KIP.js                    0.34 kB │ gzip:   0.25 kB │ map:     0.97 kB\ndist/assets/chunk-FMBD7UC4-CUmviF_5.js                    0.41 kB │ gzip:   0.31 kB │ map:     0.86 kB\ndist/assets/stateDiagram-v2-4FDKWEC3-Bf_ZbnY8.js          0.48 kB │ gzip:   0.34 kB │ map:     1.56 kB\ndist/assets/classDiagram-2ON5EDUG-CCuR2bxJ.js             0.51 kB │ gzip:   0.36 kB │ map:     1.57 kB\ndist/assets/classDiagram-v2-WZHVMYZB-CCuR2bxJ.js          0.52 kB │ gzip:   0.36 kB │ map:     1.58 kB\ndist/assets/chunk-QN33PNHL-BeO0FXv2.js                    0.58 kB │ gzip:   0.42 kB │ map:     2.35 kB\ndist/assets/codeowners-Bp6g37R7.js                        0.60 kB │ gzip:   0.35 kB │ map:     1.11 kB\ndist/assets/min-OWEOYGGs.js                               0.63 kB │ gzip:   0.40 kB │ map:     6.57 kB\ndist/assets/infoDiagram-WHAUD3N6-CDn1RdWY.js              0.74 kB │ gzip:   0.49 kB │ map:     2.41 kB\ndist/assets/shellsession-C_rIy8kc.js                      0.77 kB │ gzip:   0.47 kB │ map:     1.35 kB\ndist/assets/tsv-B_m7g4N7.js                               0.78 kB │ gzip:   0.38 kB │ map:     1.40 kB\ndist/assets/html-derivative-CSfWNPLT.js                   1.02 kB │ gzip:   0.56 kB │ map:     1.53 kB\ndist/assets/git-rebase-B-v9cOL2.js                        1.03 kB │ gzip:   0.47 kB │ map:     1.69 kB\ndist/assets/qmldir-C8lEn-DE.js                            1.05 kB │ gzip:   0.49 kB │ map:     1.76 kB\ndist/assets/fortran-fixed-form-TqA4NnZg.js                1.16 kB │ gzip:   0.58 kB │ map:     1.98 kB\ndist/assets/csv-B0qRVHPH.js                               1.26 kB │ gzip:   0.42 kB │ map:     2.09 kB\ndist/assets/xsl-Dd0NUgwM.js                               1.43 kB │ gzip:   0.55 kB │ map:     2.20 kB\ndist/assets/chunk-TZMSLE5B-BbwmF-q-.js                    1.46 kB │ gzip:   0.67 kB │ map:     5.86 kB\ndist/assets/sparql-bYkjHRlG.js                            1.56 kB │ gzip:   0.86 kB │ map:     2.18 kB\ndist/assets/ini-BjABl1g7.js                               1.57 kB │ gzip:   0.53 kB │ map:     2.50 kB\ndist/assets/git-commit-i4q6IMui.js                        1.59 kB │ gzip:   0.70 kB │ map:     2.44 kB\ndist/assets/dotenv-BjQB5zDj.js                            1.75 kB │ gzip:   0.67 kB │ map:     2.76 kB\ndist/assets/wenyan-7A4Fjokl.js                            1.75 kB │ gzip:   1.16 kB │ map:     2.76 kB\ndist/assets/docker-COcR7UxN.js                            1.81 kB │ gzip:   0.64 kB │ map:     2.70 kB\ndist/assets/hxml-TIA70rKU.js                              1.87 kB │ gzip:   0.93 kB │ map:     2.58 kB\ndist/assets/GraphJsonView-CF5zTEbd.js                     2.04 kB │ gzip:   1.10 kB │ map:     5.86 kB\ndist/assets/desktop-DEIpsLCJ.js                           2.07 kB │ gzip:   0.82 kB │ map:     3.12 kB\ndist/assets/edge-D5gP-w-T.js                              2.40 kB │ gzip:   0.73 kB │ map:     3.56 kB\ndist/assets/reg-5LuOXUq_.js                               2.41 kB │ gzip:   0.74 kB │ map:     3.57 kB\ndist/assets/berry-3xVqZejG.js                             2.49 kB │ gzip:   0.84 kB │ map:     3.99 kB\ndist/assets/erb-BYTLMnw6.js                               2.65 kB │ gzip:   0.88 kB │ map:     3.31 kB\ndist/assets/diff-BgYniUM_.js                              2.69 kB │ gzip:   0.77 kB │ map:     3.98 kB\ndist/assets/gleam-B430Bg39.js                             2.73 kB │ gzip:   0.89 kB │ map:     4.13 kB\ndist/assets/hy-BMj5Y0dO.js                                2.86 kB │ gzip:   1.23 kB │ map:     4.02 kB\ndist/assets/json-BQoSv7ci.js                              2.96 kB │ gzip:   0.85 kB │ map:     4.47 kB\ndist/assets/cairo--RitsXJZ.js                             3.00 kB │ gzip:   0.84 kB │ map:     4.57 kB\ndist/assets/log-Cc5clBb7.js                               3.01 kB │ gzip:   0.93 kB │ map:     4.51 kB\ndist/assets/jssm-P4WzXJd0.js                              3.02 kB │ gzip:   0.73 kB │ map:     4.48 kB\ndist/assets/jsonl-DREVFZK8.js                             3.15 kB │ gzip:   0.86 kB │ map:     4.66 kB\ndist/assets/jsonc-TU54ms6u.js                             3.24 kB │ gzip:   0.86 kB │ map:     4.76 kB\ndist/assets/logo-IuBKFhSY.js                              3.25 kB │ gzip:   1.52 kB │ map:     3.92 kB\ndist/assets/po-BFLt1xDp.js                                3.42 kB │ gzip:   1.02 kB │ map:     5.28 kB\ndist/assets/genie-ajMbGru0.js                             3.42 kB │ gzip:   1.25 kB │ map:     4.93 kB\ndist/assets/tasl-CQjiPCtT.js                              3.43 kB │ gzip:   0.92 kB │ map:     5.25 kB\ndist/assets/vala-BFOHcciG.js                              3.45 kB │ gzip:   1.23 kB │ map:     4.96 kB\ndist/assets/mipsasm-BC5c_5Pe.js                           3.46 kB │ gzip:   1.31 kB │ map:     4.86 kB\ndist/assets/rel-DJlmqQ1C.js                               3.47 kB │ gzip:   1.14 kB │ map:     5.04 kB\ndist/assets/json5-w8dY5SsB.js                             3.58 kB │ gzip:   0.98 kB │ map:     5.34 kB\ndist/assets/ssh-config-BknIz3MU.js                        3.66 kB │ gzip:   1.62 kB │ map:     4.51 kB\ndist/assets/fluent-Dayu4EKP.js                            3.67 kB │ gzip:   0.93 kB │ map:     5.25 kB\ndist/assets/jsonnet-BfivnA6A.js                           3.68 kB │ gzip:   1.10 kB │ map:     5.42 kB\ndist/assets/narrat-DLbgOhZU.js                            3.74 kB │ gzip:   1.14 kB │ map:     5.50 kB\ndist/assets/turtle-BMR_PYu6.js                            3.76 kB │ gzip:   1.02 kB │ map:     5.54 kB\ndist/assets/splunk-Cf8iN4DR.js                            3.96 kB │ gzip:   1.69 kB │ map:     5.17 kB\ndist/assets/glsl-DBO2IWDn.js                              3.98 kB │ gzip:   1.46 kB │ map:     4.71 kB\ndist/assets/nextflow-B0XVJmRM.js                          4.00 kB │ gzip:   1.13 kB │ map:     5.98 kB\ndist/assets/pieDiagram-ADFJNKIX-BzM6CSlt.js               4.06 kB │ gzip:   1.89 kB │ map:    13.75 kB\ndist/assets/sdbl-BLhTXw86.js                              4.18 kB │ gzip:   2.15 kB │ map:     5.52 kB\ndist/assets/pascal-JqZropPD.js                            4.22 kB │ gzip:   1.71 kB │ map:     5.59 kB\ndist/assets/smalltalk-DkLiglaE.js                         4.25 kB │ gzip:   1.29 kB │ map:     6.10 kB\ndist/assets/lean-XBlWyCtg.js                              4.34 kB │ gzip:   1.36 kB │ map:     6.26 kB\ndist/assets/diagram-S2PKOQOG-BQSsGU4t.js                  4.38 kB │ gzip:   1.94 kB │ map:    13.68 kB\ndist/assets/zenscript-HnGAYVZD.js                         4.44 kB │ gzip:   1.46 kB │ map:     6.50 kB\ndist/assets/bicep-DHo0CJ0O.js                             4.50 kB │ gzip:   1.11 kB │ map:     6.73 kB\ndist/assets/http-FRrOvY1W.js                              4.70 kB │ gzip:   1.17 kB │ map:     6.88 kB\ndist/assets/polar-DKykz6zU.js                             4.72 kB │ gzip:   1.21 kB │ map:     7.27 kB\ndist/assets/fennel-bCA53EVm.js                            4.87 kB │ gzip:   1.59 kB │ map:     6.55 kB\ndist/assets/tcl-DQ1-QYvQ.js                               5.06 kB │ gzip:   1.73 kB │ map:     7.25 kB\ndist/assets/bibtex-xW4inM5L.js                            5.12 kB │ gzip:   0.84 kB │ map:     7.48 kB\ndist/assets/fish-w-ucz2PV.js                              5.43 kB │ gzip:   1.72 kB │ map:     7.15 kB\ndist/assets/xml-e3z08dGr.js                               5.45 kB │ gzip:   1.26 kB │ map:     7.89 kB\ndist/assets/qml-D8XfuvdV.js                               5.47 kB │ gzip:   1.42 kB │ map:     8.32 kB\ndist/assets/zig-BVz_zdnA.js                               5.50 kB │ gzip:   1.63 kB │ map:     8.01 kB\ndist/assets/gdresource-BHYsBjWJ.js                        5.52 kB │ gzip:   1.40 kB │ map:     8.02 kB\ndist/assets/awk-eg146-Ew.js                               5.54 kB │ gzip:   1.42 kB │ map:     8.07 kB\ndist/assets/dax-ClGRhx96.js                               5.57 kB │ gzip:   2.31 kB │ map:     6.99 kB\ndist/assets/jinja-DGy0s7-h.js                             5.77 kB │ gzip:   1.45 kB │ map:     8.54 kB\ndist/assets/powerquery-CSHBycmS.js                        5.98 kB │ gzip:   1.55 kB │ map:     8.59 kB\ndist/assets/verilog-CJaU5se_.js                           5.98 kB │ gzip:   1.93 kB │ map:     8.06 kB\ndist/assets/coq-Dsg_Bt_b.js                               6.03 kB │ gzip:   2.06 kB │ map:     8.22 kB\ndist/assets/diagram-QEK2KX5R-VZrHqMGd.js                  6.10 kB │ gzip:   2.59 kB │ map:    20.91 kB\ndist/assets/vb-CdO5JTpU.js                                6.30 kB │ gzip:   2.40 kB │ map:     8.29 kB\ndist/assets/red-bN70gL4F.js                               6.30 kB │ gzip:   1.64 kB │ map:     8.89 kB\ndist/assets/shaderlab-B7qAK45m.js                         6.32 kB │ gzip:   2.13 kB │ map:     8.07 kB\ndist/assets/min-dark-CafNBF8u.js                          6.34 kB │ gzip:   1.75 kB │ map:     8.63 kB\ndist/assets/gdshader-SKMF96pI.js                          6.42 kB │ gzip:   1.79 kB │ map:     9.26 kB\ndist/assets/prisma-B48N-Iqd.js                            6.43 kB │ gzip:   1.43 kB │ map:     9.39 kB\ndist/assets/wgsl-CB0Krxn9.js                              6.53 kB │ gzip:   1.74 kB │ map:     9.40 kB\ndist/assets/solarized-light-L9t79GZl.js                   6.53 kB │ gzip:   1.77 kB │ map:     9.25 kB\ndist/assets/postcss-B3ZDOciz.js                           6.56 kB │ gzip:   1.97 kB │ map:     9.30 kB\ndist/assets/toml-CB2ApiWb.js                              6.58 kB │ gzip:   1.34 kB │ map:     9.62 kB\ndist/assets/proto-zocC4JxJ.js                             6.62 kB │ gzip:   1.46 kB │ map:     9.96 kB\ndist/assets/talonscript-C1XDQQGZ.js                       6.75 kB │ gzip:   1.51 kB │ map:    10.10 kB\ndist/assets/cypher-m2LEI-9-.js                            6.86 kB │ gzip:   1.87 kB │ map:     9.45 kB\ndist/assets/solarized-dark-DXbdFlpD.js                    6.90 kB │ gzip:   1.83 kB │ map:     9.71 kB\ndist/assets/soy-C-lX7w71.js                               6.99 kB │ gzip:   1.71 kB │ map:    10.65 kB\ndist/assets/min-light-CTRr51gU.js                         7.02 kB │ gzip:   1.92 kB │ map:     9.55 kB\ndist/assets/clojure-DxSadP1t.js                           7.12 kB │ gzip:   1.52 kB │ map:    10.59 kB\ndist/assets/ara-7O62HKoU.js                               7.29 kB │ gzip:   2.16 kB │ map:    10.41 kB\ndist/assets/hlsl-ifBTmRxC.js                              7.65 kB │ gzip:   2.27 kB │ map:     9.63 kB\ndist/assets/riscv-QhoSD0DR.js                             7.75 kB │ gzip:   2.25 kB │ map:    10.69 kB\ndist/assets/qss-DhMKtDLN.js                               7.86 kB │ gzip:   2.63 kB │ map:     9.77 kB\ndist/assets/monokai-D4h5O-jR.js                           7.93 kB │ gzip:   1.94 kB │ map:    11.12 kB\ndist/assets/dart-B9wLZaAG.js                              7.93 kB │ gzip:   1.96 kB │ map:    11.69 kB\ndist/assets/systemd-CUnW07Te.js                           8.04 kB │ gzip:   2.61 kB │ map:    10.85 kB\ndist/assets/regexp-DWJ3fJO_.js                            8.11 kB │ gzip:   1.49 kB │ map:    11.30 kB\ndist/assets/haml-B2EZWmdv.js                              8.53 kB │ gzip:   1.91 kB │ map:    12.78 kB\ndist/assets/_baseUniq-BsNM-mlS.js                         8.54 kB │ gzip:   3.58 kB │ map:    81.10 kB\ndist/assets/typst-BVUVsWT6.js                             8.60 kB │ gzip:   1.74 kB │ map:    12.59 kB\ndist/assets/plsql-LKU2TuZ1.js                             8.61 kB │ gzip:   3.04 kB │ map:    10.98 kB\ndist/assets/vue-html-xdeiXROB.js                          8.74 kB │ gzip:   1.81 kB │ map:    12.11 kB\ndist/assets/scheme-BJGe-b2p.js                            8.76 kB │ gzip:   2.63 kB │ map:    11.85 kB\ndist/assets/kotlin-B5lbUyaz.js                            8.86 kB │ gzip:   2.18 kB │ map:    12.86 kB\ndist/assets/andromeeda-C3khCPGq.js                        8.91 kB │ gzip:   2.34 kB │ map:    11.77 kB\ndist/assets/make-Bvotw-X0.js                              9.06 kB │ gzip:   1.81 kB │ map:    12.95 kB\ndist/assets/dark-plus-C3mMm8J8.js                         9.14 kB │ gzip:   2.14 kB │ map:    12.44 kB\ndist/assets/slack-dark-BthQWCQV.js                        9.17 kB │ gzip:   2.00 kB │ map:    12.53 kB\ndist/assets/ts-tags-CipyTH0X.js                           9.22 kB │ gzip:   1.28 kB │ map:    14.88 kB\ndist/assets/plastic-3e1v2bzS.js                           9.34 kB │ gzip:   2.01 kB │ map:    12.50 kB\ndist/assets/graph-Be92_fxa.js                             9.41 kB │ gzip:   3.24 kB │ map:    48.48 kB\ndist/assets/tex-rYs2v40G.js                               9.41 kB │ gzip:   2.98 kB │ map:    12.04 kB\ndist/assets/sass-BJ4Li9vH.js                              9.45 kB │ gzip:   2.53 kB │ map:    13.63 kB\ndist/assets/slack-ochin-DqwNpetd.js                       9.48 kB │ gzip:   2.13 kB │ map:    13.13 kB\ndist/assets/jison-BqZprYcd.js                             9.77 kB │ gzip:   1.90 kB │ map:    14.17 kB\ndist/assets/sas-BmTFh92c.js                               9.83 kB │ gzip:   4.10 kB │ map:    12.01 kB\ndist/assets/light-plus-B7mTdjB0.js                        9.99 kB │ gzip:   2.31 kB │ map:    13.44 kB\ndist/assets/gherkin--30QC5Em.js                          10.16 kB │ gzip:   5.17 kB │ map:    11.32 kB\ndist/assets/stateDiagram-FKZM4ZOC-DE6EhbY_.js            10.46 kB │ gzip:   3.69 kB │ map:    35.79 kB\ndist/assets/cmake-DbXoA79R.js                            10.55 kB │ gzip:   3.62 kB │ map:    12.18 kB\ndist/assets/raku-B1bQXN8T.js                             10.65 kB │ gzip:   2.99 kB │ map:    13.16 kB\ndist/assets/dream-maker-C-nORZOA.js                      10.66 kB │ gzip:   2.34 kB │ map:    15.37 kB\ndist/assets/rst-4NLicBqY.js                              10.69 kB │ gzip:   2.45 kB │ map:    15.58 kB\ndist/assets/beancount-BwXTMy5W.js                        10.80 kB │ gzip:   1.56 kB │ map:    15.71 kB\ndist/assets/yaml-CVw76BM1.js                             10.84 kB │ gzip:   2.33 kB │ map:    15.31 kB\ndist/assets/cadence-DNquZEk8.js                          11.08 kB │ gzip:   2.36 kB │ map:    15.90 kB\ndist/assets/diagram-PSM6KHXK-DwdlOn9w.js                 11.16 kB │ gzip:   3.96 kB │ map:    37.92 kB\ndist/assets/github-light-DAi9KRSo.js                     11.23 kB │ gzip:   2.54 kB │ map:    15.44 kB\ndist/assets/elm-CmHSxxaM.js                              11.33 kB │ gzip:   2.26 kB │ map:    16.55 kB\ndist/assets/dagre-6UL2VRFP-DetcJZb1.js                   11.33 kB │ gzip:   4.25 kB │ map:    42.02 kB\ndist/assets/github-dark-DHJKELXO.js                      11.45 kB │ gzip:   2.59 kB │ map:    15.70 kB\ndist/assets/prolog-BY-TUvya.js                           11.48 kB │ gzip:   3.88 kB │ map:    13.43 kB\ndist/assets/laserwave-DUszq2jm.js                        11.55 kB │ gzip:   2.61 kB │ map:    14.72 kB\ndist/assets/puppet-Cza_XSSt.js                           11.79 kB │ gzip:   2.27 kB │ map:    16.71 kB\ndist/assets/hcl-HzYwdGDm.js                              12.01 kB │ gzip:   2.54 kB │ map:    17.34 kB\ndist/assets/handlebars-BQGss363.js                       12.31 kB │ gzip:   2.43 kB │ map:    17.59 kB\ndist/assets/hjson-T-Tgc4AT.js                            12.37 kB │ gzip:   1.71 kB │ map:    17.76 kB\ndist/assets/vesper-BEBZ7ncR.js                           12.71 kB │ gzip:   2.01 kB │ map:    16.14 kB\ndist/assets/luau-Du5NY7AG.js                             12.96 kB │ gzip:   3.15 kB │ map:    18.23 kB\ndist/assets/bat-fje9CFhw.js                              13.03 kB │ gzip:   3.30 kB │ map:    17.56 kB\ndist/assets/apache-Dn00JSTd.js                           13.26 kB │ gzip:   3.83 kB │ map:    16.74 kB\ndist/assets/terraform-BbSNqyBO.js                        13.42 kB │ gzip:   3.14 kB │ map:    18.86 kB\ndist/assets/vitesse-light-CVO1_9PV.js                    13.67 kB │ gzip:   3.07 kB │ map:    18.57 kB\ndist/assets/aurora-x-D-2ljcwZ.js                         13.71 kB │ gzip:   2.32 kB │ map:    17.59 kB\ndist/assets/vitesse-black-Bkuqu6BP.js                    13.73 kB │ gzip:   3.09 kB │ map:    18.65 kB\ndist/assets/v-CAQ2eGtk.js                                13.78 kB │ gzip:   2.88 kB │ map:    20.19 kB\ndist/assets/vitesse-dark-D0r3Knsf.js                     13.81 kB │ gzip:   3.10 kB │ map:    18.73 kB\ndist/assets/synthwave-84-CbfX1IO0.js                     14.09 kB │ gzip:   2.90 kB │ map:    19.12 kB\ndist/assets/github-light-default-D7oLnXFd.js             14.21 kB │ gzip:   3.08 kB │ map:    19.30 kB\ndist/assets/github-light-high-contrast-BfjtVDDH.js       14.34 kB │ gzip:   3.06 kB │ map:    19.48 kB\ndist/assets/github-dark-dimmed-DH5Ifo-i.js               14.49 kB │ gzip:   3.16 kB │ map:    19.67 kB\ndist/assets/github-dark-default-Cuk6v7N8.js              14.49 kB │ gzip:   3.17 kB │ map:    19.67 kB\ndist/assets/clarity-BHOwM8T6.js                          14.60 kB │ gzip:   2.52 kB │ map:    20.56 kB\ndist/assets/actionscript-3-D_z4Izcz.js                   14.61 kB │ gzip:   2.83 kB │ map:    20.63 kB\ndist/assets/github-dark-high-contrast-E3gJ1_iC.js        14.66 kB │ gzip:   3.12 kB │ map:    19.91 kB\ndist/assets/pug-CM9l7STV.js                              14.93 kB │ gzip:   2.94 kB │ map:    21.90 kB\ndist/assets/gnuplot-CM8KxXT1.js                          14.96 kB │ gzip:   3.33 kB │ map:    20.99 kB\ndist/assets/ayu-dark-Cv9koXgw.js                         15.00 kB │ gzip:   3.12 kB │ map:    20.29 kB\ndist/assets/editor-BDeTA8Ja.js                           15.13 kB │ gzip:   5.23 kB │ map:    48.29 kB\ndist/assets/nix-shcSOmrb.js                              15.59 kB │ gzip:   2.38 kB │ map:    23.16 kB\ndist/assets/lua-CvWAzNxB.js                              15.66 kB │ gzip:   3.19 kB │ map:    22.41 kB\ndist/assets/wasm-C6j12Q_x.js                             15.97 kB │ gzip:   2.94 kB │ map:    21.88 kB\ndist/assets/solidity-C1w2a3ep.js                         16.28 kB │ gzip:   3.16 kB │ map:    23.75 kB\ndist/assets/svelte-MSaWC3Je.js                           16.93 kB │ gzip:   3.00 kB │ map:    23.79 kB\ndist/assets/purescript-Bg-kzb6g.js                       17.11 kB │ gzip:   2.69 kB │ map:    24.14 kB\ndist/assets/kanagawa-wave-DWedfzmr.js                    17.17 kB │ gzip:   2.96 kB │ map:    22.29 kB\ndist/assets/kanagawa-lotus-CfQXZHmo.js                   17.18 kB │ gzip:   2.97 kB │ map:    22.30 kB\ndist/assets/kanagawa-dragon-CkXjmgJE.js                  17.18 kB │ gzip:   2.98 kB │ map:    22.31 kB\ndist/assets/liquid-D3W5UaiH.js                           17.21 kB │ gzip:   3.12 kB │ map:    23.81 kB\ndist/assets/ui-D76cKPzf.js                               17.38 kB │ gzip:   6.51 kB │ map:    98.21 kB\ndist/assets/cue-DtFQj3wx.js                              17.39 kB │ gzip:   2.13 kB │ map:    25.53 kB\ndist/assets/rust-Be6lgOlo.js                             17.65 kB │ gzip:   3.41 kB │ map:    25.00 kB\ndist/assets/angular-html-LfdN0zeE.js                     17.71 kB │ gzip:   3.54 kB │ map:    26.67 kB\ndist/assets/graphql-cDcHW_If.js                          18.25 kB │ gzip:   2.69 kB │ map:    25.70 kB\ndist/assets/elixir-CLiX3zqd.js                           18.34 kB │ gzip:   3.25 kB │ map:    25.81 kB\ndist/assets/material-theme-D5KoaKCx.js                   18.67 kB │ gzip:   3.15 kB │ map:    24.14 kB\ndist/assets/material-theme-ocean-CyktbL80.js             18.69 kB │ gzip:   3.17 kB │ map:    24.17 kB\ndist/assets/material-theme-darker-BfHTSMKl.js            18.69 kB │ gzip:   3.15 kB │ map:    24.18 kB\ndist/assets/material-theme-lighter-B0m2ddpp.js           18.69 kB │ gzip:   3.15 kB │ map:    24.19 kB\ndist/assets/material-theme-palenight-Csfq5Kiy.js         18.70 kB │ gzip:   3.16 kB │ map:    24.20 kB\ndist/assets/gdscript-DfxzS6Rs.js                         18.70 kB │ gzip:   3.75 kB │ map:    25.92 kB\ndist/assets/abap-DsBKuouk.js                             18.86 kB │ gzip:   6.23 kB │ map:    23.62 kB\ndist/assets/marko-z0MBrx5-.js                            19.37 kB │ gzip:   3.23 kB │ map:    27.42 kB\ndist/assets/groovy-DkBy-JyN.js                           19.69 kB │ gzip:   3.81 kB │ map:    28.19 kB\ndist/assets/mdc-DB_EDNY_.js                              19.74 kB │ gzip:   6.65 kB │ map:    23.16 kB\ndist/assets/nushell-D4Tzg5kh.js                          19.79 kB │ gzip:   4.97 kB │ map:    27.09 kB\ndist/assets/matlab-D9-PGadD.js                           20.18 kB │ gzip:   3.91 kB │ map:    28.23 kB\ndist/assets/move-DB_GagMm.js                             20.28 kB │ gzip:   4.08 kB │ map:    29.97 kB\ndist/assets/glimmer-js-D-cwc0-E.js                       20.60 kB │ gzip:   3.03 kB │ map:    29.39 kB\ndist/assets/glimmer-ts-pgjy16dm.js                       20.60 kB │ gzip:   3.03 kB │ map:    29.39 kB\ndist/assets/kusto-mebxcVVE.js                            20.68 kB │ gzip:   4.59 kB │ map:    25.72 kB\ndist/assets/kanban-definition-3W4ZIXB7-DdWBX6bT.js       20.69 kB │ gzip:   7.32 kB │ map:    68.43 kB\ndist/assets/snazzy-light-Bw305WKR.js                     20.82 kB │ gzip:   3.87 kB │ map:    28.03 kB\ndist/assets/viml-m4uW47V2.js                             21.06 kB │ gzip:   7.28 kB │ map:    24.24 kB\ndist/assets/dracula-BzJJZx-M.js                          21.11 kB │ gzip:   4.04 kB │ map:    27.51 kB\ndist/assets/mindmap-definition-VGOIOE7T-DbCOG5Hq.js      21.12 kB │ gzip:   7.41 kB │ map:    71.65 kB\ndist/assets/dracula-soft-BXkSAIEj.js                     21.13 kB │ gzip:   4.07 kB │ map:    27.54 kB\ndist/assets/vue-BuYVFjOK.js                              21.52 kB │ gzip:   2.92 kB │ map:    32.25 kB\ndist/assets/rose-pine-CmCqftbK.js                        21.81 kB │ gzip:   3.91 kB │ map:    28.81 kB\ndist/assets/rose-pine-moon-CjDtw9vr.js                   21.82 kB │ gzip:   3.93 kB │ map:    28.84 kB\ndist/assets/rose-pine-dawn-Ds-gbosJ.js                   21.82 kB │ gzip:   3.93 kB │ map:    28.84 kB\ndist/assets/sankeyDiagram-TZEHDZUN-C8AYjOEe.js           22.09 kB │ gzip:   8.07 kB │ map:    84.66 kB\ndist/assets/powershell-BIEUsx6d.js                       22.31 kB │ gzip:   4.73 kB │ map:    29.19 kB\ndist/assets/apl-BBq3IX1j.js                              22.88 kB │ gzip:   4.26 kB │ map:    32.23 kB\ndist/assets/twig-NC5TFiHP.js                             23.05 kB │ gzip:   4.18 kB │ map:    31.70 kB\ndist/assets/journeyDiagram-XKPGCS4Q-Di8t3raE.js          23.61 kB │ gzip:   8.38 kB │ map:    80.54 kB\ndist/assets/nim-ZlGxZxc3.js                              23.67 kB │ gzip:   3.54 kB │ map:    34.43 kB\ndist/assets/timeline-definition-IT6M3QCI-Ctl_sQXh.js     23.79 kB │ gzip:   8.34 kB │ map:    82.33 kB\ndist/assets/vhdl-DYoNaHQp.js                             23.83 kB │ gzip:   3.90 kB │ map:    32.69 kB\ndist/assets/templ-dwX3ZSMB.js                            24.01 kB │ gzip:   5.42 kB │ map:    30.74 kB\ndist/assets/astro-CqkE3fuf.js                            24.11 kB │ gzip:   7.48 kB │ map:    29.24 kB\ndist/assets/sql-COK4E0Yg.js                              24.36 kB │ gzip:   7.72 kB │ map:    29.03 kB\ndist/assets/gitGraphDiagram-NY62KEGX-C-pJWOi6.js         24.78 kB │ gzip:   7.65 kB │ map:   102.84 kB\ndist/assets/one-light-PoHY5YXO.js                        25.35 kB │ gzip:   3.71 kB │ map:    33.81 kB\ndist/assets/erDiagram-Q2GNP2WA-CsfU3MZ1.js               25.38 kB │ gzip:   8.91 kB │ map:    85.75 kB\ndist/assets/razor-CNLDkMZG.js                            25.85 kB │ gzip:   3.51 kB │ map:    36.18 kB\ndist/assets/fsharp-XplgxFYe.js                           25.88 kB │ gzip:   4.26 kB │ map:    36.66 kB\ndist/assets/nord-Ddv68eIx.js                             26.77 kB │ gzip:   4.43 kB │ map:    35.36 kB\ndist/assets/system-verilog-C7L56vO4.js                   26.83 kB │ gzip:   4.92 kB │ map:    37.17 kB\ndist/assets/bsl-Dgyn0ogV.js                              27.48 kB │ gzip:   8.96 kB │ map:    32.03 kB\ndist/assets/java-xI-RfyKK.js                             27.53 kB │ gzip:   4.37 kB │ map:    39.03 kB\ndist/assets/coffee-dyiR41kL.js                           27.79 kB │ gzip:   6.45 kB │ map:    36.59 kB\ndist/assets/scss-C31hgJw-.js                             28.17 kB │ gzip:   4.47 kB │ map:    39.33 kB\ndist/assets/typespec-BpWG_bgh.js                         28.24 kB │ gzip:   2.87 kB │ map:    39.48 kB\ndist/assets/common-lisp-C7gG9l05.js                      28.55 kB │ gzip:   6.76 kB │ map:    35.06 kB\ndist/assets/night-owl-C39BiMTA.js                        28.96 kB │ gzip:   5.19 kB │ map:    39.06 kB\ndist/assets/layout-DnJy0371.js                           29.33 kB │ gzip:  10.55 kB │ map:   182.80 kB\ndist/assets/julia-BBuGR-5E.js                            29.49 kB │ gzip:   6.17 kB │ map:    38.96 kB\ndist/assets/requirementDiagram-UZGBJVZJ-C4wAKsdQ.js      30.35 kB │ gzip:   9.56 kB │ map:    96.84 kB\ndist/assets/scala-DQVVAn-B.js                            30.54 kB │ gzip:   4.36 kB │ map:    42.51 kB\ndist/assets/applescript-Bu5BbsvL.js                      30.83 kB │ gzip:   6.39 kB │ map:    41.06 kB\ndist/assets/stylus-BeQkCIfX.js                           31.60 kB │ gzip:   8.15 kB │ map:    39.52 kB\ndist/assets/mermaid-Ci6OQyBP.js                          33.11 kB │ gzip:   4.69 kB │ map:    49.04 kB\ndist/assets/poimandres-CS3Unz2-.js                       33.54 kB │ gzip:   5.53 kB │ map:    43.07 kB\ndist/assets/codeql-sacFqUAJ.js                           33.64 kB │ gzip:   4.04 kB │ map:    43.77 kB\ndist/assets/crystal-DtDmRg-F.js                          33.79 kB │ gzip:   5.62 kB │ map:    46.67 kB\ndist/assets/one-dark-pro-GBQ2dnAY.js                     33.79 kB │ gzip:   5.55 kB │ map:    44.45 kB\ndist/assets/quadrantDiagram-AYHSOK5B-CEDtk9l4.js         34.31 kB │ gzip:  10.12 kB │ map:   111.10 kB\ndist/assets/tokyo-night-DBQeEorK.js                      34.41 kB │ gzip:   6.01 kB │ map:    43.73 kB\ndist/assets/haxe-C5wWYbrZ.js                             35.34 kB │ gzip:   5.97 kB │ map:    49.79 kB\ndist/assets/houston-DnULxvSX.js                          35.47 kB │ gzip:   5.82 kB │ map:    46.40 kB\ndist/assets/nginx-D_VnBJ67.js                            35.77 kB │ gzip:   4.53 kB │ map:    49.01 kB\ndist/assets/erlang-B-DoSBHF.js                           36.35 kB │ gzip:   4.47 kB │ map:    49.79 kB\ndist/assets/chunk-DI55MBZ5---5G21Q9.js                   36.83 kB │ gzip:  12.02 kB │ map:   122.11 kB\ndist/assets/r-CwjWoCRV.js                                36.91 kB │ gzip:  11.25 kB │ map:    44.92 kB\ndist/assets/xychartDiagram-PRI3JC2R-Di3mYCjV.js          38.90 kB │ gzip:  10.96 kB │ map:   127.58 kB\ndist/assets/cobol-PTqiYgYu.js                            40.63 kB │ gzip:  11.11 kB │ map:    49.56 kB\ndist/assets/asm-Dhn9LcZ4.js                              40.89 kB │ gzip:   8.22 kB │ map:    53.05 kB\ndist/assets/shellscript-atvbtKCR.js                      42.76 kB │ gzip:   6.37 kB │ map:    58.10 kB\ndist/assets/d-BoXegm-a.js                                43.05 kB │ gzip:   8.43 kB │ map:    61.67 kB\ndist/assets/haskell-BILxekzW.js                          43.26 kB │ gzip:   7.05 kB │ map:    60.35 kB\ndist/assets/perl-CHQXSrWU.js                             44.59 kB │ gzip:   4.91 kB │ map:    62.86 kB\ndist/assets/chunk-B4BG7PRW-DBlO6oH8.js                   45.45 kB │ gzip:  14.77 kB │ map:   140.28 kB\ndist/assets/catppuccin-mocha-LGGdnPYs.js                 45.67 kB │ gzip:   7.77 kB │ map:    59.87 kB\ndist/assets/catppuccin-latte-DRW-0cLl.js                 45.67 kB │ gzip:   7.77 kB │ map:    59.87 kB\ndist/assets/catppuccin-frappe-CD_QflpE.js                45.67 kB │ gzip:   7.79 kB │ map:    59.88 kB\ndist/assets/catppuccin-macchiato-C-_shW-Y.js             45.68 kB │ gzip:   7.78 kB │ map:    59.90 kB\ndist/assets/apex-COJ4H7py.js                             46.85 kB │ gzip:   6.81 kB │ map:    65.65 kB\ndist/assets/ganttDiagram-JELNMOA3-CpKKkuav.js            48.21 kB │ gzip:  16.52 kB │ map:   156.30 kB\ndist/assets/ada-727ZlQH0.js                              48.57 kB │ gzip:   6.09 kB │ map:    71.63 kB\ndist/assets/ruby-DeZ3UC14.js                             51.52 kB │ gzip:   7.16 kB │ map:    72.12 kB\ndist/assets/go-B1SYOhNW.js                               52.45 kB │ gzip:   6.44 kB │ map:    74.36 kB\ndist/assets/imba-bv_oIlVt.js                             53.50 kB │ gzip:  10.25 kB │ map:    73.36 kB\ndist/assets/everforest-dark-BgDCqdQA.js                  53.80 kB │ gzip:   8.46 kB │ map:    68.28 kB\ndist/assets/everforest-light-C8M2exoo.js                 53.80 kB │ gzip:   8.46 kB │ map:    68.28 kB\ndist/assets/css-BPhBrDlE.js                              53.84 kB │ gzip:  13.53 kB │ map:    66.14 kB\ndist/assets/wikitext-DCE3LsBG.js                         56.67 kB │ gzip:   4.85 kB │ map:    78.67 kB\ndist/assets/markdown-UIAJJxZW.js                         57.03 kB │ gzip:   5.67 kB │ map:    79.39 kB\ndist/assets/latex-C-cWTeAZ.js                            59.46 kB │ gzip:   6.05 kB │ map:    82.73 kB\ndist/assets/stata-DorPZHa4.js                            61.05 kB │ gzip:  13.74 kB │ map:    79.25 kB\ndist/assets/flowDiagram-NV44I4VS-D5Xfme6t.js             61.15 kB │ gzip:  19.63 kB │ map:   190.49 kB\ndist/assets/html-C2L_23MC.js                             61.37 kB │ gzip:  12.03 kB │ map:    79.14 kB\ndist/assets/ballerina-Du268qiB.js                        61.68 kB │ gzip:   8.35 kB │ map:    87.47 kB\ndist/assets/ocaml-BNioltXt.js                            65.91 kB │ gzip:   5.21 kB │ map:    85.47 kB\ndist/assets/c4Diagram-YG6GDRKO-Jl_qf5kd.js               70.22 kB │ gzip:  19.75 kB │ map:   204.07 kB\ndist/assets/mojo-Tz6hzZYG.js                             72.61 kB │ gzip:  10.39 kB │ map:    98.49 kB\ndist/assets/blockDiagram-VD42YOAC-DM1hS_p0.js            73.20 kB │ gzip:  20.87 kB │ map:   248.30 kB\ndist/assets/python-DhUJRlN_.js                           73.57 kB │ gzip:  10.47 kB │ map:    99.93 kB\ndist/assets/c-C3t2pwGQ.js                                74.01 kB │ gzip:  10.67 kB │ map:    97.86 kB\ndist/assets/vyper-nyqBNV6O.js                            78.27 kB │ gzip:  12.09 kB │ map:   105.41 kB\ndist/assets/cose-bilkent-S5V4N54A-LwoXW1G0.js            81.63 kB │ gzip:  22.49 kB │ map:   305.59 kB\ndist/assets/hack-D1yCygmZ.js                             84.69 kB │ gzip:  27.64 kB │ map:   102.57 kB\ndist/assets/csharp-D9R-vmeu.js                           87.21 kB │ gzip:  10.43 kB │ map:   122.74 kB\ndist/assets/swift-BSxZ-RaX.js                            91.04 kB │ gzip:  14.58 kB │ map:   120.66 kB\ndist/assets/asciidoc-BPT9niGB.js                         93.55 kB │ gzip:   7.47 kB │ map:   134.73 kB\ndist/assets/racket-CzouJOBO.js                           97.66 kB │ gzip:  15.65 kB │ map:   113.79 kB\ndist/assets/sequenceDiagram-WL72ISMW-l1kjw1zj.js         98.19 kB │ gzip:  27.01 kB │ map:   294.38 kB\ndist/assets/fortran-free-form-DKXYxT9g.js                98.25 kB │ gzip:  12.41 kB │ map:   135.05 kB\ndist/assets/less-BfCpw3nA.js                            102.50 kB │ gzip:  15.17 kB │ map:   138.61 kB\ndist/assets/objective-c-Deuh7S70.js                     107.84 kB │ gzip:  23.29 kB │ map:   132.13 kB\ndist/assets/blade-a8OxSdnT.js                           108.04 kB │ gzip:  28.71 kB │ map:   134.81 kB\ndist/assets/troika-three-text.esm-BDral5jD.js           108.65 kB │ gzip:  41.01 kB │ map:   444.94 kB\ndist/assets/motion-BHTrwc2L.js                          109.51 kB │ gzip:  37.16 kB │ map:   613.28 kB\ndist/assets/php-B5ebYQev.js                             113.80 kB │ gzip:  28.86 kB │ map:   142.83 kB\ndist/assets/mdx-sdHcTMYB.js                             140.40 kB │ gzip:  23.65 kB │ map:   182.47 kB\ndist/assets/architectureDiagram-VXUJARFQ-DugkhVzM.js    148.81 kB │ gzip:  42.21 kB │ map:   592.32 kB\ndist/assets/objective-cpp-BUEGK8hf.js                   175.65 kB │ gzip:  30.71 kB │ map:   222.58 kB\ndist/assets/index-CDFULNZ1.js                           190.68 kB │ gzip:  59.24 kB │ map:   672.12 kB\ndist/assets/javascript-ySlJ1b_l.js                      198.08 kB │ gzip:  17.49 kB │ map:   280.81 kB\ndist/assets/tsx-B6W0miNI.js                             198.79 kB │ gzip:  17.49 kB │ map:   281.50 kB\ndist/assets/jsx-BAng5TT0.js                             201.05 kB │ gzip:  17.58 kB │ map:   283.75 kB\ndist/assets/typescript-Dj6nwHGl.js                      209.07 kB │ gzip:  17.07 kB │ map:   298.64 kB\ndist/assets/angular-ts-CKsD7JZE.js                      211.83 kB │ gzip:  17.66 kB │ map:   303.65 kB\ndist/assets/katex-CBSAILhF.js                           262.64 kB │ gzip:  77.55 kB │ map:   986.65 kB\ndist/assets/wolfram-C3FkfJm5.js                         268.64 kB │ gzip:  77.09 kB │ map:   286.32 kB\ndist/assets/treemap-KMMF4GRG-DPhJO6I3.js                355.03 kB │ gzip:  89.18 kB │ map: 1,582.22 kB\ndist/assets/cytoscape.esm-CyJtwmzi.js                   442.46 kB │ gzip: 141.94 kB │ map: 1,864.99 kB\ndist/assets/mermaid-CS0hYoN6.js                         553.32 kB │ gzip: 159.28 kB │ map: 1,955.44 kB\ndist/assets/wasm-CG6Dc4jp.js                            622.38 kB │ gzip: 230.33 kB │ map:   622.93 kB\ndist/assets/cpp-BksuvNSY.js                             697.56 kB │ gzip:  50.29 kB │ map:   906.99 kB\ndist/assets/emacs-lisp-BX77sIaO.js                      804.72 kB │ gzip: 196.99 kB │ map:   815.76 kB\ndist/assets/three-BlSGXN6j.js                         1,057.56 kB │ gzip: 301.22 kB │ map: 3,434.88 kB\ndist/assets/index-Cp4bJpv2.js                         2,124.65 kB │ gzip: 603.51 kB │ map: 8,890.80 kB\n\n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\n✓ built in 16.84s\n[INFO]    [5/5] show-urls\n  → Display access URLs\nAPI: http://localhost:16544\nUI: http://localhost:36235\n[SUCCESS] Phase 'setup' completed\n[INFO]    Starting develop phase...\n[INFO]    Environment setup complete for scenario: prompt-manager\n[INFO]    Scenario processes are currently running\n[WARNING] Postgres not running, skipping database creation for: vrooli_prompt_manager\n[INFO]    Launch API and UI server\n[INFO]    [1/3] start-api\n  → Start Go API server in background\n[INFO]    Previous log saved. View with: vrooli scenario logs prompt-manager --step start-api --previous\n[INFO]    Started background process: vrooli.develop.prompt-manager.start-api (PID: 2219580)\n[INFO]    [2/3] start-ui\n  → Serve production UI bundle\n[INFO]    Previous log saved. View with: vrooli scenario logs prompt-manager --step start-ui --previous\n[ERROR]   Process vrooli.develop.prompt-manager.start-ui exited immediately (status: 0)\n[WARNING] 🚨 Port 36235 is already in use. The following listeners were detected:\n[WARNING]     COMMAND     PID          USER   FD   TYPE    DEVICE SIZE/OFF NODE NAME\n[WARNING]     node    2220023 matthalloran8   18u  IPv4 392841714      0t0  TCP *:36235 (LISTEN)\n[WARNING] Last log lines for vrooli.develop.prompt-manager.start-ui:\n[WARNING]     node:events:502\n[WARNING]           throw er; // Unhandled 'error' event\n[WARNING]           ^\n[WARNING]     \n[WARNING]     Error: listen EADDRINUSE: address already in use 0.0.0.0:36235\n[WARNING]         at Server.setupListenHandle [as _listen2] (node:net:1908:16)\n[WARNING]         at listenInCluster (node:net:1965:12)\n[WARNING]         at doListen (node:net:2139:7)\n[WARNING]         at process.processTicksAndRejections (node:internal/process/task_queues:83:21)\n[WARNING]     Emitted 'error' event on Server instance at:\n[WARNING]         at emitErrorNT (node:net:1944:8)\n[WARNING]         at process.processTicksAndRejections (node:internal/process/task_queues:82:21) {\n[WARNING]       code: 'EADDRINUSE',\n[WARNING]       errno: -98,\n[WARNING]       syscall: 'listen',\n[WARNING]       address: '0.0.0.0',\n[WARNING]       port: 36235\n[WARNING]     }\n[WARNING]     \n[WARNING]     Node.js v20.19.4\n[ERROR]   Background step failed: develop.prompt-manager.start-ui); retrying once",
+          "retryable": true,
+          "created_at": "2026-04-08T01:40:54Z"
+        },
+        {
+          "code": "finalization_infrastructure",
+          "scenario_name": "prompt-manager",
+          "message": "trigger review for prompt-manager: review run returned status 409: {\"error\":\"a review run is already in progress for this scenario\"}",
+          "created_at": "2026-04-08T01:41:02Z"
+        },
+        {
+          "code": "review_agent_failed",
+          "message": "render review skill: promptmanager: resolve URL: resolve prompt-manager: api-core discovery command_failed scenario=\"prompt-manager\" port=\"API_PORT\" err=exit status 1",
+          "created_at": "2026-04-08T01:41:03Z"
+        },
+        {
+          "code": "finalization_infrastructure",
+          "scenario_name": "prompt-manager",
+          "message": "trigger review for prompt-manager: review run returned status 409: {\"error\":\"a review run is already in progress for this scenario\"}",
+          "created_at": "2026-04-08T01:41:38Z"
+        }
+      ],
+      "affected_scenarios": [
+        "prompt-manager"
+      ],
+      "aggregate_classification": "ready_with_notes",
+      "aggregate_summary": "prompt-manager ready with notes; 4 warning(s)",
+      "scenarios": [
+        {
+          "scenario_name": "prompt-manager",
+          "restart": {
+            "status": "completed",
+            "attempts": 2,
+            "started_at": "2026-04-08T01:40:54Z",
+            "finished_at": "2026-04-08T01:41:32Z"
+          },
+          "health": {
+            "status": "completed",
+            "scenario_status": "running",
+            "health_status": "healthy",
+            "schema_valid": true,
+            "details": "scenario is healthy",
+            "checked_at": "2026-04-08T01:41:38Z"
+          },
+          "review": {
+            "status": "completed",
+            "job_id": "2b17e10f-b247-43ec-bd1b-b967cb4bee1b",
+            "result": {
+              "job_id": "2b17e10f-b247-43ec-bd1b-b967cb4bee1b",
+              "classification": "ready_with_notes",
+              "dimensions": [
+                {
+                  "name": "codeQuality",
+                  "status": "yellow",
+                  "details": "100.0 score, 0 violations"
+                },
+                {
+                  "name": "tests",
+                  "status": "yellow",
+                  "details": "7/11 passed"
+                },
+                {
+                  "name": "standards",
+                  "status": "red",
+                  "details": "7 blocking violations"
+                },
+                {
+                  "name": "visual",
+                  "status": "green"
+                },
+                {
+                  "name": "provenance",
+                  "status": "green"
+                }
+              ],
+              "raw_dimensions": {
+                "codeQuality": {
+                  "available": true,
+                  "score": 100,
+                  "violations": 0,
+                  "stale": true
+                },
+                "tests": {
+                  "available": true,
+                  "passed": false,
+                  "total": 11,
+                  "passedCount": 7,
+                  "failedCount": 4,
+                  "lastRun": "2026-04-08T01:42:43.382539452Z"
+                },
+                "standards": {
+                  "available": true,
+                  "blockingViolations": 7,
+                  "warnings": 154,
+                  "totalViolations": 161
+                },
+                "visual": {
+                  "available": true,
+                  "screenshotCount": 4,
+                  "stale": false
+                },
+                "provenance": {
+                  "available": true,
+                  "tracedFiles": 1
+                }
+              },
+              "summary": "Scenario prompt-manager readiness: yellow",
+              "reviewed_at": "2026-04-08T01:42:44Z"
+            }
+          }
+        }
+      ]
+    },
+    "created_at": "2026-04-08T01:39:18Z",
+    "updated_at": "2026-04-08T01:42:45Z"
+  },
+  {
+    "execution_id": "f9289dd2f5d3ea1e",
+    "backlog_kind": "fix",
+    "backlog_name": "fix-snooze-selector-rendering-on-backlog-item-cards",
+    "previous_status": "backlog",
+    "task_id": "27033942-60b1-45ca-be48-e7a603d3d458",
+    "run_id": "d81e0b65-bd4e-48b2-97ae-3eef097866b0",
+    "status": "needs_fixup",
+    "mode": "yolo",
+    "started_at": "2026-04-08T03:17:55Z",
+    "finished_at": "2026-04-08T03:18:42Z",
+    "started_by": "swarm-manager-ui",
+    "operation": "generator",
+    "force": true,
+    "prompt_trace": {
+      "purpose": "process",
+      "prompt": "\u003cexecution-context\u003e\nBacklog item: fix/fix-snooze-selector-rendering-on-backlog-item-cards\nTitle: Fix snooze selector rendering on backlog item cards\nItem folder: /home/matthalloran8/Vrooli/scenarios/swarm-manager/fix/fix-snooze-selector-rendering-on-backlog-item-cards\nRun type: process\n\u003c/execution-context\u003e\n\n\u003cimplementation-plan path=\"plan.md\"\u003e\n# Fix: Snooze Selector Rendering on Backlog Item Cards\n\n## Required Reading\n\n- `prompt-manager skill read react-coherence` — React component patterns and portal usage\n- `prompt-manager skill read ux` — UI/UX interaction patterns\n\n## Problem Statement\n\nThe `SnoozePopover` component on backlog item cards renders its dropdown menu using CSS `absolute` positioning inside a parent container that has `overflow-x-auto`. This causes the dropdown to be clipped by the card's overflow boundary, making it partially or fully invisible to the user.\n\n### Root Cause Analysis\n\n**Observation:** The snooze popover menu (`SnoozePopover.tsx:49-72`) uses `absolute right-0 top-full z-50 mt-1 w-40` classes, positioned relative to its trigger button. However, the action row in `backlog-card.tsx:111` uses `overflow-x-auto`, which creates a new stacking context and clips any absolutely-positioned child that extends beyond its bounds.\n\n**Comparison:** The `StatusChipPopover` component (`status-chip-popover.tsx`) already solves this exact problem by using the shared `Popover` component (`ui/popover.tsx`), which:\n1. Uses `createPortal` to render at `document.body`\n2. Uses `fixed` positioning with viewport clamping\n3. Escapes all parent overflow/z-index constraints\n\n## Scope\n\n### In Scope\n- Refactor `SnoozePopover` to use the existing `Popover` component from `ui/popover.tsx`\n- Ensure click-outside dismissal still works (handled by `Popover` via `useModalBehavior`)\n- Ensure snooze popover positions correctly relative to its trigger\n\n### Out of Scope\n- Changes to snooze store logic or presets\n- Changes to the `Popover` component itself\n- Backlog card layout changes (overflow-x-auto stays as-is)\n\n## Approach\n\n**Decision (d1):** Reuse existing `Popover` component — the proven pattern already used by `StatusChipPopover` in the same card context. Gets portal rendering, viewport clamping, and click-outside/Esc handling for free.\n\n**Decision (d2):** Keep `overflow-x-auto` on the action row — minimal change, focused fix. The overflow serves a purpose for long action rows on narrow screens.\n\n## Implementation Steps\n\n### Step 1: Refactor `SnoozePopover` to use the `Popover` component\n\n**File:** `scenarios/swarm-manager/ui/src/components/command-post/SnoozePopover.tsx`\n\nFollow the `StatusChipPopover` pattern:\n\n1. **Replace state/ref management:**\n   - Remove the manual `handleClickOutside` effect and `popoverRef` — `Popover` handles this via `useModalBehavior`\n   - Add `popoverPos` state (`{ x: number, y: number }`) for fixed positioning\n   - Add a `buttonRef` on the trigger button\n\n2. **Compute position on open:**\n   - In the trigger button's `onClick`, call `buttonRef.current.getBoundingClientRect()` to get the trigger's screen position\n   - Set `popoverPos` to `{ x: rect.left, y: rect.bottom + 4 }` (same offset as StatusChipPopover)\n\n3. **Replace the dropdown div with `\u003cPopover\u003e`:**\n   - Use `\u003cPopover isOpen={open} onClose={() =\u003e setOpen(false)} x={popoverPos.x} y={popoverPos.y} className=\"w-40 p-1\" testId=\"snooze-popover\"\u003e`\n   - Move the preset buttons inside `\u003cPopover\u003e` children\n   - Remove the outer `\u003cdiv className=\"relative\"\u003e` wrapper — no longer needed since portal renders at body\n\n4. **Update imports:**\n   - Add: `import { Popover } from \"../ui/popover\"`\n   - Remove: `useEffect`, `useCallback` (no longer needed for click-outside)\n   - Keep: `useState`, `useRef`\n\n### Step 2: Verify all usage sites\n\n**File:** `scenarios/swarm-manager/ui/src/components/backlog/backlog-card.tsx`\n\nThe `SnoozePopover` is used in 3 positions within `backlog-card.tsx`. Since the component's external API (`itemKey`, `onSnooze`, `children`) does not change, no modifications are needed in the card. Verify that the wrapper element change (from `\u003cdiv className=\"relative\"\u003e` to a fragment or plain wrapper) doesn't break the card layout.\n\n## Testing Strategy\n\n1. **Visual verification:** Open backlog page, click snooze on a card, confirm dropdown renders fully visible above/below the card — not clipped by the action row\n2. **Click-outside:** Confirm clicking outside dismisses the popover\n3. **Escape key:** Confirm pressing Escape dismisses the popover (new behavior from `useModalBehavior`)\n4. **Scroll behavior:** Confirm popover stays anchored to trigger position (fixed positioning)\n5. **Multiple cards:** Confirm opening snooze on one card closes any other open snooze popover\n6. **Snooze presets:** Confirm selecting a snooze preset still calls `onSnooze` and closes the popover\n\n## Risks\n\n| Risk | Likelihood | Mitigation |\n|------|-----------|------------|\n| Portal z-index conflicts | Low | `Popover` uses `z-50`, consistent with all other popovers |\n| Viewport edge clipping | Low | `Popover` already handles viewport clamping |\n| Wrapper element change breaks card layout | Low | Verify the trigger button still flows correctly in the action row without the `relative` div |\n\n## Acceptance Criteria\n\n- Snooze dropdown is fully visible when triggered from any backlog card position\n- Click-outside and Escape dismissal work\n- Snooze functionality (selecting a preset) works end-to-end\n- No visual regressions on other card actions\n\n\u003c/implementation-plan\u003e\n",
+      "prompt_revision": "sha256:9e742c9aa6b22d47",
+      "used_fallback": false,
+      "captured_at": "2026-04-08T03:17:55Z"
+    },
+    "finalization": {
+      "eligible": true,
+      "status": "completed",
+      "phase": "completed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-04-08T03:18:42Z",
+      "completed_at": "2026-04-08T03:18:42Z",
+      "warnings": [
+        {
+          "code": "self_restart_skipped",
+          "scenario_name": "swarm-manager",
+          "message": "Scenario \"swarm-manager\" was in scope but skipped because restarting it would kill this running process. If changes to swarm-manager require a restart, restart it manually after finalization completes.",
+          "created_at": "2026-04-08T03:18:42Z"
+        }
+      ],
+      "affected_scenarios": [
+        "swarm-manager"
+      ],
+      "aggregate_classification": "needs_work",
+      "aggregate_summary": "swarm-manager restart failed; 1 warning(s)",
+      "scenarios": [
+        {
+          "scenario_name": "swarm-manager",
+          "restart": {
+            "status": "pending"
+          },
+          "health": {
+            "status": "pending",
+            "schema_valid": false
+          },
+          "review": {
+            "status": "pending"
+          }
+        }
+      ]
+    },
+    "created_at": "2026-04-08T03:17:55Z",
+    "updated_at": "2026-04-08T03:18:42Z"
   }
 ]

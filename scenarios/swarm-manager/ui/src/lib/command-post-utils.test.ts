@@ -3,6 +3,7 @@ import {
   aggregateCrossItemQuestions,
   computeBadgeCount,
   groupActionItems,
+  sortedGroupActionItems,
   type ActionGroup,
 } from "./command-post-utils";
 import type {
@@ -155,6 +156,35 @@ describe("groupActionItems", () => {
     expect(getGroup(groups, "needs-classification").count).toBe(1);
   });
 
+  it("classifies classified captures with items into needs-classification", () => {
+    const cap = makeCapture({
+      status: "classified",
+      classification: {
+        items: [{ kind: "fix", title: "Fix bug", description: "", priority: 5, tags: [], confidence: 0.9 }],
+        classifiedAt: "2026-04-01T00:00:00Z",
+      },
+    });
+    const groups = groupActionItems([], [], [cap], EMPTY_FEEDBACK, EMPTY_MATURITY, NO_SNOOZED);
+    const group = getGroup(groups, "needs-classification");
+    expect(group.count).toBe(1);
+    expect(group.items[0]?.primaryCta).toBe("review");
+  });
+
+  it("excludes classified captures with no items from needs-classification", () => {
+    const cap = makeCapture({
+      status: "classified",
+      classification: { items: [], classifiedAt: "2026-04-01T00:00:00Z" },
+    });
+    const groups = groupActionItems([], [], [cap], EMPTY_FEEDBACK, EMPTY_MATURITY, NO_SNOOZED);
+    expect(getGroup(groups, "needs-classification").count).toBe(0);
+  });
+
+  it("excludes failed captures from needs-classification (retry via Captures tab)", () => {
+    const cap = makeCapture({ status: "failed" });
+    const groups = groupActionItems([], [], [cap], EMPTY_FEEDBACK, EMPTY_MATURITY, NO_SNOOZED);
+    expect(getGroup(groups, "needs-classification").count).toBe(0);
+  });
+
   it("excludes snoozed items", () => {
     const item = makeBacklogItem({ status: "ready" });
     const maturityMap = new Map([
@@ -198,6 +228,92 @@ describe("groupActionItems", () => {
     const groups = groupActionItems([queued, inProgress], [], [], EMPTY_FEEDBACK, EMPTY_MATURITY, NO_SNOOZED);
     const totalCount = groups.reduce((sum, g) => sum + g.count, 0);
     expect(totalCount).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// sortedGroupActionItems
+// ---------------------------------------------------------------------------
+
+describe("sortedGroupActionItems", () => {
+  it("sorts backlog items within groups by dependency order", () => {
+    const parent = makeBacklogItem({
+      name: "parent",
+      kind: "execute",
+      status: "ready",
+      priority: 5,
+    });
+    const child = makeBacklogItem({
+      name: "child",
+      kind: "execute",
+      status: "ready",
+      priority: 1,
+      dependsOn: ["execute/parent"],
+    });
+    const maturityMap = new Map([
+      [`execute/parent`, { kind: "execute", name: "parent", ready: true, pendingItems: 0 }],
+      [`execute/child`, { kind: "execute", name: "child", ready: true, pendingItems: 0 }],
+    ]);
+    // Pass child before parent to verify sorting reorders them
+    const groups = sortedGroupActionItems(
+      [child, parent], [], [], EMPTY_FEEDBACK, maturityMap, NO_SNOOZED,
+    );
+    const readyGroup = getGroup(groups, "ready-to-run");
+    expect(readyGroup.count).toBe(2);
+    // Parent (depth 0) should come before child (depth 1) despite child having lower priority number
+    expect(readyGroup.items[0]?.name).toBe("parent");
+    expect(readyGroup.items[1]?.name).toBe("child");
+  });
+
+  it("uses priority as tiebreaker within same depth", () => {
+    const lowPri = makeBacklogItem({
+      name: "low-pri",
+      kind: "execute",
+      status: "ready",
+      priority: 1,
+    });
+    const highPri = makeBacklogItem({
+      name: "high-pri",
+      kind: "execute",
+      status: "ready",
+      priority: 5,
+    });
+    const maturityMap = new Map([
+      [`execute/low-pri`, { kind: "execute", name: "low-pri", ready: true, pendingItems: 0 }],
+      [`execute/high-pri`, { kind: "execute", name: "high-pri", ready: true, pendingItems: 0 }],
+    ]);
+    const groups = sortedGroupActionItems(
+      [highPri, lowPri], [], [], EMPTY_FEEDBACK, maturityMap, NO_SNOOZED,
+    );
+    const readyGroup = getGroup(groups, "ready-to-run");
+    // Same depth (0), priority ascending: low-pri (1) before high-pri (5)
+    expect(readyGroup.items[0]?.name).toBe("low-pri");
+    expect(readyGroup.items[1]?.name).toBe("high-pri");
+  });
+
+  it("does not affect execution and capture ordering", () => {
+    const exec1 = makeExecution({ status: "needs_review", backlogName: "exec-first" });
+    const exec2 = makeExecution({ status: "needs_review", backlogName: "exec-second" });
+    const groups = sortedGroupActionItems(
+      [], [exec1, exec2], [], EMPTY_FEEDBACK, EMPTY_MATURITY, NO_SNOOZED,
+    );
+    const reviewGroup = getGroup(groups, "needs-review");
+    expect(reviewGroup.count).toBe(2);
+    // Executions appear in original order (no dependency sorting applies)
+    expect(reviewGroup.items[0]?.executionId).toBe(exec1.executionId);
+    expect(reviewGroup.items[1]?.executionId).toBe(exec2.executionId);
+  });
+
+  it("populates backlogItem reference on backlog actionable items", () => {
+    const item = makeBacklogItem({ status: "ready", kind: "execute" });
+    const maturityMap = new Map([
+      [`${item.kind}/${item.name}`, { kind: item.kind, name: item.name, ready: true, pendingItems: 0 }],
+    ]);
+    const groups = sortedGroupActionItems(
+      [item], [], [], EMPTY_FEEDBACK, maturityMap, NO_SNOOZED,
+    );
+    const readyGroup = getGroup(groups, "ready-to-run");
+    expect(readyGroup.items[0]?.backlogItem).toBe(item);
   });
 });
 
