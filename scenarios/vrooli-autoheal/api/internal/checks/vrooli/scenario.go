@@ -133,6 +133,13 @@ func (c *ScenarioCheck) Run(ctx context.Context) checks.Result {
 		Details: make(map[string]interface{}),
 	}
 
+	// Capture the API PID at check time for TOCTOU protection.
+	// If autoheal later decides to restart this scenario, it can verify the PID
+	// hasn't changed (which would mean a fresh process replaced the unhealthy one).
+	if pid := c.readAPIPID(); pid > 0 {
+		result.Details["detectedPID"] = pid
+	}
+
 	// Run structured status command (never parse human-readable output).
 	output, err := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "status", c.scenarioName, "--json")
 	outputText := string(output)
@@ -832,6 +839,25 @@ func (c *ScenarioCheck) executeDiagnose(ctx context.Context, start time.Time) ch
 	result.Success = true
 	result.Message = "Diagnostic information gathered for " + c.scenarioName
 	return result
+}
+
+// readAPIPID reads the start-api PID for this scenario from the lifecycle
+// process directory. Returns 0 if unavailable.
+func (c *ScenarioCheck) readAPIPID() int {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return 0
+	}
+	pidFile := filepath.Join(homeDir, ".vrooli", "processes", "scenarios", c.scenarioName, "start-api.pid")
+	data, err := os.ReadFile(pidFile)
+	if err != nil {
+		return 0
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil {
+		return 0
+	}
+	return pid
 }
 
 // extractPorts extracts port numbers from CLI output

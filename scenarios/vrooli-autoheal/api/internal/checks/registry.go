@@ -492,6 +492,7 @@ type healCandidate struct {
 	healable       HealableCheck
 	selectedAction *RecoveryAction
 	priority       int // lower = higher priority
+	detectedPID    int // PID at detection time (0 if unknown); used to prevent killing a new process
 }
 
 // getHealPriority returns priority for a check (lower = more important)
@@ -586,12 +587,23 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 			continue
 		}
 
+		// Capture PID at detection time for TOCTOU protection.
+		var detectedPID int
+		if result.Details != nil {
+			if pid, ok := result.Details["detectedPID"].(int); ok {
+				detectedPID = pid
+			} else if pidFloat, ok := result.Details["detectedPID"].(float64); ok {
+				detectedPID = int(pidFloat)
+			}
+		}
+
 		// Add to candidates list
 		candidates = append(candidates, healCandidate{
 			result:         result,
 			healable:       healable,
 			selectedAction: selectedAction,
 			priority:       getHealPriority(result.CheckID),
+			detectedPID:    detectedPID,
 		})
 	}
 
@@ -618,8 +630,10 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 	}
 
 	// Phase 4: Execute heal actions with per-action timeout.
-	// We intentionally avoid waiting on a global worker group here; a single stuck
-	// action must not block all future ticks behind a permanent tick_in_progress lock.
+	// Before each action, re-run the health check to guard against TOCTOU races
+	// (e.g., a slow tick detects unhealthy at T=0, but by T=90s a fresh process is healthy).
+	// Also verify that the process PID hasn't changed, which indicates a new process
+	// replaced the unhealthy one and the heal action is no longer needed.
 	if len(candidates) == 0 {
 		return autoHealResults
 	}
@@ -647,6 +661,14 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 			})
 			continue
 		default:
+		}
+
+		// Pre-heal recheck: re-run the health check to verify the target is
+		// still unhealthy. This prevents the TOCTOU race where detection happens
+		// long before execution (e.g., due to SQLITE_BUSY delays or earlier
+		// heal actions taking time).
+		if skipped := r.preHealRecheck(ctx, c, &autoHealResults); skipped {
+			continue
 		}
 
 		actionCtx, cancel := context.WithTimeout(ctx, DefaultAutoHealActionTimeout)
@@ -695,6 +717,59 @@ func (r *Registry) executeAutoHealActionWithTimeout(ctx context.Context, candida
 			Duration:  DefaultAutoHealActionTimeout,
 		}
 	}
+}
+
+// preHealRecheck re-runs the health check for a candidate and optionally verifies
+// that the PID hasn't changed since detection. If the target is now healthy or the
+// PID changed (indicating a new process replaced the unhealthy one), the candidate
+// is skipped and a non-attempted result is appended.
+// Returns true if the candidate was skipped.
+func (r *Registry) preHealRecheck(ctx context.Context, c healCandidate, results *[]AutoHealResult) bool {
+	recheckCtx, cancel := context.WithTimeout(ctx, DefaultCheckTimeout)
+	defer cancel()
+
+	// Re-run the check to see if it's still unhealthy.
+	r.mu.RLock()
+	check, exists := r.checks[c.result.CheckID]
+	r.mu.RUnlock()
+	if !exists {
+		return false // Check was unregistered; let the caller handle it
+	}
+
+	freshResult := check.Run(recheckCtx)
+
+	// If the check is now healthy, skip the heal action.
+	if freshResult.Status == StatusOK {
+		*results = append(*results, AutoHealResult{
+			CheckID:   c.result.CheckID,
+			Attempted: false,
+			Reason:    "pre-heal recheck passed: target is now healthy",
+		})
+		return true
+	}
+
+	// PID-pinning: if we captured a PID at detection time and the current PID
+	// differs, a new process has started. Skip the heal to avoid killing it.
+	if c.detectedPID > 0 && freshResult.Details != nil {
+		var currentPID int
+		if pid, ok := freshResult.Details["detectedPID"].(int); ok {
+			currentPID = pid
+		} else if pidFloat, ok := freshResult.Details["detectedPID"].(float64); ok {
+			currentPID = int(pidFloat)
+		}
+		if currentPID > 0 && currentPID != c.detectedPID {
+			*results = append(*results, AutoHealResult{
+				CheckID:   c.result.CheckID,
+				Attempted: false,
+				Reason: fmt.Sprintf(
+					"PID changed since detection (was %d, now %d): new process started, skipping heal",
+					c.detectedPID, currentPID),
+			})
+			return true
+		}
+	}
+
+	return false
 }
 
 func (r *Registry) shouldTriggerAutoHeal(result Result) bool {

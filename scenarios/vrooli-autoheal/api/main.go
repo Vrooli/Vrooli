@@ -255,6 +255,21 @@ func connectPersistenceDB(ctx context.Context) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Enable WAL mode for better concurrent read/write performance.
+	// WAL allows readers to proceed without blocking writers and vice-versa,
+	// eliminating most SQLITE_BUSY errors from concurrent tick operations.
+	if _, err := db.ExecContext(ctx, "PRAGMA journal_mode=WAL"); err != nil {
+		log.Printf("warning: failed to enable WAL mode: %v", err)
+	}
+
+	// Set busy_timeout so SQLite retries internally on lock contention instead
+	// of returning SQLITE_BUSY immediately. 5 seconds is generous enough for
+	// the autoheal tick's persistence writes to complete without failing.
+	if _, err := db.ExecContext(ctx, "PRAGMA busy_timeout=5000"); err != nil {
+		log.Printf("warning: failed to set busy_timeout: %v", err)
+	}
+
 	return db, nil
 }
 
