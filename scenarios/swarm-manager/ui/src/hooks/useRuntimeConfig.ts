@@ -9,12 +9,16 @@ import { useQuery } from "@tanstack/react-query";
 import { uiBehaviorConfig } from "../config";
 import { defaultQueryOptions } from "../lib";
 import { settingsService } from "../services";
+import { DEFAULT_SETTINGS } from "../services/settings-service";
 import type { Settings } from "../types";
+import type { DeleteConfirmLevel } from "../types/settings";
+
+export type DeletableEntityType = "backlog" | "initiative" | "capture";
 
 export interface RuntimeConfig {
   searchDebounceMs: number;
   toastDurationMs: number;
-  confirmDestructiveActions: boolean;
+  getDeleteConfirmLevel: (entityType: DeletableEntityType) => DeleteConfirmLevel;
 }
 
 export function useRuntimeConfig(): RuntimeConfig {
@@ -24,9 +28,11 @@ export function useRuntimeConfig(): RuntimeConfig {
     ...defaultQueryOptions,
   });
 
+  const dc = settings?.deleteConfirmation ?? DEFAULT_SETTINGS.deleteConfirmation;
+
   return {
     searchDebounceMs: settings?.searchDebounceMs ?? uiBehaviorConfig.searchDebounceMs,
     toastDurationMs: settings?.toastDurationMs ?? uiBehaviorConfig.toastDurationMs,
-    confirmDestructiveActions: settings?.confirmDestructiveActions ?? uiBehaviorConfig.confirmDestructiveActions,
+    getDeleteConfirmLevel: (entityType: DeletableEntityType) => dc[entityType],
   };
 }

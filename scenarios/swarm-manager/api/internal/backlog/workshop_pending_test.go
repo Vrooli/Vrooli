@@ -118,7 +118,7 @@ func TestWorkshopSave_WithDelay_CreatesPendingFile(t *testing.T) {
 		"agent_requires_approval":     true,
 		"search_debounce_ms":          300,
 		"toast_duration_ms":           5000,
-		"confirm_destructive_actions": true,
+		"delete_confirmation": map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
 	})
 
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
@@ -252,7 +252,7 @@ func TestWorkshopSave_NewSaveReplacesPendingAdvance(t *testing.T) {
 		"agent_requires_approval":     true,
 		"search_debounce_ms":          300,
 		"toast_duration_ms":           5000,
-		"confirm_destructive_actions": true,
+		"delete_confirmation": map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
 	})
 
 	createTestItem(t, rootDir, KindIdea, BacklogItem{

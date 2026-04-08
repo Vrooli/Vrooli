@@ -30,6 +30,115 @@ export const SORT_RESOLVED_STATUSES: ReadonlySet<BacklogStatus> = new Set<Backlo
   "completed",
 ]);
 
+// ---------------------------------------------------------------------------
+// Unblocking value scoring
+// DOC: docs/concepts/ARCHITECTURE.md#priority-ranking
+// ---------------------------------------------------------------------------
+
+/**
+ * Weight applied per transitive dependent when computing unblocking boost.
+ * Each transitive dependent adds this much to the priority boost.
+ */
+export const UNBLOCK_WEIGHT = 0.5;
+
+/**
+ * Maximum priority boost from unblocking value. Prevents items with very
+ * high fan-out from completely overriding manual priority.
+ */
+export const UNBLOCK_CAP = 3;
+
+/**
+ * Compute effective priority incorporating unblocking value.
+ * Lower values = higher priority (sorted first).
+ *
+ * @param manualPriority - The item's manual priority (1-10).
+ * @param transitiveDependentCount - Number of incomplete items transitively
+ *   depending on this item.
+ * @returns Effective priority (may be fractional).
+ */
+export function computeEffectivePriority(
+  manualPriority: number,
+  transitiveDependentCount: number,
+): number {
+  return manualPriority - Math.min(transitiveDependentCount * UNBLOCK_WEIGHT, UNBLOCK_CAP);
+}
+
+/**
+ * Compute transitive dependent counts for all items.
+ *
+ * Builds a reverse dependency graph (item → its dependents) and counts how
+ * many incomplete items are transitively reachable from each node. Items that
+ * unblock more downstream work get higher counts.
+ *
+ * Only incomplete dependents (not `completed`, not archived) are counted —
+ * a completed item that depends on X should not inflate X's unblocking value.
+ *
+ * Performance: O(V+E) for graph construction + O(V+E) total for memoized DFS.
+ *
+ * @param items - The full set of items to analyze.
+ * @returns A map from item key (`"kind/name"`) to transitive dependent count.
+ */
+export function computeUnblockingMap(
+  items: ReadonlyArray<DepthItem>,
+): Map<string, number> {
+  const itemsByKey = new Map<string, DepthItem>();
+  for (const item of items) {
+    itemsByKey.set(itemKey(item), item);
+  }
+
+  // Build reverse adjacency list: dependency → incomplete dependents.
+  const reverseDeps = new Map<string, string[]>();
+  for (const item of items) {
+    // Skip completed/archived items — they don't count as dependents.
+    if (SORT_RESOLVED_STATUSES.has(item.status) || item.archivedAt) continue;
+
+    const key = itemKey(item);
+    for (const dep of item.dependsOn ?? []) {
+      // Only record if the dependency exists in our item set.
+      if (!itemsByKey.has(dep)) continue;
+      let list = reverseDeps.get(dep);
+      if (!list) {
+        list = [];
+        reverseDeps.set(dep, list);
+      }
+      list.push(key);
+    }
+  }
+
+  // Memoized DFS to count all transitively reachable dependents.
+  // Uses visited-set approach to handle diamonds and cycles correctly.
+  const cache = new Map<string, Set<string>>();
+
+  function getTransitiveDependents(key: string): Set<string> {
+    const cached = cache.get(key);
+    if (cached) return cached;
+
+    // Place an empty set in the cache before recursing to handle cycles.
+    const result = new Set<string>();
+    cache.set(key, result);
+
+    const directDeps = reverseDeps.get(key);
+    if (directDeps) {
+      for (const dep of directDeps) {
+        result.add(dep);
+        for (const transitive of getTransitiveDependents(dep)) {
+          result.add(transitive);
+        }
+      }
+    }
+
+    return result;
+  }
+
+  const unblockingMap = new Map<string, number>();
+  for (const item of items) {
+    const key = itemKey(item);
+    unblockingMap.set(key, getTransitiveDependents(key).size);
+  }
+
+  return unblockingMap;
+}
+
 /** Minimal shape needed from a backlog item to compute dependency depths. */
 type DepthItem = Pick<BacklogItem, "kind" | "name" | "status" | "dependsOn" | "archivedAt">;
 

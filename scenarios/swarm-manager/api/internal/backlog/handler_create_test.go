@@ -99,7 +99,7 @@ func TestCreate_AutoInitializesWorkshop(t *testing.T) {
 		"agent_requires_approval":     true,
 		"search_debounce_ms":          300,
 		"toast_duration_ms":           5000,
-		"confirm_destructive_actions": true,
+		"delete_confirmation": map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
 	})
 
 	payload := map[string]any{
@@ -151,7 +151,7 @@ func TestCreate_AutoInitializeDisabledViaSetting(t *testing.T) {
 		"agent_requires_approval":     true,
 		"search_debounce_ms":          300,
 		"toast_duration_ms":           5000,
-		"confirm_destructive_actions": true,
+		"delete_confirmation": map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
 	})
 
 	payload := map[string]any{
@@ -197,7 +197,7 @@ func TestCreate_AutoInit_AgentDown_StillCreates(t *testing.T) {
 		"agent_requires_approval":     true,
 		"search_debounce_ms":          300,
 		"toast_duration_ms":           5000,
-		"confirm_destructive_actions": true,
+		"delete_confirmation": map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
 	})
 
 	payload := map[string]any{

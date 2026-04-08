@@ -12,9 +12,10 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
-import { Target, Archive, ArchiveRestore, List, Network, CircleHelp, Files } from "lucide-react";
+import { Target, Archive, ArchiveRestore, List, Network, CircleHelp, Files, Trash2 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
+import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { DetailSection } from "../components/detail/DetailSection";
@@ -30,6 +31,8 @@ import { InitiativeDependencyGraph } from "../components/initiative/InitiativeDe
 import { FileServiceProvider } from "../contexts/FileServiceContext";
 import { createInitiativeFileServiceAdapter } from "../services/initiative-file-service-adapter";
 import { useUrlState } from "../hooks/use-url-state";
+import { useRuntimeConfig } from "../hooks/useRuntimeConfig";
+import { useDetailNavigation } from "../hooks/useDetailNavigation";
 import { defaultQueryOptions, formatRelativeTime } from "../lib";
 import { dependencyAwareSort, computeDepthMap } from "../lib/dependency-sort";
 import { computeDependencyRelations } from "../lib/backlog-queue-utils";
@@ -104,6 +107,29 @@ export function InitiativeDetailsPage() {
       void queryClient.invalidateQueries({ queryKey: ["initiatives"] });
     },
   });
+
+  const { closeDetail } = useDetailNavigation();
+  const { getDeleteConfirmLevel } = useRuntimeConfig();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!name) throw new Error("Initiative name is required");
+      return defaultApiClient.delete<unknown>(API_ENDPOINTS.initiativeByName(name));
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["initiatives"] });
+      closeDetail();
+    },
+  });
+
+  const handleDeleteClick = useCallback(() => {
+    if (getDeleteConfirmLevel("initiative") === "none") {
+      deleteMutation.mutate();
+    } else {
+      setShowDeleteDialog(true);
+    }
+  }, [getDeleteConfirmLevel, deleteMutation]);
 
   const isArchived = initiative?.archivedAt != null;
   const isArchiveActionPending = archiveMutation.isPending || unarchiveMutation.isPending;
@@ -230,6 +256,15 @@ export function InitiativeDetailsPage() {
           {archiveMutation.isPending ? "Archiving..." : "Archive"}
         </Button>
       )}
+      <Button
+        variant="destructive"
+        size="sm"
+        onClick={handleDeleteClick}
+        disabled={deleteMutation.isPending}
+      >
+        <Trash2 className="mr-1.5 h-4 w-4" />
+        {deleteMutation.isPending ? "Deleting..." : "Delete"}
+      </Button>
     </div>
   ) : undefined;
 
@@ -527,6 +562,23 @@ export function InitiativeDetailsPage() {
           </FileServiceProvider>
         )}
       </div>
+
+      {/* Delete confirmation dialog */}
+      {(() => {
+        const deleteLevel = getDeleteConfirmLevel("initiative");
+        return deleteLevel !== "none" ? (
+          <ConfirmDialog
+            isOpen={showDeleteDialog}
+            onClose={() => setShowDeleteDialog(false)}
+            onConfirm={() => { setShowDeleteDialog(false); deleteMutation.mutate(); }}
+            title="Delete Initiative"
+            description={`Are you sure you want to delete "${initiative.title || initiative.name}"? This will remove the initiative and its metadata permanently.`}
+            confirmationText={deleteLevel === "strong" ? initiative.name : undefined}
+            confirmLabel="Delete Initiative"
+            isLoading={deleteMutation.isPending}
+          />
+        ) : null;
+      })()}
     </DetailPageLayout>
   );
 }

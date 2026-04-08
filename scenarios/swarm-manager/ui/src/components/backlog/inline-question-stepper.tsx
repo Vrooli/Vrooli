@@ -3,7 +3,7 @@
  * Shows one pending question at a time (TurboTax-style) with back/forward
  * navigation, auto-save on advance, and a flush-bottom progress bar.
  */
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Loader2, SkipForward } from "lucide-react";
 import { cn } from "../../lib";
 import { selectors } from "../../consts/selectors";
@@ -39,16 +39,19 @@ export function InlineQuestionStepper({
   backlogName,
   onAllAnswered,
 }: InlineQuestionStepperProps) {
+  // Snapshot the questions on mount so background summary refreshes don't
+  // shift the list or index out from under the user mid-session.
+  const [stableQuestions] = useState(() => questions);
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [localAnswers, setLocalAnswers] = useState<Map<string, QuestionAnswer>>(() => new Map());
   const [skippedIds, setSkippedIds] = useState<Set<string>>(() => new Set());
   const [savingId, setSavingId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const completionFired = useRef(false);
 
-  const question = questions[currentIndex];
+  const question = stableQuestions[currentIndex];
   const answer = question ? localAnswers.get(question.id) : undefined;
-  const total = questions.length;
+  const total = stableQuestions.length;
 
   const updateAnswer = useCallback((questionId: string, patch: Partial<QuestionAnswer>) => {
     setLocalAnswers((prev) => {
@@ -58,48 +61,6 @@ export function InlineQuestionStepper({
     });
     setSaveError(null);
   }, []);
-
-  /** Check if all questions are answered or skipped. If so, trigger workshopSave for auto-advance. */
-  const checkCompletion = useCallback((answers: Map<string, QuestionAnswer>, skipped: Set<string>) => {
-    if (completionFired.current) return;
-    const allDone = questions.every((q) => {
-      if (skipped.has(q.id)) return true;
-      const a = answers.get(q.id);
-      if (!a) return false;
-      if (q.source === "workshop") {
-        if (!a.selected?.trim()) return false;
-        if (a.selected === OTHER_KEY && !a.freeform?.trim()) return false;
-        return true;
-      }
-      return a.reviewStatus === "approved" || a.reviewStatus === "flagged";
-    });
-    if (!allDone) return;
-    completionFired.current = true;
-
-    // Find the workshop round number so we can call workshopSave() for auto-advance.
-    const workshopQ = questions.find((q) => q.source === "workshop" && q.round_number != null);
-    if (!workshopQ || workshopQ.round_number == null) {
-      // No workshop questions (review-only) — complete without auto-advance.
-      onAllAnswered({});
-      return;
-    }
-
-    const roundNumber = workshopQ.round_number;
-    const roundNum = String(roundNumber).padStart(3, "0");
-    const filePath = `workshop/round-${roundNum}.json`;
-
-    // Read the saved round file and call workshopSave() to trigger auto-advance evaluation.
-    (async () => {
-      try {
-        const content = await backlogService.getFileContent(backlogKind, backlogName, filePath);
-        const result = await backlogService.workshopSave(backlogKind, backlogName, roundNumber, content);
-        onAllAnswered({ autoAdvance: result.autoAdvance });
-      } catch {
-        // If workshopSave fails, still notify parent that all questions are answered.
-        onAllAnswered({});
-      }
-    })();
-  }, [questions, onAllAnswered, backlogKind, backlogName]);
 
   /** Save the current question's answer to the backend. */
   const saveAnswer = useCallback(async (q: PendingQuestion, a: QuestionAnswer | undefined) => {
@@ -143,7 +104,7 @@ export function InlineQuestionStepper({
   }, [backlogKind, backlogName]);
 
   const advance = useCallback(async () => {
-    const q = questions[currentIndex] as PendingQuestion | undefined;
+    const q = stableQuestions[currentIndex] as PendingQuestion | undefined;
     if (!q) return;
     const a = localAnswers.get(q.id);
     // Auto-save if there's an answer
@@ -153,8 +114,7 @@ export function InlineQuestionStepper({
     if (currentIndex < total - 1) {
       setCurrentIndex(currentIndex + 1);
     }
-    checkCompletion(localAnswers, skippedIds);
-  }, [currentIndex, total, questions, localAnswers, skippedIds, saveAnswer, checkCompletion]);
+  }, [currentIndex, total, stableQuestions, localAnswers, saveAnswer]);
 
   const goBack = useCallback(() => {
     if (currentIndex > 0) {
@@ -171,8 +131,18 @@ export function InlineQuestionStepper({
     if (currentIndex < total - 1) {
       setCurrentIndex(currentIndex + 1);
     }
-    checkCompletion(localAnswers, newSkipped);
-  }, [currentIndex, total, question, skippedIds, localAnswers, checkCompletion]);
+  }, [currentIndex, total, question, skippedIds]);
+
+  /** Finish: save the last answer and close the stepper (no auto-advance). */
+  const finish = useCallback(async () => {
+    const q = stableQuestions[currentIndex] as PendingQuestion | undefined;
+    if (!q) return;
+    const a = localAnswers.get(q.id);
+    if (a) {
+      await saveAnswer(q, a);
+    }
+    onAllAnswered({});
+  }, [currentIndex, stableQuestions, localAnswers, saveAnswer, onAllAnswered]);
 
   if (!question) return null;
 
@@ -240,7 +210,7 @@ export function InlineQuestionStepper({
           type="button"
           data-testid={selectors.questionStepper.nextButton}
           disabled={isSaving}
-          onClick={advance}
+          onClick={isLast ? finish : advance}
           className={cn(
             "flex items-center gap-0.5 rounded-md px-2 py-1 text-xs text-slate-400 transition-colors hover:text-slate-200",
             isSaving && "opacity-50 cursor-not-allowed",
@@ -250,7 +220,7 @@ export function InlineQuestionStepper({
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
           ) : (
             <>
-              {isLast ? "Done" : "Next"}
+              {isLast ? "Finish" : "Next"}
               <ChevronRight className="h-3.5 w-3.5" />
             </>
           )}

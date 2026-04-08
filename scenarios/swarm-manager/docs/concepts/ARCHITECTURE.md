@@ -257,6 +257,44 @@ The `swarm-manager-meta-orchestrator` skill is the primary entry point for turni
 
 The skill intentionally supports long pre-creation planning so workshop auto-spawn happens only after the backlog descriptions are front-loaded with useful context.
 
+## Priority Ranking
+
+Backlog items are sorted using a three-tier system applied consistently across
+the sidebar, command post, and unified feed:
+
+1. **Dependency depth** (primary) — computed via `computeDepthMap()` in
+   `dependency-sort.ts`. Items whose dependencies are incomplete sort below
+   those dependencies. Depth 0 = no incomplete deps, depth N = depends on
+   something at depth N-1. This axis is absolute and never overridden.
+
+2. **Effective priority** (tiebreaker within same depth) — combines the item's
+   manual priority (1-10) with an **unblocking value boost** based on how many
+   incomplete items transitively depend on it:
+
+   ```
+   effectivePriority = manualPriority - min(transitiveDependentCount * 0.5, 3)
+   ```
+
+   Computed by `computeUnblockingMap()` + `computeEffectivePriority()` in
+   `dependency-sort.ts`. Items that unblock more downstream work naturally
+   surface higher. The boost is capped at 3 priority points so it influences
+   but doesn't completely override manual priority.
+
+3. **Recency** (final tiebreaker) — most recently updated items sort first
+   within the same effective priority.
+
+### Feed-specific boosting
+
+The unified feed (`feed.ts`) applies an additional -2 attention boost to items
+with pending decisions, ready plans, or completed research. This composes
+additively with the unblocking boost.
+
+### Key invariants
+
+- Dependency depth is never violated by priority boosts
+- Completed and archived items are excluded from transitive dependent counts
+- The unblocking map is computed once per sort call (O(V+E)), not per comparison
+
 ## Design Principles
 
 1. **Backlog-first governance**: all planned scenario changes are represented as backlog artifacts.

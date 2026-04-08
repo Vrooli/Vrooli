@@ -18,6 +18,7 @@ import { FollowUpSheet } from "../review/follow-up-sheet";
 import { findRequirementGroup } from "../../lib/archive-utils";
 import { selectors } from "../../consts/selectors";
 import { useBacklogDetail } from "../../contexts/BacklogDetailContext";
+import { useRuntimeConfig } from "../../hooks/useRuntimeConfig";
 import { useBacklogDetailUIStore } from "../../stores";
 import type { useBacklogDetailData } from "../../hooks/useBacklogDetailData";
 import type { useBacklogHandlers } from "../../hooks/useBacklogHandlers";
@@ -48,6 +49,8 @@ export function BacklogDialogs({
 }: BacklogDialogsProps) {
   const { backlogKind, name, item } = useBacklogDetail();
   const ui = useBacklogDetailUIStore();
+  const { getDeleteConfirmLevel } = useRuntimeConfig();
+  const deleteLevel = getDeleteConfirmLevel("backlog");
 
   return (
     <>
@@ -90,21 +93,23 @@ export function BacklogDialogs({
         />
       )}
 
-      <ConfirmDialog
-        isOpen={ui.showDelete}
-        onClose={() => { ui.closeDelete(); data.resetDeleteMutation(); }}
-        onConfirm={handlers.handleDeleteConfirm}
-        title="Delete Backlog Item"
-        description={`Are you sure you want to delete "${item?.title || name}"? This will remove the backlog folder permanently.`}
-        confirmationText={item?.name}
-        confirmLabel="Delete Item"
-        isLoading={data.isDeleting}
-        testIds={{
-          dialog: selectors.backlogDetails.deleteDialog,
-          confirmButton: selectors.backlogDetails.deleteConfirmButton,
-          cancelButton: selectors.backlogDetails.deleteCancelButton,
-        }}
-      />
+      {deleteLevel !== "none" && (
+        <ConfirmDialog
+          isOpen={ui.showDelete}
+          onClose={() => { ui.closeDelete(); data.resetDeleteMutation(); }}
+          onConfirm={handlers.handleDeleteConfirm}
+          title="Delete Backlog Item"
+          description={`Are you sure you want to delete "${item?.title || name}"? This will remove the backlog folder permanently.`}
+          confirmationText={deleteLevel === "strong" ? item?.name : undefined}
+          confirmLabel="Delete Item"
+          isLoading={data.isDeleting}
+          testIds={{
+            dialog: selectors.backlogDetails.deleteDialog,
+            confirmButton: selectors.backlogDetails.deleteConfirmButton,
+            cancelButton: selectors.backlogDetails.deleteCancelButton,
+          }}
+        />
+      )}
 
       <ConfirmDialog
         isOpen={ui.showWorkshopReset}

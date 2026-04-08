@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { computeDepthMap, dependencyAwareSort, SORT_RESOLVED_STATUSES } from "./dependency-sort";
+import {
+  computeDepthMap,
+  computeEffectivePriority,
+  computeUnblockingMap,
+  dependencyAwareSort,
+  SORT_RESOLVED_STATUSES,
+  UNBLOCK_CAP,
+  UNBLOCK_WEIGHT,
+} from "./dependency-sort";
 import type { BacklogItem, BacklogStatus } from "../types";
 
 // ---------------------------------------------------------------------------
@@ -36,6 +44,13 @@ function key(item: Pick<BacklogItem, "kind" | "name">): string {
 
 function depths(items: ReadonlyArray<DepthItem>): Record<string, number> {
   const map = computeDepthMap(items);
+  const result: Record<string, number> = {};
+  for (const [k, v] of map) result[k] = v;
+  return result;
+}
+
+function unblocking(items: ReadonlyArray<DepthItem>): Record<string, number> {
+  const map = computeUnblockingMap(items);
   const result: Record<string, number> = {};
   for (const [k, v] of map) result[k] = v;
   return result;
@@ -286,5 +301,128 @@ describe("dependencyAwareSort", () => {
     const result = dependencyAwareSort([a, b], byRecency);
     // Same depth, same priority concept — recency tiebreaker puts b first
     expect(result.map(key)).toEqual(["execute/b", "execute/a"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeUnblockingMap
+// ---------------------------------------------------------------------------
+
+describe("computeUnblockingMap", () => {
+  it("returns empty map for empty array", () => {
+    expect(computeUnblockingMap([])).toEqual(new Map());
+  });
+
+  it("returns 0 for a single item with no dependents", () => {
+    const a = makeItem("a");
+    expect(unblocking([a])).toEqual({ "execute/a": 0 });
+  });
+
+  it("counts a direct dependent", () => {
+    const b = makeItem("b", "backlog");
+    const a = makeItem("a", "backlog", ["execute/b"]);
+    const result = unblocking([a, b]);
+    expect(result["execute/b"]).toBe(1); // a depends on b
+    expect(result["execute/a"]).toBe(0);
+  });
+
+  it("counts transitive dependents in a chain A→B→C", () => {
+    const c = makeItem("c", "backlog");
+    const b = makeItem("b", "backlog", ["execute/c"]);
+    const a = makeItem("a", "backlog", ["execute/b"]);
+    const result = unblocking([a, b, c]);
+    expect(result["execute/c"]).toBe(2); // b and a transitively depend on c
+    expect(result["execute/b"]).toBe(1); // only a depends on b
+    expect(result["execute/a"]).toBe(0);
+  });
+
+  it("handles diamond: A→B,C; B,C→D (no double-counting)", () => {
+    const d = makeItem("d", "backlog");
+    const b = makeItem("b", "backlog", ["execute/d"]);
+    const c = makeItem("c", "backlog", ["execute/d"]);
+    const a = makeItem("a", "backlog", ["execute/b", "execute/c"]);
+    const result = unblocking([a, b, c, d]);
+    expect(result["execute/d"]).toBe(3); // b, c, a all transitively depend on d
+    expect(result["execute/b"]).toBe(1); // only a
+    expect(result["execute/c"]).toBe(1); // only a
+    expect(result["execute/a"]).toBe(0);
+  });
+
+  it("excludes completed dependents", () => {
+    const b = makeItem("b", "backlog");
+    const a = makeItem("a", "completed", ["execute/b"]);
+    const result = unblocking([a, b]);
+    expect(result["execute/b"]).toBe(0); // a is completed, doesn't count
+  });
+
+  it("excludes archived dependents", () => {
+    const b = makeItem("b", "backlog");
+    const a = makeItem("a", "backlog", ["execute/b"], { archivedAt: "2026-01-01T00:00:00Z" });
+    const result = unblocking([a, b]);
+    expect(result["execute/b"]).toBe(0); // a is archived, doesn't count
+  });
+
+  it("ignores dangling refs (dep not in item set)", () => {
+    const a = makeItem("a", "backlog", ["execute/nonexistent"]);
+    // Should not crash; a has 0 dependents itself
+    expect(() => computeUnblockingMap([a])).not.toThrow();
+    expect(unblocking([a])).toEqual({ "execute/a": 0 });
+  });
+
+  it("handles cycles without crashing", () => {
+    const a = makeItem("a", "backlog", ["execute/b"]);
+    const b = makeItem("b", "backlog", ["execute/a"]);
+    expect(() => computeUnblockingMap([a, b])).not.toThrow();
+    const result = computeUnblockingMap([a, b]);
+    // Both are dependents of each other — exact values may vary but should be finite
+    expect(result.get("execute/a")).toBeDefined();
+    expect(result.get("execute/b")).toBeDefined();
+  });
+
+  it("only counts incomplete dependents (mixed statuses)", () => {
+    const root = makeItem("root", "backlog");
+    const active = makeItem("active", "ready", ["execute/root"]);
+    const done = makeItem("done", "completed", ["execute/root"]);
+    const archived = makeItem("archived", "backlog", ["execute/root"], { archivedAt: "2026-01-01T00:00:00Z" });
+    const result = unblocking([root, active, done, archived]);
+    // Only 'active' counts — 'done' is completed, 'archived' has archivedAt
+    expect(result["execute/root"]).toBe(1);
+  });
+
+  it("handles cross-kind dependencies", () => {
+    const dep = makeItem("dep", "backlog", undefined, { kind: "idea" });
+    const a = makeItem("a", "backlog", ["idea/dep"]);
+    const result = computeUnblockingMap([a, dep]);
+    expect(result.get("idea/dep")).toBe(1);
+    expect(result.get("execute/a")).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeEffectivePriority
+// ---------------------------------------------------------------------------
+
+describe("computeEffectivePriority", () => {
+  it("returns manual priority when no dependents", () => {
+    expect(computeEffectivePriority(5, 0)).toBe(5);
+  });
+
+  it("applies weight per dependent", () => {
+    // 5 - min(2 * 0.5, 3) = 5 - 1 = 4
+    expect(computeEffectivePriority(5, 2)).toBe(5 - 2 * UNBLOCK_WEIGHT);
+  });
+
+  it("caps the boost at UNBLOCK_CAP", () => {
+    // 5 - min(6 * 0.5, 3) = 5 - 3 = 2
+    expect(computeEffectivePriority(5, 6)).toBe(5 - UNBLOCK_CAP);
+  });
+
+  it("does not exceed cap even with very high dependent count", () => {
+    expect(computeEffectivePriority(5, 100)).toBe(5 - UNBLOCK_CAP);
+  });
+
+  it("can produce values below 1 for low-priority items with high fan-out", () => {
+    // priority 1 - cap 3 = -2
+    expect(computeEffectivePriority(1, 20)).toBe(1 - UNBLOCK_CAP);
   });
 });

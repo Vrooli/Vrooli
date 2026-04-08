@@ -1,0 +1,129 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-08T05:30:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 2,
+    "approach_solid": 2,
+    "testable": 2,
+    "risk_awareness": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Shared HTTP client extraction approach",
+      "context": "5 client files (tidiness_manager, test_genie, auditor, browser_automation, agent_manager) each duplicate doJSON(), doGet(), resolveBaseURL(), and error parsing. This accounts for a large portion of the complexity and duplication violations. The question is how to share this logic.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Embedded struct composition",
+          "rationale": "Create a BaseClient struct with shared methods (doJSON, doGet, resolveBaseURL). Each service client embeds BaseClient. Error parsing uses a configurable service name. Minimal API surface change, idiomatic Go composition. Recommended because it's simple, doesn't over-abstract, and matches Go conventions.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Standalone helper functions",
+          "rationale": "Extract doJSON/doGet as package-level functions that accept an http.Client and base URL. Simpler but requires passing client/URL to every call, and error parsing still needs per-service customization."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Test refactoring scope for this item",
+      "context": "The biggest test file is gitignore_health_service_test.go (441 lines, 85% duplication). Other test files (ssh/service_test.go, handler tests) have moderate duplication. Converting all tests to table-driven + helpers is thorough but increases scope. We could focus only on the worst offenders to hit the <10 targets.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Refactor all test files with duplication >50%",
+          "rationale": "Comprehensive approach that addresses all test duplication. More work but ensures we comfortably hit the targets and the improvements are durable.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Only refactor files individually exceeding thresholds",
+          "rationale": "Focus on files that individually contribute to complex_functions or long_files violations. Faster, but may leave borderline files that push us over the targets."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Scanner duplication resolution",
+      "context": "golang/scanner.go and python/scanner.go have ~90% identical Scan() bodies. They differ only in which matcher functions they call and which import field they extract. With only 2 language scanners and each file being ~50-60 lines, the duplication is real but the files are small.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Extract shared ScanImports helper function",
+          "rationale": "Create a shared function like ScanImports(ctx, content, matchers) that handles context cancellation and import aggregation. Each scanner calls it with its language-specific matchers. Simple, no over-engineering.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Leave as-is — files are small enough",
+          "rationale": "Each file is ~50-60 lines. The duplication is real but the cognitive overhead of an abstraction may not be worth it for just 2 scanners. Accept the duplication score hit."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Tech debt marker handling",
+      "context": "There are 2 TODO comments in UI files: App.tsx:1320 ('TODO: Use lineNumber to scroll to the specific line') and ScenarioReviewPanel.tsx:665 ('TODO: Remove this client-side fallback once the unified review endpoint is stable'). These are the only tech_debt_markers counted.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Implement the TODO functionality and remove markers",
+          "rationale": "Actually implement scroll-to-line and remove the client-side fallback if the unified endpoint is stable. Most thorough but adds UI implementation scope to a Go refactoring task.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Remove TODOs as comments, file separate backlog items",
+          "rationale": "Delete the TODO comments to clear the markers. Create separate backlog items for the actual work. Keeps this item focused on Go refactoring."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The duplication_pct reported by tidiness-manager is very high (85-100%) across most files. This is driven primarily by the HTTP client pattern repeated in 5 files and the test setup boilerplate. Addressing the shared HTTP client alone should dramatically reduce the complex_functions count since each client contributes ~3-4 complex functions (doJSON, doGet, error parser, plus wrapper methods)."
+    }
+  ],
+  "plan_updates": "Created initial plan.md scaffold with 4 implementation phases (shared HTTP client, test helpers, scanner abstraction, tech debt markers), full file inventory, risk matrix, and acceptance criteria aligned with the success targets."
+}

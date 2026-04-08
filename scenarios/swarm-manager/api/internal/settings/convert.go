@@ -5,23 +5,49 @@ import (
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 )
 
+func deleteConfirmLevelToProto(level DeleteConfirmLevel) domainpb.DeleteConfirmLevel {
+	switch level {
+	case DeleteConfirmNone:
+		return domainpb.DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_NONE
+	case DeleteConfirmStrong:
+		return domainpb.DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_STRONG
+	default:
+		return domainpb.DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_SIMPLE
+	}
+}
+
+func deleteConfirmLevelFromProto(level domainpb.DeleteConfirmLevel) DeleteConfirmLevel {
+	switch level {
+	case domainpb.DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_NONE:
+		return DeleteConfirmNone
+	case domainpb.DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_STRONG:
+		return DeleteConfirmStrong
+	default:
+		return DeleteConfirmSimple
+	}
+}
+
 func settingsToProto(s Settings) *domainpb.Settings {
 	return &domainpb.Settings{
-		Theme:                         s.Theme,
-		DefaultMode:                   s.DefaultMode,
-		AutoFixup:                     s.AutoFixup,
-		MaxFixupAttempts:              int32(s.MaxFixupAttempts),
-		ReviewAgentEnabled:            s.ReviewAgentEnabled,
-		MaxAutoRounds:                 int32(s.MaxAutoRounds),
-		AutoInitializeWorkshop:        s.AutoInitializeWorkshop,
-		AutoAdvanceWorkshop:           s.AutoAdvanceWorkshop,
-		AutoCascadeWorkshop:           s.AutoCascadeWorkshop,
-		AgentMaxTurns:                 int32(s.AgentMaxTurns),
-		AgentTimeoutSeconds:           int32(s.AgentTimeoutSeconds),
-		AgentRequiresApproval:         s.AgentRequiresApproval,
-		SearchDebounceMs:              int32(s.SearchDebounceMs),
-		ToastDurationMs:               int32(s.ToastDurationMs),
-		ConfirmDestructiveActions:     s.ConfirmDestructiveActions,
+		Theme:                  s.Theme,
+		DefaultMode:            s.DefaultMode,
+		AutoFixup:              s.AutoFixup,
+		MaxFixupAttempts:       int32(s.MaxFixupAttempts),
+		ReviewAgentEnabled:     s.ReviewAgentEnabled,
+		MaxAutoRounds:          int32(s.MaxAutoRounds),
+		AutoInitializeWorkshop: s.AutoInitializeWorkshop,
+		AutoAdvanceWorkshop:    s.AutoAdvanceWorkshop,
+		AutoCascadeWorkshop:    s.AutoCascadeWorkshop,
+		AgentMaxTurns:          int32(s.AgentMaxTurns),
+		AgentTimeoutSeconds:    int32(s.AgentTimeoutSeconds),
+		AgentRequiresApproval:  s.AgentRequiresApproval,
+		SearchDebounceMs:       int32(s.SearchDebounceMs),
+		ToastDurationMs:        int32(s.ToastDurationMs),
+		DeleteConfirmation: &domainpb.DeleteConfirmationSettings{
+			Backlog:    deleteConfirmLevelToProto(s.DeleteConfirmation.Backlog),
+			Initiative: deleteConfirmLevelToProto(s.DeleteConfirmation.Initiative),
+			Capture:    deleteConfirmLevelToProto(s.DeleteConfirmation.Capture),
+		},
 		ReviewCodeQualityMinScore:     s.ReviewCodeQualityMinScore,
 		ReviewTestMinPassRate:         s.ReviewTestMinPassRate,
 		ReviewMaxBlockingViolations:   int32(s.ReviewMaxBlockingViolations),
@@ -97,9 +123,15 @@ func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
 		v := int(*req.ToastDurationMs)
 		patch.ToastDurationMs = &v
 	}
-	if req.ConfirmDestructiveActions != nil {
-		v := *req.ConfirmDestructiveActions
-		patch.ConfirmDestructiveActions = &v
+	if req.DeleteConfirmation != nil {
+		dc := &DeleteConfirmationSettingsPatch{}
+		b := deleteConfirmLevelFromProto(req.DeleteConfirmation.Backlog)
+		dc.Backlog = &b
+		i := deleteConfirmLevelFromProto(req.DeleteConfirmation.Initiative)
+		dc.Initiative = &i
+		c := deleteConfirmLevelFromProto(req.DeleteConfirmation.Capture)
+		dc.Capture = &c
+		patch.DeleteConfirmation = dc
 	}
 	if req.ReviewCodeQualityMinScore != nil {
 		v := *req.ReviewCodeQualityMinScore
@@ -170,7 +202,7 @@ func isEmptyUpdateSettingsRequest(req *apipb.UpdateSettingsRequest) bool {
 		req.AgentRequiresApproval == nil &&
 		req.SearchDebounceMs == nil &&
 		req.ToastDurationMs == nil &&
-		req.ConfirmDestructiveActions == nil &&
+		req.DeleteConfirmation == nil &&
 		req.ReviewCodeQualityMinScore == nil &&
 		req.ReviewTestMinPassRate == nil &&
 		req.ReviewMaxBlockingViolations == nil &&

@@ -53,6 +53,10 @@ type scenarioQueueEntry struct {
 	lastReviewClass      string
 	lastReviewAt         time.Time
 	excluded             bool
+	// hasMaintenanceItems is true when at least one pending item is a
+	// maintenance kind (fix or chore) rather than a creation kind
+	// (execute, idea, research).  Used by the greenfield-only heuristic.
+	hasMaintenanceItems bool
 }
 
 // reviewQueueResult is the internal representation before proto conversion.
@@ -72,14 +76,27 @@ func terminalBacklogStatus(s backlog.BacklogStatus) bool {
 	return s == backlog.StatusCompleted || s == backlog.StatusFailed
 }
 
+// isCreationKind returns true for backlog kinds that represent planned work
+// to create or research a scenario, as opposed to maintaining existing code.
+func isCreationKind(k backlog.BacklogKind) bool {
+	return k == backlog.KindExecute || k == backlog.KindIdea || k == backlog.KindResearch
+}
+
 // computeReviewQueue is a pure function that computes the ranked review queue.
 // It takes pre-loaded data to keep the function testable without I/O.
+//
+// existingScenarios, when non-nil, is the set of scenario names that actually
+// exist on disk.  Scenarios not in this set are filtered out.  When nil the
+// check is skipped (graceful degradation if the scenario source is unavailable)
+// and a fallback heuristic excludes scenarios whose only pending items are
+// creation-oriented kinds (execute/idea/research) with no review history.
 func computeReviewQueue(
 	items []backlog.BacklogItem,
 	records []execution.Record,
 	excludeTag string,
 	limit int,
 	now time.Time,
+	existingScenarios map[string]bool,
 ) (results []reviewQueueResult, totalScenarios, excludedCount int) {
 	if excludeTag == "" {
 		excludeTag = defaultTag
@@ -115,6 +132,9 @@ func computeReviewQueue(
 			if isExclusionCandidate {
 				entry.excluded = true
 			}
+			if !isCreationKind(item.Kind) {
+				entry.hasMaintenanceItems = true
+			}
 		}
 	}
 
@@ -148,6 +168,12 @@ func computeReviewQueue(
 	totalScenarios = len(entries)
 	for name, entry := range entries {
 		if entry.excluded {
+			excludedCount++
+			continue
+		}
+
+		// Skip scenarios that don't exist on disk when the set is provided.
+		if existingScenarios != nil && !existingScenarios[name] {
 			excludedCount++
 			continue
 		}
@@ -233,6 +259,35 @@ func hasTag(tags []string, target string) bool {
 	return false
 }
 
+// applyGreenfieldFallback removes results whose pending backlog items are
+// exclusively creation kinds (execute/idea/research) and that have no review
+// history.  This is a best-effort heuristic used when the authoritative
+// scenario source is unavailable.
+func applyGreenfieldFallback(items []backlog.BacklogItem, results []reviewQueueResult, excludedCount int) ([]reviewQueueResult, int) {
+	// Pre-compute per-scenario maintenance flag from backlog items.
+	hasMaint := make(map[string]bool)
+	for _, item := range items {
+		if item.ArchivedAt != nil || terminalBacklogStatus(item.Status) {
+			continue
+		}
+		if !isCreationKind(item.Kind) {
+			for _, sc := range pathutil.ScenariosFromGlobs(item.AcceptanceAllow) {
+				hasMaint[sc] = true
+			}
+		}
+	}
+
+	filtered := results[:0]
+	for _, r := range results {
+		if !hasMaint[r.scenarioName] && r.lastReviewAt.IsZero() {
+			excludedCount++
+			continue
+		}
+		filtered = append(filtered, r)
+	}
+	return filtered, excludedCount
+}
+
 // ReviewQueue handles GET /api/v1/scenarios/review-queue.
 func (h *Handler) ReviewQueue(w http.ResponseWriter, r *http.Request) {
 	if h.backlogLister == nil || h.executionLister == nil {
@@ -268,7 +323,30 @@ func (h *Handler) ReviewQueue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results, totalScenarios, excludedCount := computeReviewQueue(items, records, excludeTag, limit, time.Now())
+	// Build the set of scenarios that actually exist on disk so the queue
+	// can filter out planned-but-not-yet-created scenarios.  If the source
+	// is unavailable we degrade gracefully (nil set → fallback heuristic).
+	var existingScenarios map[string]bool
+	if h.source != nil {
+		sources, err := h.source.List(r.Context())
+		if err != nil {
+			slog.Warn("review-queue: failed to load scenario source, using fallback heuristic", "error", err)
+		} else {
+			existingScenarios = make(map[string]bool, len(sources))
+			for _, s := range sources {
+				existingScenarios[s.Name] = true
+			}
+		}
+	}
+
+	results, totalScenarios, excludedCount := computeReviewQueue(items, records, excludeTag, limit, time.Now(), existingScenarios)
+
+	// Fallback heuristic (Rec #2): when the scenario source was unavailable,
+	// drop results that look like planned-but-not-built work — every pending
+	// item is a creation kind (execute/idea/research) and no review history.
+	if existingScenarios == nil {
+		results, excludedCount = applyGreenfieldFallback(items, results, excludedCount)
+	}
 
 	// Convert to proto response.
 	protoItems := make([]*apipb.ScenarioReviewQueueItem, 0, len(results))

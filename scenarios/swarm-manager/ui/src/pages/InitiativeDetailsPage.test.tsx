@@ -41,6 +41,10 @@ vi.mock("../config", () => ({
     requestTimeoutMs: 30000,
     apiVersion: "v1",
   },
+  uiBehaviorConfig: {
+    searchDebounceMs: 300,
+    toastDurationMs: 5000,
+  },
 }));
 
 vi.mock("../services", () => ({

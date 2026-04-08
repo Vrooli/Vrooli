@@ -17,14 +17,31 @@
       "topic": "Refactoring approach: incremental vs. batch",
       "context": "With 500 violations across 604 files, the approach matters. Incremental means tackling files one-by-one with tidiness-manager recommendations, validating tests after each. Batch means grouping by violation type (all long_files first, then complex_functions, then lint) and processing in sweeps.",
       "options": [
-        {"key": "A", "label": "Incremental per-file (tidiness-manager driven)", "rationale": "Lower risk per change, easier to review, but slower overall. tidiness-manager prioritizes by composite score.", "recommended": false},
-        {"key": "B", "label": "Batch by violation type", "rationale": "More efficient — handle all long_files in one pass, then complexity, then lint. Matches the natural phasing in the plan. Recommended because the violations are well-categorized and independent.", "recommended": true},
-        {"key": "C", "label": "Hybrid: batch by type, but validate incrementally", "rationale": "Process one violation type at a time, but run tests after every 5-10 files. Balances speed with safety.", "recommended": false},
-        {"key": "D", "label": "Other", "rationale": "Provide your own approach"}
+        {
+          "key": "A",
+          "label": "Incremental per-file (tidiness-manager driven)",
+          "rationale": "Lower risk per change, easier to review, but slower overall. tidiness-manager prioritizes by composite score."
+        },
+        {
+          "key": "B",
+          "label": "Batch by violation type",
+          "rationale": "More efficient — handle all long_files in one pass, then complexity, then lint. Matches the natural phasing in the plan. Recommended because the violations are well-categorized and independent.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Hybrid: batch by type, but validate incrementally",
+          "rationale": "Process one violation type at a time, but run tests after every 5-10 files. Balances speed with safety."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
       ],
-      "selected": null,
+      "selected": "B",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d2",
@@ -32,14 +49,31 @@
       "topic": "Go lint configuration strictness",
       "context": "No .golangci.yml exists. This is the biggest gap for the lint_issues category (24 violations). The level of strictness determines how many new issues surface and how much fix effort is needed.",
       "options": [
-        {"key": "A", "label": "Minimal: go vet + errcheck + unused only", "rationale": "Catches critical issues without noise. Low fix effort but may not move the needle enough on quality score.", "recommended": false},
-        {"key": "B", "label": "Moderate: add gocritic, gocyclo, funlen, revive", "rationale": "Directly targets the violation categories (complex_functions via gocyclo, long_files via funlen). Recommended because it aligns linting with the exact GCT violation categories.", "recommended": true},
-        {"key": "C", "label": "Strict: full golangci-lint preset with all major linters", "rationale": "Maximum coverage but will surface hundreds of issues beyond the 24 lint violations, potentially derailing the effort.", "recommended": false},
-        {"key": "D", "label": "Other", "rationale": "Provide your own approach"}
+        {
+          "key": "A",
+          "label": "Minimal: go vet + errcheck + unused only",
+          "rationale": "Catches critical issues without noise. Low fix effort but may not move the needle enough on quality score."
+        },
+        {
+          "key": "B",
+          "label": "Moderate: add gocritic, gocyclo, funlen, revive",
+          "rationale": "Directly targets the violation categories (complex_functions via gocyclo, long_files via funlen). Recommended because it aligns linting with the exact GCT violation categories.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Strict: full golangci-lint preset with all major linters",
+          "rationale": "Maximum coverage but will surface hundreds of issues beyond the 24 lint violations, potentially derailing the effort."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
       ],
-      "selected": null,
+      "selected": "B",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d3",
@@ -47,14 +81,31 @@
       "topic": "Handling generated/data-heavy files",
       "context": "Some large files are data-driven (errors.go at 1,874 lines with 51+ error codes, mocks.go at 1,035 lines auto-generated). These inflate the long_files count but refactoring them is different from splitting logic-heavy files.",
       "options": [
-        {"key": "A", "label": "Exclude generated files, split data files by domain", "rationale": "Skip mocks.go (auto-generated), split errors.go into domain-specific error files (pipeline_errors.go, smoketest_errors.go, etc.). Recommended because it reduces long_files count without touching generated code.", "recommended": true},
-        {"key": "B", "label": "Exclude both generated and data-heavy files from metrics", "rationale": "Mark errors.go and mocks.go as excluded via tidiness-manager. Fastest path but doesn't actually improve the code.", "recommended": false},
-        {"key": "C", "label": "Refactor everything including generated files", "rationale": "Re-generate mocks with smaller interfaces, restructure errors. Thorough but high effort for marginal quality gain.", "recommended": false},
-        {"key": "D", "label": "Other", "rationale": "Provide your own approach"}
+        {
+          "key": "A",
+          "label": "Exclude generated files, split data files by domain",
+          "rationale": "Skip mocks.go (auto-generated), split errors.go into domain-specific error files (pipeline_errors.go, smoketest_errors.go, etc.). Recommended because it reduces long_files count without touching generated code.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Exclude both generated and data-heavy files from metrics",
+          "rationale": "Mark errors.go and mocks.go as excluded via tidiness-manager. Fastest path but doesn't actually improve the code."
+        },
+        {
+          "key": "C",
+          "label": "Refactor everything including generated files",
+          "rationale": "Re-generate mocks with smaller interfaces, restructure errors. Thorough but high effort for marginal quality gain."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d4",
@@ -62,10 +113,27 @@
       "topic": "Test file splitting strategy",
       "context": "Many of the largest files are test files (service_test.go at 2,433 lines, supervisor_test.go at 1,544 lines, etc.). Test files contribute to long_files violations but splitting them requires care to maintain test helper sharing.",
       "options": [
-        {"key": "A", "label": "Split test files by function/scenario under test", "rationale": "E.g., smoketest_service_create_test.go, smoketest_service_run_test.go. Clear organization, but many new files.", "recommended": false},
-        {"key": "B", "label": "Extract test helpers into testutil files, keep test files as-is", "rationale": "Reduces some length by extracting shared setup, but won't bring most files below threshold.", "recommended": false},
-        {"key": "C", "label": "Split large test files + extract shared helpers", "rationale": "Split files over threshold by logical grouping AND extract common helpers into *_testutil_test.go. Recommended because it addresses both length and reuse.", "recommended": true},
-        {"key": "D", "label": "Other", "rationale": "Provide your own approach"}
+        {
+          "key": "A",
+          "label": "Split test files by function/scenario under test",
+          "rationale": "E.g., smoketest_service_create_test.go, smoketest_service_run_test.go. Clear organization, but many new files."
+        },
+        {
+          "key": "B",
+          "label": "Extract test helpers into testutil files, keep test files as-is",
+          "rationale": "Reduces some length by extracting shared setup, but won't bring most files below threshold."
+        },
+        {
+          "key": "C",
+          "label": "Split large test files + extract shared helpers",
+          "rationale": "Split files over threshold by logical grouping AND extract common helpers into *_testutil_test.go. Recommended because it addresses both length and reuse.",
+          "recommended": true
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
       ],
       "selected": null,
       "freeform": null,

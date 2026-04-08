@@ -19,7 +19,8 @@ import { getAttentionReasons, type AttentionReason, type FeedbackItem, type Matu
 import { getItemActions, type ActionContext, type PrimaryCta } from "./backlog-queue-utils";
 
 import { filterSnoozed, snoozeKeyForBacklog, snoozeKeyForCapture, snoozeKeyForExecution } from "./snooze-utils";
-import { sortBacklogItems, COMMAND_POST_COMPARE } from "./backlog-sort";
+import { sortBacklogItems, buildCommandPostCompare } from "./backlog-sort";
+import { computeUnblockingMap } from "./dependency-sort";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -234,7 +235,8 @@ export function sortedGroupActionItems(
   maturityMap: Map<string, MaturityItem>,
   snoozedKeys: Set<string>,
 ): ActionGroup[] {
-  const sorted = sortBacklogItems(backlogItems, COMMAND_POST_COMPARE, backlogItems);
+  const unblockingMap = computeUnblockingMap(backlogItems);
+  const sorted = sortBacklogItems(backlogItems, buildCommandPostCompare(unblockingMap), backlogItems);
   return groupActionItems(sorted, executions, captures, feedbackMap, maturityMap, snoozedKeys);
 }
 

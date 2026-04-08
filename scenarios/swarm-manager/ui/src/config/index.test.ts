@@ -95,7 +95,6 @@ describe("Configuration", () => {
     it("has boolean flags", () => {
       expect(typeof uiBehaviorConfig.useSkeletonLoading).toBe("boolean");
       expect(typeof uiBehaviorConfig.enableKeyboardShortcuts).toBe("boolean");
-      expect(typeof uiBehaviorConfig.confirmDestructiveActions).toBe("boolean");
     });
   });
 

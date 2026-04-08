@@ -76,7 +76,7 @@ func disableAutoWorkshopSettings(t *testing.T, rootDir string) {
 		"agent_requires_approval":     true,
 		"search_debounce_ms":          300,
 		"toast_duration_ms":           5000,
-		"confirm_destructive_actions": true,
+		"delete_confirmation": map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
 	})
 }
 

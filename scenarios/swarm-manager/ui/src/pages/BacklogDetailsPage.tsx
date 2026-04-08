@@ -28,6 +28,7 @@ import { BulkActionToolbar } from "../components/backlog/bulk-action-toolbar";
 import { useActivityTimeline } from "../hooks/useActivityTimeline";
 import { useBacklogDetailData } from "../hooks/useBacklogDetailData";
 import { useEmbeddedServiceUrl } from "../hooks/useEmbeddedServiceUrl";
+import { useRuntimeConfig } from "../hooks/useRuntimeConfig";
 import { useStorePolling } from "../hooks/useStorePolling";
 import { useBacklogHandlers } from "../hooks/useBacklogHandlers";
 import { findBacklogFileByPath } from "../lib/workshop-files";
@@ -95,6 +96,7 @@ export function BacklogDetailsPage() {
 
   // --- UI state store ---
   const uiStore = useBacklogDetailUIStore();
+  const { getDeleteConfirmLevel } = useRuntimeConfig();
   const queryClient = useQueryClient();
 
   // --- Data hook ---
@@ -212,7 +214,14 @@ export function BacklogDetailsPage() {
     setSelectedFile(null);
   }, [files, selectedFileParam, setSearchParams]);
 
-  // Reset UI state when navigating between backlog items
+  // Reset UI store on mount to clear stale dialog state (e.g. showDelete)
+  // that persists in the global Zustand store across unmount/remount cycles.
+  useEffect(() => {
+    uiStore.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount only
+  }, []);
+
+  // Reset tab and UI state when navigating between backlog items while mounted.
   const prevItemRef = useRef(`${backlogKind}/${name}`);
   useEffect(() => {
     const key = `${backlogKind}/${name}`;
@@ -342,7 +351,13 @@ export function BacklogDetailsPage() {
       })}
       onResetWorkshop={uiStore.openWorkshopReset}
       hasWorkshopRounds={(workshopRounds?.length ?? 0) > 0}
-      onDelete={uiStore.openDelete}
+      onDelete={() => {
+                if (getDeleteConfirmLevel("backlog") === "none") {
+                  handlers.handleDeleteConfirm();
+                } else {
+                  uiStore.openDelete();
+                }
+              }}
     />
   ) : undefined;
 
@@ -507,7 +522,13 @@ export function BacklogDetailsPage() {
                   archiveError={archiveError}
                   primaryAction={<HeaderPrimaryAction onFinalizeWorkshop={handlers.handleFinalizeWorkshop} onRunWorkshop={handlers.handleRunWorkshop} />}
                   onEdit={uiStore.openEdit}
-                  onDelete={uiStore.openDelete}
+                  onDelete={() => {
+                if (getDeleteConfirmLevel("backlog") === "none") {
+                  handlers.handleDeleteConfirm();
+                } else {
+                  uiStore.openDelete();
+                }
+              }}
                   onArchive={handlers.handleArchiveItem}
                   onUnarchive={handlers.handleUnarchiveItem}
                   isArchiving={isArchiving}

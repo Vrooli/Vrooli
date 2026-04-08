@@ -10,11 +10,15 @@ knowledge log and proceed to the Fallback section.
 
 Skip any scenario where `cooldown_until` is in the future.
 
-### Step 2: Run GCT Reviews
+### Step 2: Verify Scenario Exists & Run GCT Reviews
 For each scenario from Step 1:
-1. Run: `git-control-tower review-run <scenario_name> --json`
-2. Wait for completion (the CLI polls automatically unless --no-wait)
-3. Parse the readiness result and failing dimensions
+1. Verify the scenario directory exists: `ls scenarios/<scenario_name>/`
+   - If the directory does **not** exist, the scenario is planned but not yet built.
+     Skip it, log `[YYYY-MM-DD] Skipped <scenario>: directory missing (planned, not yet created)`,
+     and move to the next scenario. Do **not** create backlog items for missing scenarios.
+2. Run: `git-control-tower review-run <scenario_name> --json`
+3. Wait for completion (the CLI polls automatically unless --no-wait)
+4. Parse the readiness result and failing dimensions
 
 ### Step 3: Create Fix Items for Failing Scenarios
 For each scenario with red or yellow readiness:

@@ -3,7 +3,9 @@
  */
 
 import { UpdateSettingsRequestSchema } from "@vrooli/proto-types/swarm-manager/v1/api/settings_pb";
+import { DeleteConfirmLevel } from "@vrooli/proto-types/swarm-manager/v1/domain/settings_pb";
 import type { IApiClient } from "../lib/api-client";
+import type { DeleteConfirmLevel as DomainDeleteConfirmLevel } from "../types/settings";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
 import type { Settings } from "../types";
@@ -15,6 +17,17 @@ import {
   settingsResponseSchema,
   toProtoJson,
 } from "./proto-contracts";
+
+function domainToProtoDeleteConfirmLevel(level: DomainDeleteConfirmLevel): DeleteConfirmLevel {
+  switch (level) {
+    case "none":
+      return DeleteConfirmLevel.NONE;
+    case "strong":
+      return DeleteConfirmLevel.STRONG;
+    default:
+      return DeleteConfirmLevel.SIMPLE;
+  }
+}
 
 export const DEFAULT_SETTINGS: Settings = {
   theme: "dark",
@@ -32,7 +45,7 @@ export const DEFAULT_SETTINGS: Settings = {
   agentRequiresApproval: true,
   searchDebounceMs: 300,
   toastDurationMs: 5000,
-  confirmDestructiveActions: true,
+  deleteConfirmation: { backlog: "simple", initiative: "strong", capture: "none" },
   reviewCodeQualityMinScore: 60,
   reviewTestMinPassRate: 1.0,
   reviewMaxBlockingViolations: 0,
@@ -67,7 +80,11 @@ function normalizeSettings(input?: SettingsPatch): Settings {
     agentRequiresApproval: input.agentRequiresApproval ?? DEFAULT_SETTINGS.agentRequiresApproval,
     searchDebounceMs: input.searchDebounceMs ?? DEFAULT_SETTINGS.searchDebounceMs,
     toastDurationMs: input.toastDurationMs ?? DEFAULT_SETTINGS.toastDurationMs,
-    confirmDestructiveActions: input.confirmDestructiveActions ?? DEFAULT_SETTINGS.confirmDestructiveActions,
+    deleteConfirmation: {
+      backlog: input.deleteConfirmation?.backlog ?? DEFAULT_SETTINGS.deleteConfirmation.backlog,
+      initiative: input.deleteConfirmation?.initiative ?? DEFAULT_SETTINGS.deleteConfirmation.initiative,
+      capture: input.deleteConfirmation?.capture ?? DEFAULT_SETTINGS.deleteConfirmation.capture,
+    },
     reviewCodeQualityMinScore: input.reviewCodeQualityMinScore ?? DEFAULT_SETTINGS.reviewCodeQualityMinScore,
     reviewTestMinPassRate: input.reviewTestMinPassRate ?? DEFAULT_SETTINGS.reviewTestMinPassRate,
     reviewMaxBlockingViolations: input.reviewMaxBlockingViolations ?? DEFAULT_SETTINGS.reviewMaxBlockingViolations,
@@ -112,7 +129,13 @@ export function createSettingsService(apiClient: IApiClient = defaultApiClient):
         ...(patch.agentRequiresApproval !== undefined ? { agentRequiresApproval: patch.agentRequiresApproval } : {}),
         ...(patch.searchDebounceMs !== undefined ? { searchDebounceMs: patch.searchDebounceMs } : {}),
         ...(patch.toastDurationMs !== undefined ? { toastDurationMs: patch.toastDurationMs } : {}),
-        ...(patch.confirmDestructiveActions !== undefined ? { confirmDestructiveActions: patch.confirmDestructiveActions } : {}),
+        ...(patch.deleteConfirmation !== undefined ? {
+          deleteConfirmation: {
+            backlog: domainToProtoDeleteConfirmLevel(patch.deleteConfirmation.backlog),
+            initiative: domainToProtoDeleteConfirmLevel(patch.deleteConfirmation.initiative),
+            capture: domainToProtoDeleteConfirmLevel(patch.deleteConfirmation.capture),
+          },
+        } : {}),
         ...(patch.reviewCodeQualityMinScore !== undefined ? { reviewCodeQualityMinScore: patch.reviewCodeQualityMinScore } : {}),
         ...(patch.reviewTestMinPassRate !== undefined ? { reviewTestMinPassRate: patch.reviewTestMinPassRate } : {}),
         ...(patch.reviewMaxBlockingViolations !== undefined ? { reviewMaxBlockingViolations: patch.reviewMaxBlockingViolations } : {}),

@@ -57,7 +57,10 @@ message UpdateSettingsRequest {
   // UI preference settings.
   optional int32 search_debounce_ms = 13;
   optional int32 toast_duration_ms = 14;
-  optional bool confirm_destructive_actions = 15;
+  reserved 15;
+  reserved "confirm_destructive_actions";
+  // Per-entity-type delete confirmation levels.
+  DeleteConfirmationSettings delete_confirmation = 33;
 
   // Review thresholds.
   optional double review_code_quality_min_score = 19;

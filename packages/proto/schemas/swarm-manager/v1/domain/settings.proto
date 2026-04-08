@@ -24,6 +24,23 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 //
 // =============================================================================
 
+// Confirmation level for delete operations.
+enum DeleteConfirmLevel {
+  // Simple OK/Cancel dialog (proto3 zero-value default).
+  DELETE_CONFIRM_LEVEL_SIMPLE = 0;
+  // No confirmation — delete immediately on click.
+  DELETE_CONFIRM_LEVEL_NONE = 1;
+  // Strong confirmation — user must type the entity name.
+  DELETE_CONFIRM_LEVEL_STRONG = 2;
+}
+
+// Per-entity-type delete confirmation settings.
+message DeleteConfirmationSettings {
+  DeleteConfirmLevel backlog = 1;
+  DeleteConfirmLevel initiative = 2;
+  DeleteConfirmLevel capture = 3;
+}
+
 // Settings captures persisted configuration for Swarm Manager.
 message Settings {
   // UI theme preference.
@@ -54,7 +71,10 @@ message Settings {
   // UI preference settings.
   int32 search_debounce_ms = 13 [(buf.validate.field).int32 = { gte: 100, lte: 2000 }];
   int32 toast_duration_ms = 14 [(buf.validate.field).int32 = { gte: 1000, lte: 30000 }];
-  bool confirm_destructive_actions = 15;
+  reserved 15;
+  reserved "confirm_destructive_actions";
+  // Per-entity-type delete confirmation levels.
+  DeleteConfirmationSettings delete_confirmation = 33;
 
   // Review thresholds.
   double review_code_quality_min_score = 19 [(buf.validate.field).double = { gte: 0, lte: 100 }];

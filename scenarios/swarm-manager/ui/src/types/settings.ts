@@ -13,11 +13,25 @@ import type { ProtoMessage } from "./shared";
 export type ThemePreference = "dark" | "light" | "system";
 
 /**
+ * Confirmation level for delete operations.
+ */
+export type DeleteConfirmLevel = "none" | "simple" | "strong";
+
+/**
+ * Per-entity-type delete confirmation settings.
+ */
+export type DeleteConfirmationSettings = {
+  backlog: DeleteConfirmLevel;
+  initiative: DeleteConfirmLevel;
+  capture: DeleteConfirmLevel;
+};
+
+/**
  * User preferences and configuration (unified settings including execution defaults).
  */
 export type Settings = Omit<
   ProtoMessage<ProtoSettings>,
-  "theme" | "defaultDelaySeconds" | "maxFixupAttempts" | "maxAutoRounds" | "autoAdvanceDelaySeconds" | "agentMaxTurns" | "agentTimeoutSeconds" | "searchDebounceMs" | "toastDurationMs" | "reviewMaxBlockingViolations" | "reviewMaxWarnings" | "maxConcurrentExecutions" | "maxQueueDepth" | "circuitBreakerThreshold" | "circuitBreakerCooldownMinutes" | "executionCostCapPerRun" | "costPerTurnEstimate"
+  "theme" | "defaultDelaySeconds" | "maxFixupAttempts" | "maxAutoRounds" | "autoAdvanceDelaySeconds" | "agentMaxTurns" | "agentTimeoutSeconds" | "searchDebounceMs" | "toastDurationMs" | "reviewMaxBlockingViolations" | "reviewMaxWarnings" | "maxConcurrentExecutions" | "maxQueueDepth" | "circuitBreakerThreshold" | "circuitBreakerCooldownMinutes" | "executionCostCapPerRun" | "costPerTurnEstimate" | "deleteConfirmation"
 > & {
   /** UI theme preference */
   theme: ThemePreference;
@@ -39,7 +53,7 @@ export type Settings = Omit<
   /** UI preferences */
   searchDebounceMs: number;
   toastDurationMs: number;
-  confirmDestructiveActions: boolean;
+  deleteConfirmation: DeleteConfirmationSettings;
   /** Review thresholds */
   reviewCodeQualityMinScore: number;
   reviewTestMinPassRate: number;

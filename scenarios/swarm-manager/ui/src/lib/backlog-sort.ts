@@ -5,10 +5,11 @@
  * compareFn builders. Shared by BacklogTab (sidebar) and the Command Post feed.
  *
  * DOC: docs/concepts/ARCHITECTURE.md#command-post
+ * DOC: docs/concepts/ARCHITECTURE.md#priority-ranking
  */
 
 import type { BacklogItem } from "../types";
-import { dependencyAwareSort } from "./dependency-sort";
+import { computeEffectivePriority, dependencyAwareSort } from "./dependency-sort";
 
 // Re-export sort types so consumers don't need the deep sidebar path.
 export type { SortConfig, SortField, SortDirection } from "../surfaces/graph/components/sidebar/types";
@@ -21,15 +22,24 @@ import type { SortConfig } from "../surfaces/graph/components/sidebar/types";
 /**
  * Build a compareFn from a SortConfig.
  *
- * Extracted from BacklogTab's inline `applySort()` so both the sidebar
- * and command post use the same logic.
+ * When sorting by "priority" and an `unblockingMap` is provided, effective
+ * priority (incorporating unblocking value) is used instead of raw priority.
+ *
+ * @param sort - Sort configuration (field + direction).
+ * @param unblockingMap - Optional map of "kind/name" → transitive dependent count.
  */
-export function buildBacklogCompareFn(sort: SortConfig): (a: BacklogItem, b: BacklogItem) => number {
+export function buildBacklogCompareFn(
+  sort: SortConfig,
+  unblockingMap?: Map<string, number>,
+): (a: BacklogItem, b: BacklogItem) => number {
   const dir = sort.direction === "asc" ? 1 : -1;
   return (a: BacklogItem, b: BacklogItem): number => {
     switch (sort.field) {
-      case "priority":
-        return (a.priority - b.priority) * dir;
+      case "priority": {
+        const effA = computeEffectivePriority(a.priority, unblockingMap?.get(`${a.kind}/${a.name}`) ?? 0);
+        const effB = computeEffectivePriority(b.priority, unblockingMap?.get(`${b.kind}/${b.name}`) ?? 0);
+        return (effA - effB) * dir;
+      }
       case "recency":
         return (new Date(b.updated).getTime() - new Date(a.updated).getTime()) * dir;
       case "status":
@@ -41,15 +51,25 @@ export function buildBacklogCompareFn(sort: SortConfig): (a: BacklogItem, b: Bac
 }
 
 /**
- * Default command-post sort: priority ascending, recency descending tiebreaker.
- * Matches the natural expectation: highest-priority (lowest number) first,
- * most recently updated first within the same priority.
+ * Build the default command-post sort compareFn: effective priority ascending,
+ * recency descending tiebreaker.
+ *
+ * Matches the natural expectation: highest-priority (lowest effective number)
+ * first, most recently updated first within the same priority.
+ *
+ * @param unblockingMap - Map of "kind/name" → transitive dependent count.
  */
-export const COMMAND_POST_COMPARE = (a: BacklogItem, b: BacklogItem): number => {
-  const pDiff = a.priority - b.priority;
-  if (pDiff !== 0) return pDiff;
-  return new Date(b.updated).getTime() - new Date(a.updated).getTime();
-};
+export function buildCommandPostCompare(
+  unblockingMap: Map<string, number>,
+): (a: BacklogItem, b: BacklogItem) => number {
+  return (a: BacklogItem, b: BacklogItem): number => {
+    const effA = computeEffectivePriority(a.priority, unblockingMap.get(`${a.kind}/${a.name}`) ?? 0);
+    const effB = computeEffectivePriority(b.priority, unblockingMap.get(`${b.kind}/${b.name}`) ?? 0);
+    const pDiff = effA - effB;
+    if (pDiff !== 0) return pDiff;
+    return new Date(b.updated).getTime() - new Date(a.updated).getTime();
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Sort entry point

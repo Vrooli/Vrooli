@@ -233,14 +233,6 @@ export const uiBehaviorConfig = {
    */
   enableKeyboardShortcuts: true,
 
-  /**
-   * Show confirmation dialogs for destructive actions.
-   *
-   * Impact: true = safer but slower; false = faster but riskier
-   *
-   * Default: true (always confirm destructive actions)
-   */
-  confirmDestructiveActions: true,
 } as const;
 
 // ============================================================================

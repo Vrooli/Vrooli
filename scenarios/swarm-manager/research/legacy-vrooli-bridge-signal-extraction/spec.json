@@ -6,9 +6,7 @@
   "depends_on": [
     "fix/qa-vrooli-bridge-tests-20260408",
     "fix/qa-vrooli-bridge-standards-ui-tooling-20260408",
-    "fix/qa-vrooli-bridge-standards-ui-server-20260408",
-    "fix/qa-vrooli-bridge-standards-requirements-20260408",
-    "execute/qa-vrooli-bridge-code-quality-20260408"
+    "fix/qa-vrooli-bridge-standards-ui-server-20260408"
   ],
   "description": "Read the existing vrooli-bridge implementation only to extract reusable signal for the new direction.\n\nCapture anything still useful, including requirements, trust and auth assumptions, data-model ideas, UI or CLI patterns, and mistakes to avoid. The purpose is to learn from the legacy work, not to preserve its architecture by default.",
   "effort": "M",
@@ -24,5 +22,5 @@
     "trusted-nodes"
   ],
   "title": "Extract Reusable Signal From The Legacy Bridge",
-  "updated": "2026-04-08T10:12:14Z"
+  "updated": "2026-04-08T14:36:24Z"
 }

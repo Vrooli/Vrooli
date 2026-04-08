@@ -76,7 +76,7 @@ func makeExecWithReview(scenario, classification string, reviewedAt time.Time) e
 // --- Tests ---
 
 func TestReviewQueue_Empty(t *testing.T) {
-	results, total, excluded := computeReviewQueue(nil, nil, "", 5, baseTime)
+	results, total, excluded := computeReviewQueue(nil, nil, "", 5, baseTime, nil)
 	if len(results) != 0 {
 		t.Fatalf("expected 0 results, got %d", len(results))
 	}
@@ -98,7 +98,7 @@ func TestReviewQueue_WorkloadRanking(t *testing.T) {
 		makeItem("item-6", backlog.KindExecute, backlog.StatusReady, []string{"quiet-scenario"}, nil),
 	}
 
-	results, _, _ := computeReviewQueue(items, nil, "", 10, baseTime)
+	results, _, _ := computeReviewQueue(items, nil, "", 10, baseTime, nil)
 	if len(results) < 2 {
 		t.Fatalf("expected at least 2 results, got %d", len(results))
 	}
@@ -121,7 +121,7 @@ func TestReviewQueue_ExcludesQATaggedFixes(t *testing.T) {
 		makeItem("qa-fix", backlog.KindFix, backlog.StatusReady, []string{"broken-scenario"}, []string{"preemptive-qa"}),
 	}
 
-	results, total, excluded := computeReviewQueue(items, nil, "", 10, baseTime)
+	results, total, excluded := computeReviewQueue(items, nil, "", 10, baseTime, nil)
 	if excluded != 1 {
 		t.Fatalf("expected 1 excluded, got %d", excluded)
 	}
@@ -142,7 +142,7 @@ func TestReviewQueue_ExcludesChoreTaggedItems(t *testing.T) {
 		makeItem("qa-chore", backlog.KindChore, backlog.StatusBacklog, []string{"scenario-a"}, []string{"preemptive-qa"}),
 	}
 
-	_, _, excluded := computeReviewQueue(items, nil, "", 10, baseTime)
+	_, _, excluded := computeReviewQueue(items, nil, "", 10, baseTime, nil)
 	if excluded != 1 {
 		t.Fatalf("expected 1 excluded, got %d", excluded)
 	}
@@ -155,7 +155,7 @@ func TestReviewQueue_CompletedFixDoesNotExclude(t *testing.T) {
 		makeItem("qa-fix-done", backlog.KindFix, backlog.StatusCompleted, []string{"scenario-a"}, []string{"preemptive-qa"}),
 	}
 
-	results, _, excluded := computeReviewQueue(items, nil, "", 10, baseTime)
+	results, _, excluded := computeReviewQueue(items, nil, "", 10, baseTime, nil)
 	if excluded != 0 {
 		t.Fatalf("expected 0 excluded, got %d", excluded)
 	}
@@ -175,7 +175,7 @@ func TestReviewQueue_StalenessBoost(t *testing.T) {
 		makeExecWithReview("fresh-scenario", "ready", baseTime.Add(-1*time.Hour)),
 	}
 
-	results, _, _ := computeReviewQueue(items, records, "", 10, baseTime)
+	results, _, _ := computeReviewQueue(items, records, "", 10, baseTime, nil)
 	if len(results) < 2 {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}
@@ -206,7 +206,7 @@ func TestReviewQueue_RecentActivityBoost(t *testing.T) {
 		})
 	}
 
-	results, _, _ := computeReviewQueue(items, records, "", 10, baseTime)
+	results, _, _ := computeReviewQueue(items, records, "", 10, baseTime, nil)
 	if len(results) < 2 {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}
@@ -227,7 +227,7 @@ func TestReviewQueue_CooldownSet(t *testing.T) {
 		makeExecWithReview("just-reviewed", "ready", baseTime.Add(-6*time.Hour)),
 	}
 
-	results, _, _ := computeReviewQueue(items, records, "", 10, baseTime)
+	results, _, _ := computeReviewQueue(items, records, "", 10, baseTime, nil)
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
@@ -249,7 +249,7 @@ func TestReviewQueue_NoCooldownForOldReview(t *testing.T) {
 		makeExecWithReview("old-review", "needs_work", baseTime.Add(-48*time.Hour)),
 	}
 
-	results, _, _ := computeReviewQueue(items, records, "", 10, baseTime)
+	results, _, _ := computeReviewQueue(items, records, "", 10, baseTime, nil)
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
@@ -265,7 +265,7 @@ func TestReviewQueue_LimitCaps(t *testing.T) {
 		items = append(items, makeItem("item-"+name, backlog.KindExecute, backlog.StatusReady, []string{name}, nil))
 	}
 
-	results, total, _ := computeReviewQueue(items, nil, "", 3, baseTime)
+	results, total, _ := computeReviewQueue(items, nil, "", 3, baseTime, nil)
 	if len(results) != 3 {
 		t.Fatalf("expected 3 results, got %d", len(results))
 	}
@@ -284,7 +284,7 @@ func TestReviewQueue_NoAcceptanceAllow(t *testing.T) {
 		},
 	}
 
-	results, total, _ := computeReviewQueue(items, nil, "", 10, baseTime)
+	results, total, _ := computeReviewQueue(items, nil, "", 10, baseTime, nil)
 	if len(results) != 0 {
 		t.Fatalf("expected 0 results for items without acceptance_allow, got %d", len(results))
 	}
@@ -300,7 +300,7 @@ func TestReviewQueue_CompletedItemsIgnored(t *testing.T) {
 		makeItem("active-item", backlog.KindExecute, backlog.StatusReady, []string{"active-scenario"}, nil),
 	}
 
-	results, _, _ := computeReviewQueue(items, nil, "", 10, baseTime)
+	results, _, _ := computeReviewQueue(items, nil, "", 10, baseTime, nil)
 	// Only active-scenario should appear (done-scenario has only terminal items).
 	found := false
 	for _, r := range results {
@@ -324,7 +324,7 @@ func TestReviewQueue_PrimarySignal(t *testing.T) {
 		makeItem("item-3", backlog.KindExecute, backlog.StatusReady, []string{"high-workload"}, nil),
 	}
 
-	results, _, _ := computeReviewQueue(items, nil, "", 10, baseTime)
+	results, _, _ := computeReviewQueue(items, nil, "", 10, baseTime, nil)
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
@@ -340,13 +340,13 @@ func TestReviewQueue_CustomExcludeTag(t *testing.T) {
 	}
 
 	// Default tag should not exclude.
-	_, _, excluded := computeReviewQueue(items, nil, "", 10, baseTime)
+	_, _, excluded := computeReviewQueue(items, nil, "", 10, baseTime, nil)
 	if excluded != 0 {
 		t.Fatalf("expected 0 excluded with default tag, got %d", excluded)
 	}
 
 	// Custom tag should exclude.
-	_, _, excluded = computeReviewQueue(items, nil, "custom-tag", 10, baseTime)
+	_, _, excluded = computeReviewQueue(items, nil, "custom-tag", 10, baseTime, nil)
 	if excluded != 1 {
 		t.Fatalf("expected 1 excluded with custom tag, got %d", excluded)
 	}
@@ -405,6 +405,120 @@ func TestReviewQueue_HTTPHandler_InvalidLimit(t *testing.T) {
 
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("expected 400 for invalid limit, got %d", rec.Code)
+	}
+}
+
+// --- Existence filtering tests (Rec #1) ---
+
+func TestReviewQueue_FiltersNonExistentScenarios(t *testing.T) {
+	items := []backlog.BacklogItem{
+		makeItem("item-1", backlog.KindExecute, backlog.StatusReady, []string{"real-scenario"}, nil),
+		makeItem("item-2", backlog.KindExecute, backlog.StatusReady, []string{"phantom-scenario"}, nil),
+	}
+
+	existing := map[string]bool{"real-scenario": true}
+	results, total, excluded := computeReviewQueue(items, nil, "", 10, baseTime, existing)
+
+	if total != 2 {
+		t.Fatalf("expected 2 total, got %d", total)
+	}
+	if excluded != 1 {
+		t.Fatalf("expected 1 excluded (phantom), got %d", excluded)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if results[0].scenarioName != "real-scenario" {
+		t.Errorf("expected real-scenario, got %q", results[0].scenarioName)
+	}
+}
+
+func TestReviewQueue_NilExistingScenariosSkipsFilter(t *testing.T) {
+	// With nil existingScenarios and a maintenance item, all scenarios pass through.
+	items := []backlog.BacklogItem{
+		makeItem("item-1", backlog.KindFix, backlog.StatusReady, []string{"any-scenario"}, nil),
+	}
+
+	results, _, excluded := computeReviewQueue(items, nil, "", 10, baseTime, nil)
+	if excluded != 0 {
+		t.Fatalf("expected 0 excluded with nil existingScenarios, got %d", excluded)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+}
+
+func TestReviewQueue_EmptyExistingScenariosExcludesAll(t *testing.T) {
+	items := []backlog.BacklogItem{
+		makeItem("item-1", backlog.KindExecute, backlog.StatusReady, []string{"scenario-a"}, nil),
+	}
+
+	existing := map[string]bool{} // empty = no scenarios exist
+	results, _, excluded := computeReviewQueue(items, nil, "", 10, baseTime, existing)
+	if excluded != 1 {
+		t.Fatalf("expected 1 excluded, got %d", excluded)
+	}
+	if len(results) != 0 {
+		t.Fatalf("expected 0 results, got %d", len(results))
+	}
+}
+
+// --- Greenfield fallback heuristic tests (Rec #2) ---
+
+func TestGreenfieldFallback_ExcludesCreationOnlyScenarios(t *testing.T) {
+	items := []backlog.BacklogItem{
+		makeItem("plan-it", backlog.KindExecute, backlog.StatusReady, []string{"planned-scenario"}, nil),
+		makeItem("research-it", backlog.KindResearch, backlog.StatusBacklog, []string{"planned-scenario"}, nil),
+	}
+
+	// Simulate: computeReviewQueue was called with nil existingScenarios,
+	// so the scenario made it through. Now apply the fallback.
+	input := []reviewQueueResult{
+		{scenarioName: "planned-scenario", pendingCount: 2},
+	}
+	results, excluded := applyGreenfieldFallback(items, input, 0)
+	if excluded != 1 {
+		t.Fatalf("expected 1 excluded, got %d", excluded)
+	}
+	if len(results) != 0 {
+		t.Fatalf("expected 0 results, got %d", len(results))
+	}
+}
+
+func TestGreenfieldFallback_KeepsScenarioWithMaintenanceItems(t *testing.T) {
+	items := []backlog.BacklogItem{
+		makeItem("build-it", backlog.KindExecute, backlog.StatusReady, []string{"mixed-scenario"}, nil),
+		makeItem("fix-it", backlog.KindFix, backlog.StatusReady, []string{"mixed-scenario"}, nil),
+	}
+
+	input := []reviewQueueResult{
+		{scenarioName: "mixed-scenario", pendingCount: 2},
+	}
+	results, excluded := applyGreenfieldFallback(items, input, 0)
+	if excluded != 0 {
+		t.Fatalf("expected 0 excluded, got %d", excluded)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+}
+
+func TestGreenfieldFallback_KeepsCreationOnlyWithReviewHistory(t *testing.T) {
+	items := []backlog.BacklogItem{
+		makeItem("build-it", backlog.KindExecute, backlog.StatusReady, []string{"reviewed-scenario"}, nil),
+	}
+
+	// Scenario has been reviewed before — even though all items are creation kinds,
+	// it should not be excluded (it existed at some point).
+	input := []reviewQueueResult{
+		{scenarioName: "reviewed-scenario", pendingCount: 1, lastReviewAt: baseTime.Add(-24 * time.Hour)},
+	}
+	results, excluded := applyGreenfieldFallback(items, input, 0)
+	if excluded != 0 {
+		t.Fatalf("expected 0 excluded, got %d", excluded)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
 	}
 }
 

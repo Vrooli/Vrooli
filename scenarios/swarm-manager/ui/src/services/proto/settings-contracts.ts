@@ -1,7 +1,9 @@
 import type { Settings } from "@vrooli/proto-types/swarm-manager/v1/domain/settings_pb";
+import { DeleteConfirmLevel } from "@vrooli/proto-types/swarm-manager/v1/domain/settings_pb";
 import { SettingsResponseSchema } from "@vrooli/proto-types/swarm-manager/v1/api/settings_pb";
 import type {
   Settings as SettingsDomain,
+  DeleteConfirmLevel as DomainDeleteConfirmLevel,
   ExecutionMode,
   ThemePreference,
 } from "../../types";
@@ -20,6 +22,17 @@ function isThemePreference(value: unknown): value is ThemePreference {
 
 function normalizeThemePreference(value?: string): ThemePreference {
   return isThemePreference(value) ? value : "dark";
+}
+
+function mapDeleteConfirmLevel(proto: DeleteConfirmLevel): DomainDeleteConfirmLevel {
+  switch (proto) {
+    case DeleteConfirmLevel.NONE:
+      return "none";
+    case DeleteConfirmLevel.STRONG:
+      return "strong";
+    default:
+      return "simple";
+  }
 }
 
 export const settingsResponseSchema = createProtoSchema(
@@ -45,7 +58,11 @@ export function mapProtoSettings(protoSettings: Settings): SettingsDomain {
     agentRequiresApproval: protoSettings.agentRequiresApproval ?? true,
     searchDebounceMs: protoSettings.searchDebounceMs ?? 300,
     toastDurationMs: protoSettings.toastDurationMs ?? 5000,
-    confirmDestructiveActions: protoSettings.confirmDestructiveActions ?? true,
+    deleteConfirmation: {
+      backlog: mapDeleteConfirmLevel(protoSettings.deleteConfirmation?.backlog ?? DeleteConfirmLevel.SIMPLE),
+      initiative: mapDeleteConfirmLevel(protoSettings.deleteConfirmation?.initiative ?? DeleteConfirmLevel.SIMPLE),
+      capture: mapDeleteConfirmLevel(protoSettings.deleteConfirmation?.capture ?? DeleteConfirmLevel.SIMPLE),
+    },
     reviewCodeQualityMinScore: protoSettings.reviewCodeQualityMinScore ?? 60,
     reviewTestMinPassRate: protoSettings.reviewTestMinPassRate ?? 1.0,
     reviewMaxBlockingViolations: protoSettings.reviewMaxBlockingViolations ?? 0,

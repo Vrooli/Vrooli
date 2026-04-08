@@ -163,7 +163,7 @@ describe("InlineQuestionStepper", () => {
     expect(screen.getByText("Second")).toBeInTheDocument();
   });
 
-  it("calls onAllAnswered when all questions are skipped", async () => {
+  it("skip does not auto-complete — user must click Finish", async () => {
     const onAllAnswered = vi.fn();
     render(
       <InlineQuestionStepper
@@ -173,12 +173,16 @@ describe("InlineQuestionStepper", () => {
       />,
     );
 
+    // Skip the only question — should NOT auto-call onAllAnswered
     fireEvent.click(screen.getByTestId("question-stepper-skip"));
+    expect(onAllAnswered).not.toHaveBeenCalled();
 
-    await waitFor(() => expect(onAllAnswered).toHaveBeenCalledTimes(1));
+    // Click Finish to close the stepper
+    fireEvent.click(screen.getByTestId("question-stepper-next"));
+    await waitFor(() => expect(onAllAnswered).toHaveBeenCalledWith({}));
   });
 
-  it("calls onAllAnswered when all questions are answered and advanced", async () => {
+  it("Finish saves the answer and calls onAllAnswered without auto-advance", async () => {
     const onAllAnswered = vi.fn();
     const q1 = makeWorkshopQuestion({ id: "d1" });
     render(
@@ -198,44 +202,11 @@ describe("InlineQuestionStepper", () => {
     }
     fireEvent.click(firstOption);
 
-    // Click Done (last question)
+    // Click Finish (last question)
     fireEvent.click(screen.getByTestId("question-stepper-next"));
 
     await waitFor(() => {
-      expect(onAllAnswered).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  it("passes through finalize auto-advance metadata when workshopSave returns it", async () => {
-    const onAllAnswered = vi.fn();
-    const { backlogService } = await import("../../services/backlog-service");
-    vi.mocked(backlogService.workshopSave).mockResolvedValueOnce({
-      file: { name: "round-001.json", path: "workshop/round-001.json", type: "file", size: 100 },
-      autoAdvance: { triggered: true, reason: "finalizing", nextMode: "finalize", runId: "run-1", taskId: "task-1" },
-    });
-
-    render(
-      <InlineQuestionStepper
-        {...defaultProps}
-        onAllAnswered={onAllAnswered}
-        questions={[makeWorkshopQuestion({ id: "d1" })]}
-      />,
-    );
-
-    const options = screen.getAllByTestId("question-stepper-workshop-option");
-    fireEvent.click(options[0] as HTMLElement);
-    fireEvent.click(screen.getByTestId("question-stepper-next"));
-
-    await waitFor(() => {
-      expect(onAllAnswered).toHaveBeenCalledWith({
-        autoAdvance: {
-          triggered: true,
-          reason: "finalizing",
-          nextMode: "finalize",
-          runId: "run-1",
-          taskId: "task-1",
-        },
-      });
+      expect(onAllAnswered).toHaveBeenCalledWith({});
     });
   });
 

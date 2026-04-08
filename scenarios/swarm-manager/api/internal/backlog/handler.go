@@ -384,6 +384,14 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Remove this item from the depends_on list of any items that reference it.
+	ref := string(kind) + "/" + name
+	if n, err := h.store.RemoveDependencyRef(ref); err != nil {
+		slog.Error("failed to clean up dependency references", "ref", ref, "err", err)
+	} else if n > 0 {
+		slog.Info("cleaned up dependency references", "ref", ref, "updated_items", n)
+	}
+
 	slog.Info("item deleted", "name", name, "kind", kind)
 	if h.eventLogger != nil {
 		h.eventLogger.EmitBacklogDeleted(string(kind) + "/" + name)

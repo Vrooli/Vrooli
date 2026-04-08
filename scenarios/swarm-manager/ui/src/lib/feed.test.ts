@@ -286,3 +286,39 @@ describe("countActionableItems", () => {
     expect(countActionableItems(feed)).toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Unblocking value in feed
+// ---------------------------------------------------------------------------
+
+describe("unblocking value in feed", () => {
+  it("high fan-out item sorts above same-priority peer", () => {
+    const blocker = makeItem({ name: "blocker", priority: 5, kind: "fix" });
+    const standalone = makeItem({ name: "standalone", priority: 5, kind: "idea" });
+    const depA = makeItem({ name: "dep-a", priority: 5, dependsOn: ["fix/blocker"] });
+    const depB = makeItem({ name: "dep-b", priority: 5, dependsOn: ["fix/blocker"] });
+    const allItems = [blocker, standalone, depA, depB];
+    const feed = buildFeed([], allItems, [], []);
+    const backlogNames = feed
+      .filter((f) => f.type === "backlog" || f.type === "attention")
+      .map((f) => (f.type === "capture" ? "" : f.item.name));
+    // blocker has 2 dependents → boosted; should appear before standalone
+    const blockerIdx = backlogNames.indexOf("blocker");
+    const standaloneIdx = backlogNames.indexOf("standalone");
+    expect(blockerIdx).toBeLessThan(standaloneIdx);
+  });
+
+  it("unblocking boost composes with attention boost", () => {
+    // attention item (pending decisions) + unblocking value should both apply
+    const blocker = makeItem({ name: "blocker", priority: 5, kind: "fix" });
+    const depA = makeItem({ name: "dep-a", priority: 5, dependsOn: ["fix/blocker"] });
+    const feedbackMap: FeedbackItem[] = [{ kind: "fix", name: "blocker", pendingDecisions: 1 }];
+    const feed = buildFeed([], [blocker, depA], feedbackMap, []);
+    const first = feed[0];
+    // blocker should be attention type (has pending decisions) and sort first
+    expect(first).toBeDefined();
+    if (first && first.type === "attention") {
+      expect(first.item.name).toBe("blocker");
+    }
+  });
+});

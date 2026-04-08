@@ -65,7 +65,7 @@ func enableAutoAdvanceSettings(t *testing.T, rootDir string) {
 		"agent_requires_approval":     true,
 		"search_debounce_ms":          300,
 		"toast_duration_ms":           5000,
-		"confirm_destructive_actions": true,
+		"delete_confirmation": map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
 	})
 }
 
@@ -181,7 +181,7 @@ func TestWorkshopSave_AutoAdvance_Triggers(t *testing.T) {
 		"agent_requires_approval":     true,
 		"search_debounce_ms":          300,
 		"toast_duration_ms":           5000,
-		"confirm_destructive_actions": true,
+		"delete_confirmation": map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
 	})
 
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
@@ -384,7 +384,7 @@ func TestWorkshopSave_AutoAdvanceDisabledViaSetting(t *testing.T) {
 		"agent_requires_approval":     true,
 		"search_debounce_ms":          300,
 		"toast_duration_ms":           5000,
-		"confirm_destructive_actions": true,
+		"delete_confirmation": map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
 	})
 
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
@@ -444,7 +444,7 @@ func TestWorkshopSave_AutoAdvanceDisabled_ReadyRequiresManualFinalize(t *testing
 		"agent_requires_approval":     true,
 		"search_debounce_ms":          300,
 		"toast_duration_ms":           5000,
-		"confirm_destructive_actions": true,
+		"delete_confirmation": map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
 	})
 
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
@@ -502,7 +502,7 @@ func TestWorkshopSave_AgentDown_StillSaves(t *testing.T) {
 		"agent_requires_approval":     true,
 		"search_debounce_ms":          300,
 		"toast_duration_ms":           5000,
-		"confirm_destructive_actions": true,
+		"delete_confirmation": map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
 	})
 
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
@@ -567,7 +567,7 @@ func TestWorkshopSave_ConcurrentSaves_GuardPreventsDouble(t *testing.T) {
 		"agent_requires_approval":     true,
 		"search_debounce_ms":          300,
 		"toast_duration_ms":           5000,
-		"confirm_destructive_actions": true,
+		"delete_confirmation": map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
 	})
 
 	createTestItem(t, rootDir, KindIdea, BacklogItem{

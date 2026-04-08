@@ -28,6 +28,7 @@ type Store interface {
 	SaveItem(item BacklogItem) error
 	ValidateDependencies(dependsOn []string) error
 	CheckDependencies(dependsOn []string) ([]string, error)
+	RemoveDependencyRef(ref string) (int, error)
 }
 
 // FileStore is the filesystem-backed Store implementation. It reads and writes
@@ -299,4 +300,37 @@ func (s *FileStore) CheckDependencies(dependsOn []string) ([]string, error) {
 		}
 	}
 	return unmet, nil
+}
+
+// RemoveDependencyRef removes the given "kind/name" reference from the
+// depends_on list of every backlog item that contains it. It returns the
+// number of items that were updated.
+func (s *FileStore) RemoveDependencyRef(ref string) (int, error) {
+	items, err := s.LoadAll(nil)
+	if err != nil {
+		return 0, fmt.Errorf("loading items for dependency cleanup: %w", err)
+	}
+
+	updated := 0
+	for _, item := range items {
+		if len(item.DependsOn) == 0 {
+			continue
+		}
+		filtered := make([]string, 0, len(item.DependsOn))
+		for _, dep := range item.DependsOn {
+			if dep != ref {
+				filtered = append(filtered, dep)
+			}
+		}
+		if len(filtered) == len(item.DependsOn) {
+			continue
+		}
+		item.DependsOn = filtered
+		item.Updated = time.Now().UTC().Format(time.RFC3339)
+		if err := s.SaveItem(item); err != nil {
+			return updated, fmt.Errorf("updating depends_on for %s/%s: %w", item.Kind, item.Name, err)
+		}
+		updated++
+	}
+	return updated, nil
 }

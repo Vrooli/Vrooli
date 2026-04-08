@@ -6,7 +6,7 @@
  * the sidebar BacklogTab and the Command Post SummaryView.
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAgentActivitiesStore, useBacklogStore } from "../stores";
 import { backlogService } from "../services";
@@ -131,14 +131,44 @@ export function useCommandPostItemActions(
     return map;
   }, [summaryQuery.data?.maturity]);
 
+  // Snapshot ref: once an item's pending questions are first seen, preserve
+  // them until the stepper completes.  This prevents background summary
+  // refreshes from yanking the stepper out from under the user.
+  const stableQuestionsRef = useRef<Map<string, PendingQuestion[]>>(new Map());
+
   const pendingQuestionsMap = useMemo(() => {
-    const map = new Map<string, PendingQuestion[]>();
-    if (!summaryQuery.data?.pending_questions?.items) return map;
-    for (const pqi of summaryQuery.data.pending_questions.items) {
-      map.set(`${pqi.kind}/${pqi.name}`, pqi.questions);
+    const serverMap = new Map<string, PendingQuestion[]>();
+    if (summaryQuery.data?.pending_questions?.items) {
+      for (const pqi of summaryQuery.data.pending_questions.items) {
+        serverMap.set(`${pqi.kind}/${pqi.name}`, pqi.questions);
+      }
     }
-    return map;
-  }, [summaryQuery.data?.pending_questions]);
+
+    const stable = stableQuestionsRef.current;
+    const result = new Map<string, PendingQuestion[]>();
+
+    // Use server data when available; snapshot first-seen questions.
+    for (const [key, questions] of serverMap) {
+      result.set(key, questions);
+      if (!stable.has(key)) {
+        stable.set(key, questions);
+      }
+    }
+
+    // Preserve snapshot for items the server dropped but stepper hasn't finished.
+    for (const [key, questions] of stable) {
+      if (!result.has(key) && !completedSteppers.has(key)) {
+        result.set(key, questions);
+      }
+    }
+
+    // Clean up completed items from the snapshot.
+    for (const key of completedSteppers) {
+      stable.delete(key);
+    }
+
+    return result;
+  }, [summaryQuery.data?.pending_questions, completedSteppers]);
 
   const feedbackItems = useMemo<FeedbackItem[]>(
     () => (summaryQuery.data?.feedback?.items ?? []).map((item) => ({
@@ -212,6 +242,11 @@ export function useCommandPostItemActions(
     });
     if (result.autoAdvance?.triggered && result.autoAdvance.runId) {
       void refreshActivities(true);
+    }
+    // If there's no auto-advance info, skip the transition — show normal action buttons immediately.
+    if (!result.autoAdvance) {
+      void queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
+      return;
     }
     setTransitionItems((prev) => {
       const next = new Map(prev);

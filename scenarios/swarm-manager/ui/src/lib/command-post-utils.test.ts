@@ -315,6 +315,23 @@ describe("sortedGroupActionItems", () => {
     const readyGroup = getGroup(groups, "ready-to-run");
     expect(readyGroup.items[0]?.backlogItem).toBe(item);
   });
+
+  it("items with higher fan-out sort before same-priority peers within same group", () => {
+    // Both items are ready-to-run, same priority, but blocker has dependents
+    const blocker = makeBacklogItem({ name: "blocker", status: "ready", priority: 3, kind: "fix" });
+    const standalone = makeBacklogItem({ name: "standalone", status: "ready", priority: 3, kind: "idea" });
+    const dep = makeBacklogItem({ name: "dep", status: "backlog", priority: 5, dependsOn: ["fix/blocker"] });
+    const maturityMap = new Map([
+      [`fix/blocker`, { kind: "fix", name: "blocker", ready: true, pendingItems: 0 }],
+      [`idea/standalone`, { kind: "idea", name: "standalone", ready: true, pendingItems: 0 }],
+    ]);
+    const groups = sortedGroupActionItems(
+      [standalone, blocker, dep], [], [], EMPTY_FEEDBACK, maturityMap, NO_SNOOZED,
+    );
+    const readyGroup = getGroup(groups, "ready-to-run");
+    const readyNames = readyGroup.items.map((i) => i.name);
+    expect(readyNames.indexOf("blocker")).toBeLessThan(readyNames.indexOf("standalone"));
+  });
 });
 
 // ---------------------------------------------------------------------------

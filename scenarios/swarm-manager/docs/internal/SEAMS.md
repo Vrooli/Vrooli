@@ -196,6 +196,20 @@ This package is imported by `internal/backlog/` (batch create validation, batch 
 
 **Testing at the seam**: Unit tests exercise cycle detection (diamond graphs, self-loops), topological ordering guarantees, and invalid reference rejection without needing HTTP or filesystem mocks.
 
+### Unblocking Value Computation Boundary
+
+`ui/src/lib/dependency-sort.ts` contains two pure-function seams for priority ranking:
+
+- **`computeDepthMap(items)`**: Forward-edge graph walk computing topological depth for dependency-aware sort ordering
+- **`computeUnblockingMap(items)`**: Reverse-edge graph walk computing transitive dependent counts for unblocking value scoring
+- **`computeEffectivePriority(manualPriority, transitiveDependentCount)`**: Pure formula applying capped boost to manual priority
+
+Both graph computations are O(V+E) with memoization. They share the same `SORT_RESOLVED_STATUSES` set and `archivedAt` check to determine which items count as resolved.
+
+Consumed by `backlog-sort.ts` (sidebar/command post sorting) and `feed.ts` (unified feed). All consumers compute the unblocking map once per sort call and close over it in a compareFn — the map is never recomputed per comparison.
+
+**Testing at the seam**: Pure-function unit tests in `dependency-sort.test.ts` covering chains, diamonds, cycles, completed/archived exclusion, dangling refs, and cross-kind dependencies. Integration tests in `backlog-sort.test.ts` verify that unblocking boost composes correctly with depth ordering.
+
 ### Initiatives Boundary
 
 `api/internal/initiatives/` provides initiative CRUD and rollup status computation.

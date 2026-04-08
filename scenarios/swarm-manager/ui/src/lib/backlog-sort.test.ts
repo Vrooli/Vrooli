@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { buildBacklogCompareFn, sortBacklogItems, COMMAND_POST_COMPARE } from "./backlog-sort";
+import { buildBacklogCompareFn, buildCommandPostCompare, sortBacklogItems } from "./backlog-sort";
+import { computeUnblockingMap } from "./dependency-sort";
 import type { BacklogItem } from "../types";
 
 // ---------------------------------------------------------------------------
@@ -97,28 +98,31 @@ describe("buildBacklogCompareFn", () => {
 });
 
 // ---------------------------------------------------------------------------
-// COMMAND_POST_COMPARE
+// buildCommandPostCompare
 // ---------------------------------------------------------------------------
 
-describe("COMMAND_POST_COMPARE", () => {
+/** No-unblocking comparator for tests that don't need unblocking data. */
+const COMPARE = buildCommandPostCompare(new Map());
+
+describe("buildCommandPostCompare", () => {
   it("sorts by priority ascending", () => {
     const low = makeItem("low", { priority: 1 });
     const high = makeItem("high", { priority: 5 });
-    expect(COMMAND_POST_COMPARE(low, high)).toBeLessThan(0);
-    expect(COMMAND_POST_COMPARE(high, low)).toBeGreaterThan(0);
+    expect(COMPARE(low, high)).toBeLessThan(0);
+    expect(COMPARE(high, low)).toBeGreaterThan(0);
   });
 
   it("breaks ties by recency (newest first)", () => {
     const older = makeItem("older", { priority: 3, updated: "2026-03-01T00:00:00Z" });
     const newer = makeItem("newer", { priority: 3, updated: "2026-03-20T00:00:00Z" });
-    expect(COMMAND_POST_COMPARE(older, newer)).toBeGreaterThan(0);
-    expect(COMMAND_POST_COMPARE(newer, older)).toBeLessThan(0);
+    expect(COMPARE(older, newer)).toBeGreaterThan(0);
+    expect(COMPARE(newer, older)).toBeLessThan(0);
   });
 
   it("returns 0 for identical priority and timestamp", () => {
     const a = makeItem("a", { priority: 3, updated: "2026-03-20T00:00:00Z" });
     const b = makeItem("b", { priority: 3, updated: "2026-03-20T00:00:00Z" });
-    expect(COMMAND_POST_COMPARE(a, b)).toBe(0);
+    expect(COMPARE(a, b)).toBe(0);
   });
 });
 
@@ -134,7 +138,7 @@ describe("sortBacklogItems", () => {
       status: "backlog",
       dependsOn: ["execute/parent"],
     });
-    const result = sortBacklogItems([child, parent], COMMAND_POST_COMPARE, [child, parent]);
+    const result = sortBacklogItems([child, parent], COMPARE, [child, parent]);
     // Parent has depth 0, child has depth 1 — parent sorts first despite lower priority number on child
     expect(names(result)).toEqual(["parent", "child"]);
   });
@@ -143,7 +147,7 @@ describe("sortBacklogItems", () => {
     const a = makeItem("a-item", { priority: 1 });
     const b = makeItem("b-item", { priority: 3 });
     const c = makeItem("c-item", { priority: 2 });
-    const result = sortBacklogItems([b, c, a], COMMAND_POST_COMPARE, [a, b, c]);
+    const result = sortBacklogItems([b, c, a], COMPARE, [a, b, c]);
     expect(names(result)).toEqual(["a-item", "c-item", "b-item"]);
   });
 
@@ -155,7 +159,7 @@ describe("sortBacklogItems", () => {
       dependsOn: ["execute/parent"],
     });
     // Parent is completed, so child's dep is resolved — both at depth 0
-    const result = sortBacklogItems([parent, child], COMMAND_POST_COMPARE, [parent, child]);
+    const result = sortBacklogItems([parent, child], COMPARE, [parent, child]);
     // Child has lower priority number, so it sorts first within same depth
     expect(names(result)).toEqual(["child", "parent"]);
   });
@@ -164,7 +168,7 @@ describe("sortBacklogItems", () => {
     const root = makeItem("root", { priority: 5 });
     const mid = makeItem("mid", { priority: 1, dependsOn: ["execute/root"] });
     const leaf = makeItem("leaf", { priority: 1, dependsOn: ["execute/mid"] });
-    const result = sortBacklogItems([leaf, mid, root], COMMAND_POST_COMPARE, [root, mid, leaf]);
+    const result = sortBacklogItems([leaf, mid, root], COMPARE, [root, mid, leaf]);
     expect(names(result)).toEqual(["root", "mid", "leaf"]);
   });
 
@@ -179,10 +183,54 @@ describe("sortBacklogItems", () => {
     // Only sorting [child, unrelated] but dep exists in allItems
     const result = sortBacklogItems(
       [child, unrelated],
-      COMMAND_POST_COMPARE,
+      COMPARE,
       [dep, child, unrelated],
     );
     // child has depth 1 (dep is incomplete), unrelated has depth 0
     expect(names(result)).toEqual(["unrelated", "child"]);
+  });
+
+  it("items with higher fan-out sort before same-priority peers within same depth", () => {
+    // blocker has 2 dependents, standalone has 0
+    const blocker = makeItem("blocker", { priority: 5 });
+    const standalone = makeItem("standalone", { priority: 5 });
+    const depA = makeItem("dep-a", { priority: 5, dependsOn: ["execute/blocker"] });
+    const depB = makeItem("dep-b", { priority: 5, dependsOn: ["execute/blocker"] });
+    const allItems = [blocker, standalone, depA, depB];
+
+    const unblockingMap = computeUnblockingMap(allItems);
+    const compare = buildCommandPostCompare(unblockingMap);
+    const result = sortBacklogItems([standalone, blocker], compare, allItems);
+    // blocker has 2 dependents → effective priority 5 - min(2*0.5, 3) = 4
+    // standalone has 0 dependents → effective priority 5
+    expect(names(result)).toEqual(["blocker", "standalone"]);
+  });
+
+  it("unblocking boost does NOT override depth ordering", () => {
+    // high-fan-out item at depth 1 should still sort below depth-0 items
+    const root = makeItem("root", { priority: 5, status: "backlog" });
+    const mid = makeItem("mid", { priority: 5, status: "backlog", dependsOn: ["execute/root"] });
+    const leaf1 = makeItem("leaf1", { priority: 5, status: "backlog", dependsOn: ["execute/mid"] });
+    const leaf2 = makeItem("leaf2", { priority: 5, status: "backlog", dependsOn: ["execute/mid"] });
+    const leaf3 = makeItem("leaf3", { priority: 5, status: "backlog", dependsOn: ["execute/mid"] });
+    const allItems = [root, mid, leaf1, leaf2, leaf3];
+
+    const unblockingMap = computeUnblockingMap(allItems);
+    const compare = buildCommandPostCompare(unblockingMap);
+    const result = sortBacklogItems([mid, root], compare, allItems);
+    // mid has 3 dependents but is at depth 1; root is at depth 0 — root sorts first
+    expect(names(result)).toEqual(["root", "mid"]);
+  });
+
+  it("buildBacklogCompareFn uses effective priority for 'priority' sort field", () => {
+    const blocker = makeItem("blocker", { priority: 5 });
+    const normal = makeItem("normal", { priority: 5 });
+    const dep = makeItem("dep", { priority: 5, dependsOn: ["execute/blocker"] });
+    const allItems = [blocker, normal, dep];
+
+    const unblockingMap = computeUnblockingMap(allItems);
+    const cmp = buildBacklogCompareFn({ field: "priority", direction: "asc" }, unblockingMap);
+    // blocker has effective priority 4.5, normal has 5
+    expect(cmp(blocker, normal)).toBeLessThan(0);
   });
 });

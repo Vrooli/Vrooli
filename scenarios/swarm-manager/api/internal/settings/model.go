@@ -11,6 +11,29 @@ import (
 	"swarm-manager/internal/storage"
 )
 
+// DeleteConfirmLevel controls the confirmation UI for delete operations.
+type DeleteConfirmLevel string
+
+const (
+	DeleteConfirmNone   DeleteConfirmLevel = "none"
+	DeleteConfirmSimple DeleteConfirmLevel = "simple"
+	DeleteConfirmStrong DeleteConfirmLevel = "strong"
+)
+
+// DeleteConfirmationSettings holds per-entity-type confirmation levels.
+type DeleteConfirmationSettings struct {
+	Backlog    DeleteConfirmLevel `json:"backlog"`
+	Initiative DeleteConfirmLevel `json:"initiative"`
+	Capture    DeleteConfirmLevel `json:"capture"`
+}
+
+// DeleteConfirmationSettingsPatch allows partial updates to delete confirmation.
+type DeleteConfirmationSettingsPatch struct {
+	Backlog    *DeleteConfirmLevel `json:"backlog,omitempty"`
+	Initiative *DeleteConfirmLevel `json:"initiative,omitempty"`
+	Capture    *DeleteConfirmLevel `json:"capture,omitempty"`
+}
+
 // Settings represents persisted configuration for the scenario.
 type Settings struct {
 	Theme string `json:"theme"`
@@ -34,9 +57,9 @@ type Settings struct {
 	AgentRequiresApproval bool `json:"agent_requires_approval"`
 
 	// UI preferences.
-	SearchDebounceMs          int  `json:"search_debounce_ms"`
-	ToastDurationMs           int  `json:"toast_duration_ms"`
-	ConfirmDestructiveActions bool `json:"confirm_destructive_actions"`
+	SearchDebounceMs   int                        `json:"search_debounce_ms"`
+	ToastDurationMs    int                        `json:"toast_duration_ms"`
+	DeleteConfirmation DeleteConfirmationSettings `json:"delete_confirmation"`
 
 	// Review thresholds.
 	ReviewCodeQualityMinScore   float64 `json:"review_code_quality_min_score"`
@@ -74,9 +97,9 @@ type SettingsPatch struct {
 	AgentTimeoutSeconds   *int  `json:"agent_timeout_seconds,omitempty"`
 	AgentRequiresApproval *bool `json:"agent_requires_approval,omitempty"`
 
-	SearchDebounceMs          *int  `json:"search_debounce_ms,omitempty"`
-	ToastDurationMs           *int  `json:"toast_duration_ms,omitempty"`
-	ConfirmDestructiveActions *bool `json:"confirm_destructive_actions,omitempty"`
+	SearchDebounceMs   *int                             `json:"search_debounce_ms,omitempty"`
+	ToastDurationMs    *int                             `json:"toast_duration_ms,omitempty"`
+	DeleteConfirmation *DeleteConfirmationSettingsPatch `json:"delete_confirmation,omitempty"`
 
 	ReviewCodeQualityMinScore   *float64 `json:"review_code_quality_min_score,omitempty"`
 	ReviewTestMinPassRate       *float64 `json:"review_test_min_pass_rate,omitempty"`
@@ -119,22 +142,26 @@ func StoreForPath(path string) *Store {
 // DefaultSettings returns the baseline settings.
 func DefaultSettings() Settings {
 	return Settings{
-		Theme:                     "dark",
-		DefaultMode:               "yolo",
-		AutoFixup:                 false,
-		MaxFixupAttempts:          2,
-		ReviewAgentEnabled:        true,
-		MaxAutoRounds:             10,
-		AutoInitializeWorkshop:    true,
-		AutoAdvanceWorkshop:       true,
-		AutoCascadeWorkshop:       true,
-		AutoAdvanceDelaySeconds:   10,
-		AgentMaxTurns:             60,
-		AgentTimeoutSeconds:       900,
-		AgentRequiresApproval:     true,
-		SearchDebounceMs:          300,
-		ToastDurationMs:           5000,
-		ConfirmDestructiveActions: true,
+		Theme:                   "dark",
+		DefaultMode:             "yolo",
+		AutoFixup:               false,
+		MaxFixupAttempts:        2,
+		ReviewAgentEnabled:      true,
+		MaxAutoRounds:           10,
+		AutoInitializeWorkshop:  true,
+		AutoAdvanceWorkshop:     true,
+		AutoCascadeWorkshop:     true,
+		AutoAdvanceDelaySeconds: 10,
+		AgentMaxTurns:           60,
+		AgentTimeoutSeconds:     900,
+		AgentRequiresApproval:   true,
+		SearchDebounceMs:        300,
+		ToastDurationMs:         5000,
+		DeleteConfirmation: DeleteConfirmationSettings{
+			Backlog:    DeleteConfirmSimple,
+			Initiative: DeleteConfirmStrong,
+			Capture:    DeleteConfirmNone,
+		},
 
 		ReviewCodeQualityMinScore:   60,
 		ReviewTestMinPassRate:       1.0,
@@ -212,6 +239,15 @@ func clampFloat(v, min, max float64) float64 {
 	return v
 }
 
+func normalizeDeleteConfirmLevel(level, fallback DeleteConfirmLevel) DeleteConfirmLevel {
+	switch level {
+	case DeleteConfirmNone, DeleteConfirmSimple, DeleteConfirmStrong:
+		return level
+	default:
+		return fallback
+	}
+}
+
 func normalizeSettings(settings Settings) Settings {
 	if strings.TrimSpace(settings.Theme) == "" {
 		settings.Theme = "dark"
@@ -238,6 +274,10 @@ func normalizeSettings(settings Settings) Settings {
 	// UI preferences.
 	settings.SearchDebounceMs = clampInt(settings.SearchDebounceMs, 100, 2000)
 	settings.ToastDurationMs = clampInt(settings.ToastDurationMs, 1000, 30000)
+	defaults := DefaultSettings()
+	settings.DeleteConfirmation.Backlog = normalizeDeleteConfirmLevel(settings.DeleteConfirmation.Backlog, defaults.DeleteConfirmation.Backlog)
+	settings.DeleteConfirmation.Initiative = normalizeDeleteConfirmLevel(settings.DeleteConfirmation.Initiative, defaults.DeleteConfirmation.Initiative)
+	settings.DeleteConfirmation.Capture = normalizeDeleteConfirmLevel(settings.DeleteConfirmation.Capture, defaults.DeleteConfirmation.Capture)
 
 	// Review thresholds.
 	settings.ReviewCodeQualityMinScore = clampFloat(settings.ReviewCodeQualityMinScore, 0, 100)
@@ -324,8 +364,16 @@ func applyPatch(current Settings, patch SettingsPatch) Settings {
 	if patch.ToastDurationMs != nil {
 		current.ToastDurationMs = *patch.ToastDurationMs
 	}
-	if patch.ConfirmDestructiveActions != nil {
-		current.ConfirmDestructiveActions = *patch.ConfirmDestructiveActions
+	if patch.DeleteConfirmation != nil {
+		if patch.DeleteConfirmation.Backlog != nil {
+			current.DeleteConfirmation.Backlog = *patch.DeleteConfirmation.Backlog
+		}
+		if patch.DeleteConfirmation.Initiative != nil {
+			current.DeleteConfirmation.Initiative = *patch.DeleteConfirmation.Initiative
+		}
+		if patch.DeleteConfirmation.Capture != nil {
+			current.DeleteConfirmation.Capture = *patch.DeleteConfirmation.Capture
+		}
 	}
 	if patch.ReviewCodeQualityMinScore != nil {
 		current.ReviewCodeQualityMinScore = *patch.ReviewCodeQualityMinScore

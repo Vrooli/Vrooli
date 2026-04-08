@@ -75,7 +75,9 @@ These settings control auto-execution triggers for the workshop refinement syste
 | `toastDurationMs` | 5000 | 2000-10000 | Toast visibility duration |
 | `useSkeletonLoading` | true | boolean | Skeletons vs loading spinners |
 | `enableKeyboardShortcuts` | true | boolean | Enables tab shortcut keys |
-| `confirmDestructiveActions` | true | boolean | Safety confirmation dialogs |
+| `deleteConfirmation.backlog` | "simple" | "none"/"simple"/"strong" | Backlog item delete confirmation level |
+| `deleteConfirmation.initiative` | "strong" | "none"/"simple"/"strong" | Initiative delete confirmation level |
+| `deleteConfirmation.capture` | "none" | "none"/"simple"/"strong" | Capture delete confirmation level |
 
 ### API Configuration
 

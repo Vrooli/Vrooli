@@ -2,8 +2,8 @@
 // @generated from file swarm-manager/v1/domain/settings.proto (package swarm_manager.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
 import type { Message } from "@bufbuild/protobuf";
 
@@ -11,7 +11,36 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/domain/settings.proto.
  */
 export const file_swarm_manager_v1_domain_settings: GenFile = /*@__PURE__*/
-  fileDesc("CiZzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9zZXR0aW5ncy5wcm90bxIQc3dhcm1fbWFuYWdlci52MSKsCQoIU2V0dGluZ3MSKQoFdGhlbWUYASABKAlCGrpIF3IVUgRkYXJrUgVsaWdodFIGc3lzdGVtEikKDGRlZmF1bHRfbW9kZRgFIAEoCUITukgQcg5SBm1hbnVhbFIEeW9sbxISCgphdXRvX2ZpeHVwGAcgASgIEiUKEm1heF9maXh1cF9hdHRlbXB0cxgIIAEoBUIJukgGGgQYBSgAEhwKFHJldmlld19hZ2VudF9lbmFibGVkGB8gASgIEiIKD21heF9hdXRvX3JvdW5kcxgJIAEoBUIJukgGGgQYMigAEiAKGGF1dG9faW5pdGlhbGl6ZV93b3Jrc2hvcBgQIAEoCBIdChVhdXRvX2FkdmFuY2Vfd29ya3Nob3AYESABKAgSHQoVYXV0b19jYXNjYWRlX3dvcmtzaG9wGBIgASgIEi0KGmF1dG9fYWR2YW5jZV9kZWxheV9zZWNvbmRzGCAgASgFQgm6SAYaBBh4KAASIwoPYWdlbnRfbWF4X3R1cm5zGAogASgFQgq6SAcaBRjIASgFEikKFWFnZW50X3RpbWVvdXRfc2Vjb25kcxgLIAEoBUIKukgHGgUYkBwoPBIfChdhZ2VudF9yZXF1aXJlc19hcHByb3ZhbBgMIAEoCBImChJzZWFyY2hfZGVib3VuY2VfbXMYDSABKAVCCrpIBxoFGNAPKGQSJwoRdG9hc3RfZHVyYXRpb25fbXMYDiABKAVCDLpICRoHGLDqASjoBxIjChtjb25maXJtX2Rlc3RydWN0aXZlX2FjdGlvbnMYDyABKAgSPgodcmV2aWV3X2NvZGVfcXVhbGl0eV9taW5fc2NvcmUYEyABKAFCF7pIFBISGQAAAAAAAFlAKQAAAAAAAAAAEjoKGXJldmlld190ZXN0X21pbl9wYXNzX3JhdGUYFCABKAFCF7pIFBISGQAAAAAAAPA/KQAAAAAAAAAAEi8KHnJldmlld19tYXhfYmxvY2tpbmdfdmlvbGF0aW9ucxgVIAEoBUIHukgEGgIoABItChNyZXZpZXdfbWF4X3dhcm5pbmdzGBYgASgFQhC6SA0aCyj///////////8BEiIKGnJldmlld19yZXF1aXJlX3NjcmVlbnNob3RzGBcgASgIEhwKFHJldmlld19yZXF1aXJlX3Rlc3RzGBggASgIEiwKGW1heF9jb25jdXJyZW50X2V4ZWN1dGlvbnMYGSABKAVCCbpIBhoEGBQoARIiCg9tYXhfcXVldWVfZGVwdGgYGiABKAVCCbpIBhoEGGQoABIsChljaXJjdWl0X2JyZWFrZXJfdGhyZXNob2xkGBsgASgFQgm6SAYaBBgKKAESNAogY2lyY3VpdF9icmVha2VyX2Nvb2xkb3duX21pbnV0ZXMYHCABKAVCCrpIBxoFGKALKAUSMgoaZXhlY3V0aW9uX2Nvc3RfY2FwX3Blcl9ydW4YHSABKAFCDrpICxIJKQAAAAAAAAAAEjcKFmNvc3RfcGVyX3R1cm5fZXN0aW1hdGUYHiABKAFCF7pIFBISGQAAAAAAABRAKQAAAAAAAAAASgQIAhADSgQIAxAESgQIBBAFSgQIBhAHQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM", [file_buf_validate_validate]);
+  fileDesc("CiZzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9zZXR0aW5ncy5wcm90bxIQc3dhcm1fbWFuYWdlci52MSLEAQoaRGVsZXRlQ29uZmlybWF0aW9uU2V0dGluZ3MSNQoHYmFja2xvZxgBIAEoDjIkLnN3YXJtX21hbmFnZXIudjEuRGVsZXRlQ29uZmlybUxldmVsEjgKCmluaXRpYXRpdmUYAiABKA4yJC5zd2FybV9tYW5hZ2VyLnYxLkRlbGV0ZUNvbmZpcm1MZXZlbBI1CgdjYXB0dXJlGAMgASgOMiQuc3dhcm1fbWFuYWdlci52MS5EZWxldGVDb25maXJtTGV2ZWwi9QkKCFNldHRpbmdzEikKBXRoZW1lGAEgASgJQhq6SBdyFVIEZGFya1IFbGlnaHRSBnN5c3RlbRIpCgxkZWZhdWx0X21vZGUYBSABKAlCE7pIEHIOUgZtYW51YWxSBHlvbG8SEgoKYXV0b19maXh1cBgHIAEoCBIlChJtYXhfZml4dXBfYXR0ZW1wdHMYCCABKAVCCbpIBhoEGAUoABIcChRyZXZpZXdfYWdlbnRfZW5hYmxlZBgfIAEoCBIiCg9tYXhfYXV0b19yb3VuZHMYCSABKAVCCbpIBhoEGDIoABIgChhhdXRvX2luaXRpYWxpemVfd29ya3Nob3AYECABKAgSHQoVYXV0b19hZHZhbmNlX3dvcmtzaG9wGBEgASgIEh0KFWF1dG9fY2FzY2FkZV93b3Jrc2hvcBgSIAEoCBItChphdXRvX2FkdmFuY2VfZGVsYXlfc2Vjb25kcxggIAEoBUIJukgGGgQYeCgAEiMKD2FnZW50X21heF90dXJucxgKIAEoBUIKukgHGgUYyAEoBRIpChVhZ2VudF90aW1lb3V0X3NlY29uZHMYCyABKAVCCrpIBxoFGJAcKDwSHwoXYWdlbnRfcmVxdWlyZXNfYXBwcm92YWwYDCABKAgSJgoSc2VhcmNoX2RlYm91bmNlX21zGA0gASgFQgq6SAcaBRjQDyhkEicKEXRvYXN0X2R1cmF0aW9uX21zGA4gASgFQgy6SAkaBxiw6gEo6AcSSQoTZGVsZXRlX2NvbmZpcm1hdGlvbhghIAEoCzIsLnN3YXJtX21hbmFnZXIudjEuRGVsZXRlQ29uZmlybWF0aW9uU2V0dGluZ3MSPgodcmV2aWV3X2NvZGVfcXVhbGl0eV9taW5fc2NvcmUYEyABKAFCF7pIFBISGQAAAAAAAFlAKQAAAAAAAAAAEjoKGXJldmlld190ZXN0X21pbl9wYXNzX3JhdGUYFCABKAFCF7pIFBISGQAAAAAAAPA/KQAAAAAAAAAAEi8KHnJldmlld19tYXhfYmxvY2tpbmdfdmlvbGF0aW9ucxgVIAEoBUIHukgEGgIoABItChNyZXZpZXdfbWF4X3dhcm5pbmdzGBYgASgFQhC6SA0aCyj///////////8BEiIKGnJldmlld19yZXF1aXJlX3NjcmVlbnNob3RzGBcgASgIEhwKFHJldmlld19yZXF1aXJlX3Rlc3RzGBggASgIEiwKGW1heF9jb25jdXJyZW50X2V4ZWN1dGlvbnMYGSABKAVCCbpIBhoEGBQoARIiCg9tYXhfcXVldWVfZGVwdGgYGiABKAVCCbpIBhoEGGQoABIsChljaXJjdWl0X2JyZWFrZXJfdGhyZXNob2xkGBsgASgFQgm6SAYaBBgKKAESNAogY2lyY3VpdF9icmVha2VyX2Nvb2xkb3duX21pbnV0ZXMYHCABKAVCCrpIBxoFGKALKAUSMgoaZXhlY3V0aW9uX2Nvc3RfY2FwX3Blcl9ydW4YHSABKAFCDrpICxIJKQAAAAAAAAAAEjcKFmNvc3RfcGVyX3R1cm5fZXN0aW1hdGUYHiABKAFCF7pIFBISGQAAAAAAABRAKQAAAAAAAAAASgQIAhADSgQIAxAESgQIBBAFSgQIBhAHSgQIDxAQUhtjb25maXJtX2Rlc3RydWN0aXZlX2FjdGlvbnMqdQoSRGVsZXRlQ29uZmlybUxldmVsEh8KG0RFTEVURV9DT05GSVJNX0xFVkVMX1NJTVBMRRAAEh0KGURFTEVURV9DT05GSVJNX0xFVkVMX05PTkUQARIfChtERUxFVEVfQ09ORklSTV9MRVZFTF9TVFJPTkcQAkJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvZG9tYWluO2RvbWFpbmIGcHJvdG8z", [file_buf_validate_validate]);
+
+/**
+ * Per-entity-type delete confirmation settings.
+ *
+ * @generated from message swarm_manager.v1.DeleteConfirmationSettings
+ */
+export type DeleteConfirmationSettings = Message<"swarm_manager.v1.DeleteConfirmationSettings"> & {
+  /**
+   * @generated from field: swarm_manager.v1.DeleteConfirmLevel backlog = 1;
+   */
+  backlog: DeleteConfirmLevel;
+
+  /**
+   * @generated from field: swarm_manager.v1.DeleteConfirmLevel initiative = 2;
+   */
+  initiative: DeleteConfirmLevel;
+
+  /**
+   * @generated from field: swarm_manager.v1.DeleteConfirmLevel capture = 3;
+   */
+  capture: DeleteConfirmLevel;
+};
+
+/**
+ * Describes the message swarm_manager.v1.DeleteConfirmationSettings.
+ * Use `create(DeleteConfirmationSettingsSchema)` to create a new message.
+ */
+export const DeleteConfirmationSettingsSchema: GenMessage<DeleteConfirmationSettings> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_domain_settings, 0);
 
 /**
  * Settings captures persisted configuration for Swarm Manager.
@@ -107,9 +136,11 @@ export type Settings = Message<"swarm_manager.v1.Settings"> & {
   toastDurationMs: number;
 
   /**
-   * @generated from field: bool confirm_destructive_actions = 15;
+   * Per-entity-type delete confirmation levels.
+   *
+   * @generated from field: swarm_manager.v1.DeleteConfirmationSettings delete_confirmation = 33;
    */
-  confirmDestructiveActions: boolean;
+  deleteConfirmation?: DeleteConfirmationSettings;
 
   /**
    * Review thresholds.
@@ -181,5 +212,39 @@ export type Settings = Message<"swarm_manager.v1.Settings"> & {
  * Use `create(SettingsSchema)` to create a new message.
  */
 export const SettingsSchema: GenMessage<Settings> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_settings, 0);
+  messageDesc(file_swarm_manager_v1_domain_settings, 1);
+
+/**
+ * Confirmation level for delete operations.
+ *
+ * @generated from enum swarm_manager.v1.DeleteConfirmLevel
+ */
+export enum DeleteConfirmLevel {
+  /**
+   * Simple OK/Cancel dialog (proto3 zero-value default).
+   *
+   * @generated from enum value: DELETE_CONFIRM_LEVEL_SIMPLE = 0;
+   */
+  SIMPLE = 0,
+
+  /**
+   * No confirmation — delete immediately on click.
+   *
+   * @generated from enum value: DELETE_CONFIRM_LEVEL_NONE = 1;
+   */
+  NONE = 1,
+
+  /**
+   * Strong confirmation — user must type the entity name.
+   *
+   * @generated from enum value: DELETE_CONFIRM_LEVEL_STRONG = 2;
+   */
+  STRONG = 2,
+}
+
+/**
+ * Describes the enum swarm_manager.v1.DeleteConfirmLevel.
+ */
+export const DeleteConfirmLevelSchema: GenEnum<DeleteConfirmLevel> = /*@__PURE__*/
+  enumDesc(file_swarm_manager_v1_domain_settings, 0);
 

@@ -22,6 +22,120 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Confirmation level for delete operations.
+type DeleteConfirmLevel int32
+
+const (
+	// Simple OK/Cancel dialog (proto3 zero-value default).
+	DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_SIMPLE DeleteConfirmLevel = 0
+	// No confirmation — delete immediately on click.
+	DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_NONE DeleteConfirmLevel = 1
+	// Strong confirmation — user must type the entity name.
+	DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_STRONG DeleteConfirmLevel = 2
+)
+
+// Enum value maps for DeleteConfirmLevel.
+var (
+	DeleteConfirmLevel_name = map[int32]string{
+		0: "DELETE_CONFIRM_LEVEL_SIMPLE",
+		1: "DELETE_CONFIRM_LEVEL_NONE",
+		2: "DELETE_CONFIRM_LEVEL_STRONG",
+	}
+	DeleteConfirmLevel_value = map[string]int32{
+		"DELETE_CONFIRM_LEVEL_SIMPLE": 0,
+		"DELETE_CONFIRM_LEVEL_NONE":   1,
+		"DELETE_CONFIRM_LEVEL_STRONG": 2,
+	}
+)
+
+func (x DeleteConfirmLevel) Enum() *DeleteConfirmLevel {
+	p := new(DeleteConfirmLevel)
+	*p = x
+	return p
+}
+
+func (x DeleteConfirmLevel) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (DeleteConfirmLevel) Descriptor() protoreflect.EnumDescriptor {
+	return file_swarm_manager_v1_domain_settings_proto_enumTypes[0].Descriptor()
+}
+
+func (DeleteConfirmLevel) Type() protoreflect.EnumType {
+	return &file_swarm_manager_v1_domain_settings_proto_enumTypes[0]
+}
+
+func (x DeleteConfirmLevel) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use DeleteConfirmLevel.Descriptor instead.
+func (DeleteConfirmLevel) EnumDescriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_settings_proto_rawDescGZIP(), []int{0}
+}
+
+// Per-entity-type delete confirmation settings.
+type DeleteConfirmationSettings struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Backlog       DeleteConfirmLevel     `protobuf:"varint,1,opt,name=backlog,proto3,enum=swarm_manager.v1.DeleteConfirmLevel" json:"backlog,omitempty"`
+	Initiative    DeleteConfirmLevel     `protobuf:"varint,2,opt,name=initiative,proto3,enum=swarm_manager.v1.DeleteConfirmLevel" json:"initiative,omitempty"`
+	Capture       DeleteConfirmLevel     `protobuf:"varint,3,opt,name=capture,proto3,enum=swarm_manager.v1.DeleteConfirmLevel" json:"capture,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteConfirmationSettings) Reset() {
+	*x = DeleteConfirmationSettings{}
+	mi := &file_swarm_manager_v1_domain_settings_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteConfirmationSettings) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteConfirmationSettings) ProtoMessage() {}
+
+func (x *DeleteConfirmationSettings) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_domain_settings_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteConfirmationSettings.ProtoReflect.Descriptor instead.
+func (*DeleteConfirmationSettings) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_settings_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *DeleteConfirmationSettings) GetBacklog() DeleteConfirmLevel {
+	if x != nil {
+		return x.Backlog
+	}
+	return DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_SIMPLE
+}
+
+func (x *DeleteConfirmationSettings) GetInitiative() DeleteConfirmLevel {
+	if x != nil {
+		return x.Initiative
+	}
+	return DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_SIMPLE
+}
+
+func (x *DeleteConfirmationSettings) GetCapture() DeleteConfirmLevel {
+	if x != nil {
+		return x.Capture
+	}
+	return DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_SIMPLE
+}
+
 // Settings captures persisted configuration for Swarm Manager.
 type Settings struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -44,9 +158,10 @@ type Settings struct {
 	AgentTimeoutSeconds   int32 `protobuf:"varint,11,opt,name=agent_timeout_seconds,json=agentTimeoutSeconds,proto3" json:"agent_timeout_seconds,omitempty"`
 	AgentRequiresApproval bool  `protobuf:"varint,12,opt,name=agent_requires_approval,json=agentRequiresApproval,proto3" json:"agent_requires_approval,omitempty"`
 	// UI preference settings.
-	SearchDebounceMs          int32 `protobuf:"varint,13,opt,name=search_debounce_ms,json=searchDebounceMs,proto3" json:"search_debounce_ms,omitempty"`
-	ToastDurationMs           int32 `protobuf:"varint,14,opt,name=toast_duration_ms,json=toastDurationMs,proto3" json:"toast_duration_ms,omitempty"`
-	ConfirmDestructiveActions bool  `protobuf:"varint,15,opt,name=confirm_destructive_actions,json=confirmDestructiveActions,proto3" json:"confirm_destructive_actions,omitempty"`
+	SearchDebounceMs int32 `protobuf:"varint,13,opt,name=search_debounce_ms,json=searchDebounceMs,proto3" json:"search_debounce_ms,omitempty"`
+	ToastDurationMs  int32 `protobuf:"varint,14,opt,name=toast_duration_ms,json=toastDurationMs,proto3" json:"toast_duration_ms,omitempty"`
+	// Per-entity-type delete confirmation levels.
+	DeleteConfirmation *DeleteConfirmationSettings `protobuf:"bytes,33,opt,name=delete_confirmation,json=deleteConfirmation,proto3" json:"delete_confirmation,omitempty"`
 	// Review thresholds.
 	ReviewCodeQualityMinScore   float64 `protobuf:"fixed64,19,opt,name=review_code_quality_min_score,json=reviewCodeQualityMinScore,proto3" json:"review_code_quality_min_score,omitempty"`
 	ReviewTestMinPassRate       float64 `protobuf:"fixed64,20,opt,name=review_test_min_pass_rate,json=reviewTestMinPassRate,proto3" json:"review_test_min_pass_rate,omitempty"`
@@ -67,7 +182,7 @@ type Settings struct {
 
 func (x *Settings) Reset() {
 	*x = Settings{}
-	mi := &file_swarm_manager_v1_domain_settings_proto_msgTypes[0]
+	mi := &file_swarm_manager_v1_domain_settings_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -79,7 +194,7 @@ func (x *Settings) String() string {
 func (*Settings) ProtoMessage() {}
 
 func (x *Settings) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_settings_proto_msgTypes[0]
+	mi := &file_swarm_manager_v1_domain_settings_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -92,7 +207,7 @@ func (x *Settings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Settings.ProtoReflect.Descriptor instead.
 func (*Settings) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_settings_proto_rawDescGZIP(), []int{0}
+	return file_swarm_manager_v1_domain_settings_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Settings) GetTheme() string {
@@ -200,11 +315,11 @@ func (x *Settings) GetToastDurationMs() int32 {
 	return 0
 }
 
-func (x *Settings) GetConfirmDestructiveActions() bool {
+func (x *Settings) GetDeleteConfirmation() *DeleteConfirmationSettings {
 	if x != nil {
-		return x.ConfirmDestructiveActions
+		return x.DeleteConfirmation
 	}
-	return false
+	return nil
 }
 
 func (x *Settings) GetReviewCodeQualityMinScore() float64 {
@@ -295,7 +410,13 @@ var File_swarm_manager_v1_domain_settings_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\n" +
-	"&swarm-manager/v1/domain/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xf1\r\n" +
+	"&swarm-manager/v1/domain/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xe2\x01\n" +
+	"\x1aDeleteConfirmationSettings\x12>\n" +
+	"\abacklog\x18\x01 \x01(\x0e2$.swarm_manager.v1.DeleteConfirmLevelR\abacklog\x12D\n" +
+	"\n" +
+	"initiative\x18\x02 \x01(\x0e2$.swarm_manager.v1.DeleteConfirmLevelR\n" +
+	"initiative\x12>\n" +
+	"\acapture\x18\x03 \x01(\x0e2$.swarm_manager.v1.DeleteConfirmLevelR\acapture\"\xb3\x0e\n" +
 	"\bSettings\x120\n" +
 	"\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04darkR\x05lightR\x06systemR\x05theme\x126\n" +
 	"\fdefault_mode\x18\x05 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\vdefaultMode\x12\x1d\n" +
@@ -316,8 +437,8 @@ const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\x17agent_requires_approval\x18\f \x01(\bR\x15agentRequiresApproval\x128\n" +
 	"\x12search_debounce_ms\x18\r \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xd0\x0f(dR\x10searchDebounceMs\x128\n" +
-	"\x11toast_duration_ms\x18\x0e \x01(\x05B\f\xbaH\t\x1a\a\x18\xb0\xea\x01(\xe8\aR\x0ftoastDurationMs\x12>\n" +
-	"\x1bconfirm_destructive_actions\x18\x0f \x01(\bR\x19confirmDestructiveActions\x12Y\n" +
+	"\x11toast_duration_ms\x18\x0e \x01(\x05B\f\xbaH\t\x1a\a\x18\xb0\xea\x01(\xe8\aR\x0ftoastDurationMs\x12]\n" +
+	"\x13delete_confirmation\x18! \x01(\v2,.swarm_manager.v1.DeleteConfirmationSettingsR\x12deleteConfirmation\x12Y\n" +
 	"\x1dreview_code_quality_min_score\x18\x13 \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00Y@)\x00\x00\x00\x00\x00\x00\x00\x00R\x19reviewCodeQualityMinScore\x12Q\n" +
 	"\x19review_test_min_pass_rate\x18\x14 \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\xf0?)\x00\x00\x00\x00\x00\x00\x00\x00R\x15reviewTestMinPassRate\x12L\n" +
 	"\x1ereview_max_blocking_violations\x18\x15 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x1breviewMaxBlockingViolations\x12@\n" +
@@ -331,7 +452,11 @@ const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	" circuit_breaker_cooldown_minutes\x18\x1c \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xa0\v(\x05R\x1dcircuitBreakerCooldownMinutes\x12J\n" +
 	"\x1aexecution_cost_cap_per_run\x18\x1d \x01(\x01B\x0e\xbaH\v\x12\t)\x00\x00\x00\x00\x00\x00\x00\x00R\x16executionCostCapPerRun\x12L\n" +
-	"\x16cost_per_turn_estimate\x18\x1e \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\x14@)\x00\x00\x00\x00\x00\x00\x00\x00R\x13costPerTurnEstimateJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
+	"\x16cost_per_turn_estimate\x18\x1e \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\x14@)\x00\x00\x00\x00\x00\x00\x00\x00R\x13costPerTurnEstimateJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\x0f\x10\x10R\x1bconfirm_destructive_actions*u\n" +
+	"\x12DeleteConfirmLevel\x12\x1f\n" +
+	"\x1bDELETE_CONFIRM_LEVEL_SIMPLE\x10\x00\x12\x1d\n" +
+	"\x19DELETE_CONFIRM_LEVEL_NONE\x10\x01\x12\x1f\n" +
+	"\x1bDELETE_CONFIRM_LEVEL_STRONG\x10\x02BOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
 
 var (
 	file_swarm_manager_v1_domain_settings_proto_rawDescOnce sync.Once
@@ -345,16 +470,23 @@ func file_swarm_manager_v1_domain_settings_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_domain_settings_proto_rawDescData
 }
 
-var file_swarm_manager_v1_domain_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_swarm_manager_v1_domain_settings_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_swarm_manager_v1_domain_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_swarm_manager_v1_domain_settings_proto_goTypes = []any{
-	(*Settings)(nil), // 0: swarm_manager.v1.Settings
+	(DeleteConfirmLevel)(0),            // 0: swarm_manager.v1.DeleteConfirmLevel
+	(*DeleteConfirmationSettings)(nil), // 1: swarm_manager.v1.DeleteConfirmationSettings
+	(*Settings)(nil),                   // 2: swarm_manager.v1.Settings
 }
 var file_swarm_manager_v1_domain_settings_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0, // 0: swarm_manager.v1.DeleteConfirmationSettings.backlog:type_name -> swarm_manager.v1.DeleteConfirmLevel
+	0, // 1: swarm_manager.v1.DeleteConfirmationSettings.initiative:type_name -> swarm_manager.v1.DeleteConfirmLevel
+	0, // 2: swarm_manager.v1.DeleteConfirmationSettings.capture:type_name -> swarm_manager.v1.DeleteConfirmLevel
+	1, // 3: swarm_manager.v1.Settings.delete_confirmation:type_name -> swarm_manager.v1.DeleteConfirmationSettings
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_domain_settings_proto_init() }
@@ -367,13 +499,14 @@ func file_swarm_manager_v1_domain_settings_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_domain_settings_proto_rawDesc), len(file_swarm_manager_v1_domain_settings_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   1,
+			NumEnums:      1,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_swarm_manager_v1_domain_settings_proto_goTypes,
 		DependencyIndexes: file_swarm_manager_v1_domain_settings_proto_depIdxs,
+		EnumInfos:         file_swarm_manager_v1_domain_settings_proto_enumTypes,
 		MessageInfos:      file_swarm_manager_v1_domain_settings_proto_msgTypes,
 	}.Build()
 	File_swarm_manager_v1_domain_settings_proto = out.File

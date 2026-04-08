@@ -4411,5 +4411,92 @@
       "round_number": "001"
     },
     "updated_at": "2026-04-08T04:03:14Z"
+  },
+  {
+    "activity_id": "ba098e8dec95cdbb",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "secrets-manager-pii-detection-design",
+    "owner_title": "Design PII detection system for Secrets Manager",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "8ac80a0d-8985-4112-ba61-6fc425bcef3c",
+    "run_id": "c2faf73c-3ead-47e3-94d9-900382b33921",
+    "status": "complete",
+    "requested_at": "2026-04-08T15:38:11Z",
+    "started_at": "2026-04-08T15:38:11Z",
+    "finished_at": "2026-04-08T15:42:22Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop-research"
+    },
+    "updated_at": "2026-04-08T15:46:07Z"
+  },
+  {
+    "activity_id": "7d0df44afadfe901",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "qa-git-control-tower-code-quality-20260408",
+    "owner_title": "Reduce code quality violations in git-control-tower",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "8529bbe3-0892-4838-b7fb-c1432036049a",
+    "run_id": "c61c8587-75a7-4987-9f3b-98ac3d5fe90f",
+    "status": "complete",
+    "requested_at": "2026-04-08T15:38:28Z",
+    "started_at": "2026-04-08T15:38:29Z",
+    "finished_at": "2026-04-08T15:42:00Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-08T15:46:07Z"
+  },
+  {
+    "activity_id": "cf7ba12ab898d4eb",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "qa-swarm-manager-code-quality-20260408",
+    "owner_title": "Reduce code quality violations in swarm-manager",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "2c41c293-1235-406b-ad12-be50dea9a784",
+    "run_id": "6eb01f70-7653-4b81-a841-4f6729393eb6",
+    "status": "complete",
+    "requested_at": "2026-04-08T15:38:30Z",
+    "started_at": "2026-04-08T15:38:30Z",
+    "finished_at": "2026-04-08T15:41:54Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-08T15:46:07Z"
+  },
+  {
+    "activity_id": "7958feba07514860",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "secrets-manager-pii-detection-design",
+    "owner_title": "Design PII detection system for Secrets Manager",
+    "purpose": "finalize",
+    "interaction_type": "spawn",
+    "task_id": "619dc85b-6c0c-4fea-838f-13fa353c9e13",
+    "run_id": "0e260c12-a2a4-4037-85f5-6ede649c2025",
+    "status": "running",
+    "requested_at": "2026-04-08T15:47:24Z",
+    "started_at": "2026-04-08T15:47:24Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "finalize",
+      "skill_id": "swarm-manager-workshop-research-finalize"
+    },
+    "updated_at": "2026-04-08T15:47:24Z"
   }
 ]

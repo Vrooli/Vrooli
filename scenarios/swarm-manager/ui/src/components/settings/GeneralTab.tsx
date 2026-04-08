@@ -62,7 +62,6 @@ export function GeneralTab({ form, patch, onThemeChange }: GeneralTabProps) {
           <button className="text-xs text-slate-500 hover:text-slate-300" onClick={() => patch({
             searchDebounceMs: DEFAULT_SETTINGS.searchDebounceMs,
             toastDurationMs: DEFAULT_SETTINGS.toastDurationMs,
-            confirmDestructiveActions: DEFAULT_SETTINGS.confirmDestructiveActions,
           })}>Reset</button>
         </div>
         <div className="mt-4 space-y-4">
@@ -90,18 +89,40 @@ export function GeneralTab({ form, patch, onThemeChange }: GeneralTabProps) {
               onChange={(e) => patch({ toastDurationMs: Math.max(1000, Math.min(30000, Number(e.target.value || 1) * 1000)) })}
             />
           </div>
-          <div className="border-t border-white/5 pt-4">
-            <label className="block text-sm font-medium text-slate-300">Confirm Destructive Actions</label>
-            <p className="mt-1 text-xs text-slate-400">Show confirmation dialogs before irreversible operations.</p>
-            <ToggleButtons
-              value={form.confirmDestructiveActions}
-              options={[
-                { value: false as const, label: "Disabled" },
-                { value: true as const, label: "Enabled" },
-              ]}
-              onChange={(v) => patch({ confirmDestructiveActions: v })}
-            />
+        </div>
+      </Card>
+
+      {/* Delete Confirmation */}
+      <Card>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-medium text-slate-200">Delete Confirmation</h3>
+            <p className="mt-1 text-sm text-slate-400">Choose the confirmation level when deleting each entity type.</p>
           </div>
+          <button className="text-xs text-slate-500 hover:text-slate-300" onClick={() => patch({
+            deleteConfirmation: DEFAULT_SETTINGS.deleteConfirmation,
+          })}>Reset</button>
+        </div>
+        <div className="mt-4 space-y-4">
+          {([
+            { key: "backlog" as const, label: "Backlog Items", description: "Ideas, fixes, research, execute, and chore items" },
+            { key: "initiative" as const, label: "Initiatives", description: "Initiative groupings and their metadata" },
+            { key: "capture" as const, label: "Captures", description: "Captured notes and observations" },
+          ] as const).map(({ key, label, description }) => (
+            <div key={key} className="border-t border-white/5 pt-4 first:border-t-0 first:pt-0">
+              <label className="block text-sm font-medium text-slate-300">{label}</label>
+              <p className="mt-1 text-xs text-slate-400">{description}</p>
+              <ToggleButtons
+                value={form.deleteConfirmation[key]}
+                options={[
+                  { value: "none" as const, label: "None" },
+                  { value: "simple" as const, label: "Simple" },
+                  { value: "strong" as const, label: "Strong" },
+                ]}
+                onChange={(v) => patch({ deleteConfirmation: { ...form.deleteConfirmation, [key]: v } })}
+              />
+            </div>
+          ))}
         </div>
       </Card>
     </div>

@@ -88,9 +88,10 @@ type UpdateSettingsRequest struct {
 	AgentTimeoutSeconds   *int32 `protobuf:"varint,11,opt,name=agent_timeout_seconds,json=agentTimeoutSeconds,proto3,oneof" json:"agent_timeout_seconds,omitempty"`
 	AgentRequiresApproval *bool  `protobuf:"varint,12,opt,name=agent_requires_approval,json=agentRequiresApproval,proto3,oneof" json:"agent_requires_approval,omitempty"`
 	// UI preference settings.
-	SearchDebounceMs          *int32 `protobuf:"varint,13,opt,name=search_debounce_ms,json=searchDebounceMs,proto3,oneof" json:"search_debounce_ms,omitempty"`
-	ToastDurationMs           *int32 `protobuf:"varint,14,opt,name=toast_duration_ms,json=toastDurationMs,proto3,oneof" json:"toast_duration_ms,omitempty"`
-	ConfirmDestructiveActions *bool  `protobuf:"varint,15,opt,name=confirm_destructive_actions,json=confirmDestructiveActions,proto3,oneof" json:"confirm_destructive_actions,omitempty"`
+	SearchDebounceMs *int32 `protobuf:"varint,13,opt,name=search_debounce_ms,json=searchDebounceMs,proto3,oneof" json:"search_debounce_ms,omitempty"`
+	ToastDurationMs  *int32 `protobuf:"varint,14,opt,name=toast_duration_ms,json=toastDurationMs,proto3,oneof" json:"toast_duration_ms,omitempty"`
+	// Per-entity-type delete confirmation levels.
+	DeleteConfirmation *domain.DeleteConfirmationSettings `protobuf:"bytes,33,opt,name=delete_confirmation,json=deleteConfirmation,proto3" json:"delete_confirmation,omitempty"`
 	// Review thresholds.
 	ReviewCodeQualityMinScore   *float64 `protobuf:"fixed64,19,opt,name=review_code_quality_min_score,json=reviewCodeQualityMinScore,proto3,oneof" json:"review_code_quality_min_score,omitempty"`
 	ReviewTestMinPassRate       *float64 `protobuf:"fixed64,20,opt,name=review_test_min_pass_rate,json=reviewTestMinPassRate,proto3,oneof" json:"review_test_min_pass_rate,omitempty"`
@@ -237,11 +238,11 @@ func (x *UpdateSettingsRequest) GetToastDurationMs() int32 {
 	return 0
 }
 
-func (x *UpdateSettingsRequest) GetConfirmDestructiveActions() bool {
-	if x != nil && x.ConfirmDestructiveActions != nil {
-		return *x.ConfirmDestructiveActions
+func (x *UpdateSettingsRequest) GetDeleteConfirmation() *domain.DeleteConfirmationSettings {
+	if x != nil {
+		return x.DeleteConfirmation
 	}
-	return false
+	return nil
 }
 
 func (x *UpdateSettingsRequest) GetReviewCodeQualityMinScore() float64 {
@@ -334,7 +335,7 @@ const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	"\n" +
 	"#swarm-manager/v1/api/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a&swarm-manager/v1/domain/settings.proto\"J\n" +
 	"\x10SettingsResponse\x126\n" +
-	"\bsettings\x18\x01 \x01(\v2\x1a.swarm_manager.v1.SettingsR\bsettings\"\x8e\x12\n" +
+	"\bsettings\x18\x01 \x01(\v2\x1a.swarm_manager.v1.SettingsR\bsettings\"\xab\x12\n" +
 	"\x15UpdateSettingsRequest\x127\n" +
 	"\x05theme\x18\x01 \x01(\tB\x1c\xbaH\x19r\x17R\x00R\x04darkR\x05lightR\x06systemH\x00R\x05theme\x88\x01\x01\x12=\n" +
 	"\fdefault_mode\x18\x05 \x01(\tB\x15\xbaH\x12r\x10R\x00R\x06manualR\x04yoloH\x01R\vdefaultMode\x88\x01\x01\x12\"\n" +
@@ -352,20 +353,20 @@ const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	"R\x13agentTimeoutSeconds\x88\x01\x01\x12;\n" +
 	"\x17agent_requires_approval\x18\f \x01(\bH\vR\x15agentRequiresApproval\x88\x01\x01\x121\n" +
 	"\x12search_debounce_ms\x18\r \x01(\x05H\fR\x10searchDebounceMs\x88\x01\x01\x12/\n" +
-	"\x11toast_duration_ms\x18\x0e \x01(\x05H\rR\x0ftoastDurationMs\x88\x01\x01\x12C\n" +
-	"\x1bconfirm_destructive_actions\x18\x0f \x01(\bH\x0eR\x19confirmDestructiveActions\x88\x01\x01\x12E\n" +
-	"\x1dreview_code_quality_min_score\x18\x13 \x01(\x01H\x0fR\x19reviewCodeQualityMinScore\x88\x01\x01\x12=\n" +
-	"\x19review_test_min_pass_rate\x18\x14 \x01(\x01H\x10R\x15reviewTestMinPassRate\x88\x01\x01\x12H\n" +
-	"\x1ereview_max_blocking_violations\x18\x15 \x01(\x05H\x11R\x1breviewMaxBlockingViolations\x88\x01\x01\x123\n" +
-	"\x13review_max_warnings\x18\x16 \x01(\x05H\x12R\x11reviewMaxWarnings\x88\x01\x01\x12A\n" +
-	"\x1areview_require_screenshots\x18\x17 \x01(\bH\x13R\x18reviewRequireScreenshots\x88\x01\x01\x125\n" +
-	"\x14review_require_tests\x18\x18 \x01(\bH\x14R\x12reviewRequireTests\x88\x01\x01\x12?\n" +
-	"\x19max_concurrent_executions\x18\x19 \x01(\x05H\x15R\x17maxConcurrentExecutions\x88\x01\x01\x12+\n" +
-	"\x0fmax_queue_depth\x18\x1a \x01(\x05H\x16R\rmaxQueueDepth\x88\x01\x01\x12?\n" +
-	"\x19circuit_breaker_threshold\x18\x1b \x01(\x05H\x17R\x17circuitBreakerThreshold\x88\x01\x01\x12L\n" +
-	" circuit_breaker_cooldown_minutes\x18\x1c \x01(\x05H\x18R\x1dcircuitBreakerCooldownMinutes\x88\x01\x01\x12?\n" +
-	"\x1aexecution_cost_cap_per_run\x18\x1d \x01(\x01H\x19R\x16executionCostCapPerRun\x88\x01\x01\x128\n" +
-	"\x16cost_per_turn_estimate\x18\x1e \x01(\x01H\x1aR\x13costPerTurnEstimate\x88\x01\x01B\b\n" +
+	"\x11toast_duration_ms\x18\x0e \x01(\x05H\rR\x0ftoastDurationMs\x88\x01\x01\x12]\n" +
+	"\x13delete_confirmation\x18! \x01(\v2,.swarm_manager.v1.DeleteConfirmationSettingsR\x12deleteConfirmation\x12E\n" +
+	"\x1dreview_code_quality_min_score\x18\x13 \x01(\x01H\x0eR\x19reviewCodeQualityMinScore\x88\x01\x01\x12=\n" +
+	"\x19review_test_min_pass_rate\x18\x14 \x01(\x01H\x0fR\x15reviewTestMinPassRate\x88\x01\x01\x12H\n" +
+	"\x1ereview_max_blocking_violations\x18\x15 \x01(\x05H\x10R\x1breviewMaxBlockingViolations\x88\x01\x01\x123\n" +
+	"\x13review_max_warnings\x18\x16 \x01(\x05H\x11R\x11reviewMaxWarnings\x88\x01\x01\x12A\n" +
+	"\x1areview_require_screenshots\x18\x17 \x01(\bH\x12R\x18reviewRequireScreenshots\x88\x01\x01\x125\n" +
+	"\x14review_require_tests\x18\x18 \x01(\bH\x13R\x12reviewRequireTests\x88\x01\x01\x12?\n" +
+	"\x19max_concurrent_executions\x18\x19 \x01(\x05H\x14R\x17maxConcurrentExecutions\x88\x01\x01\x12+\n" +
+	"\x0fmax_queue_depth\x18\x1a \x01(\x05H\x15R\rmaxQueueDepth\x88\x01\x01\x12?\n" +
+	"\x19circuit_breaker_threshold\x18\x1b \x01(\x05H\x16R\x17circuitBreakerThreshold\x88\x01\x01\x12L\n" +
+	" circuit_breaker_cooldown_minutes\x18\x1c \x01(\x05H\x17R\x1dcircuitBreakerCooldownMinutes\x88\x01\x01\x12?\n" +
+	"\x1aexecution_cost_cap_per_run\x18\x1d \x01(\x01H\x18R\x16executionCostCapPerRun\x88\x01\x01\x128\n" +
+	"\x16cost_per_turn_estimate\x18\x1e \x01(\x01H\x19R\x13costPerTurnEstimate\x88\x01\x01B\b\n" +
 	"\x06_themeB\x0f\n" +
 	"\r_default_modeB\r\n" +
 	"\v_auto_fixupB\x15\n" +
@@ -379,8 +380,7 @@ const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	"\x16_agent_timeout_secondsB\x1a\n" +
 	"\x18_agent_requires_approvalB\x15\n" +
 	"\x13_search_debounce_msB\x14\n" +
-	"\x12_toast_duration_msB\x1e\n" +
-	"\x1c_confirm_destructive_actionsB \n" +
+	"\x12_toast_duration_msB \n" +
 	"\x1e_review_code_quality_min_scoreB\x1c\n" +
 	"\x1a_review_test_min_pass_rateB!\n" +
 	"\x1f_review_max_blocking_violationsB\x16\n" +
@@ -392,7 +392,7 @@ const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	"\x1a_circuit_breaker_thresholdB#\n" +
 	"!_circuit_breaker_cooldown_minutesB\x1d\n" +
 	"\x1b_execution_cost_cap_per_runB\x19\n" +
-	"\x17_cost_per_turn_estimateJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
+	"\x17_cost_per_turn_estimateJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\x0f\x10\x10R\x1bconfirm_destructive_actionsBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
 var (
 	file_swarm_manager_v1_api_settings_proto_rawDescOnce sync.Once
@@ -408,17 +408,19 @@ func file_swarm_manager_v1_api_settings_proto_rawDescGZIP() []byte {
 
 var file_swarm_manager_v1_api_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_swarm_manager_v1_api_settings_proto_goTypes = []any{
-	(*SettingsResponse)(nil),      // 0: swarm_manager.v1.SettingsResponse
-	(*UpdateSettingsRequest)(nil), // 1: swarm_manager.v1.UpdateSettingsRequest
-	(*domain.Settings)(nil),       // 2: swarm_manager.v1.Settings
+	(*SettingsResponse)(nil),                  // 0: swarm_manager.v1.SettingsResponse
+	(*UpdateSettingsRequest)(nil),             // 1: swarm_manager.v1.UpdateSettingsRequest
+	(*domain.Settings)(nil),                   // 2: swarm_manager.v1.Settings
+	(*domain.DeleteConfirmationSettings)(nil), // 3: swarm_manager.v1.DeleteConfirmationSettings
 }
 var file_swarm_manager_v1_api_settings_proto_depIdxs = []int32{
 	2, // 0: swarm_manager.v1.SettingsResponse.settings:type_name -> swarm_manager.v1.Settings
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	3, // 1: swarm_manager.v1.UpdateSettingsRequest.delete_confirmation:type_name -> swarm_manager.v1.DeleteConfirmationSettings
+	2, // [2:2] is the sub-list for method output_type
+	2, // [2:2] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_api_settings_proto_init() }

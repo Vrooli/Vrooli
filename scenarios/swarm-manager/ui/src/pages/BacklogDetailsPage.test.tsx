@@ -40,6 +40,10 @@ vi.mock("../config", () => ({
     requestTimeoutMs: 30000,
     apiVersion: "v1",
   },
+  uiBehaviorConfig: {
+    searchDebounceMs: 300,
+    toastDurationMs: 5000,
+  },
 }));
 
 // Mock useStorePolling to prevent real setInterval timers from firing in tests.

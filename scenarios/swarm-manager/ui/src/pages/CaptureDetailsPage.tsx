@@ -12,6 +12,7 @@ import { Loader2, RefreshCw, Trash2, MessageSquare } from "lucide-react";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { CaptureTriage } from "../components/capture/capture-triage";
+import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { Button } from "../components/ui/button";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
@@ -20,6 +21,7 @@ import { NoteEditor } from "../components/ui/note-editor";
 import { useCaptureStore } from "../stores/capture-store";
 import { useDetailSelectionStore } from "../stores/detail-selection-store";
 import { useDetailNavigation } from "../hooks/useDetailNavigation";
+import { useRuntimeConfig } from "../hooks/useRuntimeConfig";
 import { formatRelativeTime } from "../lib";
 import type { Capture } from "../types";
 import type { BacklogFormValues } from "../types";
@@ -52,6 +54,10 @@ export function CaptureDetailsPage() {
   const updateCapture = useCaptureStore((s) => s.updateCapture);
   const upsertBacklogItem = useBacklogStore((s) => s.upsertItem);
 
+  // Delete confirmation state
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const { getDeleteConfirmLevel } = useRuntimeConfig();
+
   // Edit dialog state
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editPrefill, setEditPrefill] = useState<BacklogFormValues | undefined>();
@@ -74,9 +80,10 @@ export function CaptureDetailsPage() {
     }
   }, [captureId, updateCapture]);
 
-  const handleDelete = useCallback(async () => {
+  const performDelete = useCallback(async () => {
     if (!captureId) return;
     setIsDeleting(true);
+    setShowDeleteDialog(false);
     try {
       await captureService.remove(captureId);
       removeCapture(captureId);
@@ -85,6 +92,14 @@ export function CaptureDetailsPage() {
       setIsDeleting(false);
     }
   }, [captureId, removeCapture, closeDetail]);
+
+  const handleDeleteClick = useCallback(() => {
+    if (getDeleteConfirmLevel("capture") === "none") {
+      performDelete();
+    } else {
+      setShowDeleteDialog(true);
+    }
+  }, [getDeleteConfirmLevel, performDelete]);
 
   const handleEditItem = useCallback((prefill: BacklogFormValues) => {
     setEditPrefill(prefill);
@@ -172,7 +187,7 @@ export function CaptureDetailsPage() {
       <Button
         variant="ghost"
         size="sm"
-        onClick={handleDelete}
+        onClick={handleDeleteClick}
         disabled={isDeleting}
         className="text-red-400 hover:text-red-300"
       >
@@ -338,6 +353,23 @@ export function CaptureDetailsPage() {
           />
         </div>
       )}
+
+      {/* Delete confirmation dialog */}
+      {(() => {
+        const deleteLevel = getDeleteConfirmLevel("capture");
+        return deleteLevel !== "none" ? (
+          <ConfirmDialog
+            isOpen={showDeleteDialog}
+            onClose={() => setShowDeleteDialog(false)}
+            onConfirm={performDelete}
+            title="Delete Capture"
+            description="Are you sure you want to delete this capture? This action cannot be undone."
+            confirmationText={deleteLevel === "strong" ? capture.id : undefined}
+            confirmLabel="Delete"
+            isLoading={isDeleting}
+          />
+        ) : null;
+      })()}
 
       {/* Edit before adding dialog */}
       <BacklogFormDialog

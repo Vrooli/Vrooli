@@ -13,7 +13,7 @@
  */
 
 import type { BacklogItem, Capture } from "../types";
-import { dependencyAwareSort } from "./dependency-sort";
+import { computeUnblockingMap, dependencyAwareSort, UNBLOCK_CAP, UNBLOCK_WEIGHT } from "./dependency-sort";
 
 export type AttentionReason =
   | { kind: "pending-decisions"; count: number }
@@ -157,7 +157,8 @@ export function buildFeed(
     backlogSubset.push(item);
   }
 
-  // Sort with dependency awareness, using feed priority + recency as tiebreaker.
+  // Sort with dependency awareness, using feed priority + unblocking value + recency.
+  const unblockingMap = computeUnblockingMap(backlogItems);
   const sortedBacklog = dependencyAwareSort(
     backlogSubset,
     (a, b) => {
@@ -166,7 +167,9 @@ export function buildFeed(
       if (!fa || !fb) {
         return 0;
       }
-      const pd = computeFeedPriority(fa) - computeFeedPriority(fb);
+      const boostA = Math.min((unblockingMap.get(`${a.kind}/${a.name}`) ?? 0) * UNBLOCK_WEIGHT, UNBLOCK_CAP);
+      const boostB = Math.min((unblockingMap.get(`${b.kind}/${b.name}`) ?? 0) * UNBLOCK_WEIGHT, UNBLOCK_CAP);
+      const pd = (computeFeedPriority(fa) - boostA) - (computeFeedPriority(fb) - boostB);
       if (pd !== 0) return pd;
       return getSortTimestamp(fb) - getSortTimestamp(fa);
     },

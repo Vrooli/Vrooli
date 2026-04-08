@@ -12,6 +12,7 @@ import { useSnoozedKeys } from "../../../../stores/snooze-store";
 import { useDetailSelectionStore } from "../../../../stores/detail-selection-store";
 import { getItemActions } from "../../../../lib";
 import { buildBacklogCompareFn, sortBacklogItems } from "../../../../lib/backlog-sort";
+import { computeUnblockingMap } from "../../../../lib/dependency-sort";
 import { filterSnoozed, snoozeKeyForBacklog } from "../../../../lib/snooze-utils";
 import { buildBacklogNodeId } from "../../lib/node-id-parser";
 import { matchesSearch } from "./useSidebarSearch";
@@ -55,7 +56,8 @@ function applyFilters(items: BacklogItem[], filters: BacklogFilters): BacklogIte
 }
 
 function applySort(items: BacklogItem[], sort: SortConfig, allItems: BacklogItem[]): BacklogItem[] {
-  return sortBacklogItems(items, buildBacklogCompareFn(sort), allItems);
+  const unblockingMap = computeUnblockingMap(allItems);
+  return sortBacklogItems(items, buildBacklogCompareFn(sort, unblockingMap), allItems);
 }
 
 function hasActiveFilters(filters: BacklogFilters): boolean {

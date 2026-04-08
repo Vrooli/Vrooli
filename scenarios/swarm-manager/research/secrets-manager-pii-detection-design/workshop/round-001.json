@@ -46,8 +46,7 @@
         {
           "key": "B",
           "label": "Scan-run model — POST creates a scan run (with ID), GET retrieves results. Findings persisted to DB with fingerprints for cross-run tracking.",
-          "rationale": "Enables historical trend tracking, deduplication across runs, and status management (accepted/resolved). More complex but richer for dashboard display.",
-          "recommended": false
+          "rationale": "Enables historical trend tracking, deduplication across runs, and status management (accepted/resolved). More complex but richer for dashboard display."
         },
         {
           "key": "C",
@@ -55,9 +54,9 @@
           "rationale": "Provide your own endpoint design"
         }
       ],
-      "selected": null,
+      "selected": "B",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d2",
@@ -74,14 +73,12 @@
         {
           "key": "B",
           "label": "All patterns in DB (both generic and custom)",
-          "rationale": "Fully dynamic — can add/modify/disable patterns without code deploy. More flexible but loses version control on pattern changes. Needs seed migration for built-in patterns.",
-          "recommended": false
+          "rationale": "Fully dynamic — can add/modify/disable patterns without code deploy. More flexible but loses version control on pattern changes. Needs seed migration for built-in patterns."
         },
         {
           "key": "C",
           "label": "Config file (YAML/JSON) for all patterns + watchlist",
-          "rationale": "File-based, version-controllable, editable without DB. But requires restart to pick up changes and doesn't fit well with per-user watchlist management.",
-          "recommended": false
+          "rationale": "File-based, version-controllable, editable without DB. But requires restart to pick up changes and doesn't fit well with per-user watchlist management."
         },
         {
           "key": "D",
@@ -89,9 +86,9 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d3",
@@ -102,8 +99,7 @@
         {
           "key": "A",
           "label": "Path-glob exemptions only — allowlist is a list of glob patterns that skip entire files",
-          "rationale": "Simplest model. A file either gets scanned or doesn't. Covers the primary use case (test files, fixtures, vendor). Easy to understand and configure. Stored in DB table or config.",
-          "recommended": false
+          "rationale": "Simplest model. A file either gets scanned or doesn't. Covers the primary use case (test files, fixtures, vendor). Easy to understand and configure. Stored in DB table or config."
         },
         {
           "key": "B",
@@ -117,9 +113,9 @@
           "rationale": "Provide your own exemption model"
         }
       ],
-      "selected": null,
+      "selected": "B",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "i5",

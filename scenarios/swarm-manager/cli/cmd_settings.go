@@ -25,21 +25,25 @@ func (a *App) cmdSettingsGet(args []string) error {
 
 	var response struct {
 		Settings struct {
-			Theme                     string `json:"theme"`
-			DefaultMode               string `json:"default_mode"`
-			DefaultDelaySeconds       int64  `json:"default_delay_seconds"`
-			AutoFixup                 bool   `json:"auto_fixup"`
-			MaxFixupAttempts          int    `json:"max_fixup_attempts"`
-			AutoInitializeWorkshop    bool   `json:"auto_initialize_workshop"`
-			AutoAdvanceWorkshop       bool   `json:"auto_advance_workshop"`
-			AutoCascadeWorkshop       bool   `json:"auto_cascade_workshop"`
-			MaxAutoRounds             int    `json:"max_auto_rounds"`
-			AgentMaxTurns             int    `json:"agent_max_turns"`
-			AgentTimeoutSeconds       int    `json:"agent_timeout_seconds"`
-			AgentRequiresApproval     bool   `json:"agent_requires_approval"`
-			SearchDebounceMs          int    `json:"search_debounce_ms"`
-			ToastDurationMs           int    `json:"toast_duration_ms"`
-			ConfirmDestructiveActions bool   `json:"confirm_destructive_actions"`
+			Theme                  string `json:"theme"`
+			DefaultMode            string `json:"default_mode"`
+			DefaultDelaySeconds    int64  `json:"default_delay_seconds"`
+			AutoFixup              bool   `json:"auto_fixup"`
+			MaxFixupAttempts       int    `json:"max_fixup_attempts"`
+			AutoInitializeWorkshop bool   `json:"auto_initialize_workshop"`
+			AutoAdvanceWorkshop    bool   `json:"auto_advance_workshop"`
+			AutoCascadeWorkshop    bool   `json:"auto_cascade_workshop"`
+			MaxAutoRounds          int    `json:"max_auto_rounds"`
+			AgentMaxTurns          int    `json:"agent_max_turns"`
+			AgentTimeoutSeconds    int    `json:"agent_timeout_seconds"`
+			AgentRequiresApproval  bool   `json:"agent_requires_approval"`
+			SearchDebounceMs       int    `json:"search_debounce_ms"`
+			ToastDurationMs        int    `json:"toast_duration_ms"`
+			DeleteConfirmation     struct {
+				Backlog    string `json:"backlog"`
+				Initiative string `json:"initiative"`
+				Capture    string `json:"capture"`
+			} `json:"delete_confirmation"`
 		} `json:"settings"`
 	}
 	if err := json.Unmarshal(body, &response); err != nil {
@@ -70,7 +74,10 @@ func (a *App) cmdSettingsGet(args []string) error {
 	printSection("UI Preferences")
 	fmt.Printf("  Search debounce ms: %d\n", s.SearchDebounceMs)
 	fmt.Printf("  Toast duration ms: %d\n", s.ToastDurationMs)
-	fmt.Printf("  Confirm destructive actions: %t\n", s.ConfirmDestructiveActions)
+	fmt.Printf("  Delete confirmation:\n")
+	fmt.Printf("    Backlog:    %s\n", s.DeleteConfirmation.Backlog)
+	fmt.Printf("    Initiative: %s\n", s.DeleteConfirmation.Initiative)
+	fmt.Printf("    Capture:    %s\n", s.DeleteConfirmation.Capture)
 
 	printCommandListSection("Next Steps", []string{
 		cliCommand("settings", "update", "--data", `'{"default_mode":"yolo"}'`),
