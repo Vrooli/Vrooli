@@ -4,6 +4,7 @@ package backlog
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -110,6 +111,12 @@ type batchCreateResponse struct {
 	Warnings    []string                      `json:"warnings,omitempty"`
 }
 
+// validatedItem pairs a validated BacklogItem with its parsed kind.
+type validatedItem struct {
+	item BacklogItem
+	kind BacklogKind
+}
+
 // BatchCreate creates multiple backlog items atomically.
 // All items are validated before any are created. If any validation fails,
 // no items are created. If initiative is specified, all items are assigned to it.
@@ -132,230 +139,38 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Phase 1: Validate all items and check for duplicate names within the batch.
-	type validatedItem struct {
-		item BacklogItem
-		kind BacklogKind
-	}
-	validated := make([]validatedItem, 0, len(req.Items))
-	batchNames := make(map[string]bool, len(req.Items))
-	referencedInitiatives := make(map[string]bool)
-
-	now := time.Now().UTC().Format(time.RFC3339)
-	providedInitiatives := make(map[string]batchCreateInitiative, len(req.Initiatives))
-	for i, raw := range req.Initiatives {
-		name := strings.TrimSpace(raw.Name)
-		if name == "" {
-			apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("initiatives[%d]: name is required", i))
-			return
-		}
-		if strings.TrimSpace(raw.Title) == "" {
-			apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("initiatives[%d]: title is required", i))
-			return
-		}
-		if raw.Status != nil {
-			status := strings.TrimSpace(*raw.Status)
-			if !isValidInitiativeStatus(status) {
-				apierr.MapError(w, "[backlog] batch-create",
-					apierr.BadRequest("initiatives[%d]: status must be active, completed, or archived", i))
-				return
-			}
-		}
-		if _, exists := providedInitiatives[name]; exists {
-			apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("initiatives[%d]: duplicate initiative %q", i, name))
-			return
-		}
-		raw.Name = name
-		raw.Title = strings.TrimSpace(raw.Title)
-		if raw.Description != nil {
-			description := strings.TrimSpace(*raw.Description)
-			raw.Description = &description
-		}
-		if raw.Status != nil {
-			status := strings.TrimSpace(*raw.Status)
-			raw.Status = &status
-		}
-		providedInitiatives[name] = raw
-	}
-
-	for i, raw := range req.Items {
-		// Validate kind.
-		if strings.TrimSpace(raw.Kind) == "" {
-			apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("item[%d]: kind is required", i))
-			return
-		}
-		kind, err := ParseBacklogKind(raw.Kind)
-		if err != nil {
-			apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("item[%d]: %s", i, err.Error()))
-			return
-		}
-
-		// Validate title.
-		if strings.TrimSpace(raw.Title) == "" {
-			apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("item[%d]: title is required", i))
-			return
-		}
-
-		// Sanitize name.
-		name := strings.TrimSpace(raw.Name)
-		if name == "" {
-			name = raw.Title
-		}
-		name = sanitizeName(name)
-		if name == "" {
-			apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("item[%d]: name is required", i))
-			return
-		}
-
-		// Check for duplicate names within the batch (using kind/name key).
-		key := string(kind) + "/" + name
-		if batchNames[key] {
-			apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("item[%d]: duplicate item %q in batch", i, key))
-			return
-		}
-		batchNames[key] = true
-
-		// Validate priority.
-		priority := 5
-		if raw.Priority != nil {
-			if *raw.Priority < 1 || *raw.Priority > 10 {
-				apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("item[%d]: priority must be between 1 and 10", i))
-				return
-			}
-			priority = int(*raw.Priority)
-		}
-
-		// Check for conflicts with existing items on disk.
-		itemDir := h.store.ItemDir(kind, name)
-		if _, err := os.Stat(itemDir); err == nil {
-			apierr.MapError(w, "[backlog] batch-create", apierr.Conflict("item[%d]: %q already exists", i, key))
-			return
-		}
-
-		tags := raw.Tags
-		if tags == nil {
-			tags = []string{}
-		}
-
-		dependsOn := raw.DependsOn
-		if dependsOn == nil {
-			dependsOn = []string{}
-		}
-		initiativeName := strings.TrimSpace(raw.Initiative)
-		if initiativeName != "" {
-			referencedInitiatives[initiativeName] = true
-		}
-
-		effort := ""
-		if raw.Effort != nil {
-			normalized, err := validateEffort(*raw.Effort)
-			if err != nil {
-				apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("item[%d]: %s", i, err.Error()))
-				return
-			}
-			effort = normalized
-		}
-
-		if err := validateGlobs(raw.AcceptanceAllow); err != nil {
-			apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("item[%d]: acceptance_allow: %s", i, err.Error()))
-			return
-		}
-		if err := validateGlobs(raw.AcceptanceDeny); err != nil {
-			apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("item[%d]: acceptance_deny: %s", i, err.Error()))
-			return
-		}
-
-		item := BacklogItem{
-			Name:            name,
-			Title:           raw.Title,
-			Description:     strings.TrimSpace(raw.Description),
-			Status:          StatusBacklog,
-			Priority:        priority,
-			Tags:            tags,
-			Created:         now,
-			Updated:         now,
-			Kind:            kind,
-			DependsOn:       dependsOn,
-			Initiative:      initiativeName,
-			Effort:          effort,
-			AcceptanceAllow: raw.AcceptanceAllow,
-			AcceptanceDeny:  raw.AcceptanceDeny,
-		}
-
-		validated = append(validated, validatedItem{item: item, kind: kind})
-	}
-
-	for name := range providedInitiatives {
-		if !referencedInitiatives[name] {
-			apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("initiative %q is not referenced by any item", name))
-			return
-		}
-	}
-
-	var (
-		initiativePlans   map[string]resolvedInitiativePlan
-		initiativeResults []batchCreateInitiativeResult
-		err               error
-	)
-	if len(referencedInitiatives) > 0 {
-		if h.initiativeAssigner == nil {
-			apierr.MapError(w, "[backlog] batch-create", apierr.Internal("initiative support not configured"))
-			return
-		}
-		initiativePlans, initiativeResults, err = h.resolveInitiativePlans(referencedInitiatives, providedInitiatives)
-		if err != nil {
-			apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("%s", err.Error()))
-			return
-		}
-	}
-
-	// Phase 2: Validate dependencies — references must exist either in the
-	// batch or already on disk.
-	for i, v := range validated {
-		for _, ref := range v.item.DependsOn {
-			if batchNames[ref] {
-				continue // dependency is within this batch
-			}
-			// Must exist on disk.
-			depKind, depName, err := parseDependencyRef(ref)
-			if err != nil {
-				apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("item[%d]: %s", i, err.Error()))
-				return
-			}
-			if _, loadErr := h.store.LoadItem(depKind, depName); errors.Is(loadErr, ErrNotFound) {
-				apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("item[%d]: dependency %q does not exist", i, ref))
-				return
-			}
-		}
-	}
-
-	// Phase 3: Build dependency graph (batch + existing items) and check for cycles.
-	existingItems, err := h.store.LoadAll(nil)
+	providedInitiatives, err := h.validateBatchInitiatives(req.Initiatives)
 	if err != nil {
-		slog.Error("failed to load existing items", "err", err)
-		apierr.MapError(w, "[backlog] batch-create", apierr.Internal("failed to load existing items for cycle check"))
+		apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("%s", err.Error()))
 		return
 	}
 
-	g := depgraph.New()
-	for _, v := range validated {
-		key := string(v.item.Kind) + "/" + v.item.Name
-		g.AddNode(key, v.item.DependsOn)
+	validated, batchNames, referencedInitiatives, err := h.validateBatchItems(req.Items, providedInitiatives)
+	if err != nil {
+		apierr.MapError(w, "[backlog] batch-create", err)
+		return
 	}
-	for _, existing := range existingItems {
-		key := string(existing.Kind) + "/" + existing.Name
-		g.AddNode(key, existing.DependsOn)
+
+	initiativePlans, initiativeResults, err := h.planInitiativeChanges(referencedInitiatives, providedInitiatives)
+	if err != nil {
+		apierr.MapError(w, "[backlog] batch-create", err)
+		return
 	}
-	if cycle, found := g.DetectCycle(); found {
-		apierr.MapError(w, "[backlog] batch-create",
-			apierr.BadRequest("dependency cycle detected: %s", strings.Join(cycle, " -> ")))
+
+	if err := h.validateBatchDependencies(validated, batchNames); err != nil {
+		apierr.MapError(w, "[backlog] batch-create", err)
+		return
+	}
+
+	if err := h.checkBatchDependencyCycles(validated); err != nil {
+		apierr.MapError(w, "[backlog] batch-create", err)
 		return
 	}
 
 	if req.Preview {
 		previewItems := make([]BacklogItem, 0, len(validated))
-		for _, validatedItem := range validated {
-			previewItems = append(previewItems, validatedItem.item)
+		for _, v := range validated {
+			previewItems = append(previewItems, v.item)
 		}
 		resp := batchCreateResponse{
 			Items:       previewItems,
@@ -369,64 +184,23 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Phase 4: Apply initiative metadata changes before item creation so the full
-	// import can roll back to a clean state if any later step fails.
-	appliedInitiatives := make([]resolvedInitiativePlan, 0, len(initiativePlans))
-	for _, name := range orderedInitiativeNames(initiativePlans) {
-		plan := initiativePlans[name]
-		switch plan.action {
-		case "create":
-			if createErr := h.initiativeAssigner.Create(plan.spec); createErr != nil {
-				slog.Error("failed to create initiative", "initiative", name, "err", createErr)
-				apierr.MapError(w, "[backlog] batch-create", apierr.Internal("%s", "failed to create initiative: "+httputil.TruncateErrorMessage(createErr, 240)))
-				return
-			}
-		case "update":
-			if updateErr := h.initiativeAssigner.Update(plan.spec); updateErr != nil {
-				slog.Error("failed to update initiative", "initiative", name, "err", updateErr)
-				apierr.MapError(w, "[backlog] batch-create", apierr.Internal("%s", "failed to update initiative: "+httputil.TruncateErrorMessage(updateErr, 240)))
-				return
-			}
-		}
-		appliedInitiatives = append(appliedInitiatives, plan)
+	appliedInitiatives, err := h.applyInitiativeChanges(initiativePlans)
+	if err != nil {
+		apierr.MapError(w, "[backlog] batch-create", err)
+		return
 	}
 
-	// Phase 5: Create all items atomically. Track created directories for rollback.
-	createdDirs := make([]string, 0, len(validated))
-	createdItems := make([]BacklogItem, 0, len(validated))
-
-	for _, v := range validated {
-		itemDir := h.store.ItemDir(v.kind, v.item.Name)
-		if mkErr := os.MkdirAll(itemDir, 0o755); mkErr != nil {
-			rollbackBatchCreate(createdDirs, appliedInitiatives, h.initiativeAssigner)
-			slog.Error("failed to create directory", "item", v.item.Name, "err", mkErr)
-			apierr.MapError(w, "[backlog] batch-create", apierr.Internal("failed to create item directory"))
-			return
-		}
-		createdDirs = append(createdDirs, itemDir)
-
-		if saveErr := h.store.SaveItem(v.item); saveErr != nil {
-			rollbackBatchCreate(createdDirs, appliedInitiatives, h.initiativeAssigner)
-			slog.Error("failed to save item", "item", v.item.Name, "err", saveErr)
-			apierr.MapError(w, "[backlog] batch-create", apierr.Internal("failed to save item"))
-			return
-		}
-
-		createdItems = append(createdItems, v.item)
+	createdItems, err := h.createBatchItems(validated, appliedInitiatives)
+	if err != nil {
+		apierr.MapError(w, "[backlog] batch-create", err)
+		return
 	}
 
-	// Phase 6: Add new items to each initiative. This is part of the atomic
-	// import contract, so failures trigger a full rollback.
-	for name, refs := range groupItemRefsByInitiative(createdItems) {
-		if addErr := h.initiativeAssigner.AddItems(name, refs); addErr != nil {
-			rollbackBatchCreate(createdDirs, appliedInitiatives, h.initiativeAssigner)
-			slog.Error("failed to add items to initiative", "initiative", name, "err", addErr)
-			apierr.MapError(w, "[backlog] batch-create", apierr.Internal("%s", "failed to assign items to initiative: "+httputil.TruncateErrorMessage(addErr, 240)))
-			return
-		}
+	if err := h.assignItemsToInitiatives(createdItems, appliedInitiatives); err != nil {
+		apierr.MapError(w, "[backlog] batch-create", err)
+		return
 	}
 
-	// Phase 7: Auto-trigger workshops for items whose dependencies are met.
 	for _, item := range createdItems {
 		h.maybeAutoWorkshop(item, false)
 	}
@@ -442,4 +216,293 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 	if err := httputil.JSONWithStatus(w, http.StatusCreated, resp); err != nil {
 		apierr.MapError(w, "[backlog] batch-create", apierr.Internal("failed to encode response"))
 	}
+}
+
+// validateBatchInitiatives validates and normalizes initiative metadata from
+// the request. Returns a map keyed by initiative name.
+func (h *Handler) validateBatchInitiatives(raw []batchCreateInitiative) (map[string]batchCreateInitiative, error) {
+	result := make(map[string]batchCreateInitiative, len(raw))
+	for i, init := range raw {
+		name := strings.TrimSpace(init.Name)
+		if name == "" {
+			return nil, fmt.Errorf("initiatives[%d]: name is required", i)
+		}
+		if strings.TrimSpace(init.Title) == "" {
+			return nil, fmt.Errorf("initiatives[%d]: title is required", i)
+		}
+		if init.Status != nil {
+			status := strings.TrimSpace(*init.Status)
+			if !isValidInitiativeStatus(status) {
+				return nil, fmt.Errorf("initiatives[%d]: status must be active, completed, or archived", i)
+			}
+		}
+		if _, exists := result[name]; exists {
+			return nil, fmt.Errorf("initiatives[%d]: duplicate initiative %q", i, name)
+		}
+		init.Name = name
+		init.Title = strings.TrimSpace(init.Title)
+		if init.Description != nil {
+			d := strings.TrimSpace(*init.Description)
+			init.Description = &d
+		}
+		if init.Status != nil {
+			s := strings.TrimSpace(*init.Status)
+			init.Status = &s
+		}
+		result[name] = init
+	}
+	return result, nil
+}
+
+// validateBatchItems validates each item in the batch and returns the validated
+// items, a set of batch names for duplicate checking, and the set of referenced
+// initiative names.
+func (h *Handler) validateBatchItems(
+	items []batchCreateItem,
+	providedInitiatives map[string]batchCreateInitiative,
+) ([]validatedItem, map[string]bool, map[string]bool, error) {
+	validated := make([]validatedItem, 0, len(items))
+	batchNames := make(map[string]bool, len(items))
+	referencedInitiatives := make(map[string]bool)
+	now := time.Now().UTC().Format(time.RFC3339)
+
+	for i, raw := range items {
+		v, err := h.validateSingleBatchItem(i, raw, batchNames, now)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		batchNames[string(v.kind)+"/"+v.item.Name] = true
+		if v.item.Initiative != "" {
+			referencedInitiatives[v.item.Initiative] = true
+		}
+		validated = append(validated, v)
+	}
+
+	for name := range providedInitiatives {
+		if !referencedInitiatives[name] {
+			return nil, nil, nil, apierr.BadRequest("initiative %q is not referenced by any item", name)
+		}
+	}
+
+	return validated, batchNames, referencedInitiatives, nil
+}
+
+// validateSingleBatchItem validates and normalizes one batch item.
+func (h *Handler) validateSingleBatchItem(
+	i int,
+	raw batchCreateItem,
+	batchNames map[string]bool,
+	now string,
+) (validatedItem, error) {
+	if strings.TrimSpace(raw.Kind) == "" {
+		return validatedItem{}, apierr.BadRequest("item[%d]: kind is required", i)
+	}
+	kind, err := ParseBacklogKind(raw.Kind)
+	if err != nil {
+		return validatedItem{}, apierr.BadRequest("item[%d]: %s", i, err.Error())
+	}
+
+	if strings.TrimSpace(raw.Title) == "" {
+		return validatedItem{}, apierr.BadRequest("item[%d]: title is required", i)
+	}
+
+	name := strings.TrimSpace(raw.Name)
+	if name == "" {
+		name = raw.Title
+	}
+	name = sanitizeName(name)
+	if name == "" {
+		return validatedItem{}, apierr.BadRequest("item[%d]: name is required", i)
+	}
+
+	key := string(kind) + "/" + name
+	if batchNames[key] {
+		return validatedItem{}, apierr.BadRequest("item[%d]: duplicate item %q in batch", i, key)
+	}
+
+	priority := 5
+	if raw.Priority != nil {
+		if *raw.Priority < 1 || *raw.Priority > 10 {
+			return validatedItem{}, apierr.BadRequest("item[%d]: priority must be between 1 and 10", i)
+		}
+		priority = int(*raw.Priority)
+	}
+
+	itemDir := h.store.ItemDir(kind, name)
+	if _, err := os.Stat(itemDir); err == nil {
+		return validatedItem{}, apierr.Conflict("item[%d]: %q already exists", i, key)
+	}
+
+	tags := raw.Tags
+	if tags == nil {
+		tags = []string{}
+	}
+	dependsOn := raw.DependsOn
+	if dependsOn == nil {
+		dependsOn = []string{}
+	}
+
+	effort := ""
+	if raw.Effort != nil {
+		normalized, err := validateEffort(*raw.Effort)
+		if err != nil {
+			return validatedItem{}, apierr.BadRequest("item[%d]: %s", i, err.Error())
+		}
+		effort = normalized
+	}
+
+	if err := validateGlobs(raw.AcceptanceAllow); err != nil {
+		return validatedItem{}, apierr.BadRequest("item[%d]: acceptance_allow: %s", i, err.Error())
+	}
+	if err := validateGlobs(raw.AcceptanceDeny); err != nil {
+		return validatedItem{}, apierr.BadRequest("item[%d]: acceptance_deny: %s", i, err.Error())
+	}
+
+	item := BacklogItem{
+		Name:            name,
+		Title:           raw.Title,
+		Description:     strings.TrimSpace(raw.Description),
+		Status:          StatusBacklog,
+		Priority:        priority,
+		Tags:            tags,
+		Created:         now,
+		Updated:         now,
+		Kind:            kind,
+		DependsOn:       dependsOn,
+		Initiative:      strings.TrimSpace(raw.Initiative),
+		Effort:          effort,
+		AcceptanceAllow: raw.AcceptanceAllow,
+		AcceptanceDeny:  raw.AcceptanceDeny,
+	}
+
+	return validatedItem{item: item, kind: kind}, nil
+}
+
+// planInitiativeChanges resolves what initiative operations are needed and
+// returns both the execution plans and preview results.
+func (h *Handler) planInitiativeChanges(
+	referencedInitiatives map[string]bool,
+	providedInitiatives map[string]batchCreateInitiative,
+) (map[string]resolvedInitiativePlan, []batchCreateInitiativeResult, error) {
+	if len(referencedInitiatives) == 0 {
+		return nil, nil, nil
+	}
+	if h.initiativeAssigner == nil {
+		return nil, nil, apierr.Internal("initiative support not configured")
+	}
+	plans, results, err := h.resolveInitiativePlans(referencedInitiatives, providedInitiatives)
+	if err != nil {
+		return nil, nil, apierr.BadRequest("%s", err.Error())
+	}
+	return plans, results, nil
+}
+
+// validateBatchDependencies checks that all depends_on references exist either
+// in the batch or already on disk.
+func (h *Handler) validateBatchDependencies(validated []validatedItem, batchNames map[string]bool) error {
+	for i, v := range validated {
+		for _, ref := range v.item.DependsOn {
+			if batchNames[ref] {
+				continue
+			}
+			depKind, depName, err := parseDependencyRef(ref)
+			if err != nil {
+				return apierr.BadRequest("item[%d]: %s", i, err.Error())
+			}
+			if _, loadErr := h.store.LoadItem(depKind, depName); errors.Is(loadErr, ErrNotFound) {
+				return apierr.BadRequest("item[%d]: dependency %q does not exist", i, ref)
+			}
+		}
+	}
+	return nil
+}
+
+// checkBatchDependencyCycles builds a dependency graph from batch + existing
+// items and checks for cycles.
+func (h *Handler) checkBatchDependencyCycles(validated []validatedItem) error {
+	existingItems, err := h.store.LoadAll(nil)
+	if err != nil {
+		slog.Error("failed to load existing items", "err", err)
+		return apierr.Internal("failed to load existing items for cycle check")
+	}
+
+	g := depgraph.New()
+	for _, v := range validated {
+		key := string(v.item.Kind) + "/" + v.item.Name
+		g.AddNode(key, v.item.DependsOn)
+	}
+	for _, existing := range existingItems {
+		key := string(existing.Kind) + "/" + existing.Name
+		g.AddNode(key, existing.DependsOn)
+	}
+	if cycle, found := g.DetectCycle(); found {
+		return apierr.BadRequest("dependency cycle detected: %s", strings.Join(cycle, " -> "))
+	}
+	return nil
+}
+
+// applyInitiativeChanges creates or updates initiatives as planned. Returns
+// the list of applied plans for rollback tracking.
+func (h *Handler) applyInitiativeChanges(plans map[string]resolvedInitiativePlan) ([]resolvedInitiativePlan, error) {
+	applied := make([]resolvedInitiativePlan, 0, len(plans))
+	for _, name := range orderedInitiativeNames(plans) {
+		plan := plans[name]
+		switch plan.action {
+		case "create":
+			if err := h.initiativeAssigner.Create(plan.spec); err != nil {
+				slog.Error("failed to create initiative", "initiative", name, "err", err)
+				return nil, apierr.Internal("%s", "failed to create initiative: "+httputil.TruncateErrorMessage(err, 240))
+			}
+		case "update":
+			if err := h.initiativeAssigner.Update(plan.spec); err != nil {
+				slog.Error("failed to update initiative", "initiative", name, "err", err)
+				return nil, apierr.Internal("%s", "failed to update initiative: "+httputil.TruncateErrorMessage(err, 240))
+			}
+		}
+		applied = append(applied, plan)
+	}
+	return applied, nil
+}
+
+// createBatchItems creates all items on disk. On failure, rolls back all
+// created directories and initiative changes.
+func (h *Handler) createBatchItems(validated []validatedItem, appliedInitiatives []resolvedInitiativePlan) ([]BacklogItem, error) {
+	createdDirs := make([]string, 0, len(validated))
+	createdItems := make([]BacklogItem, 0, len(validated))
+
+	for _, v := range validated {
+		itemDir := h.store.ItemDir(v.kind, v.item.Name)
+		if mkErr := os.MkdirAll(itemDir, 0o755); mkErr != nil {
+			rollbackBatchCreate(createdDirs, appliedInitiatives, h.initiativeAssigner)
+			slog.Error("failed to create directory", "item", v.item.Name, "err", mkErr)
+			return nil, apierr.Internal("failed to create item directory")
+		}
+		createdDirs = append(createdDirs, itemDir)
+
+		if saveErr := h.store.SaveItem(v.item); saveErr != nil {
+			rollbackBatchCreate(createdDirs, appliedInitiatives, h.initiativeAssigner)
+			slog.Error("failed to save item", "item", v.item.Name, "err", saveErr)
+			return nil, apierr.Internal("failed to save item")
+		}
+		createdItems = append(createdItems, v.item)
+	}
+	return createdItems, nil
+}
+
+// assignItemsToInitiatives adds created items to their respective initiatives.
+// On failure, rolls back all item directories and initiative changes.
+func (h *Handler) assignItemsToInitiatives(createdItems []BacklogItem, appliedInitiatives []resolvedInitiativePlan) error {
+	createdDirs := make([]string, 0, len(createdItems))
+	for _, item := range createdItems {
+		createdDirs = append(createdDirs, h.store.ItemDir(item.Kind, item.Name))
+	}
+
+	for name, refs := range groupItemRefsByInitiative(createdItems) {
+		if addErr := h.initiativeAssigner.AddItems(name, refs); addErr != nil {
+			rollbackBatchCreate(createdDirs, appliedInitiatives, h.initiativeAssigner)
+			slog.Error("failed to add items to initiative", "initiative", name, "err", addErr)
+			return apierr.Internal("%s", "failed to assign items to initiative: "+httputil.TruncateErrorMessage(addErr, 240))
+		}
+	}
+	return nil
 }

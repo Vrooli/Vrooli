@@ -10,12 +10,12 @@
   "kind": "execute",
   "name": "qa-swarm-manager-code-quality-20260408",
   "priority": 2,
-  "status": "backlog",
+  "status": "failed",
   "tags": [
     "preemptive-qa",
     "swarm-manager",
     "code-quality"
   ],
   "title": "Reduce code quality violations in swarm-manager",
-  "updated": "2026-04-08T04:13:26Z"
+  "updated": "2026-04-08T17:15:41Z"
 }

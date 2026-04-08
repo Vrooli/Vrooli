@@ -236,9 +236,13 @@ func (rr *RefactorRecommender) getFileMetricsFromDB(ctx context.Context, scenari
 func (rr *RefactorRecommender) calculatePriority(rec RefactorRecommendation) float64 {
 	score := rec.StalenessScore // Base: visited-tracker staleness (0-1000+)
 
-	// Length penalty (0-100 points) - files over 500 lines
-	if rec.LineCount > 500 {
-		score += float64(rec.LineCount-500) / 10.0
+	// Length penalty (0-100 points) - test files use higher threshold
+	lengthThreshold := 500
+	if IsTestFilePath(rec.FilePath) {
+		lengthThreshold = 1250
+	}
+	if rec.LineCount > lengthThreshold {
+		score += float64(rec.LineCount-lengthThreshold) / 10.0
 	}
 
 	// Complexity penalty (0-50 points) - complexity over 10

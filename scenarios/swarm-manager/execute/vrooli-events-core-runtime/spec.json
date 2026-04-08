@@ -4,6 +4,7 @@
     "packages/proto/schemas/vrooli-events/**",
     "packages/proto/gen/**"
   ],
+  "archived_at": "2026-04-08T19:33:19Z",
   "created": "2026-04-04T22:36:30Z",
   "depends_on": [
     "research/vrooli-events-architecture",
@@ -18,5 +19,5 @@
   "status": "completed",
   "tags": [],
   "title": "Build The vrooli-events Scenario Core Runtime",
-  "updated": "2026-04-05T15:54:15Z"
+  "updated": "2026-04-08T19:33:19Z"
 }

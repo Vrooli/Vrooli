@@ -2748,10 +2748,10 @@
     "previous_status": "backlog",
     "task_id": "ca142f11-d1ea-4307-b3e2-33bedbbc46b3",
     "run_id": "fb5a52a5-7eac-44c4-928f-1de8bc753785",
-    "status": "needs_fixup",
+    "status": "completed",
     "mode": "yolo",
     "started_at": "2026-04-05T15:26:13Z",
-    "finished_at": "2026-04-05T15:54:15Z",
+    "finished_at": "2026-04-08T19:24:41Z",
     "started_by": "swarm-manager-ui",
     "operation": "generator",
     "prompt_trace": {
@@ -2766,54 +2766,184 @@
       "status": "completed",
       "phase": "completed",
       "scope_source": "acceptance_allow",
-      "started_at": "2026-04-05T15:50:04Z",
-      "completed_at": "2026-04-05T15:54:15Z",
+      "started_at": "2026-04-08T19:22:41Z",
+      "completed_at": "2026-04-08T19:24:41Z",
       "warnings": [
         {
-          "code": "health_schema_invalid",
+          "code": "finalization_infrastructure",
           "scenario_name": "vrooli-events",
-          "message": "health check failed after restart attempt 1: no health checks available; health status=running; retrying once",
-          "retryable": true,
-          "created_at": "2026-04-05T15:52:09Z"
+          "message": "trigger review for vrooli-events: review run returned status 409: {\"error\":\"a review run is already in progress for this scenario\"}",
+          "created_at": "2026-04-08T19:22:51Z"
         },
         {
-          "code": "review_skipped",
+          "code": "review_agent_failed",
+          "message": "spawn review agent: another agent is already active for this backlog item: execute/vrooli-events-core-runtime already has an active agent (activity=02e39c8e9ea750b3, status=running, purpose=review)",
+          "created_at": "2026-04-08T19:22:52Z"
+        },
+        {
+          "code": "review_agent_failed",
+          "message": "spawn review agent: another agent is already active for this backlog item: execute/vrooli-events-core-runtime already has an active agent (activity=02e39c8e9ea750b3, status=running, purpose=review)",
+          "created_at": "2026-04-08T19:23:03Z"
+        },
+        {
+          "code": "finalization_infrastructure",
           "scenario_name": "vrooli-events",
-          "message": "review skipped because restart/health checks did not pass",
-          "created_at": "2026-04-05T15:54:15Z"
+          "message": "trigger review for vrooli-events: review run returned status 409: {\"error\":\"a review run is already in progress for this scenario\"}",
+          "created_at": "2026-04-08T19:23:14Z"
+        },
+        {
+          "code": "review_agent_failed",
+          "message": "spawn review agent: another agent is already active for this backlog item: execute/vrooli-events-core-runtime already has an active agent (activity=02e39c8e9ea750b3, status=running, purpose=review)",
+          "created_at": "2026-04-08T19:23:14Z"
+        },
+        {
+          "code": "review_agent_failed",
+          "message": "spawn review agent: another agent is already active for this backlog item: execute/vrooli-events-core-runtime already has an active agent (activity=02e39c8e9ea750b3, status=running, purpose=review)",
+          "created_at": "2026-04-08T19:23:21Z"
+        },
+        {
+          "code": "finalization_infrastructure",
+          "scenario_name": "vrooli-events",
+          "message": "trigger review for vrooli-events: review run returned status 409: {\"error\":\"a review run is already in progress for this scenario\"}",
+          "created_at": "2026-04-08T19:23:36Z"
+        },
+        {
+          "code": "review_agent_failed",
+          "message": "spawn review agent: another agent is already active for this backlog item: execute/vrooli-events-core-runtime already has an active agent (activity=02e39c8e9ea750b3, status=running, purpose=review)",
+          "created_at": "2026-04-08T19:23:36Z"
+        },
+        {
+          "code": "finalization_infrastructure",
+          "scenario_name": "vrooli-events",
+          "message": "trigger review for vrooli-events: review run returned status 409: {\"error\":\"a review run is already in progress for this scenario\"}",
+          "created_at": "2026-04-08T19:23:37Z"
+        },
+        {
+          "code": "review_agent_failed",
+          "message": "spawn review agent: another agent is already active for this backlog item: execute/vrooli-events-core-runtime already has an active agent (activity=02e39c8e9ea750b3, status=running, purpose=review)",
+          "created_at": "2026-04-08T19:23:37Z"
+        },
+        {
+          "code": "finalization_infrastructure",
+          "scenario_name": "vrooli-events",
+          "message": "trigger review for vrooli-events: review run returned status 409: {\"error\":\"a review run is already in progress for this scenario\"}",
+          "created_at": "2026-04-08T19:24:06Z"
+        },
+        {
+          "code": "review_agent_failed",
+          "message": "spawn review agent: another agent is already active for this backlog item: execute/vrooli-events-core-runtime already has an active agent (activity=02e39c8e9ea750b3, status=running, purpose=review)",
+          "created_at": "2026-04-08T19:24:07Z"
+        },
+        {
+          "code": "finalization_infrastructure",
+          "scenario_name": "vrooli-events",
+          "message": "trigger review for vrooli-events: review run returned status 409: {\"error\":\"a review run is already in progress for this scenario\"}",
+          "created_at": "2026-04-08T19:24:07Z"
+        },
+        {
+          "code": "review_agent_failed",
+          "message": "spawn review agent: another agent is already active for this backlog item: execute/vrooli-events-core-runtime already has an active agent (activity=02e39c8e9ea750b3, status=running, purpose=review)",
+          "created_at": "2026-04-08T19:24:08Z"
+        },
+        {
+          "code": "review_agent_failed",
+          "message": "spawn review agent: another agent is already active for this backlog item: execute/vrooli-events-core-runtime already has an active agent (activity=02e39c8e9ea750b3, status=running, purpose=review)",
+          "created_at": "2026-04-08T19:24:41Z"
         }
       ],
       "affected_scenarios": [
         "vrooli-events"
       ],
-      "aggregate_classification": "needs_work",
-      "aggregate_summary": "vrooli-events health failed: no health checks available; health status=running; 2 warning(s)",
+      "aggregate_classification": "ready_with_notes",
+      "aggregate_summary": "vrooli-events ready with notes; 15 warning(s)",
       "scenarios": [
         {
           "scenario_name": "vrooli-events",
           "restart": {
             "status": "completed",
-            "attempts": 2,
-            "started_at": "2026-04-05T15:52:09Z",
-            "finished_at": "2026-04-05T15:52:14Z"
+            "attempts": 1,
+            "started_at": "2026-04-08T19:23:55Z",
+            "finished_at": "2026-04-08T19:24:06Z"
           },
           "health": {
-            "status": "failed",
+            "status": "completed",
             "scenario_status": "running",
-            "health_status": "running",
-            "schema_valid": false,
-            "details": "no health checks available; health status=running",
-            "checked_at": "2026-04-05T15:54:15Z"
+            "health_status": "healthy",
+            "schema_valid": true,
+            "details": "scenario is healthy",
+            "checked_at": "2026-04-08T19:24:07Z"
           },
           "review": {
-            "status": "skipped",
-            "skip_reason": "restart/health checks did not pass"
+            "status": "completed",
+            "job_id": "435a59cf-18d2-47e0-9c1b-fd0348c311d4",
+            "result": {
+              "job_id": "435a59cf-18d2-47e0-9c1b-fd0348c311d4",
+              "classification": "ready_with_notes",
+              "dimensions": [
+                {
+                  "name": "standards",
+                  "status": "yellow",
+                  "details": "270 warnings"
+                },
+                {
+                  "name": "visual",
+                  "status": "red"
+                },
+                {
+                  "name": "provenance",
+                  "status": "green"
+                },
+                {
+                  "name": "codeQuality",
+                  "status": "red",
+                  "details": "0.0 score, 23 violations"
+                },
+                {
+                  "name": "tests",
+                  "status": "yellow",
+                  "details": "7/11 passed"
+                }
+              ],
+              "raw_dimensions": {
+                "codeQuality": {
+                  "available": true,
+                  "score": 0,
+                  "violations": 23,
+                  "stale": false
+                },
+                "tests": {
+                  "available": true,
+                  "passed": false,
+                  "total": 11,
+                  "passedCount": 7,
+                  "failedCount": 4,
+                  "lastRun": "2026-04-08T19:24:39.909473673Z"
+                },
+                "standards": {
+                  "available": true,
+                  "blockingViolations": 0,
+                  "warnings": 270,
+                  "totalViolations": 270
+                },
+                "visual": {
+                  "available": true,
+                  "screenshotCount": 0,
+                  "stale": false
+                },
+                "provenance": {
+                  "available": true,
+                  "tracedFiles": 1
+                }
+              },
+              "summary": "Scenario vrooli-events readiness: yellow",
+              "reviewed_at": "2026-04-08T19:24:41Z"
+            }
           }
         }
       ]
     },
     "created_at": "2026-04-05T15:26:13Z",
-    "updated_at": "2026-04-05T15:54:15Z"
+    "updated_at": "2026-04-08T19:24:41Z"
   },
   {
     "execution_id": "8b14ac3bb0b54fdd",
@@ -4093,10 +4223,10 @@
     "previous_status": "backlog",
     "task_id": "f5eb5121-19ab-47e2-b8b1-5d53ebc7e80a",
     "run_id": "e70d8f36-80df-4f76-bb7d-d3fcaed8cd02",
-    "status": "completed",
+    "status": "needs_fixup",
     "mode": "yolo",
     "started_at": "2026-04-08T16:13:45Z",
-    "finished_at": "2026-04-08T16:18:10Z",
+    "finished_at": "2026-04-08T19:22:14Z",
     "started_by": "swarm-manager-ui",
     "operation": "generator",
     "prompt_trace": {
@@ -4111,57 +4241,50 @@
       "status": "completed",
       "phase": "completed",
       "scope_source": "acceptance_allow",
-      "started_at": "2026-04-08T16:17:23Z",
-      "completed_at": "2026-04-08T16:18:10Z",
+      "started_at": "2026-04-08T19:21:57Z",
+      "completed_at": "2026-04-08T19:22:14Z",
       "warnings": [
         {
-          "code": "restart_retry",
+          "code": "finalization_infrastructure",
           "scenario_name": "secrets-manager",
-          "message": "restart attempt 1 failed: vrooli scenario restart secrets-manager failed: exit status 1 (output: [INFO]    Restarting scenario: secrets-manager\n[INFO]    Stopping scenario: secrets-manager\n[INFO]    Stopping secrets-manager:start-api process group (PGID: 3115972)\n[INFO]    Stopped 1 process groups for scenario: secrets-manager\n\u001b[0;32m[SUCCESS] Scenario 'secrets-manager' stopped successfully\n[INFO]    Running scenario 'secrets-manager' with direct lifecycle execution\n[INFO]    Starting scenario 'secrets-manager'...\n[INFO]    Running setup before develop...\n[INFO]    Environment setup complete for scenario: secrets-manager\n[WARNING] Postgres not running, skipping database creation for: vrooli_secrets_manager\n[INFO]    Install CLI, build API, initialize database, and produce a production UI bundle\n[INFO]    [1/7] install-cli\n  → Install the secrets-manager CLI\n✅ secrets-manager installed to /home/matthalloran8/.local/bin/secrets-manager\n[INFO]    [2/7] build-api\n  → Build the Go API server binary (secrets-manager-api) inside api/ directory for lifecycle execution\n[INFO]    [3/7] initialize-database\n  → Ensure the tracking schema exists\nNOTICE:  extension \"uuid-ossp\" already exists, skipping\nNOTICE:  relation \"resource_secrets\" already exists, skipping\nNOTICE:  column \"classification\" of relation \"resource_secrets\" already exists, skipping\nNOTICE:  column \"owner_team\" of relation \"resource_secrets\" already exists, skipping\nNOTICE:  column \"owner_contact\" of relation \"resource_secrets\" already exists, skipping\nNOTICE:  column \"rotation_period_days\" of relation \"resource_secrets\" already exists, skipping\nNOTICE:  column \"last_rotated_at\" of relation \"resource_secrets\" already exists, skipping\nNOTICE:  relation \"secret_validations\" already exists, skipping\nNOTICE:  relation \"secret_scans\" already exists, skipping\nNOTICE:  relation \"secret_provisions\" already exists, skipping\nNOTICE:  relation \"secret_deployment_strategies\" already exists, skipping\nNOTICE:  relation \"scenario_secret_strategy_overrides\" already exists, skipping\nNOTICE:  relation \"deployment_manifests\" already exists, skipping\nNOTICE:  relation \"security_scan_runs\" already exists, skipping\nNOTICE:  relation \"security_vulnerabilities\" already exists, skipping\nNOTICE:  relation \"deployment_campaigns\" already exists, skipping\nNOTICE:  trigger \"update_scenario_overrides_updated_at\" for relation \"scenario_secret_strategy_overrides\" does not exist, skipping\nERROR:  trigger \"update_scenario_overrides_updated_at\" for relation \"scenario_secret_strategy_overrides\" already exists\nERROR:  tuple concurrently updated\nNOTICE:  relation \"idx_resource_secrets_resource_name\" already exists, skipping\nNOTICE:  relation \"idx_resource_secrets_required\" already exists, skipping\nNOTICE:  relation \"idx_secret_validations_status\" already exists, skipping\nNOTICE:  relation \"idx_secret_validations_timestamp\" already exists, skipping\nNOTICE:  relation \"idx_secret_deploy_strat_tier\" already exists, skipping\nNOTICE:  relation \"idx_secret_deploy_strat_secret\" already exists, skipping\nNOTICE:  relation \"idx_deployment_manifests_tier\" already exists, skipping\nNOTICE:  relation \"idx_scenario_overrides_scenario\" already exists, skipping\nNOTICE:  relation \"idx_scenario_overrides_secret\" already exists, skipping\nNOTICE:  relation \"idx_scenario_overrides_tier\" already exists, skipping\nNOTICE:  relation \"idx_security_scans_completed_at\" already exists, skipping\nNOTICE:  relation \"idx_security_vuln_component\" already exists, skipping\nNOTICE:  relation \"idx_security_vuln_status\" already exists, skipping\nNOTICE:  relation \"idx_security_vuln_severity\" already exists, skipping\n[INFO]    [4/7] seed-database\n  → Seed baseline secret definitions\nNOTICE:  🔐 Secrets Manager seed data loaded successfully:\nNOTICE:     📦 Resources: 14 resources\nNOTICE:     🔑 Total secrets: 50 secrets\nNOTICE:     ⚠️  Required secrets: 12 secrets\nNOTICE:     ✅ Database schema ready for secret management\n[INFO]    [5/7] install-ui-deps\n  → Install UI dependencies\nProgress: resolved 1, reused 0, downloaded 0, added 0\nPackages: +2\n++\n ERR_PNPM_ENOTEMPTY  ENOTEMPTY: directory not empty, rename '/home/matthalloran8/Vrooli/scenarios/secrets-manager/ui/node_modules/.pnpm/@vrooli+api-base@file+..+..+..+packages+api-base_express@4.21.2_ws@8.18.3/node_modules/@vrooli/api-base_tmp_1189812' -\u003e '/home/matthalloran8/Vrooli/scenarios/secrets-manager/ui/node_modules/.pnpm/@vrooli+api-base@file+..+..+..+packages+api-base_express@4.21.2_ws@8.18.3/node_modules/@vrooli/api-base'\n[ERROR]   Step failed: setup.secrets-manager.install-ui-deps\n[ERROR]   Setup failed); retrying once",
-          "retryable": true,
-          "created_at": "2026-04-08T16:17:29Z"
+          "message": "trigger review for secrets-manager: review run returned status 409: {\"error\":\"a review run is already in progress for this scenario\"}",
+          "created_at": "2026-04-08T19:22:12Z"
+        },
+        {
+          "code": "review_agent_failed",
+          "message": "render review skill: promptmanager: resolve URL: resolve prompt-manager: api-core discovery timeout scenario=\"prompt-manager\" port=\"API_PORT\" err=context canceled",
+          "created_at": "2026-04-08T19:22:12Z"
+        },
+        {
+          "code": "review_agent_failed",
+          "message": "spawn review agent: agent-manager request failed: status 400: {\"code\":\"VALIDATION_FIELD\",\"message\":\"validation error on contextAttachments[0].content: required for note attachments\",\"details\":{\"fields\":{\"field\":{\"string_value\":\"contextAttachments[0].content\"},\"message\":{\"string_value\":\"required for note attachments\"},\"recovery\":{\"string_value\":\"fix_input\"},\"request_id\":{\"string_value\":\"a3184fee-568b-4875-ad50-8fb1ae102792\"},\"retryable\":{\"bool_value\":false},\"user_message\":{\"string_value\":\"Invalid value for contextAttachments[0].content: required for note attachments\"}}}}",
+          "created_at": "2026-04-08T19:22:12Z"
         },
         {
           "code": "finalization_infrastructure",
           "scenario_name": "secrets-manager",
           "message": "trigger review for secrets-manager: review run returned status 409: {\"error\":\"a review run is already in progress for this scenario\"}",
-          "created_at": "2026-04-08T16:17:43Z"
+          "created_at": "2026-04-08T19:22:13Z"
         },
         {
           "code": "review_agent_failed",
-          "message": "spawn review agent: agent-manager request failed: status 400: {\"code\":\"VALIDATION_FIELD\",\"message\":\"validation error on contextAttachments[0].content: required for note attachments\",\"details\":{\"fields\":{\"field\":{\"string_value\":\"contextAttachments[0].content\"},\"message\":{\"string_value\":\"required for note attachments\"},\"recovery\":{\"string_value\":\"fix_input\"},\"request_id\":{\"string_value\":\"449341db-aa9f-40a5-9d4c-da7b91c2e316\"},\"retryable\":{\"bool_value\":false},\"user_message\":{\"string_value\":\"Invalid value for contextAttachments[0].content: required for note attachments\"}}}}",
-          "created_at": "2026-04-08T16:17:43Z"
-        },
-        {
-          "code": "finalization_infrastructure",
-          "scenario_name": "secrets-manager",
-          "message": "trigger review for secrets-manager: review run returned status 409: {\"error\":\"a review run is already in progress for this scenario\"}",
-          "created_at": "2026-04-08T16:17:48Z"
-        },
-        {
-          "code": "review_agent_failed",
-          "message": "spawn review agent: agent-manager request failed: status 400: {\"code\":\"VALIDATION_FIELD\",\"message\":\"validation error on contextAttachments[0].content: required for note attachments\",\"details\":{\"fields\":{\"field\":{\"string_value\":\"contextAttachments[0].content\"},\"message\":{\"string_value\":\"required for note attachments\"},\"recovery\":{\"string_value\":\"fix_input\"},\"request_id\":{\"string_value\":\"da3e23ab-5d04-4963-a80e-4fce200c11c8\"},\"retryable\":{\"bool_value\":false},\"user_message\":{\"string_value\":\"Invalid value for contextAttachments[0].content: required for note attachments\"}}}}",
-          "created_at": "2026-04-08T16:17:48Z"
-        },
-        {
-          "code": "review_agent_failed",
-          "message": "spawn review agent: agent-manager request failed: status 400: {\"code\":\"VALIDATION_FIELD\",\"message\":\"validation error on contextAttachments[0].content: required for note attachments\",\"details\":{\"fields\":{\"field\":{\"string_value\":\"contextAttachments[0].content\"},\"message\":{\"string_value\":\"required for note attachments\"},\"recovery\":{\"string_value\":\"fix_input\"},\"request_id\":{\"string_value\":\"64f2388b-2db0-4088-907a-36747d4c8779\"},\"retryable\":{\"bool_value\":false},\"user_message\":{\"string_value\":\"Invalid value for contextAttachments[0].content: required for note attachments\"}}}}",
-          "created_at": "2026-04-08T16:18:10Z"
+          "message": "spawn review agent: agent-manager request failed: status 400: {\"code\":\"VALIDATION_FIELD\",\"message\":\"validation error on contextAttachments[0].content: required for note attachments\",\"details\":{\"fields\":{\"field\":{\"string_value\":\"contextAttachments[0].content\"},\"message\":{\"string_value\":\"required for note attachments\"},\"recovery\":{\"string_value\":\"fix_input\"},\"request_id\":{\"string_value\":\"1b0479b5-82f0-4a48-bc92-478d64cd6797\"},\"retryable\":{\"bool_value\":false},\"user_message\":{\"string_value\":\"Invalid value for contextAttachments[0].content: required for note attachments\"}}}}",
+          "created_at": "2026-04-08T19:22:13Z"
         }
       ],
       "affected_scenarios": [
         "secrets-manager"
       ],
-      "aggregate_classification": "ready_with_notes",
-      "aggregate_summary": "secrets-manager ready with notes; 6 warning(s)",
+      "aggregate_classification": "needs_work",
+      "aggregate_summary": "secrets-manager review unavailable; 5 warning(s)",
       "scenarios": [
         {
           "scenario_name": "secrets-manager",
           "restart": {
             "status": "completed",
-            "attempts": 2,
-            "started_at": "2026-04-08T16:17:29Z",
-            "finished_at": "2026-04-08T16:17:38Z"
+            "attempts": 1,
+            "started_at": "2026-04-08T19:21:57Z",
+            "finished_at": "2026-04-08T19:22:08Z"
           },
           "health": {
             "status": "completed",
@@ -4169,78 +4292,128 @@
             "health_status": "healthy",
             "schema_valid": true,
             "details": "scenario is healthy",
-            "checked_at": "2026-04-08T16:17:48Z"
+            "checked_at": "2026-04-08T19:22:13Z"
           },
           "review": {
-            "status": "completed",
-            "job_id": "60d7aceb-faa0-4fe3-869e-7833499d4313",
-            "result": {
-              "job_id": "60d7aceb-faa0-4fe3-869e-7833499d4313",
-              "classification": "ready_with_notes",
-              "dimensions": [
-                {
-                  "name": "codeQuality",
-                  "status": "red",
-                  "details": "0.0 score, 117 violations"
-                },
-                {
-                  "name": "tests",
-                  "status": "yellow",
-                  "details": "4/11 passed"
-                },
-                {
-                  "name": "standards",
-                  "status": "red",
-                  "details": "2 blocking violations"
-                },
-                {
-                  "name": "visual",
-                  "status": "red"
-                },
-                {
-                  "name": "provenance",
-                  "status": "green"
-                }
-              ],
-              "raw_dimensions": {
-                "codeQuality": {
-                  "available": true,
-                  "score": 0,
-                  "violations": 117,
-                  "stale": false
-                },
-                "tests": {
-                  "available": true,
-                  "passed": false,
-                  "total": 11,
-                  "passedCount": 4,
-                  "failedCount": 7,
-                  "lastRun": "2026-04-08T16:18:06.863321925Z"
-                },
-                "standards": {
-                  "available": true,
-                  "blockingViolations": 2,
-                  "warnings": 36,
-                  "totalViolations": 38
-                },
-                "visual": {
-                  "available": true,
-                  "screenshotCount": 0,
-                  "stale": false
-                },
-                "provenance": {
-                  "available": true,
-                  "tracedFiles": 1
-                }
-              },
-              "summary": "Scenario secrets-manager readiness: yellow",
-              "reviewed_at": "2026-04-08T16:18:10Z"
-            }
+            "status": "running"
           }
         }
       ]
     },
     "created_at": "2026-04-08T16:13:44Z",
-    "updated_at": "2026-04-08T16:18:10Z"
+    "updated_at": "2026-04-08T19:22:14Z"
+  },
+  {
+    "execution_id": "706a250ce79dfd74",
+    "backlog_kind": "execute",
+    "backlog_name": "qa-swarm-manager-code-quality-20260408",
+    "previous_status": "backlog",
+    "task_id": "81fe0016-78fa-442e-ac4f-39811c09a4f8",
+    "run_id": "07eb2034-468c-4f1d-be1e-2c3082f2eff4",
+    "status": "needs_fixup",
+    "mode": "yolo",
+    "started_at": "2026-04-08T16:51:37Z",
+    "finished_at": "2026-04-08T17:15:41Z",
+    "started_by": "swarm-manager-ui",
+    "operation": "generator",
+    "prompt_trace": {
+      "purpose": "process",
+      "prompt": "\u003cexecution-context\u003e\nBacklog item: execute/qa-swarm-manager-code-quality-20260408\nTitle: Reduce code quality violations in swarm-manager\nItem folder: /home/matthalloran8/Vrooli/scenarios/swarm-manager/execute/qa-swarm-manager-code-quality-20260408\nRun type: process\n\u003c/execution-context\u003e\n\n\u003cimplementation-plan path=\"plan.md\"\u003e\n# Implementation Plan: Reduce Code Quality Violations in swarm-manager\n\n## Greenfield Declaration\n\nThis is a **refactoring-only** item. No backward-compatibility shims, feature flags, or migration bridges are needed. All changes are internal structural improvements — extract helpers, split files, reduce complexity. No external API contracts change.\n\n## 1. Purpose\n\nReduce the swarm-manager API code quality violations by refactoring the top ~30 highest-priority files. Eliminate all tech debt markers. CLI files are excluded (separate item).\n\n## 2. Required Reading\n\n```bash\nprompt-manager skill read refactor code-cleanup implementation-plan-authoring\nprompt-manager skill read cli-steer api-steer utils-unification seam-discovery-and-enforcement\n```\n\n## 3. Problem Statement\n\nThe swarm-manager scenario has a code quality score of 0/100 with 379 violations:\n- **107 complex functions** — functions with high cyclomatic complexity\n- **48 long files** — files exceeding length thresholds\n- **3 tech debt markers** — TODO/FIXME/HACK comments (1 confirmed in API: `stats/engine.go:289`)\n- **1 lint issue**\n\n**Scale (round 2 analysis):** 54 files with 200+ lines, 67 files with complexity_max \u003e= 6. The full set is too large for one item. This plan targets the top ~30 API files by refactor priority.\n\n## 4. Scope\n\n### In Scope\n- Top ~30 Go source files under `scenarios/swarm-manager/api/` ranked by refactor priority\n- Refactoring to reduce complexity, length, and duplication\n- Removing tech debt markers\n- Fixing lint issues\n\n### Out of Scope\n- CLI files (`cli/`) — deferred to separate backlog item (round 2 d3)\n- Changing external API contracts or behavior\n- Modifying proto definitions\n- Changes outside `scenarios/swarm-manager/`\n- Adding new features\n\n## 5. Current Technical Context\n\n### Settled Decisions\n\n**Round 1:**\n- **d1:** Extract shared file-serving logic from `backlog/files.go` and `initiatives/files.go` into new `internal/fileserve` package\n- **d2:** Keep `eventlog/emitter.go` explicit typed methods — accept duplication score\n- **d3:** Extract `errorWriter` and shared test helpers into existing `internal/testutil`\n- **d4:** Create `doUpdate()` helper in `handler_update_test.go` to reduce repetitive PATCH setup\n\n**Round 2:**\n- **d1:** Target top ~30 files, accept partial improvement\n- **d2:** Extract sub-handlers and helpers within same package for production files\n- **d3:** Exclude CLI from this item\n- **d4:** Split large test files by category + extract shared helpers\n\n**Round 3:**\n- **d1:** Decompose `batch_handler.go` (complexity 59) by extracting each batch operation into named functions within the same file (not splitting across files)\n- **d2:** Keep phase-based execution ordering (Phase 1 shared utilities first, then phases 2-4)\n- **d3:** Agent must NOT create commits — user commits manually\n- **d4:** No numeric score target; success = all 30 files addressed + tech debt markers removed\n\n### Prioritized File List (Top 30 API Files)\n\n**Tier 1: Highest-complexity production files (extract sub-handlers within package)**\n\n| # | File | Lines | Cmplx Max | Dup % | Refactor Action |\n|---|------|-------|-----------|-------|-----------------|\n| 1 | `backlog/batch_handler.go` | 401 | **59** | 18% | Extract each batch operation into named functions in the same file (settled d1-r3) |\n| 2 | `backlog/files.go` | 292 | **35** | 53% | Extract to `internal/fileserve` (settled d1-r1) |\n| 3 | `initiatives/files.go` | 312 | **35** | 57% | Extract to `internal/fileserve` (settled d1-r1) |\n| 4 | `scenarios/files.go` | 118 | **9** | 53% | Also extract to `internal/fileserve` |\n| 5 | `backlog/workshop_save.go` | 360 | **29** | 24% | Extract validation/parsing helpers |\n| 6 | `backlog/handler.go` | 455 | **28** | 18% | Split into handler_create.go, handler_list.go, etc. |\n| 7 | `backlog/import_parser.go` | 403 | **24** | 22% | Extract parsing sub-functions |\n| 8 | `backlog/archive_handlers.go` | 341 | **20** | 27% | Extract archive operation helpers |\n| 9 | `ideas/handler.go` | 712 | **17** | 35% | Split by CRUD operation into separate files |\n| 10 | `backlog/backlog_summary.go` | 178 | **14** | 43% | Extract summary computation helpers |\n| 11 | `initiatives/handler.go` | 338 | **12** | 57% | Extract sub-handlers; benefit from fileserve extraction |\n| 12 | `prompts/handler.go` | 370 | **10** | 29% | Split by endpoint |\n\n**Tier 2: Large test files (split by category + extract helpers)**\n\n| # | File | Lines | Cmplx Max | Dup % | Refactor Action |\n|---|------|-------|-----------|-------|-----------------|\n| 13 | `execution/service_test.go` | 1279 | 18 | 20% | Split by service method under test |\n| 14 | `ideas/handler_test.go` | 1065 | 10 | 47% | Split by CRUD + extract request helpers |\n| 15 | `backlog/handler_test.go` | 1012 | 8 | 21% | Split by handler endpoint |\n| 16 | `scenarios/handler_test.go` | 757 | 11 | 32% | Split by endpoint |\n| 17 | `backlog/store_test.go` | 730 | 29 | 37% | Split by store method |\n| 18 | `backlog/import_test.go` | 727 | 18 | 28% | Split by import scenario |\n| 19 | `backlog/batch_queue_handler_test.go` | 627 | 10 | 52% | Extract queue test helpers |\n| 20 | `backlog/workshop_save_test.go` | 611 | 11 | 31% | Split by save scenario |\n| 21 | `backlog/batch_handler_test.go` | 543 | 8 | 23% | Extract batch test helpers |\n| 22 | `workshop/workshop_test.go` | 519 | 13 | 36% | Split by workshop phase |\n| 23 | `agentactivity/service_test.go` | 484 | 17 | 17% | Extract service test helpers |\n| 24 | `backlog/handler_update_test.go` | 472 | 8 | 67% | doUpdate() helper (settled d4-r1) |\n| 25 | `backlog/initialize_test.go` | 473 | 5 | 41% | Extract init test helpers |\n\n**Tier 3: High-duplication small files (extract to testutil)**\n\n| # | File | Lines | Dup % | Refactor Action |\n|---|------|-------|-------|-----------------|\n| 26 | `queue/encode_error_test.go` | 39 | 100% | Extract errorWriter to testutil (settled d3-r1) |\n| 27 | `backlog/encode_error_test.go` | 39 | 100% | Extract errorWriter to testutil (settled d3-r1) |\n| 28 | `queue/store_default_test.go` | 13 | 100% | Extract to testutil (settled d3-r1) |\n| 29 | `settings/helpers_test.go` | 13 | 100% | Extract to testutil (settled d3-r1) |\n| 30 | `settings/normalize_test.go` | 136 | 89% | Convert to table-driven tests |\n\n## 6. Target End State\n\n- All 30 listed files refactored per their specified refactor actions\n- tech_debt_markers = 0 (remove TODO at `stats/engine.go:289`)\n- All existing tests continue to pass\n- No behavioral changes to APIs\n- Code formatted with `gofumpt` and clean under `golangci-lint run`\n\n## 7. Implementation Strategy\n\n### Phase 1: Extract shared utilities (highest leverage)\n1. Create `internal/fileserve` package with generic file upload/download/list/delete helpers\n2. Refactor `backlog/files.go`, `initiatives/files.go`, and `scenarios/files.go` to use `fileserve`\n3. Extract `errorWriter` and shared test patterns into existing `internal/testutil`\n4. Run tests to confirm no regressions\n\n### Phase 2: Decompose highest-complexity production files\nTarget files with complexity_max \u003e= 10 (Tier 1 items 1, 5-12):\n1. `backlog/batch_handler.go` (complexity 59) — extract each batch operation into named functions within the same file; do NOT split across multiple files\n2. `backlog/workshop_save.go` (complexity 29) — extract validation and parsing into helper functions\n3. `backlog/handler.go` (complexity 28) — split into handler_create.go, handler_list.go, handler_search.go\n4. `backlog/import_parser.go` (complexity 24) — extract parsing sub-functions for each import format\n5. `backlog/archive_handlers.go` (complexity 20) — extract archive operation helpers\n6. `ideas/handler.go` (712 lines, complexity 17) — split by CRUD operation\n7. `backlog/backlog_summary.go` (complexity 14) — extract summary computation helpers\n8. `initiatives/handler.go` (complexity 12) — extract sub-handlers\n9. `prompts/handler.go` (complexity 10) — split by endpoint\n10. Run tests after each file\n\n### Phase 3: Split large test files\nTarget Tier 2 files (13 test files, 470-1300 lines each):\n1. For each large test file:\n   a. Identify natural split boundaries (by handler method, service operation, or test category)\n   b. Extract shared test setup into per-package helpers or testutil\n   c. Split into focused test files (e.g., `handler_create_test.go`, `handler_update_test.go`)\n   d. Verify test count preserved: `go test -v ./internal/\u003cpkg\u003e/... | grep -c \"=== RUN\"`\n2. Apply `doUpdate()` helper pattern to `handler_update_test.go` (settled d4-r1)\n3. Run full test suite after each package\n\n### Phase 4: Clean up remaining violations\n1. Convert `settings/normalize_test.go` to table-driven tests (reduce 89% duplication)\n2. Address remaining moderate-complexity files in the top 30\n3. Remove tech debt marker at `stats/engine.go:289`\n4. Run `gofumpt -w .` for consistent formatting\n5. Run `golangci-lint run` to catch remaining lint issues\n\n### Phase 5: Verify and final cleanup\n1. Run full test suite: `go test ./... -timeout 300s`\n2. Run `tidiness-manager recommend-refactors swarm-manager --limit 10` to confirm top violations addressed\n3. Run `vrooli scenario restart swarm-manager` to verify the scenario starts cleanly after all changes\n4. Document results\n\n## 8. Contract Decisions\n\n- No API contract changes\n- No proto changes\n- All refactoring is internal structural improvement only\n- Agent must NOT create git commits — user handles commits manually\n\n## 9. Testing Plan\n\n- All existing tests must continue to pass after each phase\n- Run `go test ./... -timeout 300s` after each phase\n- For test file splits: verify test count preserved with `go test -v ./internal/\u003cpkg\u003e/... 2\u003e\u00261 | grep -c \"=== RUN\"` before and after\n- No new test coverage required (refactoring, not new behavior)\n- Final validation via tidiness-manager recommendations\n- Work incrementally: test after each file or small group of related files\n\n## 10. Rollout/Validation Checklist\n\n- [ ] Phase 1: fileserve + testutil extraction done, tests pass\n- [ ] Phase 2: High-complexity production files decomposed, tests pass\n- [ ] Phase 3: Large test files split, test count preserved, tests pass\n- [ ] Phase 4: Remaining violations cleaned, tech debt = 0, tests pass\n- [ ] Phase 5: Full test suite passes, tidiness scan confirms improvements, `vrooli scenario restart swarm-manager` succeeds\n\n## 11. Risks + Mitigations\n\n| Risk | Likelihood | Impact | Mitigation |\n|---|---|---|---|\n| batch_handler.go (complexity 59) is hard to decompose | Medium | Medium | Read the function carefully; likely a single large switch or nested conditionals that can be extracted into named helpers |\n| Test file splits break test isolation | Low | High | Go test files in same package share state; splitting within package is safe. Verify test counts. |\n| fileserve extraction creates import cycles | Low | Medium | fileserve is a new leaf package with no internal dependencies |\n| Refactoring breaks existing tests | Medium | High | Work incrementally, run tests after each file; user commits at safe points |\n| 30 files not enough for meaningful improvement | Low | Medium | The 30 files include the worst offenders (complexity 59, 35, 29, 28, 24, 20) which disproportionately affect scores |\n\n## 12. Non-goals / Prohibited Patterns\n\n- Do NOT change any API behavior or contracts\n- Do NOT add new features during refactoring\n- Do NOT modify proto definitions\n- Do NOT refactor files outside `scenarios/swarm-manager/api/`\n- Do NOT touch CLI files (deferred to separate item)\n- Do NOT add unnecessary abstractions — only extract when genuinely reducing duplication or complexity\n- Do NOT consolidate `eventlog/emitter.go` — keep explicit typed methods (settled d2-r1)\n- Do NOT refactor files outside the top-30 list unless they're trivial wins discovered during work\n- Do NOT create git commits — user commits manually (settled d3-r3)\n\n## 13. Definition of Done\n\n- [ ] All 30 listed files have been refactored per their specified actions\n- [ ] tech_debt_markers = 0 (specifically `stats/engine.go:289` removed)\n- [ ] All existing tests pass (`go test ./... -timeout 300s`)\n- [ ] Code formatted with `gofumpt`\n- [ ] No lint issues from `golangci-lint run`\n- [ ] `vrooli scenario restart swarm-manager` succeeds cleanly\n\n\u003c/implementation-plan\u003e\n",
+      "prompt_revision": "sha256:cdc4d7d920b3324a",
+      "used_fallback": false,
+      "captured_at": "2026-04-08T16:51:37Z"
+    },
+    "finalization": {
+      "eligible": true,
+      "status": "completed",
+      "phase": "completed",
+      "scope_source": "acceptance_allow",
+      "started_at": "2026-04-08T17:15:41Z",
+      "completed_at": "2026-04-08T17:15:41Z",
+      "warnings": [
+        {
+          "code": "self_restart_skipped",
+          "scenario_name": "swarm-manager",
+          "message": "Scenario \"swarm-manager\" was in scope but skipped because restarting it would kill this running process. If changes to swarm-manager require a restart, restart it manually after finalization completes.",
+          "created_at": "2026-04-08T17:15:41Z"
+        },
+        {
+          "code": "review_agent_failed",
+          "message": "spawn review agent: another agent is already active for this backlog item: execute/qa-swarm-manager-code-quality-20260408 already has an active agent (activity=e0af25585e7a02b3, status=pending, purpose=review)",
+          "created_at": "2026-04-08T17:15:41Z"
+        }
+      ],
+      "affected_scenarios": [
+        "swarm-manager"
+      ],
+      "aggregate_classification": "needs_work",
+      "aggregate_summary": "swarm-manager restart failed; 2 warning(s)",
+      "scenarios": [
+        {
+          "scenario_name": "swarm-manager",
+          "restart": {
+            "status": "pending"
+          },
+          "health": {
+            "status": "pending",
+            "schema_valid": false
+          },
+          "review": {
+            "status": "pending"
+          }
+        }
+      ]
+    },
+    "created_at": "2026-04-08T16:51:37Z",
+    "updated_at": "2026-04-08T17:15:41Z"
+  },
+  {
+    "execution_id": "fa905dc2cc7ecd4a",
+    "backlog_kind": "execute",
+    "backlog_name": "qa-git-control-tower-code-quality-20260408",
+    "previous_status": "backlog",
+    "task_id": "3aabd64a-2f4b-4af8-a4f1-b8edd8985368",
+    "run_id": "198bf055-7975-47a2-b3db-75ba1e9e8a3e",
+    "status": "failed",
+    "mode": "yolo",
+    "started_at": "2026-04-08T16:52:12Z",
+    "finished_at": "2026-04-08T17:22:12Z",
+    "failure_reason": "Runner claude-code encountered an error. Please check runner configuration.",
+    "started_by": "swarm-manager-ui",
+    "operation": "generator",
+    "prompt_trace": {
+      "purpose": "process",
+      "prompt": "\u003cexecution-context\u003e\nBacklog item: execute/qa-git-control-tower-code-quality-20260408\nTitle: Reduce code quality violations in git-control-tower\nItem folder: /home/matthalloran8/Vrooli/scenarios/swarm-manager/execute/qa-git-control-tower-code-quality-20260408\nRun type: process\n\u003c/execution-context\u003e\n\n\u003cimplementation-plan path=\"plan.md\"\u003e\n# Implementation Plan: Reduce Code Quality Violations in git-control-tower\n\n## Greenfield Constraint\n\nThis is a **refactoring-only** task. No backward compatibility shims, feature flags, or migration bridges are needed. All changes must preserve existing behavior — the API/CLI contracts do not change. Old patterns are replaced in-place, not wrapped.\n\n## Purpose\n\nRefactor the git-control-tower scenario codebase to achieve a code quality score ≥70 by reducing complex functions (\u003c10), long files (\u003c10), and removing all tech debt markers.\n\n## Required Reading\n\n```bash\nprompt-manager skill read refactor code-cleanup cli-steer api-steer utils-unification seam-discovery-and-enforcement\n```\n\n## Problem Statement\n\nThe git-control-tower scenario has a code quality score of 0/100 with 88 violations:\n- **45 complex functions** — repeated boilerplate in HTTP clients and test files\n- **43 long files** — test files with repeated setup, client files with duplicated HTTP helpers, plus many large service/handler files\n- **2 tech debt markers** — TODO comments in UI source files\n\nRoot causes identified from codebase analysis:\n1. **No shared HTTP client base** — 5 client files (`tidiness_manager_client.go`, `test_genie_client.go`, `auditor_client.go`, `browser_automation_client.go`, `agent_manager_client.go`) each duplicate `doJSON()`, `doGet()`, `resolveBaseURL()`, and error parsing methods. Total: ~1,117 lines across 5 files.\n2. **No test helpers** — Test files repeat setup, assertion, and validation boilerplate\n3. **No language scanner abstraction** — `golang/scanner.go` and `python/scanner.go` have 90%+ identical `Scan()` method bodies\n4. **No table-driven tests** — Individual test functions duplicate nearly identical setups\n5. **Large service/handler files** — main.go (1,363 lines), review_handler_test.go (1,355 lines), git_runner.go (1,149 lines), and many others exceed thresholds independent of the duplication issues above\n\n## Scope\n\n**In scope:**\n- All Go source files under `scenarios/git-control-tower/api/`\n- UI TODO markers in `scenarios/git-control-tower/ui/src/`\n- Files touched by HTTP client dedup, test refactoring, and scanner abstraction phases\n- Top 5 largest non-client/non-test files for structural splitting (R3-d2): `main.go`, `git_runner.go`, `diff_service.go`, `visual_capture_storage.go`, `agent_manager_model.go`\n\n**Out of scope:**\n- Functional behavior changes — all refactors must preserve existing behavior\n- Adding new features or endpoints\n- Changes to `packages/` or other scenarios\n- UI refactoring beyond removing TODO markers\n- Large files beyond the explicit top-5 split list (other files not touched by any phase remain as-is)\n\n## Current Technical Context\n\n### Full File Inventory (top 20 by size)\n\n| File | Lines | Primary Issue | In Scope? |\n|------|-------|---------------|-----------|\n| `api/main.go` | 1,363 | Massive entry point | Yes — Phase 5 split |\n| `api/review_handler_test.go` | 1,355 | Huge test file | Yes — Phase 2 test refactor |\n| `api/git_runner.go` | 1,149 | Large service file | Yes — Phase 5 split |\n| `api/git_runner_fake_test.go` | 997 | Large test fake | Yes — Phase 2 test refactor |\n| `api/diff_service_test.go` | 794 | Test duplication | Yes — Phase 2 test refactor |\n| `api/agent_manager_client_test.go` | 779 | Test duplication | Yes — Phase 2 test refactor |\n| `api/diff_service.go` | 763 | Large service | Yes — Phase 5 split |\n| `api/visual_capture_storage.go` | 649 | Large storage layer | Yes — Phase 5 split |\n| `api/visual_capture_service_test.go` | 634 | Test duplication | Yes — Phase 2 test refactor |\n| `api/agent_manager_model.go` | 607 | Large model file | Yes — Phase 5 split |\n| `api/review_handler.go` | 530 | Large handler | No — not touched by any phase |\n| `api/visual_capture_handler.go` | 501 | Large handler | No |\n| `api/visual_capture_storage_test.go` | 486 | Test duplication | Yes — Phase 2 test refactor |\n| `api/agent_manager_handler.go` | 472 | Large handler | No |\n| `api/credentials_service.go` | 451 | Large service | No |\n| `api/gitignore_health_service_test.go` | 441 | Test duplication, complexity 8 | Yes — Phase 2 test refactor |\n| `api/file_service.go` | 412 | Large service | No |\n| `api/visual_capture_service.go` | 411 | Large service | No |\n| `api/sync_status_service_test.go` | 407 | Test duplication | Yes — Phase 2 test refactor |\n| `api/agent_manager_client.go` | 397 | HTTP client with caching | Yes — Phase 1 client dedup |\n\n### HTTP Client Duplication Analysis\n\n**Common methods duplicated across all 5 clients:**\n- `resolveBaseURL(ctx) (string, error)` — identical except service name string\n- `doGet(ctx, path, result) error` — identical pattern\n- `doJSON(ctx, path, body, result) error` — identical pattern\n- `parseXxxError(resp) error` — identical except error prefix string\n\n**Client-specific variants (R2-d1 — variants stay on child):**\n- `AgentManagerClient.resolveBaseURL()` — overrides base to add mutex-based URL caching\n- `AuditorClient.doJSONAccept(ctx, path, body, result, acceptStatuses ...int)` — thin wrapper on child\n- `BrowserAutomationClient.doRaw(ctx, path) ([]byte, string, error)` — fetches binary data, stays on child\n\n### Scanner Duplication\n\nBoth `golang/scanner.go` (60 lines) and `python/scanner.go` (58 lines) share identical:\n- Struct definition and constructor\n- `Scan()` method structure (context cancellation, result initialization, import loop)\n- Only differ in: extensions list, match function names, and which import field to extract\n\n### UI TODO Markers\n\n1. **App.tsx:1320** — `TODO: Use lineNumber to scroll to the specific line in the source viewer`\n2. **ScenarioReviewPanel.tsx:665** — `TODO: Remove this client-side fallback once the unified review endpoint is stable`\n\n## All Settled Decisions\n\n| Round | ID | Decision | Choice | Detail |\n|-------|-----|----------|--------|--------|\n| R1 | d1 | HTTP client extraction approach | Embedded struct composition | BaseClient struct with shared methods, service clients embed it |\n| R1 | d2 | Test refactoring scope | Refactor all test files with \u003e50% duplication | Comprehensive approach |\n| R1 | d3 | Scanner duplication resolution | Extract shared ScanImports helper | Shared function, not complex interface |\n| R1 | d4 | Tech debt marker handling | Implement TODO functionality and remove | With endpoint stability check for ScenarioReviewPanel |\n| R2 | d1 | BaseClient variant handling | Common methods only; variants on child | doGet/doJSON/resolveBaseURL/parseError on base; doJSONAccept/doRaw/cached URL on children |\n| R2 | d2 | Scope of long_files beyond client/test | **Overridden by R3-d2** | Originally limited scope; now expanded |\n| R2 | d3 | ScenarioReviewPanel TODO | Verify endpoint stability first | Remove fallback only if confirmed; otherwise remove TODO comment and file separate item |\n| R2 | d4 | Long file threshold | Run tidiness-manager in Phase 0 | Get exact threshold and full violation list before refactoring |\n| R3 | d1 | Test helper organization | Hybrid approach | Shared `test_helpers_test.go` for cross-cutting concerns (mock HTTP server, assertion helpers) + per-domain helper files co-located with tests |\n| R3 | d2 | Long_files target handling | Expand scope to split top 5 largest files | Add main.go, git_runner.go, diff_service.go, visual_capture_storage.go, agent_manager_model.go to refactoring scope |\n| R3 | d3 | Phase execution order | Sequential with metrics checkpoints | Metrics check after Phase 1 and after Phase 2 to validate approach early |\n\n## Target End State\n\n- Code quality score ≥70\n- complex_functions \u003c 10\n- long_files \u003c 10\n- tech_debt_markers = 0\n- All existing tests pass with no behavioral changes\n- Shared HTTP client base eliminates duplication across 5 client files\n- Test helpers reduce boilerplate in test files\n- Scanner abstraction eliminates duplication between language scanners\n- Top 5 largest non-test/non-client files split into cohesive smaller modules\n\n## Implementation Strategy\n\n### Phase 0: Gather Metrics Baseline\nRun `tidiness-manager recommend-refactors git-control-tower --limit 50 --format json` to get:\n- Exact line count threshold for long_files violations\n- Complete list of all violating files with their scores\n- Complexity scores per function\n\nThis data informs which files in subsequent phases need the most attention and validates whether the approach can hit targets.\n\n### Phase 1: Shared HTTP Client Base\n**Approach:** Embedded struct composition (R1-d1) with common-only base (R2-d1).\n\nCreate `api/httpclient.go` with:\n```go\ntype BaseClient struct {\n    httpClient  *http.Client\n    serviceName string\n    resolver    discovery.Resolver\n}\n```\n\n**BaseClient provides:** `doGet`, `doJSON`, `resolveBaseURL`, `parseError` (with configurable service name prefix).\n\n**Variant handling (R2-d1):**\n- `AuditorClient`: `doJSONAccept` stays on child as thin wrapper calling `BaseClient.doJSON` internally with status check\n- `BrowserAutomationClient`: `doRaw` stays on child\n- `AgentManagerClient`: overrides `resolveBaseURL` to add mutex caching\n\n**Files affected:**\n- New: `api/httpclient.go`\n- Modified: `tidiness_manager_client.go`, `test_genie_client.go`, `auditor_client.go`, `browser_automation_client.go`, `agent_manager_client.go`\n\n**Expected impact:** Eliminates ~15-20 complex_functions (3-4 duplicated methods × 5 clients).\n\n**Metrics checkpoint:** After Phase 1, run `tidiness-manager recommend-refactors git-control-tower --limit 50 --format json` and `go test ./... -timeout 300s` to validate the approach is reducing violations and tests still pass (R3-d3).\n\n### Phase 2: Test Helpers \u0026 Table-Driven Tests\n**Approach:** Refactor all test files with \u003e50% duplication (R1-d2).\n\n**Test helper organization (R3-d1 — hybrid approach):**\n- **Shared `test_helpers_test.go`** — Cross-cutting utilities: mock HTTP server setup, common assertion helpers, shared test fixtures\n- **Per-domain helper files** — Co-located with their test files: e.g., `gitignore_health_test_helpers_test.go` next to `gitignore_health_service_test.go` for domain-specific setup, fixtures, and fake builders\n\n**Priority order by file size:**\n1. `api/review_handler_test.go` (1,355 lines) — largest test file\n2. `api/git_runner_fake_test.go` (997 lines)\n3. `api/diff_service_test.go` (794 lines)\n4. `api/agent_manager_client_test.go` (779 lines)\n5. `api/visual_capture_service_test.go` (634 lines)\n6. `api/visual_capture_storage_test.go` (486 lines)\n7. `api/gitignore_health_service_test.go` (441 lines, complexity 8)\n8. `api/sync_status_service_test.go` (407 lines)\n9. `api/ssh/service_test.go` (152 lines) — subtests, extract `newTestDeps()`\n10. All other test files exceeding the threshold (per Phase 0 data)\n\n**Techniques:**\n- Convert repeated test functions to table-driven subtests\n- Extract shared setup into helper functions\n- Use `t.Helper()` for clear error attribution\n\n**Metrics checkpoint:** After Phase 2, run `tidiness-manager recommend-refactors git-control-tower --limit 50 --format json` and `go test ./... -timeout 300s` to confirm progress toward targets (R3-d3).\n\n### Phase 3: Scanner Abstraction\n**Approach:** Extract shared ScanImports helper (R1-d3).\n\nCreate a shared function in `api/filerelations/languages/`:\n```go\nfunc ScanImports(ctx context.Context, content string, matchers []MatchFunc) (*scanner.ScanResult, error)\n```\n\nBoth `golang/scanner.go` and `python/scanner.go` call this with their language-specific matchers.\n\n**Files affected:**\n- New: `api/filerelations/languages/scan_imports.go` (or similar)\n- Modified: `golang/scanner.go`, `python/scanner.go`\n\n### Phase 4: Tech Debt Markers\n**App.tsx:1320** — Implement scroll-to-line feature using the existing lineNumber prop.\n\n**ScenarioReviewPanel.tsx:665** — Per R2-d3: verify that the unified review endpoint (`review_readiness.go`) covers all cases the fallback handles. If confirmed stable, remove the fallback code. If not stable or unclear, remove only the TODO comment and file a separate backlog item for the fallback removal.\n\n### Phase 5: Split Top 5 Largest Non-Client/Non-Test Files (R3-d2)\n**Approach:** Structural splitting of the 5 largest files not addressed by Phases 1-2 to bring long_files count under 10.\n\n**Target files and splitting strategy:**\n1. **`api/main.go` (1,363 lines)** — Extract route registration, middleware setup, and server configuration into separate files (e.g., `routes.go`, `middleware.go`, `server.go`). Keep `main()` as a thin entry point.\n2. **`api/git_runner.go` (1,149 lines)** — Split by responsibility: separate git operations into logical groups (e.g., `git_runner_clone.go`, `git_runner_commit.go`, `git_runner_diff.go` or by domain boundaries discovered during refactoring).\n3. **`api/diff_service.go` (763 lines)** — Extract diff computation helpers, formatting logic, or sub-services into companion files.\n4. **`api/visual_capture_storage.go` (649 lines)** — Separate storage backends or helper functions into their own files.\n5. **`api/agent_manager_model.go` (607 lines)** — Split by model domain or extract validation/serialization logic.\n\n**Constraint:** All splits must stay within the same Go package. No new packages, no import cycle risk. Each resulting file should be under the long_files threshold (determined in Phase 0).\n\n**Verification:** After each file split, run `go build ./...` and `go test ./... -timeout 300s` to confirm no regressions.\n\n### Post-Refactor: Final Verification\n1. Run `go test ./... -timeout 300s` to verify all tests pass\n2. Run `golangci-lint run` to check for new lint issues\n3. Run `gofumpt -w .` to ensure consistent formatting\n4. Run `tidiness-manager recommend-refactors git-control-tower --limit 50 --format json` to verify metric improvements\n5. Run `git-control-tower review-run git-control-tower --json` to confirm score ≥70\n6. Run `vrooli scenario restart git-control-tower` to validate the scenario starts cleanly\n\n## Contract Decisions\n\n- No API or CLI contract changes — this is purely internal refactoring\n- All existing tests must continue to pass\n- No new dependencies\n\n## Testing Plan\n\n1. **Per-file verification:** Run `go test ./...` after refactoring each file to catch regressions immediately\n2. **Per-phase verification:** Run `golangci-lint run` after each phase to catch new lint issues\n3. **Metrics checkpoints (R3-d3):** Run `tidiness-manager recommend-refactors git-control-tower --limit 50 --format json` after Phase 1 and after Phase 2 to validate approach early\n4. **Format check:** Run `gofumpt -w .` after all Go changes\n5. **Final metrics:** Run `tidiness-manager recommend-refactors git-control-tower --limit 50 --format json` after all phases\n6. **Final score:** Run `git-control-tower review-run git-control-tower --json` to confirm score ≥70\n7. **Scenario health:** Run `vrooli scenario restart git-control-tower` to validate clean startup\n\n## Rollout/Validation Checklist\n\n- [ ] Phase 0 complete — metrics baseline gathered, full violation list known, threshold confirmed\n- [ ] Phase 1 complete — shared HTTP client base created, all 5 clients refactored, tests pass\n- [ ] Phase 1 metrics checkpoint — violation counts trending down\n- [ ] Phase 2 complete — test helpers created, table-driven tests converted, tests pass\n- [ ] Phase 2 metrics checkpoint — complex_functions and long_files significantly reduced\n- [ ] Phase 3 complete — scanner abstraction in place, tests pass\n- [ ] Phase 4 complete — tech debt markers resolved (implemented or tracked separately)\n- [ ] Phase 5 complete — top 5 large files split, each under threshold, tests pass\n- [ ] All tests pass (`go test ./... -timeout 300s`)\n- [ ] Code quality score ≥70 confirmed via GCT review\n- [ ] `vrooli scenario restart git-control-tower` succeeds cleanly\n\n## Risks \u0026 Mitigations\n\n| ID | Risk | Likelihood | Impact | Mitigation |\n|----|------|-----------|--------|------------|\n| R1 | long_files still \u003e10 after all phases | Medium | Medium | Phase 5 targets top 5 non-client/non-test files. If still \u003e10, file a follow-up item for remaining violations. Phase 0 metrics data will inform whether this is likely. |\n| R2 | Refactoring breaks subtle test behavior | Medium | Medium | Run tests after each file change, not just per phase |\n| R3 | HTTP client base introduces new coupling | Low | Medium | Use composition (embedding), not inheritance; variants stay on child |\n| R4 | Scanner abstraction over-engineered for 2 languages | Medium | Low | Keep it simple — shared function, not complex interface hierarchy |\n| R5 | ScenarioReviewPanel fallback removal breaks UI | Medium | High | R2-d3: verify endpoint stability before removing; file separate item if not stable |\n| R6 | Phase 5 file splits introduce import cycles | Low | High | All splits stay within the same Go package — no new packages |\n| R7 | Phase 5 file splits create hard-to-navigate code | Medium | Low | Split along clear domain/responsibility boundaries, not arbitrary line counts |\n\n## Non-goals / Prohibited Patterns\n\n- Do NOT add new features or change API behavior\n- Do NOT introduce new external dependencies\n- Do NOT create deeply nested abstraction hierarchies\n- Do NOT change test assertions to make refactored code pass — fix the code instead\n- Do NOT split files into packages that create import cycles\n- Do NOT add backward compatibility shims, feature flags, or migration bridges\n- Do NOT create new Go packages for Phase 5 splits — all files stay in their current package\n\n## Definition of Done\n\n- [ ] Code quality score ≥70 (verified via `git-control-tower review-run git-control-tower --json`)\n- [ ] complex_functions \u003c 10\n- [ ] long_files \u003c 10\n- [ ] tech_debt_markers = 0\n- [ ] All existing tests pass without modification to assertions\n- [ ] `vrooli scenario restart git-control-tower` succeeds\n- [ ] Greenfield constraint honored — no compatibility shims or migration code\n\n\u003c/implementation-plan\u003e\n",
+      "prompt_revision": "sha256:3a1903e05381f845",
+      "used_fallback": false,
+      "captured_at": "2026-04-08T16:52:11Z"
+    },
+    "created_at": "2026-04-08T16:52:11Z",
+    "updated_at": "2026-04-08T17:22:12Z"
+  },
+  {
+    "execution_id": "1fc9494d5f3d851c",
+    "backlog_kind": "execute",
+    "backlog_name": "qa-git-control-tower-code-quality-20260408",
+    "previous_status": "failed",
+    "task_id": "7c173fb8-3900-4e5e-acb0-0d8ad419aeba",
+    "run_id": "10f7a5f2-1102-47c7-9c3c-aacea05642bc",
+    "status": "failed",
+    "mode": "yolo",
+    "started_at": "2026-04-08T17:49:54Z",
+    "finished_at": "2026-04-08T18:19:55Z",
+    "failure_reason": "Runner claude-code encountered an error. Please check runner configuration.",
+    "started_by": "swarm-manager:follow-up",
+    "operation": "followup",
+    "prompt_trace": {
+      "purpose": "followup",
+      "prompt": "\u003cexecution-context\u003e\nBacklog item: execute/qa-git-control-tower-code-quality-20260408\nTitle: Reduce code quality violations in git-control-tower\nItem folder: /home/matthalloran8/Vrooli/scenarios/swarm-manager/execute/qa-git-control-tower-code-quality-20260408\nRun type: followup\n\u003c/execution-context\u003e\n\n\u003cfollow-up-context\u003e\nAgent-manager run 198bf055-7975-47a2-b3db-75ba1e9e8a3e failed for unclear reasons, so work is incomplete\n\u003c/follow-up-context\u003e\n\n\u003cimplementation-plan path=\"plan.md\"\u003e\n# Implementation Plan: Reduce Code Quality Violations in git-control-tower\n\n## Greenfield Constraint\n\nThis is a **refactoring-only** task. No backward compatibility shims, feature flags, or migration bridges are needed. All changes must preserve existing behavior — the API/CLI contracts do not change. Old patterns are replaced in-place, not wrapped.\n\n## Purpose\n\nRefactor the git-control-tower scenario codebase to achieve a code quality score ≥70 by reducing complex functions (\u003c10), long files (\u003c10), and removing all tech debt markers.\n\n## Required Reading\n\n```bash\nprompt-manager skill read refactor code-cleanup cli-steer api-steer utils-unification seam-discovery-and-enforcement\n```\n\n## Problem Statement\n\nThe git-control-tower scenario has a code quality score of 0/100 with 88 violations:\n- **45 complex functions** — repeated boilerplate in HTTP clients and test files\n- **43 long files** — test files with repeated setup, client files with duplicated HTTP helpers, plus many large service/handler files\n- **2 tech debt markers** — TODO comments in UI source files\n\nRoot causes identified from codebase analysis:\n1. **No shared HTTP client base** — 5 client files (`tidiness_manager_client.go`, `test_genie_client.go`, `auditor_client.go`, `browser_automation_client.go`, `agent_manager_client.go`) each duplicate `doJSON()`, `doGet()`, `resolveBaseURL()`, and error parsing methods. Total: ~1,117 lines across 5 files.\n2. **No test helpers** — Test files repeat setup, assertion, and validation boilerplate\n3. **No language scanner abstraction** — `golang/scanner.go` and `python/scanner.go` have 90%+ identical `Scan()` method bodies\n4. **No table-driven tests** — Individual test functions duplicate nearly identical setups\n5. **Large service/handler files** — main.go (1,363 lines), review_handler_test.go (1,355 lines), git_runner.go (1,149 lines), and many others exceed thresholds independent of the duplication issues above\n\n## Scope\n\n**In scope:**\n- All Go source files under `scenarios/git-control-tower/api/`\n- UI TODO markers in `scenarios/git-control-tower/ui/src/`\n- Files touched by HTTP client dedup, test refactoring, and scanner abstraction phases\n- Top 5 largest non-client/non-test files for structural splitting (R3-d2): `main.go`, `git_runner.go`, `diff_service.go`, `visual_capture_storage.go`, `agent_manager_model.go`\n\n**Out of scope:**\n- Functional behavior changes — all refactors must preserve existing behavior\n- Adding new features or endpoints\n- Changes to `packages/` or other scenarios\n- UI refactoring beyond removing TODO markers\n- Large files beyond the explicit top-5 split list (other files not touched by any phase remain as-is)\n\n## Current Technical Context\n\n### Full File Inventory (top 20 by size)\n\n| File | Lines | Primary Issue | In Scope? |\n|------|-------|---------------|-----------|\n| `api/main.go` | 1,363 | Massive entry point | Yes — Phase 5 split |\n| `api/review_handler_test.go` | 1,355 | Huge test file | Yes — Phase 2 test refactor |\n| `api/git_runner.go` | 1,149 | Large service file | Yes — Phase 5 split |\n| `api/git_runner_fake_test.go` | 997 | Large test fake | Yes — Phase 2 test refactor |\n| `api/diff_service_test.go` | 794 | Test duplication | Yes — Phase 2 test refactor |\n| `api/agent_manager_client_test.go` | 779 | Test duplication | Yes — Phase 2 test refactor |\n| `api/diff_service.go` | 763 | Large service | Yes — Phase 5 split |\n| `api/visual_capture_storage.go` | 649 | Large storage layer | Yes — Phase 5 split |\n| `api/visual_capture_service_test.go` | 634 | Test duplication | Yes — Phase 2 test refactor |\n| `api/agent_manager_model.go` | 607 | Large model file | Yes — Phase 5 split |\n| `api/review_handler.go` | 530 | Large handler | No — not touched by any phase |\n| `api/visual_capture_handler.go` | 501 | Large handler | No |\n| `api/visual_capture_storage_test.go` | 486 | Test duplication | Yes — Phase 2 test refactor |\n| `api/agent_manager_handler.go` | 472 | Large handler | No |\n| `api/credentials_service.go` | 451 | Large service | No |\n| `api/gitignore_health_service_test.go` | 441 | Test duplication, complexity 8 | Yes — Phase 2 test refactor |\n| `api/file_service.go` | 412 | Large service | No |\n| `api/visual_capture_service.go` | 411 | Large service | No |\n| `api/sync_status_service_test.go` | 407 | Test duplication | Yes — Phase 2 test refactor |\n| `api/agent_manager_client.go` | 397 | HTTP client with caching | Yes — Phase 1 client dedup |\n\n### HTTP Client Duplication Analysis\n\n**Common methods duplicated across all 5 clients:**\n- `resolveBaseURL(ctx) (string, error)` — identical except service name string\n- `doGet(ctx, path, result) error` — identical pattern\n- `doJSON(ctx, path, body, result) error` — identical pattern\n- `parseXxxError(resp) error` — identical except error prefix string\n\n**Client-specific variants (R2-d1 — variants stay on child):**\n- `AgentManagerClient.resolveBaseURL()` — overrides base to add mutex-based URL caching\n- `AuditorClient.doJSONAccept(ctx, path, body, result, acceptStatuses ...int)` — thin wrapper on child\n- `BrowserAutomationClient.doRaw(ctx, path) ([]byte, string, error)` — fetches binary data, stays on child\n\n### Scanner Duplication\n\nBoth `golang/scanner.go` (60 lines) and `python/scanner.go` (58 lines) share identical:\n- Struct definition and constructor\n- `Scan()` method structure (context cancellation, result initialization, import loop)\n- Only differ in: extensions list, match function names, and which import field to extract\n\n### UI TODO Markers\n\n1. **App.tsx:1320** — `TODO: Use lineNumber to scroll to the specific line in the source viewer`\n2. **ScenarioReviewPanel.tsx:665** — `TODO: Remove this client-side fallback once the unified review endpoint is stable`\n\n## All Settled Decisions\n\n| Round | ID | Decision | Choice | Detail |\n|-------|-----|----------|--------|--------|\n| R1 | d1 | HTTP client extraction approach | Embedded struct composition | BaseClient struct with shared methods, service clients embed it |\n| R1 | d2 | Test refactoring scope | Refactor all test files with \u003e50% duplication | Comprehensive approach |\n| R1 | d3 | Scanner duplication resolution | Extract shared ScanImports helper | Shared function, not complex interface |\n| R1 | d4 | Tech debt marker handling | Implement TODO functionality and remove | With endpoint stability check for ScenarioReviewPanel |\n| R2 | d1 | BaseClient variant handling | Common methods only; variants on child | doGet/doJSON/resolveBaseURL/parseError on base; doJSONAccept/doRaw/cached URL on children |\n| R2 | d2 | Scope of long_files beyond client/test | **Overridden by R3-d2** | Originally limited scope; now expanded |\n| R2 | d3 | ScenarioReviewPanel TODO | Verify endpoint stability first | Remove fallback only if confirmed; otherwise remove TODO comment and file separate item |\n| R2 | d4 | Long file threshold | Run tidiness-manager in Phase 0 | Get exact threshold and full violation list before refactoring |\n| R3 | d1 | Test helper organization | Hybrid approach | Shared `test_helpers_test.go` for cross-cutting concerns (mock HTTP server, assertion helpers) + per-domain helper files co-located with tests |\n| R3 | d2 | Long_files target handling | Expand scope to split top 5 largest files | Add main.go, git_runner.go, diff_service.go, visual_capture_storage.go, agent_manager_model.go to refactoring scope |\n| R3 | d3 | Phase execution order | Sequential with metrics checkpoints | Metrics check after Phase 1 and after Phase 2 to validate approach early |\n\n## Target End State\n\n- Code quality score ≥70\n- complex_functions \u003c 10\n- long_files \u003c 10\n- tech_debt_markers = 0\n- All existing tests pass with no behavioral changes\n- Shared HTTP client base eliminates duplication across 5 client files\n- Test helpers reduce boilerplate in test files\n- Scanner abstraction eliminates duplication between language scanners\n- Top 5 largest non-test/non-client files split into cohesive smaller modules\n\n## Implementation Strategy\n\n### Phase 0: Gather Metrics Baseline\nRun `tidiness-manager recommend-refactors git-control-tower --limit 50 --format json` to get:\n- Exact line count threshold for long_files violations\n- Complete list of all violating files with their scores\n- Complexity scores per function\n\nThis data informs which files in subsequent phases need the most attention and validates whether the approach can hit targets.\n\n### Phase 1: Shared HTTP Client Base\n**Approach:** Embedded struct composition (R1-d1) with common-only base (R2-d1).\n\nCreate `api/httpclient.go` with:\n```go\ntype BaseClient struct {\n    httpClient  *http.Client\n    serviceName string\n    resolver    discovery.Resolver\n}\n```\n\n**BaseClient provides:** `doGet`, `doJSON`, `resolveBaseURL`, `parseError` (with configurable service name prefix).\n\n**Variant handling (R2-d1):**\n- `AuditorClient`: `doJSONAccept` stays on child as thin wrapper calling `BaseClient.doJSON` internally with status check\n- `BrowserAutomationClient`: `doRaw` stays on child\n- `AgentManagerClient`: overrides `resolveBaseURL` to add mutex caching\n\n**Files affected:**\n- New: `api/httpclient.go`\n- Modified: `tidiness_manager_client.go`, `test_genie_client.go`, `auditor_client.go`, `browser_automation_client.go`, `agent_manager_client.go`\n\n**Expected impact:** Eliminates ~15-20 complex_functions (3-4 duplicated methods × 5 clients).\n\n**Metrics checkpoint:** After Phase 1, run `tidiness-manager recommend-refactors git-control-tower --limit 50 --format json` and `go test ./... -timeout 300s` to validate the approach is reducing violations and tests still pass (R3-d3).\n\n### Phase 2: Test Helpers \u0026 Table-Driven Tests\n**Approach:** Refactor all test files with \u003e50% duplication (R1-d2).\n\n**Test helper organization (R3-d1 — hybrid approach):**\n- **Shared `test_helpers_test.go`** — Cross-cutting utilities: mock HTTP server setup, common assertion helpers, shared test fixtures\n- **Per-domain helper files** — Co-located with their test files: e.g., `gitignore_health_test_helpers_test.go` next to `gitignore_health_service_test.go` for domain-specific setup, fixtures, and fake builders\n\n**Priority order by file size:**\n1. `api/review_handler_test.go` (1,355 lines) — largest test file\n2. `api/git_runner_fake_test.go` (997 lines)\n3. `api/diff_service_test.go` (794 lines)\n4. `api/agent_manager_client_test.go` (779 lines)\n5. `api/visual_capture_service_test.go` (634 lines)\n6. `api/visual_capture_storage_test.go` (486 lines)\n7. `api/gitignore_health_service_test.go` (441 lines, complexity 8)\n8. `api/sync_status_service_test.go` (407 lines)\n9. `api/ssh/service_test.go` (152 lines) — subtests, extract `newTestDeps()`\n10. All other test files exceeding the threshold (per Phase 0 data)\n\n**Techniques:**\n- Convert repeated test functions to table-driven subtests\n- Extract shared setup into helper functions\n- Use `t.Helper()` for clear error attribution\n\n**Metrics checkpoint:** After Phase 2, run `tidiness-manager recommend-refactors git-control-tower --limit 50 --format json` and `go test ./... -timeout 300s` to confirm progress toward targets (R3-d3).\n\n### Phase 3: Scanner Abstraction\n**Approach:** Extract shared ScanImports helper (R1-d3).\n\nCreate a shared function in `api/filerelations/languages/`:\n```go\nfunc ScanImports(ctx context.Context, content string, matchers []MatchFunc) (*scanner.ScanResult, error)\n```\n\nBoth `golang/scanner.go` and `python/scanner.go` call this with their language-specific matchers.\n\n**Files affected:**\n- New: `api/filerelations/languages/scan_imports.go` (or similar)\n- Modified: `golang/scanner.go`, `python/scanner.go`\n\n### Phase 4: Tech Debt Markers\n**App.tsx:1320** — Implement scroll-to-line feature using the existing lineNumber prop.\n\n**ScenarioReviewPanel.tsx:665** — Per R2-d3: verify that the unified review endpoint (`review_readiness.go`) covers all cases the fallback handles. If confirmed stable, remove the fallback code. If not stable or unclear, remove only the TODO comment and file a separate backlog item for the fallback removal.\n\n### Phase 5: Split Top 5 Largest Non-Client/Non-Test Files (R3-d2)\n**Approach:** Structural splitting of the 5 largest files not addressed by Phases 1-2 to bring long_files count under 10.\n\n**Target files and splitting strategy:**\n1. **`api/main.go` (1,363 lines)** — Extract route registration, middleware setup, and server configuration into separate files (e.g., `routes.go`, `middleware.go`, `server.go`). Keep `main()` as a thin entry point.\n2. **`api/git_runner.go` (1,149 lines)** — Split by responsibility: separate git operations into logical groups (e.g., `git_runner_clone.go`, `git_runner_commit.go`, `git_runner_diff.go` or by domain boundaries discovered during refactoring).\n3. **`api/diff_service.go` (763 lines)** — Extract diff computation helpers, formatting logic, or sub-services into companion files.\n4. **`api/visual_capture_storage.go` (649 lines)** — Separate storage backends or helper functions into their own files.\n5. **`api/agent_manager_model.go` (607 lines)** — Split by model domain or extract validation/serialization logic.\n\n**Constraint:** All splits must stay within the same Go package. No new packages, no import cycle risk. Each resulting file should be under the long_files threshold (determined in Phase 0).\n\n**Verification:** After each file split, run `go build ./...` and `go test ./... -timeout 300s` to confirm no regressions.\n\n### Post-Refactor: Final Verification\n1. Run `go test ./... -timeout 300s` to verify all tests pass\n2. Run `golangci-lint run` to check for new lint issues\n3. Run `gofumpt -w .` to ensure consistent formatting\n4. Run `tidiness-manager recommend-refactors git-control-tower --limit 50 --format json` to verify metric improvements\n5. Run `git-control-tower review-run git-control-tower --json` to confirm score ≥70\n6. Run `vrooli scenario restart git-control-tower` to validate the scenario starts cleanly\n\n## Contract Decisions\n\n- No API or CLI contract changes — this is purely internal refactoring\n- All existing tests must continue to pass\n- No new dependencies\n\n## Testing Plan\n\n1. **Per-file verification:** Run `go test ./...` after refactoring each file to catch regressions immediately\n2. **Per-phase verification:** Run `golangci-lint run` after each phase to catch new lint issues\n3. **Metrics checkpoints (R3-d3):** Run `tidiness-manager recommend-refactors git-control-tower --limit 50 --format json` after Phase 1 and after Phase 2 to validate approach early\n4. **Format check:** Run `gofumpt -w .` after all Go changes\n5. **Final metrics:** Run `tidiness-manager recommend-refactors git-control-tower --limit 50 --format json` after all phases\n6. **Final score:** Run `git-control-tower review-run git-control-tower --json` to confirm score ≥70\n7. **Scenario health:** Run `vrooli scenario restart git-control-tower` to validate clean startup\n\n## Rollout/Validation Checklist\n\n- [ ] Phase 0 complete — metrics baseline gathered, full violation list known, threshold confirmed\n- [ ] Phase 1 complete — shared HTTP client base created, all 5 clients refactored, tests pass\n- [ ] Phase 1 metrics checkpoint — violation counts trending down\n- [ ] Phase 2 complete — test helpers created, table-driven tests converted, tests pass\n- [ ] Phase 2 metrics checkpoint — complex_functions and long_files significantly reduced\n- [ ] Phase 3 complete — scanner abstraction in place, tests pass\n- [ ] Phase 4 complete — tech debt markers resolved (implemented or tracked separately)\n- [ ] Phase 5 complete — top 5 large files split, each under threshold, tests pass\n- [ ] All tests pass (`go test ./... -timeout 300s`)\n- [ ] Code quality score ≥70 confirmed via GCT review\n- [ ] `vrooli scenario restart git-control-tower` succeeds cleanly\n\n## Risks \u0026 Mitigations\n\n| ID | Risk | Likelihood | Impact | Mitigation |\n|----|------|-----------|--------|------------|\n| R1 | long_files still \u003e10 after all phases | Medium | Medium | Phase 5 targets top 5 non-client/non-test files. If still \u003e10, file a follow-up item for remaining violations. Phase 0 metrics data will inform whether this is likely. |\n| R2 | Refactoring breaks subtle test behavior | Medium | Medium | Run tests after each file change, not just per phase |\n| R3 | HTTP client base introduces new coupling | Low | Medium | Use composition (embedding), not inheritance; variants stay on child |\n| R4 | Scanner abstraction over-engineered for 2 languages | Medium | Low | Keep it simple — shared function, not complex interface hierarchy |\n| R5 | ScenarioReviewPanel fallback removal breaks UI | Medium | High | R2-d3: verify endpoint stability before removing; file separate item if not stable |\n| R6 | Phase 5 file splits introduce import cycles | Low | High | All splits stay within the same Go package — no new packages |\n| R7 | Phase 5 file splits create hard-to-navigate code | Medium | Low | Split along clear domain/responsibility boundaries, not arbitrary line counts |\n\n## Non-goals / Prohibited Patterns\n\n- Do NOT add new features or change API behavior\n- Do NOT introduce new external dependencies\n- Do NOT create deeply nested abstraction hierarchies\n- Do NOT change test assertions to make refactored code pass — fix the code instead\n- Do NOT split files into packages that create import cycles\n- Do NOT add backward compatibility shims, feature flags, or migration bridges\n- Do NOT create new Go packages for Phase 5 splits — all files stay in their current package\n\n## Definition of Done\n\n- [ ] Code quality score ≥70 (verified via `git-control-tower review-run git-control-tower --json`)\n- [ ] complex_functions \u003c 10\n- [ ] long_files \u003c 10\n- [ ] tech_debt_markers = 0\n- [ ] All existing tests pass without modification to assertions\n- [ ] `vrooli scenario restart git-control-tower` succeeds\n- [ ] Greenfield constraint honored — no compatibility shims or migration code\n\n\u003c/implementation-plan\u003e\n",
+      "prompt_revision": "sha256:9b0b0c91539e4fff",
+      "used_fallback": false,
+      "captured_at": "2026-04-08T17:49:54Z"
+    },
+    "parent_execution_id": "fa905dc2cc7ecd4a",
+    "created_at": "2026-04-08T17:49:54Z",
+    "updated_at": "2026-04-08T18:19:55Z"
   }
 ]

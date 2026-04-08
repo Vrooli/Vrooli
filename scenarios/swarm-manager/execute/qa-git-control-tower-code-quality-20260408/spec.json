@@ -10,12 +10,12 @@
   "kind": "execute",
   "name": "qa-git-control-tower-code-quality-20260408",
   "priority": 2,
-  "status": "backlog",
+  "status": "failed",
   "tags": [
     "preemptive-qa",
     "git-control-tower",
     "code-quality"
   ],
   "title": "Reduce code quality violations in git-control-tower",
-  "updated": "2026-04-08T04:13:09Z"
+  "updated": "2026-04-08T18:19:55Z"
 }

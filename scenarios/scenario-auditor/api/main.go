@@ -21,6 +21,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/pathfilter"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -75,8 +76,10 @@ type APIResponse struct {
 	Error   string `json:"error,omitempty"`
 }
 
-type JSONObject map[string]interface{}
-type JSONArray []interface{}
+type (
+	JSONObject map[string]interface{}
+	JSONArray  []interface{}
+)
 
 // HTTPError sends structured error response
 func HTTPError(w http.ResponseWriter, message string, statusCode int, err error) {
@@ -245,7 +248,6 @@ func countScenarioEndpoints(scenarioPath string) int {
 
 		return nil
 	})
-
 	if err != nil {
 		// If there's an error walking the directory, return 0
 		return 0
@@ -687,7 +689,7 @@ func checkFilesystemHealth() map[string]any {
 
 	// Check write permissions
 	testFile := filepath.Join(scenariosDir, ".scenario-auditor-health-check")
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test"), 0o644); err != nil {
 		health["status"] = "degraded"
 		health["error"] = map[string]any{
 			"code":      "SCENARIOS_DIR_NOT_WRITABLE",
@@ -879,11 +881,8 @@ func countScannableFiles(path string) (int, int, int) {
 
 	filepath.Walk(path, func(filePath string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
-			// Skip directories and node_modules, vendor, .git etc
 			if info != nil && info.IsDir() {
-				name := info.Name()
-				if name == "node_modules" || name == "vendor" || name == ".git" ||
-					name == "dist" || name == "build" || name == "__pycache__" {
+				if pathfilter.SkipDir(info.Name()) {
 					return filepath.SkipDir
 				}
 			}

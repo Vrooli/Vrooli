@@ -284,9 +284,6 @@ func (s *aggregateState) processEvent(e *eventlog.Event) {
 	case eventlog.EventExecutionCreated:
 		s.execTotal++
 		var p eventlog.ExecutionCreatedPayload
-		// Track if this is a follow-up (indicates follow-up rate).
-		// We use a simple heuristic: if the backlog item already has an execution, it's a follow-up.
-		// TODO: implement follow-up tracking once execution history is available.
 		_ = unmarshalMeta(e.Metadata, &p)
 
 	case eventlog.EventExecutionCompleted:

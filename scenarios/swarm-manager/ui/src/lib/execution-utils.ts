@@ -163,6 +163,6 @@ export const canCancelExecution = (status: ExecutionStatus): boolean =>
   status === "pending" || status === "starting" || status === "running" || status === "needs_review" || status === "validating";
 
 export const canFollowUpExecution = (status: ExecutionStatus): boolean =>
-  status === "completed" || status === "failed" || status === "needs_fixup";
+  status === "completed" || status === "failed" || status === "needs_fixup" || status === "canceled";
 
 export const canRetryExecution = (status: ExecutionStatus): boolean => status === "failed";

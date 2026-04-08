@@ -224,31 +224,3 @@ func backlogToProto(item BacklogItem) *domainpb.BacklogItem {
 	}
 	return result
 }
-
-// backlogFilesToProto converts a slice of BacklogFile to protobuf.
-func backlogFilesToProto(files []BacklogFile) []*domainpb.BacklogFile {
-	if len(files) == 0 {
-		return nil
-	}
-	result := make([]*domainpb.BacklogFile, 0, len(files))
-	for _, file := range files {
-		result = append(result, backlogFileToProto(file))
-	}
-	return result
-}
-
-// backlogFileToProto converts a single BacklogFile to protobuf.
-func backlogFileToProto(file BacklogFile) *domainpb.BacklogFile {
-	children := backlogFilesToProto(file.Children)
-	var size *int64
-	if file.Type == "file" {
-		size = &file.Size
-	}
-	return &domainpb.BacklogFile{
-		Name:     file.Name,
-		Path:     file.Path,
-		Type:     file.Type,
-		Size:     size,
-		Children: children,
-	}
-}

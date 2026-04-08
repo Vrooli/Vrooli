@@ -301,7 +301,7 @@ describe("unblocking value in feed", () => {
     const feed = buildFeed([], allItems, [], []);
     const backlogNames = feed
       .filter((f) => f.type === "backlog" || f.type === "attention")
-      .map((f) => (f.type === "capture" ? "" : f.item.name));
+      .map((f) => f.item.name);
     // blocker has 2 dependents → boosted; should appear before standalone
     const blockerIdx = backlogNames.indexOf("blocker");
     const standaloneIdx = backlogNames.indexOf("standalone");

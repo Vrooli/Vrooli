@@ -506,15 +506,17 @@ func (s *Service) resolveItemDir(kind, name string) string {
 func buildReviewAttachments(planContent string, changedPaths, affectedScenarios []string, gctResultsJSON, userRequest string) []*domainpb.ContextAttachment {
 	var atts []*domainpb.ContextAttachment
 
-	atts = append(atts, &domainpb.ContextAttachment{
-		Type:     "note",
-		Key:      "plan-content",
-		Label:    "Plan Content",
-		Summary:  "Backlog item plan/spec",
-		Content:  planContent,
-		Format:   "markdown",
-		Priority: "high",
-	})
+	if planContent != "" {
+		atts = append(atts, &domainpb.ContextAttachment{
+			Type:     "note",
+			Key:      "plan-content",
+			Label:    "Plan Content",
+			Summary:  "Backlog item plan/spec",
+			Content:  planContent,
+			Format:   "markdown",
+			Priority: "high",
+		})
+	}
 
 	diffContent := fmt.Sprintf("Changed %d files across %d scenarios", len(changedPaths), len(affectedScenarios))
 	if len(changedPaths) == 0 {

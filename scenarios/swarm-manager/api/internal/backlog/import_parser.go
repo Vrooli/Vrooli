@@ -238,7 +238,6 @@ func parseItemSection(section itemSection) (parsedItemSection, []string) {
 
 // parseMainSection extracts description and metadata table from the main section lines.
 func parseMainSection(lines []string, parsed *parsedItemSection) {
-	// Find description block: text between ### Description and next ### or end.
 	inDescription := false
 	var descLines []string
 	inMetadata := false
@@ -246,64 +245,24 @@ func parseMainSection(lines []string, parsed *parsedItemSection) {
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 
-		// Stop at horizontal rule (---) which separates items.
 		if trimmed == "---" {
 			break
 		}
 
-		// Detect ### Description heading.
 		if strings.HasPrefix(trimmed, "### Description") {
 			inDescription = true
 			inMetadata = false
 			continue
 		}
 
-		// Detect any other ### heading or metadata table start.
 		if strings.HasPrefix(trimmed, "###") || strings.HasPrefix(trimmed, "<!-- ") {
 			inDescription = false
 		}
 
-		// Detect metadata table rows.
 		if m := metadataRowRe.FindStringSubmatch(trimmed); m != nil {
-			key := strings.ToLower(strings.TrimSpace(m[1]))
-			val := strings.TrimSpace(m[2])
-
-			// Skip table header separator rows.
-			if strings.Contains(key, "---") || strings.Contains(val, "---") {
-				continue
-			}
-			// Skip header row.
-			if key == "field" || key == "property" {
-				continue
-			}
-
-			inMetadata = true
-			inDescription = false
-
-			switch key {
-			case "status":
-				if validateBacklogStatus(val) {
-					parsed.status = val
-					parsed.hasStatus = true
-				}
-			case "priority":
-				if p, err := strconv.Atoi(val); err == nil && p >= 1 && p <= 10 {
-					parsed.priority = p
-					parsed.hasPriority = true
-				}
-			case "tags":
-				tagList := strings.Split(val, ",")
-				var tags []string
-				for _, t := range tagList {
-					t = strings.TrimSpace(t)
-					if t != "" {
-						tags = append(tags, t)
-					}
-				}
-				if len(tags) > 0 {
-					parsed.tags = tags
-					parsed.hasTags = true
-				}
+			if applyMetadataRow(m[1], m[2], parsed) {
+				inMetadata = true
+				inDescription = false
 			}
 			continue
 		}
@@ -319,100 +278,142 @@ func parseMainSection(lines []string, parsed *parsedItemSection) {
 	parsed.description = strings.TrimSpace(strings.Join(descLines, "\n"))
 }
 
+// applyMetadataRow parses a single metadata table row and applies it to
+// parsed. Returns true if the row was a valid metadata entry (not a header
+// or separator).
+func applyMetadataRow(rawKey, rawVal string, parsed *parsedItemSection) bool {
+	key := strings.ToLower(strings.TrimSpace(rawKey))
+	val := strings.TrimSpace(rawVal)
+
+	if strings.Contains(key, "---") || strings.Contains(val, "---") {
+		return false
+	}
+	if key == "field" || key == "property" {
+		return false
+	}
+
+	switch key {
+	case "status":
+		if validateBacklogStatus(val) {
+			parsed.status = val
+			parsed.hasStatus = true
+		}
+	case "priority":
+		if p, err := strconv.Atoi(val); err == nil && p >= 1 && p <= 10 {
+			parsed.priority = p
+			parsed.hasPriority = true
+		}
+	case "tags":
+		parsed.tags = parseTags(val)
+		parsed.hasTags = len(parsed.tags) > 0
+	}
+	return true
+}
+
+// parseTags splits a comma-separated tag string into a trimmed slice.
+func parseTags(val string) []string {
+	var tags []string
+	for _, t := range strings.Split(val, ",") {
+		t = strings.TrimSpace(t)
+		if t != "" {
+			tags = append(tags, t)
+		}
+	}
+	return tags
+}
+
+// blockquoteAccumulator tracks blockquote content (notes, rejection reasons)
+// within clarify/suggest section parsers.
+type blockquoteAccumulator struct {
+	active bool
+	idx    int
+	lines  []string
+	dest   map[int]string
+}
+
+// start begins accumulating blockquote content for the given index.
+func (a *blockquoteAccumulator) start(idx int, firstLine string) {
+	a.flush()
+	a.active = true
+	a.idx = idx
+	if firstLine != "" {
+		a.lines = []string{firstLine}
+	}
+}
+
+// addLine appends a blockquote continuation line.
+func (a *blockquoteAccumulator) addLine(line string) {
+	a.lines = append(a.lines, line)
+}
+
+// flush saves accumulated content to dest and resets.
+func (a *blockquoteAccumulator) flush() {
+	if a.active && a.idx >= 0 && len(a.lines) > 0 {
+		a.dest[a.idx] = strings.TrimSpace(strings.Join(a.lines, "\n"))
+	}
+	a.active = false
+	a.lines = nil
+}
+
 // parseClarifySection parses checkbox answers and notes from a clarify section.
 func parseClarifySection(lines []string, parsed *parsedItemSection) {
 	questionIdx := -1
-	inNotes := false
-	var notesLines []string
+	acc := blockquoteAccumulator{dest: parsed.clarifyNotes}
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 
-		// Detect question headers (#### Q1, #### Q2, etc.).
 		if strings.HasPrefix(trimmed, "####") || strings.HasPrefix(trimmed, "**Q") {
-			// Save previous notes.
-			if inNotes && questionIdx >= 0 {
-				parsed.clarifyNotes[questionIdx] = strings.TrimSpace(strings.Join(notesLines, "\n"))
-				notesLines = nil
-				inNotes = false
-			}
-
-			// Extract question number.
-			qNum := extractQuestionNumber(trimmed)
-			if qNum >= 0 {
+			acc.flush()
+			if qNum := extractQuestionNumber(trimmed); qNum >= 0 {
 				questionIdx = qNum
 			}
 			continue
 		}
 
-		// Check for checkbox lines.
 		if m := checkboxRe.FindStringSubmatch(line); m != nil {
-			checked := strings.ToLower(m[1]) == "x"
-			optionText := strings.TrimSpace(m[2])
-			if checked && questionIdx >= 0 {
-				parsed.clarifyAnswers[questionIdx] = optionText
+			if strings.ToLower(m[1]) == "x" && questionIdx >= 0 {
+				parsed.clarifyAnswers[questionIdx] = strings.TrimSpace(m[2])
 			}
 			continue
 		}
 
-		// Check for > Notes: line.
 		if strings.HasPrefix(trimmed, "> Notes:") || strings.HasPrefix(trimmed, ">Notes:") {
-			inNotes = true
-			noteContent := strings.TrimSpace(strings.TrimPrefix(trimmed, "> Notes:"))
-			noteContent = strings.TrimSpace(strings.TrimPrefix(noteContent, ">Notes:"))
-			if noteContent != "" {
-				notesLines = append(notesLines, noteContent)
-			}
+			content := strings.TrimSpace(strings.TrimPrefix(trimmed, "> Notes:"))
+			content = strings.TrimSpace(strings.TrimPrefix(content, ">Notes:"))
+			acc.start(questionIdx, content)
 			continue
 		}
 
-		// Continuation of notes (lines starting with >).
-		if inNotes && strings.HasPrefix(trimmed, ">") {
-			noteLine := strings.TrimSpace(strings.TrimPrefix(trimmed, ">"))
-			notesLines = append(notesLines, noteLine)
+		if acc.active && strings.HasPrefix(trimmed, ">") {
+			acc.addLine(strings.TrimSpace(strings.TrimPrefix(trimmed, ">")))
 			continue
 		}
 
-		// End of notes on non-blockquote line.
-		if inNotes && trimmed != "" && !strings.HasPrefix(trimmed, ">") {
-			parsed.clarifyNotes[questionIdx] = strings.TrimSpace(strings.Join(notesLines, "\n"))
-			notesLines = nil
-			inNotes = false
+		if acc.active && trimmed != "" {
+			acc.flush()
 		}
 	}
 
-	// Save any trailing notes.
-	if inNotes && questionIdx >= 0 {
-		parsed.clarifyNotes[questionIdx] = strings.TrimSpace(strings.Join(notesLines, "\n"))
-	}
+	acc.flush()
 }
 
 // parseSuggestSection parses accept checkboxes and rejection reasons.
 func parseSuggestSection(lines []string, parsed *parsedItemSection) {
 	suggestionIdx := -1
-	inRejection := false
-	var rejectionLines []string
+	acc := blockquoteAccumulator{dest: parsed.suggestRejection}
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 
-		// Detect suggestion headers (#### S1, #### S2, or #### 1., etc.).
 		if strings.HasPrefix(trimmed, "####") {
-			// Save previous rejection.
-			if inRejection && suggestionIdx >= 0 {
-				parsed.suggestRejection[suggestionIdx] = strings.TrimSpace(strings.Join(rejectionLines, "\n"))
-				rejectionLines = nil
-				inRejection = false
-			}
-
-			sNum := extractSuggestionNumber(trimmed)
-			if sNum >= 0 {
+			acc.flush()
+			if sNum := extractSuggestionNumber(trimmed); sNum >= 0 {
 				suggestionIdx = sNum
 			}
 			continue
 		}
 
-		// Check for accept checkbox.
 		if m := checkboxRe.FindStringSubmatch(line); m != nil {
 			checked := strings.ToLower(m[1]) == "x"
 			optionText := strings.TrimSpace(m[2])
@@ -422,36 +423,24 @@ func parseSuggestSection(lines []string, parsed *parsedItemSection) {
 			continue
 		}
 
-		// Check for > Rejection reason: line.
 		if strings.HasPrefix(trimmed, "> Rejection reason:") || strings.HasPrefix(trimmed, ">Rejection reason:") {
-			inRejection = true
-			reasonContent := strings.TrimSpace(strings.TrimPrefix(trimmed, "> Rejection reason:"))
-			reasonContent = strings.TrimSpace(strings.TrimPrefix(reasonContent, ">Rejection reason:"))
-			if reasonContent != "" {
-				rejectionLines = append(rejectionLines, reasonContent)
-			}
+			content := strings.TrimSpace(strings.TrimPrefix(trimmed, "> Rejection reason:"))
+			content = strings.TrimSpace(strings.TrimPrefix(content, ">Rejection reason:"))
+			acc.start(suggestionIdx, content)
 			continue
 		}
 
-		// Continuation of rejection reason (lines starting with >).
-		if inRejection && strings.HasPrefix(trimmed, ">") {
-			reasonLine := strings.TrimSpace(strings.TrimPrefix(trimmed, ">"))
-			rejectionLines = append(rejectionLines, reasonLine)
+		if acc.active && strings.HasPrefix(trimmed, ">") {
+			acc.addLine(strings.TrimSpace(strings.TrimPrefix(trimmed, ">")))
 			continue
 		}
 
-		// End of rejection on non-blockquote line.
-		if inRejection && trimmed != "" && !strings.HasPrefix(trimmed, ">") {
-			parsed.suggestRejection[suggestionIdx] = strings.TrimSpace(strings.Join(rejectionLines, "\n"))
-			rejectionLines = nil
-			inRejection = false
+		if acc.active && trimmed != "" {
+			acc.flush()
 		}
 	}
 
-	// Save any trailing rejection.
-	if inRejection && suggestionIdx >= 0 {
-		parsed.suggestRejection[suggestionIdx] = strings.TrimSpace(strings.Join(rejectionLines, "\n"))
-	}
+	acc.flush()
 }
 
 // parseNotesSection extracts freeform notes content.

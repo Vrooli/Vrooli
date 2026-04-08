@@ -13,7 +13,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
 )
 
 // Store abstracts persistence for backlog items. The primary implementation

@@ -319,48 +319,66 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if oldStatus != existing.Status || oldPriority != existing.Priority {
-		slog.Info("item updated", "name", name, "old_status", oldStatus, "new_status", existing.Status, "old_priority", oldPriority, "new_priority", existing.Priority)
-	} else {
-		slog.Info("item updated", "name", name)
-	}
-
-	if h.eventLogger != nil {
-		entityID := string(kind) + "/" + name
-		if oldStatus != existing.Status {
-			h.eventLogger.EmitBacklogStatusChanged(entityID, string(oldStatus), string(existing.Status))
-		}
-		if oldPriority != existing.Priority {
-			h.eventLogger.EmitBacklogPriorityChanged(entityID, oldPriority, existing.Priority)
-		}
-		if oldEffort != existing.Effort {
-			h.eventLogger.EmitBacklogEffortChanged(entityID, oldEffort, existing.Effort)
-		}
-		if oldInitiative != existing.Initiative {
-			h.eventLogger.EmitBacklogInitiativeChanged(entityID, oldInitiative, existing.Initiative)
-		}
-		h.emitDependencyChanges(entityID, oldDependsOn, existing.DependsOn)
-	}
-
-	// Cascade: when status transitions to workshop-ready, trigger
-	// workshops for dependents that were previously blocked.
-	if oldStatus != existing.Status &&
-		!blockingDepStatuses[existing.Status] &&
-		blockingDepStatuses[oldStatus] {
-		cfg, cfgErr := settings.NewStore("").Load()
-		if cfgErr != nil {
-			slog.Warn("cascade settings load error, using defaults", "err", cfgErr)
-			cfg = settings.DefaultSettings()
-		}
-		if workshop.ShouldCascade(cfg.AutoCascadeWorkshop) {
-			go h.cascadeWorkshopTrigger(existing)
-		}
-	}
+	h.logAndEmitUpdate(kind, name, oldStatus, existing.Status, oldPriority, existing.Priority, oldEffort, existing.Effort, oldInitiative, existing.Initiative, oldDependsOn, existing.DependsOn)
+	h.maybeCascadeWorkshop(oldStatus, existing)
 
 	resp := &apipb.BacklogItemResponse{Item: backlogToProto(existing)}
 	h.invalidateAllGraphLenses()
 	if err := httputil.ProtoJSON(w, resp); err != nil {
 		apierr.MapError(w, "[backlog] update", apierr.Internal("failed to encode response"))
+	}
+}
+
+// logAndEmitUpdate logs the update and emits analytics events for changed fields.
+func (h *Handler) logAndEmitUpdate(
+	kind BacklogKind, name string,
+	oldStatus, newStatus BacklogStatus,
+	oldPriority, newPriority int,
+	oldEffort, newEffort string,
+	oldInitiative, newInitiative string,
+	oldDeps, newDeps []string,
+) {
+	if oldStatus != newStatus || oldPriority != newPriority {
+		slog.Info("item updated", "name", name, "old_status", oldStatus, "new_status", newStatus, "old_priority", oldPriority, "new_priority", newPriority)
+	} else {
+		slog.Info("item updated", "name", name)
+	}
+
+	if h.eventLogger == nil {
+		return
+	}
+	entityID := string(kind) + "/" + name
+	if oldStatus != newStatus {
+		h.eventLogger.EmitBacklogStatusChanged(entityID, string(oldStatus), string(newStatus))
+	}
+	if oldPriority != newPriority {
+		h.eventLogger.EmitBacklogPriorityChanged(entityID, oldPriority, newPriority)
+	}
+	if oldEffort != newEffort {
+		h.eventLogger.EmitBacklogEffortChanged(entityID, oldEffort, newEffort)
+	}
+	if oldInitiative != newInitiative {
+		h.eventLogger.EmitBacklogInitiativeChanged(entityID, oldInitiative, newInitiative)
+	}
+	h.emitDependencyChanges(entityID, oldDeps, newDeps)
+}
+
+// maybeCascadeWorkshop triggers workshops for dependents when a status
+// transition unblocks them.
+func (h *Handler) maybeCascadeWorkshop(oldStatus BacklogStatus, item BacklogItem) {
+	if oldStatus == item.Status {
+		return
+	}
+	if !blockingDepStatuses[oldStatus] || blockingDepStatuses[item.Status] {
+		return
+	}
+	cfg, cfgErr := settings.NewStore("").Load()
+	if cfgErr != nil {
+		slog.Warn("cascade settings load error, using defaults", "err", cfgErr)
+		cfg = settings.DefaultSettings()
+	}
+	if workshop.ShouldCascade(cfg.AutoCascadeWorkshop) {
+		go h.cascadeWorkshopTrigger(item)
 	}
 }
 

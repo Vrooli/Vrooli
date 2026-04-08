@@ -88,10 +88,11 @@ describe("execution-utils", () => {
   });
 
   describe("canFollowUpExecution", () => {
-    it("returns true for completed, failed, needs_fixup", () => {
+    it("returns true for completed, failed, needs_fixup, canceled", () => {
       expect(canFollowUpExecution("completed")).toBe(true);
       expect(canFollowUpExecution("failed")).toBe(true);
       expect(canFollowUpExecution("needs_fixup")).toBe(true);
+      expect(canFollowUpExecution("canceled")).toBe(true);
     });
 
     it("returns false for pending, running, validating, etc.", () => {
@@ -101,7 +102,6 @@ describe("execution-utils", () => {
       // "scheduled" status removed
       expect(canFollowUpExecution("starting")).toBe(false);
       expect(canFollowUpExecution("needs_review")).toBe(false);
-      expect(canFollowUpExecution("canceled")).toBe(false);
     });
   });
 

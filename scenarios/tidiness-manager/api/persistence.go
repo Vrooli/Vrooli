@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/pathfilter"
+
 	"github.com/lib/pq"
 )
 
@@ -627,37 +629,25 @@ func (ts *TidinessStore) GetStalenessInfo(ctx context.Context, scenario, scenari
 // that have been modified after the given time
 func countModifiedFilesSince(scenarioPath string, since time.Time) int {
 	count := 0
-	extensions := map[string]bool{
-		".go":  true,
-		".ts":  true,
-		".tsx": true,
-		".js":  true,
-		".jsx": true,
-		".py":  true,
-	}
+	extensions := pathfilter.SourceExts()
 
 	_ = filepath.Walk(scenarioPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
 
-		// Skip directories we don't care about
 		if info.IsDir() {
-			name := info.Name()
-			if name == "node_modules" || name == ".git" || name == "vendor" ||
-				name == "dist" || name == "build" || strings.HasPrefix(name, ".") {
+			if pathfilter.SkipDir(info.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
 		}
 
-		// Only check source files
 		ext := filepath.Ext(path)
 		if !extensions[ext] {
 			return nil
 		}
 
-		// Check if modified after scan
 		if info.ModTime().After(since) {
 			count++
 		}

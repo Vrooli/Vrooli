@@ -106,19 +106,19 @@ func TestWorkshopSave_WithDelay_CreatesPendingFile(t *testing.T) {
 
 	// Enable auto-advance with a 10-second delay.
 	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
-		"theme":                       "dark",
-		"default_mode":                "manual",
-		"max_auto_rounds":             10,
-		"auto_initialize_workshop":    false,
-		"auto_advance_workshop":       true,
-		"auto_cascade_workshop":       false,
-		"auto_advance_delay_seconds":  10,
-		"agent_max_turns":             60,
-		"agent_timeout_seconds":       900,
-		"agent_requires_approval":     true,
-		"search_debounce_ms":          300,
-		"toast_duration_ms":           5000,
-		"delete_confirmation": map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
+		"theme":                      "dark",
+		"default_mode":               "manual",
+		"max_auto_rounds":            10,
+		"auto_initialize_workshop":   false,
+		"auto_advance_workshop":      true,
+		"auto_cascade_workshop":      false,
+		"auto_advance_delay_seconds": 10,
+		"agent_max_turns":            60,
+		"agent_timeout_seconds":      900,
+		"agent_requires_approval":    true,
+		"search_debounce_ms":         300,
+		"toast_duration_ms":          5000,
+		"delete_confirmation":        map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
 	})
 
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
@@ -240,19 +240,19 @@ func TestWorkshopSave_NewSaveReplacesPendingAdvance(t *testing.T) {
 	h, rootDir := setupTestHandlerWithAgent(t, agent)
 
 	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
-		"theme":                       "dark",
-		"default_mode":                "manual",
-		"max_auto_rounds":             10,
-		"auto_initialize_workshop":    false,
-		"auto_advance_workshop":       true,
-		"auto_cascade_workshop":       false,
-		"auto_advance_delay_seconds":  30,
-		"agent_max_turns":             60,
-		"agent_timeout_seconds":       900,
-		"agent_requires_approval":     true,
-		"search_debounce_ms":          300,
-		"toast_duration_ms":           5000,
-		"delete_confirmation": map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
+		"theme":                      "dark",
+		"default_mode":               "manual",
+		"max_auto_rounds":            10,
+		"auto_initialize_workshop":   false,
+		"auto_advance_workshop":      true,
+		"auto_cascade_workshop":      false,
+		"auto_advance_delay_seconds": 30,
+		"agent_max_turns":            60,
+		"agent_timeout_seconds":      900,
+		"agent_requires_approval":    true,
+		"search_debounce_ms":         300,
+		"toast_duration_ms":          5000,
+		"delete_confirmation":        map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
 	})
 
 	createTestItem(t, rootDir, KindIdea, BacklogItem{

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/pathfilter"
 	rulespkg "scenario-auditor/rules"
 )
 
@@ -44,7 +45,6 @@ type issueTrackerResponse struct {
 
 // reportIssueHandler creates an issue in app-issue-tracker for rule fixes/tests
 func reportIssueHandler(w http.ResponseWriter, r *http.Request) {
-
 	var req reportIssueRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		HTTPError(w, "Invalid request body", http.StatusBadRequest, err)
@@ -853,7 +853,6 @@ func buildViolationArtifact(rule Rule, scenarios []string, ruleInfo RuleInfo) st
 
 // scanScenarioForRule runs a specific rule against a scenario and returns violations
 func scanScenarioForRule(scenarioName, ruleID string, ruleInfo RuleInfo) []rulespkg.Violation {
-
 	if !ruleInfo.Implementation.Valid {
 		logger.Warn(fmt.Sprintf("Rule %s implementation not valid, skipping scan", ruleID), nil)
 		return nil
@@ -887,10 +886,7 @@ func scanScenarioForRule(scenarioName, ruleID string, ruleInfo RuleInfo) []rules
 		}
 
 		if info.IsDir() {
-			// Skip common directories that don't contain source code
-			base := filepath.Base(path)
-			if base == "node_modules" || base == ".git" || base == "vendor" ||
-				base == "dist" || base == "build" || base == ".next" {
+			if pathfilter.SkipDir(filepath.Base(path)) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -949,7 +945,6 @@ func scanScenarioForRule(scenarioName, ruleID string, ruleInfo RuleInfo) []rules
 
 		return nil
 	})
-
 	if err != nil {
 		logger.Warn(fmt.Sprintf("Error walking scenario %s: %v", scenarioName, err), nil)
 	}
@@ -1197,7 +1192,6 @@ func resolveIssueTrackerUIPort(ctx context.Context) (int, error) {
 
 // buildCreateRuleIssuePayload builds the payload for creating a rule creation issue
 func buildCreateRuleIssuePayload(req createRuleRequest) (map[string]any, error) {
-
 	title := fmt.Sprintf("[scenario-auditor] Create new rule: %s", req.Name)
 	description := buildCreateRuleDescription(req)
 

@@ -20,6 +20,15 @@ type BacklogSummaryResponse struct {
 	PendingQuestions PendingQuestionsResponse `json:"pending_questions"`
 }
 
+// itemRoundData holds the workshop round data loaded once per item.
+type itemRoundData struct {
+	item       BacklogItem
+	itemDir    string
+	round      *WorkshopRound
+	roundCount int
+	roundOK    bool
+}
+
 // BacklogSummary returns a combined summary covering feedback, maturity, and
 // pending questions in one round-trip. Internally it loads all items once and
 // performs a single pass over workshop rounds.
@@ -30,74 +39,20 @@ func (h *Handler) BacklogSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Pre-allocate result slices.
-	feedbackItems := []FeedbackItemSummary{}
-	maturityItems := make([]MaturityItemSummary, 0, len(items))
-	var pendingItems []PendingQuestionsItem
-	totalPending := 0
-
-	for _, item := range items {
+	rounds := make([]itemRoundData, len(items))
+	for i, item := range items {
 		itemDir := h.store.ItemDir(item.Kind, item.Name)
-
-		// Load workshop round once per item (shared across feedback + maturity).
 		latestRound, roundCount, roundErr := LoadLatestRound(itemDir)
-
-		// --- Feedback ---
-		if roundErr == nil && latestRound != nil {
-			pending := CountPendingDecisions(latestRound)
-			if pending > 0 {
-				feedbackItems = append(feedbackItems, FeedbackItemSummary{
-					Kind:             item.Kind,
-					Name:             item.Name,
-					Title:            item.Title,
-					PendingDecisions: pending,
-				})
-				totalPending += pending
-			}
-		}
-
-		// --- Maturity ---
-		rawScores := make(map[string]int, len(ReadinessDimensions))
-		for _, dim := range ReadinessDimensions {
-			rawScores[dim] = 0
-		}
-		if roundErr == nil && latestRound != nil {
-			for _, dim := range ReadinessDimensions {
-				if v, ok := latestRound.Readiness[dim]; ok {
-					rawScores[dim] = v
-				}
-			}
-		}
-		effectiveScores := ComputeEffectiveScores(rawScores, roundCount, item.Kind)
-		maturityItems = append(maturityItems, MaturityItemSummary{
-			Kind:             item.Kind,
-			Name:             item.Name,
-			Title:            item.Title,
-			RoundsCompleted:  roundCount,
-			RawScores:        rawScores,
-			EffectiveScores:  effectiveScores,
-			Ready:            IsReady(effectiveScores),
-			PendingItems:     CountPendingDecisions(latestRound),
-			PendingSynthesis: NeedsSynthesis(latestRound),
-			HasPlan:          HasPlanByName(itemDir, DeliverableForKind(item.Kind)),
-		})
-
-		// --- Pending questions ---
-		var questions []PendingQuestion
-		questions = append(questions, collectWorkshopQuestionsFromRound(latestRound, item.Kind, item.Name)...)
-		questions = append(questions, collectReviewQuestionsFromDir(itemDir, item.Kind, item.Name)...)
-		if len(questions) > 0 {
-			pendingItems = append(pendingItems, PendingQuestionsItem{
-				Kind:      item.Kind,
-				Name:      item.Name,
-				Questions: questions,
-			})
+		rounds[i] = itemRoundData{
+			item: item, itemDir: itemDir,
+			round: latestRound, roundCount: roundCount,
+			roundOK: roundErr == nil,
 		}
 	}
 
-	if pendingItems == nil {
-		pendingItems = []PendingQuestionsItem{}
-	}
+	feedbackItems, totalPending := buildFeedbackSummary(rounds)
+	maturityItems := buildMaturitySummary(rounds)
+	pendingItems := buildPendingQuestions(rounds)
 
 	resp := BacklogSummaryResponse{
 		Feedback: FeedbackSummaryResponse{
@@ -111,6 +66,75 @@ func (h *Handler) BacklogSummary(w http.ResponseWriter, r *http.Request) {
 	if err := httputil.JSON(w, resp); err != nil {
 		apierr.MapError(w, "[backlog] summary", apierr.Internal("failed to encode response"))
 	}
+}
+
+func buildFeedbackSummary(rounds []itemRoundData) ([]FeedbackItemSummary, int) {
+	var items []FeedbackItemSummary
+	totalPending := 0
+	for _, rd := range rounds {
+		if !rd.roundOK || rd.round == nil {
+			continue
+		}
+		pending := CountPendingDecisions(rd.round)
+		if pending > 0 {
+			items = append(items, FeedbackItemSummary{
+				Kind: rd.item.Kind, Name: rd.item.Name,
+				Title: rd.item.Title, PendingDecisions: pending,
+			})
+			totalPending += pending
+		}
+	}
+	if items == nil {
+		items = []FeedbackItemSummary{}
+	}
+	return items, totalPending
+}
+
+func buildMaturitySummary(rounds []itemRoundData) []MaturityItemSummary {
+	items := make([]MaturityItemSummary, 0, len(rounds))
+	for _, rd := range rounds {
+		rawScores := make(map[string]int, len(ReadinessDimensions))
+		for _, dim := range ReadinessDimensions {
+			rawScores[dim] = 0
+		}
+		if rd.roundOK && rd.round != nil {
+			for _, dim := range ReadinessDimensions {
+				if v, ok := rd.round.Readiness[dim]; ok {
+					rawScores[dim] = v
+				}
+			}
+		}
+		effectiveScores := ComputeEffectiveScores(rawScores, rd.roundCount, rd.item.Kind)
+		items = append(items, MaturityItemSummary{
+			Kind: rd.item.Kind, Name: rd.item.Name, Title: rd.item.Title,
+			RoundsCompleted:  rd.roundCount,
+			RawScores:        rawScores,
+			EffectiveScores:  effectiveScores,
+			Ready:            IsReady(effectiveScores),
+			PendingItems:     CountPendingDecisions(rd.round),
+			PendingSynthesis: NeedsSynthesis(rd.round),
+			HasPlan:          HasPlanByName(rd.itemDir, DeliverableForKind(rd.item.Kind)),
+		})
+	}
+	return items
+}
+
+func buildPendingQuestions(rounds []itemRoundData) []PendingQuestionsItem {
+	var items []PendingQuestionsItem
+	for _, rd := range rounds {
+		var questions []PendingQuestion
+		questions = append(questions, collectWorkshopQuestionsFromRound(rd.round, rd.item.Kind, rd.item.Name)...)
+		questions = append(questions, collectReviewQuestionsFromDir(rd.itemDir, rd.item.Kind, rd.item.Name)...)
+		if len(questions) > 0 {
+			items = append(items, PendingQuestionsItem{
+				Kind: rd.item.Kind, Name: rd.item.Name, Questions: questions,
+			})
+		}
+	}
+	if items == nil {
+		items = []PendingQuestionsItem{}
+	}
+	return items
 }
 
 // collectWorkshopQuestionsFromRound extracts unanswered decisions from an

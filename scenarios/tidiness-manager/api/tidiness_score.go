@@ -74,13 +74,15 @@ var ScoreWeights = struct {
 
 // Thresholds for determining issues
 var Thresholds = struct {
-	LongFileLines   int
-	HighComplexity  int
-	LowCommentRatio float64
+	LongFileLines     int
+	LongFileLinesTest int
+	HighComplexity    int
+	LowCommentRatio   float64
 }{
-	LongFileLines:   400,  // Files over 400 lines are flagged
-	HighComplexity:  10,   // Functions with complexity > 10 are flagged
-	LowCommentRatio: 0.05, // Files with < 5% comments are flagged
+	LongFileLines:     400,  // Files over 400 lines are flagged
+	LongFileLinesTest: 1000, // Test files over 1000 lines are flagged (2.5x standard)
+	HighComplexity:    10,   // Functions with complexity > 10 are flagged
+	LowCommentRatio:   0.05, // Files with < 5% comments are flagged
 }
 
 // Calculate computes the tidiness score for a scenario
@@ -197,7 +199,20 @@ func (c *TidinessScoreCalculator) getFileMetricsAggregates(ctx context.Context, 
 			COUNT(*) as total_files,
 			COALESCE(SUM(line_count), 0) as total_lines,
 			COALESCE(AVG(line_count), 0) as avg_file_length,
-			COUNT(CASE WHEN line_count > $2 THEN 1 END) as long_files,
+			COUNT(CASE WHEN
+				(file_path LIKE '%%\_test.go' OR file_path LIKE '%%.test.ts' OR file_path LIKE '%%.test.tsx'
+				 OR file_path LIKE '%%.spec.ts' OR file_path LIKE '%%.spec.tsx'
+				 OR file_path LIKE '%%.test.js' OR file_path LIKE '%%.test.jsx'
+				 OR file_path LIKE '%%.spec.js' OR file_path LIKE '%%.spec.jsx'
+				 OR file_path LIKE '%%/tests/%%' OR file_path LIKE '%%/__tests__/%%')
+				AND line_count > $5
+				OR NOT (file_path LIKE '%%\_test.go' OR file_path LIKE '%%.test.ts' OR file_path LIKE '%%.test.tsx'
+				 OR file_path LIKE '%%.spec.ts' OR file_path LIKE '%%.spec.tsx'
+				 OR file_path LIKE '%%.test.js' OR file_path LIKE '%%.test.jsx'
+				 OR file_path LIKE '%%.spec.js' OR file_path LIKE '%%.spec.jsx'
+				 OR file_path LIKE '%%/tests/%%' OR file_path LIKE '%%/__tests__/%%')
+				AND line_count > $2
+			THEN 1 END) as long_files,
 			COUNT(CASE WHEN complexity_max > $3 THEN 1 END) as high_complexity,
 			COALESCE(MAX(complexity_max), 0) as max_complexity,
 			COALESCE(AVG(complexity_avg), 0) as avg_complexity,
@@ -213,7 +228,7 @@ func (c *TidinessScoreCalculator) getFileMetricsAggregates(ctx context.Context, 
 	var maxComplexity, techDebt sql.NullInt64
 	var avgComplexity, duplicationPct sql.NullFloat64
 
-	err := c.db.QueryRowContext(ctx, query, scenario, Thresholds.LongFileLines, Thresholds.HighComplexity, Thresholds.LowCommentRatio).Scan(
+	err := c.db.QueryRowContext(ctx, query, scenario, Thresholds.LongFileLines, Thresholds.HighComplexity, Thresholds.LowCommentRatio, Thresholds.LongFileLinesTest).Scan(
 		&result.TotalFiles,
 		&result.TotalLines,
 		&result.AvgFileLength,

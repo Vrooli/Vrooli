@@ -78,19 +78,19 @@ func writeReadyRound(t *testing.T, rootDir string, kind BacklogKind, name string
 func enableAutoAdvanceWithDelay(t *testing.T, rootDir string, delaySec int) {
 	t.Helper()
 	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
-		"theme":                       "dark",
-		"default_mode":                "manual",
-		"max_auto_rounds":             10,
-		"auto_initialize_workshop":    false,
-		"auto_advance_workshop":       true,
-		"auto_cascade_workshop":       false,
-		"auto_advance_delay_seconds":  delaySec,
-		"agent_max_turns":             60,
-		"agent_timeout_seconds":       900,
-		"agent_requires_approval":     true,
-		"search_debounce_ms":          300,
-		"toast_duration_ms":           5000,
-		"delete_confirmation": map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
+		"theme":                      "dark",
+		"default_mode":               "manual",
+		"max_auto_rounds":            10,
+		"auto_initialize_workshop":   false,
+		"auto_advance_workshop":      true,
+		"auto_cascade_workshop":      false,
+		"auto_advance_delay_seconds": delaySec,
+		"agent_max_turns":            60,
+		"agent_timeout_seconds":      900,
+		"agent_requires_approval":    true,
+		"search_debounce_ms":         300,
+		"toast_duration_ms":          5000,
+		"delete_confirmation":        map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
 	})
 }
 

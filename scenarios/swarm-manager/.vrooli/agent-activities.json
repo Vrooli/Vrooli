@@ -4756,5 +4756,181 @@
       "skill_id": "swarm-manager-classify-capture"
     },
     "updated_at": "2026-04-08T16:44:54Z"
+  },
+  {
+    "activity_id": "1074a3ff8ffecdd5",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "qa-swarm-manager-code-quality-20260408",
+    "owner_title": "Reduce code quality violations in swarm-manager",
+    "execution_id": "706a250ce79dfd74",
+    "purpose": "process",
+    "interaction_type": "spawn",
+    "task_id": "81fe0016-78fa-442e-ac4f-39811c09a4f8",
+    "run_id": "07eb2034-468c-4f1d-be1e-2c3082f2eff4",
+    "status": "complete",
+    "requested_at": "2026-04-08T16:51:37Z",
+    "started_at": "2026-04-08T16:51:37Z",
+    "finished_at": "2026-04-08T17:15:40Z",
+    "requested_by": "swarm-manager-ui",
+    "metadata": {
+      "entrypoint": "execution.start",
+      "mode": "yolo",
+      "operation": "generator"
+    },
+    "updated_at": "2026-04-08T17:15:41Z"
+  },
+  {
+    "activity_id": "923e03c40297e4e4",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "qa-git-control-tower-code-quality-20260408",
+    "owner_title": "Reduce code quality violations in git-control-tower",
+    "execution_id": "fa905dc2cc7ecd4a",
+    "purpose": "process",
+    "interaction_type": "spawn",
+    "task_id": "3aabd64a-2f4b-4af8-a4f1-b8edd8985368",
+    "run_id": "198bf055-7975-47a2-b3db-75ba1e9e8a3e",
+    "status": "failed",
+    "requested_at": "2026-04-08T16:52:11Z",
+    "started_at": "2026-04-08T16:52:12Z",
+    "finished_at": "2026-04-08T17:22:12Z",
+    "failure_reason": "Runner claude-code encountered an error. Please check runner configuration.",
+    "requested_by": "swarm-manager-ui",
+    "metadata": {
+      "entrypoint": "execution.start",
+      "mode": "yolo",
+      "operation": "generator"
+    },
+    "updated_at": "2026-04-08T17:48:59Z"
+  },
+  {
+    "activity_id": "e0af25585e7a02b3",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "qa-swarm-manager-code-quality-20260408",
+    "owner_title": "Reduce code quality violations in swarm-manager",
+    "execution_id": "706a250ce79dfd74",
+    "purpose": "review",
+    "interaction_type": "spawn",
+    "task_id": "fcc3c89b-833a-4351-bc88-96706176ed7c",
+    "run_id": "7b5ef645-1598-4264-8e78-61597b06e6d5",
+    "status": "complete",
+    "requested_at": "2026-04-08T17:15:41Z",
+    "started_at": "2026-04-08T17:15:41Z",
+    "finished_at": "2026-04-08T17:20:46Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "review.start",
+      "round_number": "001"
+    },
+    "updated_at": "2026-04-08T17:48:59Z"
+  },
+  {
+    "activity_id": "1fa8d0ec7d36937a",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "qa-git-control-tower-code-quality-20260408",
+    "owner_title": "Reduce code quality violations in git-control-tower",
+    "execution_id": "1fc9494d5f3d851c",
+    "purpose": "followup",
+    "interaction_type": "spawn",
+    "task_id": "7c173fb8-3900-4e5e-acb0-0d8ad419aeba",
+    "run_id": "10f7a5f2-1102-47c7-9c3c-aacea05642bc",
+    "status": "failed",
+    "requested_at": "2026-04-08T17:49:54Z",
+    "started_at": "2026-04-08T17:49:55Z",
+    "finished_at": "2026-04-08T18:19:55Z",
+    "failure_reason": "Runner claude-code encountered an error. Please check runner configuration.",
+    "requested_by": "swarm-manager:follow-up",
+    "metadata": {
+      "entrypoint": "execution.follow_up",
+      "follow_up_type": "followup",
+      "parent_execution": "fa905dc2cc7ecd4a",
+      "run_mode": "new"
+    },
+    "updated_at": "2026-04-08T19:19:50Z"
+  },
+  {
+    "activity_id": "0843eb271795235e",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "desktop-release-control-plane-audit",
+    "owner_title": "desktop-release-control-plane-audit",
+    "execution_id": "6a71fe475cdaf470",
+    "purpose": "review",
+    "interaction_type": "spawn",
+    "status": "failed",
+    "requested_at": "2026-04-08T17:57:17Z",
+    "finished_at": "2026-04-08T17:57:17Z",
+    "failure_reason": "agent-manager request failed: status 400: {\"code\":\"VALIDATION_FIELD\",\"message\":\"validation error on contextAttachments[0].content: required for note attachments\",\"details\":{\"fields\":{\"field\":{\"string_value\":\"contextAttachments[0].content\"},\"message\":{\"string_value\":\"required for note attachments\"},\"recovery\":{\"string_value\":\"fix_input\"},\"request_id\":{\"string_value\":\"79547f17-a81e-4173-a4cf-460a54553c1c\"},\"retryable\":{\"bool_value\":false},\"user_message\":{\"string_value\":\"Invalid value for contextAttachments[0].content: required for note attachments\"}}}}",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "review.start",
+      "round_number": "001"
+    },
+    "updated_at": "2026-04-08T17:57:17Z"
+  },
+  {
+    "activity_id": "439de4b445a04c68",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "secrets-manager-pii-detection-design",
+    "owner_title": "Design PII detection system for Secrets Manager",
+    "execution_id": "1c58df700797080d",
+    "purpose": "review",
+    "interaction_type": "spawn",
+    "status": "failed",
+    "requested_at": "2026-04-08T19:22:12Z",
+    "finished_at": "2026-04-08T19:22:12Z",
+    "failure_reason": "agent-manager request failed: status 400: {\"code\":\"VALIDATION_FIELD\",\"message\":\"validation error on contextAttachments[0].content: required for note attachments\",\"details\":{\"fields\":{\"field\":{\"string_value\":\"contextAttachments[0].content\"},\"message\":{\"string_value\":\"required for note attachments\"},\"recovery\":{\"string_value\":\"fix_input\"},\"request_id\":{\"string_value\":\"a3184fee-568b-4875-ad50-8fb1ae102792\"},\"retryable\":{\"bool_value\":false},\"user_message\":{\"string_value\":\"Invalid value for contextAttachments[0].content: required for note attachments\"}}}}",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "review.start",
+      "round_number": "001"
+    },
+    "updated_at": "2026-04-08T19:22:12Z"
+  },
+  {
+    "activity_id": "6637f3da9f6ae357",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "secrets-manager-pii-detection-design",
+    "owner_title": "Design PII detection system for Secrets Manager",
+    "execution_id": "1c58df700797080d",
+    "purpose": "review",
+    "interaction_type": "spawn",
+    "status": "failed",
+    "requested_at": "2026-04-08T19:22:13Z",
+    "finished_at": "2026-04-08T19:22:13Z",
+    "failure_reason": "agent-manager request failed: status 400: {\"code\":\"VALIDATION_FIELD\",\"message\":\"validation error on contextAttachments[0].content: required for note attachments\",\"details\":{\"fields\":{\"field\":{\"string_value\":\"contextAttachments[0].content\"},\"message\":{\"string_value\":\"required for note attachments\"},\"recovery\":{\"string_value\":\"fix_input\"},\"request_id\":{\"string_value\":\"1b0479b5-82f0-4a48-bc92-478d64cd6797\"},\"retryable\":{\"bool_value\":false},\"user_message\":{\"string_value\":\"Invalid value for contextAttachments[0].content: required for note attachments\"}}}}",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "review.start",
+      "round_number": "001"
+    },
+    "updated_at": "2026-04-08T19:22:13Z"
+  },
+  {
+    "activity_id": "02e39c8e9ea750b3",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "vrooli-events-core-runtime",
+    "owner_title": "Build The vrooli-events Scenario Core Runtime",
+    "execution_id": "a72dffa18c294761",
+    "purpose": "review",
+    "interaction_type": "spawn",
+    "task_id": "fd34f36d-d959-41f8-b9d6-004b89a68cce",
+    "run_id": "cd6f8b95-92f7-416c-b71e-926823b36320",
+    "status": "complete",
+    "requested_at": "2026-04-08T19:22:51Z",
+    "started_at": "2026-04-08T19:22:51Z",
+    "finished_at": "2026-04-08T19:25:51Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "review.start",
+      "round_number": "002"
+    },
+    "updated_at": "2026-04-08T19:32:47Z"
   }
 ]

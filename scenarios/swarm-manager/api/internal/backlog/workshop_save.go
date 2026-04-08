@@ -23,6 +23,8 @@ import (
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/fileops"
+	"swarm-manager/internal/fileserve"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/settings"
 	"swarm-manager/internal/workshop"
@@ -90,7 +92,7 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 	if info != nil {
 		fileSize = info.Size()
 	}
-	fileNode := backlogFileToProto(BacklogFile{
+	fileNode := fileserve.FileNodeToProto(fileops.FileNode{
 		Name: roundFile,
 		Path: filepath.Join("workshop", roundFile),
 		Type: "file",
@@ -112,89 +114,7 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Determine auto-advance.
-	autoAdvance := &apipb.WorkshopAutoAdvance{Triggered: false, Reason: "disabled"}
-
-	// Load settings to check auto_advance_workshop and maxAutoRounds.
-	cfg, cfgErr := settings.NewStore("").Load()
-	if cfgErr != nil {
-		slog.Warn("failed to load settings for auto-advance", "err", cfgErr)
-		cfg = settings.DefaultSettings()
-	}
-	// Load rounds to get the accurate count after save.
-	_, roundCount, loadErr := workshop.LoadLatestRound(itemDir)
-	if loadErr != nil {
-		slog.Warn("failed to load rounds for auto-advance check", "err", loadErr)
-		autoAdvance.Reason = "error"
-	} else {
-		result := workshop.ShouldAutoAdvance(cfg.AutoAdvanceWorkshop, &round, roundCount, string(kind), cfg.MaxAutoRounds)
-		if result.NextMode == string(ResearchModeFinalize) && !workshop.NeedsSynthesis(&round) {
-			result.Advance = false
-			result.NextMode = ""
-		}
-		autoAdvance.Reason = result.Reason
-		if nextMode := resolveNextMode(result, cfg.AutoAdvanceWorkshop, &round, roundCount, kind, cfg.MaxAutoRounds); nextMode != "" {
-			autoAdvance.NextMode = &nextMode
-		}
-		if result.Advance {
-			runMode := ResearchModeWorkshop
-			if result.NextMode == string(ResearchModeFinalize) {
-				runMode = ResearchModeFinalize
-			}
-
-			delaySec := cfg.AutoAdvanceDelaySeconds
-			if delaySec > 0 {
-				// Deferred advance: write a pending advance file and let the ticker fire it.
-				// Cancel any existing pending advance first.
-				deletePendingAdvance(itemDir)
-				if h.workshopTicker != nil {
-					h.workshopTicker.Unregister(string(kind), name)
-				}
-
-				now := time.Now().UTC()
-				pa := PendingAdvance{
-					CreatedAt:  now,
-					AdvanceAt:  now.Add(time.Duration(delaySec) * time.Second),
-					NextMode:   string(runMode),
-					RoundCount: roundCount,
-					Kind:       string(kind),
-					Name:       name,
-				}
-				if writeErr := writePendingAdvance(itemDir, pa); writeErr != nil {
-					slog.Error("failed to write pending advance", "kind", kind, "name", name, "err", writeErr)
-					autoAdvance.Reason = "error"
-				} else {
-					if h.workshopTicker != nil {
-						h.workshopTicker.Register(string(kind), name, pa)
-					}
-					autoAdvance.Pending = true
-					advanceAtStr := pa.AdvanceAt.Format(time.RFC3339)
-					autoAdvance.AdvanceAt = &advanceAtStr
-					autoAdvance.DelaySeconds = int32(delaySec)
-					if nextMode := autoAdvance.NextMode; nextMode == nil {
-						nm := string(runMode)
-						autoAdvance.NextMode = &nm
-					}
-				}
-			} else {
-				// Immediate advance (delay=0): spawn right away.
-				runID, taskID, spawnErr := h.spawnWorkshopAsync(item, runMode)
-				if spawnErr != nil {
-					if errors.Is(spawnErr, agentactivity.ErrBacklogItemBusy) {
-						slog.Info("auto-advance skipped: agent already active", "kind", kind, "name", name)
-						autoAdvance.Reason = "agent_active"
-					} else {
-						slog.Error("auto-advance spawn failed", "kind", kind, "name", name, "err", spawnErr)
-						autoAdvance.Reason = "error"
-					}
-				} else {
-					autoAdvance.Triggered = true
-					autoAdvance.RunId = &runID
-					autoAdvance.TaskId = &taskID
-				}
-			}
-		}
-	}
+	autoAdvance := h.computeAutoAdvance(item, &round, kind, name, itemDir)
 
 	resp := &apipb.WorkshopSaveResponse{
 		File:        fileNode,
@@ -203,6 +123,103 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 	if err := httputil.ProtoJSON(w, resp); err != nil {
 		apierr.MapError(w, "[backlog] workshop-save", apierr.Internal("failed to encode response"))
 	}
+}
+
+// computeAutoAdvance determines whether and how to auto-advance the workshop
+// after saving a round.
+func (h *Handler) computeAutoAdvance(item BacklogItem, round *workshop.Round, kind BacklogKind, name, itemDir string) *apipb.WorkshopAutoAdvance {
+	autoAdvance := &apipb.WorkshopAutoAdvance{Triggered: false, Reason: "disabled"}
+
+	cfg, cfgErr := settings.NewStore("").Load()
+	if cfgErr != nil {
+		slog.Warn("failed to load settings for auto-advance", "err", cfgErr)
+		cfg = settings.DefaultSettings()
+	}
+
+	_, roundCount, loadErr := workshop.LoadLatestRound(itemDir)
+	if loadErr != nil {
+		slog.Warn("failed to load rounds for auto-advance check", "err", loadErr)
+		autoAdvance.Reason = "error"
+		return autoAdvance
+	}
+
+	result := workshop.ShouldAutoAdvance(cfg.AutoAdvanceWorkshop, round, roundCount, string(kind), cfg.MaxAutoRounds)
+	if result.NextMode == string(ResearchModeFinalize) && !workshop.NeedsSynthesis(round) {
+		result.Advance = false
+		result.NextMode = ""
+	}
+	autoAdvance.Reason = result.Reason
+	if nextMode := resolveNextMode(result, cfg.AutoAdvanceWorkshop, round, roundCount, kind, cfg.MaxAutoRounds); nextMode != "" {
+		autoAdvance.NextMode = &nextMode
+	}
+
+	if !result.Advance {
+		return autoAdvance
+	}
+
+	runMode := ResearchModeWorkshop
+	if result.NextMode == string(ResearchModeFinalize) {
+		runMode = ResearchModeFinalize
+	}
+
+	if cfg.AutoAdvanceDelaySeconds > 0 {
+		h.scheduleDeferredAdvance(autoAdvance, kind, name, itemDir, runMode, roundCount, cfg.AutoAdvanceDelaySeconds)
+	} else {
+		h.executeImmediateAdvance(autoAdvance, item, kind, name, runMode)
+	}
+	return autoAdvance
+}
+
+// scheduleDeferredAdvance writes a pending advance file and registers it with the ticker.
+func (h *Handler) scheduleDeferredAdvance(aa *apipb.WorkshopAutoAdvance, kind BacklogKind, name, itemDir string, runMode ResearchMode, roundCount, delaySec int) {
+	deletePendingAdvance(itemDir)
+	if h.workshopTicker != nil {
+		h.workshopTicker.Unregister(string(kind), name)
+	}
+
+	now := time.Now().UTC()
+	pa := PendingAdvance{
+		CreatedAt:  now,
+		AdvanceAt:  now.Add(time.Duration(delaySec) * time.Second),
+		NextMode:   string(runMode),
+		RoundCount: roundCount,
+		Kind:       string(kind),
+		Name:       name,
+	}
+	if writeErr := writePendingAdvance(itemDir, pa); writeErr != nil {
+		slog.Error("failed to write pending advance", "kind", kind, "name", name, "err", writeErr)
+		aa.Reason = "error"
+		return
+	}
+	if h.workshopTicker != nil {
+		h.workshopTicker.Register(string(kind), name, pa)
+	}
+	aa.Pending = true
+	advanceAtStr := pa.AdvanceAt.Format(time.RFC3339)
+	aa.AdvanceAt = &advanceAtStr
+	aa.DelaySeconds = int32(delaySec)
+	if aa.NextMode == nil {
+		nm := string(runMode)
+		aa.NextMode = &nm
+	}
+}
+
+// executeImmediateAdvance spawns the workshop agent immediately.
+func (h *Handler) executeImmediateAdvance(aa *apipb.WorkshopAutoAdvance, item BacklogItem, kind BacklogKind, name string, runMode ResearchMode) {
+	runID, taskID, spawnErr := h.spawnWorkshopAsync(item, runMode)
+	if spawnErr != nil {
+		if errors.Is(spawnErr, agentactivity.ErrBacklogItemBusy) {
+			slog.Info("auto-advance skipped: agent already active", "kind", kind, "name", name)
+			aa.Reason = "agent_active"
+		} else {
+			slog.Error("auto-advance spawn failed", "kind", kind, "name", name, "err", spawnErr)
+			aa.Reason = "error"
+		}
+		return
+	}
+	aa.Triggered = true
+	aa.RunId = &runID
+	aa.TaskId = &taskID
 }
 
 func resolveNextMode(result workshop.AutoAdvanceResult, autoAdvanceEnabled bool, round *workshop.Round, roundCount int, kind BacklogKind, maxAutoRounds int) string {

@@ -209,7 +209,7 @@ func parseStatusesQuery(r *http.Request) ([]BacklogStatus, error) {
 //   - empty slice (status=all): no filtering, return everything
 //   - non-empty slice: include only items matching one of the given statuses
 func filterByStatus(items []BacklogItem, statuses []BacklogStatus) []BacklogItem {
-	if statuses == nil || len(statuses) == 0 {
+	if len(statuses) == 0 {
 		return items
 	}
 

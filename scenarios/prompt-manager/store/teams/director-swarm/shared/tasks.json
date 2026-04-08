@@ -47,12 +47,19 @@
     {
       "id": "task-1775341208374821859",
       "title": "Human: Accept/reject failed items triage (dec-1775341196165964273) — 3 options, A recommended",
-      "status": "todo",
+      "status": "done",
       "assignee": "director",
       "priority": "P1",
       "createdBy": "director",
       "createdAt": "2026-04-04T22:20:08Z",
-      "updatedAt": "2026-04-04T22:20:08Z"
+      "updatedAt": "2026-04-08T22:20:38Z",
+      "notes": [
+        {
+          "at": "2026-04-08T22:20:38Z",
+          "by": "",
+          "text": "Superseded by dec-1775600387541383847 (identity-adoption fix resolution)"
+        }
+      ]
     },
     {
       "id": "task-1775341209018001896",
@@ -167,6 +174,26 @@
       "createdBy": "director",
       "createdAt": "2026-04-07T22:20:10Z",
       "updatedAt": "2026-04-07T22:20:10Z"
+    },
+    {
+      "id": "task-1775686846084486557",
+      "title": "Human: Batch-review top 5 decisions (dec-1775686821055080189) — Option B recommended",
+      "status": "todo",
+      "assignee": "director",
+      "priority": "P1",
+      "createdBy": "director",
+      "createdAt": "2026-04-08T22:20:46Z",
+      "updatedAt": "2026-04-08T22:20:46Z"
+    },
+    {
+      "id": "task-1775686846951947696",
+      "title": "Human: Accept/reject portfolio focus HB18 (dec-1775686811365683656) — supersedes HB16",
+      "status": "todo",
+      "assignee": "director",
+      "priority": "P1",
+      "createdBy": "director",
+      "createdAt": "2026-04-08T22:20:46Z",
+      "updatedAt": "2026-04-08T22:20:46Z"
     }
   ]
 }

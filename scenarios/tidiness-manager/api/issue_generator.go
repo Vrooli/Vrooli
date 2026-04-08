@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
-	"strings"
 )
 
 // IssueGeneratorConfig defines thresholds for issue generation
 type IssueGeneratorConfig struct {
 	LongFileThreshold             int     // Files with more lines than this generate issues (default: 500)
+	LongFileThresholdTest         int     // Line count threshold for test files (default: 1250)
 	HighComplexityMax             int     // Max complexity above this generates issues (default: 15)
 	HighDuplicationPct            float64 // Duplication percentage above this generates issues (default: 10.0)
 	HighDuplicationPctTest        float64 // Duplication percentage threshold for test files (default: 30.0)
@@ -20,6 +20,7 @@ type IssueGeneratorConfig struct {
 func DefaultIssueGeneratorConfig() IssueGeneratorConfig {
 	return IssueGeneratorConfig{
 		LongFileThreshold:             500,
+		LongFileThresholdTest:         1250,
 		HighComplexityMax:             15,
 		HighDuplicationPct:            10.0,
 		HighDuplicationPctTest:        30.0,
@@ -35,15 +36,20 @@ func GenerateIssuesFromMetrics(scenario string, metrics []DetailedFileMetrics, c
 	var issues []Issue
 
 	for _, m := range metrics {
-		// Length issues (long files)
-		if m.LineCount > config.LongFileThreshold {
+		// Length issues (long files) - use higher threshold for test files
+		isTestFile := IsTestFilePath(m.FilePath)
+		lengthThreshold := config.LongFileThreshold
+		if isTestFile && config.LongFileThresholdTest > 0 {
+			lengthThreshold = config.LongFileThresholdTest
+		}
+		if m.LineCount > lengthThreshold {
 			issues = append(issues, Issue{
 				Scenario: scenario,
 				File:     m.FilePath,
 				Line:     1,
 				Column:   1,
-				Message:  fmt.Sprintf("File has %d lines, exceeds threshold of %d lines", m.LineCount, config.LongFileThreshold),
-				Severity: severityForLineCount(m.LineCount, config.LongFileThreshold),
+				Message:  fmt.Sprintf("File has %d lines, exceeds threshold of %d lines", m.LineCount, lengthThreshold),
+				Severity: severityForLineCount(m.LineCount, lengthThreshold),
 				Tool:     "tidiness-manager",
 				Category: "length",
 			})
@@ -65,11 +71,6 @@ func GenerateIssuesFromMetrics(scenario string, metrics []DetailedFileMetrics, c
 
 		// Duplication issues - use higher threshold for test files
 		if m.DuplicationPct != nil {
-			isTestFile := strings.HasSuffix(m.FilePath, "_test.go") ||
-				strings.HasSuffix(m.FilePath, ".test.ts") ||
-				strings.HasSuffix(m.FilePath, ".test.tsx") ||
-				strings.HasSuffix(m.FilePath, ".spec.ts") ||
-				strings.HasSuffix(m.FilePath, ".spec.tsx")
 			dupThreshold := config.HighDuplicationPct
 			if isTestFile && config.HighDuplicationPctTest > 0 {
 				dupThreshold = config.HighDuplicationPctTest

@@ -452,6 +452,26 @@ func (cma *CodeMetricsAnalyzer) buildTestFileMap(files []string, lang Language) 
 	return testFiles
 }
 
+// IsTestFilePath checks if a file path looks like a test file based on common
+// naming conventions across languages. Unlike the method variant, this does not
+// require a Language parameter — it checks all known patterns.
+func IsTestFilePath(filePath string) bool {
+	base := filepath.Base(filePath)
+	return strings.HasSuffix(base, "_test.go") ||
+		strings.HasSuffix(base, ".test.ts") ||
+		strings.HasSuffix(base, ".test.tsx") ||
+		strings.HasSuffix(base, ".spec.ts") ||
+		strings.HasSuffix(base, ".spec.tsx") ||
+		strings.HasSuffix(base, ".test.js") ||
+		strings.HasSuffix(base, ".test.jsx") ||
+		strings.HasSuffix(base, ".spec.js") ||
+		strings.HasSuffix(base, ".spec.jsx") ||
+		strings.HasPrefix(base, "test_") && strings.HasSuffix(base, ".py") ||
+		strings.HasSuffix(base, "_test.py") ||
+		strings.Contains(filePath, "__tests__") ||
+		strings.Contains(filePath, "/tests/")
+}
+
 // isTestFile checks if a file is a test file based on language conventions
 func (cma *CodeMetricsAnalyzer) isTestFile(filePath string, lang Language) bool {
 	base := filepath.Base(filePath)

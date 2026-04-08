@@ -19,6 +19,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/pathfilter"
 )
 
 type StandardsViolation struct {
@@ -727,7 +728,7 @@ func performStandardsCheck(ctx context.Context, scanPath, scenarioName string, s
 		}
 
 		if info.IsDir() {
-			if shouldSkipDirectory(path) {
+			if pathfilter.SkipDir(filepath.Base(path)) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -918,7 +919,7 @@ func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViol
 		}
 
 		if entry.IsDir() {
-			if shouldSkipDirectory(path) {
+			if pathfilter.SkipDir(filepath.Base(path)) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -1354,15 +1355,6 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
-}
-
-func shouldSkipDirectory(path string) bool {
-	switch filepath.Base(path) {
-	case "vendor", "node_modules", ".git", "dist", "build", ".next", ".nuxt", "target", "bin", "obj":
-		return true
-	default:
-		return false
-	}
 }
 
 func extractScenarioName(path string) string {

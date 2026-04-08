@@ -194,6 +194,32 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// respondWithRollup computes the rollup and writes the initiative response.
+func (h *Handler) respondWithRollup(w http.ResponseWriter, init *Initiative, ctx string) {
+	rollup, _ := h.service.ComputeRollup(init)
+	if rollup == nil {
+		rollup = &RollupStatus{}
+	}
+	resp := InitiativeWithRollup{Initiative: *init, Rollup: *rollup}
+	if err := httputil.JSON(w, resp); err != nil {
+		apierr.MapError(w, ctx, apierr.Internal("failed to encode response"))
+	}
+}
+
+// loadInitiative loads an initiative by name, writing an error response on failure.
+func (h *Handler) loadInitiative(w http.ResponseWriter, name, ctx string) (*Initiative, bool) {
+	init, err := h.service.store.Load(name)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			apierr.MapError(w, ctx, apierr.NotFound("initiative not found"))
+			return nil, false
+		}
+		apierr.MapError(w, ctx, apierr.Internal("failed to load initiative"))
+		return nil, false
+	}
+	return init, true
+}
+
 // Archive sets archived_at on an initiative.
 func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
@@ -202,25 +228,13 @@ func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	init, err := h.service.store.Load(name)
-	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			apierr.MapError(w, "[initiatives] archive", apierr.NotFound("initiative not found"))
-			return
-		}
-		apierr.MapError(w, "[initiatives] archive", apierr.Internal("failed to load initiative"))
+	init, ok := h.loadInitiative(w, name, "[initiatives] archive")
+	if !ok {
 		return
 	}
 
 	if init.ArchivedAt != nil {
-		rollup, _ := h.service.ComputeRollup(init)
-		if rollup == nil {
-			rollup = &RollupStatus{}
-		}
-		resp := InitiativeWithRollup{Initiative: *init, Rollup: *rollup}
-		if err := httputil.JSON(w, resp); err != nil {
-			apierr.MapError(w, "[initiatives] archive", apierr.Internal("failed to encode response"))
-		}
+		h.respondWithRollup(w, init, "[initiatives] archive")
 		return
 	}
 
@@ -237,14 +251,7 @@ func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
 		h.service.eventLogger.EmitInitiativeArchived(name, init.Status, now)
 	}
 
-	rollup, _ := h.service.ComputeRollup(init)
-	if rollup == nil {
-		rollup = &RollupStatus{}
-	}
-	resp := InitiativeWithRollup{Initiative: *init, Rollup: *rollup}
-	if err := httputil.JSON(w, resp); err != nil {
-		apierr.MapError(w, "[initiatives] archive", apierr.Internal("failed to encode response"))
-	}
+	h.respondWithRollup(w, init, "[initiatives] archive")
 }
 
 // Unarchive clears archived_at on an initiative.
@@ -255,25 +262,13 @@ func (h *Handler) Unarchive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	init, err := h.service.store.Load(name)
-	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			apierr.MapError(w, "[initiatives] unarchive", apierr.NotFound("initiative not found"))
-			return
-		}
-		apierr.MapError(w, "[initiatives] unarchive", apierr.Internal("failed to load initiative"))
+	init, ok := h.loadInitiative(w, name, "[initiatives] unarchive")
+	if !ok {
 		return
 	}
 
 	if init.ArchivedAt == nil {
-		rollup, _ := h.service.ComputeRollup(init)
-		if rollup == nil {
-			rollup = &RollupStatus{}
-		}
-		resp := InitiativeWithRollup{Initiative: *init, Rollup: *rollup}
-		if err := httputil.JSON(w, resp); err != nil {
-			apierr.MapError(w, "[initiatives] unarchive", apierr.Internal("failed to encode response"))
-		}
+		h.respondWithRollup(w, init, "[initiatives] unarchive")
 		return
 	}
 
@@ -290,14 +285,7 @@ func (h *Handler) Unarchive(w http.ResponseWriter, r *http.Request) {
 		h.service.eventLogger.EmitInitiativeUnarchived(name, prevArchivedAt)
 	}
 
-	rollup, _ := h.service.ComputeRollup(init)
-	if rollup == nil {
-		rollup = &RollupStatus{}
-	}
-	resp := InitiativeWithRollup{Initiative: *init, Rollup: *rollup}
-	if err := httputil.JSON(w, resp); err != nil {
-		apierr.MapError(w, "[initiatives] unarchive", apierr.Internal("failed to encode response"))
-	}
+	h.respondWithRollup(w, init, "[initiatives] unarchive")
 }
 
 // itemsRequest is the JSON body for AddItems and RemoveItems.

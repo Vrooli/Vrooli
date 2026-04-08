@@ -271,4 +271,3 @@ func TestShouldCascade_Disabled(t *testing.T) {
 		t.Error("expected false when disabled")
 	}
 }
-

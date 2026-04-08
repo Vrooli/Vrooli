@@ -88,18 +88,18 @@ func TestCreate_AutoInitializesWorkshop(t *testing.T) {
 
 	// Re-enable auto-initialize for this test.
 	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
-		"theme":                       "dark",
-		"default_mode":                "manual",
-		"max_auto_rounds":             10,
-		"auto_initialize_workshop":    true,
-		"auto_advance_workshop":       true,
-		"auto_cascade_workshop":       true,
-		"agent_max_turns":             60,
-		"agent_timeout_seconds":       900,
-		"agent_requires_approval":     true,
-		"search_debounce_ms":          300,
-		"toast_duration_ms":           5000,
-		"delete_confirmation": map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
+		"theme":                    "dark",
+		"default_mode":             "manual",
+		"max_auto_rounds":          10,
+		"auto_initialize_workshop": true,
+		"auto_advance_workshop":    true,
+		"auto_cascade_workshop":    true,
+		"agent_max_turns":          60,
+		"agent_timeout_seconds":    900,
+		"agent_requires_approval":  true,
+		"search_debounce_ms":       300,
+		"toast_duration_ms":        5000,
+		"delete_confirmation":      map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
 	})
 
 	payload := map[string]any{
@@ -140,18 +140,18 @@ func TestCreate_AutoInitializeDisabledViaSetting(t *testing.T) {
 	// Disable auto-initialize via settings.
 	t.Setenv("SCENARIO_ROOT", rootDir)
 	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
-		"theme":                       "dark",
-		"default_mode":                "manual",
-		"max_auto_rounds":             10,
-		"auto_initialize_workshop":    false,
-		"auto_advance_workshop":       true,
-		"auto_cascade_workshop":       true,
-		"agent_max_turns":             60,
-		"agent_timeout_seconds":       900,
-		"agent_requires_approval":     true,
-		"search_debounce_ms":          300,
-		"toast_duration_ms":           5000,
-		"delete_confirmation": map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
+		"theme":                    "dark",
+		"default_mode":             "manual",
+		"max_auto_rounds":          10,
+		"auto_initialize_workshop": false,
+		"auto_advance_workshop":    true,
+		"auto_cascade_workshop":    true,
+		"agent_max_turns":          60,
+		"agent_timeout_seconds":    900,
+		"agent_requires_approval":  true,
+		"search_debounce_ms":       300,
+		"toast_duration_ms":        5000,
+		"delete_confirmation":      map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
 	})
 
 	payload := map[string]any{
@@ -186,18 +186,18 @@ func TestCreate_AutoInit_AgentDown_StillCreates(t *testing.T) {
 
 	// Re-enable auto-initialize to test agent-down resilience.
 	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
-		"theme":                       "dark",
-		"default_mode":                "manual",
-		"max_auto_rounds":             10,
-		"auto_initialize_workshop":    true,
-		"auto_advance_workshop":       true,
-		"auto_cascade_workshop":       true,
-		"agent_max_turns":             60,
-		"agent_timeout_seconds":       900,
-		"agent_requires_approval":     true,
-		"search_debounce_ms":          300,
-		"toast_duration_ms":           5000,
-		"delete_confirmation": map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
+		"theme":                    "dark",
+		"default_mode":             "manual",
+		"max_auto_rounds":          10,
+		"auto_initialize_workshop": true,
+		"auto_advance_workshop":    true,
+		"auto_cascade_workshop":    true,
+		"agent_max_turns":          60,
+		"agent_timeout_seconds":    900,
+		"agent_requires_approval":  true,
+		"search_debounce_ms":       300,
+		"toast_duration_ms":        5000,
+		"delete_confirmation":      map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
 	})
 
 	payload := map[string]any{

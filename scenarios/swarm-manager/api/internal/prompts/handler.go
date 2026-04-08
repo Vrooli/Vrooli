@@ -82,6 +82,19 @@ func allowedSkillID(skillID string) bool {
 	return promptcatalog.IsKnownSkillID(skillID)
 }
 
+// classifyClientError maps prompt-manager HTTP error status codes to appropriate
+// API error responses.
+func classifyClientError(err error, ctx, notFoundMsg, fallbackMsg string) error {
+	lower := strings.ToLower(err.Error())
+	if strings.Contains(lower, "status 404") {
+		return apierr.NotFound("%s", notFoundMsg)
+	}
+	if strings.Contains(lower, "status 400") || strings.Contains(lower, "status 403") {
+		return apierr.BadRequest("prompt-manager rejected request")
+	}
+	return apierr.Internal("%s", fallbackMsg)
+}
+
 func (h *Handler) Catalog(w http.ResponseWriter, _ *http.Request) {
 	items := promptcatalog.Entries()
 	if err := httputil.JSON(w, map[string]any{"items": items}); err != nil {
@@ -149,11 +162,8 @@ func (h *Handler) ListSkills(w http.ResponseWriter, r *http.Request) {
 	for _, entry := range catalogSkills {
 		skill, err := h.client.GetSkill(r.Context(), entry.SkillID)
 		if err != nil {
-			if strings.Contains(strings.ToLower(err.Error()), "status 404") {
-				apierr.MapError(w, "[prompts] list-skills", apierr.NotFound("prompt skill not found: %s", entry.SkillID))
-				return
-			}
-			apierr.MapError(w, "[prompts] list-skills", apierr.Internal("failed to load prompt skills"))
+			apierr.MapError(w, "[prompts] list-skills",
+				classifyClientError(err, "[prompts] list-skills", "prompt skill not found: "+entry.SkillID, "failed to load prompt skills"))
 			return
 		}
 		items = append(items, buildSkillSummary(skill))
@@ -171,11 +181,8 @@ func (h *Handler) GetSkill(w http.ResponseWriter, r *http.Request) {
 	}
 	skill, err := h.client.GetSkill(r.Context(), skillID)
 	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "status 404") {
-			apierr.MapError(w, "[prompts] get-skill", apierr.NotFound("prompt skill not found"))
-			return
-		}
-		apierr.MapError(w, "[prompts] get-skill", apierr.Internal("failed to load prompt skill"))
+		apierr.MapError(w, "[prompts] get-skill",
+			classifyClientError(err, "[prompts] get-skill", "prompt skill not found", "failed to load prompt skill"))
 		return
 	}
 	resp := buildSkillSummary(skill)
@@ -222,16 +229,8 @@ func (h *Handler) UpdateSkill(w http.ResponseWriter, r *http.Request) {
 	}
 	skill, err := h.client.UpdateSkill(r.Context(), skillID, patch)
 	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "status 404") {
-			apierr.MapError(w, "[prompts] update-skill", apierr.NotFound("prompt skill not found"))
-			return
-		}
-		if strings.Contains(strings.ToLower(err.Error()), "status 400") ||
-			strings.Contains(strings.ToLower(err.Error()), "status 403") {
-			apierr.MapError(w, "[prompts] update-skill", apierr.BadRequest("prompt-manager rejected skill update"))
-			return
-		}
-		apierr.MapError(w, "[prompts] update-skill", apierr.Internal("failed to update prompt skill"))
+		apierr.MapError(w, "[prompts] update-skill",
+			classifyClientError(err, "[prompts] update-skill", "prompt skill not found", "failed to update prompt skill"))
 		return
 	}
 	resp := buildSkillSummary(skill)
@@ -249,11 +248,8 @@ func (h *Handler) GetSkillVersions(w http.ResponseWriter, r *http.Request) {
 
 	versions, err := h.client.GetSkillVersions(r.Context(), skillID)
 	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "status 404") {
-			apierr.MapError(w, "[prompts] versions", apierr.NotFound("prompt skill not found"))
-			return
-		}
-		apierr.MapError(w, "[prompts] versions", apierr.Internal("failed to load prompt versions"))
+		apierr.MapError(w, "[prompts] versions",
+			classifyClientError(err, "[prompts] versions", "prompt skill not found", "failed to load prompt versions"))
 		return
 	}
 	if err := httputil.JSON(w, versions); err != nil {
@@ -274,11 +270,8 @@ func (h *Handler) RevertSkillVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.client.RevertSkillVersion(r.Context(), skillID, version); err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "status 404") {
-			apierr.MapError(w, "[prompts] revert", apierr.NotFound("version or prompt skill not found"))
-			return
-		}
-		apierr.MapError(w, "[prompts] revert", apierr.Internal("failed to revert prompt skill"))
+		apierr.MapError(w, "[prompts] revert",
+			classifyClientError(err, "[prompts] revert", "version or prompt skill not found", "failed to revert prompt skill"))
 		return
 	}
 	skill, err := h.client.GetSkill(r.Context(), skillID)

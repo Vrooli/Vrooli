@@ -8,6 +8,7 @@
     "scenarios/prompt-manager/store/skills/packs/core/landing-page-deploy-setup/**",
     "scenarios/prompt-manager/store/skills/packs/core/landing-page-desktop-upload/**"
   ],
+  "archived_at": "2026-04-08T19:21:08Z",
   "created": "2026-03-26T16:35:48Z",
   "description": "Map the real desktop monetization release path end to end across deployment-manager, scenario-to-desktop, landing-page-business-suite, scenario-to-cloud, and the prompt-manager deployment skills.\n\nClarify:\n- which surface owns canonical approval state\n- which surface owns release/build/version records\n- which step actually publishes artifacts and update manifests\n- where LPBS app/app-key/channel/release-note state is the source of truth\n- which actions already exist in API, UI, CLI, and skills versus which are still implicit or manual\n\nOutput should be a concrete system contract and dependency map that later implementation items can follow instead of guessing.",
   "effort": "M",
@@ -25,5 +26,5 @@
     "release-governance"
   ],
   "title": "Audit The Desktop Release Control Plane",
-  "updated": "2026-04-03T20:45:53Z"
+  "updated": "2026-04-08T19:21:08Z"
 }

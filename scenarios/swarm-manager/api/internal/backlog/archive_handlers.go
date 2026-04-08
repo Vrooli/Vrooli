@@ -282,6 +282,15 @@ func (h *Handler) DeleteModuleHandler(w http.ResponseWriter, r *http.Request) {
 	_ = httputil.JSON(w, map[string]any{"ok": true})
 }
 
+// batchReviewItem is a single review update in a batch request.
+type batchReviewItem struct {
+	ID            string `json:"id"`
+	Type          string `json:"type"`          // "target" or "requirement"
+	ModuleID      string `json:"module_id"`     // required for requirements
+	ReviewStatus  string `json:"review_status"` // "approved", "flagged", "unreviewed"
+	ReviewComment string `json:"review_comment"`
+}
+
 // BatchReviewHandler applies review status updates to targets and/or requirements in batch.
 func (h *Handler) BatchReviewHandler(w http.ResponseWriter, r *http.Request) {
 	kind, name, ok := h.parseKindAndName(w, r, "batch review")
@@ -290,13 +299,7 @@ func (h *Handler) BatchReviewHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var body struct {
-		Items []struct {
-			ID            string `json:"id"`
-			Type          string `json:"type"`          // "target" or "requirement"
-			ModuleID      string `json:"module_id"`     // required for requirements
-			ReviewStatus  string `json:"review_status"` // "approved", "flagged", "unreviewed"
-			ReviewComment string `json:"review_comment"`
-		} `json:"items"`
+		Items []batchReviewItem `json:"items"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		apierr.MapError(w, "[backlog] batch review", apierr.BadRequest("invalid JSON body"))
@@ -308,16 +311,39 @@ func (h *Handler) BatchReviewHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dir := h.store.ItemDir(kind, name)
-	now := r.URL.Query().Get("now") // allow test override
+	now := r.URL.Query().Get("now")
 	if now == "" {
 		now = time.Now().UTC().Format("2006-01-02T15:04:05Z")
 	}
 
-	// Separate target and requirement updates.
+	targetUpdates, reqUpdates, err := categorizeBatchReviewItems(body.Items, now)
+	if err != nil {
+		apierr.MapError(w, "[backlog] batch review", err)
+		return
+	}
+
+	if err := applyTargetReviewUpdates(dir, targetUpdates); err != nil {
+		apierr.MapError(w, "[backlog] batch review", apierr.Internal("%s", err.Error()))
+		return
+	}
+
+	for moduleID, updates := range reqUpdates {
+		if err := PatchModuleReviewState(dir, moduleID, updates); err != nil {
+			apierr.MapError(w, "[backlog] batch review", apierr.Internal("module %s: %s", moduleID, err.Error()))
+			return
+		}
+	}
+
+	_ = httputil.JSON(w, map[string]any{"ok": true})
+}
+
+// categorizeBatchReviewItems splits review items into target and requirement
+// update maps. Returns an error if validation fails.
+func categorizeBatchReviewItems(items []batchReviewItem, now string) (map[string]ReviewState, map[string]map[string]RequirementReviewUpdate, error) {
 	targetUpdates := map[string]ReviewState{}
 	reqUpdates := map[string]map[string]RequirementReviewUpdate{}
 
-	for _, item := range body.Items {
+	for _, item := range items {
 		switch item.Type {
 		case "target":
 			rs := ReviewState{
@@ -330,8 +356,7 @@ func (h *Handler) BatchReviewHandler(w http.ResponseWriter, r *http.Request) {
 			targetUpdates[item.ID] = rs
 		case "requirement":
 			if item.ModuleID == "" {
-				apierr.MapError(w, "[backlog] batch review", apierr.BadRequest("module_id is required for requirement items"))
-				return
+				return nil, nil, apierr.BadRequest("module_id is required for requirement items")
 			}
 			if reqUpdates[item.ModuleID] == nil {
 				reqUpdates[item.ModuleID] = map[string]RequirementReviewUpdate{}
@@ -346,40 +371,28 @@ func (h *Handler) BatchReviewHandler(w http.ResponseWriter, r *http.Request) {
 				ReviewedAt:    reviewed,
 			}
 		default:
-			apierr.MapError(w, "[backlog] batch review", apierr.BadRequest("type must be 'target' or 'requirement'"))
-			return
+			return nil, nil, apierr.BadRequest("type must be 'target' or 'requirement'")
 		}
 	}
+	return targetUpdates, reqUpdates, nil
+}
 
-	// Apply target review updates.
-	if len(targetUpdates) > 0 {
-		state, err := ReadReviewState(dir)
-		if err != nil {
-			apierr.MapError(w, "[backlog] batch review", apierr.Internal("%s", err.Error()))
-			return
-		}
-		for id, rs := range targetUpdates {
-			if rs.ReviewStatus == "unreviewed" {
-				delete(state, id)
-			} else {
-				state[id] = rs
-			}
-		}
-		if err := WriteReviewState(dir, state); err != nil {
-			apierr.MapError(w, "[backlog] batch review", apierr.Internal("%s", err.Error()))
-			return
+// applyTargetReviewUpdates reads the current review state, merges updates,
+// and writes it back.
+func applyTargetReviewUpdates(dir string, updates map[string]ReviewState) error {
+	if len(updates) == 0 {
+		return nil
+	}
+	state, err := ReadReviewState(dir)
+	if err != nil {
+		return err
+	}
+	for id, rs := range updates {
+		if rs.ReviewStatus == "unreviewed" {
+			delete(state, id)
+		} else {
+			state[id] = rs
 		}
 	}
-
-	// Apply requirement review updates by reading each module, patching, and writing back.
-	if len(reqUpdates) > 0 {
-		for moduleID, updates := range reqUpdates {
-			if err := PatchModuleReviewState(dir, moduleID, updates); err != nil {
-				apierr.MapError(w, "[backlog] batch review", apierr.Internal("module %s: %s", moduleID, err.Error()))
-				return
-			}
-		}
-	}
-
-	_ = httputil.JSON(w, map[string]any{"ok": true})
+	return WriteReviewState(dir, state)
 }
