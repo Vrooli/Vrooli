@@ -10,12 +10,12 @@
   "kind": "fix",
   "name": "qa-deployment-manager-tests-20260407",
   "priority": 4,
-  "status": "failed",
+  "status": "completed",
   "tags": [
     "preemptive-qa",
     "deployment-manager",
     "tests"
   ],
   "title": "Fix deployment-manager test failures",
-  "updated": "2026-04-09T13:15:34Z"
+  "updated": "2026-04-09T13:16:06Z"
 }

@@ -71,7 +71,8 @@ export function ExecutionCard({
   const triggerReview = onTriggerReview ? () => onTriggerReview(item.executionId) : null;
 
   const hasPrimaryActions = canStart || canCancel || canRetry || canFollowUp;
-  const hasReviewTrigger = triggerReview !== null && !item.finalization && canRunPostRunChecks(item);
+  const hasReviewTrigger = triggerReview !== null && canRunPostRunChecks(item);
+  const reviewTriggerLabel = item.finalization ? "Rerun Post-Run Checks" : "Run Post-Run Checks";
 
   return (
     <article className="group block space-y-2.5" data-testid={testId}>
@@ -155,7 +156,7 @@ export function ExecutionCard({
           data-testid="review-trigger-button"
         >
           <RefreshCw className="mr-1.5 h-3 w-3" />
-          Run Post-Run Checks
+          {reviewTriggerLabel}
         </Button>
       )}
 

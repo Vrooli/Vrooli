@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * RollupProgressBar - Segmented progress bar for initiative rollup data.
  *

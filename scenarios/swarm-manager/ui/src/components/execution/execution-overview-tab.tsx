@@ -47,7 +47,8 @@ export function ExecutionOverviewTab({
   onRetry,
   onRunPostRunChecks,
 }: ExecutionOverviewTabProps) {
-  const showRunChecks = isTerminal && !execution.finalization && canRunPostRunChecks(execution);
+  const showRunChecks = canRunPostRunChecks(execution);
+  const runChecksLabel = execution.finalization ? "Rerun Post-Run Checks" : "Run Post-Run Checks";
 
   return (
     <div className="space-y-0" data-testid={selectors.executionDetails.page}>
@@ -193,7 +194,7 @@ export function ExecutionOverviewTab({
               data-testid={selectors.executionDetails.runChecksButton}
             >
               {actionBusy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <ClipboardCheck className="mr-1 h-3.5 w-3.5" />}
-              Run Post-Run Checks
+              {runChecksLabel}
             </Button>
           )}
         </div>

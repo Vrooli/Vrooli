@@ -44,6 +44,7 @@ import { EvidenceRequestPanel } from "../components/backlog/evidence-request-pan
 import { useQueryClient } from "@tanstack/react-query";
 import { EXECUTION_LENSES } from "../components/detail/lens-options";
 import { selectors } from "../consts/selectors";
+import { canRunPostRunChecks } from "../lib/finalization";
 import { ENTITY_TYPE_ICONS } from "../types/constants";
 import type { ExecutionRecord } from "../types";
 
@@ -118,6 +119,7 @@ export function ExecutionDetailsPage() {
   }
 
   // --- Header primary action ---
+  const runChecksLabel = execution.finalization ? "Rerun Checks" : "Run Checks";
   const primaryAction = isActive ? (
     <Button
       variant="destructive"
@@ -128,7 +130,7 @@ export function ExecutionDetailsPage() {
       {actionBusy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <XCircle className="mr-1 h-3.5 w-3.5" />}
       Cancel
     </Button>
-  ) : isTerminal && execution.status === "failed" ? (
+  ) : execution.status === "failed" ? (
     <Button
       variant="outline"
       size="sm"
@@ -137,6 +139,16 @@ export function ExecutionDetailsPage() {
     >
       {actionBusy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="mr-1 h-3.5 w-3.5" />}
       Retry
+    </Button>
+  ) : canRunPostRunChecks(execution) ? (
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={actionBusy}
+      onClick={() => void triggerReview()}
+    >
+      {actionBusy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <ClipboardCheck className="mr-1 h-3.5 w-3.5" />}
+      {runChecksLabel}
     </Button>
   ) : null;
 

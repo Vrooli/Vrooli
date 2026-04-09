@@ -173,6 +173,19 @@ function RoundSection({
       {/* Expanded content */}
       {expanded && (
         <div className="space-y-2 px-4 pb-3">
+          {round.status === "failed" && round.failure_reason && (
+            <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
+              <div className="flex items-center gap-2">
+                <RoundStatusBadge status={round.status} classification={round.classification} />
+                <span className="text-xs font-medium text-red-200">Review Failure</span>
+              </div>
+              <div
+                className="mt-2 prose-sm-slate text-sm leading-relaxed text-red-100"
+                dangerouslySetInnerHTML={{ __html: renderMarkdown(round.failure_reason) }}
+              />
+            </div>
+          )}
+
           {/* Agent assessment — prominent, above evidence */}
           {(round.agent_assessment || round.classification) && (
             <div

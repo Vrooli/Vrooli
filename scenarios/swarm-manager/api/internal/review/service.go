@@ -2,17 +2,21 @@ package review
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
 
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/idgen"
+	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/workshop"
 
@@ -44,12 +48,25 @@ type BacklogItemDirResolver interface {
 	ItemDir(kind, name string) string
 }
 
+// ExecutionContext captures the finalized execution data needed to launch a
+// review agent with the same context that automatic post-run checks use.
+type ExecutionContext struct {
+	BacklogKind            string
+	BacklogName            string
+	ItemTitle              string
+	AffectedScenarios      []string
+	ChangedPathsByScenario map[string][]string
+	GCTResultsJSON         string
+}
+
 // ServiceConfig configures the review service dependencies.
 type ServiceConfig struct {
-	RootDir      string
-	AgentService AgentSpawner
-	PromptClient promptmanager.Client
-	ItemDirFn    func(kind, name string) string
+	RootDir              string
+	AgentService         AgentSpawner
+	PromptClient         promptmanager.Client
+	ItemDirFn            func(kind, name string) string
+	LoadItemTitle        func(kind, name string) (string, error)
+	LoadExecutionContext func(ctx context.Context, executionID string) (*ExecutionContext, error)
 }
 
 // activeRound tracks a gathering round so the poller knows which runs to check.
@@ -61,12 +78,14 @@ type activeRound struct {
 
 // Service provides review evidence management for completed executions.
 type Service struct {
-	rootDir      string
-	agentService AgentSpawner
-	inspector    RunInspector
-	promptClient promptmanager.Client
-	eventLogger  EventLogger
-	itemDirFn    func(kind, name string) string
+	rootDir              string
+	agentService         AgentSpawner
+	inspector            RunInspector
+	promptClient         promptmanager.Client
+	eventLogger          EventLogger
+	itemDirFn            func(kind, name string) string
+	loadItemTitle        func(kind, name string) (string, error)
+	loadExecutionContext func(ctx context.Context, executionID string) (*ExecutionContext, error)
 
 	mu           sync.Mutex
 	activeRounds map[string]activeRound // keyed by RunID
@@ -79,11 +98,13 @@ func NewService(cfg ServiceConfig) *Service {
 		pc = promptmanager.NewHTTPClient()
 	}
 	svc := &Service{
-		rootDir:      cfg.RootDir,
-		agentService: cfg.AgentService,
-		promptClient: pc,
-		itemDirFn:    cfg.ItemDirFn,
-		activeRounds: make(map[string]activeRound),
+		rootDir:              cfg.RootDir,
+		agentService:         cfg.AgentService,
+		promptClient:         pc,
+		itemDirFn:            cfg.ItemDirFn,
+		loadItemTitle:        cfg.LoadItemTitle,
+		loadExecutionContext: cfg.LoadExecutionContext,
+		activeRounds:         make(map[string]activeRound),
 	}
 	// Type-assert for RunInspector capability (matches execution pattern).
 	if inspector, ok := cfg.AgentService.(RunInspector); ok {
@@ -135,14 +156,12 @@ func (s *Service) startReview(ctx context.Context, params startReviewParams) err
 		return fmt.Errorf("determine next round: %w", err)
 	}
 
-	// Load plan content for context.
-	planContent := workshop.LoadPlanContent(params.ItemDir)
+	itemTitle := s.resolveItemTitle(params.BacklogKind, params.BacklogName, params.ItemTitle)
+	deliverableContent := loadReviewDeliverableContent(params.BacklogKind, params.ItemDir)
 
 	// Build changed paths list.
-	var changedPaths []string
-	for _, paths := range params.ChangedPathsByScenario {
-		changedPaths = append(changedPaths, paths...)
-	}
+	changedPaths := flattenChangedPaths(params.ChangedPathsByScenario)
+	affectedScenarios := pathutil.UniqueSortedStrings(append([]string(nil), params.AffectedScenarios...))
 
 	// Render instructions with structural variables only.
 	instructionVars := map[string]string{
@@ -155,7 +174,7 @@ func (s *Service) startReview(ctx context.Context, params startReviewParams) err
 	}
 
 	// Build context attachments for data the agent needs to review.
-	attachments := buildReviewAttachments(planContent, changedPaths, params.AffectedScenarios, params.GCTResultsJSON, "")
+	attachments := buildReviewAttachments(deliverableContent, changedPaths, affectedScenarios, params.GCTResultsJSON, "")
 
 	// Create the round file in gathering state.
 	round := Round{
@@ -171,7 +190,7 @@ func (s *Service) startReview(ctx context.Context, params startReviewParams) err
 		OwnerType:   agentactivity.OwnerBacklog,
 		OwnerKind:   params.BacklogKind,
 		OwnerName:   params.BacklogName,
-		OwnerTitle:  params.ItemTitle,
+		OwnerTitle:  itemTitle,
 		ExecutionID: params.ExecutionID,
 		Purpose:     agentactivity.PurposeReview,
 		RequestedBy: "swarm-manager",
@@ -185,7 +204,7 @@ func (s *Service) startReview(ctx context.Context, params startReviewParams) err
 	runResult, err := s.agentService.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
 		Kind:               params.BacklogKind,
 		Name:               params.BacklogName,
-		Title:              "Review: " + params.ItemTitle,
+		Title:              "Review: " + itemTitle,
 		Description:        instructions,
 		Prompt:             instructions,
 		ScopePath:          ".",
@@ -240,11 +259,10 @@ func (s *Service) ListRounds(kind, name string) ([]Round, error) {
 		if stateErr != nil {
 			continue
 		}
-		nextStatus := mapRunStatusToRoundStatus(state.Status)
-		if nextStatus == "" {
+		if mapRunStatusToRoundStatus(state.Status) == "" {
 			continue
 		}
-		round.Status = nextStatus
+		*round = finalizeRoundFromRunState(*round, state)
 		_ = SaveRound(itemDir, *round)
 
 		// Remove from active tracking if present.
@@ -342,11 +360,28 @@ func (s *Service) RequestMoreEvidence(ctx context.Context, kind, name string, ro
 			spawnCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 
+			itemTitle := s.resolveItemTitle(kind, name, "")
+			deliverableContent := loadReviewDeliverableContent(kind, itemDir)
+			var changedPaths []string
+			var affectedScenarios []string
+			var gctResultsJSON string
+			if round.ExecutionID != "" && s.loadExecutionContext != nil {
+				if execCtx, ctxErr := s.loadExecutionContext(spawnCtx, round.ExecutionID); ctxErr != nil {
+					slog.Warn("load execution review context for evidence request", "execution_id", round.ExecutionID, "error", ctxErr)
+				} else if execCtx != nil {
+					changedPaths = flattenChangedPaths(execCtx.ChangedPathsByScenario)
+					affectedScenarios = pathutil.UniqueSortedStrings(append([]string(nil), execCtx.AffectedScenarios...))
+					gctResultsJSON = execCtx.GCTResultsJSON
+					itemTitle = s.resolveItemTitle(execCtx.BacklogKind, execCtx.BacklogName, execCtx.ItemTitle)
+				}
+			}
+
 			// Inject agent activity spec for the tracked agent service.
 			spawnCtx = agentactivity.WithSpec(spawnCtx, agentactivity.Spec{
 				OwnerType:   agentactivity.OwnerBacklog,
 				OwnerKind:   kind,
 				OwnerName:   name,
+				OwnerTitle:  itemTitle,
 				ExecutionID: round.ExecutionID,
 				Purpose:     agentactivity.PurposeReview,
 				RequestedBy: "swarm-manager-ui",
@@ -355,8 +390,6 @@ func (s *Service) RequestMoreEvidence(ctx context.Context, kind, name string, ro
 					"thread_id":  threadID,
 				},
 			})
-
-			planContent := workshop.LoadPlanContent(itemDir)
 
 			instructionVars := map[string]string{
 				"ITEM_FOLDER":  itemDir,
@@ -368,7 +401,7 @@ func (s *Service) RequestMoreEvidence(ctx context.Context, kind, name string, ro
 				return
 			}
 
-			reqAttachments := buildReviewAttachments(planContent, nil, nil, "", message)
+			reqAttachments := buildReviewAttachments(deliverableContent, changedPaths, affectedScenarios, gctResultsJSON, message)
 
 			titlePreview := message
 			if len(titlePreview) > 50 {
@@ -476,16 +509,12 @@ func (s *Service) DismissRequest(kind, name string, roundNum int, threadID strin
 
 // TriggerReviewAgent manually triggers a review agent for an execution.
 // Used when the user wants to re-run or initiate evidence gathering.
-func (s *Service) TriggerReviewAgent(ctx context.Context, kind, name, executionID string, affectedScenarios []string) error {
-	itemDir := s.resolveItemDir(kind, name)
-	return s.startReview(ctx, startReviewParams{
-		ExecutionID:       executionID,
-		BacklogKind:       kind,
-		BacklogName:       name,
-		ItemTitle:         name,
-		ItemDir:           itemDir,
-		AffectedScenarios: affectedScenarios,
-	})
+func (s *Service) TriggerReviewAgent(ctx context.Context, executionID string) error {
+	params, err := s.buildStartReviewParamsFromExecution(ctx, executionID)
+	if err != nil {
+		return err
+	}
+	return s.startReview(ctx, params)
 }
 
 func (s *Service) resolveItemDir(kind, name string) string {
@@ -503,20 +532,10 @@ func (s *Service) resolveItemDir(kind, name string) string {
 // buildReviewAttachments creates structured context attachments for the review
 // agent so that BuildSplitPrompt can separate instructions (system prompt)
 // from data (user message).
-func buildReviewAttachments(planContent string, changedPaths, affectedScenarios []string, gctResultsJSON, userRequest string) []*domainpb.ContextAttachment {
+func buildReviewAttachments(deliverableContent string, changedPaths, affectedScenarios []string, gctResultsJSON, userRequest string) []*domainpb.ContextAttachment {
 	var atts []*domainpb.ContextAttachment
 
-	if planContent != "" {
-		atts = append(atts, &domainpb.ContextAttachment{
-			Type:     "note",
-			Key:      "plan-content",
-			Label:    "Plan Content",
-			Summary:  "Backlog item plan/spec",
-			Content:  planContent,
-			Format:   "markdown",
-			Priority: "high",
-		})
-	}
+	atts = appendNoteAttachment(atts, "plan-content", "Deliverable Content", "Backlog deliverable (plan or conclusion)", deliverableContent, "markdown", "high")
 
 	diffContent := fmt.Sprintf("Changed %d files across %d scenarios", len(changedPaths), len(affectedScenarios))
 	if len(changedPaths) == 0 {
@@ -524,61 +543,22 @@ func buildReviewAttachments(planContent string, changedPaths, affectedScenarios 
 			"In non-sandbox mode, changes are applied directly to the working tree and are not captured as a diff. " +
 			"You should still verify the implementation by examining the codebase directly."
 	}
-	atts = append(atts, &domainpb.ContextAttachment{
-		Type:     "note",
-		Key:      "diff-summary",
-		Label:    "Diff Summary",
-		Content:  diffContent,
-		Format:   "text",
-		Priority: "high",
-	})
+	atts = appendNoteAttachment(atts, "diff-summary", "Diff Summary", "", diffContent, "text", "high")
 
 	if len(changedPaths) > 0 {
-		atts = append(atts, &domainpb.ContextAttachment{
-			Type:     "note",
-			Key:      "changed-paths",
-			Label:    "Changed File Paths",
-			Summary:  fmt.Sprintf("%d changed files", len(changedPaths)),
-			Content:  strings.Join(changedPaths, "\n"),
-			Format:   "text",
-			Priority: "high",
-		})
+		atts = appendNoteAttachment(atts, "changed-paths", "Changed File Paths", fmt.Sprintf("%d changed files", len(changedPaths)), strings.Join(changedPaths, "\n"), "text", "high")
 	}
 
 	if len(affectedScenarios) > 0 {
-		atts = append(atts, &domainpb.ContextAttachment{
-			Type:     "note",
-			Key:      "affected-scenarios",
-			Label:    "Affected Scenarios",
-			Summary:  fmt.Sprintf("%d scenarios affected", len(affectedScenarios)),
-			Content:  strings.Join(affectedScenarios, "\n"),
-			Format:   "text",
-			Priority: "medium",
-		})
+		atts = appendNoteAttachment(atts, "affected-scenarios", "Affected Scenarios", fmt.Sprintf("%d scenarios affected", len(affectedScenarios)), strings.Join(affectedScenarios, "\n"), "text", "medium")
 	}
 
 	if gctResultsJSON != "" {
-		atts = append(atts, &domainpb.ContextAttachment{
-			Type:     "note",
-			Key:      "gct-review-results",
-			Label:    "GCT Review Results",
-			Summary:  "Automated review metrics per scenario",
-			Content:  gctResultsJSON,
-			Format:   "json",
-			Priority: "high",
-		})
+		atts = appendNoteAttachment(atts, "gct-review-results", "GCT Review Results", "Automated review metrics per scenario", gctResultsJSON, "json", "high")
 	}
 
 	if userRequest != "" {
-		atts = append(atts, &domainpb.ContextAttachment{
-			Type:     "note",
-			Key:      "user-request",
-			Label:    "User Evidence Request",
-			Summary:  "Specific evidence request from human reviewer",
-			Content:  userRequest,
-			Format:   "text",
-			Priority: "high",
-		})
+		atts = appendNoteAttachment(atts, "user-request", "User Evidence Request", "Specific evidence request from human reviewer", userRequest, "text", "high")
 	}
 
 	return atts
@@ -618,8 +598,7 @@ func (s *Service) RefreshGatheringRounds(ctx context.Context) {
 			continue // transient error, retry next tick
 		}
 
-		nextStatus := mapRunStatusToRoundStatus(state.Status)
-		if nextStatus == "" {
+		if mapRunStatusToRoundStatus(state.Status) == "" {
 			continue // still running
 		}
 
@@ -639,21 +618,21 @@ func (s *Service) RefreshGatheringRounds(ctx context.Context) {
 			continue
 		}
 
-		round.Status = nextStatus
+		*round = finalizeRoundFromRunState(*round, state)
 		if saveErr := SaveRound(ar.ItemDir, *round); saveErr != nil {
 			slog.Error("update review round status", "round", ar.RoundNum, "run_id", runID, "error", saveErr)
 			continue
 		}
 
-		slog.Info("review round status updated", "round", ar.RoundNum, "run_id", runID, "status", nextStatus)
+		slog.Info("review round status updated", "round", ar.RoundNum, "run_id", runID, "status", round.Status)
 
 		if s.eventLogger != nil && round.ExecutionID != "" {
-			if nextStatus == RoundStatusComplete {
+			if round.Status == RoundStatusComplete {
 				started, _ := time.Parse(time.RFC3339, round.GeneratedAt)
 				duration := time.Since(started).Seconds()
 				s.eventLogger.EmitReviewRoundCompleted(round.ExecutionID, round.RoundNum, len(round.Evidence), round.Classification, duration)
-			} else if nextStatus == RoundStatusFailed {
-				s.eventLogger.EmitReviewFailed(round.ExecutionID, "agent run failed", 0)
+			} else if round.Status == RoundStatusFailed {
+				s.eventLogger.EmitReviewFailed(round.ExecutionID, round.FailureReason, 0)
 			}
 		}
 
@@ -661,6 +640,107 @@ func (s *Service) RefreshGatheringRounds(ctx context.Context) {
 		delete(s.activeRounds, runID)
 		s.mu.Unlock()
 	}
+}
+
+func (s *Service) buildStartReviewParamsFromExecution(ctx context.Context, executionID string) (startReviewParams, error) {
+	if s.loadExecutionContext == nil {
+		return startReviewParams{}, fmt.Errorf("execution context loader not configured")
+	}
+
+	execCtx, err := s.loadExecutionContext(ctx, executionID)
+	if err != nil {
+		return startReviewParams{}, fmt.Errorf("load execution review context: %w", err)
+	}
+	if execCtx == nil {
+		return startReviewParams{}, fmt.Errorf("execution %s has no review context", executionID)
+	}
+	if strings.TrimSpace(execCtx.BacklogKind) == "" || strings.TrimSpace(execCtx.BacklogName) == "" {
+		return startReviewParams{}, fmt.Errorf("execution %s is missing backlog identity", executionID)
+	}
+
+	return startReviewParams{
+		ExecutionID:            executionID,
+		BacklogKind:            execCtx.BacklogKind,
+		BacklogName:            execCtx.BacklogName,
+		ItemTitle:              execCtx.ItemTitle,
+		ItemDir:                s.resolveItemDir(execCtx.BacklogKind, execCtx.BacklogName),
+		AffectedScenarios:      append([]string(nil), execCtx.AffectedScenarios...),
+		ChangedPathsByScenario: cloneChangedPaths(execCtx.ChangedPathsByScenario),
+		GCTResultsJSON:         execCtx.GCTResultsJSON,
+	}, nil
+}
+
+func (s *Service) resolveItemTitle(kind, name, fallback string) string {
+	if title := strings.TrimSpace(fallback); title != "" {
+		return title
+	}
+	if s.loadItemTitle != nil {
+		if title, err := s.loadItemTitle(kind, name); err == nil {
+			if trimmed := strings.TrimSpace(title); trimmed != "" {
+				return trimmed
+			}
+		}
+	}
+	return name
+}
+
+func loadReviewDeliverableContent(kind, itemDir string) string {
+	deliverable := backlog.DeliverableForKind(backlog.BacklogKind(strings.TrimSpace(kind)))
+	return workshop.LoadPlanContentByName(itemDir, deliverable)
+}
+
+func flattenChangedPaths(changedPathsByScenario map[string][]string) []string {
+	if len(changedPathsByScenario) == 0 {
+		return nil
+	}
+	paths := make([]string, 0)
+	for _, scenarioPaths := range changedPathsByScenario {
+		paths = append(paths, scenarioPaths...)
+	}
+	return pathutil.UniqueSortedStrings(paths)
+}
+
+func cloneChangedPaths(changedPathsByScenario map[string][]string) map[string][]string {
+	if len(changedPathsByScenario) == 0 {
+		return nil
+	}
+	cloned := make(map[string][]string, len(changedPathsByScenario))
+	for scenarioName, paths := range changedPathsByScenario {
+		cloned[scenarioName] = append([]string(nil), paths...)
+		sort.Strings(cloned[scenarioName])
+		cloned[scenarioName] = pathutil.UniqueSortedStrings(cloned[scenarioName])
+	}
+	return cloned
+}
+
+func appendNoteAttachment(
+	atts []*domainpb.ContextAttachment,
+	key, label, summary, content, format, priority string,
+) []*domainpb.ContextAttachment {
+	trimmed := strings.TrimSpace(content)
+	if trimmed == "" {
+		return atts
+	}
+	return append(atts, &domainpb.ContextAttachment{
+		Type:     "note",
+		Key:      key,
+		Label:    label,
+		Summary:  summary,
+		Content:  trimmed,
+		Format:   format,
+		Priority: priority,
+	})
+}
+
+func MarshalScenarioGCTResults(results map[string]any) string {
+	if len(results) == 0 {
+		return ""
+	}
+	data, err := json.Marshal(results)
+	if err != nil {
+		return ""
+	}
+	return string(data)
 }
 
 // mapRunStatusToRoundStatus converts an agent-manager run status to a terminal

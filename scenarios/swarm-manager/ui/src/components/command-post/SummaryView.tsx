@@ -20,7 +20,6 @@ import { getItemActions } from "../../lib/backlog-queue-utils";
 import { useCommandPostItemActions } from "../../hooks/useCommandPostItemActions";
 import type { DetailSelection } from "../../stores/detail-selection-store";
 import type { RunBacklogTarget } from "../backlog/run-backlog-modal";
-import type { BacklogKind } from "../../types";
 import { RunBacklogModal } from "../backlog/run-backlog-modal";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 import { ActionGroupCard } from "./ActionGroupCard";

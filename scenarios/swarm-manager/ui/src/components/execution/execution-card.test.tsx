@@ -396,7 +396,8 @@ describe("ExecutionCard", () => {
     expect(onTriggerReview).toHaveBeenCalledWith("exec-1");
   });
 
-  it("does not show the standalone post-run checks button when finalization already exists", () => {
+  it("shows the rerun post-run checks button when finalization already exists", () => {
+    const onTriggerReview = vi.fn();
     render(
       <ExecutionCard
         item={makeExecution({
@@ -426,11 +427,13 @@ describe("ExecutionCard", () => {
         canCancel={false}
         canRetry={false}
         {...noopHandlers}
-        onTriggerReview={vi.fn()}
+        onTriggerReview={onTriggerReview}
       />,
     );
 
-    expect(screen.queryByTestId("review-trigger-button")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("review-trigger-button"));
+    expect(onTriggerReview).toHaveBeenCalledWith("exec-1");
+    expect(screen.getByTestId("review-trigger-button")).toHaveTextContent("Rerun Post-Run Checks");
     expect(screen.getByTestId("post-run-status-badge")).toBeInTheDocument();
   });
 

@@ -21,8 +21,29 @@ import { RunBacklogModal } from "../../../../components/backlog/run-backlog-moda
 import type { RunBacklogTarget } from "../../../../components/backlog/run-backlog-modal";
 import { ConfirmDialog } from "../../../../components/ui/confirm-dialog";
 import { useCommandPostItemActions } from "../../../../hooks/useCommandPostItemActions";
-import type { BacklogItem, BacklogKind } from "../../../../types";
+import type { BacklogItem } from "../../../../types";
 import type { BacklogFilters, SortConfig } from "./types";
+
+interface PlanValidationSummary {
+  passed: boolean;
+}
+
+function parsePlanValidationSummary(validationJson: string): PlanValidationSummary | null {
+  try {
+    const parsed: unknown = JSON.parse(validationJson);
+    if (
+      typeof parsed === "object"
+      && parsed !== null
+      && "passed" in parsed
+      && typeof parsed.passed === "boolean"
+    ) {
+      return { passed: parsed.passed };
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
 
 interface BacklogTabProps {
   searchQuery: string;
@@ -45,10 +66,12 @@ function applyFilters(items: BacklogItem[], filters: BacklogFilters): BacklogIte
         if (json) return false;
       } else if (filters.validationStatus === "passed") {
         if (!json) return false;
-        try { if (!JSON.parse(json).passed) return false; } catch { return false; }
+        const validation = parsePlanValidationSummary(json);
+        if (!validation?.passed) return false;
       } else if (filters.validationStatus === "failed") {
         if (!json) return false;
-        try { if (JSON.parse(json).passed) return false; } catch { return false; }
+        const validation = parsePlanValidationSummary(json);
+        if (validation?.passed !== false) return false;
       }
     }
     return true;

@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"log/slog"
 	"os"
 	"path/filepath"
 
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/storage"
 
 	"swarm-manager/internal/eventlog"
@@ -47,13 +47,16 @@ func resolveEventDBPath() string {
 // initEventLog initializes the event log database, emitter, and stats engine.
 func (s *Server) initEventLog() {
 	dsn := resolveEventDBPath()
-	eventDB, err := sql.Open("sqlite", dsn)
+	eventDB, err := database.Connect(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          dsn,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
 	if err != nil {
 		slog.Warn("failed to open event database, stats will be unavailable", "error", err)
 		return
 	}
-	eventDB.SetMaxOpenConns(1)
-	eventDB.SetMaxIdleConns(1)
 	repo := eventlog.NewSQLiteRepository(eventDB)
 	if err := repo.InitSchema(context.Background()); err != nil {
 		slog.Error("event log schema init error", "error", err)

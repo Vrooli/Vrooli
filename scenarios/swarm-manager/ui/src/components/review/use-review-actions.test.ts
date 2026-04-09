@@ -83,19 +83,20 @@ describe("useReviewActions", () => {
       await result.current.triggerEvidenceOnly();
     });
 
-    expect(mockTriggerReviewAgent).toHaveBeenCalledWith("exec-1", "task", "item-1");
+    expect(mockTriggerReviewAgent).toHaveBeenCalledWith("exec-1");
     expect(result.current.isTriggeringEvidence).toBe(false);
     expect(result.current.triggerError).toBeNull();
   });
 
-  it("triggerEvidenceOnly is a no-op without backlog params", async () => {
+  it("triggerEvidenceOnly still runs without backlog params", async () => {
+    mockTriggerReviewAgent.mockResolvedValue(undefined);
     const { result } = renderHook(() => useReviewActions("exec-1"));
 
     await act(async () => {
       await result.current.triggerEvidenceOnly();
     });
 
-    expect(mockTriggerReviewAgent).not.toHaveBeenCalled();
+    expect(mockTriggerReviewAgent).toHaveBeenCalledWith("exec-1");
   });
 
   it("cancelReview calls executionService.cancel", async () => {

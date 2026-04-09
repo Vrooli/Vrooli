@@ -119,6 +119,10 @@ export function ReviewLaunchSheet({
   triggerError,
 }: ReviewLaunchSheetProps) {
   const anyLoading = isTriggering || isTriggeringEvidence;
+  const fullReviewTitle = hasExistingFinalization ? "Rerun Post-Run Checks" : "Full Review";
+  const fullReviewDescription = hasExistingFinalization
+    ? "Reruns affected scenario restarts, health checks, and GCT review. If the review agent is enabled, it also gathers fresh evidence."
+    : "Runs affected scenario restarts, health checks, and code review (GCT). If the review agent is enabled, also gathers evidence.";
 
   return (
     <BottomSheet
@@ -133,8 +137,8 @@ export function ReviewLaunchSheet({
 
         <OptionCard
           icon={<RefreshCw className="h-5 w-5" />}
-          title="Full Review"
-          description="Restarts affected scenarios, runs health checks, and code review (GCT). If the review agent is enabled, also gathers evidence."
+          title={fullReviewTitle}
+          description={fullReviewDescription}
           estimate={reviewAgentEnabled ? "Estimated: 5-15 minutes" : "Estimated: 2-5 minutes"}
           onClick={onFullReview}
           loading={isTriggering}

@@ -113,16 +113,33 @@ describe("action enabled predicates", () => {
     expect(runEnabledPredicate(cancel, activeNode)).toBe(true);
   });
 
-  it("retry is enabled for terminal executions", () => {
+  it("retry is enabled only for failed executions", () => {
     const retry = getAction("operations", "execution", "retry");
-    const terminalNode = makeNode("execution/abc", "execution", "failed");
-    expect(runEnabledPredicate(retry, terminalNode)).toBe(true);
+    expect(runEnabledPredicate(retry, makeNode("execution/abc", "execution", "failed"))).toBe(true);
+    expect(runEnabledPredicate(retry, makeNode("execution/abc", "execution", "completed"))).toBe(false);
+    expect(runEnabledPredicate(retry, makeNode("execution/abc", "execution", "needs_fixup"))).toBe(false);
   });
 
   it("retry is disabled for active executions", () => {
     const retry = getAction("operations", "execution", "retry");
     const activeNode = makeNode("execution/abc", "execution", "running");
     expect(runEnabledPredicate(retry, activeNode)).toBe(false);
+  });
+
+  it("follow-up is enabled for terminal executions", () => {
+    const followUp = getAction("operations", "execution", "follow-up");
+    expect(runEnabledPredicate(followUp, makeNode("execution/abc", "execution", "completed"))).toBe(true);
+    expect(runEnabledPredicate(followUp, makeNode("execution/abc", "execution", "failed"))).toBe(true);
+    expect(runEnabledPredicate(followUp, makeNode("execution/abc", "execution", "needs_fixup"))).toBe(true);
+  });
+
+  it("trigger-review is enabled for completed, failed, and needs_fixup executions only", () => {
+    const triggerReview = getAction("operations", "execution", "trigger-review");
+    expect(runEnabledPredicate(triggerReview, makeNode("execution/abc", "execution", "completed"))).toBe(true);
+    expect(runEnabledPredicate(triggerReview, makeNode("execution/abc", "execution", "failed"))).toBe(true);
+    expect(runEnabledPredicate(triggerReview, makeNode("execution/abc", "execution", "needs_fixup"))).toBe(true);
+    expect(runEnabledPredicate(triggerReview, makeNode("execution/abc", "execution", "canceled"))).toBe(false);
+    expect(runEnabledPredicate(triggerReview, makeNode("execution/abc", "execution", "running"))).toBe(false);
   });
 
   it("queue is enabled for ready backlog items in operations", () => {

@@ -9,7 +9,6 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 )
@@ -199,35 +198,12 @@ func (h *Handler) DismissRequest(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) TriggerReviewAgent(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	executionID := vars["execution_id"]
-
-	var body struct {
-		BacklogKind       string   `json:"backlog_kind"`
-		BacklogName       string   `json:"backlog_name"`
-		AffectedScenarios []string `json:"affected_scenarios"`
-	}
-	if err := readJSON(r, &body); err != nil {
-		apierr.MapError(w, "[review]", apierr.BadRequest("invalid request body: %v", err))
-		return
-	}
-	if body.BacklogKind == "" || body.BacklogName == "" {
-		apierr.MapError(w, "[review]", apierr.BadRequest("backlog_kind and backlog_name are required"))
+	if executionID == "" {
+		apierr.MapError(w, "[review]", apierr.BadRequest("execution_id is required"))
 		return
 	}
 
-	// Inject agent activity spec for the tracked agent service.
-	ctx := agentactivity.WithSpec(r.Context(), agentactivity.Spec{
-		OwnerType:   agentactivity.OwnerBacklog,
-		OwnerKind:   body.BacklogKind,
-		OwnerName:   body.BacklogName,
-		ExecutionID: executionID,
-		Purpose:     agentactivity.PurposeReview,
-		RequestedBy: "swarm-manager-ui",
-		Metadata: map[string]string{
-			"entrypoint": "review.trigger_review_agent",
-		},
-	})
-
-	if err := h.service.TriggerReviewAgent(ctx, body.BacklogKind, body.BacklogName, executionID, body.AffectedScenarios); err != nil {
+	if err := h.service.TriggerReviewAgent(r.Context(), executionID); err != nil {
 		apierr.MapError(w, "[review]", apierr.Internal("trigger review agent: %v", err))
 		return
 	}

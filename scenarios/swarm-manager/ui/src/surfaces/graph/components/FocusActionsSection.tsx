@@ -176,14 +176,21 @@ function ExecutionActions({ nodeData }: { nodeData: ExecutionGraphNodeData }) {
     void fetchBacklog({ force: true });
     void queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
     void queryClient.invalidateQueries({ queryKey: ["backlog-list"] });
-  }, [fetchBacklog, queryClient]);
+    void queryClient.invalidateQueries({ queryKey: ["executions"] });
+    void queryClient.invalidateQueries({ queryKey: ["execution", nodeData.executionId] });
+  }, [fetchBacklog, nodeData.executionId, queryClient]);
 
   const retryMutation = useMutation({
     mutationFn: () => defaultApiClient.post(API_ENDPOINTS.executionRetry(nodeData.executionId), {}),
     onSuccess: invalidateAfterAction,
   });
 
-  if (nodeData.status === "needs_review" || nodeData.status === "needs_fixup") {
+  const triggerReviewMutation = useMutation({
+    mutationFn: () => defaultApiClient.post(API_ENDPOINTS.executionTriggerReview(nodeData.executionId), {}),
+    onSuccess: invalidateAfterAction,
+  });
+
+  if (nodeData.status === "needs_review") {
     return (
       <button
         type="button"
@@ -193,6 +200,21 @@ function ExecutionActions({ nodeData }: { nodeData: ExecutionGraphNodeData }) {
       >
         <Eye className="h-3 w-3" />
         Review
+      </button>
+    );
+  }
+
+  if (nodeData.status === "completed" || nodeData.status === "needs_fixup") {
+    return (
+      <button
+        type="button"
+        onClick={() => triggerReviewMutation.mutate()}
+        disabled={triggerReviewMutation.isPending}
+        className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-cyan-600/80 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-cyan-600 disabled:opacity-50"
+        data-testid="focus-run-checks-button"
+      >
+        <Eye className="h-3 w-3" />
+        {triggerReviewMutation.isPending ? "Running..." : "Run Checks"}
       </button>
     );
   }

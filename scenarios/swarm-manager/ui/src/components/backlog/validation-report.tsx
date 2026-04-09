@@ -20,15 +20,34 @@ interface ValidationReportProps {
   validationJson: string | undefined;
 }
 
+function parsePlanValidationResult(validationJson: string): PlanValidationResult | null {
+  try {
+    const parsed: unknown = JSON.parse(validationJson);
+    if (
+      typeof parsed === "object"
+      && parsed !== null
+      && "passed" in parsed
+      && Array.isArray((parsed as Record<string, unknown>).sections_present)
+      && Array.isArray((parsed as Record<string, unknown>).sections_missing)
+      && Array.isArray((parsed as Record<string, unknown>).warnings)
+      && typeof (parsed as Record<string, unknown>).passed === "boolean"
+      && typeof (parsed as Record<string, unknown>).validated_at === "string"
+    ) {
+      return parsed as PlanValidationResult;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 export function ValidationReport({ validationJson }: ValidationReportProps) {
   const [expanded, setExpanded] = useState(false);
 
   if (!validationJson) return null;
 
-  let result: PlanValidationResult;
-  try {
-    result = JSON.parse(validationJson);
-  } catch {
+  const result = parsePlanValidationResult(validationJson);
+  if (!result) {
     return null;
   }
 

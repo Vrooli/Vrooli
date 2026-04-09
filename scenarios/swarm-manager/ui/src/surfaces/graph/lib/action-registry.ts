@@ -47,16 +47,29 @@ export interface InspectorAction {
 
 type ActionRegistry = Record<GraphLens, Partial<Record<EntityType, InspectorAction[]>>>;
 
-/** Check if a node has a terminal execution status eligible for retry/review. */
+/** Check if a node is in a terminal execution state eligible for follow-up. */
 function isTerminalExecution(node: GraphNode): boolean {
   const status = getGraphNodeStatus(node);
-  return status === "completed" || status === "failed" || status === "canceled";
+  return status === "completed" || status === "failed" || status === "needs_fixup" || status === "canceled";
+}
+
+function canFollowUpExecution(node: GraphNode): boolean {
+  return isTerminalExecution(node);
+}
+
+function canRetryExecution(node: GraphNode): boolean {
+  return getGraphNodeStatus(node) === "failed";
+}
+
+function canRunPostRunChecksExecution(node: GraphNode): boolean {
+  const status = getGraphNodeStatus(node);
+  return status === "completed" || status === "failed" || status === "needs_fixup";
 }
 
 /** Check if execution is active (can be cancelled). */
 function isActiveExecution(node: GraphNode): boolean {
   const status = getGraphNodeStatus(node);
-  return status === "pending" || status === "starting" || status === "in_progress" || status === "running" || status === "needs_review" || status === "validating" || status === "needs_fixup";
+  return status === "pending" || status === "starting" || status === "in_progress" || status === "running" || status === "needs_review" || status === "validating";
 }
 
 // ---------------------------------------------------------------------------
@@ -135,7 +148,7 @@ function makeFollowUpAction(): InspectorAction {
     label: "Follow-up",
     icon: RefreshCw,
     variant: "default",
-    enabled: isTerminalExecution,
+    enabled: canFollowUpExecution,
     async handler(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed) throw new Error("Cannot determine execution identity");
@@ -153,7 +166,7 @@ function makeRetryAction(): InspectorAction {
     label: "Retry",
     icon: RotateCcw,
     variant: "default",
-    enabled: isTerminalExecution,
+    enabled: canRetryExecution,
     async handler(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed) throw new Error("Cannot determine execution identity");
@@ -168,7 +181,7 @@ function makeTriggerReviewAction(): InspectorAction {
     label: "Run Post-Run Checks",
     icon: ClipboardCheck,
     variant: "default",
-    enabled: isTerminalExecution,
+    enabled: canRunPostRunChecksExecution,
     async handler(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed) throw new Error("Cannot determine execution identity");

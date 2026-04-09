@@ -69,6 +69,11 @@ type reviewRunResponse struct {
 	JobID string `json:"jobId"`
 }
 
+type reviewRunConflictResponse struct {
+	Error string `json:"error"`
+	JobID string `json:"jobId,omitempty"`
+}
+
 // reviewJobStatus mirrors git-control-tower's ReviewJobStatus.
 type reviewJobStatus struct {
 	JobID     string                 `json:"jobId"`
@@ -95,7 +100,10 @@ func (c *HTTPReviewClient) TriggerReview(ctx context.Context, req ReviewRequest)
 	if err != nil {
 		return "", err
 	}
+	return c.triggerReviewAtBaseURL(ctx, baseURL, req)
+}
 
+func (c *HTTPReviewClient) triggerReviewAtBaseURL(ctx context.Context, baseURL string, req ReviewRequest) (string, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
 		return "", fmt.Errorf("marshal review request: %w", err)
@@ -116,6 +124,14 @@ func (c *HTTPReviewClient) TriggerReview(ctx context.Context, req ReviewRequest)
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("read review response: %w", err)
+	}
+	if resp.StatusCode == http.StatusConflict {
+		var conflict reviewRunConflictResponse
+		if json.Unmarshal(respBody, &conflict) == nil &&
+			strings.Contains(strings.ToLower(conflict.Error), "already in progress") &&
+			strings.TrimSpace(conflict.JobID) != "" {
+			return strings.TrimSpace(conflict.JobID), nil
+		}
 	}
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("review run returned status %d: %s", resp.StatusCode, string(respBody))

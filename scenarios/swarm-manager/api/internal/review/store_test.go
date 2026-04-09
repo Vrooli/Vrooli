@@ -7,6 +7,17 @@ import (
 	"testing"
 )
 
+func validCompletedRound(roundNum int) Round {
+	return Round{
+		RoundNum:        roundNum,
+		GeneratedAt:     "2026-04-02T00:00:00Z",
+		ExecutionID:     "exec-1",
+		Status:          RoundStatusComplete,
+		AgentAssessment: "Looks good.",
+		Classification:  "ready",
+	}
+}
+
 func TestLoadRounds_EmptyDir(t *testing.T) {
 	dir := t.TempDir()
 	rounds, err := LoadRounds(dir)
@@ -25,14 +36,9 @@ func TestLoadRounds_SingleRound(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	round := Round{
-		RoundNum:    1,
-		GeneratedAt: "2026-04-02T00:00:00Z",
-		ExecutionID: "exec-1",
-		Status:      RoundStatusComplete,
-		Evidence: []EvidenceItem{
-			{ID: "e1", Type: EvidenceTypeScreenshot, Title: "Dashboard", Description: "After changes"},
-		},
+	round := validCompletedRound(1)
+	round.Evidence = []EvidenceItem{
+		{ID: "e1", Type: EvidenceTypeScreenshot, Title: "Dashboard", Description: "After changes"},
 	}
 	data, _ := json.MarshalIndent(round, "", "  ")
 	if err := os.WriteFile(filepath.Join(reviewDir, "round-001.json"), data, 0o644); err != nil {
@@ -63,7 +69,7 @@ func TestLoadRounds_MultipleSortedByNumber(t *testing.T) {
 
 	// Write rounds out of order on disk.
 	for _, num := range []int{3, 1, 2} {
-		round := Round{RoundNum: num, GeneratedAt: "2026-04-02T00:00:00Z", ExecutionID: "exec-1", Status: RoundStatusComplete}
+		round := validCompletedRound(num)
 		data, _ := json.MarshalIndent(round, "", "  ")
 		if err := os.WriteFile(filepath.Join(reviewDir, RoundFilename(num)), data, 0o644); err != nil {
 			t.Fatal(err)
@@ -92,7 +98,7 @@ func TestLoadRounds_SkipsMalformedJSON(t *testing.T) {
 	}
 
 	// Write a valid round.
-	round := Round{RoundNum: 1, GeneratedAt: "2026-04-02T00:00:00Z", ExecutionID: "exec-1", Status: RoundStatusComplete}
+	round := validCompletedRound(1)
 	data, _ := json.MarshalIndent(round, "", "  ")
 	if err := os.WriteFile(filepath.Join(reviewDir, "round-001.json"), data, 0o644); err != nil {
 		t.Fatal(err)
@@ -127,7 +133,7 @@ func TestLoadRounds_IgnoresNonRoundFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	round := Round{RoundNum: 1, GeneratedAt: "2026-04-02T00:00:00Z", ExecutionID: "exec-1", Status: RoundStatusComplete}
+	round := validCompletedRound(1)
 	data, _ := json.MarshalIndent(round, "", "  ")
 	if err := os.WriteFile(filepath.Join(reviewDir, "round-001.json"), data, 0o644); err != nil {
 		t.Fatal(err)
@@ -150,7 +156,7 @@ func TestLoadLatestRound(t *testing.T) {
 	}
 
 	for _, num := range []int{1, 2} {
-		round := Round{RoundNum: num, GeneratedAt: "2026-04-02T00:00:00Z", ExecutionID: "exec-1", Status: RoundStatusComplete}
+		round := validCompletedRound(num)
 		data, _ := json.MarshalIndent(round, "", "  ")
 		if err := os.WriteFile(filepath.Join(reviewDir, RoundFilename(num)), data, 0o644); err != nil {
 			t.Fatal(err)
@@ -260,7 +266,7 @@ func TestNextRoundNumber(t *testing.T) {
 	}
 
 	// After saving round 1: should return 2.
-	if err := SaveRound(dir, Round{RoundNum: 1, Status: RoundStatusComplete}); err != nil {
+	if err := SaveRound(dir, validCompletedRound(1)); err != nil {
 		t.Fatal(err)
 	}
 	n, err = NextRoundNumber(dir)
@@ -311,6 +317,69 @@ func TestLoadCapture_RejectsTraversal(t *testing.T) {
 	_, err = LoadCapture(dir, "/absolute/path")
 	if err == nil {
 		t.Error("expected error for absolute path")
+	}
+}
+
+func TestLoadRounds_NormalizesInvalidCompletedRound(t *testing.T) {
+	dir := t.TempDir()
+	reviewDir := filepath.Join(dir, "review")
+	if err := os.MkdirAll(reviewDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	round := Round{
+		RoundNum:    1,
+		GeneratedAt: "2026-04-02T00:00:00Z",
+		ExecutionID: "exec-1",
+		Status:      RoundStatusComplete,
+	}
+	data, _ := json.MarshalIndent(round, "", "  ")
+	if err := os.WriteFile(filepath.Join(reviewDir, "round-001.json"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	rounds, err := LoadRounds(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(rounds) != 1 {
+		t.Fatalf("expected 1 round, got %d", len(rounds))
+	}
+	if rounds[0].Status != RoundStatusFailed {
+		t.Fatalf("expected invalid complete round to normalize to failed, got %s", rounds[0].Status)
+	}
+	if rounds[0].FailureReason == "" {
+		t.Fatal("expected normalized round to include failure reason")
+	}
+}
+
+func TestLoadRound_NormalizesInvalidCompletedRound(t *testing.T) {
+	dir := t.TempDir()
+	reviewDir := filepath.Join(dir, "review")
+	if err := os.MkdirAll(reviewDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	round := Round{
+		RoundNum:    2,
+		GeneratedAt: "2026-04-02T00:00:00Z",
+		ExecutionID: "exec-2",
+		Status:      RoundStatusComplete,
+	}
+	data, _ := json.MarshalIndent(round, "", "  ")
+	if err := os.WriteFile(filepath.Join(reviewDir, "round-002.json"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	loaded, err := LoadRound(dir, 2)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if loaded == nil {
+		t.Fatal("expected round, got nil")
+	}
+	if loaded.Status != RoundStatusFailed {
+		t.Fatalf("expected invalid complete round to normalize to failed, got %s", loaded.Status)
 	}
 }
 

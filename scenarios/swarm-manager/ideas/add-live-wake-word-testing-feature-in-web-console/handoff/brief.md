@@ -9,10 +9,10 @@ This package captures the finalized swarm-manager idea context for downstream ec
 - Target scenario: `add-live-wake-word-testing-feature-in-web-console`
 - Recommended ecosystem operation: `generator`
 - Recommended steer profile: `rapid-mvp`
-- Item folder: `/home/matthalloran8/Vrooli/scenarios/swarm-manager/ideas/add-live-wake-word-testing-feature-in-web-console`
-- Plan: `/home/matthalloran8/Vrooli/scenarios/swarm-manager/ideas/add-live-wake-word-testing-feature-in-web-console/plan.md`
-- Manifest: `/home/matthalloran8/Vrooli/scenarios/swarm-manager/ideas/add-live-wake-word-testing-feature-in-web-console/handoff/manifest.json`
-- Source index: `/home/matthalloran8/Vrooli/scenarios/swarm-manager/ideas/add-live-wake-word-testing-feature-in-web-console/handoff/source-index.json`
+- Item folder: `scenarios/swarm-manager/ideas/add-live-wake-word-testing-feature-in-web-console`
+- Plan: `scenarios/swarm-manager/ideas/add-live-wake-word-testing-feature-in-web-console/plan.md`
+- Manifest: `scenarios/swarm-manager/ideas/add-live-wake-word-testing-feature-in-web-console/handoff/manifest.json`
+- Source index: `scenarios/swarm-manager/ideas/add-live-wake-word-testing-feature-in-web-console/handoff/source-index.json`
 
 ## Downstream Requirements
 
@@ -53,9 +53,8 @@ There needs to be a way to test whether the wake word detection actually works i
 
 ## Supporting Sources
 
-- Spec: `/home/matthalloran8/Vrooli/scenarios/swarm-manager/ideas/add-live-wake-word-testing-feature-in-web-console/spec.json`
+- Spec: `scenarios/swarm-manager/ideas/add-live-wake-word-testing-feature-in-web-console/spec.json`
 - Workshop rounds:
-  - `/home/matthalloran8/Vrooli/scenarios/swarm-manager/ideas/add-live-wake-word-testing-feature-in-web-console/workshop/round-001.json`
-  - `/home/matthalloran8/Vrooli/scenarios/swarm-manager/ideas/add-live-wake-word-testing-feature-in-web-console/workshop/round-002.json`
-  - `/home/matthalloran8/Vrooli/scenarios/swarm-manager/ideas/add-live-wake-word-testing-feature-in-web-console/workshop/round-003.json`
-
+  - `scenarios/swarm-manager/ideas/add-live-wake-word-testing-feature-in-web-console/workshop/round-001.json`
+  - `scenarios/swarm-manager/ideas/add-live-wake-word-testing-feature-in-web-console/workshop/round-002.json`
+  - `scenarios/swarm-manager/ideas/add-live-wake-word-testing-feature-in-web-console/workshop/round-003.json`

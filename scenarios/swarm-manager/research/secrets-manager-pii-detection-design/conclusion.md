@@ -32,7 +32,7 @@ Current GCT review clients pass scenario names or paths (`TidinessLightScanReque
 The codebase uses Go modules, structured logging, PostgreSQL with proper schema, gorilla/mux routing, and has a comprehensive test framework. Adding PII detection requires **extending** the existing system, not rewriting it.
 
 ### Finding 6: Watchlist requires a two-tier pattern system
-PII detection has two layers: (1) generic regex patterns (emails, phones, SSNs, IPs, AWS keys) built into Go source alongside existing vulnerability patterns, and (2) a user-uploaded custom watchlist of personal literal values stored in a DB table with CRUD API. Custom watchlist values are literal strings (e.g., "matt@example.com", "/home/matthalloran8") — they need exact or substring matching, not regex compilation.
+PII detection has two layers: (1) generic regex patterns (emails, phones, SSNs, IPs, AWS keys) built into Go source alongside existing vulnerability patterns, and (2) a user-uploaded custom watchlist of personal literal values stored in a DB table with CRUD API. Custom watchlist values are literal strings (e.g., "matt@example.com", "~/private") — they need exact or substring matching, not regex compilation.
 
 ### Finding 7: Existing persistence layer is reusable for file-list scans
 The `security_scan_runs` and `security_vulnerabilities` tables already support the scan-run model. `persistSecurityScan()` (security_scan.go:608-674) handles INSERT with ON CONFLICT for fingerprint deduplication and status transitions (open → in_progress → resolved/accepted/regressed). The file-list scan endpoint can reuse this persistence layer entirely — no new scan/vulnerability tables needed.

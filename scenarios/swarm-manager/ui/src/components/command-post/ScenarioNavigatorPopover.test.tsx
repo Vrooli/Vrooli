@@ -136,7 +136,12 @@ describe("ScenarioNavigatorPopover", () => {
     render(<ScenarioNavigatorPopover {...defaultProps} />);
 
     const rows = screen.getAllByTestId(selectors.commandPost.decisionStream.navigatorRow);
-    fireEvent.click(rows[1]!);
+    const secondRow = rows[1];
+    expect(secondRow).toBeDefined();
+    if (!secondRow) {
+      throw new Error("expected second navigator row");
+    }
+    fireEvent.click(secondRow);
 
     expect(onJumpTo).toHaveBeenCalledWith("fix/login-bug");
     expect(onClose).toHaveBeenCalledOnce();
@@ -146,7 +151,12 @@ describe("ScenarioNavigatorPopover", () => {
     render(<ScenarioNavigatorPopover {...defaultProps} />);
 
     const snoozeButtons = screen.getAllByTestId(selectors.commandPost.decisionStream.navigatorSnooze);
-    fireEvent.click(snoozeButtons[1]!);
+    const secondSnoozeButton = snoozeButtons[1];
+    expect(secondSnoozeButton).toBeDefined();
+    if (!secondSnoozeButton) {
+      throw new Error("expected second snooze button");
+    }
+    fireEvent.click(secondSnoozeButton);
 
     expect(onSnoozeParent).toHaveBeenCalledWith("fix", "login-bug");
     // Should not trigger row click / onJumpTo

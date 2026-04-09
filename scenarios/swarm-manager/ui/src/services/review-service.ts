@@ -59,6 +59,7 @@ export interface ReviewRound {
   generated_at: string;
   execution_id: string;
   status: ReviewRoundStatus;
+  failure_reason?: string;
   agent_assessment?: string;
   classification?: string;
   notes?: string[];
@@ -99,12 +100,7 @@ export interface IReviewService {
     round: number,
     threadId: string,
   ): Promise<void>;
-  triggerReviewAgent(
-    executionId: string,
-    backlogKind: string,
-    backlogName: string,
-    affectedScenarios?: string[],
-  ): Promise<void>;
+  triggerReviewAgent(executionId: string): Promise<void>;
   getCaptureUrl(kind: string, name: string, capturePath: string): string;
 }
 
@@ -147,14 +143,10 @@ export function createReviewService(
       );
     },
 
-    async triggerReviewAgent(executionId, backlogKind, backlogName, affectedScenarios) {
+    async triggerReviewAgent(executionId) {
       await apiClient.post(
         API_ENDPOINTS.executionTriggerReviewAgent(executionId),
-        {
-          backlog_kind: backlogKind,
-          backlog_name: backlogName,
-          affected_scenarios: affectedScenarios ?? [],
-        },
+        {},
       );
     },
 

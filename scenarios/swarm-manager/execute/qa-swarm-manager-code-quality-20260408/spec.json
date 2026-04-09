@@ -2,6 +2,7 @@
   "acceptance_allow": [
     "scenarios/swarm-manager/**"
   ],
+  "archived_at": "2026-04-09T13:16:17Z",
   "created": "2026-04-08T04:13:26Z",
   "created_by": {
     "type": "operator"
@@ -17,5 +18,5 @@
     "code-quality"
   ],
   "title": "Reduce code quality violations in swarm-manager",
-  "updated": "2026-04-08T17:15:41Z"
+  "updated": "2026-04-09T13:16:17Z"
 }

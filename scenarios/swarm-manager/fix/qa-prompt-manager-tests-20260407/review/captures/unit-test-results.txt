@@ -1,0 +1,6 @@
+$ cd scenarios/prompt-manager/ui && npx vitest run
+
+ Test Files  92 passed (92)
+      Tests  1602 passed | 4 skipped (1606)
+   Start at  09:44:09
+   Duration  4.63s (transform 9.95s, setup 8.14s, collect 42.82s, tests 12.27s, environment 37.74s, prepare 8.84s)

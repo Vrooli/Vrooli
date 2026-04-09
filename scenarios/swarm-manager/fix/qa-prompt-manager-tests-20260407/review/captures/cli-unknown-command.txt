@@ -1,0 +1,3 @@
+$ cli/prompt-manager __test_genie_nonexistent_command_12345__
+Error: Unknown command: __test_genie_nonexistent_command_12345__
+EXIT_CODE=1

@@ -9,10 +9,10 @@ This package captures the finalized swarm-manager idea context for downstream ec
 - Target scenario: `add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager`
 - Recommended ecosystem operation: `generator`
 - Recommended steer profile: `rapid-mvp`
-- Item folder: `/home/matthalloran8/Vrooli/scenarios/swarm-manager/ideas/add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager`
-- Plan: `/home/matthalloran8/Vrooli/scenarios/swarm-manager/ideas/add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager/plan.md`
-- Manifest: `/home/matthalloran8/Vrooli/scenarios/swarm-manager/ideas/add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager/handoff/manifest.json`
-- Source index: `/home/matthalloran8/Vrooli/scenarios/swarm-manager/ideas/add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager/handoff/source-index.json`
+- Item folder: `scenarios/swarm-manager/ideas/add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager`
+- Plan: `scenarios/swarm-manager/ideas/add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager/plan.md`
+- Manifest: `scenarios/swarm-manager/ideas/add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager/handoff/manifest.json`
+- Source index: `scenarios/swarm-manager/ideas/add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager/handoff/source-index.json`
 
 ## Downstream Requirements
 
@@ -58,10 +58,9 @@ Currently there is no way to manually set the allow/deny status for backlog item
 
 ## Supporting Sources
 
-- Spec: `/home/matthalloran8/Vrooli/scenarios/swarm-manager/ideas/add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager/spec.json`
+- Spec: `scenarios/swarm-manager/ideas/add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager/spec.json`
 - Workshop rounds:
-  - `/home/matthalloran8/Vrooli/scenarios/swarm-manager/ideas/add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager/workshop/round-001.json`
-  - `/home/matthalloran8/Vrooli/scenarios/swarm-manager/ideas/add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager/workshop/round-002.json`
-  - `/home/matthalloran8/Vrooli/scenarios/swarm-manager/ideas/add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager/workshop/round-003.json`
-  - `/home/matthalloran8/Vrooli/scenarios/swarm-manager/ideas/add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager/workshop/round-004.json`
-
+  - `scenarios/swarm-manager/ideas/add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager/workshop/round-001.json`
+  - `scenarios/swarm-manager/ideas/add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager/workshop/round-002.json`
+  - `scenarios/swarm-manager/ideas/add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager/workshop/round-003.json`
+  - `scenarios/swarm-manager/ideas/add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager/workshop/round-004.json`

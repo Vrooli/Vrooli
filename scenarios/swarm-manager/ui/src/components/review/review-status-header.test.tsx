@@ -89,24 +89,24 @@ describe("ReviewStatusHeader", () => {
     expect(btn).toBeDisabled();
   });
 
-  it("shows Review when finalization is complete and ready", () => {
+  it("shows Rerun Checks when finalization is complete and ready", () => {
     const exec = makeExecution({
       status: "completed",
       finalization: makeFinalization("ready"),
     });
     render(<ReviewStatusHeader {...defaultProps} execution={exec} />);
     const btn = screen.getByTestId(selectors.review.primaryAction);
-    expect(btn).toHaveTextContent("Review");
+    expect(btn).toHaveTextContent("Rerun Checks");
   });
 
-  it("shows Review even when finalization needs_work (fix action moved to footer)", () => {
+  it("shows Rerun Checks even when finalization needs_work", () => {
     const exec = makeExecution({
       status: "completed",
       finalization: makeFinalization("needs_work"),
     });
     render(<ReviewStatusHeader {...defaultProps} execution={exec} />);
     const btn = screen.getByTestId(selectors.review.primaryAction);
-    expect(btn).toHaveTextContent("Review");
+    expect(btn).toHaveTextContent("Rerun Checks");
   });
 
   it("shows Stop Review when finalization is running", () => {

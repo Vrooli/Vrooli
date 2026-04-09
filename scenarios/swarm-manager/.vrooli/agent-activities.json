@@ -5475,16 +5475,17 @@
     "interaction_type": "spawn",
     "task_id": "f2b51b8b-2b38-4ce1-8365-dd5ca2fce0f2",
     "run_id": "d1ef8838-db07-4cdc-ade6-d32dcb032aff",
-    "status": "running",
+    "status": "failed",
     "requested_at": "2026-04-09T13:13:13Z",
     "started_at": "2026-04-09T13:13:14Z",
+    "finished_at": "2026-04-09T13:27:47Z",
     "requested_by": "swarm-manager-ui",
     "metadata": {
       "entrypoint": "execution.start",
       "mode": "yolo",
       "operation": "generator"
     },
-    "updated_at": "2026-04-09T13:13:16Z"
+    "updated_at": "2026-04-09T13:37:45Z"
   },
   {
     "activity_id": "7b06454c35eff35c",
@@ -5518,16 +5519,17 @@
     "interaction_type": "spawn",
     "task_id": "50bd3e7c-d4e8-47bd-b573-306682cd0822",
     "run_id": "878a8b7a-c548-4a12-8f8f-5e346eec2407",
-    "status": "running",
+    "status": "complete",
     "requested_at": "2026-04-09T13:14:36Z",
     "started_at": "2026-04-09T13:14:36Z",
+    "finished_at": "2026-04-09T13:16:03Z",
     "requested_by": "swarm-manager",
     "metadata": {
       "entrypoint": "backlog.research",
       "mode": "finalize",
       "skill_id": "swarm-manager-workshop-finalize"
     },
-    "updated_at": "2026-04-09T13:14:37Z"
+    "updated_at": "2026-04-09T13:16:07Z"
   },
   {
     "activity_id": "9329677289d00d7e",
@@ -5540,14 +5542,103 @@
     "interaction_type": "spawn",
     "task_id": "a280118d-2cb5-45a2-88bb-23a46cc55f4e",
     "run_id": "1999af06-c77c-4632-8278-603b68b96ac2",
-    "status": "running",
+    "status": "complete",
     "requested_at": "2026-04-09T13:15:30Z",
     "started_at": "2026-04-09T13:15:30Z",
+    "finished_at": "2026-04-09T13:18:25Z",
     "requested_by": "swarm-manager",
     "metadata": {
       "entrypoint": "review.start",
       "round_number": "003"
     },
-    "updated_at": "2026-04-09T13:15:31Z"
+    "updated_at": "2026-04-09T13:22:59Z"
+  },
+  {
+    "activity_id": "15d993d1577520f2",
+    "owner_type": "backlog",
+    "owner_kind": "fix",
+    "owner_name": "qa-prompt-manager-tests-20260407",
+    "owner_title": "Fix prompt-manager test failures",
+    "execution_id": "252ceb288b142fc0",
+    "purpose": "review",
+    "interaction_type": "spawn",
+    "task_id": "8b085add-ed5b-4644-8ca3-610766e89fce",
+    "run_id": "24a58b8d-5800-4889-92d3-5756225274e8",
+    "status": "complete",
+    "requested_at": "2026-04-09T13:43:21Z",
+    "started_at": "2026-04-09T13:43:21Z",
+    "finished_at": "2026-04-09T13:45:14Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "review.start",
+      "round_number": "001"
+    },
+    "updated_at": "2026-04-09T13:45:56Z"
+  },
+  {
+    "activity_id": "83b503e21a5240b5",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "secrets-manager-pii-detection-design",
+    "owner_title": "secrets-manager-pii-detection-design",
+    "execution_id": "1c58df700797080d",
+    "purpose": "review",
+    "interaction_type": "spawn",
+    "task_id": "fdc402c2-4b00-4dd6-b092-49c34205514d",
+    "run_id": "dc36fe89-9358-48a6-a734-1f1306dfffab",
+    "status": "complete",
+    "requested_at": "2026-04-09T13:49:27Z",
+    "started_at": "2026-04-09T13:49:27Z",
+    "finished_at": "2026-04-09T13:49:38Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "review.start",
+      "round_number": "001"
+    },
+    "updated_at": "2026-04-09T13:49:41Z"
+  },
+  {
+    "activity_id": "8d8cc422a1ec1c1e",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "secrets-manager-pii-detection-design",
+    "owner_title": "Design PII detection system for Secrets Manager",
+    "execution_id": "1c58df700797080d",
+    "purpose": "review",
+    "interaction_type": "spawn",
+    "task_id": "2b85ba88-f0bb-4ca6-83d7-e0051c366e82",
+    "run_id": "f13caa08-f704-4120-a826-a6f5c68923b7",
+    "status": "complete",
+    "requested_at": "2026-04-09T15:04:15Z",
+    "started_at": "2026-04-09T15:04:15Z",
+    "finished_at": "2026-04-09T15:06:52Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "review.start",
+      "round_number": "002"
+    },
+    "updated_at": "2026-04-09T15:06:56Z"
+  },
+  {
+    "activity_id": "17b0c9438cce4731",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "secrets-manager-pii-scanner",
+    "owner_title": "Implement PII scanner, custom watchlist, and file-list scan endpoint",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "6e494f5b-228e-4de2-b62d-3a980a157cfc",
+    "run_id": "24bc68c9-23ab-47cb-bd4b-a837cccaadce",
+    "status": "complete",
+    "requested_at": "2026-04-09T15:13:36Z",
+    "started_at": "2026-04-09T15:13:36Z",
+    "finished_at": "2026-04-09T15:18:02Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-09T15:22:23Z"
   }
 ]

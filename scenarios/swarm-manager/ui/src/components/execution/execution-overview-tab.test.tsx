@@ -169,7 +169,7 @@ describe("ExecutionOverviewTab", () => {
     expect(screen.getByTestId(selectors.executionDetails.runChecksButton)).toBeInTheDocument();
   });
 
-  it("hides Run Post-Run Checks when finalization exists", () => {
+  it("shows rerun checks button when finalization exists", () => {
     const exec = makeExecution({ finalization: makeFinalization() });
     render(
       <ExecutionOverviewTab
@@ -182,7 +182,9 @@ describe("ExecutionOverviewTab", () => {
       />,
     );
 
-    expect(screen.queryByTestId(selectors.executionDetails.runChecksButton)).not.toBeInTheDocument();
+    expect(screen.getByTestId(selectors.executionDetails.runChecksButton)).toHaveTextContent(
+      "Rerun Post-Run Checks",
+    );
   });
 
   it("navigates to parent execution when link is clicked", () => {

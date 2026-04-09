@@ -53,7 +53,7 @@ All three surfaces share the same domain logic and provide consistent behavior.
 
 | Module | Responsibility | NOT Responsible For | Code Reference |
 |--------|---------------|---------------------|----------------|
-| `pages/` | Page-level layout and user interaction | Data fetching (uses services) | [CODE: ui/src/pages/BacklogPage.tsx] |
+| `pages/` | Page-level layout and user interaction | Data fetching (uses services) | [CODE: ui/src/pages/BacklogDetailsPage.tsx] |
 | `services/` | API communication, request/response handling | HTTP implementation (uses api-client) | [CODE: ui/src/services/backlog-service.ts] |
 | `lib/api-client.ts` | HTTP transport, error handling | Domain logic, UI state | [CODE: ui/src/lib/api-client.ts] |
 | `config/` | Tunable settings with validated defaults | Implementation details | [CODE: ui/src/config/index.ts] |

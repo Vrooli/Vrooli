@@ -25,6 +25,7 @@ describe("ReviewLaunchSheet", () => {
     render(<ReviewLaunchSheet {...defaultProps} />);
     expect(screen.getByTestId(selectors.review.launchSheetFullReview)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.review.launchSheetGatherEvidence)).toBeInTheDocument();
+    expect(screen.getByText("Rerun Post-Run Checks")).toBeInTheDocument();
   });
 
   it("renders nothing when closed", () => {
@@ -56,6 +57,7 @@ describe("ReviewLaunchSheet", () => {
     render(<ReviewLaunchSheet {...defaultProps} hasExistingFinalization={false} />);
     const btn = screen.getByTestId(selectors.review.launchSheetFullReview);
     expect(btn).not.toBeDisabled();
+    expect(screen.getByText("Full Review")).toBeInTheDocument();
   });
 
   it("shows hint text when no existing finalization", () => {

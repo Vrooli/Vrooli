@@ -12,7 +12,7 @@
 
 import { Eye, Loader2, Square } from "lucide-react";
 import { Button } from "../ui/button";
-import { cn, formatRelativeTime, canFollowUpExecution } from "../../lib";
+import { cn, formatRelativeTime, canRunPostRunChecks } from "../../lib";
 import { resolvePostRunExecution } from "../../lib/finalization";
 import { EXECUTION_STATUS_COLORS, formatExecutionStatus } from "../../types";
 import { selectors } from "../../consts/selectors";
@@ -30,7 +30,7 @@ export interface ReviewStatusHeaderProps {
 
 type PrimaryAction =
   | { kind: "none" }
-  | { kind: "review" }
+  | { kind: "review"; label: string }
   | { kind: "triggering" }
   | { kind: "stop-review"; exec: ExecutionRecord };
 
@@ -51,9 +51,8 @@ function resolvePrimaryAction(
   }
 
   // Terminal execution — offer review (opens launch sheet)
-  const isTerminal = canFollowUpExecution(execution.status as ExecutionStatus);
-  if (isTerminal) {
-    return { kind: "review" };
+  if (canRunPostRunChecks(execution)) {
+    return { kind: "review", label: resolved?.finalization ? "Rerun Checks" : "Review" };
   }
 
   return { kind: "none" };
@@ -92,7 +91,7 @@ export function ReviewStatusHeader({
 
         <div className="ml-auto flex items-center gap-2">
           {/* Primary action */}
-          {action.kind === "review" && (
+	          {action.kind === "review" && (
             <Button
               size="sm"
               variant="outline"
@@ -101,7 +100,7 @@ export function ReviewStatusHeader({
               data-testid={selectors.review.primaryAction}
             >
               <Eye className="mr-1 h-3 w-3" />
-              Review
+              {action.label}
             </Button>
           )}
           {action.kind === "triggering" && (

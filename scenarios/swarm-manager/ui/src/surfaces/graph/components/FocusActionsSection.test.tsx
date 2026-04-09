@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { GraphNodeData, BacklogGraphNodeData, ExecutionGraphNodeData, CaptureGraphNodeData } from "../types";
 
@@ -7,22 +7,23 @@ import type { GraphNodeData, BacklogGraphNodeData, ExecutionGraphNodeData, Captu
 // Mocks
 // ---------------------------------------------------------------------------
 
-const mockGetBacklogSummary = vi.fn().mockResolvedValue({
+const mockGetBacklogSummary = vi.fn<() => Promise<unknown>>().mockResolvedValue({
   feedback: { items: [] },
   maturity: { items: [] },
   pending_questions: { items: [] },
 });
+const mockApiPost = vi.fn<(url: string, body?: unknown) => Promise<unknown>>().mockResolvedValue({});
 
 vi.mock("../../../services", () => ({
   backlogService: {
-    getBacklogSummary: () => mockGetBacklogSummary() as unknown,
+    getBacklogSummary: () => mockGetBacklogSummary(),
     update: vi.fn().mockResolvedValue({}),
   },
 }));
 
 vi.mock("../../../lib/api-client", () => ({
   defaultApiClient: {
-    post: vi.fn().mockResolvedValue({}),
+    post: (url: string, body?: unknown) => mockApiPost(url, body),
   },
 }));
 
@@ -110,6 +111,7 @@ function makeCaptureNode(status: string): CaptureGraphNodeData {
 describe("FocusActionsSection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockApiPost.mockResolvedValue({});
     mockGetBacklogSummary.mockResolvedValue({
       feedback: { items: [] },
       maturity: { items: [] },
@@ -207,6 +209,29 @@ describe("FocusActionsSection", () => {
         />,
       );
       expect(screen.getByTestId("focus-retry-button")).toHaveTextContent("Retry");
+    });
+
+    it("renders Run Checks button for completed execution", () => {
+      renderWithProviders(
+        <FocusActionsSection
+          nodeData={makeExecutionNode("completed")}
+          nodeId="execution:exec-1"
+        />,
+      );
+      expect(screen.getByTestId("focus-run-checks-button")).toHaveTextContent("Run Checks");
+    });
+
+    it("triggers rerun checks for needs_fixup execution", async () => {
+      renderWithProviders(
+        <FocusActionsSection
+          nodeData={makeExecutionNode("needs_fixup")}
+          nodeId="execution:exec-1"
+        />,
+      );
+      fireEvent.click(screen.getByTestId("focus-run-checks-button"));
+      await waitFor(() => {
+        expect(mockApiPost).toHaveBeenCalled();
+      });
     });
 
     it("does not render actions for running execution", () => {

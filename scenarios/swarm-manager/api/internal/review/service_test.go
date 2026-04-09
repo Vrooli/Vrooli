@@ -10,6 +10,8 @@ import (
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/promptmanager"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // capturingSpawner records the BacklogSpawnRequest for inspection.
@@ -33,30 +35,47 @@ func (s *capturingSpawner) GetRunState(_ context.Context, _ string) (agentmanage
 
 func newTestService(spawner *capturingSpawner, promptResult string) *Service {
 	svc := &Service{
-		rootDir:      "/tmp/test-backlog",
-		agentService: spawner,
-		inspector:    spawner,
-		promptClient: &promptmanager.MockClient{Result: promptResult},
-		itemDirFn:    func(_, _ string) string { return "/tmp/test-backlog/tasks/test-item" },
-		activeRounds: make(map[string]activeRound),
+		rootDir:       "/tmp/test-backlog",
+		agentService:  spawner,
+		inspector:     spawner,
+		promptClient:  &promptmanager.MockClient{Result: promptResult},
+		itemDirFn:     func(_, _ string) string { return "/tmp/test-backlog/tasks/test-item" },
+		loadItemTitle: func(_, _ string) (string, error) { return "Loaded Title", nil },
+		activeRounds:  make(map[string]activeRound),
 	}
 	return svc
 }
 
-// setupItemDir creates a temporary backlog item directory with a plan.md.
-func setupItemDir(t *testing.T) string {
+// setupItemDir creates a temporary backlog item directory with the expected
+// deliverable for the given kind.
+func setupItemDir(t *testing.T, kind string) string {
 	t.Helper()
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "plan.md"), []byte("# Test Plan\nDo the thing."), 0o644); err != nil {
+	deliverable := "plan.md"
+	content := "# Test Plan\nDo the thing."
+	if kind == "research" {
+		deliverable = "conclusion.md"
+		content = "# Test Conclusion\nResearch findings."
+	}
+	if err := os.WriteFile(filepath.Join(dir, deliverable), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	return dir
 }
 
+func findAttachment(req *agentmanager.BacklogSpawnRequest, key string) *domainpb.ContextAttachment {
+	for _, attachment := range req.ContextAttachments {
+		if attachment.Key == key {
+			return attachment
+		}
+	}
+	return nil
+}
+
 func TestStartReview_ContextAttachments(t *testing.T) {
 	spawner := &capturingSpawner{enabled: true}
 	svc := newTestService(spawner, "review instructions here")
-	svc.itemDirFn = func(_, _ string) string { return setupItemDir(t) }
+	svc.itemDirFn = func(_, _ string) string { return setupItemDir(t, "task") }
 
 	itemDir := svc.resolveItemDir("task", "test-item")
 
@@ -120,7 +139,7 @@ func TestStartReview_ContextAttachments(t *testing.T) {
 func TestStartReview_InstructionsOnly(t *testing.T) {
 	spawner := &capturingSpawner{enabled: true}
 	svc := newTestService(spawner, "pure review instructions")
-	svc.itemDirFn = func(_, _ string) string { return setupItemDir(t) }
+	svc.itemDirFn = func(_, _ string) string { return setupItemDir(t, "task") }
 
 	itemDir := svc.resolveItemDir("task", "test-item")
 
@@ -153,7 +172,7 @@ func TestStartReview_InstructionsOnly(t *testing.T) {
 func TestStartReview_NoGCT(t *testing.T) {
 	spawner := &capturingSpawner{enabled: true}
 	svc := newTestService(spawner, "instructions")
-	svc.itemDirFn = func(_, _ string) string { return setupItemDir(t) }
+	svc.itemDirFn = func(_, _ string) string { return setupItemDir(t, "task") }
 
 	itemDir := svc.resolveItemDir("task", "test-item")
 
@@ -177,6 +196,34 @@ func TestStartReview_NoGCT(t *testing.T) {
 		if att.Key == "gct-review-results" {
 			t.Error("gct-review-results attachment should be absent when GCTResultsJSON is empty")
 		}
+	}
+}
+
+func TestStartReview_ResearchUsesConclusionDeliverable(t *testing.T) {
+	spawner := &capturingSpawner{enabled: true}
+	svc := newTestService(spawner, "review instructions here")
+	svc.itemDirFn = func(_, _ string) string { return setupItemDir(t, "research") }
+
+	itemDir := svc.resolveItemDir("research", "test-item")
+
+	err := svc.startReview(context.Background(), startReviewParams{
+		ExecutionID:       "exec-research",
+		BacklogKind:       "research",
+		BacklogName:       "test-item",
+		ItemTitle:         "Research Item",
+		ItemDir:           itemDir,
+		AffectedScenarios: []string{"scenario-a"},
+	})
+	if err != nil {
+		t.Fatalf("startReview failed: %v", err)
+	}
+
+	attachment := findAttachment(spawner.captured, "plan-content")
+	if attachment == nil {
+		t.Fatal("expected deliverable attachment")
+	}
+	if !strings.Contains(attachment.Content, "# Test Conclusion") {
+		t.Fatalf("expected research review to use conclusion.md, got %q", attachment.Content)
 	}
 }
 
@@ -313,8 +360,11 @@ func TestRefreshGatheringRounds_CompletesRound(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadRound: %v", err)
 	}
-	if round.Status != RoundStatusComplete {
-		t.Errorf("round status = %q, want %q", round.Status, RoundStatusComplete)
+	if round.Status != RoundStatusFailed {
+		t.Errorf("round status = %q, want %q", round.Status, RoundStatusFailed)
+	}
+	if !strings.Contains(round.FailureReason, "agent_assessment") {
+		t.Fatalf("expected missing assessment failure reason, got %q", round.FailureReason)
 	}
 
 	// Verify it was removed from active tracking.
@@ -403,12 +453,14 @@ func TestRefreshGatheringRounds_AlreadyComplete(t *testing.T) {
 	itemDir := t.TempDir()
 	// Round was already marked complete (e.g. agent wrote the file itself).
 	writeRound(t, itemDir, Round{
-		RoundNum:    1,
-		GeneratedAt: "2026-04-02T00:00:00Z",
-		ExecutionID: "exec-4",
-		Status:      RoundStatusComplete,
-		RunID:       "run-done",
-		Evidence:    []EvidenceItem{},
+		RoundNum:        1,
+		GeneratedAt:     "2026-04-02T00:00:00Z",
+		ExecutionID:     "exec-4",
+		Status:          RoundStatusComplete,
+		RunID:           "run-done",
+		AgentAssessment: "Looks good.",
+		Classification:  "ready",
+		Evidence:        []EvidenceItem{},
 	})
 
 	spawner := &capturingSpawner{
@@ -456,7 +508,7 @@ func TestMapRunStatusToRoundStatus(t *testing.T) {
 func TestStartReview_TracksActiveRound(t *testing.T) {
 	spawner := &capturingSpawner{enabled: true}
 	svc := newTestService(spawner, "instructions")
-	svc.itemDirFn = func(_, _ string) string { return setupItemDir(t) }
+	svc.itemDirFn = func(_, _ string) string { return setupItemDir(t, "task") }
 
 	itemDir := svc.resolveItemDir("task", "test-item")
 
@@ -491,12 +543,14 @@ func TestStartReview_TracksActiveRound(t *testing.T) {
 func TestListRounds_InlineRefresh(t *testing.T) {
 	itemDir := t.TempDir()
 	writeRound(t, itemDir, Round{
-		RoundNum:    1,
-		GeneratedAt: "2026-04-02T00:00:00Z",
-		ExecutionID: "exec-list",
-		Status:      RoundStatusGathering,
-		RunID:       "run-inline",
-		Evidence:    []EvidenceItem{},
+		RoundNum:        1,
+		GeneratedAt:     "2026-04-02T00:00:00Z",
+		ExecutionID:     "exec-list",
+		Status:          RoundStatusGathering,
+		RunID:           "run-inline",
+		AgentAssessment: "Looks good.",
+		Classification:  "ready",
+		Evidence:        []EvidenceItem{},
 	})
 
 	spawner := &capturingSpawner{
@@ -524,5 +578,55 @@ func TestListRounds_InlineRefresh(t *testing.T) {
 	diskRound, _ := LoadRound(itemDir, 1)
 	if diskRound.Status != RoundStatusComplete {
 		t.Errorf("disk round status = %q, want %q", diskRound.Status, RoundStatusComplete)
+	}
+}
+
+func TestTriggerReviewAgent_RebuildsContextFromExecution(t *testing.T) {
+	spawner := &capturingSpawner{enabled: true}
+	svc := newTestService(spawner, "review instructions here")
+	itemDir := setupItemDir(t, "research")
+	svc.itemDirFn = func(_, _ string) string { return itemDir }
+	svc.loadExecutionContext = func(_ context.Context, executionID string) (*ExecutionContext, error) {
+		if executionID != "exec-rebuild" {
+			t.Fatalf("unexpected execution id: %s", executionID)
+		}
+		return &ExecutionContext{
+			BacklogKind:       "research",
+			BacklogName:       "test-item",
+			ItemTitle:         "Research Item",
+			AffectedScenarios: []string{"scenario-b", "scenario-a"},
+			ChangedPathsByScenario: map[string][]string{
+				"scenario-a": {"api/main.go"},
+				"scenario-b": {"ui/src/App.tsx"},
+			},
+			GCTResultsJSON: `{"scenario-a":{"classification":"ready"}}`,
+		}, nil
+	}
+
+	if err := svc.TriggerReviewAgent(context.Background(), "exec-rebuild"); err != nil {
+		t.Fatalf("TriggerReviewAgent failed: %v", err)
+	}
+
+	if spawner.captured == nil {
+		t.Fatal("expected SpawnBacklog to be called")
+	}
+	if spawner.captured.Kind != "research" || spawner.captured.Name != "test-item" {
+		t.Fatalf("expected research/test-item, got %s/%s", spawner.captured.Kind, spawner.captured.Name)
+	}
+	if spawner.captured.Title != "Review: Research Item" {
+		t.Fatalf("unexpected title: %s", spawner.captured.Title)
+	}
+
+	paths := findAttachment(spawner.captured, "changed-paths")
+	if paths == nil || !strings.Contains(paths.Content, "api/main.go") || !strings.Contains(paths.Content, "ui/src/App.tsx") {
+		t.Fatalf("expected changed-paths attachment, got %#v", paths)
+	}
+	scenarios := findAttachment(spawner.captured, "affected-scenarios")
+	if scenarios == nil || scenarios.Content != "scenario-a\nscenario-b" {
+		t.Fatalf("expected sorted affected scenarios, got %#v", scenarios)
+	}
+	gct := findAttachment(spawner.captured, "gct-review-results")
+	if gct == nil || !strings.Contains(gct.Content, "\"classification\":\"ready\"") {
+		t.Fatalf("expected gct review attachment, got %#v", gct)
 	}
 }

@@ -35,6 +35,7 @@ type Round struct {
 	GeneratedAt     string          `json:"generated_at"`
 	ExecutionID     string          `json:"execution_id"`
 	Status          RoundStatus     `json:"status"`
+	FailureReason   string          `json:"failure_reason,omitempty"`
 	AgentAssessment string          `json:"agent_assessment,omitempty"`
 	Classification  string          `json:"classification,omitempty"`
 	Notes           []string        `json:"notes,omitempty"`

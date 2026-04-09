@@ -1,7 +1,6 @@
 package execution
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -39,6 +38,28 @@ func TestTriggerReview_Success(t *testing.T) {
 	}
 	if jobID != "job-123" {
 		t.Fatalf("expected job-123, got %s", jobID)
+	}
+}
+
+func TestTriggerReview_ReusesExistingJobOnConflict(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusConflict)
+		_ = json.NewEncoder(w).Encode(reviewRunConflictResponse{
+			Error: "a review run is already in progress for this scenario",
+			JobID: "job-existing",
+		})
+	}))
+	defer server.Close()
+
+	client := &HTTPReviewClient{httpClient: server.Client()}
+	jobID, err := client.triggerReviewAtBaseURL(context.Background(), server.URL, ReviewRequest{
+		ScenarioName: "web-console",
+	})
+	if err != nil {
+		t.Fatalf("TriggerReview error: %v", err)
+	}
+	if jobID != "job-existing" {
+		t.Fatalf("expected existing job id, got %s", jobID)
 	}
 }
 
@@ -132,25 +153,7 @@ func TestPollReview_Failed(t *testing.T) {
 
 // triggerReviewDirect calls the review trigger against a known base URL, bypassing discovery.
 func triggerReviewDirect(c *HTTPReviewClient, baseURL string, ctx context.Context, req ReviewRequest) (string, error) {
-	body, err := json.Marshal(req)
-	if err != nil {
-		return "", err
-	}
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/review/run", bytes.NewReader(body))
-	if err != nil {
-		return "", err
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	var result reviewRunResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", err
-	}
-	return result.JobID, nil
+	return c.triggerReviewAtBaseURL(ctx, baseURL, req)
 }
 
 // pollReviewDirect calls the review poll against a known base URL, bypassing discovery.

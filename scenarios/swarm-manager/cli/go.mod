@@ -1,8 +1,13 @@
 module swarm-manager/cli
 
-go 1.22
+go 1.24.0
 
-require github.com/vrooli/cli-core v0.0.0
+toolchain go1.24.12
+
+require (
+	github.com/vrooli/cli-core v0.0.0
+	swarm-manager v0.0.0
+)
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
 

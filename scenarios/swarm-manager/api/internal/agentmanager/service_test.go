@@ -20,8 +20,8 @@ func TestDefaultProfileConfig(t *testing.T) {
 	if cfg.MaxTurns != 60 {
 		t.Fatalf("expected default max turns 60, got %d", cfg.MaxTurns)
 	}
-	if cfg.TimeoutSeconds != 900 {
-		t.Fatalf("expected default timeout 900, got %d", cfg.TimeoutSeconds)
+	if cfg.TimeoutSeconds != 3600 {
+		t.Fatalf("expected default timeout 3600, got %d", cfg.TimeoutSeconds)
 	}
 	if len(cfg.AllowedTools) == 0 {
 		t.Fatalf("expected default allowed tools to be populated")

@@ -13,6 +13,7 @@ import { reviewService } from "../services/review-service";
 import {
   resolvePostRunExecution,
   defaultQueryOptions,
+  canFollowUpExecution,
 } from "../lib";
 import { isExecutionActive } from "../lib/execution-utils";
 import { useActivityTimeline } from "./useActivityTimeline";
@@ -50,8 +51,6 @@ export interface UseExecutionDetailDataResult {
   refetch: () => void;
   actionBusy: boolean;
 }
-
-const TERMINAL_STATUSES = new Set(["completed", "failed", "canceled"]);
 
 export function useExecutionDetailData({
   executionId,
@@ -99,7 +98,7 @@ export function useExecutionDetailData({
   });
 
   // --- Computed values ---
-  const isTerminal = execution ? TERMINAL_STATUSES.has(execution.status) : false;
+  const isTerminal = execution ? canFollowUpExecution(execution.status) : false;
 
   const postRunBadgeExecution = useMemo(
     () => (execution ? resolvePostRunExecution(execution) : null),

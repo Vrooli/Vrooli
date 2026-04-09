@@ -55,13 +55,15 @@ export function useReviewActions(
   }, [executionId, updateCache, closeLaunchSheet]);
 
   const triggerEvidenceOnly = useCallback(async () => {
-    if (!executionId || !backlogKind || !backlogName) return;
+    if (!executionId) return;
     setIsTriggeringEvidence(true);
     setTriggerError(null);
     try {
-      await reviewService.triggerReviewAgent(executionId, backlogKind, backlogName);
-      // Refresh review rounds so the new "gathering" round appears immediately.
-      await queryClient.invalidateQueries({ queryKey: ["review-rounds", backlogKind, backlogName] });
+      await reviewService.triggerReviewAgent(executionId);
+      if (backlogKind && backlogName) {
+        // Refresh review rounds so the new "gathering" round appears immediately.
+        await queryClient.invalidateQueries({ queryKey: ["review-rounds", backlogKind, backlogName] });
+      }
       closeLaunchSheet();
     } catch (err) {
       setTriggerError(err instanceof Error ? err.message : "Failed to trigger evidence gathering");

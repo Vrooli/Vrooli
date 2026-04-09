@@ -9,13 +9,14 @@
     "Implementation Strategy",
     "Contract Decisions",
     "Testing Plan",
-    "Rollout/Validation Checklist",
     "Risks + Mitigations",
     "Non-goals/Prohibited Patterns",
     "Definition of Done"
   ],
-  "sections_missing": null,
+  "sections_missing": [
+    "Rollout/Validation Checklist"
+  ],
   "warnings": null,
-  "passed": true,
-  "validated_at": "2026-04-09T13:16:25Z"
+  "passed": false,
+  "validated_at": "2026-04-09T15:22:23Z"
 }

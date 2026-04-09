@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"path/filepath"
 	"time"
 
@@ -51,6 +52,56 @@ func (s *Server) registerReviewRoutes(scenarioRoot string, execSvc *execution.Se
 		RootDir:      scenarioRoot,
 		AgentService: s.requireTrackedAgentService(),
 		ItemDirFn:    func(kind, name string) string { return backlogStore.ItemDir(backlog.BacklogKind(kind), name) },
+		LoadItemTitle: func(kind, name string) (string, error) {
+			item, err := backlogStore.LoadItem(backlog.BacklogKind(kind), name)
+			if err != nil {
+				return "", err
+			}
+			return item.Title, nil
+		},
+	}
+	if execSvc != nil {
+		cfg.LoadExecutionContext = func(ctx context.Context, executionID string) (*review.ExecutionContext, error) {
+			record, err := execSvc.Get(ctx, executionID)
+			if err != nil {
+				return nil, err
+			}
+
+			ctxOut := &review.ExecutionContext{
+				BacklogKind:            record.BacklogKind,
+				BacklogName:            record.BacklogName,
+				ItemTitle:              record.BacklogName,
+				AffectedScenarios:      []string{},
+				ChangedPathsByScenario: map[string][]string{},
+			}
+			if item, err := backlogStore.LoadItem(backlog.BacklogKind(record.BacklogKind), record.BacklogName); err == nil {
+				ctxOut.ItemTitle = item.Title
+			}
+
+			if record.Finalization == nil {
+				return ctxOut, nil
+			}
+
+			ctxOut.AffectedScenarios = append([]string(nil), record.Finalization.AffectedScenarios...)
+			resultsByScenario := make(map[string]any)
+			for _, scenario := range record.Finalization.Scenarios {
+				if len(scenario.ChangedPaths) > 0 {
+					ctxOut.ChangedPathsByScenario[scenario.ScenarioName] = append([]string(nil), scenario.ChangedPaths...)
+				}
+				if scenario.Review.Result == nil {
+					continue
+				}
+				resultsByScenario[scenario.ScenarioName] = map[string]any{
+					"classification": scenario.Review.Result.Classification,
+					"dimensions":     scenario.Review.Result.Dimensions,
+					"raw_dimensions": scenario.Review.Result.RawDimensions,
+					"summary":        scenario.Review.Result.Summary,
+				}
+			}
+			ctxOut.GCTResultsJSON = review.MarshalScenarioGCTResults(resultsByScenario)
+
+			return ctxOut, nil
+		}
 	}
 	s.reviewSvc = review.NewService(cfg)
 	s.reviewHandler = review.NewHandler(s.reviewSvc)

@@ -36,12 +36,12 @@ func LoadRounds(itemDir string) ([]Round, error) {
 		if err := json.Unmarshal(data, &round); err != nil {
 			if repaired := jsonutil.RepairTruncatedJSON(data); repaired != nil {
 				if json.Unmarshal(repaired, &round) == nil {
-					rounds = append(rounds, round)
+					rounds = append(rounds, normalizeRound(round))
 				}
 			}
 			continue
 		}
-		rounds = append(rounds, round)
+		rounds = append(rounds, normalizeRound(round))
 	}
 
 	sort.Slice(rounds, func(i, j int) bool {
@@ -78,6 +78,7 @@ func LoadRound(itemDir string, roundNum int) (*Round, error) {
 	if err := json.Unmarshal(data, &round); err != nil {
 		return nil, fmt.Errorf("unmarshal round %d: %w", roundNum, err)
 	}
+	round = normalizeRound(round)
 	return &round, nil
 }
 
