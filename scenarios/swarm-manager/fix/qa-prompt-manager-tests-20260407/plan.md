@@ -22,17 +22,17 @@ GCT review of the prompt-manager scenario (2026-04-07) shows 5 of 11 test phases
 | 4 | **integration** | "CLI returned success (exit 0) for unknown command" | `cli-core` unknown-command handling returns 0 instead of non-zero |
 | 5 | **playbooks** | "registry not found: .../bas/registry.json" | `bas/` directory has `actions/`, `cases/`, `flows/` but no `registry.json` |
 
-### Workshop Round 2 Investigation Findings
+### Investigation Findings (2026-04-08)
 
-Direct investigation on 2026-04-08 revealed:
+Direct investigation revealed that 4 of 5 failures appear to already be resolved:
 
-1. **Standards - CLI binary**: The binary `cli/prompt-manager` now exists (8.8 MB, executable). This was likely built after the GCT run.
-2. **Standards - P0 requirements**: All 8 P0 modules in `requirements/index.json` have properly defined requirements in their `module.json` files. This may have been fixed after the GCT run, or the auditor uses a different validation path.
+1. **Standards - CLI binary**: The binary `cli/prompt-manager` now exists (8.8 MB, executable). Built after the GCT run.
+2. **Standards - P0 requirements**: All 8 P0 modules in `requirements/index.json` have properly defined requirements in their `module.json` files. May have been fixed after the GCT run, or the auditor uses a different validation path.
 3. **Docs**: All 20 files referenced in `docs/manifest.json` exist on disk. No broken links found.
-4. **CLI unknown command**: `cli-core` at `packages/cli-core/cliapp/app.go:115` correctly returns `fmt.Errorf("Unknown command: %s", remaining[0])` and the prompt-manager CLI exits with code 1 for unknown commands. This may have been fixed, or the test runs the binary differently (e.g., via `install.sh` wrapper).
-5. **Playbooks registry**: `bas/registry.json` is **confirmed missing**. Other scenarios (test-genie, swarm-manager) have this file auto-generated via `test-genie registry build`.
+4. **CLI unknown command**: `cli-core` at `packages/cli-core/cliapp/app.go:115` correctly returns `fmt.Errorf("Unknown command: %s", remaining[0])` and the prompt-manager CLI exits with code 1 for unknown commands. Already works correctly.
+5. **Playbooks registry**: `bas/registry.json` is **confirmed missing**. This is the only confirmed remaining failure.
 
-**Conclusion**: 4 of 5 failures may already be resolved. A fresh test run is needed to confirm current state before implementing fixes.
+**Conclusion**: A fresh baseline test run is required before implementing fixes, since 4 of 5 failures may already be resolved.
 
 ## Scope
 
@@ -40,20 +40,21 @@ Direct investigation on 2026-04-08 revealed:
 - **acceptance_allow**: `scenarios/prompt-manager/**`
 - **acceptance_deny**: not set
 
-**Note**: Round 1 decision d2 selected expanding scope to include `packages/cli-core/**` for the unknown-command fix. However, investigation shows cli-core already handles this correctly. Scope expansion may not be needed — pending test re-run confirmation.
+Scope is strictly limited to `scenarios/prompt-manager/**`. The original round 1 decision to expand scope to `packages/cli-core/**` was reverted in round 2 after investigation confirmed cli-core already handles unknown commands correctly.
 
 ### In Scope
-- Generate missing `bas/registry.json`
-- Fix any remaining failures identified by fresh test run
+- Generate missing `bas/registry.json` via `test-genie registry build`
+- Fix any remaining failures identified by fresh baseline test run
 - Standards: resolve critical violations if any persist
 - Docs: fix validation errors if any persist
 - Unit: fix UI test failures if any persist
-- Integration: fix CLI unknown-command exit code if still failing
+- Integration: fix CLI unknown-command exit code if still failing (within prompt-manager only)
 
 ### Out of Scope
 - Addressing the 154 warning-level standards violations (not blocking)
+- Modifying `packages/cli-core/` (investigation confirmed it works correctly)
 - New feature work
-- Refactoring or code cleanup beyond what's needed to fix tests
+- Refactoring or code cleanup beyond what is needed to fix tests
 
 ## Current Technical Context
 
@@ -71,15 +72,14 @@ scenarios/prompt-manager/
 
 ### Key Files
 - `cli/app.go` — CLI entry point, uses `packages/cli-core/cliapp/cliapp.ScenarioApp`
-- `packages/cli-core/cliapp/app.go:115` — Unknown command handling: `fmt.Errorf("Unknown command: %s", remaining[0])`
+- `packages/cli-core/cliapp/app.go:115` — Unknown command handling (confirmed working)
 - `requirements/index.json` — Module registry with P0-P3 priorities
 - `docs/manifest.json` — Docs navigation index, references 20 files
 - `bas/cases/` — Playbook test cases (e.g., `01-foundation/01-smoke/world-ui-loads.json`)
 
 ### Registry Generation Pattern
 Other scenarios use `test-genie registry build` to generate `bas/registry.json`. The file contains:
-- Scenario name
-- Generated timestamp
+- Scenario name and generated timestamp
 - Array of playbook entries with file path, description, order, requirements, fixtures, reset mode
 - Metadata including execution_mode
 
@@ -103,10 +103,10 @@ All 11 GCT test phases pass:
 3. If all 5 now pass, this item is done (mark as complete)
 4. If some still fail, proceed to fix only the remaining failures
 
-### Phase 1: Playbooks Registry (Confirmed Fix)
+### Phase 1: Playbooks Registry (Confirmed Fix Needed)
 **Goal**: Generate the missing `bas/registry.json`.
 
-1. Run `test-genie registry build` for prompt-manager (exact command TBD based on test-genie CLI usage)
+1. Run `test-genie registry build` for prompt-manager
 2. Verify `bas/registry.json` was created with expected schema
 3. Re-run playbooks phase to confirm it passes
 
@@ -132,8 +132,11 @@ For each remaining failure, apply scientific debugging:
 | Decision | Resolution | Source |
 |----------|-----------|--------|
 | CLI binary: build before tests | Add pre-test build step (Makefile) | Round 1 d1 → A |
-| CLI unknown-command scope | Fix in cli-core if needed, expand acceptance_allow | Round 1 d2 → A (may not be needed — cli-core already works) |
+| CLI unknown-command scope | Prompt-manager only; cli-core already works correctly | Round 1 d2 → A, **reverted** by Round 2 d3 → A |
 | Requirements: fix approach | Run auditor, fix whatever modules are flagged | Round 1 d3 → A |
+| Execution strategy | Baseline test first, then fix only remaining failures | Round 2 d1 → A |
+| Registry generation method | Use `test-genie registry build` (canonical method) | Round 2 d2 → A |
+| Scope expansion for cli-core | Not needed — keep prompt-manager-only scope | Round 2 d3 → A |
 
 ## Testing Plan
 
@@ -151,7 +154,7 @@ For each remaining failure, apply scientific debugging:
 ## Rollout/Validation Checklist
 
 - [ ] Phase 0: Run baseline test, record current failures
-- [ ] Phase 1: Generate `bas/registry.json`
+- [ ] Phase 1: Generate `bas/registry.json` via `test-genie registry build`
 - [ ] Phase 2: Fix any remaining failures (if any)
 - [ ] Phase 3: Full test suite passes 11/11
 - [ ] `vrooli scenario restart prompt-manager`
@@ -161,18 +164,19 @@ For each remaining failure, apply scientific debugging:
 | Risk | Impact | Mitigation |
 |------|--------|------------|
 | Most failures already fixed, wasted investigation time | Low — quick confirmation | Phase 0 baseline check before doing any work |
-| `test-genie registry build` command doesn't exist or works differently | Can't generate registry | Check `test-genie --help` and other scenario Makefiles for registry generation patterns |
+| `test-genie registry build` command syntax differs from expected | Cannot generate registry | Check `test-genie --help` and other scenario Makefiles for registry generation patterns |
 | UI test failures are complex/numerous | Scope creep | Focus on root causes, not individual test fixes; batch similar failures |
 | Stale test results — GCT report from different env | Misleading plan | Always use fresh test run (Phase 0) as ground truth |
 
 ## Non-goals / Prohibited Patterns
 
 - Do NOT fix warning-level standards violations (only critical/high)
-- Do NOT refactor or clean up code beyond what's needed to fix tests
+- Do NOT modify `packages/cli-core/` — it already works correctly
+- Do NOT refactor or clean up code beyond what is needed to fix tests
 - Do NOT add new tests — only fix existing failing ones
-- Do NOT commit the CLI binary to git (it's a build artifact)
+- Do NOT commit the CLI binary to git (it is a build artifact)
 - Do NOT modify `archive/` files
-- Do NOT manually craft `bas/registry.json` — use the generation tool
+- Do NOT manually craft `bas/registry.json` — use `test-genie registry build`
 
 ## Definition of Done
 

@@ -5,6 +5,7 @@
     "packages/proto/buf.yaml",
     "packages/proto/buf.gen.yaml"
   ],
+  "archived_at": "2026-04-09T03:24:12Z",
   "created": "2026-04-05T02:53:00Z",
   "depends_on": [
     "research/vrooli-events-architecture"
@@ -18,5 +19,5 @@
   "status": "completed",
   "tags": [],
   "title": "Draft vrooli-events Proto Schemas (Envelope, Policy Rules, SSE Messages)",
-  "updated": "2026-04-05T14:40:02Z"
+  "updated": "2026-04-09T03:24:12Z"
 }

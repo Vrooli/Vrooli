@@ -8,7 +8,6 @@
   "depends_on": [
     "chore/qa-prompt-manager-tidiness-20260407",
     "execute/team-schema-v2-migration",
-    "fix/qa-prompt-manager-standards-requirements-20260407",
     "fix/qa-prompt-manager-standards-structure-20260407",
     "fix/qa-prompt-manager-tests-20260407"
   ],
@@ -20,5 +19,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Add Teams Overview Endpoint And CLI Command",
-  "updated": "2026-04-07T22:12:46Z"
+  "updated": "2026-04-09T13:11:28Z"
 }

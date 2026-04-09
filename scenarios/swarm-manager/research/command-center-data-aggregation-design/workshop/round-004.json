@@ -1,0 +1,36 @@
+{
+  "round": 4,
+  "generated_at": "2026-04-09T16:45:00Z",
+  "mode": "finalize",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 2,
+    "risk_awareness": 2
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Incorporated round 3 answered decisions into the conclusion: (1) per-source context.WithTimeout (5s each) via errgroup for concurrent fan-out, (2) per-source staleness object in every API response for granular freshness reporting, (3) flat package main with service-per-file matching the LPBS pattern. All three moved from Open Decisions to Settled Decisions table."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Updated the Summary section to reflect the complete architectural picture now that all decisions are settled — includes fan-out strategy, staleness metadata format, and package structure."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "All 9 research decisions are now settled. No open decisions remain. The conclusion is ready for downstream execution items to reference. Remaining gaps are operational (TTL tuning, circuit breaker thresholds, error format normalization) — these are implementation details that belong in execute item plans, not research."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "Actions section defines 4 concrete LPBS backlog items needed before the command-center aggregator can be fully implemented: revenue-summary endpoint, subscription-stats endpoint, user-growth endpoint, and auth middleware widening."
+    }
+  ],
+  "plan_updates": "Finalized conclusion: moved 3 round-3 decisions (fan-out timeout, staleness metadata, package structure) from Open to Settled. Updated summary to reflect complete architecture. Removed Open Decisions section — all decisions resolved. No new questions or decisions introduced."
+}

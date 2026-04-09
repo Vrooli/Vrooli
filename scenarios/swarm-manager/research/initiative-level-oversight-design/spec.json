@@ -7,7 +7,6 @@
   "depends_on": [
     "chore/qa-prompt-manager-tidiness-20260407",
     "execute/workshop-finalization-validation-gates",
-    "fix/qa-prompt-manager-standards-requirements-20260407",
     "fix/qa-prompt-manager-standards-structure-20260407",
     "fix/qa-prompt-manager-tests-20260407",
     "idea/meta-orchestration-native-sessions",
@@ -24,5 +23,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Research What Initiative Level Oversight Agents Should Look Like",
-  "updated": "2026-04-08T04:14:19Z"
+  "updated": "2026-04-09T13:11:28Z"
 }

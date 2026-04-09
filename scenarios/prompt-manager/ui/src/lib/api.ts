@@ -162,7 +162,7 @@ import {
 import type { SearchFilters, Folder } from '@/types'
 
 // Use @vrooli/api-base for automatic API resolution across all deployment contexts
-const API_BASE = resolveApiBase({ appendSuffix: true })
+export const API_BASE = resolveApiBase({ appendSuffix: true })
 console.log('[prompt-manager api] API_BASE resolved to:', API_BASE)
 
 /**

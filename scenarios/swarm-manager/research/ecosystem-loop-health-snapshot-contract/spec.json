@@ -6,8 +6,6 @@
   ],
   "created": "2026-03-26T20:54:35Z",
   "depends_on": [
-    "fix/qa-git-control-tower-tests-20260408",
-    "fix/qa-git-control-tower-standards-20260408",
     "execute/qa-git-control-tower-code-quality-20260408",
     "fix/qa-swarm-manager-tests-20260408",
     "fix/qa-swarm-manager-standards-20260408",
@@ -22,5 +20,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Define Per-Loop Health Snapshot Contract Using Git Control Tower Reviews",
-  "updated": "2026-04-08T04:14:19Z"
+  "updated": "2026-04-09T13:06:28Z"
 }

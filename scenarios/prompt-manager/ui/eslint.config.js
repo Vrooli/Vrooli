@@ -2,6 +2,7 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
+import importPlugin from "eslint-plugin-import";
 import globals from "globals";
 
 /**
@@ -33,8 +34,17 @@ export default tseslint.config(
       "react-refresh": reactRefresh,
     },
     rules: {
-      // STABILITY CRITICAL - DO NOT REMOVE
-      // These rules prevent guaranteed crash bugs and hidden null issues
+      // ════════════════════════════════════════════════════════════════════════
+      // SAFETY-CRITICAL RULES - DO NOT REMOVE, DISABLE, OR WEAKEN
+      //
+      // These rules prevent runtime crashes. If you encounter errors:
+      // ✅ DO: Fix the code with optional chaining (?.), null checks, or proper types
+      // ❌ DON'T: Disable the rule, use "as" casts, or use non-null assertion (!)
+      //
+      // Removing these rules WILL cause production crashes that are much harder
+      // to debug than the lint errors they produce at development time.
+      // ════════════════════════════════════════════════════════════════════════
+
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
 

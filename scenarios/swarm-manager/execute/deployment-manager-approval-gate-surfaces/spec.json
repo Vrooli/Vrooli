@@ -5,6 +5,7 @@
     "scenarios/deployment-manager/cli/**",
     "scenarios/deployment-manager/docs/**"
   ],
+  "archived_at": "2026-04-09T03:22:19Z",
   "created": "2026-03-26T16:35:48Z",
   "depends_on": [
     "research/desktop-release-control-plane-audit"
@@ -25,5 +26,5 @@
     "desktop-release"
   ],
   "title": "Expose Approval Gate Controls In Deployment Manager",
-  "updated": "2026-04-04T16:55:49Z"
+  "updated": "2026-04-09T03:22:19Z"
 }

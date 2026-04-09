@@ -1,0 +1,36 @@
+{
+  "round": 3,
+  "generated_at": "2026-04-08T17:45:00Z",
+  "mode": "finalize",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 2,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 2
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "All 6 workshop decisions from rounds 1 and 2 have been incorporated into plan.md. Key synthesis: (1) round 2 d3 reverted round 1 d2's cli-core scope expansion — plan now firmly scopes to scenarios/prompt-manager/** only, with cli-core explicitly listed in Non-goals. (2) Baseline-first execution strategy (round 2 d1) is the plan's Phase 0. (3) Registry generation via test-genie registry build (round 2 d2) is the plan's Phase 1."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "scope_defined scores 2 (not 3) because acceptance_deny is not set. This is acceptable for a fix item where the change boundary is narrow and well-understood (only prompt-manager files). No action needed."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "risk_awareness scores 2 (not 3) because the exact test-genie registry build command syntax has not been verified. Phase 1 includes a mitigation (check test-genie --help and other Makefiles), but this remains a minor unknown until execution begins."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "The plan is execution-ready. Phase 0 (baseline test) will determine actual remaining work — investigation suggests only bas/registry.json generation is needed, but the baseline-first approach ensures no wasted effort."
+    }
+  ],
+  "plan_updates": "Finalized plan.md: removed conditional language about cli-core scope expansion (now firmly prompt-manager-only), updated Contract Decisions table with round 2 resolutions including the d2 reversal, added cli-core to Non-goals/Prohibited Patterns, tightened Scope section to state the reversal explicitly."
+}

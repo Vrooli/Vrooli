@@ -8,13 +8,10 @@
   "depends_on": [
     "chore/qa-prompt-manager-tidiness-20260407",
     "chore/qa-scenario-to-desktop-standards-setup-20260407",
-    "chore/qa-scenario-to-desktop-standards-tests-20260407",
-    "chore/qa-scenario-to-desktop-standards-ui-20260407",
     "execute/deployment-manager-approval-gate-surfaces",
     "execute/qa-deployment-manager-code-quality-20260407",
     "execute/qa-scenario-to-desktop-code-quality-20260407",
     "fix/qa-deployment-manager-tests-20260407",
-    "fix/qa-prompt-manager-standards-requirements-20260407",
     "fix/qa-prompt-manager-standards-structure-20260407",
     "fix/qa-prompt-manager-tests-20260407",
     "research/desktop-release-control-plane-audit"
@@ -33,5 +30,5 @@
     "desktop-release"
   ],
   "title": "Integrate Scenario To Desktop With Canonical Approval Gates",
-  "updated": "2026-04-07T22:13:29Z"
+  "updated": "2026-04-09T13:14:04Z"
 }

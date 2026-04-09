@@ -1,60 +1,137 @@
 # Plan: Fix deployment-manager test failures
 
+> **Greenfield declaration:** This is a targeted fix — no backward-compatibility shims or migration bridges needed.
+
+## Purpose
+
+Restore deployment-manager GCT tests to a fully passing state by fixing 4 broken doc links and generating the missing playbooks registry. These failures block the scenario from reaching green readiness.
+
 ## Required Reading
-- `prompt-manager skill read scientific-debugging` — hypothesis-driven root cause analysis
-- `prompt-manager skill read documentation-health` — docs validation patterns
+
+```bash
+prompt-manager skill read scientific-debugging
+prompt-manager skill read documentation-health
+prompt-manager skill read cli-steer api-steer utils-unification seam-discovery-and-enforcement
+```
 
 ## Problem Statement
 
-GCT tests for deployment-manager are failing in 2 of 10 phases (down from 3 — UI build now passes):
+GCT tests for deployment-manager fail in 2 of 10 phases (8/11 passed):
 
-1. **phase-docs**: 4 broken local links in markdown files referencing `scenario-to-desktop/docs/` paths that were reorganized
-2. **phase-playbooks**: Missing `bas/registry.json` — the `bas/cases/` directory is empty, so registry generation may produce an empty registry or the phase may need to be skipped
+1. **phase-docs**: 4 broken local links in markdown files referencing `scenario-to-desktop/docs/` paths that were reorganized into subdirectories.
+2. **phase-playbooks**: Missing `bas/registry.json` — the `bas/cases/` directory is empty and no registry has been generated.
 
-The UI build failure was transient and now passes.
+A third failure (phase-performance / UI build) was transient and now passes.
 
-## Root Cause Analysis
+## Scope
 
-### Docs Failures
-The `scenario-to-desktop` scenario reorganized its docs from flat files (`docs/SIGNING.md`, `docs/CROSS_PLATFORM_BUILDS.md`) into subdirectories (`docs/guides/code-signing.md`, `docs/guides/cross-platform-builds.md`, `docs/guides/logging-bundled-desktop.md`). The deployment-manager docs still reference the old paths.
+**In scope:**
+- Fix 4 broken markdown links in deployment-manager docs
+- Update link display text to match new file names (per workshop decision d2)
+- Generate `bas/registry.json` via `test-genie registry build` (per workshop decision d1)
+- Verify all 10 GCT phases pass
 
-**Broken links (4 total):**
-| File | Line | Old Target | New Target |
-|------|------|-----------|------------|
-| `docs/guides/code-signing.md` | 24 | `../../../scenario-to-desktop/docs/SIGNING.md` | `../../../scenario-to-desktop/docs/guides/code-signing.md` |
-| `docs/guides/code-signing.md` | 101 | `../../../scenario-to-desktop/docs/SIGNING.md` | `../../../scenario-to-desktop/docs/guides/code-signing.md` |
-| `docs/tutorials/hello-desktop-walkthrough.md` | 423 | `../../../scenario-to-desktop/docs/CROSS_PLATFORM_BUILDS.md` | `../../../scenario-to-desktop/docs/guides/cross-platform-builds.md` |
-| `docs/workflows/desktop-deployment.md` | 58 | `../../../scenario-to-desktop/docs/workflows/logging-bundled-desktop.md` | `../../../scenario-to-desktop/docs/guides/logging-bundled-desktop.md` |
+**Out of scope:**
+- Adding new E2E test cases to `bas/cases/` (separate backlog item)
+- Fixing code quality violations (151 violations tracked separately)
+- Fixing standards warnings (eslint config comments, TypeScript patterns)
+- UI build issues (transient, already resolved)
 
-### Playbooks Failure
-The `bas/` directory exists with `actions/`, `flows/`, `seeds/`, and `README.md` but `cases/` is empty and `registry.json` doesn't exist. The playbooks phase requires `registry.json` to run. The fix is to generate it via `test-genie registry build`, which will scan `bas/cases/` and produce a (possibly empty) registry. An empty registry should cause the phase to pass with no tests executed.
+## Current Technical Context
 
-## Implementation Steps
+### Key Files
+
+| File | Role |
+|------|------|
+| `scenarios/deployment-manager/docs/guides/code-signing.md` | Contains 2 broken links (lines 24, 101) to old `scenario-to-desktop/docs/SIGNING.md` |
+| `scenarios/deployment-manager/docs/tutorials/hello-desktop-walkthrough.md` | Contains 1 broken link (line 423) to old `scenario-to-desktop/docs/CROSS_PLATFORM_BUILDS.md` |
+| `scenarios/deployment-manager/docs/workflows/desktop-deployment.md` | Contains 1 broken link (line 58) to old `scenario-to-desktop/docs/workflows/logging-bundled-desktop.md` |
+| `scenarios/deployment-manager/bas/registry.json` | Missing — must be generated |
+| `scenarios/deployment-manager/bas/cases/` | Empty directory — registry will be empty but valid |
+
+### Root Cause
+
+The `scenario-to-desktop` scenario reorganized its docs from flat files into `docs/guides/` subdirectories. The deployment-manager docs still reference the old paths.
+
+**Link mapping:**
+
+| Old Path | New Path |
+|----------|----------|
+| `scenario-to-desktop/docs/SIGNING.md` | `scenario-to-desktop/docs/guides/code-signing.md` |
+| `scenario-to-desktop/docs/CROSS_PLATFORM_BUILDS.md` | `scenario-to-desktop/docs/guides/cross-platform-builds.md` |
+| `scenario-to-desktop/docs/workflows/logging-bundled-desktop.md` | `scenario-to-desktop/docs/guides/logging-bundled-desktop.md` |
+
+## Target End State
+
+- All 10 GCT phases pass (0 failures)
+- No broken doc links in deployment-manager docs
+- `bas/registry.json` exists and is valid (empty registry is acceptable)
+- Link display text updated to match new target file names
+
+## Implementation Strategy
 
 ### Phase 1: Fix broken doc links (4 edits)
+
 1. Edit `scenarios/deployment-manager/docs/guides/code-signing.md`:
-   - Line 24: Change `../../../scenario-to-desktop/docs/SIGNING.md` → `../../../scenario-to-desktop/docs/guides/code-signing.md`
+   - Line 24: Update href from `../../../scenario-to-desktop/docs/SIGNING.md` → `../../../scenario-to-desktop/docs/guides/code-signing.md` and update display text to reference the new name
    - Line 101: Same change
 2. Edit `scenarios/deployment-manager/docs/tutorials/hello-desktop-walkthrough.md`:
-   - Line 423: Change `../../../scenario-to-desktop/docs/CROSS_PLATFORM_BUILDS.md` → `../../../scenario-to-desktop/docs/guides/cross-platform-builds.md`
+   - Line 423: Update href from `../../../scenario-to-desktop/docs/CROSS_PLATFORM_BUILDS.md` → `../../../scenario-to-desktop/docs/guides/cross-platform-builds.md` and update display text
 3. Edit `scenarios/deployment-manager/docs/workflows/desktop-deployment.md`:
-   - Line 58: Change `../../../scenario-to-desktop/docs/workflows/logging-bundled-desktop.md` → `../../../scenario-to-desktop/docs/guides/logging-bundled-desktop.md`
+   - Line 58: Update href from `../../../scenario-to-desktop/docs/workflows/logging-bundled-desktop.md` → `../../../scenario-to-desktop/docs/guides/logging-bundled-desktop.md` and update display text
 
 ### Phase 2: Generate playbooks registry
+
 4. Run `test-genie registry build -scenario scenarios/deployment-manager` to generate `bas/registry.json`
+   - Expected: empty but valid registry (since `bas/cases/` is empty)
+   - The playbooks phase should pass with 0 tests executed
 
-### Phase 3: Verify
-5. Run `vrooli scenario test deployment-manager` and confirm all phases pass
+### Phase 3: Verify and clean up
 
-## Risks & Mitigations
+5. Run `vrooli scenario test deployment-manager` and confirm all 10 phases pass
+6. Run `vrooli scenario restart deployment-manager` for final cleanup
+
+## Contract Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Empty `bas/cases/` handling | Generate empty registry (workshop d1, option A) | Simplest fix; empty registry is valid and the phase passes with 0 tests. Adding test cases is separate scope. |
+| Link text updates | Update both href and display text (workshop d2, option A) | Keeps docs consistent; readers see accurate file references matching actual target names. |
+
+## Testing Plan
+
+1. **Automated verification**: Run `vrooli scenario test deployment-manager` — all 10 phases must pass
+2. **Specific phase checks**:
+   - `phase-docs`: Validates all markdown links resolve — confirms the 4 link fixes
+   - `phase-playbooks`: Validates `bas/registry.json` exists and is well-formed — confirms registry generation
+3. **Regression**: No other phases should regress since changes are docs-only + registry generation
+
+## Rollout/Validation Checklist
+
+- [ ] Fix 4 broken doc links (Phase 1)
+- [ ] Generate `bas/registry.json` (Phase 2)
+- [ ] Run `vrooli scenario test deployment-manager` — all 10 phases pass
+- [ ] Run `vrooli scenario restart deployment-manager` — final cleanup
+
+## Risks + Mitigations
 
 | Risk | Likelihood | Mitigation |
 |------|-----------|------------|
-| Empty registry still fails playbooks phase | Low | Check if test-genie handles empty registries; if not, create a minimal valid registry |
+| Empty registry still fails playbooks phase | Low | `test-genie` is expected to handle empty registries; if not, create a minimal valid `{"cases":[]}` manually |
 | Other broken links not caught | Low | The docs phase scanner is comprehensive; fixing these 4 should suffice |
-| Link text no longer matches target content | Low | Verify target docs still cover the same topics |
+| Link display text no longer matches target content | Low | Verified that target docs at new paths cover the same topics |
 
-## Acceptance Criteria
-- All 10 GCT phases pass (0 failures)
-- No broken doc links in deployment-manager docs
-- `bas/registry.json` exists and is valid
+## Non-goals / Prohibited Patterns
+
+- Do NOT add new E2E test cases to `bas/cases/` — that is separate scope
+- Do NOT fix code quality violations (151 violations) — tracked separately
+- Do NOT add compatibility shims for old doc paths
+- Do NOT modify any files outside `scenarios/deployment-manager/**`
+
+## Definition of Done
+
+1. All 10 GCT phases pass with 0 failures
+2. The 4 broken doc links are fixed with updated hrefs and display text
+3. `bas/registry.json` exists and is valid
+4. No files modified outside `scenarios/deployment-manager/**`
+5. `vrooli scenario restart deployment-manager` runs cleanly as final step

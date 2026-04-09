@@ -8,8 +8,11 @@ import {
   resetHeartbeatServiceCachesForTests,
 } from './heartbeatService'
 
+vi.mock('@/lib/api', () => ({
+  API_BASE: 'http://example.test/api/v1',
+}))
+
 vi.mock('@vrooli/api-base', () => ({
-  resolveApiBase: () => 'http://example.test/api/v1',
   buildApiUrl: (endpoint: string, { baseUrl }: { baseUrl: string }) => `${baseUrl}${endpoint}`,
 }))
 

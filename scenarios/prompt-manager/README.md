@@ -220,7 +220,7 @@ bash deployment/validate.sh
 ## Use Cases
 
 - **Agent Swarms**: Coordinate teams of agents (Debug, Feature, QA, Refactor) that analyze codebases and produce plans
-- **Staging Plans via Swarm Manager**: Teams deposit their plans as backlog items into [swarm-manager](../swarm-manager/), where operators review and refine them with the Idea Agent before execution
+- **Staging Plans via Swarm Manager**: Teams deposit their plans as backlog items into the `swarm-manager` scenario, where operators review and refine them with the Idea Agent before execution
 - **Skill Libraries**: Build reusable AI capabilities with versioning and search
 - **Team Coordination**: Organize agents into teams with shared context and roles
 - **Developers**: Debug patterns, code review templates, architecture decisions

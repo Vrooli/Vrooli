@@ -1,0 +1,155 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-09T12:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 1,
+    "problem_clarity": 3,
+    "risk_awareness": 1,
+    "scope_defined": 2,
+    "testable": 1
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Scenario scaffold pattern is well-established. Swarm Manager and LPBS both use: api/ (Go + gorilla/mux + internal/ packages), ui/ (React+Vite+TypeScript+Tailwind+React Router v6+React Query), .vrooli/service.json (v2.0.0 lifecycle), Makefile. Command-center should follow this exactly. Port ranges: API 15000-19999, UI 35000-39999, WS 25000-29999."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Swarm Manager stats API is very rich — StatsResponse covers throughput, timing, scope, blocking, agent, dashboard, and review categories with 60s polling in the UI. Overview API returns all backlog items, initiatives with rollup, dependency graph, and governance status. These map directly to The Forge and Mission Control dashboards."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "No visualization or animation libraries are currently used in any Vrooli scenario. The swarm-manager StatsPanel uses plain StatCard components and ProgressBar — no charting libraries. This means the command-center is a clean slate for visualization choices with no existing library constraints to match."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "LPBS Postgres has substantial data: subscriptions (plan tiers, status), checkout_sessions (amounts), credit_wallets/transactions, usage_records, metrics_events (visitors, conversions, A/B variants), feedback_requests, users, and download catalog. The Ledger dashboard (~60% live) and Broadcast dashboard (~40% live) will primarily consume this data."
+    },
+    {
+      "id": "i5",
+      "type": "info",
+      "text": "Xbox Edge browser (Chromium-based since ~2022) supports WebGL 2.0, CSS animations/transforms, requestAnimationFrame, Fullscreen API, and Screen Wake Lock API. Key constraints: no mouse cursor (D-pad/gamepad navigation), 1080p default output (4K on Series X), limited dev tools, 60fps target, ~2GB memory budget. WebGPU is NOT available. Three.js/R3F works but must stay within WebGL2 limits."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "LPBS data access strategy",
+      "context": "The command-center API needs LPBS subscription/payment/analytics data. Two approaches: (A) Query LPBS Postgres directly (requires DB connection string, couples to schema, but gives full SQL flexibility and avoids building new LPBS API endpoints), or (B) Add REST API endpoints to LPBS that return pre-aggregated data (clean separation, but requires LPBS code changes and adds another moving part). The command-center is read-only either way.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Direct Postgres read replica / read-only connection",
+          "rationale": "Fastest to implement, full query flexibility, no LPBS code changes needed. Risk: schema coupling means LPBS migrations could break command-center queries.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "New REST endpoints on LPBS API",
+          "rationale": "Clean API boundary, LPBS owns its data contract. But requires LPBS changes for every new metric command-center needs, adding coordination overhead."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "B",
+      "notes": "See swarm-manager backlog item Design the read-only data aggregation API architecture for more info"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Visualization library stack",
+      "context": "Each dashboard needs distinct visual richness: particle backgrounds, force-directed graphs, themed charts, animated gauges. No visualization libraries are currently used in Vrooli. Need to balance visual ambition with Xbox WebGL2 constraints and bundle size. Key options evaluated: (A) Lightweight combo: Recharts for data charts + CSS/Canvas for backgrounds — smallest bundle, easiest to theme, but limited for the most ambitious effects like force graphs and particle systems. (B) Mid-tier: D3 for data viz + Canvas 2D API for particle effects — maximum chart flexibility, good perf, but D3 has a steep learning curve and verbose API. (C) Full 3D: React Three Fiber (R3F) for backgrounds/effects + Recharts for data charts — stunning particle/3D effects possible, but heavier bundle, WebGL context management complexity, risk of perf issues on Xbox. (D) Framer Motion + Recharts — excellent for page transitions and micro-animations, good chart theming, but can't do true particle systems or 3D effects without additional canvas work.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Recharts + CSS/Canvas2D for effects",
+          "rationale": "Smallest bundle (~150KB), easiest theming via CSS variables, Canvas2D for particle backgrounds is Xbox-safe. Limits: no true 3D, force graphs need custom implementation."
+        },
+        {
+          "key": "B",
+          "label": "D3.js + Canvas2D for effects",
+          "rationale": "Maximum chart flexibility, battle-tested at scale, can do force-directed layouts natively. Verbose API but most powerful 2D option."
+        },
+        {
+          "key": "C",
+          "label": "React Three Fiber for effects + Recharts for charts",
+          "rationale": "Most visually stunning option — real 3D particle systems, shader effects, volumetric lighting. But heaviest bundle (~500KB+), WebGL context per scene, Xbox memory pressure risk.",
+          "recommended": true
+        },
+        {
+          "key": "D",
+          "label": "Framer Motion + Recharts + Canvas2D particles",
+          "rationale": "Great page transitions and micro-animations, good React integration, moderate bundle. Particle systems via Canvas2D. Good middle ground."
+        },
+        {
+          "key": "E",
+          "label": "Other",
+          "rationale": "Provide your own approach or combination"
+        }
+      ],
+      "selected": "C",
+      "notes": "We use r3f in prompt-manager if you need to see an example"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Gap metadata location",
+      "context": "Every metric widget needs a dataSource status (live/gap/partial). The /api/v1/gaps endpoint must enumerate all unimplemented metrics. Question: where does this metadata live? Option A: API-side config (Go struct/JSON config defining all expected metrics per dashboard, API checks which ones actually return data and reports status). Option B: UI-side config (widget definitions include expected dataSource, API returns what it has, UI marks missing ones as gaps). Option C: Hybrid (API defines the metric registry and status, UI renders based on what API reports).",
+      "options": [
+        {
+          "key": "A",
+          "label": "API-side metric registry with status",
+          "rationale": "Single source of truth, /api/v1/gaps is trivial to implement, API can detect live vs stale data. Requires API changes to add new metrics.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "UI-side widget config with expected sources",
+          "rationale": "Faster UI iteration, no API deploy needed to add gap metadata. But /api/v1/gaps would need to duplicate this knowledge."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "notes": "Use file storage instead of hard-coding. See scenarios/prompt-manager/store/skills/packs/core/storage-steer/SKILL.md"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Caching strategy granularity",
+      "context": "The API aggregates from 3 upstream sources with different update frequencies. Swarm Manager stats change with every backlog operation (~minutes). Vrooli scenario health changes on start/stop events (~minutes to hours). LPBS analytics data changes with user activity (~hourly for meaningful deltas). A single TTL doesn't fit all sources.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Per-source TTLs: Swarm 30s, Vrooli 60s, LPBS 5min",
+          "rationale": "Matches actual update frequency of each source. Most responsive where it matters. Slightly more complex cache implementation.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Uniform 60s TTL for all sources",
+          "rationale": "Simplest implementation. Good enough for a TV display where 60s staleness is acceptable for all data."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "notes": "See that other backlog item I referenced in another question"
+    }
+  ],
+  "plan_updates": "Created initial conclusion.md scaffold with research question, methodology, initial findings covering scenario structure, data source inventory, visualization library evaluation, Xbox constraints, and gap tracking approaches."
+}

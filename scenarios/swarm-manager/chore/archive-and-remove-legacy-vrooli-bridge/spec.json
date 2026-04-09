@@ -7,7 +7,6 @@
   "created": "2026-03-26T16:36:02Z",
   "depends_on": [
     "chore/qa-prompt-manager-tidiness-20260407",
-    "fix/qa-prompt-manager-standards-requirements-20260407",
     "fix/qa-prompt-manager-standards-structure-20260407",
     "fix/qa-prompt-manager-tests-20260407",
     "research/legacy-vrooli-bridge-signal-extraction",
@@ -29,5 +28,5 @@
     "replacement"
   ],
   "title": "Archive And Remove The Legacy Bridge Scenario",
-  "updated": "2026-04-08T14:36:24Z"
+  "updated": "2026-04-09T13:11:28Z"
 }

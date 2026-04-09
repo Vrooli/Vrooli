@@ -7,7 +7,6 @@
   "created": "2026-03-28T19:32:20Z",
   "depends_on": [
     "chore/qa-prompt-manager-tidiness-20260407",
-    "fix/qa-prompt-manager-standards-requirements-20260407",
     "fix/qa-prompt-manager-standards-structure-20260407",
     "fix/qa-prompt-manager-tests-20260407",
     "fix/qa-swarm-manager-tests-20260408",
@@ -30,5 +29,5 @@
     "holistic-decisions"
   ],
   "title": "Design an Initiative-Level Strategic Agent for Holistic Workshop Decision-Making",
-  "updated": "2026-04-08T04:14:19Z"
+  "updated": "2026-04-09T13:11:28Z"
 }

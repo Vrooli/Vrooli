@@ -8,7 +8,6 @@
     "chore/qa-prompt-manager-tidiness-20260407",
     "execute/project-wiki-core-runtime",
     "execute/team-schema-v2-migration",
-    "fix/qa-prompt-manager-standards-requirements-20260407",
     "fix/qa-prompt-manager-standards-structure-20260407",
     "fix/qa-prompt-manager-tests-20260407"
   ],
@@ -20,5 +19,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Create Wiki Maintenance Team In Prompt Manager",
-  "updated": "2026-04-07T22:12:45Z"
+  "updated": "2026-04-09T13:11:28Z"
 }

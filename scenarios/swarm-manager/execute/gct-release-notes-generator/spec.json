@@ -7,8 +7,6 @@
   "depends_on": [
     "execute/gct-github-release-api",
     "execute/gct-pr-description-generator",
-    "fix/qa-git-control-tower-tests-20260408",
-    "fix/qa-git-control-tower-standards-20260408",
     "execute/qa-git-control-tower-code-quality-20260408"
   ],
   "description": "Build agent-powered release notes generation. Collect all PRs merged since last release tag. Aggregate PR descriptions (which already contain initiative summaries from PR description generator). Categorize into sections (features, fixes, improvements, etc.). Apply user's preferred release format template. Support release image attachment. The agent only needs to look at PRs (not raw commits) since each PR already has structured summaries. Graceful degradation at every level.",
@@ -20,5 +18,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Agent-powered release notes from PR aggregation with template formatting",
-  "updated": "2026-04-08T04:14:19Z"
+  "updated": "2026-04-09T13:06:28Z"
 }

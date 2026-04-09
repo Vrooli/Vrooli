@@ -6,8 +6,6 @@
   "created": "2026-04-04T00:00:00Z",
   "depends_on": [
     "chore/qa-scenario-to-desktop-standards-setup-20260407",
-    "chore/qa-scenario-to-desktop-standards-tests-20260407",
-    "chore/qa-scenario-to-desktop-standards-ui-20260407",
     "execute/dm-releases-and-release-platforms-tables",
     "execute/lpbs-release-id-correlation-column",
     "execute/qa-deployment-manager-code-quality-20260407",
@@ -29,5 +27,5 @@
     "desktop-release"
   ],
   "title": "Add Release ID And Channel To S2D Pipeline Data Flow",
-  "updated": "2026-04-07T22:13:30Z"
+  "updated": "2026-04-09T13:14:04Z"
 }

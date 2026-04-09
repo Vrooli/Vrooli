@@ -6,7 +6,6 @@
   "created": "2026-04-04T22:36:30Z",
   "depends_on": [
     "chore/qa-prompt-manager-tidiness-20260407",
-    "fix/qa-prompt-manager-standards-requirements-20260407",
     "fix/qa-prompt-manager-standards-structure-20260407",
     "fix/qa-prompt-manager-tests-20260407"
   ],
@@ -19,5 +18,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Extract Reusable Domain Signal From Legacy Notification Hub",
-  "updated": "2026-04-07T22:12:45Z"
+  "updated": "2026-04-09T13:11:28Z"
 }

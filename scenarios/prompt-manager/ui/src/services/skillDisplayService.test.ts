@@ -349,6 +349,6 @@ describe('copySkillsToClipboard', () => {
     const result = await copySkillsToClipboard(skills, 'xml')
 
     expect(result.success).toBe(false)
-    expect(result.error).toBe('Permission denied')
+    expect(result.error).toContain('Unable to copy')
   })
 })

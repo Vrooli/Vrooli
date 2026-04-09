@@ -2,6 +2,12 @@ module prompt-manager/cli
 
 go 1.22
 
-require github.com/vrooli/cli-core v0.0.0
+require (
+	github.com/vrooli/cli-core v0.0.0
+	prompt-manager v0.0.0
+)
 
-replace github.com/vrooli/cli-core => ../../../packages/cli-core
+replace (
+	github.com/vrooli/cli-core => ../../../packages/cli-core
+	prompt-manager => ../api
+)

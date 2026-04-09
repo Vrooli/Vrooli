@@ -5,6 +5,7 @@
     "scenarios/deployment-manager/cli/**",
     "scenarios/deployment-manager/docs/**"
   ],
+  "archived_at": "2026-04-09T03:23:05Z",
   "created": "2026-03-26T16:35:48Z",
   "depends_on": [
     "research/desktop-release-control-plane-audit"
@@ -24,5 +25,5 @@
     "desktop-release"
   ],
   "title": "Turn Visual Validation Into A Real Approval Flow",
-  "updated": "2026-04-04T03:44:04Z"
+  "updated": "2026-04-09T03:23:05Z"
 }

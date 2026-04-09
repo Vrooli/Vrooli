@@ -7,8 +7,6 @@
   "created": "2026-03-26T18:33:10Z",
   "depends_on": [
     "chore/qa-scenario-to-desktop-standards-setup-20260407",
-    "chore/qa-scenario-to-desktop-standards-tests-20260407",
-    "chore/qa-scenario-to-desktop-standards-ui-20260407",
     "execute/qa-scenario-to-desktop-code-quality-20260407",
     "research/desktop-runtime-discovery-precedence-contract"
   ],
@@ -21,5 +19,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Implement Cross Platform Bundled Discovery Parity",
-  "updated": "2026-04-07T22:13:14Z"
+  "updated": "2026-04-09T13:14:04Z"
 }

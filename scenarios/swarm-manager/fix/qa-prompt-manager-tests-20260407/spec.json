@@ -10,12 +10,12 @@
   "kind": "fix",
   "name": "qa-prompt-manager-tests-20260407",
   "priority": 4,
-  "status": "backlog",
+  "status": "queued",
   "tags": [
     "preemptive-qa",
     "prompt-manager",
     "tests"
   ],
   "title": "Fix prompt-manager test failures",
-  "updated": "2026-04-07T22:09:39Z"
+  "updated": "2026-04-09T13:13:13Z"
 }

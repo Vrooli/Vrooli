@@ -399,7 +399,7 @@ return storage.WriteFileAtomic(path, payload, storage.DefaultFilePerm)
 
 #### 4.3 Anti-Patterns
 
-- Hardcoded absolute paths (`/home/...`, `/tmp/...`, `C:\\...`)
+- Hardcoded absolute paths (`$HOME/...`, `os.TempDir()/...`, `C:\\...`)
 - Scenario-local mutable writes (`./data`, `./state`) under app/deploy targets
 - Hand-rolled `DATA_DIR` resolution or custom traversal checks when `api-core/storage` is available
 

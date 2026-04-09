@@ -5,8 +5,7 @@
   "created": "2026-04-08T03:51:30Z",
   "depends_on": [
     "execute/command-center-theming-engine",
-    "execute/command-center-api-aggregator",
-    "chore/qa-command-center-review-failure-20260408"
+    "execute/command-center-api-aggregator"
   ],
   "description": "Build \"The Hive\" dashboard — the scenario ecosystem visualization.\n\n**Theme: Bioluminescent**\nDeep ocean dark with glowing greens, teals, cyans. Scenarios rendered as organic nodes that pulse gently when active (running). Neural pathway connection lines between dependent scenarios. Completed/production-ready scenarios glow brighter. Living system aesthetic conveying Vrooli's organic, self-improving nature.\n\n**Metrics — Available Now (dataSource: live):**\n- All scenario names, display names, descriptions, tags, categories, types (Vrooli /scenarios + service.json)\n- Running/stopped status with runtime duration per scenario\n- Completeness scores with classification tier (early_stage through production_ready)\n- Tags for semantic grouping/clustering\n- Dependency graph between scenarios (from service.json dependencies.scenarios)\n- Resource dependencies — which scenarios use postgres, ollama, redis, etc.\n- Port allocations per running scenario\n- System warnings (zombie/orphan process counts)\n\n**Metrics — Ideal/Future (dataSource: gap):**\n- Usage frequency (which scenarios get the most API requests)\n- Revenue attribution per scenario\n- Scenario maturity timeline (when each reached different completeness tiers)\n- Active work overlay (which scenarios have in-progress swarm-manager backlog items)\n\n**Visualization concepts:**\n- Primary: Force-directed graph or hexagonal treemap — each node is a scenario, sized by importance (critical/important/standard/experimental), colored by completeness gradient\n- Semantic clusters by tag (AI tools, business tools, dev tools, infrastructure)\n- Glowing edges between dependent scenarios\n- Resource nodes as shared hubs multiple scenarios connect to\n- Nodes pulse/breathe when running, dim when stopped\n- Hover/focus shows scenario details tooltip (when controls visible)",
   "effort": "L",
@@ -17,5 +16,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Build The Hive dashboard — scenario ecosystem with Bioluminescent theme",
-  "updated": "2026-04-08T04:14:20Z"
+  "updated": "2026-04-09T03:36:07Z"
 }

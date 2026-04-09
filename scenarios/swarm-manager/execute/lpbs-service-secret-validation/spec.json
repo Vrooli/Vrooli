@@ -6,8 +6,6 @@
   "created": "2026-03-30T18:01:13Z",
   "depends_on": [
     "chore/qa-scenario-to-desktop-standards-setup-20260407",
-    "chore/qa-scenario-to-desktop-standards-tests-20260407",
-    "chore/qa-scenario-to-desktop-standards-ui-20260407",
     "execute/qa-scenario-to-desktop-code-quality-20260407"
   ],
   "description": "The `LPBS_SERVICE_SECRET` must match between scenario-to-desktop and LPBS for service auth to work, but there is no validation endpoint to check this before a deploy attempt. Add a lightweight `GET /api/v1/service/verify` endpoint to LPBS that returns 200 if the provided service secret is valid, and integrate this into scenario-to-desktop's deploy target health check. This surfaces mismatches early instead of failing mid-deploy.\n\nSource: research/desktop-release-control-plane-audit conclusion — Finding 9 implicit contract #1.",
@@ -24,5 +22,5 @@
     "health-check"
   ],
   "title": "Add service secret validation check between scenario-to-desktop and LPBS",
-  "updated": "2026-04-07T22:13:13Z"
+  "updated": "2026-04-09T13:14:04Z"
 }

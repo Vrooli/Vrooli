@@ -1,11 +1,8 @@
 {
   "sections_present": [
+    "Purpose",
     "Required Reading",
     "Problem Statement",
-    "Risks + Mitigations"
-  ],
-  "sections_missing": [
-    "Purpose",
     "Scope",
     "Current Technical Context",
     "Target End State",
@@ -13,13 +10,12 @@
     "Contract Decisions",
     "Testing Plan",
     "Rollout/Validation Checklist",
+    "Risks + Mitigations",
     "Non-goals/Prohibited Patterns",
     "Definition of Done"
   ],
-  "warnings": [
-    "No greenfield declaration found",
-    "No `vrooli scenario restart` final cleanup step found"
-  ],
-  "passed": false,
-  "validated_at": "2026-04-08T03:17:25Z"
+  "sections_missing": null,
+  "warnings": null,
+  "passed": true,
+  "validated_at": "2026-04-09T13:10:54Z"
 }

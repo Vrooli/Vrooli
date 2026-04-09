@@ -12,10 +12,9 @@
  * - DELETE /teams/{id}/org/edges/{reportId} - Remove a single edge
  */
 
-import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
+import { buildApiUrl } from '@vrooli/api-base'
+import { API_BASE } from '@/lib/api'
 import type { OrgEdge, OrgChartApiResponse, SetOrgChartRequest, UpdateEdgeRequest } from '@/types/orgChart'
-
-const API_BASE = resolveApiBase({ appendSuffix: true })
 
 // ============================================================================
 // API Client

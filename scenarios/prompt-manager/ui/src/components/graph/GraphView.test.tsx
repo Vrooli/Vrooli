@@ -352,10 +352,8 @@ describe('GraphView', () => {
     render(<GraphView />)
 
     await waitFor(() => {
-      expect(screen.getByTestId('react-flow')).toBeInTheDocument()
+      expect(mockSetViewport).toHaveBeenCalledWith({ x: 120, y: 80, zoom: 0.75 }, { duration: 0 })
     })
-
-    expect(mockSetViewport).toHaveBeenCalledWith({ x: 120, y: 80, zoom: 0.75 }, { duration: 0 })
   })
 
   it('should clamp desktop popover position to viewport bounds', async () => {

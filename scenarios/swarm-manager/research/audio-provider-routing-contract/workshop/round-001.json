@@ -46,25 +46,22 @@
         {
           "key": "B",
           "label": "Generic provider with Go type parameters",
-          "rationale": "One Provider[Req, Resp] generic interface, with concrete types per capability. Less boilerplate but more abstract; Go generics can be awkward for interface-heavy patterns.",
-          "recommended": false
+          "rationale": "One Provider[Req, Resp] generic interface, with concrete types per capability. Less boilerplate but more abstract; Go generics can be awkward for interface-heavy patterns."
         },
         {
           "key": "C",
           "label": "Unified audio gateway with internal routing",
-          "rationale": "Single API surface that accepts all audio requests and routes internally. Cleanest external API but highest internal complexity; may over-abstract early.",
-          "recommended": false
+          "rationale": "Single API surface that accepts all audio requests and routes internally. Cleanest external API but highest internal complexity; may over-abstract early."
         },
         {
           "key": "D",
           "label": "Other",
-          "rationale": "Provide your own architecture direction.",
-          "recommended": false
+          "rationale": "Provide your own architecture direction."
         }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d2",
@@ -81,25 +78,22 @@
         {
           "key": "B",
           "label": "LPBS for all three capabilities",
-          "rationale": "Full credit metering for all audio operations. Requires new LPBS audio endpoints — significant cross-scenario work but most complete monetization story.",
-          "recommended": false
+          "rationale": "Full credit metering for all audio operations. Requires new LPBS audio endpoints — significant cross-scenario work but most complete monetization story."
         },
         {
           "key": "C",
           "label": "LPBS for summarization + STT (skip TTS)",
-          "rationale": "STT through LPBS is higher value (cloud Whisper costs more than local). TTS stays local/BYOK only. Moderate LPBS scope.",
-          "recommended": false
+          "rationale": "STT through LPBS is higher value (cloud Whisper costs more than local). TTS stays local/BYOK only. Moderate LPBS scope."
         },
         {
           "key": "D",
           "label": "Other",
-          "rationale": "Provide your own scoping direction.",
-          "recommended": false
+          "rationale": "Provide your own scoping direction."
         }
       ],
-      "selected": null,
+      "selected": "B",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d3",
@@ -116,19 +110,17 @@
         {
           "key": "B",
           "label": "Extract shared provider-chain package",
-          "rationale": "Extract common fallback logic, availability caching, LPBS reporting into a shared Go package. Both BAS and audio-tools import it. Higher upfront cost but reduces drift over time.",
-          "recommended": false
+          "rationale": "Extract common fallback logic, availability caching, LPBS reporting into a shared Go package. Both BAS and audio-tools import it. Higher upfront cost but reduces drift over time."
         },
         {
           "key": "C",
           "label": "Other",
-          "rationale": "Provide your own reuse strategy.",
-          "recommended": false
+          "rationale": "Provide your own reuse strategy."
         }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "i5",

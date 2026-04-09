@@ -2,6 +2,7 @@
   "acceptance_allow": [
     "scenarios/git-control-tower/**"
   ],
+  "archived_at": "2026-04-09T03:35:27Z",
   "created": "2026-04-08T04:13:09Z",
   "created_by": {
     "type": "operator"
@@ -17,5 +18,5 @@
     "code-quality"
   ],
   "title": "Reduce code quality violations in git-control-tower",
-  "updated": "2026-04-09T01:04:48Z"
+  "updated": "2026-04-09T03:35:27Z"
 }

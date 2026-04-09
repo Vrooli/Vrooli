@@ -8,7 +8,6 @@
   "depends_on": [
     "chore/archive-and-remove-legacy-vrooli-bridge",
     "chore/qa-prompt-manager-tidiness-20260407",
-    "fix/qa-prompt-manager-standards-requirements-20260407",
     "fix/qa-prompt-manager-standards-structure-20260407",
     "fix/qa-prompt-manager-tests-20260407",
     "research/legacy-vrooli-bridge-signal-extraction",
@@ -30,5 +29,5 @@
     "greenfield"
   ],
   "title": "Define The Greenfield Bridge From First Principles",
-  "updated": "2026-04-08T14:36:24Z"
+  "updated": "2026-04-09T13:11:28Z"
 }

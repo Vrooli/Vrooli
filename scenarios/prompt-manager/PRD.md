@@ -44,10 +44,42 @@ Prompt Manager is a **Skills + Agents + Teams** management system that stores, o
 - Consistent iconography, tag chips, and search affordances across sidebar and modals.
 
 ## 🎯 Operational Targets
-- API p95 latency under 100ms; AI search under 200ms.
-- UI initial load under 2 seconds on local resources.
-- 3D world renders at 60fps on mid-tier hardware.
-- Reliable reindexing and status visibility for AI search resources.
+
+### 🔴 P0 – Must ship for viability
+
+- [x] prompt-manager-must-have-crud-operations-for-skills-via-api | CRUD operations for skills via API | REST endpoints for create, read, update, delete of skills
+- [x] prompt-manager-must-have-agent-crud-operations-via-api | Agent CRUD operations via API | Agent CRUD with appearance, SOUL.md, capabilities, connectors
+- [x] prompt-manager-must-have-team-crud-with-roles-members-org-chart | Team CRUD with roles, members, org chart | Full team lifecycle management with roles and org chart visualization
+- [x] prompt-manager-must-have-pack-based-skill-organization | Pack-based skill organization | core/local/drafts pack structure for organizing skills
+- [x] prompt-manager-must-have-full-text-search-across-all-skills | Full-text search across all skills | In-memory text search across skill names, descriptions, and content
+- [x] prompt-manager-must-have-cli-for-quick-skill-operations | CLI for quick skill and agent operations | Cross-platform CLI for listing, searching, and managing skills and agents
+- [x] prompt-manager-must-have-web-ui-for-visual-skill-management | Web UI for visual skill management | React + TypeScript UI with skill editing, search, and navigation
+- [x] prompt-manager-must-have-file-based-storage | File-based storage for entities | JSON file store for skills, agents, teams in store/ directories
+
+### 🟠 P1 – Should have post-launch
+
+- [x] prompt-manager-should-have-semantic-search-using-qdrant-vector-database | Semantic search using Qdrant | Vector-based search using Qdrant + Ollama embeddings
+- [x] prompt-manager-should-have-skill-analysis-and-pattern-extraction | Skill analysis and pattern extraction | AI-powered skill content analysis
+- [x] prompt-manager-should-have-skill-enhancement-suggestions | Skill enhancement suggestions | AI-powered suggestions for improving skills
+- [x] prompt-manager-should-have-usage-tracking-and-metrics | Usage tracking and metrics | Track skill usage counts and patterns
+- [x] prompt-manager-should-have-tag-based-categorization | Tag-based categorization | Tag skills for organization and filtering
+- [x] prompt-manager-should-have-team-membership-with-roles | Team-member relations | Team membership management with roles
+- [x] prompt-manager-should-have-pack-based-skill-organization | Pack-based skill organization (enhanced) | Enhanced pack management and organization features
+
+### 🟢 P2 – Future / expansion
+
+- [x] prompt-manager-nice-to-have-exportimport-functionality-complete-fixed-database-column-mismatch-tested-and-working | Export/import functionality | Bulk transfer of skills with import/export
+- [ ] prompt-manager-nice-to-have-collaboration-features | Collaboration features | Multi-user collaboration on skills
+- [ ] prompt-manager-nice-to-have-advanced-analytics-dashboard | Advanced analytics dashboard | Advanced skill usage analytics
+- [x] prompt-manager-nice-to-have-version-history-for-skills | Version history for skills | Track changes to skills over time
+- [x] prompt-manager-nice-to-have-3d-world-visualization-for-agents | 3D world visualization | React Three Fiber agent world visualization
+
+### Performance Targets
+
+- API p95 latency under 100ms; AI search under 200ms
+- UI initial load under 2 seconds on local resources
+- 3D world renders at 60fps on mid-tier hardware
+- Reliable reindexing and status visibility for AI search resources
 
 ## 🤝 Dependencies & Launch Plan
 - **Dependencies:** File system (required), PostgreSQL (optional for analytics), Qdrant + Ollama (optional for semantic search).
