@@ -434,3 +434,4 @@ api/api
 .vrooli/deployment/telemetry/git-control-tower.jsonl
 .vrooli/generated-service.json
 packages/cli-core/sandbox-resolve
+.codex

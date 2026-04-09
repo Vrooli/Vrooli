@@ -1,0 +1,25 @@
+{
+  "acceptance_allow": [
+    "scenarios/git-control-tower/**",
+    "scenarios/workspace-sandbox/**"
+  ],
+  "created": "2026-04-09T17:33:13Z",
+  "depends_on": [
+    "execute/agent-manager-sandbox-auto-apply-defaults"
+  ],
+  "description": "## Goal\n\nMake Git Control Tower's existing pending provenance-by-run flow trustworthy and intuitive enough to serve as the operator-facing proof that sandbox auditability is working.\n\n## Current state\n\nGit Control Tower already has an AI Changes tab and an API path that groups pending applied changes by agent-manager run id. Workspace-sandbox already records run-linked applied changes. This item is not greenfield. It is about auditing, validating, and refining the current pending-state experience so operators can trust it.\n\n## Required outcomes\n\n- AI Changes clearly shows which pending changes came from which agent-manager run.\n- Empty or missing run metadata is handled gracefully and does not make the UI confusing.\n- Provenance dimension counts in review surfaces correctly distinguish traced vs untraced files.\n- The operator can understand who initiated a run, when it happened, and which files are currently associated with it.\n- Manual review and auto-apply flows both show up coherently when those changes are still pending in Git Control Tower.\n\n## Expected deliverables\n\n1. Audit the existing API/UI path for pending run provenance and fix data-shape or labeling gaps.\n2. Tighten the AI Changes tab UX so it is obvious that this is a per-run attribution surface, not just another generic file list.\n3. Validate provenance counts and empty-state behavior across realistic repo states.\n4. Add tests that protect the pending provenance path from regressions as sandboxing becomes the default.\n\n## Key references\n\n- `scenarios/git-control-tower/api/approved_changes_handler.go`\n- `scenarios/git-control-tower/api/review_handler_dimensions.go`\n- `scenarios/git-control-tower/api/workspace_sandbox_client.go`\n- `scenarios/git-control-tower/ui/src/components/AIProvenanceTab.tsx`\n- `scenarios/workspace-sandbox/api/internal/repository/sandbox_repo.go`",
+  "effort": "M",
+  "initiative": "git-control-tower-ai-provenance",
+  "kind": "execute",
+  "name": "gct-pending-ai-provenance-hardening",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "git-control-tower",
+    "provenance",
+    "ui",
+    "auditability"
+  ],
+  "title": "Harden Git Control Tower's pending AI provenance and AI Changes experience",
+  "updated": "2026-04-09T17:33:13Z"
+}

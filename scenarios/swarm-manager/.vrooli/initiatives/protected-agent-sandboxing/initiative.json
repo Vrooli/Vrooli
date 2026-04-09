@@ -1,0 +1,13 @@
+{
+  "name": "protected-agent-sandboxing",
+  "title": "Protected Agent Sandboxing",
+  "description": "Add a stronger protected-mode execution path where agent processes run through workspace-sandbox containment and can gain real git, network, path, and resource guardrails without changing agent prompt behavior.",
+  "status": "active",
+  "items": [
+    "execute/protected-sandbox-agent-launch",
+    "execute/protected-sandbox-git-and-network-guardrails",
+    "fix/protected-sandbox-policy-enforcement-surface"
+  ],
+  "created": "2026-04-09T17:33:13Z",
+  "updated": "2026-04-09T17:33:13Z"
+}
