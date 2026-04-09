@@ -278,10 +278,14 @@ func (r *ExecGitRunner) Discard(ctx context.Context, repoDir string, paths []str
 	return nil
 }
 
-func (r *ExecGitRunner) DiffNumstat(ctx context.Context, repoDir string, staged bool) ([]byte, error) {
+func (r *ExecGitRunner) DiffNumstat(ctx context.Context, repoDir string, staged bool, paths ...string) ([]byte, error) {
 	args := readArgs(repoDir, "diff", "--numstat", "--no-color")
 	if staged {
 		args = append(args, "--cached")
+	}
+	if len(paths) > 0 {
+		args = append(args, "--")
+		args = append(args, paths...)
 	}
 
 	cmd := exec.CommandContext(ctx, r.gitPath(), args...)

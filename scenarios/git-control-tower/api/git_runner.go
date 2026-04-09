@@ -90,7 +90,11 @@ type GitRunner interface {
 
 	// DiffNumstat returns numstat output for changes.
 	// If staged is true, returns staged stats (--cached).
-	DiffNumstat(ctx context.Context, repoDir string, staged bool) ([]byte, error)
+	// If paths is non-empty, limits the diff to those specific paths via
+	// pathspec (appended after "--"). This is used to skip large binary files
+	// whose content comparison dominates diff time in repos with tracked
+	// compiled artifacts (see GetRepoStatus binary pre-detection).
+	DiffNumstat(ctx context.Context, repoDir string, staged bool, paths ...string) ([]byte, error)
 
 	// RemoveFromIndex removes paths from the git index without deleting working files.
 	RemoveFromIndex(ctx context.Context, repoDir string, paths []string) error

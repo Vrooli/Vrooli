@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -46,6 +48,16 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 	}
 	parsed.Scopes = detectScopes(parsed.Files)
 
+	// Pre-detect binary files so we can exclude them from git diff --numstat.
+	// This is a critical performance optimization: git diff --numstat must read
+	// the full content of each file to compute line stats, which is extremely
+	// slow for large compiled binaries (e.g., 14 Go binaries at 7-18MB each
+	// turned a 34ms diff into a 1,700ms diff). By checking the first 512 bytes
+	// for null bytes (the same heuristic git uses internally), we can skip
+	// binaries before invoking the expensive diff and report them directly.
+	stagedText, stagedPreBinaries := partitionBinaryPaths(repoDir, parsed.Files.Staged)
+	unstagedText, unstagedPreBinaries := partitionBinaryPaths(repoDir, parsed.Files.Unstaged)
+
 	// Phase 2: run independent git operations concurrently.
 	var (
 		author           RepoAuthorStatus
@@ -65,12 +77,12 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 	})
 
 	g.Go(func() error {
-		stagedStats, stagedBinaries = collectDiffStats(gctx, deps, repoDir, true)
+		stagedStats, stagedBinaries = collectDiffStats(gctx, deps, repoDir, true, stagedText)
 		return nil
 	})
 
 	g.Go(func() error {
-		unstagedStats, unstagedBinaries = collectDiffStats(gctx, deps, repoDir, false)
+		unstagedStats, unstagedBinaries = collectDiffStats(gctx, deps, repoDir, false, unstagedText)
 		return nil
 	})
 
@@ -100,7 +112,11 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 		}
 	}
 
-	parsed.Files.Binary = collectBinaryFiles(stagedBinaries, unstagedBinaries, untrackedStats)
+	parsed.Files.Binary = collectBinaryFiles(
+		append(stagedBinaries, stagedPreBinaries...),
+		append(unstagedBinaries, unstagedPreBinaries...),
+		untrackedStats,
+	)
 	parsed.FileHotspots = fileHotspots
 	sortFileStatus(&parsed.Files, parsed.Scopes)
 
@@ -129,8 +145,8 @@ func resolveAuthor(ctx context.Context, deps RepoStatusDeps, repoDir string) Rep
 	return author
 }
 
-func collectDiffStats(ctx context.Context, deps RepoStatusDeps, repoDir string, staged bool) (map[string]DiffStats, []string) {
-	numstat, err := deps.Git.DiffNumstat(ctx, repoDir, staged)
+func collectDiffStats(ctx context.Context, deps RepoStatusDeps, repoDir string, staged bool, paths []string) (map[string]DiffStats, []string) {
+	numstat, err := deps.Git.DiffNumstat(ctx, repoDir, staged, paths...)
 	if err != nil {
 		return map[string]DiffStats{}, nil
 	}
@@ -170,6 +186,45 @@ func collectBinaryFiles(stagedBinaries, unstagedBinaries []string, untrackedStat
 		result = append(result, path)
 	}
 	return result
+}
+
+// partitionBinaryPaths splits file paths into text and binary lists by
+// reading the first 512 bytes and checking for null bytes (the same
+// heuristic git itself uses in buffer_is_binary). This is cheap — at most
+// 512 bytes of I/O per file — and lets us skip expensive diff computation
+// on large compiled artifacts.
+func partitionBinaryPaths(repoDir string, paths []string) (text, binary []string) {
+	for _, p := range paths {
+		if isBinaryFile(filepath.Join(repoDir, p)) {
+			binary = append(binary, p)
+		} else {
+			text = append(text, p)
+		}
+	}
+	return text, binary
+}
+
+// isBinaryFile returns true if the file appears to contain binary content.
+// It reads up to 512 bytes and checks for null bytes, matching the heuristic
+// git uses internally (see buffer_is_binary in the git source).
+func isBinaryFile(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+
+	buf := make([]byte, 512)
+	n, err := f.Read(buf)
+	if n == 0 {
+		return false
+	}
+	for _, b := range buf[:n] {
+		if b == 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func computeFileHotspots(ctx context.Context, deps RepoStatusDeps, repoDir string, files RepoFilesStatus) map[string]int {

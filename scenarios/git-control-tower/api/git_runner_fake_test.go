@@ -614,7 +614,7 @@ func (f *FakeGitRunner) LogDetails(ctx context.Context, repoDir string, limit in
 	return []byte(out.String()), nil
 }
 
-func (f *FakeGitRunner) DiffNumstat(ctx context.Context, repoDir string, staged bool) ([]byte, error) {
+func (f *FakeGitRunner) DiffNumstat(ctx context.Context, repoDir string, staged bool, paths ...string) ([]byte, error) {
 	f.recordCall("DiffNumstat", repoDir, fmt.Sprintf("staged=%v", staged))
 	if f.DiffError != nil {
 		return nil, f.DiffError
