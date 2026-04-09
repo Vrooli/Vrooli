@@ -65,6 +65,7 @@ func main() {
 	defer cancel()
 
 	if err := supervisor.Start(ctx); err != nil {
+		cancel()
 		log.Fatalf("start runtime: %v", err)
 	}
 

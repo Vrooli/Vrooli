@@ -133,17 +133,18 @@ func (d *MacOSDetector) listKeychainIdentities(ctx context.Context) ([]types.Dis
 
 			// Determine identity type
 			identityType := "Signing Identity"
-			if strings.Contains(identity, "Developer ID Application") {
+			switch {
+			case strings.Contains(identity, "Developer ID Application"):
 				identityType = "Developer ID Application"
-			} else if strings.Contains(identity, "Developer ID Installer") {
+			case strings.Contains(identity, "Developer ID Installer"):
 				identityType = "Developer ID Installer"
-			} else if strings.Contains(identity, "Apple Development") {
+			case strings.Contains(identity, "Apple Development"):
 				identityType = "Apple Development"
-			} else if strings.Contains(identity, "Apple Distribution") {
+			case strings.Contains(identity, "Apple Distribution"):
 				identityType = "Apple Distribution"
-			} else if strings.Contains(identity, "Mac Developer") {
+			case strings.Contains(identity, "Mac Developer"):
 				identityType = "Mac Developer"
-			} else if strings.Contains(identity, "3rd Party Mac Developer") {
+			case strings.Contains(identity, "3rd Party Mac Developer"):
 				identityType = "3rd Party Mac Developer"
 			}
 

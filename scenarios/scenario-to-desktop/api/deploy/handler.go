@@ -240,11 +240,12 @@ func runDeployTargetDoctor(ctx context.Context, name string, target *DeployTarge
 		}
 
 		status, err := client.GetServiceAuthStatus(ctx)
-		if err != nil {
+		switch {
+		case err != nil:
 			serviceAuthCheck.Passed = false
 			serviceAuthCheck.Detail = fmt.Sprintf("service auth status check failed: %v", err)
 			report.Ready = false
-		} else if status == nil || !status.ServiceAuthConfigured {
+		case status == nil || !status.ServiceAuthConfigured:
 			serviceAuthCheck.Passed = false
 			serviceAuthCheck.Detail = fmt.Sprintf("service auth is not configured in %s runtime", target.ScenarioName)
 			report.Ready = false
@@ -252,7 +253,7 @@ func runDeployTargetDoctor(ctx context.Context, name string, target *DeployTarge
 				fmt.Sprintf("scenario-to-cloud secrets set LPBS_SERVICE_SECRET --scenario %s --generate hex:64 --targets scenario,deployment --domain <domain> --restart", target.ScenarioName),
 				fmt.Sprintf("%s service-auth-status --require-enabled", target.ScenarioName),
 			)
-		} else {
+		default:
 			mode := strings.TrimSpace(status.ServiceAuthMode)
 			if mode == "" {
 				mode = "unknown"

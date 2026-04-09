@@ -8,8 +8,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"runtime"
-	"time"
 
 	"scenario-to-desktop-api/deploy"
 	"scenario-to-desktop-api/generation"
@@ -272,37 +270,6 @@ func (o *DefaultOrchestrator) StartPipelineBlocking(ctx context.Context, pipelin
 	return o.pollForCompletion(ctx, pipelineID, timeoutSecs)
 }
 
-// pollForCompletion polls for pipeline completion until it finishes or times out.
-// Returns the final status when complete, failed, or cancelled.
-// Returns an error (with partial status) if the timeout is exceeded or the pipeline disappears.
-func (o *DefaultOrchestrator) pollForCompletion(ctx context.Context, pipelineID string, timeoutSecs int) (*Status, error) {
-	timeout := time.Duration(timeoutSecs) * time.Second
-	deadline := time.Now().Add(timeout)
-	ticker := time.NewTicker(DefaultPipelinePollInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			current, _ := o.GetStatus(pipelineID)
-			return current, ctx.Err()
-		case <-ticker.C:
-			current, ok := o.GetStatus(pipelineID)
-			if !ok {
-				return nil, fmt.Errorf("pipeline %s disappeared", pipelineID)
-			}
-
-			if current.IsComplete() {
-				return current, nil
-			}
-
-			if time.Now().After(deadline) {
-				return current, fmt.Errorf("timeout after %d seconds", timeoutSecs)
-			}
-		}
-	}
-}
-
 // CreateIdlePipeline creates a pipeline in "idle" state without starting execution.
 // The pipeline will remain idle until explicitly started via StartPipeline.
 // This is used for auto-creating pipelines when a scenario is selected.
@@ -451,72 +418,11 @@ func (o *DefaultOrchestrator) UpdatePipelineConfig(pipelineID string, configUpda
 		if s.Config == nil {
 			s.Config = &Config{}
 		}
-
-		// Only update fields that are explicitly set in configUpdates
-		if configUpdates.StopAfterStage != "" {
-			s.Config.StopAfterStage = configUpdates.StopAfterStage
-		}
-		if configUpdates.ResumeFromStage != "" {
-			s.Config.ResumeFromStage = configUpdates.ResumeFromStage
-		}
-		if len(configUpdates.Platforms) > 0 {
-			s.Config.Platforms = configUpdates.Platforms
-		}
-		if configUpdates.BundleManifestPath != "" {
-			s.Config.BundleManifestPath = configUpdates.BundleManifestPath
-		}
-		if configUpdates.DeploymentMode != "" {
-			s.Config.DeploymentMode = configUpdates.DeploymentMode
-		}
-		if configUpdates.Framework != "" {
-			s.Config.Framework = configUpdates.Framework
-		}
-		if configUpdates.TemplateType != "" {
-			s.Config.TemplateType = configUpdates.TemplateType
-		}
-		if configUpdates.LocationMode != "" {
-			s.Config.LocationMode = configUpdates.LocationMode
-		}
-		if configUpdates.ProxyURL != "" {
-			s.Config.ProxyURL = configUpdates.ProxyURL
-		}
-		if configUpdates.Version != "" {
-			s.Config.Version = configUpdates.Version
-		}
-		if configUpdates.versionRollback != nil {
-			s.Config.versionRollback = configUpdates.versionRollback
-		}
-		if configUpdates.PreflightTimeoutSeconds > 0 {
-			s.Config.PreflightTimeoutSeconds = configUpdates.PreflightTimeoutSeconds
-		}
-		if len(configUpdates.PreflightSecrets) > 0 {
-			s.Config.PreflightSecrets = configUpdates.PreflightSecrets
-		}
-		if configUpdates.DeployConfig != nil {
-			s.Config.DeployConfig = configUpdates.DeployConfig
-		}
-		// Boolean fields - only update if explicitly true (since default is false)
-		if configUpdates.SkipPreflight {
-			s.Config.SkipPreflight = true
-		}
-		if configUpdates.SkipSmokeTest {
-			s.Config.SkipSmokeTest = true
-		}
-		if configUpdates.Clean {
-			s.Config.Clean = true
-		}
-		if configUpdates.Sign {
-			s.Config.Sign = true
-		}
-		if configUpdates.Publish {
-			s.Config.Publish = true
-		}
-		if configUpdates.StopOnFailure != nil {
-			s.Config.StopOnFailure = configUpdates.StopOnFailure
-		}
+		applyConfigStringFields(s.Config, configUpdates)
+		applyConfigBoolFields(s.Config, configUpdates)
+		applyConfigComplexFields(s.Config, configUpdates)
 		if len(configUpdates.Stages) > 0 {
 			s.Config.Stages = configUpdates.Stages
-			// Also update stage order to reflect the new stages
 			stagesToUse := o.filterStages(configUpdates.Stages)
 			s.StageOrder = make([]string, 0, len(stagesToUse))
 			for _, stage := range stagesToUse {
@@ -533,241 +439,77 @@ func (o *DefaultOrchestrator) UpdatePipelineConfig(pipelineID string, configUpda
 	return nil
 }
 
-// runPipelineAsync executes the pipeline stages sequentially.
-func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID string, config *Config) {
-	defer o.cancelManager.Clear(pipelineID)
-
-	success := false
-	rollback := config.takeVersionRollback()
-	defer func() {
-		if rollback == nil || success {
-			return
-		}
-		if err := rollback.Restore(); err != nil {
-			o.logger.Error("Failed to rollback version update", "pipeline_id", pipelineID, "error", err)
-			return
-		}
-		o.logger.Info("Rolled back version update", "pipeline_id", pipelineID)
-	}()
-
-	// Update status to running and transition to initializing state
-	o.store.Update(pipelineID, func(s *Status) {
-		s.Status = StatusRunning
-		s.TransitionTo(PipelineStateInitializing, "Pipeline starting execution")
-		s.UpdateProgress()
-	})
-
-	// Capture git provenance for build traceability
-	scenarioPath := filepath.Join(o.scenarioRoot, config.ScenarioName)
-	provenance := CaptureProvenance(scenarioPath, config.Version)
-	o.store.Update(pipelineID, func(s *Status) {
-		s.Provenance = provenance
-	})
-
-	// Build stage input
-	input := &StageInput{
-		Config:       config,
-		PipelineID:   pipelineID,
-		ScenarioPath: scenarioPath,
-		Provenance:   provenance,
-		Logger:       o.logger,
+// applyConfigStringFields applies non-empty string field updates from src to dst.
+func applyConfigStringFields(dst, src *Config) {
+	if src.StopAfterStage != "" {
+		dst.StopAfterStage = src.StopAfterStage
 	}
-
-	// If resuming, restore input from parent pipeline
-	if config.ParentPipelineID != "" {
-		if parentStatus, ok := o.store.Get(config.ParentPipelineID); ok && parentStatus.ResumedInput != nil {
-			// Copy relevant fields from parent's saved input
-			input.BundleResult = parentStatus.ResumedInput.BundleResult
-			input.PreflightResult = parentStatus.ResumedInput.PreflightResult
-			input.GenerationResult = parentStatus.ResumedInput.GenerationResult
-			input.BuildResult = parentStatus.ResumedInput.BuildResult
-			input.SmokeTestResult = parentStatus.ResumedInput.SmokeTestResult
-			input.DeployResult = parentStatus.ResumedInput.DeployResult
-			input.ScenarioMetadata = parentStatus.ResumedInput.ScenarioMetadata
-			input.DesktopPath = parentStatus.ResumedInput.DesktopPath
-			o.logger.Info("Restored input from parent pipeline", "pipeline_id", pipelineID, "parent_id", config.ParentPipelineID)
-		}
+	if src.ResumeFromStage != "" {
+		dst.ResumeFromStage = src.ResumeFromStage
 	}
-
-	// Track whether we've reached the resume stage (if resuming)
-	resumeFromStage := config.GetResumeFromStage()
-	reachedResumeStage := resumeFromStage == "" // If not resuming, consider it reached
-
-	// Filter stages if specific stages were requested
-	stagesToRun := o.stages
-	if requestedStages := config.GetStages(); len(requestedStages) > 0 {
-		stagesToRun = o.filterStages(requestedStages)
-		o.logger.Info("Filtered stages for execution",
-			"pipeline_id", pipelineID,
-			"requested", requestedStages,
-			"count", len(stagesToRun),
-		)
+	if src.BundleManifestPath != "" {
+		dst.BundleManifestPath = src.BundleManifestPath
 	}
-
-	// Execute stages sequentially
-	for _, stage := range stagesToRun {
-		stageName := stage.Name()
-
-		// If resuming, skip stages until we reach the resume point
-		if !reachedResumeStage {
-			if stageName == resumeFromStage {
-				reachedResumeStage = true
-				o.logger.Info("Reached resume stage", "pipeline_id", pipelineID, "stage", stageName)
-			} else {
-				// Mark stage as skipped (resumed from later stage)
-				result := &StageResult{
-					Stage:       stageName,
-					Status:      StatusSkipped,
-					StartedAt:   o.timeProvider.Now(),
-					CompletedAt: o.timeProvider.Now(),
-					Logs:        []string{"Stage skipped - resuming from later stage"},
-				}
-				o.store.UpdateStage(pipelineID, stageName, result)
-				o.logger.Info("Stage skipped (resuming)", "pipeline_id", pipelineID, "stage", stageName)
-				continue
-			}
-		}
-
-		// Check for cancellation
-		select {
-		case <-ctx.Done():
-			o.store.Update(pipelineID, func(s *Status) {
-				s.Status = StatusCancelled
-				s.CompletedAt = o.timeProvider.Now()
-				s.Error = "pipeline cancelled"
-				s.TransitionTo(PipelineStateCancelled, "Pipeline cancelled by context")
-				s.UpdateProgress()
-			})
-			o.logger.Info("Pipeline cancelled", "pipeline_id", pipelineID)
-			return
-		default:
-		}
-
-		// Update current stage and transition to queueing state
-		o.store.Update(pipelineID, func(s *Status) {
-			s.CurrentStage = stageName
-			s.TransitionTo(PipelineStateQueueingStage, fmt.Sprintf("Queueing stage: %s", stageName))
-			s.UpdateProgress()
-		})
-
-		o.logger.Info("Starting stage", "pipeline_id", pipelineID, "stage", stageName)
-
-		// Check if stage can be skipped
-		if stage.CanSkip(input) {
-			result := &StageResult{
-				Stage:       stageName,
-				Status:      StatusSkipped,
-				StartedAt:   o.timeProvider.Now(),
-				CompletedAt: o.timeProvider.Now(),
-				Logs:        []string{"Stage skipped based on configuration"},
-			}
-			o.store.UpdateStage(pipelineID, stageName, result)
-			o.logger.Info("Stage skipped", "pipeline_id", pipelineID, "stage", stageName)
-
-			// Even if skipped, check if we should stop after this stage
-			if config.GetStopAfterStage() == stageName {
-				success = true
-				o.stopAfterStage(pipelineID, stageName, input)
-				return
-			}
-			continue
-		}
-
-		// Transition to executing state
-		o.store.Update(pipelineID, func(s *Status) {
-			s.TransitionTo(PipelineStateExecutingStage, fmt.Sprintf("Executing stage: %s", stageName))
-		})
-
-		// Execute stage
-		result := stage.Execute(ctx, input)
-
-		// Transition to processing result state
-		o.store.Update(pipelineID, func(s *Status) {
-			s.TransitionTo(PipelineStateProcessingResult, fmt.Sprintf("Processing result: %s", stageName))
-		})
-
-		o.store.UpdateStage(pipelineID, stageName, result)
-
-		o.logger.Info("Stage completed",
-			"pipeline_id", pipelineID,
-			"stage", stageName,
-			"status", result.Status,
-		)
-
-		// Check for failure
-		if result.Status == StatusFailed {
-			if config.GetStopOnFailure() {
-				o.store.Update(pipelineID, func(s *Status) {
-					s.Status = StatusFailed
-					s.CompletedAt = o.timeProvider.Now()
-					s.Error = fmt.Sprintf("stage %s failed: %s", stageName, result.Error)
-					s.TransitionTo(PipelineStateFailed, fmt.Sprintf("Stage %s failed", stageName))
-					s.UpdateProgress()
-				})
-				o.logger.Error("Pipeline failed", "pipeline_id", pipelineID, "stage", stageName, "error", result.Error)
-				return
-			}
-			o.logger.Warn("Stage failed but continuing", "pipeline_id", pipelineID, "stage", stageName)
-		}
-
-		// Check for cancellation
-		if result.Status == StatusCancelled {
-			o.store.Update(pipelineID, func(s *Status) {
-				s.Status = StatusCancelled
-				s.CompletedAt = o.timeProvider.Now()
-				s.Error = "pipeline cancelled"
-				s.TransitionTo(PipelineStateCancelled, fmt.Sprintf("Stage %s cancelled", stageName))
-				s.UpdateProgress()
-			})
-			o.logger.Info("Pipeline cancelled at stage", "pipeline_id", pipelineID, "stage", stageName)
-			return
-		}
-
-		// Check if we should stop after this stage
-		if config.GetStopAfterStage() == stageName {
-			success = true
-			o.stopAfterStage(pipelineID, stageName, input)
-			return
-		}
+	if src.DeploymentMode != "" {
+		dst.DeploymentMode = src.DeploymentMode
 	}
-
-	// Collect final artifacts
-	finalArtifacts := collectArtifacts(input)
-
-	// Mark pipeline as completed
-	o.store.Update(pipelineID, func(s *Status) {
-		s.Status = StatusCompleted
-		s.CompletedAt = o.timeProvider.Now()
-		s.CurrentStage = ""
-		s.FinalArtifacts = finalArtifacts
-		s.TransitionTo(PipelineStateCompleted, "Pipeline completed successfully")
-		s.UpdateProgress()
-	})
-
-	success = true
-	o.logger.Info("Pipeline completed", "pipeline_id", pipelineID)
+	if src.Framework != "" {
+		dst.Framework = src.Framework
+	}
+	if src.TemplateType != "" {
+		dst.TemplateType = src.TemplateType
+	}
+	if src.LocationMode != "" {
+		dst.LocationMode = src.LocationMode
+	}
+	if src.ProxyURL != "" {
+		dst.ProxyURL = src.ProxyURL
+	}
+	if src.Version != "" {
+		dst.Version = src.Version
+	}
 }
 
-// stopAfterStage marks the pipeline as completed after the specified stage and saves input for resumption.
-func (o *DefaultOrchestrator) stopAfterStage(pipelineID, stageName string, input *StageInput) {
-	finalArtifacts := collectArtifacts(input)
+// applyConfigBoolFields applies boolean field updates from src to dst.
+// Boolean fields are only updated when explicitly true (since default is false).
+func applyConfigBoolFields(dst, src *Config) {
+	if src.SkipPreflight {
+		dst.SkipPreflight = true
+	}
+	if src.SkipSmokeTest {
+		dst.SkipSmokeTest = true
+	}
+	if src.Clean {
+		dst.Clean = true
+	}
+	if src.Sign {
+		dst.Sign = true
+	}
+	if src.Publish {
+		dst.Publish = true
+	}
+}
 
-	o.store.Update(pipelineID, func(s *Status) {
-		s.Status = StatusCompleted
-		s.CompletedAt = o.timeProvider.Now()
-		s.CurrentStage = ""
-		s.StoppedAfterStage = stageName
-		s.FinalArtifacts = finalArtifacts
-		// Save the input so it can be restored when resuming
-		s.ResumedInput = input
-		s.TransitionTo(PipelineStateCompleted, fmt.Sprintf("Pipeline stopped after stage: %s", stageName))
-		s.UpdateProgress()
-	})
-
-	o.logger.Info("Pipeline stopped after stage",
-		"pipeline_id", pipelineID,
-		"stopped_after", stageName,
-	)
+// applyConfigComplexFields applies non-nil/non-zero complex field updates from src to dst.
+func applyConfigComplexFields(dst, src *Config) {
+	if len(src.Platforms) > 0 {
+		dst.Platforms = src.Platforms
+	}
+	if src.versionRollback != nil {
+		dst.versionRollback = src.versionRollback
+	}
+	if src.PreflightTimeoutSeconds > 0 {
+		dst.PreflightTimeoutSeconds = src.PreflightTimeoutSeconds
+	}
+	if len(src.PreflightSecrets) > 0 {
+		dst.PreflightSecrets = src.PreflightSecrets
+	}
+	if src.DeployConfig != nil {
+		dst.DeployConfig = src.DeployConfig
+	}
+	if src.StopOnFailure != nil {
+		dst.StopOnFailure = src.StopOnFailure
+	}
 }
 
 // GetStatus retrieves the current status of a pipeline run.
@@ -849,50 +591,4 @@ func (o *DefaultOrchestrator) ResumePipeline(ctx context.Context, pipelineID str
 // ListPipelines returns all tracked pipeline runs.
 func (o *DefaultOrchestrator) ListPipelines() []*Status {
 	return o.store.List()
-}
-
-// currentPlatform returns the current platform identifier.
-func currentPlatform() string {
-	goos := runtime.GOOS
-	goarch := runtime.GOARCH
-
-	// Map to electron-builder platform names
-	switch goos {
-	case "darwin":
-		if goarch == "arm64" {
-			return "mac-arm64"
-		}
-		return "mac"
-	case "windows":
-		return "win"
-	case "linux":
-		return "linux"
-	default:
-		return goos
-	}
-}
-
-// collectArtifacts gathers final artifact paths from the pipeline input.
-func collectArtifacts(input *StageInput) map[string]string {
-	if input.BuildResult == nil {
-		return make(map[string]string)
-	}
-	return GetReadyArtifacts(input.BuildResult.PlatformResults)
-}
-
-// filterStages returns only the stages that match the requested stage names.
-// The returned stages preserve the original pipeline order, not the order of the requested list.
-func (o *DefaultOrchestrator) filterStages(requested []string) []Stage {
-	requestedSet := make(map[string]bool, len(requested))
-	for _, name := range requested {
-		requestedSet[name] = true
-	}
-
-	filtered := make([]Stage, 0, len(requested))
-	for _, stage := range o.stages {
-		if requestedSet[stage.Name()] {
-			filtered = append(filtered, stage)
-		}
-	}
-	return filtered
 }

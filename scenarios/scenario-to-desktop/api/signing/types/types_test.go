@@ -4,6 +4,20 @@ import (
 	"testing"
 )
 
+// assertMergeResult checks common post-merge assertions on a ValidationResult.
+func assertMergeResult(t *testing.T, result *ValidationResult, wantValid bool, wantErrors int, wantWarnings int) {
+	t.Helper()
+	if result.Valid != wantValid {
+		t.Errorf("Valid = %v, want %v", result.Valid, wantValid)
+	}
+	if len(result.Errors) != wantErrors {
+		t.Errorf("Errors count = %d, want %d", len(result.Errors), wantErrors)
+	}
+	if wantWarnings >= 0 && len(result.Warnings) != wantWarnings {
+		t.Errorf("Warnings count = %d, want %d", len(result.Warnings), wantWarnings)
+	}
+}
+
 func TestValidationResult_Merge(t *testing.T) {
 	t.Run("merge nil is no-op", func(t *testing.T) {
 		result := &ValidationResult{
@@ -13,13 +27,7 @@ func TestValidationResult_Merge(t *testing.T) {
 			Platforms: map[string]PlatformValidation{},
 		}
 		result.Merge(nil)
-
-		if !result.Valid {
-			t.Error("Valid should remain true after merging nil")
-		}
-		if len(result.Errors) != 1 {
-			t.Errorf("Errors count = %d, want 1", len(result.Errors))
-		}
+		assertMergeResult(t, result, true, 1, -1)
 	})
 
 	t.Run("merge valid into valid stays valid", func(t *testing.T) {
@@ -36,13 +44,7 @@ func TestValidationResult_Merge(t *testing.T) {
 			Platforms: map[string]PlatformValidation{},
 		}
 		a.Merge(b)
-
-		if !a.Valid {
-			t.Error("merging two valid results should stay valid")
-		}
-		if len(a.Warnings) != 2 {
-			t.Errorf("Warnings count = %d, want 2", len(a.Warnings))
-		}
+		assertMergeResult(t, a, true, 0, 2)
 	})
 
 	t.Run("merge invalid into valid becomes invalid", func(t *testing.T) {
@@ -62,13 +64,7 @@ func TestValidationResult_Merge(t *testing.T) {
 			Platforms: map[string]PlatformValidation{},
 		}
 		a.Merge(b)
-
-		if a.Valid {
-			t.Error("merging invalid result should make receiver invalid")
-		}
-		if len(a.Errors) != 2 {
-			t.Errorf("Errors count = %d, want 2", len(a.Errors))
-		}
+		assertMergeResult(t, a, false, 2, -1)
 	})
 
 	t.Run("merge preserves existing invalidity", func(t *testing.T) {
@@ -85,13 +81,7 @@ func TestValidationResult_Merge(t *testing.T) {
 			Platforms: map[string]PlatformValidation{},
 		}
 		a.Merge(b)
-
-		if a.Valid {
-			t.Error("merging valid into invalid should stay invalid")
-		}
-		if len(a.Errors) != 1 {
-			t.Errorf("Errors count = %d, want 1", len(a.Errors))
-		}
+		assertMergeResult(t, a, false, 1, -1)
 	})
 
 	t.Run("merge combines platform validations for new platform", func(t *testing.T) {

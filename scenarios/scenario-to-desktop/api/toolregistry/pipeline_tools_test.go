@@ -62,21 +62,36 @@ func TestPipelineToolProvider_Tools(t *testing.T) {
 	}
 }
 
+// findToolByName searches the tool list for a tool with the given name.
+func findToolByName(t *testing.T, tools []*toolspb.ToolDefinition, name string) *toolspb.ToolDefinition {
+	t.Helper()
+	for _, tool := range tools {
+		if tool.Name == name {
+			return tool
+		}
+	}
+	t.Fatalf("%s tool not found", name)
+	return nil
+}
+
+// assertRequiredParam checks that a tool has the given parameter name in its required list.
+func assertRequiredParam(t *testing.T, tool *toolspb.ToolDefinition, paramName string) {
+	t.Helper()
+	if tool.Parameters == nil {
+		t.Fatalf("parameters is nil")
+	}
+	for _, req := range tool.Parameters.Required {
+		if req == paramName {
+			return
+		}
+	}
+	t.Errorf("%s should be required", paramName)
+}
+
 func TestRunPipelineTool(t *testing.T) {
 	provider := NewPipelineToolProvider()
 	tools := provider.Tools(context.Background())
-
-	var runPipeline *toolspb.ToolDefinition
-	for _, tool := range tools {
-		if tool.Name == "run_pipeline" {
-			runPipeline = tool
-			break
-		}
-	}
-
-	if runPipeline == nil {
-		t.Fatalf("run_pipeline tool not found")
-	}
+	runPipeline := findToolByName(t, tools, "run_pipeline")
 
 	t.Run("has correct category", func(t *testing.T) {
 		if runPipeline.Category != "pipeline" {
@@ -85,22 +100,7 @@ func TestRunPipelineTool(t *testing.T) {
 	})
 
 	t.Run("has required scenario_name parameter", func(t *testing.T) {
-		if runPipeline.Parameters == nil {
-			t.Fatalf("parameters is nil")
-		}
-		if len(runPipeline.Parameters.Required) == 0 {
-			t.Fatalf("no required parameters")
-		}
-		found := false
-		for _, req := range runPipeline.Parameters.Required {
-			if req == "scenario_name" {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("scenario_name should be required")
-		}
+		assertRequiredParam(t, runPipeline, "scenario_name")
 	})
 
 	t.Run("has expected parameters", func(t *testing.T) {
@@ -159,30 +159,10 @@ func TestRunPipelineTool(t *testing.T) {
 func TestCheckPipelineStatusTool(t *testing.T) {
 	provider := NewPipelineToolProvider()
 	tools := provider.Tools(context.Background())
-
-	var statusTool *toolspb.ToolDefinition
-	for _, tool := range tools {
-		if tool.Name == "check_pipeline_status" {
-			statusTool = tool
-			break
-		}
-	}
-
-	if statusTool == nil {
-		t.Fatalf("check_pipeline_status tool not found")
-	}
+	statusTool := findToolByName(t, tools, "check_pipeline_status")
 
 	t.Run("has required pipeline_id parameter", func(t *testing.T) {
-		found := false
-		for _, req := range statusTool.Parameters.Required {
-			if req == "pipeline_id" {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("pipeline_id should be required")
-		}
+		assertRequiredParam(t, statusTool, "pipeline_id")
 	})
 
 	t.Run("is not long-running", func(t *testing.T) {
@@ -213,30 +193,10 @@ func TestCheckPipelineStatusTool(t *testing.T) {
 func TestCancelPipelineTool(t *testing.T) {
 	provider := NewPipelineToolProvider()
 	tools := provider.Tools(context.Background())
-
-	var cancelTool *toolspb.ToolDefinition
-	for _, tool := range tools {
-		if tool.Name == "cancel_pipeline" {
-			cancelTool = tool
-			break
-		}
-	}
-
-	if cancelTool == nil {
-		t.Fatalf("cancel_pipeline tool not found")
-	}
+	cancelTool := findToolByName(t, tools, "cancel_pipeline")
 
 	t.Run("has required pipeline_id parameter", func(t *testing.T) {
-		found := false
-		for _, req := range cancelTool.Parameters.Required {
-			if req == "pipeline_id" {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("pipeline_id should be required")
-		}
+		assertRequiredParam(t, cancelTool, "pipeline_id")
 	})
 
 	t.Run("is idempotent", func(t *testing.T) {
@@ -255,30 +215,10 @@ func TestCancelPipelineTool(t *testing.T) {
 func TestResumePipelineTool(t *testing.T) {
 	provider := NewPipelineToolProvider()
 	tools := provider.Tools(context.Background())
-
-	var resumeTool *toolspb.ToolDefinition
-	for _, tool := range tools {
-		if tool.Name == "resume_pipeline" {
-			resumeTool = tool
-			break
-		}
-	}
-
-	if resumeTool == nil {
-		t.Fatalf("resume_pipeline tool not found")
-	}
+	resumeTool := findToolByName(t, tools, "resume_pipeline")
 
 	t.Run("has required pipeline_id parameter", func(t *testing.T) {
-		found := false
-		for _, req := range resumeTool.Parameters.Required {
-			if req == "pipeline_id" {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("pipeline_id should be required")
-		}
+		assertRequiredParam(t, resumeTool, "pipeline_id")
 	})
 
 	t.Run("has optional stop_after_stage parameter", func(t *testing.T) {
@@ -312,18 +252,7 @@ func TestResumePipelineTool(t *testing.T) {
 func TestListPipelinesTool(t *testing.T) {
 	provider := NewPipelineToolProvider()
 	tools := provider.Tools(context.Background())
-
-	var listTool *toolspb.ToolDefinition
-	for _, tool := range tools {
-		if tool.Name == "list_pipelines" {
-			listTool = tool
-			break
-		}
-	}
-
-	if listTool == nil {
-		t.Fatalf("list_pipelines tool not found")
-	}
+	listTool := findToolByName(t, tools, "list_pipelines")
 
 	t.Run("has no required parameters", func(t *testing.T) {
 		if len(listTool.Parameters.Required) > 0 {

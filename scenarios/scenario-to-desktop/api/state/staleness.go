@@ -31,168 +31,210 @@ func (d *StalenessDetector) DetectChanges(
 	}
 
 	var changes []StateChange
-
-	// Check bundle stage inputs
-	if bundleState, ok := stored.Stages[StageBundle]; ok {
-		fp := bundleState.InputFingerprint
-
-		// Only report path change if we actually had a stored path before.
-		// This prevents false positives when no bundle stage has run yet.
-		if fp.ManifestPath != "" && fp.ManifestPath != current.ManifestPath {
-			changes = append(changes, StateChange{
-				ChangeType:    "manifest_path",
-				AffectedStage: StageBundle,
-				Reason:        "Manifest path changed",
-				OldValue:      fp.ManifestPath,
-				NewValue:      current.ManifestPath,
-			})
-		} else if current.ManifestPath != "" && fp.ManifestPath == current.ManifestPath {
-			// Same path - check content hash
-			if current.ManifestHash != "" && fp.ManifestHash != "" {
-				if current.ManifestHash != fp.ManifestHash {
-					changes = append(changes, StateChange{
-						ChangeType:    "manifest_content",
-						AffectedStage: StagePreflight, // Content change only affects preflight+
-						Reason:        "Manifest file content changed",
-						OldValue:      truncateHash(fp.ManifestHash),
-						NewValue:      truncateHash(current.ManifestHash),
-					})
-				} else if current.ManifestMtime != fp.ManifestMtime && fp.ManifestMtime != 0 {
-					// Content same but mtime different - file was touched
-					changes = append(changes, StateChange{
-						ChangeType:    "manifest_touched",
-						AffectedStage: StagePreflight,
-						Reason:        "Manifest file was touched (content unchanged)",
-					})
-				}
-			}
-		}
-	}
-
-	// Check preflight inputs
-	if preflightState, ok := stored.Stages[StagePreflight]; ok {
-		fp := preflightState.InputFingerprint
-
-		if !stringSlicesEqual(fp.PreflightSecretKeys, current.PreflightSecretKeys) {
-			changes = append(changes, StateChange{
-				ChangeType:    "preflight_secrets",
-				AffectedStage: StagePreflight,
-				Reason:        "Preflight secrets configuration changed",
-			})
-		}
-
-		if fp.PreflightTimeout != current.PreflightTimeout && current.PreflightTimeout > 0 {
-			changes = append(changes, StateChange{
-				ChangeType:    "preflight_timeout",
-				AffectedStage: StagePreflight,
-				Reason:        "Preflight timeout changed",
-			})
-		}
-	}
-
-	// Check generate inputs
-	if genState, ok := stored.Stages[StageGenerate]; ok {
-		fp := genState.InputFingerprint
-
-		if fp.TemplateType != current.TemplateType && current.TemplateType != "" {
-			changes = append(changes, StateChange{
-				ChangeType:    "template_type",
-				AffectedStage: StageGenerate,
-				Reason:        "Template type changed",
-				OldValue:      fp.TemplateType,
-				NewValue:      current.TemplateType,
-			})
-		}
-
-		if fp.Framework != current.Framework && current.Framework != "" {
-			changes = append(changes, StateChange{
-				ChangeType:    "framework",
-				AffectedStage: StageGenerate,
-				Reason:        "Framework changed",
-				OldValue:      fp.Framework,
-				NewValue:      current.Framework,
-			})
-		}
-
-		if fp.DeploymentMode != current.DeploymentMode && current.DeploymentMode != "" {
-			changes = append(changes, StateChange{
-				ChangeType:    "deployment_mode",
-				AffectedStage: StageGenerate,
-				Reason:        "Deployment mode changed",
-				OldValue:      fp.DeploymentMode,
-				NewValue:      current.DeploymentMode,
-			})
-		}
-
-		if fp.AppDisplayName != current.AppDisplayName && current.AppDisplayName != "" {
-			changes = append(changes, StateChange{
-				ChangeType:    "app_display_name",
-				AffectedStage: StageGenerate,
-				Reason:        "App display name changed",
-				OldValue:      fp.AppDisplayName,
-				NewValue:      current.AppDisplayName,
-			})
-		}
-
-		if fp.AppDescription != current.AppDescription && current.AppDescription != "" {
-			changes = append(changes, StateChange{
-				ChangeType:    "app_description",
-				AffectedStage: StageGenerate,
-				Reason:        "App description changed",
-			})
-		}
-
-		if fp.IconPath != current.IconPath && current.IconPath != "" {
-			changes = append(changes, StateChange{
-				ChangeType:    "icon_path",
-				AffectedStage: StageGenerate,
-				Reason:        "Icon path changed",
-				OldValue:      fp.IconPath,
-				NewValue:      current.IconPath,
-			})
-		}
-	}
-
-	// Check build inputs
-	if buildState, ok := stored.Stages[StageBuild]; ok {
-		fp := buildState.InputFingerprint
-
-		if !stringSlicesEqual(fp.Platforms, current.Platforms) {
-			changes = append(changes, StateChange{
-				ChangeType:    "platforms",
-				AffectedStage: StageBuild,
-				Reason:        "Target platforms changed",
-			})
-		}
-
-		if fp.SigningEnabled != current.SigningEnabled {
-			changes = append(changes, StateChange{
-				ChangeType:    "signing_enabled",
-				AffectedStage: StageBuild,
-				Reason:        "Signing configuration toggled",
-			})
-		}
-
-		if fp.SigningConfigHash != current.SigningConfigHash && current.SigningConfigHash != "" {
-			changes = append(changes, StateChange{
-				ChangeType:    "signing_config",
-				AffectedStage: StageBuild,
-				Reason:        "Signing certificates changed",
-			})
-		}
-
-		if fp.OutputLocation != current.OutputLocation && current.OutputLocation != "" {
-			changes = append(changes, StateChange{
-				ChangeType:    "output_location",
-				AffectedStage: StageBuild,
-				Reason:        "Output location changed",
-				OldValue:      fp.OutputLocation,
-				NewValue:      current.OutputLocation,
-			})
-		}
-	}
+	changes = append(changes, detectBundleChanges(stored, current)...)
+	changes = append(changes, detectPreflightChanges(stored, current)...)
+	changes = append(changes, detectGenerateChanges(stored, current)...)
+	changes = append(changes, detectBuildChanges(stored, current)...)
 
 	return changes, nil
+}
+
+// detectBundleChanges checks bundle stage inputs for staleness.
+func detectBundleChanges(stored *ScenarioState, current *InputFingerprint) []StateChange {
+	bundleState, ok := stored.Stages[StageBundle]
+	if !ok {
+		return nil
+	}
+	fp := bundleState.InputFingerprint
+
+	// Only report path change if we actually had a stored path before.
+	// This prevents false positives when no bundle stage has run yet.
+	if fp.ManifestPath != "" && fp.ManifestPath != current.ManifestPath {
+		return []StateChange{{
+			ChangeType:    "manifest_path",
+			AffectedStage: StageBundle,
+			Reason:        "Manifest path changed",
+			OldValue:      fp.ManifestPath,
+			NewValue:      current.ManifestPath,
+		}}
+	}
+
+	if current.ManifestPath == "" || fp.ManifestPath != current.ManifestPath {
+		return nil
+	}
+
+	// Same path - check content hash
+	if current.ManifestHash == "" || fp.ManifestHash == "" {
+		return nil
+	}
+
+	if current.ManifestHash != fp.ManifestHash {
+		return []StateChange{{
+			ChangeType:    "manifest_content",
+			AffectedStage: StagePreflight, // Content change only affects preflight+
+			Reason:        "Manifest file content changed",
+			OldValue:      truncateHash(fp.ManifestHash),
+			NewValue:      truncateHash(current.ManifestHash),
+		}}
+	}
+
+	if current.ManifestMtime != fp.ManifestMtime && fp.ManifestMtime != 0 {
+		// Content same but mtime different - file was touched
+		return []StateChange{{
+			ChangeType:    "manifest_touched",
+			AffectedStage: StagePreflight,
+			Reason:        "Manifest file was touched (content unchanged)",
+		}}
+	}
+
+	return nil
+}
+
+// detectPreflightChanges checks preflight stage inputs for staleness.
+func detectPreflightChanges(stored *ScenarioState, current *InputFingerprint) []StateChange {
+	preflightState, ok := stored.Stages[StagePreflight]
+	if !ok {
+		return nil
+	}
+	fp := preflightState.InputFingerprint
+
+	var changes []StateChange
+
+	if !stringSlicesEqual(fp.PreflightSecretKeys, current.PreflightSecretKeys) {
+		changes = append(changes, StateChange{
+			ChangeType:    "preflight_secrets",
+			AffectedStage: StagePreflight,
+			Reason:        "Preflight secrets configuration changed",
+		})
+	}
+
+	if fp.PreflightTimeout != current.PreflightTimeout && current.PreflightTimeout > 0 {
+		changes = append(changes, StateChange{
+			ChangeType:    "preflight_timeout",
+			AffectedStage: StagePreflight,
+			Reason:        "Preflight timeout changed",
+		})
+	}
+
+	return changes
+}
+
+// detectGenerateChanges checks generate stage inputs for staleness.
+func detectGenerateChanges(stored *ScenarioState, current *InputFingerprint) []StateChange {
+	genState, ok := stored.Stages[StageGenerate]
+	if !ok {
+		return nil
+	}
+	fp := genState.InputFingerprint
+
+	var changes []StateChange
+
+	if fp.TemplateType != current.TemplateType && current.TemplateType != "" {
+		changes = append(changes, StateChange{
+			ChangeType:    "template_type",
+			AffectedStage: StageGenerate,
+			Reason:        "Template type changed",
+			OldValue:      fp.TemplateType,
+			NewValue:      current.TemplateType,
+		})
+	}
+
+	if fp.Framework != current.Framework && current.Framework != "" {
+		changes = append(changes, StateChange{
+			ChangeType:    "framework",
+			AffectedStage: StageGenerate,
+			Reason:        "Framework changed",
+			OldValue:      fp.Framework,
+			NewValue:      current.Framework,
+		})
+	}
+
+	if fp.DeploymentMode != current.DeploymentMode && current.DeploymentMode != "" {
+		changes = append(changes, StateChange{
+			ChangeType:    "deployment_mode",
+			AffectedStage: StageGenerate,
+			Reason:        "Deployment mode changed",
+			OldValue:      fp.DeploymentMode,
+			NewValue:      current.DeploymentMode,
+		})
+	}
+
+	if fp.AppDisplayName != current.AppDisplayName && current.AppDisplayName != "" {
+		changes = append(changes, StateChange{
+			ChangeType:    "app_display_name",
+			AffectedStage: StageGenerate,
+			Reason:        "App display name changed",
+			OldValue:      fp.AppDisplayName,
+			NewValue:      current.AppDisplayName,
+		})
+	}
+
+	if fp.AppDescription != current.AppDescription && current.AppDescription != "" {
+		changes = append(changes, StateChange{
+			ChangeType:    "app_description",
+			AffectedStage: StageGenerate,
+			Reason:        "App description changed",
+		})
+	}
+
+	if fp.IconPath != current.IconPath && current.IconPath != "" {
+		changes = append(changes, StateChange{
+			ChangeType:    "icon_path",
+			AffectedStage: StageGenerate,
+			Reason:        "Icon path changed",
+			OldValue:      fp.IconPath,
+			NewValue:      current.IconPath,
+		})
+	}
+
+	return changes
+}
+
+// detectBuildChanges checks build stage inputs for staleness.
+func detectBuildChanges(stored *ScenarioState, current *InputFingerprint) []StateChange {
+	buildState, ok := stored.Stages[StageBuild]
+	if !ok {
+		return nil
+	}
+	fp := buildState.InputFingerprint
+
+	var changes []StateChange
+
+	if !stringSlicesEqual(fp.Platforms, current.Platforms) {
+		changes = append(changes, StateChange{
+			ChangeType:    "platforms",
+			AffectedStage: StageBuild,
+			Reason:        "Target platforms changed",
+		})
+	}
+
+	if fp.SigningEnabled != current.SigningEnabled {
+		changes = append(changes, StateChange{
+			ChangeType:    "signing_enabled",
+			AffectedStage: StageBuild,
+			Reason:        "Signing configuration toggled",
+		})
+	}
+
+	if fp.SigningConfigHash != current.SigningConfigHash && current.SigningConfigHash != "" {
+		changes = append(changes, StateChange{
+			ChangeType:    "signing_config",
+			AffectedStage: StageBuild,
+			Reason:        "Signing certificates changed",
+		})
+	}
+
+	if fp.OutputLocation != current.OutputLocation && current.OutputLocation != "" {
+		changes = append(changes, StateChange{
+			ChangeType:    "output_location",
+			AffectedStage: StageBuild,
+			Reason:        "Output location changed",
+			OldValue:      fp.OutputLocation,
+			NewValue:      current.OutputLocation,
+		})
+	}
+
+	return changes
 }
 
 // ComputeAffectedStages returns stages that need re-running based on changes.

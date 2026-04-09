@@ -178,31 +178,7 @@ func NewServer(port int) *Server {
 	recordsHandler.SetSmokeTestStore(&smokeTestRecordAdapter{store: smokeTestStore})
 
 	// Captures domain (persistent screenshot/recording storage)
-	capturesResolver, err := storage.NewResolver(storage.ResolverConfig{
-		AppID:   "vrooli",
-		Profile: storage.ProfileAuto,
-	})
-	if err != nil {
-		logger.Warn("captures storage resolver unavailable", "error", err)
-	}
-	capturesOpts := storage.Options{ScenarioID: "scenario-to-desktop-captures"}
-	var capturesService *captures.Service
-	var capturesHandler *captures.Handler
-	if capturesResolver != nil {
-		metaPath, err := capturesResolver.Path(capturesOpts, storage.ClassData, "captures_meta.json")
-		if err != nil {
-			logger.Warn("captures meta path unavailable", "error", err)
-		} else {
-			capturesStore, err := captures.NewFileStore(metaPath)
-			if err != nil {
-				logger.Warn("captures store unavailable", "error", err)
-			} else {
-				capturesService = captures.NewService(capturesResolver, capturesOpts, capturesStore)
-				capturesHandler = captures.NewHandler(capturesService)
-				logger.Info("captures service initialized", "meta_path", metaPath)
-			}
-		}
-	}
+	capturesService, capturesHandler := initCapturesDomain(logger)
 
 	// Live desktop domain (interactive VNC sessions)
 	linuxBackend := livedesktop.NewLinuxBackend(logger)
@@ -376,35 +352,7 @@ func NewServer(port int) *Server {
 		"tools", toolReg.ToolCount(context.Background()))
 
 	// ===== Task Orchestration Service =====
-
-	// Initialize investigation store for task persistence
-	invStore := persistence.NewInvestigationStore(filepath.Join(dataDir, "investigations"))
-
-	// Initialize agent manager service (optional - may not be available)
-	agentSvcEnabled := os.Getenv("AGENT_MANAGER_ENABLED") != "false"
-	var taskSvc *tasks.Service
-	if agentSvcEnabled {
-		agentSvc := agentmanager.NewAgentService(agentmanager.AgentServiceConfig{
-			ProfileName: "scenario-to-desktop",
-			ProfileKey:  "scenario-to-desktop",
-			Timeout:     30 * time.Second,
-			Enabled:     true,
-		})
-
-		// Initialize agent profile (best effort - don't fail if unavailable)
-		initCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		if err := agentSvc.Initialize(initCtx, agentmanager.DefaultProfileConfig()); err != nil {
-			logger.Warn("failed to initialize agent-manager profile", "error", err)
-		}
-		cancel()
-
-		// Create pipeline store adapter for task service
-		// Uses the pipeline orchestrator as the single source of truth for pipeline status
-		pipelineStore := &pipelineStoreAdapter{store: pipelineOrchestrator}
-
-		// Create task service (nil progress hub for now - can add WebSocket later)
-		taskSvc = tasks.NewService(invStore, pipelineStore, agentSvc, nil)
-	}
+	taskSvc := initTaskOrchestration(dataDir, pipelineOrchestrator, logger)
 
 	// ===== Create Server =====
 
@@ -439,6 +387,55 @@ func NewServer(port int) *Server {
 	}
 	srv.registerDomainHandlers()
 	return srv
+}
+
+// initCapturesDomain sets up the captures service and handler.
+func initCapturesDomain(logger *slog.Logger) (*captures.Service, *captures.Handler) {
+	capturesResolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		logger.Warn("captures storage resolver unavailable", "error", err)
+		return nil, nil
+	}
+	capturesOpts := storage.Options{ScenarioID: "scenario-to-desktop-captures"}
+	metaPath, err := capturesResolver.Path(capturesOpts, storage.ClassData, "captures_meta.json")
+	if err != nil {
+		logger.Warn("captures meta path unavailable", "error", err)
+		return nil, nil
+	}
+	capturesStore, err := captures.NewFileStore(metaPath)
+	if err != nil {
+		logger.Warn("captures store unavailable", "error", err)
+		return nil, nil
+	}
+	svc := captures.NewService(capturesResolver, capturesOpts, capturesStore)
+	logger.Info("captures service initialized", "meta_path", metaPath)
+	return svc, captures.NewHandler(svc)
+}
+
+// initTaskOrchestration sets up the task orchestration service with agent manager integration.
+func initTaskOrchestration(dataDir string, pipelineOrchestrator *pipeline.DefaultOrchestrator, logger *slog.Logger) *tasks.Service {
+	if os.Getenv("AGENT_MANAGER_ENABLED") == "false" {
+		return nil
+	}
+	invStore := persistence.NewInvestigationStore(filepath.Join(dataDir, "investigations"))
+	agentSvc := agentmanager.NewAgentService(agentmanager.AgentServiceConfig{
+		ProfileName: "scenario-to-desktop",
+		ProfileKey:  "scenario-to-desktop",
+		Timeout:     30 * time.Second,
+		Enabled:     true,
+	})
+
+	initCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	if err := agentSvc.Initialize(initCtx, agentmanager.DefaultProfileConfig()); err != nil {
+		logger.Warn("failed to initialize agent-manager profile", "error", err)
+	}
+	cancel()
+
+	pipelineStore := &pipelineStoreAdapter{store: pipelineOrchestrator}
+	return tasks.NewService(invStore, pipelineStore, agentSvc, nil)
 }
 
 // registerDomainHandlers configures all API routes organized by domain.
@@ -560,7 +557,8 @@ func main() {
 	apiPortStr := os.Getenv("API_PORT")
 	portStr := os.Getenv("PORT")
 
-	if apiPortStr != "" {
+	switch {
+	case apiPortStr != "":
 		p, err := strconv.Atoi(apiPortStr)
 		if err != nil {
 			log.Fatalf("❌ Invalid API_PORT value '%s': must be a valid integer", apiPortStr)
@@ -569,7 +567,7 @@ func main() {
 			log.Fatalf("❌ Invalid API_PORT value %d: must be between 1024 and 65535", p)
 		}
 		port = p
-	} else if portStr != "" {
+	case portStr != "":
 		// Fallback to PORT for compatibility
 		p, err := strconv.Atoi(portStr)
 		if err != nil {
@@ -579,7 +577,7 @@ func main() {
 			log.Fatalf("❌ Invalid PORT value %d: must be between 1024 and 65535", p)
 		}
 		port = p
-	} else {
+	default:
 		globalLogger.Warn("no port configuration found",
 			"message", "No API_PORT or PORT environment variable set",
 			"action", "using default port",

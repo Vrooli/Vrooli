@@ -247,17 +247,15 @@ func (a *DefaultAnalyzer) CheckBundleability(scenarioName string) (*Bundleabilit
 						resourceName, strings.Join(alternatives, " or ")),
 				})
 			}
-		} else {
+		} else if FallbackUnbundleableResources[resourceName] {
 			// No deployment metadata - use fallback detection
-			if FallbackUnbundleableResources[resourceName] {
-				result.Bundleable = false
-				result.UnbundleableResource = resourceName
-				result.UnbundleableReason = fmt.Sprintf(
-					"Scenario requires '%s' which cannot be bundled into a desktop application. "+
-						"No tier-2-desktop platform support is declared in the scenario's service.json.",
-					resourceName)
-				return result, nil
-			}
+			result.Bundleable = false
+			result.UnbundleableResource = resourceName
+			result.UnbundleableReason = fmt.Sprintf(
+				"Scenario requires '%s' which cannot be bundled into a desktop application. "+
+					"No tier-2-desktop platform support is declared in the scenario's service.json.",
+				resourceName)
+			return result, nil
 		}
 	}
 
@@ -428,63 +426,82 @@ func (a *DefaultAnalyzer) readServiceJSON(metadata *ScenarioMetadata) error {
 		return fmt.Errorf("failed to parse service.json: %w", err)
 	}
 
-	if serviceJSON.Service.DisplayName != "" {
-		metadata.DisplayName = serviceJSON.Service.DisplayName
-	}
-	if serviceJSON.Service.Description != "" {
-		metadata.Description = serviceJSON.Service.Description
-	}
-	if serviceJSON.Service.Version != "" {
-		metadata.Version = serviceJSON.Service.Version
-	}
-	if serviceJSON.Service.Category != "" {
-		metadata.Category = serviceJSON.Service.Category
-	}
-	if len(serviceJSON.Service.Tags) > 0 {
-		metadata.Tags = serviceJSON.Service.Tags
-	}
-	if serviceJSON.Service.License != "" {
-		metadata.License = serviceJSON.Service.License
-	}
-	if len(serviceJSON.Service.Maintainers) > 0 {
-		metadata.Author = serviceJSON.Service.Maintainers[0].Name
-	}
+	applyServiceFields(metadata, &serviceJSON)
+	metadata.Ports = extractPorts(serviceJSON.Ports)
+	metadata.RequiredResources = extractRequiredResources(serviceJSON.Dependencies.Resources)
+	return nil
+}
 
-	// Extract ALL ports dynamically from service.json
-	// DOC: docs/internal/SEAMS.md#port-environment-seam-feb-2026
-	metadata.Ports = make(map[string]PortConfig)
-	for portKey, portDef := range serviceJSON.Ports {
+// applyServiceFields copies non-empty service fields from the ServiceJSON into metadata.
+func applyServiceFields(metadata *ScenarioMetadata, sj *ServiceJSON) {
+	svc := &sj.Service
+	if svc.DisplayName != "" {
+		metadata.DisplayName = svc.DisplayName
+	}
+	if svc.Description != "" {
+		metadata.Description = svc.Description
+	}
+	if svc.Version != "" {
+		metadata.Version = svc.Version
+	}
+	if svc.Category != "" {
+		metadata.Category = svc.Category
+	}
+	if len(svc.Tags) > 0 {
+		metadata.Tags = svc.Tags
+	}
+	if svc.License != "" {
+		metadata.License = svc.License
+	}
+	if len(svc.Maintainers) > 0 {
+		metadata.Author = svc.Maintainers[0].Name
+	}
+}
+
+// extractPorts builds the port configuration map from service.json port definitions.
+// DOC: docs/internal/SEAMS.md#port-environment-seam-feb-2026
+func extractPorts(portDefs map[string]ServiceJSONPortDef) map[string]PortConfig {
+	ports := make(map[string]PortConfig)
+	for portKey, portDef := range portDefs {
 		if portDef.EnvVar == "" {
-			continue // Skip ports without env_var defined
+			continue
 		}
-
-		port := portDef.Port
-		if port == 0 && portDef.Range != "" {
-			// Extract first port from range if explicit port not set
-			parts := strings.Split(portDef.Range, "-")
-			if len(parts) >= 1 {
-				var rangePort int
-				if _, err := fmt.Sscanf(parts[0], "%d", &rangePort); err == nil {
-					port = rangePort
-				}
-			}
-		}
-
-		metadata.Ports[portKey] = PortConfig{
+		ports[portKey] = PortConfig{
 			EnvVar:      portDef.EnvVar,
-			Port:        port,
+			Port:        resolvePort(portDef),
 			Description: portDef.Description,
 		}
 	}
+	return ports
+}
 
-	// Extract required resources from dependencies
-	for name, dep := range serviceJSON.Dependencies.Resources {
-		if dep.Required && dep.Enabled {
-			metadata.RequiredResources = append(metadata.RequiredResources, name)
+// resolvePort returns the explicit port, or the first port from the range if not set.
+func resolvePort(portDef ServiceJSONPortDef) int {
+	if portDef.Port != 0 {
+		return portDef.Port
+	}
+	if portDef.Range == "" {
+		return 0
+	}
+	parts := strings.Split(portDef.Range, "-")
+	if len(parts) >= 1 {
+		var rangePort int
+		if _, err := fmt.Sscanf(parts[0], "%d", &rangePort); err == nil {
+			return rangePort
 		}
 	}
+	return 0
+}
 
-	return nil
+// extractRequiredResources returns the names of resources that are both required and enabled.
+func extractRequiredResources(resources map[string]ResourceDependency) []string {
+	var required []string
+	for name, dep := range resources {
+		if dep.Required && dep.Enabled {
+			required = append(required, name)
+		}
+	}
+	return required
 }
 
 // readUIPackageJSON reads and parses ui/package.json.

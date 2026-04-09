@@ -109,75 +109,65 @@ func buildBasePrompt(input shared.TaskInput) string {
 func buildAttachments(input shared.TaskInput, includeContexts []string) []*domainpb.ContextAttachment {
 	var attachments []*domainpb.ContextAttachment
 
-	// Task Metadata (high priority)
-	if shared.ContainsContext(includeContexts, "task-metadata") {
-		mode := fmt.Sprintf("investigate:%s", input.Request.Effort)
-		attachments = append(attachments, shared.BuildTaskMetadataAttachment(input.Pipeline, mode))
-	}
-
-	// Error Information (high priority)
-	if shared.ContainsContext(includeContexts, "error-info") {
-		if att := shared.BuildErrorInfoAttachment(input.Pipeline); att != nil {
-			attachments = append(attachments, att)
-		}
-	}
-
-	// Safety Rules (high priority)
-	if shared.ContainsContext(includeContexts, "safety-rules") {
-		attachments = append(attachments, shared.BuildSafetyRulesAttachment())
-	}
-
-	// Diagnostic Checklist (medium priority, only for logs/trace effort)
-	if shared.ContainsContext(includeContexts, "diagnostic-checklist") {
-		if input.Request.Effort == domain.EffortLogs || input.Request.Effort == domain.EffortTrace {
-			attachments = append(attachments, shared.BuildDiagnosticChecklistAttachment())
-		}
-	}
-
-	// Output Format (medium priority)
-	if shared.ContainsContext(includeContexts, "output-format") {
-		attachments = append(attachments, shared.BuildOutputFormatAttachment(false))
-	}
-
-	// Pipeline Configuration (medium priority)
-	if shared.ContainsContext(includeContexts, "pipeline-config") && input.Pipeline.Config != nil {
-		attachments = append(attachments, shared.BuildPipelineConfigAttachment(input.Pipeline.Config))
-	}
-
-	// Pipeline Results (high priority)
-	if shared.ContainsContext(includeContexts, "pipeline-results") {
-		attachments = append(attachments, shared.BuildPipelineResultsAttachment(input.Pipeline))
-	}
-
-	// Build Logs (high priority for build failures)
-	if shared.ContainsContext(includeContexts, "build-logs") {
-		if att := shared.BuildBuildLogsAttachment(input.Pipeline); att != nil {
-			attachments = append(attachments, att)
-		}
-	}
-
-	// Generator Connection / Filesystem paths (medium priority)
-	if shared.ContainsContext(includeContexts, "generator-connection") {
-		attachments = append(attachments, shared.BuildGeneratorConnectionAttachment(input.Pipeline))
-	}
-
-	// Architecture Guide (low priority, only for trace effort)
-	if shared.ContainsContext(includeContexts, "architecture-guide") {
-		if input.Request.Effort == domain.EffortTrace {
-			attachments = append(attachments, shared.BuildArchitectureGuideAttachment())
-		}
-	}
-
-	// Focus-specific attachments
+	attachments = appendStandardAttachments(attachments, input, includeContexts)
+	attachments = appendEffortAttachments(attachments, input, includeContexts)
 	attachments = append(attachments, buildFocusAttachments(input)...)
 
-	// User Note (medium priority if provided)
 	if input.Request.Note != "" {
 		if att := shared.BuildUserNoteAttachment(input.Request.Note); att != nil {
 			attachments = append(attachments, att)
 		}
 	}
 
+	return attachments
+}
+
+// appendStandardAttachments adds context attachments that apply regardless of effort level.
+func appendStandardAttachments(attachments []*domainpb.ContextAttachment, input shared.TaskInput, includeContexts []string) []*domainpb.ContextAttachment {
+	if shared.ContainsContext(includeContexts, "task-metadata") {
+		mode := fmt.Sprintf("investigate:%s", input.Request.Effort)
+		attachments = append(attachments, shared.BuildTaskMetadataAttachment(input.Pipeline, mode))
+	}
+	if shared.ContainsContext(includeContexts, "error-info") {
+		if att := shared.BuildErrorInfoAttachment(input.Pipeline); att != nil {
+			attachments = append(attachments, att)
+		}
+	}
+	if shared.ContainsContext(includeContexts, "safety-rules") {
+		attachments = append(attachments, shared.BuildSafetyRulesAttachment())
+	}
+	if shared.ContainsContext(includeContexts, "output-format") {
+		attachments = append(attachments, shared.BuildOutputFormatAttachment(false))
+	}
+	if shared.ContainsContext(includeContexts, "pipeline-config") && input.Pipeline.Config != nil {
+		attachments = append(attachments, shared.BuildPipelineConfigAttachment(input.Pipeline.Config))
+	}
+	if shared.ContainsContext(includeContexts, "pipeline-results") {
+		attachments = append(attachments, shared.BuildPipelineResultsAttachment(input.Pipeline))
+	}
+	if shared.ContainsContext(includeContexts, "build-logs") {
+		if att := shared.BuildBuildLogsAttachment(input.Pipeline); att != nil {
+			attachments = append(attachments, att)
+		}
+	}
+	if shared.ContainsContext(includeContexts, "generator-connection") {
+		attachments = append(attachments, shared.BuildGeneratorConnectionAttachment(input.Pipeline))
+	}
+	return attachments
+}
+
+// appendEffortAttachments adds context attachments that depend on the investigation effort level.
+func appendEffortAttachments(attachments []*domainpb.ContextAttachment, input shared.TaskInput, includeContexts []string) []*domainpb.ContextAttachment {
+	if shared.ContainsContext(includeContexts, "diagnostic-checklist") {
+		if input.Request.Effort == domain.EffortLogs || input.Request.Effort == domain.EffortTrace {
+			attachments = append(attachments, shared.BuildDiagnosticChecklistAttachment())
+		}
+	}
+	if shared.ContainsContext(includeContexts, "architecture-guide") {
+		if input.Request.Effort == domain.EffortTrace {
+			attachments = append(attachments, shared.BuildArchitectureGuideAttachment())
+		}
+	}
 	return attachments
 }
 

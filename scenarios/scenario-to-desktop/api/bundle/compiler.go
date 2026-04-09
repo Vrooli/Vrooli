@@ -213,115 +213,119 @@ func rustTarget(goos, goarch string) (string, error) {
 // For Electron apps, Node.js services run via the built-in Node.js runtime, not as native binaries.
 // This function builds the project and copies the result to outPath as a directory.
 func compileNpmBinary(srcDir, outPath, goos, goarch string, build *bundlemanifest.BuildConfig) error {
-	// First, install dependencies (including devDependencies for build)
-	installCmd := exec.Command("npm", "install")
-	installCmd.Dir = srcDir
-	if output, err := installCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("npm install failed: %w: %s", err, strings.TrimSpace(string(output)))
+	if err := npmInstallAll(srcDir); err != nil {
+		return err
+	}
+	if err := npmBuild(srcDir, goos, goarch, build); err != nil {
+		return err
 	}
 
-	// Build using the provided command or default to npm run build
+	distDir := filepath.Join(srcDir, "dist")
+	entryPoint, err := findNpmEntryPoint(distDir)
+	if err != nil {
+		return err
+	}
+
+	if err := npmInstallProd(srcDir); err != nil {
+		return err
+	}
+
+	return assembleNpmOutput(srcDir, outPath, distDir, entryPoint, goos)
+}
+
+// npmInstallAll installs all dependencies (including devDependencies for build).
+func npmInstallAll(srcDir string) error {
+	cmd := exec.Command("npm", "install")
+	cmd.Dir = srcDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("npm install failed: %w: %s", err, strings.TrimSpace(string(output)))
+	}
+	return nil
+}
+
+// npmBuild runs the npm build step with custom args and env.
+func npmBuild(srcDir, goos, goarch string, build *bundlemanifest.BuildConfig) error {
 	buildArgs := []string{"run", "build"}
 	if len(build.Args) > 0 {
 		buildArgs = build.Args
 	}
 
-	buildCmd := exec.Command("npm", buildArgs...)
-	buildCmd.Dir = srcDir
-
-	// Start with parent environment (required for PATH, npm to find node_modules/.bin, etc.)
-	buildCmd.Env = os.Environ()
-
-	// Add custom environment variables
+	cmd := exec.Command("npm", buildArgs...)
+	cmd.Dir = srcDir
+	cmd.Env = os.Environ()
 	for k, v := range build.Env {
-		buildCmd.Env = append(buildCmd.Env, k+"="+v)
+		cmd.Env = append(cmd.Env, k+"="+v)
 	}
-	// Set platform hints
-	buildCmd.Env = append(buildCmd.Env,
-		"TARGET_OS="+goos,
-		"TARGET_ARCH="+goarch,
-	)
+	cmd.Env = append(cmd.Env, "TARGET_OS="+goos, "TARGET_ARCH="+goarch)
 
-	if output, err := buildCmd.CombinedOutput(); err != nil {
+	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("npm build failed: %w: %s", err, strings.TrimSpace(string(output)))
 	}
+	return nil
+}
 
-	// For Node.js projects, the build outputs JavaScript, not a native binary.
-	// Verify dist/ was created
-	distDir := filepath.Join(srcDir, "dist")
+// findNpmEntryPoint verifies dist/ exists and returns the first recognized entry point.
+func findNpmEntryPoint(distDir string) (string, error) {
 	if _, err := os.Stat(distDir); err != nil {
-		return fmt.Errorf("npm build did not produce dist/ directory at %s", distDir)
+		return "", fmt.Errorf("npm build did not produce dist/ directory at %s", distDir)
 	}
 
-	// Look for common entry points to verify the build succeeded
-	entryPoints := []string{"server.js", "index.js", "main.js"}
-	var entryPoint string
-	for _, ep := range entryPoints {
-		epPath := filepath.Join(distDir, ep)
-		if _, err := os.Stat(epPath); err == nil {
-			entryPoint = ep
-			break
+	for _, ep := range []string{"server.js", "index.js", "main.js"} {
+		if _, err := os.Stat(filepath.Join(distDir, ep)); err == nil {
+			return ep, nil
 		}
 	}
-	if entryPoint == "" {
-		return fmt.Errorf("npm build did not produce a recognizable entry point (server.js, index.js, or main.js) in %s", distDir)
-	}
+	return "", fmt.Errorf("npm build did not produce a recognizable entry point (server.js, index.js, or main.js) in %s", distDir)
+}
 
-	// Install production dependencies only for the bundle
-	prodInstallCmd := exec.Command("npm", "install", "--omit=dev")
-	prodInstallCmd.Dir = srcDir
-	if output, err := prodInstallCmd.CombinedOutput(); err != nil {
+// npmInstallProd installs production dependencies only for the bundle.
+func npmInstallProd(srcDir string) error {
+	cmd := exec.Command("npm", "install", "--omit=dev")
+	cmd.Dir = srcDir
+	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("npm install --omit=dev failed: %w: %s", err, strings.TrimSpace(string(output)))
 	}
+	return nil
+}
 
-	// Create output directory structure
-	// outPath is like: bin/playwright-driver/linux/browser-automation-studio-playwright-driver
-	// We'll create a directory there containing dist/, node_modules/, and package.json
+// assembleNpmOutput copies dist/, node_modules/, package.json and creates run scripts.
+func assembleNpmOutput(srcDir, outPath, distDir, entryPoint, goos string) error {
 	if err := os.MkdirAll(outPath, 0o755); err != nil {
 		return fmt.Errorf("create output directory: %w", err)
 	}
 
-	// Copy dist/ to output
-	destDist := filepath.Join(outPath, "dist")
-	if err := copyDir(distDir, destDist); err != nil {
+	if err := copyDir(distDir, filepath.Join(outPath, "dist")); err != nil {
 		return fmt.Errorf("copy dist directory: %w", err)
 	}
 
-	// Copy node_modules/ to output (production deps only)
 	srcNodeModules := filepath.Join(srcDir, "node_modules")
 	if _, err := os.Stat(srcNodeModules); err == nil {
-		destNodeModules := filepath.Join(outPath, "node_modules")
-		if err := copyDir(srcNodeModules, destNodeModules); err != nil {
+		if err := copyDir(srcNodeModules, filepath.Join(outPath, "node_modules")); err != nil {
 			return fmt.Errorf("copy node_modules directory: %w", err)
 		}
 	}
 
-	// Copy package.json for runtime metadata
 	srcPkg := filepath.Join(srcDir, "package.json")
 	if _, err := os.Stat(srcPkg); err == nil {
-		destPkg := filepath.Join(outPath, "package.json")
-		if err := copyFile(srcPkg, destPkg); err != nil {
+		if err := copyFile(srcPkg, filepath.Join(outPath, "package.json")); err != nil {
 			return fmt.Errorf("copy package.json: %w", err)
 		}
 	}
 
-	// Create a run.sh script that the runtime can execute
+	return writeNpmRunScripts(outPath, entryPoint, goos)
+}
+
+// writeNpmRunScripts creates the run.sh (and run.cmd on Windows) launcher scripts.
+func writeNpmRunScripts(outPath, entryPoint, goos string) error {
 	runScript := filepath.Join(outPath, "run.sh")
-	scriptContent := fmt.Sprintf(`#!/bin/sh
-cd "$(dirname "$0")"
-exec node dist/%s "$@"
-`, entryPoint)
+	scriptContent := fmt.Sprintf("#!/bin/sh\ncd \"$(dirname \"$0\")\"\nexec node dist/%s \"$@\"\n", entryPoint)
 	if err := os.WriteFile(runScript, []byte(scriptContent), 0o755); err != nil {
 		return fmt.Errorf("write run script: %w", err)
 	}
 
-	// For Windows, also create run.cmd
 	if goos == "windows" {
 		runCmd := filepath.Join(outPath, "run.cmd")
-		cmdContent := fmt.Sprintf(`@echo off
-cd /d "%%~dp0"
-node dist\%s %%*
-`, entryPoint)
+		cmdContent := fmt.Sprintf("@echo off\ncd /d \"%%~dp0\"\nnode dist\\%s %%*\n", entryPoint)
 		if err := os.WriteFile(runCmd, []byte(cmdContent), 0o755); err != nil {
 			return fmt.Errorf("write run.cmd: %w", err)
 		}

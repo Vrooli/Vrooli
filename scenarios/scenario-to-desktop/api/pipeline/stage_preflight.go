@@ -92,38 +92,8 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 	}
 
 	// FAIL-FAST: Check if scenario can run in bundled mode BEFORE doing expensive work.
-	// This catches scenarios with required external dependencies (like PostgreSQL)
-	// that cannot be packaged into a desktop application.
-	if input.Config.GetDeploymentMode() == DeploymentModeBundled && s.bundleabilityChecker != nil {
-		bundleability, err := s.bundleabilityChecker.CheckBundleability(input.Config.ScenarioName)
-		if err != nil {
-			result.Logs = append(result.Logs,
-				fmt.Sprintf("Warning: bundleability check failed: %v", err))
-			// Continue anyway - the check is best-effort
-		} else if !bundleability.Bundleable {
-			failStage(result, s.timeProvider, errors.ErrScenarioUnbundleable(
-				input.Config.ScenarioName,
-				bundleability.UnbundleableResource,
-				bundleability.UnbundleableReason,
-				bundleability.Alternatives,
-			))
-			return result
-		} else {
-			// Log warnings about resources that require swaps
-			for _, warning := range bundleability.Warnings {
-				result.Logs = append(result.Logs,
-					fmt.Sprintf("Warning: %s", warning.Message))
-			}
-			if len(bundleability.RequiredResources) > 0 {
-				if len(bundleability.Warnings) > 0 {
-					result.Logs = append(result.Logs,
-						fmt.Sprintf("Scenario requires resources: %v (proceeding with declared swaps)", bundleability.RequiredResources))
-				} else {
-					result.Logs = append(result.Logs,
-						fmt.Sprintf("Scenario requires resources: %v (all bundleable)", bundleability.RequiredResources))
-				}
-			}
-		}
+	if failed := s.checkBundleability(input, result); failed {
+		return result
 	}
 
 	if s.service == nil {
@@ -136,6 +106,73 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 		return result
 	}
 
+	// Run preflight validation and check response
+	response, err := s.runPreflight(input, result)
+	if err != nil {
+		failStage(result, s.timeProvider, errors.ErrPreflightValidationFailed(err, nil))
+		return result
+	}
+
+	// Validate response status and contents
+	if failed := s.validateResponse(response, result); failed {
+		return result
+	}
+
+	// Update input for next stage
+	input.PreflightResult = response
+
+	completeStage(result, s.timeProvider, response)
+	result.Logs = append(result.Logs,
+		fmt.Sprintf("Preflight status: %s", response.Status),
+	)
+
+	appendResponseSummaryLogs(response, result)
+
+	return result
+}
+
+// checkBundleability checks if the scenario can run in bundled mode.
+// Returns true if the stage should exit early (failure).
+func (s *PreflightStage) checkBundleability(input *StageInput, result *StageResult) bool {
+	if input.Config.GetDeploymentMode() != DeploymentModeBundled || s.bundleabilityChecker == nil {
+		return false
+	}
+
+	bundleability, err := s.bundleabilityChecker.CheckBundleability(input.Config.ScenarioName)
+	switch {
+	case err != nil:
+		result.Logs = append(result.Logs,
+			fmt.Sprintf("Warning: bundleability check failed: %v", err))
+		// Continue anyway - the check is best-effort
+	case !bundleability.Bundleable:
+		failStage(result, s.timeProvider, errors.ErrScenarioUnbundleable(
+			input.Config.ScenarioName,
+			bundleability.UnbundleableResource,
+			bundleability.UnbundleableReason,
+			bundleability.Alternatives,
+		))
+		return true
+	default:
+		// Log warnings about resources that require swaps
+		for _, warning := range bundleability.Warnings {
+			result.Logs = append(result.Logs,
+				fmt.Sprintf("Warning: %s", warning.Message))
+		}
+		if len(bundleability.RequiredResources) > 0 {
+			if len(bundleability.Warnings) > 0 {
+				result.Logs = append(result.Logs,
+					fmt.Sprintf("Scenario requires resources: %v (proceeding with declared swaps)", bundleability.RequiredResources))
+			} else {
+				result.Logs = append(result.Logs,
+					fmt.Sprintf("Scenario requires resources: %v (all bundleable)", bundleability.RequiredResources))
+			}
+		}
+	}
+	return false
+}
+
+// runPreflight builds the preflight request, executes it, and appends path logs.
+func (s *PreflightStage) runPreflight(input *StageInput, result *StageResult) (*preflight.Response, error) {
 	manifestPath := input.BundleResult.ManifestPath
 	bundleRoot := input.BundleResult.BundleDir
 
@@ -144,7 +181,6 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 		fmt.Sprintf("Manifest: %s", manifestPath),
 	)
 
-	// Build preflight request
 	request := preflight.Request{
 		BundleManifestPath: manifestPath,
 		BundleRoot:         bundleRoot,
@@ -158,13 +194,13 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 		request.TimeoutSeconds = 60 // Default timeout
 	}
 
-	// Run preflight validation
-	response, err := s.service.RunBundlePreflight(request)
-	if err != nil {
-		failStage(result, s.timeProvider, errors.ErrPreflightValidationFailed(err, nil))
-		return result
-	}
+	return s.service.RunBundlePreflight(request)
+}
 
+// validateResponse checks the preflight response for errors, invalid validation,
+// fingerprint errors, and critical check failures.
+// Returns true if the stage should exit early (failure).
+func (s *PreflightStage) validateResponse(response *preflight.Response, result *StageResult) bool {
 	// Check validation result
 	if response.Status == "error" || response.Status == "failed" {
 		failStage(result, s.timeProvider, errors.ErrPreflightValidationFailed(
@@ -172,7 +208,7 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 			response.Errors,
 		))
 		result.Details = response
-		return result
+		return true
 	}
 
 	// Enforce bundle validation policy - fail if validation errors exist
@@ -183,14 +219,22 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 			validationErrors,
 		))
 		result.Details = response
-		return result
+		return true
 	}
 
-	// Fail if any service fingerprints have errors (missing binaries, etc.)
+	if failed := s.validateFingerprints(response, result); failed {
+		return true
+	}
+
+	return s.validateCriticalChecks(response, result)
+}
+
+// validateFingerprints checks for service fingerprint errors (missing binaries, etc.).
+// Returns true if the stage should exit early (failure).
+func (s *PreflightStage) validateFingerprints(response *preflight.Response, result *StageResult) bool {
 	var fingerprintErrors []string
 	for _, fp := range response.Fingerprints {
 		if fp.Error != "" {
-			// Include resolved path in error message for easier debugging
 			errMsg := fmt.Sprintf("service %s (%s): %s", fp.ServiceID, fp.Platform, fp.Error)
 			if fp.BinaryResolvedPath != "" {
 				errMsg = fmt.Sprintf("%s (resolved: %s)", errMsg, fp.BinaryResolvedPath)
@@ -200,22 +244,27 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 			fingerprintErrors = append(fingerprintErrors, errMsg)
 		}
 	}
-	if len(fingerprintErrors) > 0 {
-		failStage(result, s.timeProvider, errors.ErrPreflightValidationFailed(
-			fmt.Errorf("service binary validation failed for %d services", len(fingerprintErrors)),
-			fingerprintErrors,
-		).WithRecovery(errors.RecoveryFixInput, "Ensure all service binaries are built before running the pipeline. "+
-			"Run 'make build' in the scenario directory to build binaries.").
-			WithManualSteps([]string{
-				"Check that the scenario has been fully built",
-				"Verify binaries exist at the paths shown in the errors above",
-				"For cross-platform builds, ensure binaries are compiled for each target platform",
-			}))
-		result.Details = response
-		return result
+	if len(fingerprintErrors) == 0 {
+		return false
 	}
 
-	// Fail if any critical validation checks failed
+	failStage(result, s.timeProvider, errors.ErrPreflightValidationFailed(
+		fmt.Errorf("service binary validation failed for %d services", len(fingerprintErrors)),
+		fingerprintErrors,
+	).WithRecovery(errors.RecoveryFixInput, "Ensure all service binaries are built before running the pipeline. "+
+		"Run 'make build' in the scenario directory to build binaries.").
+		WithManualSteps([]string{
+			"Check that the scenario has been fully built",
+			"Verify binaries exist at the paths shown in the errors above",
+			"For cross-platform builds, ensure binaries are compiled for each target platform",
+		}))
+	result.Details = response
+	return true
+}
+
+// validateCriticalChecks checks for critical validation check failures.
+// Returns true if the stage should exit early (failure).
+func (s *PreflightStage) validateCriticalChecks(response *preflight.Response, result *StageResult) bool {
 	var criticalFailures []string
 	for _, check := range response.Checks {
 		if check.Status == "fail" && check.Step == "validation" {
@@ -223,29 +272,26 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 				fmt.Sprintf("%s: %s", check.Name, check.Detail))
 		}
 	}
-	if len(criticalFailures) > 0 {
-		failStage(result, s.timeProvider, errors.ErrPreflightValidationFailed(
-			fmt.Errorf("%d critical validation checks failed", len(criticalFailures)),
-			criticalFailures,
-		).WithRecovery(errors.RecoveryFixInput, "Fix the validation errors listed above. "+
-			"Common causes: missing UI build (run 'pnpm build' in ui/), missing assets, or incorrect manifest configuration.").
-			WithManualSteps([]string{
-				"Review each failed validation check above",
-				"Build the UI if assets are missing: cd ui && pnpm build",
-				"Verify the bundle manifest references correct file paths",
-			}))
-		result.Details = response
-		return result
+	if len(criticalFailures) == 0 {
+		return false
 	}
 
-	// Update input for next stage
-	input.PreflightResult = response
+	failStage(result, s.timeProvider, errors.ErrPreflightValidationFailed(
+		fmt.Errorf("%d critical validation checks failed", len(criticalFailures)),
+		criticalFailures,
+	).WithRecovery(errors.RecoveryFixInput, "Fix the validation errors listed above. "+
+		"Common causes: missing UI build (run 'pnpm build' in ui/), missing assets, or incorrect manifest configuration.").
+		WithManualSteps([]string{
+			"Review each failed validation check above",
+			"Build the UI if assets are missing: cd ui && pnpm build",
+			"Verify the bundle manifest references correct file paths",
+		}))
+	result.Details = response
+	return true
+}
 
-	completeStage(result, s.timeProvider, response)
-	result.Logs = append(result.Logs,
-		fmt.Sprintf("Preflight status: %s", response.Status),
-	)
-
+// appendResponseSummaryLogs adds fingerprint, validation, and readiness summary logs.
+func appendResponseSummaryLogs(response *preflight.Response, result *StageResult) {
 	// Add fingerprint summary (successful binary validations)
 	if len(response.Fingerprints) > 0 {
 		validCount := 0
@@ -279,8 +325,6 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 	if response.Ready != nil && response.Ready.Ready {
 		result.Logs = append(result.Logs, "Bundle services are ready")
 	}
-
-	return result
 }
 
 // extractValidationErrors converts BundleValidationResult to string slice for error reporting.

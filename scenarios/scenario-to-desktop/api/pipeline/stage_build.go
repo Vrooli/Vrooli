@@ -218,37 +218,7 @@ func (s *BuildStage) Execute(ctx context.Context, input *StageInput) *StageResul
 	// Initialize build status in store BEFORE launching async goroutine.
 	// The build service checks if the status exists and exits immediately if not,
 	// so we must create it here first.
-	if s.store != nil {
-		now := time.Unix(s.timeProvider.Now(), 0)
-		metadata := map[string]interface{}{}
-		if input.Provenance != nil {
-			metadata["git_commit_hash"] = input.Provenance.GitCommitHash
-			metadata["git_branch"] = input.Provenance.GitBranch
-			metadata["git_dirty"] = input.Provenance.GitDirty
-			metadata["built_at"] = input.Provenance.BuiltAt
-			metadata["version"] = input.Provenance.Version
-		}
-		initialStatus := &build.Status{
-			BuildID:            buildID,
-			ScenarioName:       scenarioName,
-			Status:             "building",
-			RequestedPlatforms: platforms,
-			PlatformResults:    make(map[string]*build.PlatformResult),
-			CreatedAt:          now,
-			BuildLog:           []string{},
-			ErrorLog:           []string{},
-			Artifacts:          map[string]string{},
-			Metadata:           metadata,
-		}
-		// Initialize platform results as pending
-		for _, plt := range platforms {
-			initialStatus.PlatformResults[plt] = &build.PlatformResult{
-				Platform: plt,
-				Status:   "pending",
-			}
-		}
-		s.store.Save(initialStatus)
-	}
+	s.initBuildStore(buildID, scenarioName, platforms, input.Provenance)
 
 	// Start the async build
 	go s.service.PerformScenarioDesktopBuild(
@@ -262,44 +232,12 @@ func (s *BuildStage) Execute(ctx context.Context, input *StageInput) *StageResul
 	// Wait for build to complete
 	buildStatus, waitErr := s.waitForBuild(ctx, buildID)
 	if waitErr != nil {
-		// Handle wait error based on its kind
-		if waitErr.Kind == WaitErrorStore {
-			failStage(result, s.timeProvider, errors.ErrBuildStoreNotConfigured())
-		} else if waitErr.Kind == WaitErrorTimeout {
-			failStage(result, s.timeProvider, errors.ErrBuildTimedOut(buildID, DefaultBuildTimeout.String()))
-		} else if waitErr.Kind == WaitErrorCancelled {
-			failStage(result, s.timeProvider, errors.New(errors.CodePipelineCancelled, "build cancelled").InDomain("build"))
-		} else {
-			failStage(result, s.timeProvider, errors.ErrBuildStartFailed(waitErr, strings.Join(platforms, ",")))
-		}
+		failStage(result, s.timeProvider, s.buildWaitError(waitErr, buildID, platforms))
 		return result
 	}
 
 	// Check build result
-	switch buildStatus.Status {
-	case BuildStatusReady:
-		result.Logs = append(result.Logs, "All platforms built successfully")
-	case BuildStatusPartial:
-		result.Logs = append(result.Logs, "Build completed with some platform failures")
-	case BuildStatusFailed:
-		lastOutput := ""
-		if len(buildStatus.ErrorLog) > 0 {
-			lastOutput = buildStatus.ErrorLog[len(buildStatus.ErrorLog)-1]
-		}
-		// Determine which platform failed
-		failedPlatform := ""
-		for platform, platResult := range buildStatus.PlatformResults {
-			if platResult.Status == BuildStatusFailed {
-				failedPlatform = platform
-				break
-			}
-		}
-		failStage(result, s.timeProvider, errors.ErrBuildPlatformFailed(
-			fmt.Errorf("build failed: %s", lastOutput),
-			failedPlatform,
-			lastOutput,
-		))
-		result.Details = buildStatus
+	if failed := s.handleBuildResult(result, buildStatus); failed {
 		return result
 	}
 
@@ -310,11 +248,12 @@ func (s *BuildStage) Execute(ctx context.Context, input *StageInput) *StageResul
 
 	// Log platform results
 	for platform, platResult := range buildStatus.PlatformResults {
-		if platResult.Status == BuildStatusReady {
+		switch platResult.Status {
+		case BuildStatusReady:
 			result.Logs = append(result.Logs, fmt.Sprintf("  %s: built (%s)", platform, platResult.Artifact))
-		} else if platResult.Status == BuildStatusSkipped {
+		case BuildStatusSkipped:
 			result.Logs = append(result.Logs, fmt.Sprintf("  %s: skipped (%s)", platform, platResult.SkipReason))
-		} else {
+		default:
 			result.Logs = append(result.Logs, fmt.Sprintf("  %s: %s", platform, platResult.Status))
 		}
 	}
@@ -350,4 +289,83 @@ func (s *BuildStage) waitForBuild(ctx context.Context, buildID string) (*build.S
 	}
 
 	return poller.Wait(ctx, buildID)
+}
+
+// initBuildStore creates the initial build status in the store so the async build goroutine can find it.
+func (s *BuildStage) initBuildStore(buildID, scenarioName string, platforms []string, provenance *BuildProvenance) {
+	if s.store == nil {
+		return
+	}
+	now := time.Unix(s.timeProvider.Now(), 0)
+	metadata := map[string]interface{}{}
+	if provenance != nil {
+		metadata["git_commit_hash"] = provenance.GitCommitHash
+		metadata["git_branch"] = provenance.GitBranch
+		metadata["git_dirty"] = provenance.GitDirty
+		metadata["built_at"] = provenance.BuiltAt
+		metadata["version"] = provenance.Version
+	}
+	initialStatus := &build.Status{
+		BuildID:            buildID,
+		ScenarioName:       scenarioName,
+		Status:             "building",
+		RequestedPlatforms: platforms,
+		PlatformResults:    make(map[string]*build.PlatformResult),
+		CreatedAt:          now,
+		BuildLog:           []string{},
+		ErrorLog:           []string{},
+		Artifacts:          map[string]string{},
+		Metadata:           metadata,
+	}
+	for _, plt := range platforms {
+		initialStatus.PlatformResults[plt] = &build.PlatformResult{
+			Platform: plt,
+			Status:   "pending",
+		}
+	}
+	s.store.Save(initialStatus)
+}
+
+// buildWaitError converts a WaitError into a domain error for the build stage.
+func (s *BuildStage) buildWaitError(waitErr *WaitError, buildID string, platforms []string) *errors.DomainError {
+	switch waitErr.Kind {
+	case WaitErrorStore:
+		return errors.ErrBuildStoreNotConfigured()
+	case WaitErrorTimeout:
+		return errors.ErrBuildTimedOut(buildID, DefaultBuildTimeout.String())
+	case WaitErrorCancelled:
+		return errors.New(errors.CodePipelineCancelled, "build cancelled").InDomain("build")
+	default:
+		return errors.ErrBuildStartFailed(waitErr, strings.Join(platforms, ","))
+	}
+}
+
+// handleBuildResult logs and checks the build status. Returns true if the stage should fail.
+func (s *BuildStage) handleBuildResult(result *StageResult, buildStatus *build.Status) bool {
+	switch buildStatus.Status {
+	case BuildStatusReady:
+		result.Logs = append(result.Logs, "All platforms built successfully")
+	case BuildStatusPartial:
+		result.Logs = append(result.Logs, "Build completed with some platform failures")
+	case BuildStatusFailed:
+		lastOutput := ""
+		if len(buildStatus.ErrorLog) > 0 {
+			lastOutput = buildStatus.ErrorLog[len(buildStatus.ErrorLog)-1]
+		}
+		failedPlatform := ""
+		for platform, platResult := range buildStatus.PlatformResults {
+			if platResult.Status == BuildStatusFailed {
+				failedPlatform = platform
+				break
+			}
+		}
+		failStage(result, s.timeProvider, errors.ErrBuildPlatformFailed(
+			fmt.Errorf("build failed: %s", lastOutput),
+			failedPlatform,
+			lastOutput,
+		))
+		result.Details = buildStatus
+		return true
+	}
+	return false
 }

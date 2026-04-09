@@ -93,13 +93,14 @@ func generateDiagnosticHints(status *Status) []string {
 		hints = append(hints, "Search process output for 'SMOKE_TEST'")
 
 	case ErrKindPlatform:
-		if status.Platform == "linux" {
+		switch status.Platform {
+		case "linux":
 			hints = append(hints, "Install xvfb: apt-get install xvfb")
 			hints = append(hints, "Or set DISPLAY environment variable")
-		} else if status.Platform == "mac" {
+		case "mac":
 			hints = append(hints, "Check macOS security permissions for the app")
 			hints = append(hints, "Verify app is properly signed or allowed in Security preferences")
-		} else if status.Platform == "win" {
+		case "win":
 			hints = append(hints, "Check Windows Defender/antivirus settings")
 			hints = append(hints, "Verify app can run in headless mode on Windows")
 		}

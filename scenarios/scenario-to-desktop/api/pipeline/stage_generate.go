@@ -104,14 +104,73 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 		return result
 	}
 
+	// Analyze and validate scenario
+	metadata, err := s.analyzeScenario(input, result)
+	if err != nil {
+		return result
+	}
+
+	// Create and configure desktop config
+	desktopConfig, err := s.buildDesktopConfig(input, metadata, result)
+	if err != nil {
+		return result
+	}
+
+	// Resolve output paths and optionally clean
+	if failed := s.resolveOutputPaths(input, desktopConfig, result); failed {
+		return result
+	}
+
+	result.Logs = append(result.Logs,
+		fmt.Sprintf("Deployment mode: %s", desktopConfig.DeploymentMode),
+		fmt.Sprintf("Template type: %s", input.Config.GetTemplateType()),
+	)
+
+	// Check for update config warnings
+	s.checkUpdateConfigWarnings(input, result)
+
+	if s.service == nil {
+		failStage(result, s.timeProvider, errors.ErrGenerateServiceNotConfigured())
+		return result
+	}
+
+	// Queue the generation
+	buildStatus := s.service.QueueBuild(desktopConfig, metadata, true)
+	buildID := buildStatus.BuildID
+
+	// Wait for generation to complete (poll with cancellation support)
+	desktopPath, genErr := s.waitForGeneration(ctx, buildID, buildStatus)
+	if genErr != nil {
+		failStage(result, s.timeProvider, errors.ErrGenerationFailed(genErr).WithDetail("build_id", buildID))
+		return result
+	}
+
+	// Update input for next stage
+	input.DesktopPath = desktopPath
+	input.GenerationResult = &generation.GenerateResponse{
+		BuildID:     buildID,
+		Status:      "ready",
+		DesktopPath: desktopPath,
+	}
+
+	completeStage(result, s.timeProvider, input.GenerationResult)
+	result.Logs = append(result.Logs,
+		fmt.Sprintf("Desktop wrapper generated: %s", desktopPath),
+	)
+
+	return result
+}
+
+// analyzeScenario analyzes and validates the scenario, updating input with metadata.
+// On failure, the result is already populated with an error; the caller should return result.
+func (s *GenerateStage) analyzeScenario(input *StageInput, result *StageResult) (*generation.ScenarioMetadata, error) {
 	scenarioName := input.Config.ScenarioName
 	result.Logs = append(result.Logs, fmt.Sprintf("Analyzing scenario: %s", scenarioName))
 
-	// Analyze the scenario
 	metadata, err := s.analyzer.AnalyzeScenario(scenarioName)
 	if err != nil {
 		failStage(result, s.timeProvider, errors.ErrScenarioAnalysisFailed(err, scenarioName))
-		return result
+		return nil, err
 	}
 
 	input.ScenarioMetadata = metadata
@@ -121,25 +180,25 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 		result.Logs = append(result.Logs, fmt.Sprintf("Release version: %s", metadata.Version))
 	}
 
-	// Validate scenario is ready for desktop
 	if err := s.analyzer.ValidateScenarioForDesktop(scenarioName); err != nil {
 		failStage(result, s.timeProvider, errors.ErrScenarioValidationFailed(err, scenarioName))
-		return result
+		return nil, err
 	}
 
-	// Create desktop config from metadata
+	return metadata, nil
+}
+
+// buildDesktopConfig creates and configures the desktop config from metadata and pipeline config.
+// On failure, the result is already populated with an error; the caller should return result.
+func (s *GenerateStage) buildDesktopConfig(input *StageInput, metadata *generation.ScenarioMetadata, result *StageResult) (*generation.DesktopConfig, error) {
 	templateType := input.Config.GetTemplateType()
 	desktopConfig, err := s.analyzer.CreateDesktopConfigFromMetadata(metadata, templateType)
 	if err != nil {
 		failStage(result, s.timeProvider, errors.ErrDesktopConfigFailed(err))
-		return result
+		return nil, err
 	}
 
 	// Apply pipeline config overrides
-	// Always use the pipeline's computed deployment mode (with default "bundled").
-	// This ensures the generated code matches the pipeline's behavior.
-	// GetDeploymentMode() returns "bundled" by default, which creates fully
-	// self-contained desktop applications - the most common production use case.
 	desktopConfig.DeploymentMode = input.Config.GetDeploymentMode()
 	desktopConfig.Platforms = input.Config.Platforms
 	if input.Config.LocationMode != "" {
@@ -148,45 +207,12 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 	if input.Config.ProxyURL != "" {
 		desktopConfig.ProxyURL = input.Config.ProxyURL
 	}
-	if input.BundleResult != nil {
-		desktopConfig.BundleManifestPath = input.BundleResult.ManifestPath
-		// Use relative path "bundle" instead of absolute source path.
-		// electron-builder copies bundle/ to resources/bundle via extraResources,
-		// so the packaged app must look for "bundle" relative to resources path.
-		desktopConfig.BundleRuntimeRoot = "bundle"
 
-		// Extract IPC configuration from manifest content.
-		// This is critical for bundled mode: the token path in bundle.json must be
-		// passed through to the template generator, otherwise the desktop app will
-		// wait for a token file at the wrong path and timeout.
-		if input.BundleResult.ManifestContent != nil {
-			desktopConfig.BundleIPC = extractBundleIPCConfig(input.BundleResult.ManifestContent)
-			if desktopConfig.BundleIPC != nil {
-				result.Logs = append(result.Logs,
-					fmt.Sprintf("Bundle IPC: host=%s port=%d token_path=%s",
-						desktopConfig.BundleIPC.Host,
-						desktopConfig.BundleIPC.Port,
-						desktopConfig.BundleIPC.AuthTokenRel))
-			}
-
-			// Extract UI service configuration from manifest content.
-			// This ensures the Electron app knows which service ID and port name
-			// to use for resolving the UI port, instead of relying on defaults.
-			uiSvcID, uiPortName := extractBundleUIServiceConfig(input.BundleResult.ManifestContent)
-			if uiSvcID != "" {
-				desktopConfig.BundleUISvcID = uiSvcID
-				desktopConfig.BundleUIPortName = uiPortName
-				result.Logs = append(result.Logs,
-					fmt.Sprintf("Bundle UI service: id=%s port_name=%s", uiSvcID, uiPortName))
-			}
-		}
-	}
+	s.applyBundleConfig(input, desktopConfig, result)
 
 	// Validate that BundleRuntimeRoot is never an absolute path.
-	// Absolute paths would be embedded in the generated code and break after packaging
-	// since the app runs from a different location than where it was built.
 	if desktopConfig.BundleRuntimeRoot != "" && filepath.IsAbs(desktopConfig.BundleRuntimeRoot) {
-		failStage(result, s.timeProvider, errors.New(errors.CodeConfigInvalid,
+		derr := errors.New(errors.CodeConfigInvalid,
 			fmt.Sprintf("BundleRuntimeRoot must be a relative path, got absolute path: %s", desktopConfig.BundleRuntimeRoot)).
 			WithRecovery(errors.RecoveryFixInput,
 				"BundleRuntimeRoot should be 'bundle' (relative) so the packaged app finds assets in resources/bundle").
@@ -194,23 +220,59 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 				"Check that BundleRuntimeRoot is set to 'bundle' (relative path)",
 				"The electron-builder extraResources config copies bundle/ to resources/bundle",
 				"Absolute paths break after packaging because the app runs from a different location",
-			}))
-		return result
+			})
+		failStage(result, s.timeProvider, derr)
+		return nil, fmt.Errorf("invalid BundleRuntimeRoot")
 	}
 
-	// For bundled deployment mode, extraResources should point to the bundle directory
-	// (relative to the electron output path) instead of the source ui/dist path.
-	// The bundle stage has already packaged all assets (UI, binaries, manifest) into
-	// platforms/electron/bundle/, so we reference that directory.
+	// For bundled deployment mode, reference the bundle directory.
 	if desktopConfig.DeploymentMode == "bundled" {
 		desktopConfig.ScenarioPath = "bundle"
 	}
 
-	// Resolve staging output path when requested so bundle + build share a stable location.
+	return desktopConfig, nil
+}
+
+// applyBundleConfig applies bundle-related configuration from BundleResult to the desktop config.
+func (s *GenerateStage) applyBundleConfig(input *StageInput, desktopConfig *generation.DesktopConfig, result *StageResult) {
+	if input.BundleResult == nil {
+		return
+	}
+
+	desktopConfig.BundleManifestPath = input.BundleResult.ManifestPath
+	desktopConfig.BundleRuntimeRoot = "bundle"
+
+	if input.BundleResult.ManifestContent == nil {
+		return
+	}
+
+	desktopConfig.BundleIPC = extractBundleIPCConfig(input.BundleResult.ManifestContent)
+	if desktopConfig.BundleIPC != nil {
+		result.Logs = append(result.Logs,
+			fmt.Sprintf("Bundle IPC: host=%s port=%d token_path=%s",
+				desktopConfig.BundleIPC.Host,
+				desktopConfig.BundleIPC.Port,
+				desktopConfig.BundleIPC.AuthTokenRel))
+	}
+
+	uiSvcID, uiPortName := extractBundleUIServiceConfig(input.BundleResult.ManifestContent)
+	if uiSvcID != "" {
+		desktopConfig.BundleUISvcID = uiSvcID
+		desktopConfig.BundleUIPortName = uiPortName
+		result.Logs = append(result.Logs,
+			fmt.Sprintf("Bundle UI service: id=%s port_name=%s", uiSvcID, uiPortName))
+	}
+}
+
+// resolveOutputPaths resolves and optionally cleans the output paths for generation.
+// Returns true if the stage should exit early (failure).
+func (s *GenerateStage) resolveOutputPaths(input *StageInput, desktopConfig *generation.DesktopConfig, result *StageResult) bool {
+	scenarioName := input.Config.ScenarioName
 	scenarioPath := input.ScenarioPath
 	if scenarioPath == "" {
 		scenarioPath = filepath.Join(s.scenarioRoot, scenarioName)
 	}
+
 	resolvedDesktopPath := ""
 	if isStagingLocation(input.Config.LocationMode) {
 		if input.BundleResult != nil && input.BundleResult.BundleDir != "" {
@@ -231,63 +293,30 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 		result.Logs = append(result.Logs, fmt.Sprintf("Cleaning desktop outputs under: %s", resolvedDesktopPath))
 		if err := cleanDesktopOutputs(resolvedDesktopPath, input.Config.LocationMode); err != nil {
 			failStage(result, s.timeProvider, errors.ErrGenerationFailed(err).WithDetail("output_path", resolvedDesktopPath))
-			return result
+			return true
 		}
 	}
 
-	result.Logs = append(result.Logs,
-		fmt.Sprintf("Deployment mode: %s", desktopConfig.DeploymentMode),
-		fmt.Sprintf("Template type: %s", templateType),
-	)
+	return false
+}
 
-	// Check for update config warnings
-	// The default provider is "generic" (self-hosted), which requires a URL.
-	// Without a URL, auto-updates are effectively disabled.
-	if input.Config.UpdateConfig != nil {
-		provider := input.Config.UpdateConfig.Provider
-		if provider == "" {
-			provider = "generic" // Default provider
-		}
-		if provider == "generic" {
-			if input.Config.UpdateConfig.Generic == nil || input.Config.UpdateConfig.Generic.URL == "" {
-				result.Logs = append(result.Logs,
-					"WARNING: Generic update provider configured without URL. "+
-						"Auto-updates will not work until update_config.generic.url is set. "+
-						"Set provider to 'none' to explicitly disable updates.")
-			}
+// checkUpdateConfigWarnings logs warnings about update configuration issues.
+func (s *GenerateStage) checkUpdateConfigWarnings(input *StageInput, result *StageResult) {
+	if input.Config.UpdateConfig == nil {
+		return
+	}
+	provider := input.Config.UpdateConfig.Provider
+	if provider == "" {
+		provider = "generic"
+	}
+	if provider == "generic" {
+		if input.Config.UpdateConfig.Generic == nil || input.Config.UpdateConfig.Generic.URL == "" {
+			result.Logs = append(result.Logs,
+				"WARNING: Generic update provider configured without URL. "+
+					"Auto-updates will not work until update_config.generic.url is set. "+
+					"Set provider to 'none' to explicitly disable updates.")
 		}
 	}
-
-	if s.service == nil {
-		failStage(result, s.timeProvider, errors.ErrGenerateServiceNotConfigured())
-		return result
-	}
-
-	// Queue the generation
-	buildStatus := s.service.QueueBuild(desktopConfig, metadata, true)
-	buildID := buildStatus.BuildID
-
-	// Wait for generation to complete (poll with cancellation support)
-	desktopPath, err := s.waitForGeneration(ctx, buildID, buildStatus)
-	if err != nil {
-		failStage(result, s.timeProvider, errors.ErrGenerationFailed(err).WithDetail("build_id", buildID))
-		return result
-	}
-
-	// Update input for next stage
-	input.DesktopPath = desktopPath
-	input.GenerationResult = &generation.GenerateResponse{
-		BuildID:     buildID,
-		Status:      "ready",
-		DesktopPath: desktopPath,
-	}
-
-	completeStage(result, s.timeProvider, input.GenerationResult)
-	result.Logs = append(result.Logs,
-		fmt.Sprintf("Desktop wrapper generated: %s", desktopPath),
-	)
-
-	return result
 }
 
 // waitForGeneration polls for generation completion.

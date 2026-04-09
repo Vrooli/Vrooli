@@ -38,10 +38,6 @@ package bundleruntime
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -272,12 +268,66 @@ func NewSupervisor(opts Options) (*Supervisor, error) {
 // It sets up the control API, loads secrets and migrations, allocates ports,
 // and starts services asynchronously once all required secrets are available.
 func (s *Supervisor) Start(ctx context.Context) error {
-	// Create app data directory.
+	if err := s.initPaths(); err != nil {
+		return err
+	}
+
+	if err := s.initSecrets(); err != nil {
+		return err
+	}
+
+	if err := s.initMigrations(); err != nil {
+		return err
+	}
+
+	if err := s.initAuthAndPorts(); err != nil {
+		return err
+	}
+
+	// Initialize service status.
+	for _, svc := range s.opts.Manifest.Services {
+		s.serviceStatus[svc.ID] = ServiceStatus{Ready: false, Message: "pending start"}
+	}
+
+	if err := s.recordTelemetry("runtime_start", nil); err != nil {
+		return fmt.Errorf("write telemetry: %w", err)
+	}
+
+	s.initGPUAndDomainObjects()
+
+	ln, err := s.startControlAPI()
+	if err != nil {
+		return err
+	}
+
+	s.started = true
+	s.startedAt = s.clock.Now()
+
+	runtimeCtx, cancel := context.WithCancel(ctx)
+	s.runtimeCtx = runtimeCtx
+	s.cancel = cancel
+
+	s.triggerServicesOrWait()
+
+	go func() {
+		<-ctx.Done()
+		_ = s.Shutdown(context.Background())
+	}()
+	go func() {
+		if serveErr := s.server.Serve(ln); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
+			_ = s.recordTelemetry("runtime_error", map[string]interface{}{"error": serveErr.Error()})
+		}
+	}()
+
+	return nil
+}
+
+// initPaths creates directories and sets up telemetry.
+func (s *Supervisor) initPaths() error {
 	if err := s.fs.MkdirAll(s.appData, 0o755); err != nil {
 		return fmt.Errorf("create app data dir: %w", err)
 	}
 
-	// Set up paths.
 	s.telemetryPath = manifest.ResolvePath(s.appData, s.opts.Manifest.Telemetry.File)
 	s.migrationsPath = filepath.Join(s.appData, "migrations.json")
 
@@ -285,17 +335,17 @@ func (s *Supervisor) Start(ctx context.Context) error {
 		return fmt.Errorf("create telemetry dir: %w", err)
 	}
 
-	// Initialize telemetry recorder.
 	s.telemetry = telemetry.NewFileRecorder(s.telemetryPath, s.clock, s.fs)
+	return nil
+}
 
-	// Load persisted state.
+// initSecrets loads persisted secrets and auto-generates missing ones.
+func (s *Supervisor) initSecrets() error {
 	loadedSecrets, err := s.secretStore.Load()
 	if err != nil {
 		return fmt.Errorf("load secrets: %w", err)
 	}
 
-	// Auto-generate per_install_generated secrets that don't exist.
-	// This ensures auto-generated secrets are created on first-run and persisted.
 	generated, genErr := s.secretStore.GenerateMissing(loadedSecrets)
 	if genErr != nil {
 		_ = s.recordTelemetry("secrets_generation_failed", map[string]interface{}{"error": genErr.Error()})
@@ -307,7 +357,6 @@ func (s *Supervisor) Start(ctx context.Context) error {
 			loadedSecrets[k] = v
 			generatedIDs = append(generatedIDs, k)
 		}
-		// Persist the newly generated secrets immediately.
 		if persistErr := s.secretStore.Persist(loadedSecrets); persistErr != nil {
 			return fmt.Errorf("persist generated secrets: %w", persistErr)
 		}
@@ -318,8 +367,11 @@ func (s *Supervisor) Start(ctx context.Context) error {
 	}
 
 	s.secretStore.Set(loadedSecrets)
+	return nil
+}
 
-	// Create migration executor with tracker.
+// initMigrations sets up the migration executor and loads migration state.
+func (s *Supervisor) initMigrations() error {
 	tracker := migrations.NewTracker(s.migrationsPath, s.fs)
 	migrationState, err := tracker.Load()
 	if err != nil {
@@ -334,12 +386,15 @@ func (s *Supervisor) Start(ctx context.Context) error {
 			Telemetry:  s.telemetry,
 		},
 		s.envRenderer,
-		s, // Supervisor implements LogProvider
+		s,
 	)
 	s.migrationExecutor.SetState(migrationState)
 	s.migrations = migrationState
+	return nil
+}
 
-	// Load or create auth token.
+// initAuthAndPorts loads the auth token and allocates ports.
+func (s *Supervisor) initAuthAndPorts() error {
 	tokenPath := manifest.ResolvePath(s.appData, s.opts.Manifest.IPC.AuthTokenRel)
 	token, err := s.loadOrCreateToken(tokenPath)
 	if err != nil {
@@ -347,22 +402,11 @@ func (s *Supervisor) Start(ctx context.Context) error {
 	}
 	s.authToken = token
 
-	// Allocate ports.
-	if err := s.portAllocator.Allocate(); err != nil {
-		return err
-	}
+	return s.portAllocator.Allocate()
+}
 
-	// Initialize service status.
-	for _, svc := range s.opts.Manifest.Services {
-		s.serviceStatus[svc.ID] = ServiceStatus{Ready: false, Message: "pending start"}
-	}
-
-	// Record startup telemetry.
-	if err := s.recordTelemetry("runtime_start", nil); err != nil {
-		return fmt.Errorf("write telemetry: %w", err)
-	}
-
-	// Detect GPU.
+// initGPUAndDomainObjects detects GPU and creates cached domain objects.
+func (s *Supervisor) initGPUAndDomainObjects() {
 	s.gpuStatus = s.gpuDetector.Detect()
 	_ = s.recordTelemetry("gpu_status", map[string]interface{}{
 		"available": s.gpuStatus.Available,
@@ -370,11 +414,12 @@ func (s *Supervisor) Start(ctx context.Context) error {
 		"reason":    s.gpuStatus.Reason,
 	})
 
-	// Create cached domain objects now that telemetry and GPU status are available.
 	s.assetVerifier = assets.NewVerifier(s.opts.BundlePath, s.fs, s.telemetry)
 	s.gpuApplier = gpu.NewApplier(s.gpuStatus, s.telemetry)
+}
 
-	// Set up HTTP server using the API package.
+// startControlAPI sets up and binds the HTTP control API server.
+func (s *Supervisor) startControlAPI() (net.Listener, error) {
 	apiServer := api.NewServer(s, s.authToken)
 	mux := http.NewServeMux()
 	apiServer.RegisterHandlers(mux)
@@ -382,36 +427,28 @@ func (s *Supervisor) Start(ctx context.Context) error {
 	addr := fmt.Sprintf("%s:%d", s.opts.Manifest.IPC.Host, s.opts.Manifest.IPC.Port)
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
-		// Fallback to ephemeral port when the requested port is unavailable.
 		ln, err = net.Listen("tcp", fmt.Sprintf("%s:%d", s.opts.Manifest.IPC.Host, 0))
 		if err != nil {
-			return fmt.Errorf("start control API on %s: %w", addr, err)
+			return nil, fmt.Errorf("start control API on %s: %w", addr, err)
 		}
 	}
 	actualAddr := ln.Addr().(*net.TCPAddr)
 	s.opts.Manifest.IPC.Port = actualAddr.Port
 
-	// Persist IPC port alongside the auth token so shims can discover it.
 	portPath := filepath.Join(s.appData, "runtime", "ipc_port")
 	if err := s.fs.MkdirAll(filepath.Dir(portPath), 0o700); err == nil {
 		_ = s.fs.WriteFile(portPath, []byte(fmt.Sprintf("%d", actualAddr.Port)), 0o600)
 	}
 
-	server := &http.Server{
+	s.server = &http.Server{
 		Addr:    fmt.Sprintf("%s:%d", s.opts.Manifest.IPC.Host, actualAddr.Port),
 		Handler: apiServer.AuthMiddleware(mux),
 	}
-	s.server = server
+	return ln, nil
+}
 
-	s.started = true
-	s.startedAt = s.clock.Now()
-
-	// Create runtime context.
-	runtimeCtx, cancel := context.WithCancel(ctx)
-	s.runtimeCtx = runtimeCtx
-	s.cancel = cancel
-
-	// Check for missing secrets.
+// triggerServicesOrWait starts services if all secrets are available, otherwise waits.
+func (s *Supervisor) triggerServicesOrWait() {
 	missing := s.secretStore.MissingRequired()
 	if len(missing) > 0 {
 		msg := fmt.Sprintf("waiting for secrets: %s", strings.Join(missing, ", "))
@@ -422,21 +459,6 @@ func (s *Supervisor) Start(ctx context.Context) error {
 	} else {
 		s.startServicesAsync()
 	}
-
-	// Watch for context cancellation.
-	go func() {
-		<-ctx.Done()
-		_ = s.Shutdown(context.Background())
-	}()
-
-	// Start HTTP server.
-	go func() {
-		if serveErr := server.Serve(ln); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
-			_ = s.recordTelemetry("runtime_error", map[string]interface{}{"error": serveErr.Error()})
-		}
-	}()
-
-	return nil
 }
 
 // Shutdown gracefully stops all services and the control API.
@@ -470,255 +492,3 @@ func (s *Supervisor) Shutdown(ctx context.Context) error {
 	return nil
 }
 
-// setStatus updates the status for a service.
-func (s *Supervisor) setStatus(id string, status ServiceStatus) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	now := s.clock.Now()
-	if prev, ok := s.serviceStatus[id]; ok {
-		if status.StartedAt.IsZero() {
-			status.StartedAt = prev.StartedAt
-		}
-		if status.ReadyAt.IsZero() {
-			status.ReadyAt = prev.ReadyAt
-		}
-	}
-	if status.StartedAt.IsZero() {
-		if proc, ok := s.procs[id]; ok && !proc.started.IsZero() {
-			status.StartedAt = proc.started
-		}
-	}
-	if status.Ready && status.ReadyAt.IsZero() {
-		status.ReadyAt = now
-	}
-	status.UpdatedAt = now
-	s.serviceStatus[id] = status
-}
-
-// getStatus retrieves the status for a service.
-func (s *Supervisor) getStatus(id string) (ServiceStatus, bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	st, ok := s.serviceStatus[id]
-	return st, ok
-}
-
-// setProc stores a service process reference.
-func (s *Supervisor) setProc(id string, proc *serviceProcess) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.procs[id] = proc
-}
-
-// getProc retrieves a service process reference.
-func (s *Supervisor) getProc(id string) *serviceProcess {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.procs[id]
-}
-
-// loadOrCreateToken loads an existing auth token or creates a new one.
-func (s *Supervisor) loadOrCreateToken(path string) (string, error) {
-	if data, err := s.fs.ReadFile(path); err == nil && len(strings.TrimSpace(string(data))) > 0 {
-		return strings.TrimSpace(string(data)), nil
-	}
-
-	if err := s.fs.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return "", err
-	}
-
-	buf := make([]byte, 24)
-	if _, err := rand.Read(buf); err != nil {
-		return "", err
-	}
-	token := hex.EncodeToString(buf)
-	if err := s.fs.WriteFile(path, []byte(token), 0o600); err != nil {
-		return "", err
-	}
-	return token, nil
-}
-
-// AppDataDir returns the resolved app data directory.
-func (s *Supervisor) AppDataDir() string {
-	return s.appData
-}
-
-// TelemetryPath returns the telemetry file path.
-func (s *Supervisor) TelemetryPath() string {
-	return s.telemetryPath
-}
-
-// TelemetryUploadURL returns the telemetry upload URL.
-func (s *Supervisor) TelemetryUploadURL() string {
-	return s.opts.Manifest.Telemetry.UploadTo
-}
-
-// Manifest returns the bundle manifest.
-func (s *Supervisor) Manifest() *manifest.Manifest {
-	return s.opts.Manifest
-}
-
-// FileSystem returns the file system abstraction.
-func (s *Supervisor) FileSystem() infra.FileSystem {
-	return s.fs
-}
-
-// SecretStore returns the secret store for API interactions.
-func (s *Supervisor) SecretStore() api.SecretStore {
-	return s.secretStore
-}
-
-// StartServicesIfReady triggers service startup if secrets are ready.
-func (s *Supervisor) StartServicesIfReady() {
-	if !s.servicesStarted {
-		s.startServicesAsync()
-	}
-}
-
-// RecordTelemetry records a telemetry event (public interface for api package).
-func (s *Supervisor) RecordTelemetry(event string, details map[string]interface{}) error {
-	return s.recordTelemetry(event, details)
-}
-
-// AuthToken returns the current auth token for the control API.
-func (s *Supervisor) AuthToken() string {
-	return s.authToken
-}
-
-// IsStarted returns whether the supervisor has been started.
-func (s *Supervisor) IsStarted() bool {
-	return s.started
-}
-
-// AllServicesReady returns true if all services are ready.
-func (s *Supervisor) AllServicesReady() bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	hasReadyCandidate := false
-	for _, st := range s.serviceStatus {
-		if st.Skipped {
-			continue
-		}
-		hasReadyCandidate = true
-		if !st.Ready {
-			return false
-		}
-	}
-	return hasReadyCandidate
-}
-
-// ServiceStatuses returns a copy of all service statuses.
-func (s *Supervisor) ServiceStatuses() map[string]ServiceStatus {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	out := make(map[string]ServiceStatus)
-	for id, st := range s.serviceStatus {
-		out[id] = st
-	}
-	return out
-}
-
-// recordTelemetry writes a telemetry event if the recorder is initialized.
-func (s *Supervisor) recordTelemetry(event string, details map[string]interface{}) error {
-	if s.telemetry == nil {
-		return nil
-	}
-	return s.telemetry.Record(event, details)
-}
-
-// =============================================================================
-// Secret Management
-// =============================================================================
-
-// applySecrets injects secrets into the environment for a service.
-func (s *Supervisor) applySecrets(env map[string]string, svc manifest.Service) error {
-	injector := secrets.NewInjector(s.secretStore, s.fs, s.appData)
-	return injector.Apply(env, svc)
-}
-
-// UpdateSecrets merges new secrets and persists them.
-// Triggers service startup if all required secrets are now available.
-func (s *Supervisor) UpdateSecrets(newSecrets map[string]string) error {
-	merged := s.secretStore.Merge(newSecrets)
-
-	missing := s.secretStore.MissingRequiredFrom(merged)
-	if len(missing) > 0 {
-		_ = s.recordTelemetry("secrets_missing", map[string]interface{}{"missing": missing})
-		return fmt.Errorf("missing required secrets: %s", strings.Join(missing, ", "))
-	}
-
-	if err := s.secretStore.Persist(merged); err != nil {
-		return err
-	}
-
-	s.secretStore.Set(merged)
-
-	_ = s.recordTelemetry("secrets_updated", map[string]interface{}{"count": len(merged)})
-
-	// Trigger service startup if not already started.
-	if !s.servicesStarted {
-		s.startServicesAsync()
-	}
-	return nil
-}
-
-// =============================================================================
-// Template Expansion (delegates to env package)
-// =============================================================================
-
-// renderEnvMap builds the environment variable map for a service.
-func (s *Supervisor) renderEnvMap(svc manifest.Service, bin manifest.Binary) (map[string]string, error) {
-	return s.envRenderer.RenderEnvMap(svc, bin)
-}
-
-// renderArgs expands template variables in command arguments.
-func (s *Supervisor) renderArgs(args []string) []string {
-	return s.envRenderer.RenderArgs(args)
-}
-
-// renderValue expands template variables in a string.
-func (s *Supervisor) renderValue(input string) string {
-	return s.envRenderer.RenderValue(input)
-}
-
-// GPUStatus returns the current GPU detection status.
-func (s *Supervisor) GPUStatus() GPUStatus {
-	return s.gpuStatus
-}
-
-// PortMap returns allocated ports for all services.
-func (s *Supervisor) PortMap() map[string]map[string]int {
-	return s.portAllocator.Map()
-}
-
-// RuntimeInfo returns metadata about the running supervisor instance.
-func (s *Supervisor) RuntimeInfo() api.RuntimeInfo {
-	return api.RuntimeInfo{
-		InstanceID:   s.instanceID,
-		StartedAt:    s.startedAt,
-		AppDataDir:   s.appData,
-		BundleRoot:   s.opts.BundlePath,
-		DryRun:       s.opts.DryRun,
-		ManifestHash: s.manifestHash,
-	}
-}
-
-func newInstanceID() string {
-	buf := make([]byte, 8)
-	if _, err := rand.Read(buf); err != nil {
-		return ""
-	}
-	return hex.EncodeToString(buf)
-}
-
-func hashManifest(m *manifest.Manifest) string {
-	if m == nil {
-		return ""
-	}
-	data, err := json.Marshal(m)
-	if err != nil {
-		return ""
-	}
-	sum := sha256.Sum256(data)
-	return hex.EncodeToString(sum[:])
-}

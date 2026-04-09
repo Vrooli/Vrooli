@@ -137,54 +137,75 @@ func (h *Handler) MoveHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid JSON", http.StatusBadRequest)
 		return
 	}
+
+	absSrc, absDest, err := h.resolveMovePaths(rec, &req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := performMove(absSrc, absDest); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	h.updateRecordAfterMove(rec, &req, absDest)
+
+	httputil.WriteJSON(w, http.StatusOK, MoveResult{
+		RecordID: recordID,
+		From:     absSrc,
+		To:       absDest,
+		Status:   "moved",
+	})
+}
+
+// resolveMovePaths validates and resolves absolute source and destination paths for a move.
+func (h *Handler) resolveMovePaths(rec *DesktopAppRecord, req *MoveRequest) (string, string, error) {
 	if req.Target == "" {
 		req.Target = "destination"
 	}
 
-	src := rec.OutputPath
 	dest := rec.DestinationPath
 	if req.Target == "custom" {
 		if req.DestinationPath == "" {
-			http.Error(w, "destination_path required for custom target", http.StatusBadRequest)
-			return
+			return "", "", fmt.Errorf("destination_path required for custom target")
 		}
 		dest = req.DestinationPath
 	}
 	if dest == "" {
-		http.Error(w, "no destination path recorded", http.StatusBadRequest)
-		return
+		return "", "", fmt.Errorf("no destination path recorded")
 	}
 
-	absSrc, err := filepath.Abs(src)
+	absSrc, err := filepath.Abs(rec.OutputPath)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("resolve source: %v", err), http.StatusBadRequest)
-		return
+		return "", "", fmt.Errorf("resolve source: %v", err)
 	}
 	absDest, err := filepath.Abs(dest)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("resolve destination: %v", err), http.StatusBadRequest)
-		return
+		return "", "", fmt.Errorf("resolve destination: %v", err)
 	}
 	if absSrc == absDest {
-		http.Error(w, "source and destination are the same", http.StatusBadRequest)
-		return
+		return "", "", fmt.Errorf("source and destination are the same")
 	}
-
 	if _, err := os.Stat(absSrc); err != nil {
-		http.Error(w, fmt.Sprintf("source missing: %v", err), http.StatusBadRequest)
-		return
+		return "", "", fmt.Errorf("source missing: %v", err)
 	}
+	return absSrc, absDest, nil
+}
 
+// performMove creates the destination directory and renames the source.
+func performMove(absSrc, absDest string) error {
 	if err := os.MkdirAll(filepath.Dir(absDest), 0o755); err != nil {
-		http.Error(w, fmt.Sprintf("prepare destination: %v", err), http.StatusInternalServerError)
-		return
+		return fmt.Errorf("prepare destination: %v", err)
 	}
-
 	if err := os.Rename(absSrc, absDest); err != nil {
-		http.Error(w, fmt.Sprintf("move failed: %v", err), http.StatusInternalServerError)
-		return
+		return fmt.Errorf("move failed: %v", err)
 	}
+	return nil
+}
 
+// updateRecordAfterMove persists path changes to the record and build stores.
+func (h *Handler) updateRecordAfterMove(rec *DesktopAppRecord, req *MoveRequest, absDest string) {
 	rec.OutputPath = absDest
 	if req.Target != "custom" {
 		rec.LocationMode = "proper"
@@ -202,13 +223,6 @@ func (h *Handler) MoveHandler(w http.ResponseWriter, r *http.Request) {
 			status.Metadata["moved_to"] = absDest
 		})
 	}
-
-	httputil.WriteJSON(w, http.StatusOK, MoveResult{
-		RecordID: recordID,
-		From:     absSrc,
-		To:       absDest,
-		Status:   "moved",
-	})
 }
 
 // DeleteHandler handles DELETE requests to delete a generated desktop application.

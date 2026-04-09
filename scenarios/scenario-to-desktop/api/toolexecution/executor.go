@@ -50,59 +50,48 @@ func NewServerExecutor(cfg ServerExecutorConfig) *ServerExecutor {
 	}
 }
 
+// toolHandler is a function that handles a tool execution request.
+type toolHandler func(ctx context.Context, args map[string]interface{}) (*ExecutionResult, error)
+
+// buildToolRegistry constructs the tool name -> handler dispatch table.
+func (e *ServerExecutor) buildToolRegistry() map[string]toolHandler {
+	return map[string]toolHandler{
+		// Pipeline tools (preferred)
+		"run_pipeline":          e.pipeline.RunPipeline,
+		"check_pipeline_status": e.pipeline.CheckPipelineStatus,
+		"cancel_pipeline":       e.pipeline.CancelPipeline,
+		"resume_pipeline":       e.pipeline.ResumePipeline,
+		"list_pipelines":        e.pipeline.ListPipelines,
+
+		// Legacy build/generation tools (deprecated, use run_pipeline instead)
+		"generate_desktop_wrapper": e.legacy.GenerateDesktopWrapper,
+		"build_for_platform":       e.legacy.BuildForPlatform,
+		"cancel_build":             e.legacy.CancelBuild,
+		"list_builds":              e.legacy.ListBuilds,
+
+		// Signing tools
+		"configure_signing":     e.signing.ConfigureSigning,
+		"sign_application":      e.signing.SignApplication,
+		"verify_signature":      e.signing.VerifySignature,
+		"get_signing_status":    e.signing.GetSigningStatus,
+		"discover_certificates": e.signing.DiscoverCertificates,
+
+		// Inspection tools
+		"check_build_status":       e.inspection.CheckBuildStatus,
+		"get_pipeline_status":      e.pipeline.CheckPipelineStatus, // Legacy redirect
+		"list_generated_wrappers":  e.inspection.ListGeneratedWrappers,
+		"validate_configuration":   e.inspection.ValidateConfiguration,
+		"get_system_prerequisites": e.inspection.GetSystemPrerequisites,
+	}
+}
+
 // Execute dispatches tool execution to the appropriate domain executor.
 func (e *ServerExecutor) Execute(ctx context.Context, toolName string, args map[string]interface{}) (*ExecutionResult, error) {
 	e.logger.Info("executing tool", "tool", toolName)
 
-	switch toolName {
-	// Pipeline tools (preferred)
-	case "run_pipeline":
-		return e.pipeline.RunPipeline(ctx, args)
-	case "check_pipeline_status":
-		return e.pipeline.CheckPipelineStatus(ctx, args)
-	case "cancel_pipeline":
-		return e.pipeline.CancelPipeline(ctx, args)
-	case "resume_pipeline":
-		return e.pipeline.ResumePipeline(ctx, args)
-	case "list_pipelines":
-		return e.pipeline.ListPipelines(ctx, args)
-
-	// Legacy build/generation tools (deprecated, use run_pipeline instead)
-	case "generate_desktop_wrapper":
-		return e.legacy.GenerateDesktopWrapper(ctx, args)
-	case "build_for_platform":
-		return e.legacy.BuildForPlatform(ctx, args)
-	case "cancel_build":
-		return e.legacy.CancelBuild(ctx, args)
-	case "list_builds":
-		return e.legacy.ListBuilds(ctx, args)
-
-	// Signing tools
-	case "configure_signing":
-		return e.signing.ConfigureSigning(ctx, args)
-	case "sign_application":
-		return e.signing.SignApplication(ctx, args)
-	case "verify_signature":
-		return e.signing.VerifySignature(ctx, args)
-	case "get_signing_status":
-		return e.signing.GetSigningStatus(ctx, args)
-	case "discover_certificates":
-		return e.signing.DiscoverCertificates(ctx, args)
-
-	// Inspection tools
-	case "check_build_status":
-		return e.inspection.CheckBuildStatus(ctx, args)
-	case "get_pipeline_status":
-		// Legacy - redirects to check_pipeline_status
-		return e.pipeline.CheckPipelineStatus(ctx, args)
-	case "list_generated_wrappers":
-		return e.inspection.ListGeneratedWrappers(ctx, args)
-	case "validate_configuration":
-		return e.inspection.ValidateConfiguration(ctx, args)
-	case "get_system_prerequisites":
-		return e.inspection.GetSystemPrerequisites(ctx, args)
-
-	default:
+	handler, ok := e.buildToolRegistry()[toolName]
+	if !ok {
 		return ErrorResult(fmt.Sprintf("unknown tool: %s", toolName), CodeUnknownTool), nil
 	}
+	return handler(ctx, args)
 }

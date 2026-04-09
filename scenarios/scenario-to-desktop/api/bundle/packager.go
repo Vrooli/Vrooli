@@ -95,15 +95,17 @@ func NewPackager(opts ...PackagerOption) *DefaultPackager {
 	return p
 }
 
-// Package packages a bundle from the given app path and manifest.
-// framework specifies the target framework (e.g., "electron") which determines the bundle output path.
-// outputRoot optionally overrides where the bundle is written (defaults to appPath).
-func (p *DefaultPackager) Package(appPath, manifestPath, framework string, requestedPlatforms []string, outputRoot ...string) (*PackageResult, error) {
+// packagePaths holds resolved absolute paths for packaging.
+type packagePaths struct {
+	appAbs        string
+	outputRootAbs string
+	manifestAbs   string
+}
+
+// resolvePackagePaths validates and resolves all input paths for packaging.
+func resolvePackagePaths(appPath, manifestPath string, outputRoot []string) (*packagePaths, error) {
 	if appPath == "" || manifestPath == "" {
 		return nil, errors.New("app_path and bundle_manifest_path are required")
-	}
-	if framework == "" {
-		framework = "electron" // Default framework
 	}
 
 	appAbs, err := filepath.Abs(appPath)
@@ -131,11 +133,15 @@ func (p *DefaultPackager) Package(appPath, manifestPath, framework string, reque
 		return nil, fmt.Errorf("manifest path invalid: %w", err)
 	}
 
-	m, err := bundlemanifest.LoadManifest(manifestAbs)
-	if err != nil {
-		return nil, fmt.Errorf("load manifest: %w", err)
-	}
+	return &packagePaths{
+		appAbs:        appAbs,
+		outputRootAbs: outputRootAbs,
+		manifestAbs:   manifestAbs,
+	}, nil
+}
 
+// resolvePlatforms determines which platforms to package from the manifest.
+func resolvePlatforms(m *bundlemanifest.Manifest, requestedPlatforms []string) ([]string, error) {
 	platforms := requestedPlatforms
 	if len(platforms) == 0 {
 		platforms = collectPlatforms(*m)
@@ -143,29 +149,13 @@ func (p *DefaultPackager) Package(appPath, manifestPath, framework string, reque
 	if len(platforms) == 0 {
 		return nil, errors.New("manifest has no platform binaries to package")
 	}
+	return platforms, nil
+}
 
-	if err := p.validateManifestForPlatforms(m, platforms); err != nil {
-		return nil, err
-	}
-
-	bundleDir := filepath.Join(outputRootAbs, "platforms", framework, "bundle")
-	if err := os.MkdirAll(bundleDir, 0o755); err != nil {
-		return nil, fmt.Errorf("create bundle dir: %w", err)
-	}
-
-	destManifest := filepath.Join(bundleDir, "bundle.json")
-	if err := p.fileOps.CopyFile(manifestAbs, destManifest); err != nil {
-		return nil, fmt.Errorf("copy manifest: %w", err)
-	}
-
-	manifestRoot := filepath.Dir(manifestAbs)
+// stageAllServices stages all service binaries and assets into the bundle directory.
+func (p *DefaultPackager) stageAllServices(m *bundlemanifest.Manifest, platforms []string, appAbs, bundleDir, manifestRoot string) ([]string, error) {
 	var copied []string
-	copied = append(copied, destManifest)
-
 	for _, svc := range m.Services {
-		// UI services are pre-built static assets (HTML/CSS/JS), not compiled binaries.
-		// We copy their entry points and assets to make the bundle fully self-contained,
-		// which allows preflight to validate everything before the Electron build.
 		if isUIService(svc.Type) {
 			uiCopied, err := p.stageUIService(svc, appAbs, bundleDir, manifestRoot)
 			if err != nil {
@@ -175,117 +165,78 @@ func (p *DefaultPackager) Package(appPath, manifestPath, framework string, reque
 			continue
 		}
 
-		for _, platform := range platforms {
-			bin, ok := p.platform.ResolveBinaryForPlatform(svc, platform)
-			var src string
-
-			if ok {
-				// Try to resolve existing binary
-				resolved, err := resolveManifestPath(p.fileOps, manifestRoot, bin.Path)
-				if err != nil {
-					return nil, fmt.Errorf("resolve binary for %s: %w", svc.ID, err)
-				}
-				// Check if binary exists
-				if _, statErr := os.Stat(resolved); statErr == nil {
-					src = resolved
-				}
-			}
-
-			// If binary doesn't exist or wasn't in manifest, try to compile
-			if src == "" {
-				if svc.Build == nil {
-					if !ok {
-						return nil, fmt.Errorf("service %s missing binary for %s and no build config", svc.ID, platform)
-					}
-					return nil, fmt.Errorf("service %s binary not found at %s and no build config", svc.ID, bin.Path)
-				}
-
-				// Compile the service binary (source dirs are relative to scenario root, not manifest)
-				compiledPath, err := p.serviceCompiler.Compile(svc, platform, appAbs)
-				if err != nil {
-					return nil, fmt.Errorf("compile binary for %s (%s): %w", svc.ID, platform, err)
-				}
-				src = compiledPath
-
-				// Update manifest binary path for this platform if not set
-				if !ok {
-					if svc.Binaries == nil {
-						svc.Binaries = make(map[string]bundlemanifest.Binary)
-					}
-					relPath, _ := filepath.Rel(manifestRoot, compiledPath)
-					svc.Binaries[platform] = bundlemanifest.Binary{Path: relPath}
-					bin = svc.Binaries[platform]
-				}
-			}
-
-			// Normalize the destination path by stripping any parent directory traversal
-			dstPath := p.fileOps.NormalizeBundlePath(bin.Path)
-			dst, err := resolveBundlePath(p.fileOps, bundleDir, dstPath)
-			if err != nil {
-				return nil, fmt.Errorf("stage binary for %s: %w", svc.ID, err)
-			}
-			if err := p.fileOps.CopyPath(src, dst); err != nil {
-				return nil, fmt.Errorf("copy binary for %s: %w", svc.ID, err)
-			}
-			copied = append(copied, dst)
+		binCopied, err := p.stageServiceBinaries(svc, platforms, bundleDir, manifestRoot, appAbs)
+		if err != nil {
+			return nil, err
 		}
+		copied = append(copied, binCopied...)
 
-		for _, asset := range svc.Assets {
-			src, err := resolveManifestPath(p.fileOps, manifestRoot, asset.Path)
-			if err != nil {
-				return nil, fmt.Errorf("resolve asset %s: %w", asset.Path, err)
-			}
-			assetDstPath := p.fileOps.NormalizeBundlePath(asset.Path)
-			dst, err := resolveBundlePath(p.fileOps, bundleDir, assetDstPath)
-			if err != nil {
-				return nil, fmt.Errorf("stage asset %s: %w", asset.Path, err)
-			}
-			if err := p.fileOps.CopyPath(src, dst); err != nil {
-				return nil, fmt.Errorf("copy asset %s: %w", asset.Path, err)
-			}
-			copied = append(copied, dst)
+		assetCopied, err := p.stageServiceAssets(svc, bundleDir, manifestRoot)
+		if err != nil {
+			return nil, err
 		}
+		copied = append(copied, assetCopied...)
+	}
+	return copied, nil
+}
+
+// Package packages a bundle from the given app path and manifest.
+// framework specifies the target framework (e.g., "electron") which determines the bundle output path.
+// outputRoot optionally overrides where the bundle is written (defaults to appPath).
+func (p *DefaultPackager) Package(appPath, manifestPath, framework string, requestedPlatforms []string, outputRoot ...string) (*PackageResult, error) {
+	if framework == "" {
+		framework = "electron"
 	}
 
-	// Stage CLI helpers for each platform requested
-	for _, platform := range platforms {
-		runtimePlatform := p.platform.NormalizeRuntime(platform)
-		if err := p.cliStager.Stage(bundleDir, runtimePlatform); err != nil {
-			return nil, fmt.Errorf("stage CLI helpers: %w", err)
-		}
-	}
-
-	runtimeDir, err := p.runtimeResolver.Resolve()
+	paths, err := resolvePackagePaths(appPath, manifestPath, outputRoot)
 	if err != nil {
 		return nil, err
 	}
 
-	runtimeBinaries := map[string]string{}
-	for _, platform := range platforms {
-		runtimePlatform := p.platform.NormalizeRuntime(platform)
-		goos, goarch, err := p.platform.ParseKey(runtimePlatform)
-		if err != nil {
-			return nil, err
-		}
-		outDir := filepath.Join(bundleDir, "runtime", runtimePlatform)
-		if err := os.MkdirAll(outDir, 0o755); err != nil {
-			return nil, fmt.Errorf("create runtime dir: %w", err)
-		}
-
-		runtimePath := filepath.Join(outDir, p.platform.RuntimeBinaryName(goos))
-		if err := p.runtimeBuilder.Build(runtimeDir, runtimePath, goos, goarch, "runtime"); err != nil {
-			return nil, fmt.Errorf("build runtime (%s): %w", platform, err)
-		}
-		runtimeBinaries[platform] = runtimePath
-
-		runtimectlPath := filepath.Join(outDir, p.platform.RuntimeCtlBinaryName(goos))
-		if err := p.runtimeBuilder.Build(runtimeDir, runtimectlPath, goos, goarch, "runtimectl"); err == nil {
-			copied = append(copied, runtimectlPath)
-		}
-		copied = append(copied, runtimePath)
+	m, err := bundlemanifest.LoadManifest(paths.manifestAbs)
+	if err != nil {
+		return nil, fmt.Errorf("load manifest: %w", err)
 	}
 
-	if err := ensureBundleExtraResources(outputRootAbs, framework); err != nil {
+	platforms, err := resolvePlatforms(m, requestedPlatforms)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := p.validateManifestForPlatforms(m, platforms); err != nil {
+		return nil, err
+	}
+
+	bundleDir := filepath.Join(paths.outputRootAbs, "platforms", framework, "bundle")
+	if err := os.MkdirAll(bundleDir, 0o755); err != nil {
+		return nil, fmt.Errorf("create bundle dir: %w", err)
+	}
+
+	destManifest := filepath.Join(bundleDir, "bundle.json")
+	if err := p.fileOps.CopyFile(paths.manifestAbs, destManifest); err != nil {
+		return nil, fmt.Errorf("copy manifest: %w", err)
+	}
+
+	manifestRoot := filepath.Dir(paths.manifestAbs)
+	copied := []string{destManifest}
+
+	svcCopied, err := p.stageAllServices(m, platforms, paths.appAbs, bundleDir, manifestRoot)
+	if err != nil {
+		return nil, err
+	}
+	copied = append(copied, svcCopied...)
+
+	if err := p.stageCLIHelpers(platforms, bundleDir); err != nil {
+		return nil, err
+	}
+
+	runtimeBinaries, runtimeCopied, err := p.buildRuntimes(platforms, bundleDir)
+	if err != nil {
+		return nil, err
+	}
+	copied = append(copied, runtimeCopied...)
+
+	if err := ensureBundleExtraResources(paths.outputRootAbs, framework); err != nil {
 		return nil, fmt.Errorf("update package.json: %w", err)
 	}
 
@@ -294,7 +245,6 @@ func (p *DefaultPackager) Package(appPath, manifestPath, framework string, reque
 	totalSize, largeFiles := p.sizeCalculator.Calculate(bundleDir)
 	sizeWarning := p.sizeCalculator.CheckWarning(totalSize, largeFiles)
 
-	// Read manifest content for inclusion in response
 	var manifestContent map[string]interface{}
 	if manifestData, readErr := os.ReadFile(destManifest); readErr == nil {
 		_ = json.Unmarshal(manifestData, &manifestContent)
@@ -310,6 +260,135 @@ func (p *DefaultPackager) Package(appPath, manifestPath, framework string, reque
 		TotalSizeHuman:  HumanReadableSize(totalSize),
 		SizeWarning:     sizeWarning,
 	}, nil
+}
+
+// stageServiceBinaries resolves or compiles binaries for a single service across all requested platforms,
+// then copies them into the bundle directory. Returns the list of copied destination paths.
+func (p *DefaultPackager) stageServiceBinaries(svc bundlemanifest.Service, platforms []string, bundleDir, manifestRoot, appAbs string) ([]string, error) {
+	var copied []string
+	for _, platform := range platforms {
+		bin, ok := p.platform.ResolveBinaryForPlatform(svc, platform)
+		var src string
+
+		if ok {
+			// Try to resolve existing binary
+			resolved, err := resolveManifestPath(p.fileOps, manifestRoot, bin.Path)
+			if err != nil {
+				return nil, fmt.Errorf("resolve binary for %s: %w", svc.ID, err)
+			}
+			// Check if binary exists
+			if _, statErr := os.Stat(resolved); statErr == nil {
+				src = resolved
+			}
+		}
+
+		// If binary doesn't exist or wasn't in manifest, try to compile
+		if src == "" {
+			if svc.Build == nil {
+				if !ok {
+					return nil, fmt.Errorf("service %s missing binary for %s and no build config", svc.ID, platform)
+				}
+				return nil, fmt.Errorf("service %s binary not found at %s and no build config", svc.ID, bin.Path)
+			}
+
+			// Compile the service binary (source dirs are relative to scenario root, not manifest)
+			compiledPath, err := p.serviceCompiler.Compile(svc, platform, appAbs)
+			if err != nil {
+				return nil, fmt.Errorf("compile binary for %s (%s): %w", svc.ID, platform, err)
+			}
+			src = compiledPath
+
+			// Update manifest binary path for this platform if not set
+			if !ok {
+				if svc.Binaries == nil {
+					svc.Binaries = make(map[string]bundlemanifest.Binary)
+				}
+				relPath, _ := filepath.Rel(manifestRoot, compiledPath)
+				svc.Binaries[platform] = bundlemanifest.Binary{Path: relPath}
+				bin = svc.Binaries[platform]
+			}
+		}
+
+		// Normalize the destination path by stripping any parent directory traversal
+		dstPath := p.fileOps.NormalizeBundlePath(bin.Path)
+		dst, err := resolveBundlePath(p.fileOps, bundleDir, dstPath)
+		if err != nil {
+			return nil, fmt.Errorf("stage binary for %s: %w", svc.ID, err)
+		}
+		if err := p.fileOps.CopyPath(src, dst); err != nil {
+			return nil, fmt.Errorf("copy binary for %s: %w", svc.ID, err)
+		}
+		copied = append(copied, dst)
+	}
+	return copied, nil
+}
+
+// stageServiceAssets copies all declared assets for a single service into the bundle directory.
+func (p *DefaultPackager) stageServiceAssets(svc bundlemanifest.Service, bundleDir, manifestRoot string) ([]string, error) {
+	var copied []string
+	for _, asset := range svc.Assets {
+		src, err := resolveManifestPath(p.fileOps, manifestRoot, asset.Path)
+		if err != nil {
+			return nil, fmt.Errorf("resolve asset %s: %w", asset.Path, err)
+		}
+		assetDstPath := p.fileOps.NormalizeBundlePath(asset.Path)
+		dst, err := resolveBundlePath(p.fileOps, bundleDir, assetDstPath)
+		if err != nil {
+			return nil, fmt.Errorf("stage asset %s: %w", asset.Path, err)
+		}
+		if err := p.fileOps.CopyPath(src, dst); err != nil {
+			return nil, fmt.Errorf("copy asset %s: %w", asset.Path, err)
+		}
+		copied = append(copied, dst)
+	}
+	return copied, nil
+}
+
+// stageCLIHelpers stages CLI helper binaries for each requested platform.
+func (p *DefaultPackager) stageCLIHelpers(platforms []string, bundleDir string) error {
+	for _, platform := range platforms {
+		runtimePlatform := p.platform.NormalizeRuntime(platform)
+		if err := p.cliStager.Stage(bundleDir, runtimePlatform); err != nil {
+			return fmt.Errorf("stage CLI helpers: %w", err)
+		}
+	}
+	return nil
+}
+
+// buildRuntimes compiles the runtime and runtimectl binaries for each platform.
+// Returns the runtime binary paths map and the list of all copied paths.
+func (p *DefaultPackager) buildRuntimes(platforms []string, bundleDir string) (map[string]string, []string, error) {
+	runtimeDir, err := p.runtimeResolver.Resolve()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	runtimeBinaries := map[string]string{}
+	var copied []string
+	for _, platform := range platforms {
+		runtimePlatform := p.platform.NormalizeRuntime(platform)
+		goos, goarch, err := p.platform.ParseKey(runtimePlatform)
+		if err != nil {
+			return nil, nil, err
+		}
+		outDir := filepath.Join(bundleDir, "runtime", runtimePlatform)
+		if err := os.MkdirAll(outDir, 0o755); err != nil {
+			return nil, nil, fmt.Errorf("create runtime dir: %w", err)
+		}
+
+		runtimePath := filepath.Join(outDir, p.platform.RuntimeBinaryName(goos))
+		if err := p.runtimeBuilder.Build(runtimeDir, runtimePath, goos, goarch, "runtime"); err != nil {
+			return nil, nil, fmt.Errorf("build runtime (%s): %w", platform, err)
+		}
+		runtimeBinaries[platform] = runtimePath
+
+		runtimectlPath := filepath.Join(outDir, p.platform.RuntimeCtlBinaryName(goos))
+		if err := p.runtimeBuilder.Build(runtimeDir, runtimectlPath, goos, goarch, "runtimectl"); err == nil {
+			copied = append(copied, runtimectlPath)
+		}
+		copied = append(copied, runtimePath)
+	}
+	return runtimeBinaries, copied, nil
 }
 
 // validateManifestForPlatforms validates a manifest has required binaries or build config for all platforms.

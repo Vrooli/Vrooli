@@ -304,140 +304,61 @@ func TestConvenienceConstructors(t *testing.T) {
 	})
 }
 
+// assertDomainError is a helper that checks code, domain, detail key/value, and cause on a DomainError.
+func assertDomainError(t *testing.T, err *DomainError, wantCode ErrorCode, wantDomain string, detailKey string, detailVal interface{}, wantCause error) {
+	t.Helper()
+	if wantCode != "" && err.Code != wantCode {
+		t.Errorf("expected code %q, got %q", wantCode, err.Code)
+	}
+	if wantDomain != "" && err.Domain != wantDomain {
+		t.Errorf("expected domain %q, got %q", wantDomain, err.Domain)
+	}
+	if detailKey != "" && err.Details[detailKey] != detailVal {
+		t.Errorf("expected detail %q=%v, got %v", detailKey, detailVal, err.Details[detailKey])
+	}
+	if wantCause != nil && err.Cause != wantCause {
+		t.Errorf("expected cause to be set")
+	}
+}
+
 func TestDomainSpecificConstructors(t *testing.T) {
-	t.Run("ErrBundleNotFound", func(t *testing.T) {
-		err := ErrBundleNotFound("/path/to/bundle")
-		if err.Code != CodeBundleNotFound {
-			t.Errorf("expected BUNDLE_NOT_FOUND code")
-		}
-		if err.Domain != "bundle" {
-			t.Errorf("expected bundle domain")
-		}
-		if err.Details["bundle_path"] != "/path/to/bundle" {
-			t.Errorf("expected bundle_path detail")
-		}
-	})
+	jsonParseErr := errors.New("json parse error")
+	npmErr := errors.New("npm error")
+	validationErr := errors.New("validation error")
 
-	t.Run("ErrBundleManifest", func(t *testing.T) {
-		cause := errors.New("json parse error")
-		err := ErrBundleManifest(cause)
-		if err.Code != CodeBundleManifestError {
-			t.Errorf("expected BUNDLE_MANIFEST_ERROR code")
-		}
-		if err.Cause != cause {
-			t.Errorf("expected cause to be set")
-		}
-	})
+	tests := []struct {
+		name       string
+		err        *DomainError
+		wantCode   ErrorCode
+		wantDomain string
+		detailKey  string
+		detailVal  interface{}
+		wantCause  error
+	}{
+		{"ErrBundleNotFound", ErrBundleNotFound("/path/to/bundle"), CodeBundleNotFound, "bundle", "bundle_path", "/path/to/bundle", nil},
+		{"ErrBundleManifest", ErrBundleManifest(jsonParseErr), CodeBundleManifestError, "", "", nil, jsonParseErr},
+		{"ErrBuildNotFound", ErrBuildNotFound("build-123"), "", "", "build_id", "build-123", nil},
+		{"ErrBuildFailed", ErrBuildFailed(npmErr, "linux"), "", "", "platform", "linux", nil},
+		{"ErrWrapperNotFound", ErrWrapperNotFound("my-scenario"), "", "generation", "", nil, nil},
+		{"ErrScenarioNotFound", ErrScenarioNotFound("my-scenario"), CodeScenarioNotFound, "", "", nil, nil},
+		{"ErrSessionNotFound", ErrSessionNotFound("session-123"), "", "preflight", "", nil, nil},
+		{"ErrSessionExpired", ErrSessionExpired("session-123"), CodeSessionExpired, "", "", nil, nil},
+		{"ErrJobNotFound", ErrJobNotFound("job-123"), "", "", "job_id", "job-123", nil},
+		{"ErrPreflightFailed", ErrPreflightFailed(validationErr), CodePreflightFailed, "", "", nil, nil},
+		{"ErrSmokeTestNotFound", ErrSmokeTestNotFound("test-123"), "", "smoketest", "", nil, nil},
+		{"ErrArtifactNotFound", ErrArtifactNotFound("/path/to/artifact"), "", "", "artifact_path", "/path/to/artifact", nil},
+		{"ErrPipelineNotFound", ErrPipelineNotFound("pipeline-123"), "", "pipeline", "", nil, nil},
+		{"ErrPipelineCancelled", ErrPipelineCancelled("pipeline-123"), CodePipelineCancelled, "", "", nil, nil},
+		{"ErrCertificateNotFound", ErrCertificateNotFound("cert-123"), "", "signing", "", nil, nil},
+		{"ErrCertificateExpired", ErrCertificateExpired("cert-123", "2024-01-01"), "", "", "expires_at", "2024-01-01", nil},
+		{"ErrWineNotInstalled", ErrWineNotInstalled(), CodeWineNotInstalled, "system", "", nil, nil},
+	}
 
-	t.Run("ErrBuildNotFound", func(t *testing.T) {
-		err := ErrBuildNotFound("build-123")
-		if err.Details["build_id"] != "build-123" {
-			t.Errorf("expected build_id detail")
-		}
-	})
-
-	t.Run("ErrBuildFailed", func(t *testing.T) {
-		cause := errors.New("npm error")
-		err := ErrBuildFailed(cause, "linux")
-		if err.Details["platform"] != "linux" {
-			t.Errorf("expected platform detail")
-		}
-	})
-
-	t.Run("ErrWrapperNotFound", func(t *testing.T) {
-		err := ErrWrapperNotFound("my-scenario")
-		if err.Domain != "generation" {
-			t.Errorf("expected generation domain")
-		}
-	})
-
-	t.Run("ErrScenarioNotFound", func(t *testing.T) {
-		err := ErrScenarioNotFound("my-scenario")
-		if err.Code != CodeScenarioNotFound {
-			t.Errorf("expected SCENARIO_NOT_FOUND code")
-		}
-	})
-
-	t.Run("ErrSessionNotFound", func(t *testing.T) {
-		err := ErrSessionNotFound("session-123")
-		if err.Domain != "preflight" {
-			t.Errorf("expected preflight domain")
-		}
-	})
-
-	t.Run("ErrSessionExpired", func(t *testing.T) {
-		err := ErrSessionExpired("session-123")
-		if err.Code != CodeSessionExpired {
-			t.Errorf("expected SESSION_EXPIRED code")
-		}
-	})
-
-	t.Run("ErrJobNotFound", func(t *testing.T) {
-		err := ErrJobNotFound("job-123")
-		if err.Details["job_id"] != "job-123" {
-			t.Errorf("expected job_id detail")
-		}
-	})
-
-	t.Run("ErrPreflightFailed", func(t *testing.T) {
-		cause := errors.New("validation error")
-		err := ErrPreflightFailed(cause)
-		if err.Code != CodePreflightFailed {
-			t.Errorf("expected PREFLIGHT_FAILED code")
-		}
-	})
-
-	t.Run("ErrSmokeTestNotFound", func(t *testing.T) {
-		err := ErrSmokeTestNotFound("test-123")
-		if err.Domain != "smoketest" {
-			t.Errorf("expected smoketest domain")
-		}
-	})
-
-	t.Run("ErrArtifactNotFound", func(t *testing.T) {
-		err := ErrArtifactNotFound("/path/to/artifact")
-		if err.Details["artifact_path"] != "/path/to/artifact" {
-			t.Errorf("expected artifact_path detail")
-		}
-	})
-
-	t.Run("ErrPipelineNotFound", func(t *testing.T) {
-		err := ErrPipelineNotFound("pipeline-123")
-		if err.Domain != "pipeline" {
-			t.Errorf("expected pipeline domain")
-		}
-	})
-
-	t.Run("ErrPipelineCancelled", func(t *testing.T) {
-		err := ErrPipelineCancelled("pipeline-123")
-		if err.Code != CodePipelineCancelled {
-			t.Errorf("expected PIPELINE_CANCELLED code")
-		}
-	})
-
-	t.Run("ErrCertificateNotFound", func(t *testing.T) {
-		err := ErrCertificateNotFound("cert-123")
-		if err.Domain != "signing" {
-			t.Errorf("expected signing domain")
-		}
-	})
-
-	t.Run("ErrCertificateExpired", func(t *testing.T) {
-		err := ErrCertificateExpired("cert-123", "2024-01-01")
-		if err.Details["expires_at"] != "2024-01-01" {
-			t.Errorf("expected expires_at detail")
-		}
-	})
-
-	t.Run("ErrWineNotInstalled", func(t *testing.T) {
-		err := ErrWineNotInstalled()
-		if err.Code != CodeWineNotInstalled {
-			t.Errorf("expected WINE_NOT_INSTALLED code")
-		}
-		if err.Domain != "system" {
-			t.Errorf("expected system domain")
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assertDomainError(t, tt.err, tt.wantCode, tt.wantDomain, tt.detailKey, tt.detailVal, tt.wantCause)
+		})
+	}
 }
 
 func TestIsNotFound(t *testing.T) {

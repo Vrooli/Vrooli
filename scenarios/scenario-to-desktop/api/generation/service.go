@@ -242,7 +242,19 @@ func (s *DefaultService) Generate(buildID string, config *DesktopConfig) {
 		}
 	}()
 
-	// Load signing configuration if not already set
+	s.prepareSigningConfig(buildID, config)
+
+	configPath, err := s.writeConfigFile(buildID, config)
+	if err != nil {
+		return // error already recorded in writeConfigFile
+	}
+	defer os.Remove(configPath)
+
+	s.runTemplateGenerator(buildID, config, configPath)
+}
+
+// prepareSigningConfig loads and applies signing configuration if needed.
+func (s *DefaultService) prepareSigningConfig(buildID string, config *DesktopConfig) {
 	if config.CodeSigning == nil && config.ScenarioName != "" {
 		signingConfig, err := s.loadSigningConfig(config.ScenarioName)
 		if err != nil {
@@ -257,41 +269,45 @@ func (s *DefaultService) Generate(buildID string, config *DesktopConfig) {
 		}
 	}
 
-	// Generate signing artifacts if code signing is enabled
-	if config.CodeSigning != nil && config.CodeSigning.Enabled {
-		if err := s.generateSigningArtifacts(config); err != nil {
-			s.updateBuildStatus(buildID, func(status *BuildStatus) {
-				status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Warning: Failed to generate signing artifacts: %v", err))
-			})
-		} else {
-			s.updateBuildStatus(buildID, func(status *BuildStatus) {
-				status.BuildLog = append(status.BuildLog, "Generated signing artifacts")
-			})
-		}
+	if config.CodeSigning == nil || !config.CodeSigning.Enabled {
+		return
 	}
+	if err := s.generateSigningArtifacts(config); err != nil {
+		s.updateBuildStatus(buildID, func(status *BuildStatus) {
+			status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Warning: Failed to generate signing artifacts: %v", err))
+		})
+	} else {
+		s.updateBuildStatus(buildID, func(status *BuildStatus) {
+			status.BuildLog = append(status.BuildLog, "Generated signing artifacts")
+		})
+	}
+}
 
-	// Create configuration JSON file
+// writeConfigFile marshals config to a temp JSON file, returning the path.
+// On failure it records the error in the build status and returns an error.
+func (s *DefaultService) writeConfigFile(buildID string, config *DesktopConfig) (string, error) {
 	configJSON, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
 		s.updateBuildStatus(buildID, func(status *BuildStatus) {
 			status.Status = "failed"
 			status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Failed to marshal config: %v", err))
 		})
-		return
+		return "", err
 	}
 
-	// Write config to temporary file
 	configPath := filepath.Join(os.TempDir(), fmt.Sprintf("desktop-config-%s.json", buildID))
 	if err := os.WriteFile(configPath, configJSON, 0o644); err != nil {
 		s.updateBuildStatus(buildID, func(status *BuildStatus) {
 			status.Status = "failed"
 			status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Failed to write config file: %v", err))
 		})
-		return
+		return "", err
 	}
-	defer os.Remove(configPath)
+	return configPath, nil
+}
 
-	// Execute template generator
+// runTemplateGenerator executes the Node template generator and processes the result.
+func (s *DefaultService) runTemplateGenerator(buildID string, config *DesktopConfig, configPath string) {
 	templateGeneratorPath := filepath.Join(s.templateDir, "build-tools", "dist", "template-generator.js")
 	cmd := exec.Command("node", templateGeneratorPath, configPath)
 
@@ -309,40 +325,45 @@ func (s *DefaultService) Generate(buildID string, config *DesktopConfig) {
 			status.Status = "ready"
 			status.Artifacts["config_path"] = configPath
 			status.Artifacts["output_path"] = config.OutputPath
-
-			// Sync scenario icons
-			if s.iconSyncer != nil {
-				if err := s.iconSyncer.SyncIcons(config.ScenarioName, config.OutputPath, func(msg string, fields map[string]interface{}) {
-					s.logger.Info(msg, "fields", fields)
-				}); err != nil {
-					status.BuildLog = append(status.BuildLog, fmt.Sprintf("Icon sync warning: %v", err))
-				}
-			}
-
-			// Package bundle if bundled deployment mode
-			if config.DeploymentMode == "bundled" && config.BundleManifestPath != "" && s.bundlePackager != nil {
-				pkgResult, pkgErr := s.bundlePackager.Package(config.OutputPath, config.BundleManifestPath, config.Platforms)
-				if pkgErr != nil {
-					status.Status = "failed"
-					status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Bundle packaging failed: %v", pkgErr))
-				} else {
-					status.Metadata["bundle_dir"] = pkgResult.BundleDir
-					status.Metadata["bundle_manifest"] = pkgResult.ManifestPath
-					status.Metadata["runtime_binaries"] = pkgResult.RuntimeBinaries
-					status.Metadata["total_size_bytes"] = pkgResult.TotalSizeBytes
-					status.Metadata["total_size_human"] = pkgResult.TotalSizeHuman
-					if pkgResult.SizeWarning != nil {
-						status.Metadata["size_warning"] = pkgResult.SizeWarning
-						status.BuildLog = append(status.BuildLog,
-							fmt.Sprintf("[%s] %s", pkgResult.SizeWarning.Level, pkgResult.SizeWarning.Message))
-					}
-				}
-			}
+			s.postGenerateSteps(config, status)
 		}
 
 		now := time.Now()
 		status.CompletedAt = &now
 	})
+}
+
+// postGenerateSteps runs icon sync and bundle packaging after successful generation.
+func (s *DefaultService) postGenerateSteps(config *DesktopConfig, status *BuildStatus) {
+	if s.iconSyncer != nil {
+		if err := s.iconSyncer.SyncIcons(config.ScenarioName, config.OutputPath, func(msg string, fields map[string]interface{}) {
+			s.logger.Info(msg, "fields", fields)
+		}); err != nil {
+			status.BuildLog = append(status.BuildLog, fmt.Sprintf("Icon sync warning: %v", err))
+		}
+	}
+
+	if config.DeploymentMode != "bundled" || config.BundleManifestPath == "" || s.bundlePackager == nil {
+		return
+	}
+
+	pkgResult, pkgErr := s.bundlePackager.Package(config.OutputPath, config.BundleManifestPath, config.Platforms)
+	if pkgErr != nil {
+		status.Status = "failed"
+		status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Bundle packaging failed: %v", pkgErr))
+		return
+	}
+
+	status.Metadata["bundle_dir"] = pkgResult.BundleDir
+	status.Metadata["bundle_manifest"] = pkgResult.ManifestPath
+	status.Metadata["runtime_binaries"] = pkgResult.RuntimeBinaries
+	status.Metadata["total_size_bytes"] = pkgResult.TotalSizeBytes
+	status.Metadata["total_size_human"] = pkgResult.TotalSizeHuman
+	if pkgResult.SizeWarning != nil {
+		status.Metadata["size_warning"] = pkgResult.SizeWarning
+		status.BuildLog = append(status.BuildLog,
+			fmt.Sprintf("[%s] %s", pkgResult.SizeWarning.Level, pkgResult.SizeWarning.Message))
+	}
 }
 
 // GetAnalyzer returns the scenario analyzer.

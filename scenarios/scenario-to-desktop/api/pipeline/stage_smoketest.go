@@ -142,25 +142,7 @@ func (s *SmokeTestStage) Execute(ctx context.Context, input *StageInput) *StageR
 	// Initialize smoke test status in store BEFORE launching async goroutine.
 	// The smoke test service checks if the status exists and exits immediately if not,
 	// so we must create it here first.
-	if s.store != nil {
-		now := time.Unix(s.timeProvider.Now(), 0)
-		initialStatus := &smoketest.Status{
-			SmokeTestID:  smokeTestID,
-			ScenarioName: scenarioName,
-			Platform:     currentPlatform,
-			Status:       "running",
-			ArtifactPath: artifactPath,
-			StartedAt:    now,
-			Logs:         []string{},
-			RecordingConfig: &smoketest.ScreenRecordingConfig{
-				Enabled:       true,
-				DisplayWidth:  1920,
-				DisplayHeight: 1080,
-				FPS:           15,
-			},
-		}
-		s.store.Save(initialStatus)
-	}
+	s.initSmokeTestStore(smokeTestID, scenarioName, currentPlatform, artifactPath)
 
 	// Start the async smoke test
 	go s.service.PerformSmokeTest(ctx, smokeTestID, scenarioName, artifactPath, currentPlatform)
@@ -168,60 +150,12 @@ func (s *SmokeTestStage) Execute(ctx context.Context, input *StageInput) *StageR
 	// Wait for smoke test to complete
 	smokeStatus, waitErr := s.waitForSmokeTest(ctx, smokeTestID)
 	if waitErr != nil {
-		// Handle wait error based on its kind
-		if waitErr.Kind == WaitErrorStore {
-			failStage(result, s.timeProvider, errors.New(errors.CodeServiceStartError, "Smoke test tracking service unavailable").
-				WithRecovery(errors.RecoveryContactSupport, "Server configuration issue - contact support").
-				WithManualSteps([]string{
-					"Check server startup logs for initialization errors",
-					"Verify the smoke test store is properly configured",
-					"Contact support if the issue persists",
-				}).
-				InDomain("smoketest"))
-		} else if waitErr.Kind == WaitErrorTimeout {
-			failStage(result, s.timeProvider, errors.ErrSmokeTestTimeout(
-				DefaultSmokeTestTimeout.String(),
-				map[string]string{"smoke_test_id": smokeTestID},
-			))
-		} else if waitErr.Kind == WaitErrorCancelled {
-			failStage(result, s.timeProvider, errors.ErrSmokeTestCancelled())
-		} else {
-			failStage(result, s.timeProvider, errors.ErrSmokeTestExecutionFailed(
-				waitErr,
-				map[string]string{"smoke_test_id": smokeTestID},
-			))
-		}
+		failStage(result, s.timeProvider, s.smokeTestWaitError(waitErr, smokeTestID))
 		return result
 	}
 
 	// Check smoke test result
-	switch smokeStatus.Status {
-	case SmokeTestStatusPassed:
-		result.Logs = append(result.Logs, "Smoke test passed")
-		if smokeStatus.TelemetryUploaded {
-			result.Logs = append(result.Logs, "Telemetry uploaded successfully")
-		}
-	case SmokeTestStatusFailed:
-		// Create error with context from the smoke test status
-		context := map[string]string{
-			"smoke_test_id": smokeTestID,
-			"platform":      currentPlatform,
-		}
-		if smokeStatus.ErrorKind != nil {
-			context["error_kind"] = smokeStatus.ErrorKind.String()
-		}
-		failStage(result, s.timeProvider, errors.ErrSmokeTestExecutionFailed(
-			fmt.Errorf("%s", smokeStatus.Error),
-			context,
-		).WithRecovery(errors.RecoveryRetry, smokeStatus.SuggestedAction))
-		result.Details = smokeStatus
-		return result
-	default:
-		failStage(result, s.timeProvider, errors.New(errors.CodeSmokeTestFailed, fmt.Sprintf("unexpected smoke test status: %s", smokeStatus.Status)).
-			WithDetail("smoke_test_id", smokeTestID).
-			WithDetail("status", smokeStatus.Status).
-			InDomain("smoketest"))
-		result.Details = smokeStatus
+	if failed := s.handleSmokeTestResult(result, smokeStatus, smokeTestID, currentPlatform); failed {
 		return result
 	}
 
@@ -269,4 +203,88 @@ func (s *SmokeTestStage) waitForSmokeTest(ctx context.Context, smokeTestID strin
 	}
 
 	return poller.Wait(ctx, smokeTestID)
+}
+
+// initSmokeTestStore creates the initial smoke test status in the store.
+func (s *SmokeTestStage) initSmokeTestStore(smokeTestID, scenarioName, platform, artifactPath string) {
+	if s.store == nil {
+		return
+	}
+	now := time.Unix(s.timeProvider.Now(), 0)
+	initialStatus := &smoketest.Status{
+		SmokeTestID:  smokeTestID,
+		ScenarioName: scenarioName,
+		Platform:     platform,
+		Status:       "running",
+		ArtifactPath: artifactPath,
+		StartedAt:    now,
+		Logs:         []string{},
+		RecordingConfig: &smoketest.ScreenRecordingConfig{
+			Enabled:       true,
+			DisplayWidth:  1920,
+			DisplayHeight: 1080,
+			FPS:           15,
+		},
+	}
+	s.store.Save(initialStatus)
+}
+
+// smokeTestWaitError converts a WaitError into a domain error for the smoke test stage.
+func (s *SmokeTestStage) smokeTestWaitError(waitErr *WaitError, smokeTestID string) *errors.DomainError {
+	switch waitErr.Kind {
+	case WaitErrorStore:
+		return errors.New(errors.CodeServiceStartError, "Smoke test tracking service unavailable").
+			WithRecovery(errors.RecoveryContactSupport, "Server configuration issue - contact support").
+			WithManualSteps([]string{
+				"Check server startup logs for initialization errors",
+				"Verify the smoke test store is properly configured",
+				"Contact support if the issue persists",
+			}).
+			InDomain("smoketest")
+	case WaitErrorTimeout:
+		return errors.ErrSmokeTestTimeout(
+			DefaultSmokeTestTimeout.String(),
+			map[string]string{"smoke_test_id": smokeTestID},
+		)
+	case WaitErrorCancelled:
+		return errors.ErrSmokeTestCancelled()
+	default:
+		return errors.ErrSmokeTestExecutionFailed(
+			waitErr,
+			map[string]string{"smoke_test_id": smokeTestID},
+		)
+	}
+}
+
+// handleSmokeTestResult logs and checks the smoke test status. Returns true if the stage should fail.
+func (s *SmokeTestStage) handleSmokeTestResult(result *StageResult, smokeStatus *smoketest.Status, smokeTestID, platform string) bool {
+	switch smokeStatus.Status {
+	case SmokeTestStatusPassed:
+		result.Logs = append(result.Logs, "Smoke test passed")
+		if smokeStatus.TelemetryUploaded {
+			result.Logs = append(result.Logs, "Telemetry uploaded successfully")
+		}
+		return false
+	case SmokeTestStatusFailed:
+		context := map[string]string{
+			"smoke_test_id": smokeTestID,
+			"platform":      platform,
+		}
+		if smokeStatus.ErrorKind != nil {
+			context["error_kind"] = smokeStatus.ErrorKind.String()
+		}
+		failStage(result, s.timeProvider, errors.ErrSmokeTestExecutionFailed(
+			fmt.Errorf("%s", smokeStatus.Error),
+			context,
+		).WithRecovery(errors.RecoveryRetry, smokeStatus.SuggestedAction))
+		result.Details = smokeStatus
+		return true
+	default:
+		failStage(result, s.timeProvider, errors.New(errors.CodeSmokeTestFailed, fmt.Sprintf("unexpected smoke test status: %s", smokeStatus.Status)).
+			WithDetail("smoke_test_id", smokeTestID).
+			WithDetail("status", smokeStatus.Status).
+			InDomain("smoketest"))
+		result.Details = smokeStatus
+		return true
+	}
 }

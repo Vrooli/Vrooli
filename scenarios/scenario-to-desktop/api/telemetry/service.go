@@ -215,6 +215,96 @@ func (s *DefaultService) GetInsights(ctx context.Context, scenario string) (*Ins
 	}, nil
 }
 
+// insightState tracks timestamps while scanning telemetry events for insights.
+type insightState struct {
+	insights        *parsedInsights
+	lastSession     time.Time
+	lastSmoke       time.Time
+	lastError       time.Time
+	lastAppStart    time.Time
+	lastAppReady    time.Time
+	lastAppShutdown time.Time
+}
+
+func newInsightState() *insightState {
+	return &insightState{insights: &parsedInsights{}}
+}
+
+// processEvent updates insight state for a single telemetry event.
+func (s *insightState) processEvent(payload map[string]interface{}, event string, ts time.Time) {
+	s.trackAppLifecycle(event, ts)
+	s.trackSession(payload, event, ts)
+	s.trackSmokeTest(payload, event, ts)
+	s.trackError(payload, event, ts)
+}
+
+func (s *insightState) trackAppLifecycle(event string, ts time.Time) {
+	switch event {
+	case "app_start":
+		if ts.After(s.lastAppStart) {
+			s.lastAppStart = ts
+		}
+	case "app_ready":
+		if ts.After(s.lastAppReady) {
+			s.lastAppReady = ts
+		}
+	case "app_shutdown":
+		if ts.After(s.lastAppShutdown) {
+			s.lastAppShutdown = ts
+		}
+	}
+}
+
+func (s *insightState) trackSession(payload map[string]interface{}, event string, ts time.Time) {
+	if event != "app_session_succeeded" && event != "app_session_failed" {
+		return
+	}
+	if !ts.After(s.lastSession) {
+		return
+	}
+	s.lastSession = ts
+	s.insights.lastSession = buildSessionInsight(payload, event, ts)
+}
+
+func (s *insightState) trackSmokeTest(payload map[string]interface{}, event string, ts time.Time) {
+	if event != "smoke_test_started" && event != "smoke_test_passed" && event != "smoke_test_failed" {
+		return
+	}
+	if !ts.After(s.lastSmoke) {
+		return
+	}
+	s.lastSmoke = ts
+	s.insights.lastSmokeTest = buildSmokeTestInsight(payload, event, ts)
+}
+
+func (s *insightState) trackError(payload map[string]interface{}, event string, ts time.Time) {
+	if !isError(payload, event) || !ts.After(s.lastError) {
+		return
+	}
+	s.lastError = ts
+	s.insights.lastError = buildErrorInsight(payload, event, ts)
+}
+
+// inferSession fills in lastSession from app lifecycle events when no explicit session events exist.
+func (s *insightState) inferSession() {
+	if s.insights.lastSession != nil || s.lastAppStart.IsZero() {
+		return
+	}
+	status := "failed"
+	if s.lastAppReady.After(s.lastAppStart) {
+		status = "succeeded"
+	}
+	s.insights.lastSession = &SessionInsight{
+		Status:      status,
+		StartedAt:   s.lastAppStart.Format(time.RFC3339),
+		ReadyAt:     FormatTimeIfSet(s.lastAppReady),
+		CompletedAt: FormatTimeIfSet(s.lastAppShutdown),
+	}
+	if status == "failed" {
+		s.insights.lastSession.Reason = "app_exit_before_ready"
+	}
+}
+
 // readInsights parses the telemetry file for insights.
 func readInsights(filePath string) (*parsedInsights, error) {
 	file, err := os.Open(filePath)
@@ -226,13 +316,7 @@ func readInsights(filePath string) (*parsedInsights, error) {
 	scanner := bufio.NewScanner(file)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 
-	insights := &parsedInsights{}
-	var lastSessionTime time.Time
-	var lastSmokeTime time.Time
-	var lastErrorTime time.Time
-	var lastAppStart time.Time
-	var lastAppReady time.Time
-	var lastAppShutdown time.Time
+	state := newInsightState()
 
 	for scanner.Scan() {
 		line := scanner.Bytes()
@@ -251,64 +335,14 @@ func readInsights(filePath string) (*parsedInsights, error) {
 		if !ok {
 			continue
 		}
-
-		switch event {
-		case "app_start":
-			if ts.After(lastAppStart) {
-				lastAppStart = ts
-			}
-		case "app_ready":
-			if ts.After(lastAppReady) {
-				lastAppReady = ts
-			}
-		case "app_shutdown":
-			if ts.After(lastAppShutdown) {
-				lastAppShutdown = ts
-			}
-		}
-
-		if event == "app_session_succeeded" || event == "app_session_failed" {
-			if ts.After(lastSessionTime) {
-				lastSessionTime = ts
-				insights.lastSession = buildSessionInsight(payload, event, ts)
-			}
-		}
-
-		if event == "smoke_test_started" || event == "smoke_test_passed" || event == "smoke_test_failed" {
-			if ts.After(lastSmokeTime) {
-				lastSmokeTime = ts
-				insights.lastSmokeTest = buildSmokeTestInsight(payload, event, ts)
-			}
-		}
-
-		if isError(payload, event) && ts.After(lastErrorTime) {
-			lastErrorTime = ts
-			insights.lastError = buildErrorInsight(payload, event, ts)
-		}
+		state.processEvent(payload, event, ts)
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
 
-	// Infer session from app lifecycle events if no explicit session events
-	if insights.lastSession == nil && !lastAppStart.IsZero() {
-		status := "failed"
-		if lastAppReady.After(lastAppStart) {
-			status = "succeeded"
-		}
-		insights.lastSession = &SessionInsight{
-			Status:      status,
-			StartedAt:   lastAppStart.Format(time.RFC3339),
-			ReadyAt:     FormatTimeIfSet(lastAppReady),
-			CompletedAt: FormatTimeIfSet(lastAppShutdown),
-			Reason:      "",
-		}
-		if status == "failed" {
-			insights.lastSession.Reason = "app_exit_before_ready"
-		}
-	}
-
-	return insights, nil
+	state.inferSession()
+	return state.insights, nil
 }
 
 func buildSessionInsight(payload map[string]interface{}, event string, ts time.Time) *SessionInsight {
@@ -436,7 +470,10 @@ func readTail(filePath string, limit int) ([]TailEntry, int, error) {
 
 	ordered := ring
 	if full && len(ring) > 0 {
-		ordered = append(ring[index:], ring[:index]...)
+		reordered := make([]string, 0, len(ring))
+		reordered = append(reordered, ring[index:]...)
+		reordered = append(reordered, ring[:index]...)
+		ordered = reordered
 	}
 
 	entries := make([]TailEntry, 0, len(ordered))

@@ -47,10 +47,8 @@ func WithDeployTimeProvider(tp TimeProvider) DeployStageOption {
 // NewDeployStage creates a new deploy stage.
 func NewDeployStage(opts ...DeployStageOption) *DeployStage {
 	s := &DeployStage{
-		clientFactory: func(scenarioName, serviceToken string) *deploy.LPBSClient {
-			return deploy.NewLPBSClient(scenarioName, serviceToken)
-		},
-		timeProvider: NewRealTimeProvider(),
+		clientFactory: deploy.NewLPBSClient,
+		timeProvider:  NewRealTimeProvider(),
 	}
 	for _, opt := range opts {
 		opt(s)

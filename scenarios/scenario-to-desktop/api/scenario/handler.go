@@ -54,93 +54,124 @@ func (h *Handler) DesktopStatusHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var scenarios []ScenarioDesktopStatus
-
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
 		}
-
-		scenarioName := entry.Name()
-		scenarioRoot := filepath.Join(scenariosPath, scenarioName)
-		electronPath := filepath.Join(scenarioRoot, "platforms", "electron")
-
-		status := ScenarioDesktopStatus{
-			Name: scenarioName,
-		}
-
-		if info, err := loadScenarioServiceInfo(scenarioRoot); err == nil && info != nil {
-			status.ServiceDisplay = strings.TrimSpace(info.DisplayName)
-			status.ServiceDesc = strings.TrimSpace(info.Description)
-		}
-		status.ServiceIconPath = findScenarioIcon(scenarioRoot)
-
-		// Check if platforms/electron exists
-		if electronInfo, err := os.Stat(electronPath); err == nil && electronInfo.IsDir() {
-			status.HasDesktop = true
-			status.DesktopPath = electronPath
-
-			// Read package.json for details
-			pkgPath := filepath.Join(electronPath, "package.json")
-			if data, err := os.ReadFile(pkgPath); err == nil {
-				var pkg map[string]interface{}
-				if json.Unmarshal(data, &pkg) == nil {
-					if name, ok := pkg["name"].(string); ok {
-						status.DisplayName = name
-					}
-					if version, ok := pkg["version"].(string); ok {
-						status.Version = version
-					}
-				}
-			}
-
-			status.ArtifactsExpectedPath = filepath.Join(electronPath, "dist-electron")
-			records := h.listScenarioRecords(scenarioName)
-			if len(records) > 0 {
-				record := records[0]
-				status.RecordID = record.ID
-				status.RecordOutputPath = recordOutputPath(record)
-				status.RecordLocationMode = record.LocationMode
-				status.RecordUpdatedAt = recordTimestamp(record)
-			}
-
-			if result, ok := scanDistArtifacts(status.ArtifactsExpectedPath, vrooliRoot); ok {
-				status.Built = true
-				status.DistPath = status.ArtifactsExpectedPath
-				status.LastModified = result.lastModified
-				status.PackageSize = result.totalSize
-				status.BuildArtifacts = result.artifacts
-				status.Platforms = uniqueStrings(result.platforms)
-				status.ArtifactsSource = "standard"
-				status.ArtifactsPath = status.ArtifactsExpectedPath
-			} else if status.RecordOutputPath != "" {
-				recordDistPath := filepath.Join(status.RecordOutputPath, "dist-electron")
-				if recordDistPath != status.ArtifactsExpectedPath {
-					if result, ok := scanDistArtifacts(recordDistPath, vrooliRoot); ok {
-						status.Built = true
-						status.DistPath = recordDistPath
-						status.LastModified = result.lastModified
-						status.PackageSize = result.totalSize
-						status.BuildArtifacts = result.artifacts
-						status.Platforms = uniqueStrings(result.platforms)
-						status.ArtifactsSource = "record"
-						status.ArtifactsPath = recordDistPath
-					}
-				}
-			}
-		}
-
-		if cfg, err := loadDesktopConnectionConfig(scenarioRoot); err == nil {
-			status.ConnectionConfig = cfg
-		} else if err != nil {
-			h.logger.Warn("failed to read desktop config",
-				"scenario", scenarioName,
-				"error", err)
-		}
-
+		status := h.buildScenarioStatus(entry.Name(), scenariosPath, vrooliRoot)
 		scenarios = append(scenarios, status)
 	}
 
-	// Count statistics
+	httputil.WriteJSON(w, http.StatusOK, ListResponse{
+		Scenarios: scenarios,
+		Stats:     computeStats(scenarios),
+	})
+}
+
+// buildScenarioStatus assembles the desktop status for a single scenario directory.
+func (h *Handler) buildScenarioStatus(scenarioName, scenariosPath, vrooliRoot string) ScenarioDesktopStatus {
+	scenarioRoot := filepath.Join(scenariosPath, scenarioName)
+	electronPath := filepath.Join(scenarioRoot, "platforms", "electron")
+
+	status := ScenarioDesktopStatus{Name: scenarioName}
+
+	if info, err := loadScenarioServiceInfo(scenarioRoot); err == nil && info != nil {
+		status.ServiceDisplay = strings.TrimSpace(info.DisplayName)
+		status.ServiceDesc = strings.TrimSpace(info.Description)
+	}
+	status.ServiceIconPath = findScenarioIcon(scenarioRoot)
+
+	if electronInfo, err := os.Stat(electronPath); err == nil && electronInfo.IsDir() {
+		h.populateDesktopInfo(&status, electronPath, scenarioName, vrooliRoot)
+	}
+
+	if cfg, err := loadDesktopConnectionConfig(scenarioRoot); err == nil {
+		status.ConnectionConfig = cfg
+	} else if err != nil {
+		h.logger.Warn("failed to read desktop config",
+			"scenario", scenarioName,
+			"error", err)
+	}
+
+	return status
+}
+
+// populateDesktopInfo fills desktop-specific fields when platforms/electron exists.
+func (h *Handler) populateDesktopInfo(status *ScenarioDesktopStatus, electronPath, scenarioName, vrooliRoot string) {
+	status.HasDesktop = true
+	status.DesktopPath = electronPath
+
+	readPackageJSON(electronPath, status)
+
+	status.ArtifactsExpectedPath = filepath.Join(electronPath, "dist-electron")
+	h.attachRecordInfo(status, scenarioName)
+	resolveArtifacts(status, vrooliRoot)
+}
+
+// readPackageJSON reads display name and version from the electron package.json.
+func readPackageJSON(electronPath string, status *ScenarioDesktopStatus) {
+	pkgPath := filepath.Join(electronPath, "package.json")
+	data, err := os.ReadFile(pkgPath)
+	if err != nil {
+		return
+	}
+	var pkg map[string]interface{}
+	if json.Unmarshal(data, &pkg) != nil {
+		return
+	}
+	if name, ok := pkg["name"].(string); ok {
+		status.DisplayName = name
+	}
+	if version, ok := pkg["version"].(string); ok {
+		status.Version = version
+	}
+}
+
+// attachRecordInfo populates record fields from the most recent matching record.
+func (h *Handler) attachRecordInfo(status *ScenarioDesktopStatus, scenarioName string) {
+	records := h.listScenarioRecords(scenarioName)
+	if len(records) == 0 {
+		return
+	}
+	record := records[0]
+	status.RecordID = record.ID
+	status.RecordOutputPath = recordOutputPath(record)
+	status.RecordLocationMode = record.LocationMode
+	status.RecordUpdatedAt = recordTimestamp(record)
+}
+
+// resolveArtifacts finds built artifacts from either the standard or record dist path.
+func resolveArtifacts(status *ScenarioDesktopStatus, vrooliRoot string) {
+	if result, ok := scanDistArtifacts(status.ArtifactsExpectedPath, vrooliRoot); ok {
+		applyArtifactScan(status, result, status.ArtifactsExpectedPath, "standard")
+		return
+	}
+	if status.RecordOutputPath == "" {
+		return
+	}
+	recordDistPath := filepath.Join(status.RecordOutputPath, "dist-electron")
+	if recordDistPath == status.ArtifactsExpectedPath {
+		return
+	}
+	if result, ok := scanDistArtifacts(recordDistPath, vrooliRoot); ok {
+		applyArtifactScan(status, result, recordDistPath, "record")
+	}
+}
+
+// applyArtifactScan copies scan results into the status struct.
+func applyArtifactScan(status *ScenarioDesktopStatus, result *distArtifactScan, distPath, source string) {
+	status.Built = true
+	status.DistPath = distPath
+	status.LastModified = result.lastModified
+	status.PackageSize = result.totalSize
+	status.BuildArtifacts = result.artifacts
+	status.Platforms = uniqueStrings(result.platforms)
+	status.ArtifactsSource = source
+	status.ArtifactsPath = distPath
+}
+
+// computeStats counts aggregate scenario statistics.
+func computeStats(scenarios []ScenarioDesktopStatus) *ScenarioStats {
 	withDesktop := 0
 	withBuilt := 0
 	for _, s := range scenarios {
@@ -151,16 +182,12 @@ func (h *Handler) DesktopStatusHandler(w http.ResponseWriter, r *http.Request) {
 			withBuilt++
 		}
 	}
-
-	httputil.WriteJSON(w, http.StatusOK, ListResponse{
-		Scenarios: scenarios,
-		Stats: &ScenarioStats{
-			Total:       len(scenarios),
-			WithDesktop: withDesktop,
-			Built:       withBuilt,
-			WebOnly:     len(scenarios) - withDesktop,
-		},
-	})
+	return &ScenarioStats{
+		Total:       len(scenarios),
+		WithDesktop: withDesktop,
+		Built:       withBuilt,
+		WebOnly:     len(scenarios) - withDesktop,
+	}
 }
 
 func loadScenarioServiceInfo(scenarioRoot string) (*scenarioServiceInfo, error) {

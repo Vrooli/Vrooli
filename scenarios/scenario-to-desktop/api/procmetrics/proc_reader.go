@@ -57,58 +57,86 @@ func (r *LinuxProcReader) ReadStatus(pid int) (rssBytes, peakBytes int64, thread
 	return parseStatus(string(data))
 }
 
+// statusFields holds the parsed fields from /proc/pid/status.
+type statusFields struct {
+	rssBytes     int64
+	peakBytes    int64
+	threads      int
+	foundRSS     bool
+	foundPeak    bool
+	foundThreads bool
+}
+
+// allFound returns true when all required fields have been parsed.
+func (sf *statusFields) allFound() bool {
+	return sf.foundRSS && sf.foundPeak && sf.foundThreads
+}
+
+// missingNames returns the names of fields that were not found.
+func (sf *statusFields) missingNames() []string {
+	var missing []string
+	if !sf.foundRSS {
+		missing = append(missing, "VmRSS")
+	}
+	if !sf.foundPeak {
+		missing = append(missing, "VmPeak")
+	}
+	if !sf.foundThreads {
+		missing = append(missing, "Threads")
+	}
+	return missing
+}
+
+// parseStatusField parses a single /proc/pid/status field into sf.
+func parseStatusField(sf *statusFields, key, value string) error {
+	switch key {
+	case "VmRSS:":
+		val, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("parse VmRSS: %w", err)
+		}
+		sf.rssBytes = val * 1024 // kB -> bytes
+		sf.foundRSS = true
+	case "VmPeak:":
+		val, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("parse VmPeak: %w", err)
+		}
+		sf.peakBytes = val * 1024
+		sf.foundPeak = true
+	case "Threads:":
+		val, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("parse Threads: %w", err)
+		}
+		sf.threads = val
+		sf.foundThreads = true
+	}
+	return nil
+}
+
 // parseStatus extracts VmRSS, VmPeak, and Threads from /proc/pid/status content.
 func parseStatus(content string) (rssBytes, peakBytes int64, threads int, err error) {
-	var foundRSS, foundPeak, foundThreads bool
+	var sf statusFields
 
 	for _, line := range strings.Split(content, "\n") {
 		fields := strings.Fields(line)
 		if len(fields) < 2 {
 			continue
 		}
-		switch fields[0] {
-		case "VmRSS:":
-			val, parseErr := strconv.ParseInt(fields[1], 10, 64)
-			if parseErr != nil {
-				return 0, 0, 0, fmt.Errorf("parse VmRSS: %w", parseErr)
-			}
-			rssBytes = val * 1024 // kB → bytes
-			foundRSS = true
-		case "VmPeak:":
-			val, parseErr := strconv.ParseInt(fields[1], 10, 64)
-			if parseErr != nil {
-				return 0, 0, 0, fmt.Errorf("parse VmPeak: %w", parseErr)
-			}
-			peakBytes = val * 1024
-			foundPeak = true
-		case "Threads:":
-			val, parseErr := strconv.Atoi(fields[1])
-			if parseErr != nil {
-				return 0, 0, 0, fmt.Errorf("parse Threads: %w", parseErr)
-			}
-			threads = val
-			foundThreads = true
+		if err := parseStatusField(&sf, fields[0], fields[1]); err != nil {
+			return 0, 0, 0, err
 		}
-		if foundRSS && foundPeak && foundThreads {
+		if sf.allFound() {
 			break
 		}
 	}
 
-	if !foundRSS || !foundPeak || !foundThreads {
-		var missing []string
-		if !foundRSS {
-			missing = append(missing, "VmRSS")
-		}
-		if !foundPeak {
-			missing = append(missing, "VmPeak")
-		}
-		if !foundThreads {
-			missing = append(missing, "Threads")
-		}
-		return 0, 0, 0, fmt.Errorf("missing fields in /proc/pid/status: %s", strings.Join(missing, ", "))
+	if !sf.allFound() {
+		return 0, 0, 0, fmt.Errorf("missing fields in /proc/pid/status: %s", strings.Join(sf.missingNames(), ", "))
 	}
 
-	return rssBytes, peakBytes, threads, nil
+	return sf.rssBytes, sf.peakBytes, sf.threads, nil
 }
 
 // IsAlive checks if a process exists by sending signal 0.

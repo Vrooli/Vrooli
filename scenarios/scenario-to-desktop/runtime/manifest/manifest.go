@@ -194,6 +194,23 @@ func LoadManifest(path string) (*Manifest, error) {
 
 // Validate performs lightweight structural validation for the current OS/arch.
 func (m *Manifest) Validate(targetOS, targetArch string) error {
+	if err := m.validateHeader(); err != nil {
+		return err
+	}
+	if len(m.Services) == 0 {
+		return errors.New("services must not be empty")
+	}
+	keys := PlatformKeys(targetOS, targetArch)
+	for _, svc := range m.Services {
+		if err := validateService(svc, keys); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateHeader checks top-level manifest fields.
+func (m *Manifest) validateHeader() error {
 	if m.SchemaVersion == "" {
 		return errors.New("schema_version missing")
 	}
@@ -206,37 +223,29 @@ func (m *Manifest) Validate(targetOS, targetArch string) error {
 	if m.IPC.Host == "" || m.IPC.Port == 0 {
 		return errors.New("ipc.host and ipc.port are required")
 	}
-	if len(m.Services) == 0 {
-		return errors.New("services must not be empty")
-	}
-
-	for _, svc := range m.Services {
-		if svc.ID == "" {
-			return errors.New("service.id is required")
-		}
-		if svc.Health.Type == "" || svc.Readiness.Type == "" {
-			return fmt.Errorf("service %s requires health and readiness definitions", svc.ID)
-		}
-		if svc.Health.Type == "http" && strings.TrimSpace(svc.Health.PortName) == "" {
-			return fmt.Errorf("service %s health port_name is required for http health", svc.ID)
-		}
-		if len(svc.Binaries) == 0 {
-			return fmt.Errorf("service %s missing binaries", svc.ID)
-		}
-		keys := PlatformKeys(targetOS, targetArch)
-		found := false
-		for _, key := range keys {
-			if bin, ok := svc.Binaries[key]; ok && bin.Path != "" {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return fmt.Errorf("service %s missing binary for platform %s", svc.ID, keys[0])
-		}
-	}
-
 	return nil
+}
+
+// validateService checks a single service definition.
+func validateService(svc Service, platformKeys []string) error {
+	if svc.ID == "" {
+		return errors.New("service.id is required")
+	}
+	if svc.Health.Type == "" || svc.Readiness.Type == "" {
+		return fmt.Errorf("service %s requires health and readiness definitions", svc.ID)
+	}
+	if svc.Health.Type == "http" && strings.TrimSpace(svc.Health.PortName) == "" {
+		return fmt.Errorf("service %s health port_name is required for http health", svc.ID)
+	}
+	if len(svc.Binaries) == 0 {
+		return fmt.Errorf("service %s missing binaries", svc.ID)
+	}
+	for _, key := range platformKeys {
+		if bin, ok := svc.Binaries[key]; ok && bin.Path != "" {
+			return nil
+		}
+	}
+	return fmt.Errorf("service %s missing binary for platform %s", svc.ID, platformKeys[0])
 }
 
 // PlatformKey converts GOOS/GOARCH into the manifest map key (e.g., linux-x64).

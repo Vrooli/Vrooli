@@ -119,29 +119,10 @@ func (s *BundleStage) Execute(ctx context.Context, input *StageInput) *StageResu
 		}
 	}
 
-	// Determine manifest path
-	manifestPath := input.Config.BundleManifestPath
-	if manifestPath == "" {
-		manifestPath = filepath.Join(scenarioPath, "platforms", framework, "bundle", "bundle.json")
-	}
-
-	// Always regenerate manifest for fresh detection when generator is configured
-	if s.manifestGenerator != nil {
-		appendInfo(result, "Generating manifest via deployment-manager...")
-
-		// Generate manifest
-		outputDir := filepath.Dir(manifestPath)
-		generatedPath, genErr := s.manifestGenerator.GenerateManifest(ctx, input.Config.ScenarioName, outputDir)
-		if genErr != nil {
-			failStage(result, s.timeProvider, errors.ErrBundleManifestGeneration(genErr))
-			return result
-		}
-
-		manifestPath = generatedPath
-		appendInfo(result, "Generated manifest: %s", manifestPath)
-	} else if _, err := os.Stat(manifestPath); os.IsNotExist(err) {
-		// No generator configured and manifest doesn't exist - fail
-		failStage(result, s.timeProvider, errors.ErrBundleManifestNotFound(manifestPath))
+	// Resolve or generate the bundle manifest
+	manifestPath, manifestErr := s.resolveManifest(ctx, result, input.Config, scenarioPath, framework)
+	if manifestErr != nil {
+		failStage(result, s.timeProvider, manifestErr)
 		return result
 	}
 
@@ -174,4 +155,28 @@ func (s *BundleStage) Execute(ctx context.Context, input *StageInput) *StageResu
 	completeStage(result, s.timeProvider, packageResult)
 
 	return result
+}
+
+// resolveManifest determines the manifest path, optionally generating it. Returns an error on failure.
+func (s *BundleStage) resolveManifest(ctx context.Context, result *StageResult, config *Config, scenarioPath, framework string) (string, *errors.DomainError) {
+	manifestPath := config.BundleManifestPath
+	if manifestPath == "" {
+		manifestPath = filepath.Join(scenarioPath, "platforms", framework, "bundle", "bundle.json")
+	}
+
+	if s.manifestGenerator != nil {
+		appendInfo(result, "Generating manifest via deployment-manager...")
+		outputDir := filepath.Dir(manifestPath)
+		generatedPath, genErr := s.manifestGenerator.GenerateManifest(ctx, config.ScenarioName, outputDir)
+		if genErr != nil {
+			return "", errors.ErrBundleManifestGeneration(genErr)
+		}
+		appendInfo(result, "Generated manifest: %s", generatedPath)
+		return generatedPath, nil
+	}
+
+	if _, err := os.Stat(manifestPath); os.IsNotExist(err) {
+		return "", errors.ErrBundleManifestNotFound(manifestPath)
+	}
+	return manifestPath, nil
 }

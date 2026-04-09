@@ -195,6 +195,7 @@ export interface PipelineStoreActions {
   _notifySubscribers: () => void;
   _updateCache: () => void;
   _pruneCache: () => void;
+  _startPipeline: (config: Partial<import("../lib/api").PipelineConfig>, label: string) => Promise<string>;
 }
 
 export type PipelineStore = PipelineStoreState & PipelineStoreActions;

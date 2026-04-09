@@ -417,6 +417,36 @@ func TestFindScenarioIcon(t *testing.T) {
 	})
 }
 
+// createDistDir creates a dist directory with the given files and returns the dist and parent paths.
+func createDistDir(t *testing.T, files map[string]string) (distDir, parentDir string) {
+	t.Helper()
+	parentDir = t.TempDir()
+	distDir = filepath.Join(parentDir, "dist")
+	if err := os.MkdirAll(distDir, 0o755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(distDir, name), []byte(content), 0o644); err != nil {
+			t.Fatalf("failed to write file %s: %v", name, err)
+		}
+	}
+	return
+}
+
+// assertPlatformCount checks the number of artifacts with a given platform label.
+func assertPlatformCount(t *testing.T, artifacts []DesktopBuildArtifact, platform string, want int) {
+	t.Helper()
+	count := 0
+	for _, a := range artifacts {
+		if a.Platform == platform {
+			count++
+		}
+	}
+	if count != want {
+		t.Errorf("expected %d %s artifacts, got %d", want, platform, count)
+	}
+}
+
 func TestScanDistArtifacts(t *testing.T) {
 	t.Run("non-existent directory", func(t *testing.T) {
 		result, ok := scanDistArtifacts("/nonexistent/path", "/tmp")
@@ -429,13 +459,8 @@ func TestScanDistArtifacts(t *testing.T) {
 	})
 
 	t.Run("empty directory", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		distDir := filepath.Join(tmpDir, "dist")
-		if err := os.MkdirAll(distDir, 0o755); err != nil {
-			t.Fatalf("failed to create dir: %v", err)
-		}
-
-		result, ok := scanDistArtifacts(distDir, tmpDir)
+		distDir, parentDir := createDistDir(t, nil)
+		result, ok := scanDistArtifacts(distDir, parentDir)
 		if !ok {
 			t.Error("expected ok to be true for existing directory")
 		}
@@ -448,31 +473,14 @@ func TestScanDistArtifacts(t *testing.T) {
 	})
 
 	t.Run("with artifacts", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		distDir := filepath.Join(tmpDir, "dist")
-		if err := os.MkdirAll(distDir, 0o755); err != nil {
-			t.Fatalf("failed to create dir: %v", err)
-		}
+		distDir, parentDir := createDistDir(t, map[string]string{
+			"app-Setup.exe": "fake-exe",
+			"app.dmg":       "fake-dmg",
+			"app.AppImage":  "fake-appimage",
+			"README.txt":    "readme",
+		})
 
-		// Create some test files
-		files := []struct {
-			name     string
-			content  string
-			platform string
-		}{
-			{"app-Setup.exe", "fake-exe", "win"},
-			{"app.dmg", "fake-dmg", "mac"},
-			{"app.AppImage", "fake-appimage", "linux"},
-			{"README.txt", "readme", ""},
-		}
-
-		for _, f := range files {
-			if err := os.WriteFile(filepath.Join(distDir, f.name), []byte(f.content), 0o644); err != nil {
-				t.Fatalf("failed to write file: %v", err)
-			}
-		}
-
-		result, ok := scanDistArtifacts(distDir, tmpDir)
+		result, ok := scanDistArtifacts(distDir, parentDir)
 		if !ok {
 			t.Error("expected ok to be true")
 		}
@@ -483,20 +491,9 @@ func TestScanDistArtifacts(t *testing.T) {
 			t.Errorf("expected 4 artifacts, got %d", len(result.artifacts))
 		}
 
-		// Check platforms detected
-		platformCounts := map[string]int{}
-		for _, a := range result.artifacts {
-			platformCounts[a.Platform]++
-		}
-		if platformCounts["win"] != 1 {
-			t.Errorf("expected 1 win artifact, got %d", platformCounts["win"])
-		}
-		if platformCounts["mac"] != 1 {
-			t.Errorf("expected 1 mac artifact, got %d", platformCounts["mac"])
-		}
-		if platformCounts["linux"] != 1 {
-			t.Errorf("expected 1 linux artifact, got %d", platformCounts["linux"])
-		}
+		assertPlatformCount(t, result.artifacts, "win", 1)
+		assertPlatformCount(t, result.artifacts, "mac", 1)
+		assertPlatformCount(t, result.artifacts, "linux", 1)
 	})
 }
 

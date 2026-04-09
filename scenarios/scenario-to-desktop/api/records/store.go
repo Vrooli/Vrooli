@@ -53,6 +53,17 @@ func (s *FileStore) load() error {
 	if err := json.Unmarshal(data, &records); err != nil {
 		return fmt.Errorf("parse record store: %w", err)
 	}
+
+	cleaned := s.deduplicateRecords(records)
+	if cleaned {
+		_ = s.persist()
+	}
+	return nil
+}
+
+// deduplicateRecords filters test records and deduplicates by scenario+output,
+// keeping the newest record per key. Returns true if any records were removed.
+func (s *FileStore) deduplicateRecords(records []*DesktopAppRecord) bool {
 	cleaned := false
 	// Track latest record per scenario+output to deduplicate on load.
 	// Key: "scenarioName\x00outputPath" → newest record ID.
@@ -67,29 +78,26 @@ func (s *FileStore) load() error {
 		}
 		s.records[r.ID] = r
 
-		if r.ScenarioName != "" && r.OutputPath != "" {
-			key := r.ScenarioName + "\x00" + r.OutputPath
-			if prevID, exists := latest[key]; exists {
-				// Keep the one with the later UpdatedAt (or the newer insertion).
-				prev := s.records[prevID]
-				if prev != nil && !r.UpdatedAt.After(prev.UpdatedAt) {
-					// Current record is older — remove it
-					delete(s.records, r.ID)
-				} else {
-					// Current record is newer — remove previous
-					delete(s.records, prevID)
-					latest[key] = r.ID
-				}
-				cleaned = true
-			} else {
-				latest[key] = r.ID
-			}
+		if r.ScenarioName == "" || r.OutputPath == "" {
+			continue
 		}
+		key := r.ScenarioName + "\x00" + r.OutputPath
+		prevID, exists := latest[key]
+		if !exists {
+			latest[key] = r.ID
+			continue
+		}
+		// Keep the one with the later UpdatedAt (or the newer insertion).
+		prev := s.records[prevID]
+		if prev != nil && !r.UpdatedAt.After(prev.UpdatedAt) {
+			delete(s.records, r.ID)
+		} else {
+			delete(s.records, prevID)
+			latest[key] = r.ID
+		}
+		cleaned = true
 	}
-	if cleaned {
-		_ = s.persist()
-	}
-	return nil
+	return cleaned
 }
 
 func (s *FileStore) persist() error {

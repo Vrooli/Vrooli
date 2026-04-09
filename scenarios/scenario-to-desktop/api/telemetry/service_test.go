@@ -194,43 +194,50 @@ func TestNormalizeEvent(t *testing.T) {
 	})
 }
 
+// writeTelemetryFile is a helper that creates a telemetry JSONL file for a scenario.
+func writeTelemetryFile(t *testing.T, vrooliRoot, scenario, content string) {
+	t.Helper()
+	telemetryDir := filepath.Join(vrooliRoot, ".vrooli", "deployment", "telemetry")
+	if err := os.MkdirAll(telemetryDir, 0o755); err != nil {
+		t.Fatalf("failed to create telemetry dir: %v", err)
+	}
+	filePath := filepath.Join(telemetryDir, scenario+".jsonl")
+	if err := os.WriteFile(filePath, []byte(content), 0o644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+}
+
+// getInsightsOrFail calls GetInsights and fails the test on error.
+func getInsightsOrFail(ctx context.Context, t *testing.T, service *DefaultService, scenario string) *InsightsResult {
+	t.Helper()
+	insights, err := service.GetInsights(ctx, scenario)
+	if err != nil {
+		t.Fatalf("GetInsights error: %v", err)
+	}
+	return insights
+}
+
 func TestGetInsights(t *testing.T) {
 	vrooliRoot := t.TempDir()
 	service := NewService(vrooliRoot)
 	ctx := context.Background()
 
 	t.Run("missing file", func(t *testing.T) {
-		insights, err := service.GetInsights(ctx, "nonexistent")
-		if err != nil {
-			t.Fatalf("GetInsights error: %v", err)
-		}
+		insights := getInsightsOrFail(ctx, t, service, "nonexistent")
 		if insights.Exists {
 			t.Errorf("expected exists=false for missing file")
 		}
 	})
 
 	t.Run("with session data", func(t *testing.T) {
-		telemetryDir := filepath.Join(vrooliRoot, ".vrooli", "deployment", "telemetry")
-		if err := os.MkdirAll(telemetryDir, 0o755); err != nil {
-			t.Fatalf("failed to create telemetry dir: %v", err)
-		}
-
 		content := strings.Join([]string{
 			`{"event":"app_start","ingested_at":"2026-01-01T00:00:00Z"}`,
 			`{"event":"app_ready","ingested_at":"2026-01-01T00:01:00Z"}`,
 			`{"event":"app_session_succeeded","ingested_at":"2026-01-01T00:02:00Z","session_id":"sess-1","details":{"started_at":"2026-01-01T00:00:00Z","ready_at":"2026-01-01T00:01:00Z"}}`,
 		}, "\n")
+		writeTelemetryFile(t, vrooliRoot, "insights-scenario", content)
 
-		filePath := filepath.Join(telemetryDir, "insights-scenario.jsonl")
-		if err := os.WriteFile(filePath, []byte(content), 0o644); err != nil {
-			t.Fatalf("failed to write file: %v", err)
-		}
-
-		insights, err := service.GetInsights(ctx, "insights-scenario")
-		if err != nil {
-			t.Fatalf("GetInsights error: %v", err)
-		}
-
+		insights := getInsightsOrFail(ctx, t, service, "insights-scenario")
 		if !insights.Exists {
 			t.Errorf("expected exists=true")
 		}
@@ -243,21 +250,10 @@ func TestGetInsights(t *testing.T) {
 	})
 
 	t.Run("with smoke test data", func(t *testing.T) {
-		telemetryDir := filepath.Join(vrooliRoot, ".vrooli", "deployment", "telemetry")
-		content := strings.Join([]string{
-			`{"event":"smoke_test_passed","ingested_at":"2026-01-01T00:00:00Z","session_id":"smoke-1"}`,
-		}, "\n")
+		content := `{"event":"smoke_test_passed","ingested_at":"2026-01-01T00:00:00Z","session_id":"smoke-1"}`
+		writeTelemetryFile(t, vrooliRoot, "smoke-scenario", content)
 
-		filePath := filepath.Join(telemetryDir, "smoke-scenario.jsonl")
-		if err := os.WriteFile(filePath, []byte(content), 0o644); err != nil {
-			t.Fatalf("failed to write file: %v", err)
-		}
-
-		insights, err := service.GetInsights(ctx, "smoke-scenario")
-		if err != nil {
-			t.Fatalf("GetInsights error: %v", err)
-		}
-
+		insights := getInsightsOrFail(ctx, t, service, "smoke-scenario")
 		if insights.LastSmokeTest == nil {
 			t.Fatalf("expected LastSmokeTest to be set")
 		}
@@ -267,21 +263,10 @@ func TestGetInsights(t *testing.T) {
 	})
 
 	t.Run("with error data", func(t *testing.T) {
-		telemetryDir := filepath.Join(vrooliRoot, ".vrooli", "deployment", "telemetry")
-		content := strings.Join([]string{
-			`{"event":"service_error","level":"error","ingested_at":"2026-01-01T00:00:00Z","details":{"error":"test error"}}`,
-		}, "\n")
+		content := `{"event":"service_error","level":"error","ingested_at":"2026-01-01T00:00:00Z","details":{"error":"test error"}}`
+		writeTelemetryFile(t, vrooliRoot, "error-scenario", content)
 
-		filePath := filepath.Join(telemetryDir, "error-scenario.jsonl")
-		if err := os.WriteFile(filePath, []byte(content), 0o644); err != nil {
-			t.Fatalf("failed to write file: %v", err)
-		}
-
-		insights, err := service.GetInsights(ctx, "error-scenario")
-		if err != nil {
-			t.Fatalf("GetInsights error: %v", err)
-		}
-
+		insights := getInsightsOrFail(ctx, t, service, "error-scenario")
 		if insights.LastError == nil {
 			t.Fatalf("expected LastError to be set")
 		}
@@ -291,23 +276,14 @@ func TestGetInsights(t *testing.T) {
 	})
 
 	t.Run("infers session from app lifecycle", func(t *testing.T) {
-		telemetryDir := filepath.Join(vrooliRoot, ".vrooli", "deployment", "telemetry")
 		content := strings.Join([]string{
 			`{"event":"app_start","ingested_at":"2026-01-01T00:00:00Z"}`,
 			`{"event":"app_ready","ingested_at":"2026-01-01T00:01:00Z"}`,
 			`{"event":"app_shutdown","ingested_at":"2026-01-01T00:02:00Z"}`,
 		}, "\n")
+		writeTelemetryFile(t, vrooliRoot, "lifecycle-scenario", content)
 
-		filePath := filepath.Join(telemetryDir, "lifecycle-scenario.jsonl")
-		if err := os.WriteFile(filePath, []byte(content), 0o644); err != nil {
-			t.Fatalf("failed to write file: %v", err)
-		}
-
-		insights, err := service.GetInsights(ctx, "lifecycle-scenario")
-		if err != nil {
-			t.Fatalf("GetInsights error: %v", err)
-		}
-
+		insights := getInsightsOrFail(ctx, t, service, "lifecycle-scenario")
 		if insights.LastSession == nil {
 			t.Fatalf("expected LastSession to be inferred from lifecycle")
 		}

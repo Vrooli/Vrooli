@@ -67,87 +67,25 @@ func (s *Service) LoadState(ctx context.Context, scenarioName string, req LoadSt
 
 // SaveState stores or updates scenario state.
 func (s *Service) SaveState(ctx context.Context, scenarioName string, req SaveStateRequest) (*SaveStateResponse, error) {
-	// Get existing state for conflict detection
 	existing, err := s.store.Get(ctx, scenarioName)
 	if err != nil {
 		return nil, err
 	}
 
-	// Check for conflicts if expected hash is provided
-	if req.ExpectedHash != "" && existing != nil && existing.Hash != req.ExpectedHash {
-		return &SaveStateResponse{
-			Success:     false,
-			Conflict:    true,
-			ServerState: existing,
-			Hash:        existing.Hash,
-		}, nil
+	if conflict := detectConflict(existing, req.ExpectedHash); conflict != nil {
+		return conflict, nil
 	}
 
-	// Build state
-	var state *ScenarioState
-	if existing != nil {
-		state = existing
-	} else {
-		state = &ScenarioState{
-			ScenarioName:  scenarioName,
-			SchemaVersion: SchemaVersion,
-			CreatedAt:     time.Now(),
-			Stages:        make(map[string]StageState),
-		}
-	}
-
-	// Update form state
+	state := existingOrNewState(existing, scenarioName)
 	state.FormState = req.FormState
 
-	// Compute manifest hash if requested
-	if req.ComputeHash && req.ManifestPath != "" {
-		hash, mtime, err := ComputeManifestHash(req.ManifestPath)
-		if err == nil {
-			// Update bundle stage fingerprint
-			if state.Stages == nil {
-				state.Stages = make(map[string]StageState)
-			}
-			bundleState := state.Stages[StageBundle]
-			bundleState.Stage = StageBundle
-			bundleState.InputFingerprint.ManifestPath = req.ManifestPath
-			bundleState.InputFingerprint.ManifestHash = hash
-			bundleState.InputFingerprint.ManifestMtime = mtime
-			state.Stages[StageBundle] = bundleState
-		}
-	}
+	applyManifestHash(state, req)
+	s.applyLogs(state, req)
+	applyArtifactsAndStages(state, req)
 
-	// Compress and store logs if provided
-	if len(req.LogTails) > 0 {
-		compressed, err := CompressLogs(req.LogTails)
-		if err != nil {
-			s.logger.Warn("failed to compress logs", "error", err)
-		} else {
-			state.CompressedLogs = MergeLogs(state.CompressedLogs, compressed)
-		}
-	}
-
-	// Update build artifacts if provided
-	if len(req.BuildArtifacts) > 0 {
-		state.BuildArtifacts = mergeArtifacts(state.BuildArtifacts, req.BuildArtifacts)
-	}
-
-	// Update stage results if provided
-	if req.StageResults != nil {
-		for stage, result := range req.StageResults {
-			stageState := state.Stages[stage]
-			stageState.Stage = stage
-			stageState.Result = result
-			stageState.ValidatedAt = time.Now()
-			stageState.Status = StatusValid
-			state.Stages[stage] = stageState
-		}
-	}
-
-	// Compute state hash
 	state.Hash = ComputeStateHash(state)
 	state.UpdatedAt = time.Now()
 
-	// Save
 	if err := s.store.Save(ctx, state); err != nil {
 		return nil, err
 	}
@@ -157,6 +95,83 @@ func (s *Service) SaveState(ctx context.Context, scenarioName string, req SaveSt
 		UpdatedAt: state.UpdatedAt,
 		Hash:      state.Hash,
 	}, nil
+}
+
+// detectConflict returns a conflict response if the expected hash doesn't match.
+func detectConflict(existing *ScenarioState, expectedHash string) *SaveStateResponse {
+	if expectedHash == "" || existing == nil || existing.Hash == expectedHash {
+		return nil
+	}
+	return &SaveStateResponse{
+		Success:     false,
+		Conflict:    true,
+		ServerState: existing,
+		Hash:        existing.Hash,
+	}
+}
+
+// existingOrNewState returns the existing state or creates a new one.
+func existingOrNewState(existing *ScenarioState, scenarioName string) *ScenarioState {
+	if existing != nil {
+		return existing
+	}
+	return &ScenarioState{
+		ScenarioName:  scenarioName,
+		SchemaVersion: SchemaVersion,
+		CreatedAt:     time.Now(),
+		Stages:        make(map[string]StageState),
+	}
+}
+
+// applyManifestHash computes and stores the manifest hash if requested.
+func applyManifestHash(state *ScenarioState, req SaveStateRequest) {
+	if !req.ComputeHash || req.ManifestPath == "" {
+		return
+	}
+	hash, mtime, err := ComputeManifestHash(req.ManifestPath)
+	if err != nil {
+		return
+	}
+	if state.Stages == nil {
+		state.Stages = make(map[string]StageState)
+	}
+	bundleState := state.Stages[StageBundle]
+	bundleState.Stage = StageBundle
+	bundleState.InputFingerprint.ManifestPath = req.ManifestPath
+	bundleState.InputFingerprint.ManifestHash = hash
+	bundleState.InputFingerprint.ManifestMtime = mtime
+	state.Stages[StageBundle] = bundleState
+}
+
+// applyLogs compresses and merges log tails into state.
+func (s *Service) applyLogs(state *ScenarioState, req SaveStateRequest) {
+	if len(req.LogTails) == 0 {
+		return
+	}
+	compressed, err := CompressLogs(req.LogTails)
+	if err != nil {
+		s.logger.Warn("failed to compress logs", "error", err)
+		return
+	}
+	state.CompressedLogs = MergeLogs(state.CompressedLogs, compressed)
+}
+
+// applyArtifactsAndStages merges build artifacts and stage results.
+func applyArtifactsAndStages(state *ScenarioState, req SaveStateRequest) {
+	if len(req.BuildArtifacts) > 0 {
+		state.BuildArtifacts = mergeArtifacts(state.BuildArtifacts, req.BuildArtifacts)
+	}
+	if req.StageResults == nil {
+		return
+	}
+	for stage, result := range req.StageResults {
+		stageState := state.Stages[stage]
+		stageState.Stage = stage
+		stageState.Result = result
+		stageState.ValidatedAt = time.Now()
+		stageState.Status = StatusValid
+		state.Stages[stage] = stageState
+	}
 }
 
 // ClearState deletes scenario state.

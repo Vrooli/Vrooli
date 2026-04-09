@@ -6,6 +6,38 @@ import (
 	"testing"
 )
 
+// mustSave is a test helper that saves a deploy target and fails the test on error.
+func mustSave(t *testing.T, repo *TargetRepository, key string, target *DeployTarget) {
+	t.Helper()
+	if err := repo.Save(key, target); err != nil {
+		t.Fatalf("Save(%q): %v", key, err)
+	}
+}
+
+// assertListLen is a test helper that lists targets and asserts the expected count.
+func assertListLen(t *testing.T, repo *TargetRepository, wantLen int, context string) {
+	t.Helper()
+	targets, err := repo.List()
+	if err != nil {
+		t.Fatalf("List (%s): %v", context, err)
+	}
+	if len(targets) != wantLen {
+		t.Errorf("List (%s): expected %d targets, got %d", context, wantLen, len(targets))
+	}
+}
+
+// assertTargetField is a test helper that gets a target and checks a field value.
+func assertTargetField(t *testing.T, repo *TargetRepository, key, fieldName, want string, getter func(*DeployTarget) string) {
+	t.Helper()
+	target, err := repo.Get(key)
+	if err != nil {
+		t.Fatalf("Get(%q): %v", key, err)
+	}
+	if got := getter(target); got != want {
+		t.Errorf("target %q %s = %q, want %q", key, fieldName, got, want)
+	}
+}
+
 func TestTargetRepositoryCRUD(t *testing.T) {
 	tmpDir := t.TempDir()
 	vrooliDir := filepath.Join(tmpDir, ".vrooli")
@@ -15,100 +47,59 @@ func TestTargetRepositoryCRUD(t *testing.T) {
 
 	repo := NewTargetRepository(tmpDir)
 
-	// List empty
-	targets, err := repo.List()
-	if err != nil {
-		t.Fatalf("List empty: %v", err)
-	}
-	if len(targets) != 0 {
-		t.Errorf("expected 0 targets, got %d", len(targets))
-	}
-
-	// Save
-	err = repo.Save("prod", &DeployTarget{
-		Label:         "Production",
-		ScenarioName:  "landing-page-business-suite",
-		RemoteProfile: "prod-server",
+	t.Run("list empty", func(t *testing.T) {
+		assertListLen(t, repo, 0, "empty")
 	})
-	if err != nil {
-		t.Fatalf("Save: %v", err)
-	}
 
-	// Get
-	target, err := repo.Get("prod")
-	if err != nil {
-		t.Fatalf("Get: %v", err)
-	}
-	if target.Label != "Production" {
-		t.Errorf("expected label 'Production', got %q", target.Label)
-	}
-	if target.ScenarioName != "landing-page-business-suite" {
-		t.Errorf("unexpected scenario_name: %q", target.ScenarioName)
-	}
-	if target.RemoteProfile != "prod-server" {
-		t.Errorf("unexpected remote_profile: %q", target.RemoteProfile)
-	}
-
-	// Save another
-	err = repo.Save("staging", &DeployTarget{
-		Label:         "Staging",
-		ScenarioName:  "landing-page-business-suite",
-		RemoteProfile: "staging-server",
+	t.Run("save and get", func(t *testing.T) {
+		mustSave(t, repo, "prod", &DeployTarget{
+			Label:         "Production",
+			ScenarioName:  "landing-page-business-suite",
+			RemoteProfile: "prod-server",
+		})
+		assertTargetField(t, repo, "prod", "Label", "Production", func(d *DeployTarget) string { return d.Label })
+		assertTargetField(t, repo, "prod", "ScenarioName", "landing-page-business-suite", func(d *DeployTarget) string { return d.ScenarioName })
+		assertTargetField(t, repo, "prod", "RemoteProfile", "prod-server", func(d *DeployTarget) string { return d.RemoteProfile })
 	})
-	if err != nil {
-		t.Fatalf("Save staging: %v", err)
-	}
 
-	// List both
-	targets, err = repo.List()
-	if err != nil {
-		t.Fatalf("List: %v", err)
-	}
-	if len(targets) != 2 {
-		t.Errorf("expected 2 targets, got %d", len(targets))
-	}
-
-	// Update existing
-	err = repo.Save("prod", &DeployTarget{
-		Label:         "Production (updated)",
-		ScenarioName:  "landing-page-business-suite",
-		RemoteProfile: "prod-server-v2",
+	t.Run("save another and list both", func(t *testing.T) {
+		mustSave(t, repo, "staging", &DeployTarget{
+			Label:         "Staging",
+			ScenarioName:  "landing-page-business-suite",
+			RemoteProfile: "staging-server",
+		})
+		assertListLen(t, repo, 2, "after second save")
 	})
-	if err != nil {
-		t.Fatalf("Update: %v", err)
-	}
-	target, err = repo.Get("prod")
-	if err != nil {
-		t.Fatalf("Get after update: %v", err)
-	}
-	if target.RemoteProfile != "prod-server-v2" {
-		t.Errorf("expected updated profile, got %q", target.RemoteProfile)
-	}
 
-	// Delete
-	err = repo.Delete("staging")
-	if err != nil {
-		t.Fatalf("Delete: %v", err)
-	}
-	targets, err = repo.List()
-	if err != nil {
-		t.Fatalf("List after delete: %v", err)
-	}
-	if len(targets) != 1 {
-		t.Errorf("expected 1 target after delete, got %d", len(targets))
-	}
+	t.Run("update existing", func(t *testing.T) {
+		mustSave(t, repo, "prod", &DeployTarget{
+			Label:         "Production (updated)",
+			ScenarioName:  "landing-page-business-suite",
+			RemoteProfile: "prod-server-v2",
+		})
+		assertTargetField(t, repo, "prod", "RemoteProfile", "prod-server-v2", func(d *DeployTarget) string { return d.RemoteProfile })
+	})
 
-	// Get not found
-	_, err = repo.Get("nonexistent")
-	if err == nil {
-		t.Fatal("expected error for missing target")
-	}
+	t.Run("delete", func(t *testing.T) {
+		if err := repo.Delete("staging"); err != nil {
+			t.Fatalf("Delete: %v", err)
+		}
+		assertListLen(t, repo, 1, "after delete")
+	})
 
-	// Delete not found
-	err = repo.Delete("nonexistent")
-	if err == nil {
-		t.Fatal("expected error for deleting missing target")
-	}
+	t.Run("get not found", func(t *testing.T) {
+		_, err := repo.Get("nonexistent")
+		if err == nil {
+			t.Fatal("expected error for missing target")
+		}
+	})
+
+	t.Run("delete not found", func(t *testing.T) {
+		err := repo.Delete("nonexistent")
+		if err == nil {
+			t.Fatal("expected error for deleting missing target")
+		}
+	})
 }
 
 func TestTargetRepositoryFileNotExist(t *testing.T) {

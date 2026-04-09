@@ -340,6 +340,39 @@ func TestStalenessDetector_ComputeAffectedStages(t *testing.T) {
 	}
 }
 
+// allValidStages returns a ScenarioState where every stage is StatusValid.
+func allValidStages(name string) *ScenarioState {
+	now := time.Now()
+	return &ScenarioState{
+		ScenarioName: name,
+		Stages: map[string]StageState{
+			StageBundle:    {Stage: StageBundle, Status: StatusValid, ValidatedAt: now},
+			StagePreflight: {Stage: StagePreflight, Status: StatusValid, ValidatedAt: now},
+			StageGenerate:  {Stage: StageGenerate, Status: StatusValid, ValidatedAt: now},
+			StageBuild:     {Stage: StageBuild, Status: StatusValid, ValidatedAt: now},
+			StageSmokeTest: {Stage: StageSmokeTest, Status: StatusValid, ValidatedAt: now},
+		},
+	}
+}
+
+// assertAllStagesStatus checks that every stage in the validation status matches wantStatus.
+func assertAllStagesStatus(t *testing.T, status *ValidationStatus, wantStatus string) {
+	t.Helper()
+	for _, stage := range StageOrder {
+		if status.Stages[stage].Status != wantStatus {
+			t.Errorf("stage %s status = %s, want %s", stage, status.Stages[stage].Status, wantStatus)
+		}
+	}
+}
+
+// assertStageStatus checks a single stage's status in the validation result.
+func assertStageStatus(t *testing.T, status *ValidationStatus, stage, wantStatus string) {
+	t.Helper()
+	if status.Stages[stage].Status != wantStatus {
+		t.Errorf("stage %s status = %s, want %s", stage, status.Stages[stage].Status, wantStatus)
+	}
+}
+
 func TestStalenessDetector_BuildValidationStatus(t *testing.T) {
 	detector := &StalenessDetector{}
 
@@ -352,35 +385,18 @@ func TestStalenessDetector_BuildValidationStatus(t *testing.T) {
 		if status.OverallStatus != StatusNone {
 			t.Errorf("OverallStatus = %s, want %s", status.OverallStatus, StatusNone)
 		}
-		// All stages should be "none"
-		for _, stage := range StageOrder {
-			if status.Stages[stage].Status != StatusNone {
-				t.Errorf("stage %s status = %s, want none", stage, status.Stages[stage].Status)
-			}
-		}
+		assertAllStagesStatus(t, status, StatusNone)
 	})
 
 	t.Run("all valid, no changes", func(t *testing.T) {
-		stored := &ScenarioState{
-			ScenarioName: "test",
-			Stages: map[string]StageState{
-				StageBundle:    {Stage: StageBundle, Status: StatusValid, ValidatedAt: time.Now()},
-				StagePreflight: {Stage: StagePreflight, Status: StatusValid, ValidatedAt: time.Now()},
-				StageGenerate:  {Stage: StageGenerate, Status: StatusValid, ValidatedAt: time.Now()},
-				StageBuild:     {Stage: StageBuild, Status: StatusValid, ValidatedAt: time.Now()},
-				StageSmokeTest: {Stage: StageSmokeTest, Status: StatusValid, ValidatedAt: time.Now()},
-			},
-		}
-
+		stored := allValidStages("test")
 		status := detector.BuildValidationStatus("test", stored, nil)
 
 		if status.OverallStatus != StatusValid {
 			t.Errorf("OverallStatus = %s, want valid", status.OverallStatus)
 		}
+		assertAllStagesStatus(t, status, StatusValid)
 		for _, stage := range StageOrder {
-			if status.Stages[stage].Status != StatusValid {
-				t.Errorf("stage %s status = %s, want valid", stage, status.Stages[stage].Status)
-			}
 			if !status.Stages[stage].CanReuse {
 				t.Errorf("stage %s CanReuse should be true", stage)
 			}
@@ -388,48 +404,23 @@ func TestStalenessDetector_BuildValidationStatus(t *testing.T) {
 	})
 
 	t.Run("with changes - partial status", func(t *testing.T) {
-		stored := &ScenarioState{
-			ScenarioName: "test",
-			Stages: map[string]StageState{
-				StageBundle:    {Stage: StageBundle, Status: StatusValid, ValidatedAt: time.Now()},
-				StagePreflight: {Stage: StagePreflight, Status: StatusValid, ValidatedAt: time.Now()},
-				StageGenerate:  {Stage: StageGenerate, Status: StatusValid, ValidatedAt: time.Now()},
-				StageBuild:     {Stage: StageBuild, Status: StatusValid, ValidatedAt: time.Now()},
-				StageSmokeTest: {Stage: StageSmokeTest, Status: StatusValid, ValidatedAt: time.Now()},
-			},
-		}
-
+		stored := allValidStages("test")
 		changes := []StateChange{
 			{ChangeType: "template_type", AffectedStage: StageGenerate, Reason: "Template changed"},
 		}
 
 		status := detector.BuildValidationStatus("test", stored, changes)
 
-		// Overall should be partial (some valid, some stale)
 		if status.OverallStatus != "partial" {
 			t.Errorf("OverallStatus = %s, want partial", status.OverallStatus)
 		}
 
-		// Bundle and preflight should still be valid
-		if status.Stages[StageBundle].Status != StatusValid {
-			t.Errorf("bundle status = %s, want valid", status.Stages[StageBundle].Status)
-		}
-		if status.Stages[StagePreflight].Status != StatusValid {
-			t.Errorf("preflight status = %s, want valid", status.Stages[StagePreflight].Status)
-		}
+		assertStageStatus(t, status, StageBundle, StatusValid)
+		assertStageStatus(t, status, StagePreflight, StatusValid)
+		assertStageStatus(t, status, StageGenerate, StatusStale)
+		assertStageStatus(t, status, StageBuild, StatusStale)
+		assertStageStatus(t, status, StageSmokeTest, StatusStale)
 
-		// Generate, build, smoke_test should be stale
-		if status.Stages[StageGenerate].Status != StatusStale {
-			t.Errorf("generate status = %s, want stale", status.Stages[StageGenerate].Status)
-		}
-		if status.Stages[StageBuild].Status != StatusStale {
-			t.Errorf("build status = %s, want stale", status.Stages[StageBuild].Status)
-		}
-		if status.Stages[StageSmokeTest].Status != StatusStale {
-			t.Errorf("smoketest status = %s, want stale", status.Stages[StageSmokeTest].Status)
-		}
-
-		// Generate should have staleness reason
 		if status.Stages[StageGenerate].StalenessReason != "Template changed" {
 			t.Errorf("generate staleness reason = %s, want 'Template changed'",
 				status.Stages[StageGenerate].StalenessReason)

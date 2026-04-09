@@ -33,6 +33,8 @@ import {
   initialPipelineState,
   PIPELINE_CACHE_MAX_SIZE,
 } from "./pipelineTypes";
+import { createRateLimiter } from "./pipelineRateLimit";
+import { createPollingController, createStatusSubscriberManager, createLoadDebounceGuard } from "./pipelinePolling";
 
 // Re-export types for convenience
 export type { PipelineStage, PipelineRunStatus, PipelineErrorInfo, StatusSubscriber };
@@ -75,112 +77,18 @@ export {
 // ============================================================================
 
 export const usePipelineStore = create<PipelineStore>((set, get) => {
-  // Track polling timeout to allow cleanup
-  let pollingTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  // Extracted utilities
+  const rateLimiter = createRateLimiter();
+  const pollingController = createPollingController();
+  const subscriberManager = createStatusSubscriberManager();
+  const loadDebounceGuard = createLoadDebounceGuard();
 
-  // Status subscribers for component notifications
-  const statusSubscribers = new Set<(status: VerbosePipelineStatus | null) => void>();
-
-  // Debounce tracking for loadActivePipeline to prevent rapid repeated calls
-  let lastLoadAttemptTime = 0;
-  const LOAD_DEBOUNCE_MS = 500; // Minimum time between load attempts
+  // Convenience alias
+  const { clearPollingTimeout } = pollingController;
+  const { checkRateLimit, recordPipelineCreation } = rateLimiter;
 
   // Track ongoing load requests to prevent duplicate concurrent calls
   let activeLoadPromise: Promise<void> | null = null;
-
-  // ============================================================================
-  // Rate Limiting Protection
-  // ============================================================================
-  // Prevents runaway pipeline creation from bugs (e.g., infinite effect loops).
-  // Uses exponential backoff: if pipelines are created too quickly, the cooldown
-  // doubles each time, up to a maximum. Resets after a quiet period.
-
-  const RATE_LIMIT_WINDOW_MS = 5000; // Time window for counting pipeline creations
-  const RATE_LIMIT_MAX_CREATIONS = 3; // Max pipelines allowed in window before throttling
-  const RATE_LIMIT_INITIAL_COOLDOWN_MS = 1000; // Initial cooldown when rate limited
-  const RATE_LIMIT_MAX_COOLDOWN_MS = 30000; // Maximum cooldown (30 seconds)
-  const RATE_LIMIT_RESET_AFTER_MS = 60000; // Reset backoff after 1 minute of quiet
-
-  let pipelineCreationTimestamps: number[] = [];
-  let currentCooldownMs = RATE_LIMIT_INITIAL_COOLDOWN_MS;
-  let cooldownUntil = 0;
-  let lastCreationTime = 0;
-
-  /**
-   * Check if pipeline creation is rate limited.
-   * Returns null if OK to proceed, or an error message if rate limited.
-   */
-  const checkRateLimit = (): string | null => {
-    const now = Date.now();
-
-    // Reset backoff after quiet period
-    if (lastCreationTime > 0 && now - lastCreationTime > RATE_LIMIT_RESET_AFTER_MS) {
-      currentCooldownMs = RATE_LIMIT_INITIAL_COOLDOWN_MS;
-      pipelineCreationTimestamps = [];
-    }
-
-    // Check if we're in a cooldown period
-    if (now < cooldownUntil) {
-      const remainingMs = cooldownUntil - now;
-      console.warn(
-        `[PipelineStore] Rate limited: too many pipeline creations. ` +
-        `Cooldown: ${Math.ceil(remainingMs / 1000)}s remaining. ` +
-        `This usually indicates a bug causing infinite pipeline creation.`
-      );
-      return `Rate limited: please wait ${Math.ceil(remainingMs / 1000)} seconds before creating another pipeline`;
-    }
-
-    // Clean old timestamps outside the window
-    pipelineCreationTimestamps = pipelineCreationTimestamps.filter(
-      (ts) => now - ts < RATE_LIMIT_WINDOW_MS
-    );
-
-    // Check if we've exceeded the rate limit
-    if (pipelineCreationTimestamps.length >= RATE_LIMIT_MAX_CREATIONS) {
-      // Trigger exponential backoff
-      cooldownUntil = now + currentCooldownMs;
-      console.error(
-        `[PipelineStore] RATE LIMIT TRIGGERED: ${pipelineCreationTimestamps.length} pipelines ` +
-        `created in ${RATE_LIMIT_WINDOW_MS / 1000}s. Enforcing ${currentCooldownMs / 1000}s cooldown. ` +
-        `This is likely a bug - check for infinite effect loops in React components.`
-      );
-
-      // Double the cooldown for next time (exponential backoff)
-      currentCooldownMs = Math.min(currentCooldownMs * 2, RATE_LIMIT_MAX_COOLDOWN_MS);
-
-      return `Rate limited: ${RATE_LIMIT_MAX_CREATIONS} pipelines created in ${RATE_LIMIT_WINDOW_MS / 1000}s. Please wait.`;
-    }
-
-    return null; // OK to proceed
-  };
-
-  /**
-   * Record a pipeline creation for rate limiting purposes.
-   */
-  const recordPipelineCreation = () => {
-    const now = Date.now();
-    pipelineCreationTimestamps.push(now);
-    lastCreationTime = now;
-  };
-
-  const clearPollingTimeout = () => {
-    if (pollingTimeoutId) {
-      clearTimeout(pollingTimeoutId);
-      pollingTimeoutId = null;
-    }
-  };
-
-  // Notify all subscribers when status changes
-  const notifySubscribers = () => {
-    const status = get().pipelineStatus;
-    statusSubscribers.forEach((callback) => {
-      try {
-        callback(status);
-      } catch (err) {
-        console.error("Error in status subscriber:", err);
-      }
-    });
-  };
 
   return {
     // Initial state
@@ -261,132 +169,14 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
     // ========== Pipeline Execution ==========
 
     runStage: async (stage, config = {}) => {
-      const { scenarioName, isSubmitting } = get();
-      if (!scenarioName) {
-        throw new Error("No scenario selected");
-      }
-
-      // Rate limit check - prevents runaway pipeline creation from bugs
-      const rateLimitError = checkRateLimit();
-      if (rateLimitError) {
-        throw new Error(rateLimitError);
-      }
-
-      // Prevent double-submission: if already submitting, return existing pipeline ID or throw
-      if (isSubmitting) {
-        const existingId = get().pipelineId;
-        if (existingId) {
-          // Return the existing pipeline ID - idempotent behavior
-          return existingId;
-        }
-        throw new Error("A pipeline request is already in progress");
-      }
-
-      // Stop any existing polling
-      clearPollingTimeout();
-
-      set({
-        runStatus: "starting",
-        errorInfo: null,
-        isSubmitting: true,
-      });
-
-      try {
-        // Use startActivePipeline to work with the existing active pipeline
-        // rather than creating orphaned new pipelines
-        const response = await startActivePipeline(scenarioName, {
-          stop_after_stage: stage,
-          ...config,
-        });
-
-        // Record successful pipeline start for rate limiting
-        recordPipelineCreation();
-
-        set({
-          pipelineId: response.pipeline.pipeline_id,
-          runStatus: "running",
-          isSubmitting: false,
-          pipelineHistory: [...get().pipelineHistory, response.pipeline.pipeline_id],
-        });
-
-        // Start polling automatically
-        get().startPolling();
-
-        return response.pipeline.pipeline_id;
-      } catch (err) {
-        logError("runStage", err);
-        const errorInfo = createErrorInfo(err);
-        set({
-          runStatus: "failed",
-          errorInfo,
-          isSubmitting: false,
-        });
-        throw err;
-      }
+      return get()._startPipeline({ stop_after_stage: stage, ...config }, "runStage");
     },
 
     runBundleStage: (config) => get().runStage("bundle", config),
     runPreflightStage: (config) => get().runStage("preflight", config),
     runSmokeTestStage: (config) => get().runStage("smoketest", config),
 
-    runFullPipeline: async (config = {}) => {
-      const { scenarioName, isSubmitting } = get();
-      if (!scenarioName) {
-        throw new Error("No scenario selected");
-      }
-
-      // Rate limit check - prevents runaway pipeline creation from bugs
-      const rateLimitError = checkRateLimit();
-      if (rateLimitError) {
-        throw new Error(rateLimitError);
-      }
-
-      // Prevent double-submission
-      if (isSubmitting) {
-        const existingId = get().pipelineId;
-        if (existingId) {
-          return existingId;
-        }
-        throw new Error("A pipeline request is already in progress");
-      }
-
-      // Stop any existing polling
-      clearPollingTimeout();
-
-      set({
-        runStatus: "starting",
-        errorInfo: null,
-        isSubmitting: true,
-      });
-
-      try {
-        // Use startActivePipeline to work with the existing active pipeline
-        // rather than creating orphaned new pipelines
-        const response = await startActivePipeline(scenarioName, config);
-
-        // Record successful pipeline start for rate limiting
-        recordPipelineCreation();
-
-        set({
-          pipelineId: response.pipeline.pipeline_id,
-          runStatus: "running",
-          isSubmitting: false,
-          pipelineHistory: [...get().pipelineHistory, response.pipeline.pipeline_id],
-        });
-
-        get().startPolling();
-        return response.pipeline.pipeline_id;
-      } catch (err) {
-        logError("runFullPipeline", err);
-        const errorInfo = createErrorInfo(err);
-        set({
-          runStatus: "failed",
-          errorInfo,
-          isSubmitting: false,
-        });
-        throw err;
-      }
-    },
+    runFullPipeline: (config = {}) => get()._startPipeline(config, "runFullPipeline"),
 
     cancelPipeline: async () => {
       const { pipelineId } = get();
@@ -479,7 +269,7 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
 
           // Continue polling if not in terminal state
           if (!isTerminalState(status.status)) {
-            pollingTimeoutId = setTimeout(poll, get().pollIntervalMs);
+            pollingController.setPollingTimeout(poll, get().pollIntervalMs);
           } else {
             set({ isPolling: false });
           }
@@ -502,13 +292,10 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
     },
 
     subscribeToStatus: (callback) => {
-      statusSubscribers.add(callback);
+      const unsubscribe = subscriberManager.subscribe(callback);
       // Immediately call with current status
       callback(get().pipelineStatus);
-      // Return unsubscribe function
-      return () => {
-        statusSubscribers.delete(callback);
-      };
+      return unsubscribe;
     },
 
     // ========== State Management ==========
@@ -572,15 +359,9 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
       }
 
       // Guard 3: Debounce - prevent rapid repeated calls (protects against infinite loops)
-      const now = Date.now();
-      if (now - lastLoadAttemptTime < LOAD_DEBOUNCE_MS) {
-        console.debug("[pipelineStore] loadActivePipeline skipped - debounce active", {
-          timeSinceLast: now - lastLoadAttemptTime,
-          debounceMs: LOAD_DEBOUNCE_MS,
-        });
+      if (!loadDebounceGuard.shouldProceed()) {
         return;
       }
-      lastLoadAttemptTime = now;
 
       // Guard 4: If we already have a pipeline WITH full status for this scenario, skip.
       // When restoring from cache we have pipelineId but not pipelineStatus,
@@ -830,7 +611,7 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
     },
 
     _notifySubscribers: () => {
-      notifySubscribers();
+      subscriberManager.notifyAll(get().pipelineStatus);
     },
 
     _updateCache: () => {
@@ -873,6 +654,47 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
       }
 
       set({ scenarioPipelineCache });
+    },
+
+    _startPipeline: async (config, label) => {
+      const { scenarioName, isSubmitting } = get();
+      if (!scenarioName) {
+        throw new Error("No scenario selected");
+      }
+
+      const rateLimitError = checkRateLimit();
+      if (rateLimitError) {
+        throw new Error(rateLimitError);
+      }
+
+      if (isSubmitting) {
+        const existingId = get().pipelineId;
+        if (existingId) return existingId;
+        throw new Error("A pipeline request is already in progress");
+      }
+
+      clearPollingTimeout();
+      set({ runStatus: "starting", errorInfo: null, isSubmitting: true });
+
+      try {
+        const response = await startActivePipeline(scenarioName, config);
+        recordPipelineCreation();
+
+        set({
+          pipelineId: response.pipeline.pipeline_id,
+          runStatus: "running",
+          isSubmitting: false,
+          pipelineHistory: [...get().pipelineHistory, response.pipeline.pipeline_id],
+        });
+
+        get().startPolling();
+        return response.pipeline.pipeline_id;
+      } catch (err) {
+        logError(label, err);
+        const errorInfo = createErrorInfo(err);
+        set({ runStatus: "failed", errorInfo, isSubmitting: false });
+        throw err;
+      }
     },
   };
 });

@@ -45,16 +45,43 @@ func (h *Handler) generateLinuxKey(ctx context.Context, params generateLinuxKeyP
 		return nil, fmt.Errorf("name or email is required to generate a key")
 	}
 
-	keyType := params.KeyType
-	if keyType == "" {
-		keyType = "rsa4096"
-	}
-	expiry := params.Expiry
-	if expiry == "" {
-		expiry = "1y"
+	absHomedir, err := prepareGPGHomedir(params)
+	if err != nil {
+		return nil, err
 	}
 
-	// Resolve homedir under the scenario to avoid polluting the user's default keyring.
+	if err := checkExistingKeys(absHomedir, params.Force); err != nil {
+		return nil, err
+	}
+
+	uid := formatUID(name, email)
+	keyType := valueOrDefault(params.KeyType, "rsa4096")
+	expiry := valueOrDefault(params.Expiry, "1y")
+
+	if err := runGPGGenerate(ctx, absHomedir, uid, keyType, expiry, params.Passphrase); err != nil {
+		return nil, err
+	}
+
+	fpr, err := latestFingerprint(absHomedir)
+	if err != nil {
+		return nil, err
+	}
+
+	pub, pubPath, err := optionalExportPublicKey(ctx, absHomedir, fpr, params)
+	if err != nil {
+		return nil, err
+	}
+
+	return &generateLinuxKeyResult{
+		Fingerprint: fpr,
+		Homedir:     absHomedir,
+		PublicKey:   pub,
+		PublicPath:  pubPath,
+	}, nil
+}
+
+// prepareGPGHomedir resolves and creates the GPG homedir.
+func prepareGPGHomedir(params generateLinuxKeyParams) (string, error) {
 	homedir := params.Homedir
 	if homedir == "" {
 		base := params.WorkingDirRoot
@@ -65,31 +92,51 @@ func (h *Handler) generateLinuxKey(ctx context.Context, params generateLinuxKeyP
 	}
 	absHomedir, err := filepath.Abs(homedir)
 	if err != nil {
-		return nil, fmt.Errorf("resolve homedir: %w", err)
+		return "", fmt.Errorf("resolve homedir: %w", err)
 	}
 	if err := os.MkdirAll(absHomedir, 0o700); err != nil {
-		return nil, fmt.Errorf("create homedir: %w", err)
+		return "", fmt.Errorf("create homedir: %w", err)
 	}
 	_ = os.Chmod(absHomedir, 0o700)
+	return absHomedir, nil
+}
 
-	// If not forcing and keys already exist, bail out to avoid overwriting.
-	if !params.Force {
-		hasKeys, err := homedirHasSecretKeys(absHomedir)
-		if err != nil {
-			return nil, err
-		}
-		if hasKeys {
-			return nil, fmt.Errorf("a GPG key already exists in %s (use force to overwrite)", absHomedir)
-		}
+// checkExistingKeys returns an error if keys already exist and force is false.
+func checkExistingKeys(absHomedir string, force bool) error {
+	if force {
+		return nil
 	}
-
-	uid := name
-	if uid != "" && email != "" {
-		uid = fmt.Sprintf("%s <%s>", name, email)
-	} else if uid == "" {
-		uid = email
+	hasKeys, err := homedirHasSecretKeys(absHomedir)
+	if err != nil {
+		return err
 	}
+	if hasKeys {
+		return fmt.Errorf("a GPG key already exists in %s (use force to overwrite)", absHomedir)
+	}
+	return nil
+}
 
+// formatUID builds the GPG UID string from name and email.
+func formatUID(name, email string) string {
+	if name != "" && email != "" {
+		return fmt.Sprintf("%s <%s>", name, email)
+	}
+	if name != "" {
+		return name
+	}
+	return email
+}
+
+// valueOrDefault returns val if non-empty, otherwise def.
+func valueOrDefault(val, def string) string {
+	if val == "" {
+		return def
+	}
+	return val
+}
+
+// runGPGGenerate executes the gpg quick-generate-key command.
+func runGPGGenerate(ctx context.Context, absHomedir, uid, keyType, expiry, passphrase string) error {
 	genArgs := []string{
 		"--batch",
 		"--homedir", absHomedir,
@@ -101,34 +148,25 @@ func (h *Handler) generateLinuxKey(ctx context.Context, params generateLinuxKeyP
 		"sign",
 		expiry,
 	}
-
 	genCmd := exec.CommandContext(ctx, "gpg", genArgs...)
-	genCmd.Stdin = strings.NewReader(params.Passphrase)
+	genCmd.Stdin = strings.NewReader(passphrase)
 	if out, err := genCmd.CombinedOutput(); err != nil {
-		return nil, fmt.Errorf("gpg key generation failed: %v: %s", err, string(out))
+		return fmt.Errorf("gpg key generation failed: %v: %s", err, string(out))
 	}
+	return nil
+}
 
-	fpr, err := latestFingerprint(absHomedir)
+// optionalExportPublicKey exports the public key if requested.
+func optionalExportPublicKey(ctx context.Context, absHomedir, fpr string, params generateLinuxKeyParams) (string, string, error) {
+	if !params.ExportPublic {
+		return "", "", nil
+	}
+	pub, err := exportPublicKey(ctx, absHomedir, fpr)
 	if err != nil {
-		return nil, err
+		return "", "", err
 	}
-
-	var pub string
-	var pubPath string
-	if params.ExportPublic {
-		pub, err = exportPublicKey(ctx, absHomedir, fpr)
-		if err != nil {
-			return nil, err
-		}
-		pubPath, _ = writePublicKey(params.Scenario, pub)
-	}
-
-	return &generateLinuxKeyResult{
-		Fingerprint: fpr,
-		Homedir:     absHomedir,
-		PublicKey:   pub,
-		PublicPath:  pubPath,
-	}, nil
+	pubPath, _ := writePublicKey(params.Scenario, pub)
+	return pub, pubPath, nil
 }
 
 func homedirHasSecretKeys(homedir string) (bool, error) {

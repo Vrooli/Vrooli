@@ -204,67 +204,20 @@ func (u *versionUpdater) Apply(scenarioName string, update *VersionUpdateRequest
 	if update == nil {
 		return "", nil, nil
 	}
-	if strings.TrimSpace(scenarioName) == "" {
-		return "", nil, apperrors.ErrBadRequest("scenario name is required for version updates")
+
+	mode, source, derr := u.validateUpdateParams(scenarioName, update)
+	if derr != nil {
+		return "", nil, derr
 	}
 
-	mode := strings.ToLower(strings.TrimSpace(update.Mode))
-	if mode == "" {
-		return "", nil, apperrors.ErrBadRequest("version_update.mode is required")
+	currentVersion, scenarioPath, derr := u.resolveCurrentVersion(scenarioName)
+	if derr != nil {
+		return "", nil, derr
 	}
 
-	source := strings.ToLower(strings.TrimSpace(update.Source))
-	if source == "" {
-		source = VersionSourceBoth
-	}
-	if source != VersionSourceBoth && source != VersionSourceService && source != VersionSourceUI {
-		return "", nil, apperrors.ErrBadRequest("version_update.source must be one of: both, service, ui")
-	}
-
-	scenarioPath := filepath.Join(u.vrooliRoot, "scenarios", scenarioName)
-	if _, err := u.fs.Stat(scenarioPath); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return "", nil, apperrors.ErrScenarioNotFound(scenarioName)
-		}
-		return "", nil, apperrors.ErrInternalf("failed to resolve scenario path: %v", err)
-	}
-
-	analyzer := generation.NewAnalyzer(u.vrooliRoot)
-	metadata, err := analyzer.AnalyzeScenario(scenarioName)
-	if err != nil {
-		return "", nil, apperrors.ErrScenarioAnalysisFailed(err, scenarioName)
-	}
-	currentVersion := metadata.Version
-
-	var nextVersion string
-	switch mode {
-	case VersionUpdateModeSet:
-		if strings.TrimSpace(update.Bump) != "" {
-			return "", nil, apperrors.ErrBadRequest("version_update.bump is only valid when mode is bump")
-		}
-		nextVersion = strings.TrimSpace(update.Version)
-		if nextVersion == "" {
-			return "", nil, apperrors.ErrBadRequest("version_update.version is required when mode is set")
-		}
-	case VersionUpdateModeBump:
-		if strings.TrimSpace(update.Version) != "" {
-			return "", nil, apperrors.ErrBadRequest("version_update.version is only valid when mode is set")
-		}
-		bump := strings.ToLower(strings.TrimSpace(update.Bump))
-		if bump == "" {
-			return "", nil, apperrors.ErrBadRequest("version_update.bump is required when mode is bump")
-		}
-		currentSemver, parseErr := parseSemver(currentVersion)
-		if parseErr != nil {
-			return "", nil, apperrors.ErrBadRequest(fmt.Sprintf("current version %q is not valid semver; use mode=set first", currentVersion))
-		}
-		bumped, bumpErr := bumpSemver(currentSemver, bump)
-		if bumpErr != nil {
-			return "", nil, apperrors.ErrBadRequest(bumpErr.Error())
-		}
-		nextVersion = bumped.String()
-	default:
-		return "", nil, apperrors.ErrBadRequest("version_update.mode must be set or bump")
+	nextVersion, derr := u.computeNextVersion(mode, update, currentVersion)
+	if derr != nil {
+		return "", nil, derr
 	}
 
 	nextSemver, parseErr := parseSemver(nextVersion)
@@ -272,28 +225,114 @@ func (u *versionUpdater) Apply(scenarioName string, update *VersionUpdateRequest
 		return "", nil, apperrors.ErrBadRequest(parseErr.Error())
 	}
 
-	if !update.AllowDowngrade {
-		if currentSemver, err := parseSemver(currentVersion); err == nil {
-			if compareSemver(nextSemver, currentSemver) < 0 {
-				return "", nil, apperrors.ErrBadRequest(fmt.Sprintf(
-					"version downgrade from %s to %s requires allow_downgrade",
-					currentSemver.String(),
-					nextSemver.String(),
-				))
-			}
-		}
+	if derr := u.checkDowngrade(update, currentVersion, nextSemver); derr != nil {
+		return "", nil, derr
 	}
 
 	var rollback *versionRollback
 	if update.Persist {
-		var derr *apperrors.DomainError
-		rollback, derr = u.persistVersion(scenarioPath, nextVersion, source)
-		if derr != nil {
-			return "", nil, derr
+		var persistErr *apperrors.DomainError
+		rollback, persistErr = u.persistVersion(scenarioPath, nextVersion, source)
+		if persistErr != nil {
+			return "", nil, persistErr
 		}
 	}
 
 	return nextSemver.String(), rollback, nil
+}
+
+// validateUpdateParams validates and normalizes the update request parameters.
+func (u *versionUpdater) validateUpdateParams(scenarioName string, update *VersionUpdateRequest) (mode, source string, derr *apperrors.DomainError) {
+	if strings.TrimSpace(scenarioName) == "" {
+		return "", "", apperrors.ErrBadRequest("scenario name is required for version updates")
+	}
+
+	mode = strings.ToLower(strings.TrimSpace(update.Mode))
+	if mode == "" {
+		return "", "", apperrors.ErrBadRequest("version_update.mode is required")
+	}
+
+	source = strings.ToLower(strings.TrimSpace(update.Source))
+	if source == "" {
+		source = VersionSourceBoth
+	}
+	if source != VersionSourceBoth && source != VersionSourceService && source != VersionSourceUI {
+		return "", "", apperrors.ErrBadRequest("version_update.source must be one of: both, service, ui")
+	}
+
+	return mode, source, nil
+}
+
+// resolveCurrentVersion resolves the scenario path and reads the current version.
+func (u *versionUpdater) resolveCurrentVersion(scenarioName string) (currentVersion string, scenarioPath string, derr *apperrors.DomainError) {
+	scenarioPath = filepath.Join(u.vrooliRoot, "scenarios", scenarioName)
+	if _, err := u.fs.Stat(scenarioPath); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return "", "", apperrors.ErrScenarioNotFound(scenarioName)
+		}
+		return "", "", apperrors.ErrInternalf("failed to resolve scenario path: %v", err)
+	}
+
+	analyzer := generation.NewAnalyzer(u.vrooliRoot)
+	metadata, err := analyzer.AnalyzeScenario(scenarioName)
+	if err != nil {
+		return "", "", apperrors.ErrScenarioAnalysisFailed(err, scenarioName)
+	}
+
+	return metadata.Version, scenarioPath, nil
+}
+
+// computeNextVersion computes the next version based on the update mode.
+func (u *versionUpdater) computeNextVersion(mode string, update *VersionUpdateRequest, currentVersion string) (string, *apperrors.DomainError) {
+	switch mode {
+	case VersionUpdateModeSet:
+		if strings.TrimSpace(update.Bump) != "" {
+			return "", apperrors.ErrBadRequest("version_update.bump is only valid when mode is bump")
+		}
+		nextVersion := strings.TrimSpace(update.Version)
+		if nextVersion == "" {
+			return "", apperrors.ErrBadRequest("version_update.version is required when mode is set")
+		}
+		return nextVersion, nil
+	case VersionUpdateModeBump:
+		if strings.TrimSpace(update.Version) != "" {
+			return "", apperrors.ErrBadRequest("version_update.version is only valid when mode is set")
+		}
+		bump := strings.ToLower(strings.TrimSpace(update.Bump))
+		if bump == "" {
+			return "", apperrors.ErrBadRequest("version_update.bump is required when mode is bump")
+		}
+		currentSemver, parseErr := parseSemver(currentVersion)
+		if parseErr != nil {
+			return "", apperrors.ErrBadRequest(fmt.Sprintf("current version %q is not valid semver; use mode=set first", currentVersion))
+		}
+		bumped, bumpErr := bumpSemver(currentSemver, bump)
+		if bumpErr != nil {
+			return "", apperrors.ErrBadRequest(bumpErr.Error())
+		}
+		return bumped.String(), nil
+	default:
+		return "", apperrors.ErrBadRequest("version_update.mode must be set or bump")
+	}
+}
+
+// checkDowngrade validates that the version is not a downgrade unless explicitly allowed.
+func (u *versionUpdater) checkDowngrade(update *VersionUpdateRequest, currentVersion string, nextSemver semver) *apperrors.DomainError {
+	if update.AllowDowngrade {
+		return nil
+	}
+	currentSemver, err := parseSemver(currentVersion)
+	if err != nil {
+		return nil // Cannot compare, allow
+	}
+	if compareSemver(nextSemver, currentSemver) < 0 {
+		return apperrors.ErrBadRequest(fmt.Sprintf(
+			"version downgrade from %s to %s requires allow_downgrade",
+			currentSemver.String(),
+			nextSemver.String(),
+		))
+	}
+	return nil
 }
 
 type versionUpdateTarget struct {

@@ -282,16 +282,17 @@ func FormatResults(results []PrerequisiteResult) string {
 	warnings := 0
 
 	for _, r := range results {
-		if r.Passed {
+		switch {
+		case r.Passed:
 			passed++
 			sb.WriteString(fmt.Sprintf("✓ [%s] %s\n", r.Kind, r.Message))
-		} else if r.Fatal {
+		case r.Fatal:
 			failed++
 			sb.WriteString(fmt.Sprintf("✗ [%s] %s\n", r.Kind, r.Message))
 			if r.Suggestion != "" {
 				sb.WriteString(fmt.Sprintf("  → %s\n", r.Suggestion))
 			}
-		} else {
+		default:
 			warnings++
 			sb.WriteString(fmt.Sprintf("⚠ [%s] %s\n", r.Kind, r.Message))
 			if r.Suggestion != "" {

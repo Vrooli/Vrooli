@@ -60,66 +60,66 @@ const entitlementsPlistTemplate = `<?xml version="1.0" encoding="UTF-8"?>
 </plist>
 `
 
+// capabilityEntitlements maps a capability name to the entitlement keys it enables.
+var capabilityEntitlements = map[string][]EntitlementKey{
+	"network":        {EntitlementNetworkClient},
+	"network-client": {EntitlementNetworkClient},
+	"network-server": {EntitlementNetworkServer},
+	"audio":          {EntitlementDeviceAudio},
+	"microphone":     {EntitlementDeviceAudio},
+	"camera":         {EntitlementDeviceCamera},
+	"bluetooth":      {EntitlementDeviceBluetooth},
+	"usb":            {EntitlementDeviceUSB},
+	"location":       {EntitlementPersonalInformationLocation},
+	"files":          {EntitlementFilesUserSelected, EntitlementFilesDownloads},
+	"filesystem":     {EntitlementFilesUserSelected, EntitlementFilesDownloads},
+	"debugger":       {EntitlementDebugger},
+	"inherit":        {EntitlementInheritSecurityScope},
+}
+
 // generateEntitlementsPlist generates macOS entitlements.plist content.
 func generateEntitlementsPlist(config *types.MacOSSigningConfig, capabilities []string) ([]byte, error) {
-	// Start with default Electron entitlements
-	entitlements := make(map[EntitlementKey]bool)
-	for _, e := range DefaultElectronEntitlements {
-		entitlements[e] = true
-	}
+	entitlements := collectEntitlements(config, capabilities)
 
-	// Add entitlements based on requested capabilities
-	for _, cap := range capabilities {
-		switch strings.ToLower(cap) {
-		case "network", "network-client":
-			entitlements[EntitlementNetworkClient] = true
-		case "network-server":
-			entitlements[EntitlementNetworkServer] = true
-		case "audio", "microphone":
-			entitlements[EntitlementDeviceAudio] = true
-		case "camera":
-			entitlements[EntitlementDeviceCamera] = true
-		case "bluetooth":
-			entitlements[EntitlementDeviceBluetooth] = true
-		case "usb":
-			entitlements[EntitlementDeviceUSB] = true
-		case "location":
-			entitlements[EntitlementPersonalInformationLocation] = true
-		case "files", "filesystem":
-			entitlements[EntitlementFilesUserSelected] = true
-			entitlements[EntitlementFilesDownloads] = true
-		case "debugger":
-			entitlements[EntitlementDebugger] = true
-		case "inherit":
-			entitlements[EntitlementInheritSecurityScope] = true
-		}
-	}
-
-	// If hardened runtime is enabled, we need the default entitlements
-	// (they're already added above, but this makes the intent clear)
-	if config.HardenedRuntime {
-		entitlements[EntitlementAllowJIT] = true
-		entitlements[EntitlementAllowUnsignedExecutableMemory] = true
-	}
-
-	// Convert to sorted slice for deterministic output
 	keys := make([]string, 0, len(entitlements))
 	for k := range entitlements {
 		keys = append(keys, string(k))
 	}
 	sort.Strings(keys)
 
-	// Generate the plist
+	return renderEntitlementsPlist(keys)
+}
+
+// collectEntitlements builds the full set of entitlements from defaults, capabilities, and config.
+func collectEntitlements(config *types.MacOSSigningConfig, capabilities []string) map[EntitlementKey]bool {
+	entitlements := make(map[EntitlementKey]bool, len(DefaultElectronEntitlements))
+	for _, e := range DefaultElectronEntitlements {
+		entitlements[e] = true
+	}
+
+	for _, cap := range capabilities {
+		for _, key := range capabilityEntitlements[strings.ToLower(cap)] {
+			entitlements[key] = true
+		}
+	}
+
+	if config.HardenedRuntime {
+		entitlements[EntitlementAllowJIT] = true
+		entitlements[EntitlementAllowUnsignedExecutableMemory] = true
+	}
+
+	return entitlements
+}
+
+// renderEntitlementsPlist renders the sorted keys into a plist XML document.
+func renderEntitlementsPlist(keys []string) ([]byte, error) {
 	tmpl, err := template.New("entitlements").Parse(entitlementsPlistTemplate)
 	if err != nil {
 		return nil, err
 	}
 
 	var buf bytes.Buffer
-	err = tmpl.Execute(&buf, map[string]interface{}{
-		"Keys": keys,
-	})
-	if err != nil {
+	if err := tmpl.Execute(&buf, map[string]interface{}{"Keys": keys}); err != nil {
 		return nil, err
 	}
 

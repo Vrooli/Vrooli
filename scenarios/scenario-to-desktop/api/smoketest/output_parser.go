@@ -40,6 +40,29 @@ func (p *DefaultOutputParser) ExtractAppError(output string) *AppError {
 	return nil
 }
 
+// lifecycleMarker pairs a marker string with the state name it represents.
+type lifecycleMarker struct {
+	marker string
+	state  string
+}
+
+// lifecycleMarkers returns the ordered list of lifecycle markers to check.
+// The order matches the progression: init -> granular stages -> ready -> result -> exit.
+func (p *DefaultOutputParser) lifecycleMarkers() []lifecycleMarker {
+	g := p.config.GranularLifecycleMarkers
+	return []lifecycleMarker{
+		{p.config.InitMarker, "init"},
+		{g.BundleResolving, "bundle_resolving"},
+		{g.RuntimeStarting, "runtime_starting"},
+		{g.WaitingForToken, "waiting_for_token"},
+		{g.RuntimeHealthz, "runtime_healthz"},
+		{g.RuntimeReadyz, "runtime_readyz"},
+		{g.RuntimePorts, "runtime_ports"},
+		{g.UIServerCheck, "ui_server_check"},
+		{p.config.ReadyMarker, "ready"},
+	}
+}
+
 // ExtractLastLifecycleState returns the last lifecycle marker reached.
 // Returns empty string if no lifecycle markers are found.
 // Possible values (in order of progression):
@@ -48,39 +71,13 @@ func (p *DefaultOutputParser) ExtractAppError(output string) *AppError {
 func (p *DefaultOutputParser) ExtractLastLifecycleState(output string) string {
 	lastState := ""
 
-	// Basic lifecycle markers
-	if p.config.InitMarker != "" && strings.Contains(output, p.config.InitMarker) {
-		lastState = "init"
+	for _, m := range p.lifecycleMarkers() {
+		if m.marker != "" && strings.Contains(output, m.marker) {
+			lastState = m.state
+		}
 	}
 
-	// Granular bundled-mode lifecycle markers (these occur between init and ready)
-	granular := p.config.GranularLifecycleMarkers
-	if granular.BundleResolving != "" && strings.Contains(output, granular.BundleResolving) {
-		lastState = "bundle_resolving"
-	}
-	if granular.RuntimeStarting != "" && strings.Contains(output, granular.RuntimeStarting) {
-		lastState = "runtime_starting"
-	}
-	if granular.WaitingForToken != "" && strings.Contains(output, granular.WaitingForToken) {
-		lastState = "waiting_for_token"
-	}
-	if granular.RuntimeHealthz != "" && strings.Contains(output, granular.RuntimeHealthz) {
-		lastState = "runtime_healthz"
-	}
-	if granular.RuntimeReadyz != "" && strings.Contains(output, granular.RuntimeReadyz) {
-		lastState = "runtime_readyz"
-	}
-	if granular.RuntimePorts != "" && strings.Contains(output, granular.RuntimePorts) {
-		lastState = "runtime_ports"
-	}
-	if granular.UIServerCheck != "" && strings.Contains(output, granular.UIServerCheck) {
-		lastState = "ui_server_check"
-	}
-
-	// Continue with basic markers
-	if p.config.ReadyMarker != "" && strings.Contains(output, p.config.ReadyMarker) {
-		lastState = "ready"
-	}
+	// Result uses two possible markers (success or failure)
 	if strings.Contains(output, p.config.SuccessMarker) || strings.Contains(output, "SMOKE_TEST_RESULT=failed") {
 		lastState = "result"
 	}
@@ -135,6 +132,12 @@ func (p *DefaultOutputParser) ParseResult(output string) OutputResult {
 	return result
 }
 
+// markerDef pairs a stage name with its expected output marker.
+type markerDef struct {
+	name   string
+	marker string
+}
+
 // ValidateSequence performs detailed validation of the smoke test output sequence.
 func (p *DefaultOutputParser) ValidateSequence(output string) SequenceValidation {
 	validation := SequenceValidation{
@@ -145,13 +148,6 @@ func (p *DefaultOutputParser) ValidateSequence(output string) SequenceValidation
 		Errors:           []string{},
 	}
 
-	lines := strings.Split(output, "\n")
-
-	// Define expected sequence order
-	type markerDef struct {
-		name   string
-		marker string
-	}
 	expectedOrder := []markerDef{
 		{"init", p.config.InitMarker},
 		{"ready", p.config.ReadyMarker},
@@ -159,57 +155,65 @@ func (p *DefaultOutputParser) ValidateSequence(output string) SequenceValidation
 		{"exit", p.config.ExitMarker},
 	}
 
-	// Track which stages we've seen and their line numbers
-	stageLines := make(map[string]int)
+	stageLines := scanForMarkers(strings.Split(output, "\n"), expectedOrder)
+	for name, lineNum := range stageLines {
+		validation.Stages = append(validation.Stages, SequenceStage{Name: name, LineNumber: lineNum})
+	}
 
-	// Scan output for markers
+	checkMissingStages(&validation, expectedOrder, stageLines)
+	checkSequenceOrder(&validation, expectedOrder, stageLines)
+
+	return validation
+}
+
+// scanForMarkers finds the first occurrence line number (1-based) of each marker in the output.
+func scanForMarkers(lines []string, markers []markerDef) map[string]int {
+	stageLines := make(map[string]int)
 	for lineNum, line := range lines {
-		for _, m := range expectedOrder {
+		for _, m := range markers {
 			if m.marker != "" && strings.Contains(line, m.marker) {
 				if _, seen := stageLines[m.name]; !seen {
-					stageLines[m.name] = lineNum + 1 // 1-based line numbers
-					validation.Stages = append(validation.Stages, SequenceStage{
-						Name:       m.name,
-						LineNumber: lineNum + 1,
-					})
+					stageLines[m.name] = lineNum + 1
 				}
 			}
 		}
 	}
+	return stageLines
+}
 
-	// Check for missing stages (only if marker is configured)
-	for _, m := range expectedOrder {
+// checkMissingStages adds errors for required stages that were not found.
+func checkMissingStages(v *SequenceValidation, markers []markerDef, stageLines map[string]int) {
+	for _, m := range markers {
 		if m.marker == "" {
 			continue
 		}
 		if _, found := stageLines[m.name]; !found {
-			// init and exit are optional for backwards compatibility
 			if m.name == "init" || m.name == "exit" || m.name == "ready" {
 				continue
 			}
-			validation.MissingStages = append(validation.MissingStages, m.name)
-			validation.Valid = false
-			validation.Errors = append(validation.Errors, "missing required stage: "+m.name)
+			v.MissingStages = append(v.MissingStages, m.name)
+			v.Valid = false
+			v.Errors = append(v.Errors, "missing required stage: "+m.name)
 		}
 	}
+}
 
-	// Check sequence order
+// checkSequenceOrder adds errors for stages that appeared out of expected order.
+func checkSequenceOrder(v *SequenceValidation, markers []markerDef, stageLines map[string]int) {
 	lastLine := 0
-	for _, m := range expectedOrder {
+	for _, m := range markers {
 		if m.marker == "" {
 			continue
 		}
 		if line, found := stageLines[m.name]; found {
 			if line < lastLine {
-				validation.OutOfOrderStages = append(validation.OutOfOrderStages, m.name)
-				validation.Valid = false
-				validation.Errors = append(validation.Errors, "stage out of order: "+m.name)
+				v.OutOfOrderStages = append(v.OutOfOrderStages, m.name)
+				v.Valid = false
+				v.Errors = append(v.Errors, "stage out of order: "+m.name)
 			}
 			lastLine = line
 		}
 	}
-
-	return validation
 }
 
 // ExtractSessionID parses the session ID from the SMOKE_TEST_INIT marker.

@@ -47,6 +47,10 @@ func main() {
 		os.Exit(0)
 	}
 
+	runSmokeTestFixture(*delay, *failInit, *failReady, *failResult, *noExit, *crash, *uploadSuccess, *uploadError, *telemetryPath)
+}
+
+func runSmokeTestFixture(delay int, failInit, failReady, failResult, noExit, crash, uploadSuccess, uploadError bool, telemetryPath string) {
 	// Check environment
 	if os.Getenv("SMOKE_TEST") != "1" {
 		fmt.Println("Warning: SMOKE_TEST environment variable not set to 1")
@@ -55,70 +59,58 @@ func main() {
 	// Check for environment-based delay override
 	if envDelay := os.Getenv("SMOKE_TEST_DELAY_MS"); envDelay != "" {
 		if d, err := strconv.Atoi(envDelay); err == nil && d > 0 {
-			*delay = d
+			delay = d
 		}
 	}
 
-	// Output to stderr if requested (for testing stderr capture)
 	if os.Getenv("SMOKE_TEST_STDERR") != "" {
 		fmt.Fprintln(os.Stderr, "STDERR: Test fixture stderr output")
 		fmt.Fprintln(os.Stderr, "STDERR: This should appear in stderr logs")
 	}
 
-	// Fail init scenario
-	if *failInit {
+	if failInit {
 		fmt.Println("Failing during initialization...")
 		os.Exit(1)
 	}
 
-	// Output init marker
 	fmt.Println("SMOKE_TEST_INIT=started")
 
-	// Crash scenario
-	if *crash {
+	if crash {
 		fmt.Println("About to crash...")
 		panic("simulated crash for testing")
 	}
 
-	// Fail ready scenario
-	if *failReady {
+	if failReady {
 		fmt.Println("Failing before ready...")
 		os.Exit(1)
 	}
 
-	// Output ready marker
 	fmt.Println("SMOKE_TEST_READY=true")
 
-	// Output telemetry path if specified
-	if *telemetryPath != "" {
-		fmt.Printf("[Desktop App] Telemetry initialized at %s\n", *telemetryPath)
+	if telemetryPath != "" {
+		fmt.Printf("[Desktop App] Telemetry initialized at %s\n", telemetryPath)
 	}
 
-	// Simulate delay (for timeout testing)
-	if *delay > 0 {
-		fmt.Printf("Delaying for %d ms...\n", *delay)
-		time.Sleep(time.Duration(*delay) * time.Millisecond)
+	if delay > 0 {
+		fmt.Printf("Delaying for %d ms...\n", delay)
+		time.Sleep(time.Duration(delay) * time.Millisecond)
 	}
 
-	// Fail result scenario
-	if *failResult {
+	if failResult {
 		fmt.Println("Failing before result marker...")
-		os.Exit(0) // Exit cleanly but without success marker
+		os.Exit(0)
 	}
 
-	// Output telemetry status
-	if *uploadSuccess {
+	if uploadSuccess {
 		fmt.Println("SMOKE_TEST_UPLOAD=ok")
 	}
-	if *uploadError {
+	if uploadError {
 		fmt.Println("SMOKE_TEST_UPLOAD=error")
 	}
 
-	// Output success marker
 	fmt.Println("SMOKE_TEST_RESULT=passed")
 
-	// Output exit marker unless disabled
-	if !*noExit {
+	if !noExit {
 		fmt.Println("SMOKE_TEST_EXIT=clean")
 	}
 

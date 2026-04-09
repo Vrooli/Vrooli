@@ -91,41 +91,7 @@ func buildIterationPrompt(input shared.TaskInput) string {
 	sb.WriteString("\n")
 
 	// Permissions
-	sb.WriteString("## Permissions\n")
-	sb.WriteString("You are authorized to make the following types of changes:\n\n")
-
-	if input.Request.Permissions.Immediate {
-		sb.WriteString("### Immediate Fixes (ALLOWED)\n")
-		sb.WriteString("- Trigger pipeline rebuild\n")
-		sb.WriteString("- Clear build caches (node_modules, dist)\n")
-		sb.WriteString("- Fix file permissions\n")
-		sb.WriteString("- Kill stuck build processes\n\n")
-	} else {
-		sb.WriteString("### Immediate Fixes (NOT ALLOWED)\n")
-		sb.WriteString("Do NOT run commands that change build state.\n\n")
-	}
-
-	if input.Request.Permissions.Permanent {
-		sb.WriteString("### Permanent Fixes (ALLOWED)\n")
-		sb.WriteString("- Modify scenario's .vrooli/service.json\n")
-		sb.WriteString("- Fix package.json dependencies\n")
-		sb.WriteString("- Update electron-builder configuration\n")
-		sb.WriteString("- Leave changes uncommitted for user review\n\n")
-	} else {
-		sb.WriteString("### Permanent Fixes (NOT ALLOWED)\n")
-		sb.WriteString("Do NOT modify code or configuration files.\n\n")
-	}
-
-	if input.Request.Permissions.Prevention {
-		sb.WriteString("### Prevention (ALLOWED)\n")
-		sb.WriteString("- Add preflight validation checks\n")
-		sb.WriteString("- Improve error messages\n")
-		sb.WriteString("- Add build verification steps\n")
-		sb.WriteString("- Document fixes\n\n")
-	} else {
-		sb.WriteString("### Prevention (NOT ALLOWED)\n")
-		sb.WriteString("Do NOT add preventive measures.\n\n")
-	}
+	writePermissionsSection(&sb, input.Request.Permissions)
 
 	// Build commands
 	sb.WriteString("## Build Commands\n\n")
@@ -239,6 +205,45 @@ func buildAttachments(input shared.TaskInput) []*domainpb.ContextAttachment {
 	}
 
 	return attachments
+}
+
+// writePermissionsSection appends the permissions block to the prompt.
+func writePermissionsSection(sb *strings.Builder, perms domain.FixPermissions) {
+	sb.WriteString("## Permissions\n")
+	sb.WriteString("You are authorized to make the following types of changes:\n\n")
+
+	if perms.Immediate {
+		sb.WriteString("### Immediate Fixes (ALLOWED)\n")
+		sb.WriteString("- Trigger pipeline rebuild\n")
+		sb.WriteString("- Clear build caches (node_modules, dist)\n")
+		sb.WriteString("- Fix file permissions\n")
+		sb.WriteString("- Kill stuck build processes\n\n")
+	} else {
+		sb.WriteString("### Immediate Fixes (NOT ALLOWED)\n")
+		sb.WriteString("Do NOT run commands that change build state.\n\n")
+	}
+
+	if perms.Permanent {
+		sb.WriteString("### Permanent Fixes (ALLOWED)\n")
+		sb.WriteString("- Modify scenario's .vrooli/service.json\n")
+		sb.WriteString("- Fix package.json dependencies\n")
+		sb.WriteString("- Update electron-builder configuration\n")
+		sb.WriteString("- Leave changes uncommitted for user review\n\n")
+	} else {
+		sb.WriteString("### Permanent Fixes (NOT ALLOWED)\n")
+		sb.WriteString("Do NOT modify code or configuration files.\n\n")
+	}
+
+	if perms.Prevention {
+		sb.WriteString("### Prevention (ALLOWED)\n")
+		sb.WriteString("- Add preflight validation checks\n")
+		sb.WriteString("- Improve error messages\n")
+		sb.WriteString("- Add build verification steps\n")
+		sb.WriteString("- Document fixes\n\n")
+	} else {
+		sb.WriteString("### Prevention (NOT ALLOWED)\n")
+		sb.WriteString("Do NOT add preventive measures.\n\n")
+	}
 }
 
 // buildFocusAttachments adds focus-specific context for fix tasks.

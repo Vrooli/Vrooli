@@ -264,9 +264,7 @@ func (b *LinuxBackend) ResizeDisplay(ctx context.Context, display PlatformDispla
 
 func (b *LinuxBackend) NewMonitorFactory() procmetrics.MonitorFactory {
 	procReader := &procmetrics.LinuxProcReader{}
-	shellFn := procmetrics.ShellFunc(func(ctx context.Context, env []string, name string, args ...string) ([]byte, error) {
-		return shellExec(ctx, env, name, args...)
-	})
+	shellFn := procmetrics.ShellFunc(shellExec)
 	windowDetector := procmetrics.NewXdotoolDetector(shellFn, b.logger)
 	return procmetrics.NewDefaultMonitorFactory(procReader, windowDetector, b.logger)
 }
