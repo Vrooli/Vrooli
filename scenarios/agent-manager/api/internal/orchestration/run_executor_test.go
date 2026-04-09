@@ -277,8 +277,8 @@ func (m *mockSandboxProvider) ValidatePath(ctx context.Context, path string, pro
 func TestDefaultExecutorConfig(t *testing.T) {
 	config := orchestration.DefaultExecutorConfig()
 
-	if config.Timeout != 30*time.Minute {
-		t.Errorf("expected default timeout 30m, got %v", config.Timeout)
+	if config.Timeout != 60*time.Minute {
+		t.Errorf("expected default timeout 60m, got %v", config.Timeout)
 	}
 	if config.HeartbeatInterval != 15*time.Second {
 		t.Errorf("expected default heartbeat interval 15s, got %v", config.HeartbeatInterval)
@@ -807,14 +807,16 @@ func TestRunExecutor_Execute_ContextTimeout(t *testing.T) {
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
 	mockRunner.SetAvailable(true, "ready")
 
-	// Execution that takes longer than timeout
+	// Simulate real runner behavior: returns result with session ID even on timeout.
+	// The real ClaudeCodeRunner.Execute captures session ID from stream events
+	// and returns (result, nil), not (nil, ctx.Err()).
 	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(10 * time.Second):
-			return &runner.ExecuteResult{Success: true}, nil
-		}
+		<-ctx.Done()
+		return &runner.ExecuteResult{
+			Success:   false,
+			ExitCode:  -1,
+			SessionID: "sess-from-timeout",
+		}, nil
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
@@ -843,6 +845,123 @@ func TestRunExecutor_Execute_ContextTimeout(t *testing.T) {
 	outcome := executor.Outcome()
 	if outcome != domain.RunOutcomeTimeout {
 		t.Errorf("expected outcome 'timeout', got '%s'", outcome)
+	}
+}
+
+func TestRunExecutor_Execute_TimeoutPreservesSessionID(t *testing.T) {
+	f := newInPlaceFixtures()
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
+
+	registry := runner.NewRegistry()
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "ready")
+
+	// Simulate real runner: returns result with session ID even on timeout
+	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		<-ctx.Done()
+		return &runner.ExecuteResult{
+			Success:   false,
+			ExitCode:  -1,
+			SessionID: "sess-timeout-preserve",
+		}, nil
+	}
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
+
+	config := orchestration.ExecutorConfig{
+		Timeout:           200 * time.Millisecond,
+		HeartbeatInterval: 50 * time.Millisecond,
+	}
+
+	executor := orchestration.NewRunExecutor(
+		repos.Runs,
+		registry,
+		nil,
+		eventStore,
+		f.run,
+		f.task,
+		f.profile,
+		"test prompt",
+		"",
+	).WithConfig(config)
+
+	executor.Execute(context.Background())
+
+	if outcome := executor.Outcome(); outcome != domain.RunOutcomeTimeout {
+		t.Fatalf("expected outcome 'timeout', got '%s'", outcome)
+	}
+
+	// Verify session ID was persisted to the run in the DB
+	updatedRun, err := repos.Runs.Get(context.Background(), f.run.ID)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if updatedRun.SessionID != "sess-timeout-preserve" {
+		t.Errorf("expected session ID 'sess-timeout-preserve', got %q", updatedRun.SessionID)
+	}
+	if updatedRun.Status != domain.RunStatusFailed {
+		t.Errorf("expected status 'failed', got %q", updatedRun.Status)
+	}
+
+	// Verify the run is now continuable
+	canContinue, reason := domain.CanContinueRun(updatedRun)
+	if !canContinue {
+		t.Errorf("expected timed-out run with session ID to be continuable, got reason: %s", reason)
+	}
+}
+
+func TestRunExecutor_Execute_TimeoutNoSessionID(t *testing.T) {
+	f := newInPlaceFixtures()
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
+
+	registry := runner.NewRegistry()
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "ready")
+
+	// Runner returns result without session ID (session event never received)
+	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		<-ctx.Done()
+		return &runner.ExecuteResult{
+			Success:  false,
+			ExitCode: -1,
+			// SessionID intentionally empty
+		}, nil
+	}
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
+
+	config := orchestration.ExecutorConfig{
+		Timeout:           200 * time.Millisecond,
+		HeartbeatInterval: 50 * time.Millisecond,
+	}
+
+	executor := orchestration.NewRunExecutor(
+		repos.Runs,
+		registry,
+		nil,
+		eventStore,
+		f.run,
+		f.task,
+		f.profile,
+		"test prompt",
+		"",
+	).WithConfig(config)
+
+	executor.Execute(context.Background())
+
+	// Verify session ID remains empty — no false positive
+	updatedRun, err := repos.Runs.Get(context.Background(), f.run.ID)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if updatedRun.SessionID != "" {
+		t.Errorf("expected empty session ID, got %q", updatedRun.SessionID)
+	}
+
+	// Verify run is NOT continuable without session ID
+	canContinue, _ := domain.CanContinueRun(updatedRun)
+	if canContinue {
+		t.Error("expected run without session ID to not be continuable")
 	}
 }
 

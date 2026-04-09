@@ -32,9 +32,7 @@ func validateWorkflowCaptureRequest(req *WorkflowCaptureRequest) string {
 
 // handleWorkflowCapture handles POST /api/v1/repo/workflow-capture
 func (s *Server) handleWorkflowCapture(w http.ResponseWriter, r *http.Request) {
-	// Pass nil for repoLock — workflow captures don't touch git, and holding the
-	// lock for minutes while polling BAS would block all other repo operations.
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 300*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 300*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -72,8 +70,7 @@ func (s *Server) handleWorkflowCapture(w http.ResponseWriter, r *http.Request) {
 
 // handleWorkflowCaptureList handles GET /api/v1/repo/workflow-captures?scenarioSlug=...
 func (s *Server) handleWorkflowCaptureList(w http.ResponseWriter, r *http.Request) {
-	// nil repoLock — file I/O only, no git operations
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -110,8 +107,7 @@ func (s *Server) handleWorkflowCaptureList(w http.ResponseWriter, r *http.Reques
 
 // handleWorkflowCaptureDetail handles GET /api/v1/repo/workflow-captures/{id}?scenarioSlug=...
 func (s *Server) handleWorkflowCaptureDetail(w http.ResponseWriter, r *http.Request) {
-	// nil repoLock — file I/O only, no git operations
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -139,8 +135,7 @@ func (s *Server) handleWorkflowCaptureDetail(w http.ResponseWriter, r *http.Requ
 
 // handleWorkflowCaptureVideo handles GET /api/v1/repo/workflow-captures/{id}/video/{filename}?scenarioSlug=...
 func (s *Server) handleWorkflowCaptureVideo(w http.ResponseWriter, r *http.Request) {
-	// nil repoLock — file I/O only, no git operations
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -175,8 +170,7 @@ func (s *Server) handleWorkflowCaptureVideo(w http.ResponseWriter, r *http.Reque
 
 // handleWorkflowCaptureDelete handles DELETE /api/v1/repo/workflow-captures/{id}?scenarioSlug=...
 func (s *Server) handleWorkflowCaptureDelete(w http.ResponseWriter, r *http.Request) {
-	// nil repoLock — file I/O only, no git operations
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}

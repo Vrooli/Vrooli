@@ -26,15 +26,22 @@ func (r *ExecGitRunner) gitPath() string {
 	return p
 }
 
+// readArgs builds command arguments for read-only git operations.
+// Prepends --no-optional-locks to prevent git from acquiring the index
+// lock for optional stat-cache refreshes (primarily git status and git diff).
+// This allows reads to run concurrently with index-modifying writes
+// without contending for .git/index.lock.
+func readArgs(repoDir string, args ...string) []string {
+	result := make([]string, 0, len(args)+3)
+	result = append(result, "--no-optional-locks", "-C", repoDir)
+	result = append(result, args...)
+	return result
+}
+
 func (r *ExecGitRunner) StatusPorcelainV2(ctx context.Context, repoDir string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx,
 		r.gitPath(),
-		"-C", repoDir,
-		"status",
-		"--porcelain=v2",
-		"--branch",
-		"--untracked-files=all",
-		"-z",
+		readArgs(repoDir, "status", "--porcelain=v2", "--branch", "--untracked-files=all", "-z")...,
 	)
 	out, err := cmd.Output()
 	if err == nil {
@@ -49,7 +56,7 @@ func (r *ExecGitRunner) StatusPorcelainV2(ctx context.Context, repoDir string) (
 }
 
 func (r *ExecGitRunner) Diff(ctx context.Context, repoDir string, path string, staged bool) ([]byte, error) {
-	args := []string{"-C", repoDir, "diff", "--no-color"}
+	args := readArgs(repoDir, "diff", "--no-color")
 	if staged {
 		args = append(args, "--cached")
 	}
@@ -168,7 +175,7 @@ func (r *ExecGitRunner) Commit(ctx context.Context, repoDir string, message stri
 }
 
 func (r *ExecGitRunner) RevParse(ctx context.Context, repoDir string, args ...string) ([]byte, error) {
-	cmdArgs := []string{"-C", repoDir, "rev-parse"}
+	cmdArgs := readArgs(repoDir, "rev-parse")
 	cmdArgs = append(cmdArgs, args...)
 
 	cmd := exec.CommandContext(ctx, r.gitPath(), cmdArgs...)
@@ -184,7 +191,7 @@ func (r *ExecGitRunner) RevParse(ctx context.Context, repoDir string, args ...st
 }
 
 func (r *ExecGitRunner) LastCommitMessage(ctx context.Context, repoDir string) (string, error) {
-	cmd := exec.CommandContext(ctx, r.gitPath(), "-C", repoDir, "log", "-1", "--pretty=%s")
+	cmd := exec.CommandContext(ctx, r.gitPath(), readArgs(repoDir, "log", "-1", "--pretty=%s")...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		exitErr := &exec.ExitError{}
@@ -223,7 +230,7 @@ func (r *ExecGitRunner) ConfigGet(ctx context.Context, repoDir string, key strin
 	if strings.TrimSpace(key) == "" {
 		return "", fmt.Errorf("config key is required")
 	}
-	cmd := exec.CommandContext(ctx, r.gitPath(), "-C", repoDir, "config", "--get", key)
+	cmd := exec.CommandContext(ctx, r.gitPath(), readArgs(repoDir, "config", "--get", key)...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		exitErr := &exec.ExitError{}
@@ -272,7 +279,7 @@ func (r *ExecGitRunner) Discard(ctx context.Context, repoDir string, paths []str
 }
 
 func (r *ExecGitRunner) DiffNumstat(ctx context.Context, repoDir string, staged bool) ([]byte, error) {
-	args := []string{"-C", repoDir, "diff", "--numstat", "--no-color"}
+	args := readArgs(repoDir, "diff", "--numstat", "--no-color")
 	if staged {
 		args = append(args, "--cached")
 	}

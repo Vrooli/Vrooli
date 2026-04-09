@@ -9,7 +9,7 @@ import (
 
 // [REQ:GCT-OT-P0-006] Push/pull status
 func (s *Server) handleSyncStatus(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 30*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 30*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -37,7 +37,7 @@ func (s *Server) handleSyncStatus(w http.ResponseWriter, r *http.Request) {
 
 // handleDiscard handles POST /api/v1/repo/discard
 func (s *Server) handleDiscard(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 30*time.Second)
+	hctx := RepoWrite(w, r, s.git, s.repos, s.repoLock, 30*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -74,7 +74,7 @@ func (s *Server) handleDiscard(w http.ResponseWriter, r *http.Request) {
 
 // handleIgnore handles POST /api/v1/repo/ignore
 func (s *Server) handleIgnore(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 30*time.Second)
+	hctx := RepoWrite(w, r, s.git, s.repos, s.repoLock, 30*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -112,7 +112,7 @@ func (s *Server) handleIgnore(w http.ResponseWriter, r *http.Request) {
 
 // handlePush handles POST /api/v1/repo/push
 func (s *Server) handlePush(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 60*time.Second)
+	hctx := RepoWrite(w, r, s.git, s.repos, s.repoLock, 60*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -165,7 +165,7 @@ func (s *Server) handlePush(w http.ResponseWriter, r *http.Request) {
 
 // handlePull handles POST /api/v1/repo/pull
 func (s *Server) handlePull(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 60*time.Second)
+	hctx := RepoWrite(w, r, s.git, s.repos, s.repoLock, 60*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -263,7 +263,7 @@ func (s *Server) auditLogAsync(entry AuditEntry) {
 
 // handleUpstreamAction handles POST /api/v1/repo/upstream-action
 func (s *Server) handleUpstreamAction(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 60*time.Second)
+	hctx := RepoWrite(w, r, s.git, s.repos, s.repoLock, 60*time.Second)
 	if hctx == nil {
 		return
 	}

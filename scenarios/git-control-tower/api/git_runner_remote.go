@@ -37,7 +37,7 @@ func (r *ExecGitRunner) GetRemoteURL(ctx context.Context, repoDir string, remote
 		remote = "origin"
 	}
 
-	cmd := exec.CommandContext(ctx, r.gitPath(), "-C", repoDir, "remote", "get-url", remote)
+	cmd := exec.CommandContext(ctx, r.gitPath(), readArgs(repoDir, "remote", "get-url", remote)...)
 	out, err := cmd.Output()
 	if err != nil {
 		exitErr := &exec.ExitError{}
@@ -164,7 +164,7 @@ func (r *ExecGitRunner) LsRemote(ctx context.Context, repoDir string, remote str
 		remote = "origin"
 	}
 
-	args := []string{"-C", repoDir, "ls-remote", "--heads", "--exit-code", remote}
+	args := readArgs(repoDir, "ls-remote", "--heads", "--exit-code", remote)
 	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
 
 	env, cleanup, envErr := gitCredentialEnv(cred)

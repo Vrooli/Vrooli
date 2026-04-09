@@ -54,15 +54,12 @@ func validateCaptureRequest(req *VisualCaptureRequest) string {
 
 // handleVisualCapture handles POST /api/v1/repo/visual-capture
 func (s *Server) handleVisualCapture(w http.ResponseWriter, r *http.Request) {
-	// Pass nil for repoLock — visual capture calls BAS (external HTTP) and
-	// saves to file storage; it never touches git. Holding the repo lock for
-	// the duration of BAS workflow execution starves all other endpoints.
 	var req VisualCaptureRequest
 	if !ParseJSONBody(w, r, &req) {
 		return
 	}
 
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, captureTimeout(len(req.Presets)))
+	hctx := RepoRead(w, r, s.git, s.repos, captureTimeout(len(req.Presets)))
 	if hctx == nil {
 		return
 	}
@@ -95,8 +92,7 @@ func (s *Server) handleVisualCapture(w http.ResponseWriter, r *http.Request) {
 
 // handleVisualCaptureList handles GET /api/v1/repo/visual-captures?scenarioSlug=...
 func (s *Server) handleVisualCaptureList(w http.ResponseWriter, r *http.Request) {
-	// nil repoLock — file I/O only, no git operations
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -133,8 +129,7 @@ func (s *Server) handleVisualCaptureList(w http.ResponseWriter, r *http.Request)
 
 // handleVisualCaptureDetail handles GET /api/v1/repo/visual-captures/{id}?scenarioSlug=...
 func (s *Server) handleVisualCaptureDetail(w http.ResponseWriter, r *http.Request) {
-	// nil repoLock — file I/O only, no git operations
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -159,8 +154,7 @@ func (s *Server) handleVisualCaptureDetail(w http.ResponseWriter, r *http.Reques
 
 // handleVisualCaptureScreenshot handles GET /api/v1/repo/visual-captures/{id}/screenshot/{filename}
 func (s *Server) handleVisualCaptureScreenshot(w http.ResponseWriter, r *http.Request) {
-	// nil repoLock — file I/O only, no git operations
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -196,7 +190,7 @@ func (s *Server) handleVisualCaptureScreenshot(w http.ResponseWriter, r *http.Re
 // handleVisualCaptureScreenshotPath handles GET /api/v1/repo/visual-captures/{id}/screenshot/{filename}/path
 // Returns the absolute filesystem path to a screenshot instead of its bytes.
 func (s *Server) handleVisualCaptureScreenshotPath(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -226,8 +220,7 @@ func (s *Server) handleVisualCaptureScreenshotPath(w http.ResponseWriter, r *htt
 
 // handleVisualCaptureVideo handles GET /api/v1/repo/visual-captures/{id}/video/{filename}
 func (s *Server) handleVisualCaptureVideo(w http.ResponseWriter, r *http.Request) {
-	// nil repoLock — file I/O only, no git operations
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -262,8 +255,7 @@ func (s *Server) handleVisualCaptureVideo(w http.ResponseWriter, r *http.Request
 
 // handleVisualCaptureStorageStats handles GET /api/v1/repo/visual-capture-storage
 func (s *Server) handleVisualCaptureStorageStats(w http.ResponseWriter, r *http.Request) {
-	// nil repoLock — file I/O only, no git operations
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -280,8 +272,7 @@ func (s *Server) handleVisualCaptureStorageStats(w http.ResponseWriter, r *http.
 
 // handleVisualCaptureDelete handles DELETE /api/v1/repo/visual-captures/{id}?scenarioSlug=...
 func (s *Server) handleVisualCaptureDelete(w http.ResponseWriter, r *http.Request) {
-	// nil repoLock — file I/O only, no git operations
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -308,8 +299,7 @@ func (s *Server) handleVisualCaptureDelete(w http.ResponseWriter, r *http.Reques
 
 // handleVisualCaptureClearAll handles DELETE /api/v1/repo/visual-capture-storage
 func (s *Server) handleVisualCaptureClearAll(w http.ResponseWriter, r *http.Request) {
-	// nil repoLock — file I/O only, no git operations
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 30*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 30*time.Second)
 	if hctx == nil {
 		return
 	}

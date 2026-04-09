@@ -13,15 +13,14 @@ func (r *ExecGitRunner) LogGraph(ctx context.Context, repoDir string, limit int,
 	if limit <= 0 {
 		limit = 30
 	}
-	args := []string{
-		"-C", repoDir,
+	args := readArgs(repoDir,
 		"log",
 		"--graph",
 		"--oneline",
 		"--decorate",
 		"--color=never",
 		"-n", fmt.Sprintf("%d", limit),
-	}
+	)
 	if grep != "" {
 		args = append(args, "--fixed-strings", "--grep="+grep)
 	}
@@ -43,14 +42,13 @@ func (r *ExecGitRunner) LogDetails(ctx context.Context, repoDir string, limit in
 	if limit <= 0 {
 		limit = 30
 	}
-	args := []string{
-		"-C", repoDir,
+	args := readArgs(repoDir,
 		"log",
 		"--name-only",
 		"--pretty=format:%H%x00%an%x00%ad%x00%s",
 		"--date=iso",
 		"-n", fmt.Sprintf("%d", limit),
-	}
+	)
 	if grep != "" {
 		args = append(args, "--fixed-strings", "--grep="+grep)
 	}
@@ -79,16 +77,16 @@ func (r *ExecGitRunner) ShowCommitDiff(ctx context.Context, repoDir string, comm
 	// git diff <commit>^..<commit> explicitly shows changes from first parent.
 
 	// First, check if this commit has a parent
-	parentCheck := exec.CommandContext(ctx, r.gitPath(), "-C", repoDir, "rev-parse", "--verify", "--quiet", commit+"^")
+	parentCheck := exec.CommandContext(ctx, r.gitPath(), readArgs(repoDir, "rev-parse", "--verify", "--quiet", commit+"^")...)
 	hasParent := parentCheck.Run() == nil
 
 	var args []string
 	if hasParent {
 		// Normal commit with parent - use git diff
-		args = []string{"-C", repoDir, "diff", "--no-color", commit + "^", commit}
+		args = readArgs(repoDir, "diff", "--no-color", commit+"^", commit)
 	} else {
 		// Root commit (no parent) - use git show
-		args = []string{"-C", repoDir, "show", "--no-color", "--format=", commit}
+		args = readArgs(repoDir, "show", "--no-color", "--format=", commit)
 	}
 
 	if path != "" {
@@ -126,7 +124,7 @@ func (r *ExecGitRunner) ShowFileAtCommit(ctx context.Context, repoDir string, co
 		return nil, err
 	}
 
-	args := []string{"-C", repoDir, "show", object}
+	args := readArgs(repoDir, "show", object)
 
 	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
 	out, err := cmd.Output()
@@ -142,7 +140,7 @@ func (r *ExecGitRunner) ShowFileAtCommit(ctx context.Context, repoDir string, co
 }
 
 func (r *ExecGitRunner) catFileSize(ctx context.Context, repoDir string, object string) (int64, error) {
-	args := []string{"-C", repoDir, "cat-file", "-s", object}
+	args := readArgs(repoDir, "cat-file", "-s", object)
 	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
 	out, err := cmd.Output()
 	if err != nil {
@@ -163,13 +161,12 @@ func (r *ExecGitRunner) LogFileFrequency(ctx context.Context, repoDir string, co
 	if commitLimit <= 0 {
 		commitLimit = 50
 	}
-	args := []string{
-		"-C", repoDir,
+	args := readArgs(repoDir,
 		"log",
 		"--name-only",
 		"--pretty=format:",
 		"-n", fmt.Sprintf("%d", commitLimit),
-	}
+	)
 	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
 	out, err := cmd.Output()
 	if err != nil {

@@ -113,4 +113,15 @@ func TestRunActionsFor_ContinueReason(t *testing.T) {
 	if actions.CanContinueReason != "" {
 		t.Fatalf("expected empty CanContinueReason when allowed, got %q", actions.CanContinueReason)
 	}
+
+	// Failed run with session ID (e.g. after timeout): continuation allowed.
+	run.Status = RunStatusFailed
+	run.SessionID = "sess-timeout"
+	actions = RunActionsFor(run, RunActionContext{})
+	if !actions.CanContinue {
+		t.Fatal("expected CanContinue to be true for failed run with session ID")
+	}
+	if actions.CanContinueReason != "" {
+		t.Fatalf("expected empty CanContinueReason for failed run with session ID, got %q", actions.CanContinueReason)
+	}
 }

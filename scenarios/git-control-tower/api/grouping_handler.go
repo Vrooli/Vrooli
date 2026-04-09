@@ -17,7 +17,7 @@ func (s *Server) groupingConfigPath(repoID int64) (string, error) {
 }
 
 func (s *Server) handleGetGroupingRules(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 5*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 5*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -39,7 +39,7 @@ func (s *Server) handleGetGroupingRules(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *Server) handleSaveGroupingRules(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 5*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 5*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -65,7 +65,7 @@ func (s *Server) handleSaveGroupingRules(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *Server) handleGitignoreHealth(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -94,7 +94,7 @@ func (s *Server) handleGitignoreHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGitignoreMove(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}

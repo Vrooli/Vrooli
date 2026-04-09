@@ -272,7 +272,7 @@ type StorageLevers struct {
 func DefaultLevers() Levers {
 	return Levers{
 		Execution: ExecutionLevers{
-			DefaultTimeout:     30 * time.Minute,
+			DefaultTimeout:     60 * time.Minute,
 			DefaultMaxTurns:    100,
 			EventBufferSize:    100,
 			EventFlushInterval: 1 * time.Second,

@@ -6,8 +6,15 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
+// GetRepoStatus gathers the full repository status by running git operations
+// concurrently where possible. The initial `git status --porcelain=v2` must
+// complete first because subsequent steps depend on the parsed file lists.
+// After that, author resolution, diff stats, and optional hotspots all run
+// in parallel via an errgroup.
 func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error) {
 	if deps.Git == nil {
 		return nil, fmt.Errorf("git runner is required")
@@ -17,6 +24,7 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 		return nil, fmt.Errorf("repo dir is required")
 	}
 
+	// Phase 1: git status (must complete before anything else).
 	out, err := deps.Git.StatusPorcelainV2(ctx, repoDir)
 	if err != nil {
 		return nil, err
@@ -28,7 +36,6 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 	}
 	parsed.RepoDir = repoDir
 	parsed.Timestamp = time.Now().UTC()
-	parsed.Author = resolveAuthor(ctx, deps, repoDir)
 
 	parsed.Summary = RepoStatusSummary{
 		Staged:    len(parsed.Files.Staged),
@@ -39,9 +46,51 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 	}
 	parsed.Scopes = detectScopes(parsed.Files)
 
-	stagedStats, stagedBinaries := collectDiffStats(ctx, deps, repoDir, true)
-	unstagedStats, unstagedBinaries := collectDiffStats(ctx, deps, repoDir, false)
-	untrackedStats := collectUntrackedStats(repoDir, parsed.Files.Untracked)
+	// Phase 2: run independent git operations concurrently.
+	var (
+		author           RepoAuthorStatus
+		stagedStats      map[string]DiffStats
+		stagedBinaries   []string
+		unstagedStats    map[string]DiffStats
+		unstagedBinaries []string
+		untrackedStats   map[string]DiffStats
+		fileHotspots     map[string]int
+	)
+
+	g, gctx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+		author = resolveAuthor(gctx, deps, repoDir)
+		return nil
+	})
+
+	g.Go(func() error {
+		stagedStats, stagedBinaries = collectDiffStats(gctx, deps, repoDir, true)
+		return nil
+	})
+
+	g.Go(func() error {
+		unstagedStats, unstagedBinaries = collectDiffStats(gctx, deps, repoDir, false)
+		return nil
+	})
+
+	g.Go(func() error {
+		untrackedStats = collectUntrackedStats(repoDir, parsed.Files.Untracked)
+		return nil
+	})
+
+	if deps.IncludeHotspots {
+		g.Go(func() error {
+			fileHotspots = computeFileHotspots(gctx, deps, repoDir, parsed.Files)
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	parsed.Author = author
 
 	if len(stagedStats) > 0 || len(unstagedStats) > 0 || len(untrackedStats) > 0 {
 		parsed.FileStats = RepoFileStats{
@@ -52,19 +101,30 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 	}
 
 	parsed.Files.Binary = collectBinaryFiles(stagedBinaries, unstagedBinaries, untrackedStats)
-	parsed.FileHotspots = computeFileHotspots(ctx, deps, repoDir, parsed.Files)
+	parsed.FileHotspots = fileHotspots
 	sortFileStatus(&parsed.Files, parsed.Scopes)
 
 	return parsed, nil
 }
 
+// resolveAuthor reads user.name and user.email from git config.
+// Uses the config cache when available to avoid spawning git processes.
 func resolveAuthor(ctx context.Context, deps RepoStatusDeps, repoDir string) RepoAuthorStatus {
 	author := RepoAuthorStatus{}
-	if name, err := deps.Git.ConfigGet(ctx, repoDir, "user.name"); err == nil {
-		author.Name = name
-	}
-	if email, err := deps.Git.ConfigGet(ctx, repoDir, "user.email"); err == nil {
-		author.Email = email
+	if deps.ConfigCache != nil {
+		if name, err := deps.ConfigCache.ConfigGet(ctx, deps.Git, repoDir, "user.name"); err == nil {
+			author.Name = name
+		}
+		if email, err := deps.ConfigCache.ConfigGet(ctx, deps.Git, repoDir, "user.email"); err == nil {
+			author.Email = email
+		}
+	} else {
+		if name, err := deps.Git.ConfigGet(ctx, repoDir, "user.name"); err == nil {
+			author.Name = name
+		}
+		if email, err := deps.Git.ConfigGet(ctx, repoDir, "user.email"); err == nil {
+			author.Email = email
+		}
 	}
 	return author
 }

@@ -50,6 +50,7 @@ type Server struct {
 	scenarioLocator      *ScenarioLocator
 	envelopeCache        *EnvelopeCache
 	reviewJobStore       *ReviewJobStore
+	configCache          *GitConfigCache
 }
 
 // NewServer initializes configuration, database, and routes
@@ -75,6 +76,7 @@ func NewServer() (*Server, error) {
 		sshDeps:      ssh.SSHDeps{Platform: ssh.DefaultPlatform()},
 	}
 	srv.repos = NewRepoService(NewSQLiteRepoStore(db), srv.git)
+	srv.configCache = NewGitConfigCache(60 * time.Second)
 
 	if err := srv.initClients(); err != nil {
 		return nil, err
@@ -185,7 +187,7 @@ func (s *Server) initServices() {
 	s.visualCaptureStorage = NewVisualCaptureStorage(s.storageResolver, OSFileIO{})
 	s.periodicCapture = NewPeriodicCapture(PeriodicCaptureConfig{
 		Interval: 1 * time.Hour, MaxSnapshots: 10,
-	}, s.capabilities, s.basClient, s.visualCaptureStorage, s.repos, s.git, s.repoLock)
+	}, s.capabilities, s.basClient, s.visualCaptureStorage, s.repos, s.git)
 	s.periodicCapture.Start()
 }
 

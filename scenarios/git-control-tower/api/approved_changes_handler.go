@@ -6,7 +6,7 @@ import (
 )
 
 func (s *Server) handleApprovedChanges(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 5*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 5*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -33,7 +33,7 @@ func (s *Server) handleApprovedChanges(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleApprovedChangesPreview(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 5*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 5*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -65,7 +65,7 @@ func (s *Server) handleApprovedChangesPreview(w http.ResponseWriter, r *http.Req
 }
 
 func (s *Server) handleProvenance(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 5*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 5*time.Second)
 	if hctx == nil {
 		return
 	}

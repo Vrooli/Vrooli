@@ -11,7 +11,7 @@ import (
 
 // handleFiles handles GET /api/v1/repo/files
 func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 30*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 30*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -59,7 +59,7 @@ func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
 // handleDirectoryList handles GET /api/v1/repo/files/dir?path=<dir>
 // path="" returns root contents, path="src/components" returns that folder's contents
 func (s *Server) handleDirectoryList(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -87,7 +87,7 @@ func (s *Server) handleDirectoryList(w http.ResponseWriter, r *http.Request) {
 
 // handleRelatedFiles handles GET /api/v1/repo/related
 func (s *Server) handleRelatedFiles(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -120,7 +120,7 @@ func (s *Server) handleRelatedFiles(w http.ResponseWriter, r *http.Request) {
 // handleDeletePath handles POST /api/v1/repo/files/delete
 // Deletes a file or directory from the filesystem
 func (s *Server) handleDeletePath(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 30*time.Second)
+	hctx := RepoWrite(w, r, s.git, s.repos, s.repoLock, 30*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -150,7 +150,7 @@ func (s *Server) handleDeletePath(w http.ResponseWriter, r *http.Request) {
 // handleSaveFileContent handles PUT /api/v1/repo/files/content
 // Saves text content to an existing file with optimistic concurrency support.
 func (s *Server) handleSaveFileContent(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 30*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 30*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -214,7 +214,7 @@ func respondSaveFileError(resp *HTTPResponse, err error) {
 // handleContentSearch handles GET /api/v1/repo/search/content
 // Searches file contents using git grep
 func (s *Server) handleContentSearch(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 30*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 30*time.Second)
 	if hctx == nil {
 		return
 	}

@@ -9,15 +9,19 @@ import (
 )
 
 func (s *Server) handleRepoStatus(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 5*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 5*time.Second)
 	if hctx == nil {
 		return
 	}
 	defer hctx.Cancel()
 
+	includeHotspots := r.URL.Query().Get("hotspots") == "true"
+
 	status, err := GetRepoStatus(hctx.Ctx, RepoStatusDeps{
-		Git:     hctx.Git,
-		RepoDir: hctx.RepoDir,
+		Git:             hctx.Git,
+		RepoDir:         hctx.RepoDir,
+		ConfigCache:     s.configCache,
+		IncludeHotspots: includeHotspots,
 	})
 	if err != nil {
 		hctx.Resp.InternalError(err.Error())
@@ -28,7 +32,7 @@ func (s *Server) handleRepoStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleRepoHistory(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 5*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 5*time.Second)
 	if hctx == nil {
 		return
 	}

@@ -467,7 +467,7 @@ type OrchestratorConfig struct {
 // DefaultConfig returns sensible defaults.
 func DefaultConfig() OrchestratorConfig {
 	return OrchestratorConfig{
-		DefaultTimeout:          30 * time.Minute,
+		DefaultTimeout:          60 * time.Minute,
 		MaxConcurrentRuns:       10,
 		RequireSandboxByDefault: true,
 	}
@@ -1944,8 +1944,22 @@ func (o *Orchestrator) continuationHeartbeat(ctx context.Context, run *domain.Ru
 }
 
 // executeContinuation handles the actual continuation execution (runs in background).
+// Each continuation turn gets its own timeout from RunTimeoutMinutes, so a timed-out
+// run can be continued indefinitely — each "continue" message resets the clock.
 func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run, r runner.Runner, eventSink runner.EventSink, message string, workDir string, attachments []runner.Attachment) {
-	// Start heartbeat loop so the reconciler doesn't kill us during execution
+	// Apply per-turn timeout to continuation
+	timeoutMinutes := 30 // default
+	if o.orchestrationSettings != nil {
+		s := o.orchestrationSettings.Get()
+		if s.RunExecution.RunTimeoutMinutes > 0 {
+			timeoutMinutes = s.RunExecution.RunTimeoutMinutes
+		}
+	}
+	execCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMinutes)*time.Minute)
+	defer cancel()
+
+	// Start heartbeat loop so the reconciler doesn't kill us during execution.
+	// Heartbeat uses the parent ctx so it survives after execCtx deadline fires.
 	heartbeatStop := make(chan struct{})
 	go o.continuationHeartbeat(ctx, run, heartbeatStop)
 	defer close(heartbeatStop)
@@ -1960,15 +1974,31 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 		Attachments: attachments,
 	}
 
-	// Execute continuation
-	result, err := r.Continue(ctx, continueReq)
+	// Execute continuation with per-turn timeout
+	result, err := r.Continue(execCtx, continueReq)
 
 	// Update run based on result
 	now := time.Now()
 	previousStatus := run.Status
 	run.UpdatedAt = now
 
-	if err != nil {
+	if execCtx.Err() == context.DeadlineExceeded {
+		// Continuation timed out — mark as failed but preserve session ID
+		// so the user can continue again with a fresh timeout.
+		run.Status = domain.RunStatusFailed
+		run.EndedAt = &now
+		run.ErrorMsg = fmt.Sprintf("continuation exceeded timeout of %d minutes", timeoutMinutes)
+		if result != nil && result.SessionID != "" {
+			run.SessionID = result.SessionID
+		}
+		if o.events != nil {
+			errorEvent := domain.NewErrorEvent(run.ID, "continuation_timeout", run.ErrorMsg, true)
+			_ = o.events.Append(ctx, run.ID, errorEvent)
+			if o.broadcaster != nil {
+				o.broadcaster.BroadcastEvent(errorEvent)
+			}
+		}
+	} else if err != nil {
 		run.Status = domain.RunStatusFailed
 		run.EndedAt = &now
 		run.ErrorMsg = err.Error()
@@ -1995,11 +2025,6 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 		run.Status = domain.RunStatusComplete
 		run.EndedAt = &now
 
-		// Update session ID if it changed
-		if result.SessionID != "" {
-			run.SessionID = result.SessionID
-		}
-
 		// Update summary if available
 		if result.Summary != nil {
 			run.Summary = result.Summary
@@ -2007,6 +2032,13 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 	} else {
 		run.Status = domain.RunStatusComplete
 		run.EndedAt = &now
+	}
+
+	// Always preserve session ID from the result for further continuation,
+	// regardless of success/failure. The runner populates SessionID from
+	// stream events received before process termination.
+	if result != nil && result.SessionID != "" {
+		run.SessionID = result.SessionID
 	}
 
 	// Persist updated run

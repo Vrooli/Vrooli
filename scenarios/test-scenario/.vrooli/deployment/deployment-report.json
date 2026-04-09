@@ -1,46 +1,29 @@
 {
   "scenario": "test-scenario",
   "report_version": 1,
-  "generated_at": "2026-04-02T16:30:35.422613456Z",
+  "generated_at": "2026-04-09T01:09:01.8187471Z",
   "dependencies": [
     {
       "name": "postgres",
       "type": "resource",
-      "resource_type": "",
-      "requirements": {
-        "ram_mb": 0,
-        "disk_mb": 0,
-        "cpu_cores": 0,
-        "network": "",
-        "source": "",
-        "confidence": ""
-      },
+      "required": true,
+      "enabled": true,
       "tier_support": {
         "desktop": {
           "supported": true,
-          "fitness_score": 0.6,
-          "notes": "",
-          "reason": "",
-          "alternatives": null
+          "fitness_score": 0.6
         },
         "enterprise": {
           "supported": true,
-          "fitness_score": 0.98,
-          "notes": "",
-          "reason": "",
-          "alternatives": null
+          "fitness_score": 0.98
         },
         "local": {
           "supported": true,
-          "fitness_score": 1,
-          "notes": "",
-          "reason": "",
-          "alternatives": null
+          "fitness_score": 1
         },
         "mobile": {
           "supported": false,
           "fitness_score": 0.2,
-          "notes": "",
           "reason": "Database should be remote for mobile deployments",
           "alternatives": [
             "saas-variant",
@@ -49,20 +32,13 @@
         },
         "saas": {
           "supported": true,
-          "fitness_score": 0.95,
-          "notes": "",
-          "reason": "",
-          "alternatives": null
+          "fitness_score": 0.95
         },
         "server": {
           "supported": true,
-          "fitness_score": 0.95,
-          "notes": "",
-          "reason": "",
-          "alternatives": null
+          "fitness_score": 0.95
         }
       },
-      "alternatives": null,
       "source": "declared"
     }
   ],
@@ -82,7 +58,6 @@
     "enterprise": {
       "fitness_score": 0.98,
       "dependency_count": 1,
-      "blocking_dependencies": null,
       "estimated_requirements": {
         "ram_mb": 0,
         "disk_mb": 0,
@@ -92,7 +67,6 @@
     "local": {
       "fitness_score": 1,
       "dependency_count": 1,
-      "blocking_dependencies": null,
       "estimated_requirements": {
         "ram_mb": 0,
         "disk_mb": 0,
@@ -114,7 +88,6 @@
     "saas": {
       "fitness_score": 0.95,
       "dependency_count": 1,
-      "blocking_dependencies": null,
       "estimated_requirements": {
         "ram_mb": 0,
         "disk_mb": 0,
@@ -124,12 +97,201 @@
     "server": {
       "fitness_score": 0.95,
       "dependency_count": 1,
-      "blocking_dependencies": null,
       "estimated_requirements": {
         "ram_mb": 0,
         "disk_mb": 0,
         "cpu_cores": 0
       }
     }
+  },
+  "bundle_manifest": {
+    "scenario": "test-scenario",
+    "generated_at": "2026-04-09T01:09:01.8187471Z",
+    "files": [
+      {
+        "path": ".vrooli/service.json",
+        "type": "service-config",
+        "exists": true
+      },
+      {
+        "path": "api",
+        "type": "api-source",
+        "exists": true
+      },
+      {
+        "path": "api/test-scenario-api",
+        "type": "api-binary",
+        "exists": true,
+        "notes": "Detected api component (go)"
+      }
+    ],
+    "dependencies": [
+      {
+        "name": "postgres",
+        "type": "resource",
+        "tier_support": {
+          "desktop": {
+            "supported": true,
+            "fitness_score": 0.6
+          },
+          "enterprise": {
+            "supported": true,
+            "fitness_score": 0.98
+          },
+          "local": {
+            "supported": true,
+            "fitness_score": 1
+          },
+          "mobile": {
+            "supported": false,
+            "fitness_score": 0.2,
+            "reason": "Database should be remote for mobile deployments",
+            "alternatives": [
+              "saas-variant",
+              "cloud-variant"
+            ]
+          },
+          "saas": {
+            "supported": true,
+            "fitness_score": 0.95
+          },
+          "server": {
+            "supported": true,
+            "fitness_score": 0.95
+          }
+        }
+      }
+    ],
+    "skeleton": {
+      "schema_version": "v0.1",
+      "target": "desktop",
+      "app": {
+        "name": "test-scenario",
+        "version": "1.0.0",
+        "description": "Test scenario for Vrooli"
+      },
+      "ipc": {
+        "mode": "loopback-http",
+        "host": "127.0.0.1",
+        "port": 39200,
+        "auth_token_path": "runtime/auth_token"
+      },
+      "telemetry": {
+        "file": "telemetry/deployment-telemetry.jsonl"
+      },
+      "ports": {
+        "default_range": {
+          "min": 20000,
+          "max": 24000
+        }
+      },
+      "services": [
+        {
+          "id": "test-scenario-api",
+          "type": "api-binary",
+          "description": "Bundled api process for test-scenario",
+          "binaries": {
+            "darwin-x64": {
+              "path": "bin/api/darwin-x64/test-scenario-api"
+            },
+            "linux-x64": {
+              "path": "bin/api/linux-x64/test-scenario-api"
+            },
+            "win-x64": {
+              "path": "bin/api/win-x64/test-scenario-api.exe"
+            }
+          },
+          "build": {
+            "type": "go",
+            "source_dir": "api",
+            "entry_point": ".",
+            "output_pattern": "bin/api/{{platform}}/test-scenario-api{{ext}}",
+            "env": {
+              "CGO_ENABLED": "0"
+            }
+          },
+          "env": {
+            "API_PORT": "${test-scenario-api.api}",
+            "VROOLI_LIFECYCLE_MANAGED": "true"
+          },
+          "data_dirs": [
+            "data/api"
+          ],
+          "log_dir": "logs/api",
+          "ports": {
+            "requested": [
+              {
+                "name": "api",
+                "range": {
+                  "min": 23100,
+                  "max": 23200
+                }
+              }
+            ]
+          },
+          "health": {
+            "type": "http",
+            "path": "/health",
+            "port_name": "api",
+            "interval_ms": 2000,
+            "timeout_ms": 15000,
+            "retries": 5
+          },
+          "readiness": {
+            "type": "health_success",
+            "port_name": "api",
+            "timeout_ms": 30000
+          }
+        }
+      ]
+    }
+  },
+  "metadata_gaps": {
+    "total_gaps": 10,
+    "scenarios_missing_all": 1,
+    "gaps_by_scenario": {
+      "test-scenario": {
+        "scenario_name": "test-scenario",
+        "scenario_path": "../../test-scenario",
+        "has_deployment_block": false,
+        "missing_dependency_catalog": false,
+        "suggested_actions": [
+          "Add deployment block to .vrooli/service.json"
+        ]
+      }
+    },
+    "missing_tiers": null,
+    "secret_requirements": [
+      {
+        "dependency_name": "postgres",
+        "dependency_type": "resource",
+        "secret_type": "database_credentials",
+        "required_secrets": [
+          "postgres_password",
+          "postgres_user"
+        ],
+        "playbook_reference": "secrets-manager/playbooks/database-credentials.md",
+        "priority": "required"
+      }
+    ],
+    "resource_swap_suggestions": [
+      {
+        "original_resource": "postgres",
+        "alternative_resource": "supabase",
+        "reason": "Managed PostgreSQL with built-in APIs",
+        "applicable_tiers": [
+          "mobile",
+          "saas"
+        ],
+        "relationship": "managed_service",
+        "impact_description": "Eliminates database management overhead"
+      }
+    ],
+    "recommendations": [
+      "1 scenario(s) missing deployment blocks entirely - run scan --apply to initialize",
+      "Configure 1 secret(s) for dependencies - see secrets-manager playbooks",
+      "Consider 1 resource swap(s) for deployment optimization",
+      "Review gaps_by_scenario for detailed per-scenario action items"
+    ]
   }
 }

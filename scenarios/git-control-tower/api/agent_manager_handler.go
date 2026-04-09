@@ -12,7 +12,7 @@ import (
 
 // handleAttachmentUpload proxies POST /api/v1/agent/attachments/upload to agent-manager.
 func (s *Server) handleAttachmentUpload(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 60*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 60*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -39,7 +39,7 @@ func (s *Server) handleAttachmentUpload(w http.ResponseWriter, r *http.Request) 
 
 // handleAgentProfiles proxies GET /api/v1/agent/profiles to agent-manager.
 func (s *Server) handleAgentProfiles(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -70,7 +70,7 @@ func (s *Server) handleAgentProfiles(w http.ResponseWriter, r *http.Request) {
 // handleAgentRunCreate handles POST /api/v1/agent/run.
 // Composite endpoint: creates a Task then a Run in agent-manager.
 func (s *Server) handleAgentRunCreate(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 120*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 120*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -147,7 +147,7 @@ func buildAgentRunRequest(taskID string, req AgentRunRequest) agentRunCreateInte
 
 // handleAgentRunList proxies GET /api/v1/agent/runs to agent-manager.
 func (s *Server) handleAgentRunList(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -197,7 +197,7 @@ func (s *Server) handleAgentRunList(w http.ResponseWriter, r *http.Request) {
 
 // handleAgentRunDetail proxies GET /api/v1/agent/runs/{id} to agent-manager.
 func (s *Server) handleAgentRunDetail(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}

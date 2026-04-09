@@ -16,7 +16,7 @@ import (
 
 // handleReviewSummary handles GET /api/v1/review/summary?scenarioName=X
 func (s *Server) handleReviewSummary(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 30*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 30*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -43,7 +43,7 @@ func (s *Server) handleReviewSummary(w http.ResponseWriter, r *http.Request) {
 
 // handleReviewRun handles POST /api/v1/review/run
 func (s *Server) handleReviewRun(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -119,7 +119,7 @@ func resolveThresholds(t *ReadinessThresholds) ReadinessThresholds {
 
 // handleReviewJobStatus handles GET /api/v1/review/run/{jobId}
 func (s *Server) handleReviewJobStatus(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 5*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 5*time.Second)
 	if hctx == nil {
 		return
 	}

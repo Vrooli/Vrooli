@@ -49,7 +49,7 @@ func (s *Server) handleAgentRunEvents(w http.ResponseWriter, r *http.Request) {
 
 // agentRunOperation initializes a handler context with agent-manager availability check.
 func agentRunOperation(w http.ResponseWriter, r *http.Request, s *Server) *HandlerContext {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return nil
 	}
@@ -86,7 +86,7 @@ func parseOptionalIntParam(hctx *HandlerContext, r *http.Request, name string, d
 
 // handleAgentRunDiff proxies GET /api/v1/agent/runs/{id}/diff to agent-manager.
 func (s *Server) handleAgentRunDiff(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -125,7 +125,7 @@ func (s *Server) handleAgentRunDiff(w http.ResponseWriter, r *http.Request) {
 
 // handleAgentRunContinue proxies POST /api/v1/agent/runs/{id}/continue to agent-manager.
 func (s *Server) handleAgentRunContinue(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 120*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 120*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -167,7 +167,7 @@ func (s *Server) handleAgentRunContinue(w http.ResponseWriter, r *http.Request) 
 
 // handleAgentRunApprove proxies POST /api/v1/agent/runs/{id}/approve to agent-manager.
 func (s *Server) handleAgentRunApprove(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 30*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 30*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -209,7 +209,7 @@ func (s *Server) handleAgentRunApprove(w http.ResponseWriter, r *http.Request) {
 
 // handleAgentRunReject proxies POST /api/v1/agent/runs/{id}/reject to agent-manager.
 func (s *Server) handleAgentRunReject(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 30*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 30*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -245,7 +245,7 @@ func (s *Server) handleAgentRunReject(w http.ResponseWriter, r *http.Request) {
 
 // handleAgentRunStop proxies POST /api/v1/agent/runs/{id}/stop to agent-manager.
 func (s *Server) handleAgentRunStop(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}

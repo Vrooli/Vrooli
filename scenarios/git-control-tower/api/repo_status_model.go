@@ -3,8 +3,10 @@ package main
 import "time"
 
 type RepoStatusDeps struct {
-	Git     GitRunner
-	RepoDir string
+	Git             GitRunner
+	RepoDir         string
+	ConfigCache     *GitConfigCache // optional; falls back to direct git calls if nil
+	IncludeHotspots bool            // when false, skip the expensive LogFileFrequency call
 }
 
 type RepoHistoryDeps struct {

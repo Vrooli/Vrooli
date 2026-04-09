@@ -126,7 +126,7 @@ func splitRemoteBranch(remoteName string) (string, string, error) {
 }
 
 func populateSwitchBranch(ctx context.Context, deps BranchDeps, resp *BranchSwitchResponse) (*BranchSwitchResponse, error) {
-	status, err := GetRepoStatus(ctx, RepoStatusDeps(deps))
+	status, err := GetRepoStatus(ctx, RepoStatusDeps{Git: deps.Git, RepoDir: deps.RepoDir})
 	if err != nil {
 		return nil, err
 	}

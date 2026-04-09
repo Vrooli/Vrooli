@@ -9,7 +9,7 @@ import (
 
 // [REQ:GCT-OT-P0-005] Commit composition API
 func (s *Server) handleCommit(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 30*time.Second)
+	hctx := RepoWrite(w, r, s.git, s.repos, s.repoLock, 30*time.Second)
 	if hctx == nil {
 		return
 	}

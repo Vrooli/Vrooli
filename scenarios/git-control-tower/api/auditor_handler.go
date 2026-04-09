@@ -10,7 +10,7 @@ import (
 
 // handleAuditorRunCheck handles POST /api/v1/repo/rules-run
 func (s *Server) handleAuditorRunCheck(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 30*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 30*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -48,7 +48,7 @@ func (s *Server) handleAuditorRunCheck(w http.ResponseWriter, r *http.Request) {
 
 // handleAuditorJobStatus handles GET /api/v1/repo/rules-job/{jobId}
 func (s *Server) handleAuditorJobStatus(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -76,7 +76,7 @@ func (s *Server) handleAuditorJobStatus(w http.ResponseWriter, r *http.Request) 
 
 // handleAuditorRules handles GET /api/v1/repo/rules
 func (s *Server) handleAuditorRules(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -98,7 +98,7 @@ func (s *Server) handleAuditorRules(w http.ResponseWriter, r *http.Request) {
 
 // handleAuditorFix handles POST /api/v1/repo/rules-fix
 func (s *Server) handleAuditorFix(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 120*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 120*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -134,7 +134,7 @@ func (s *Server) handleAuditorFix(w http.ResponseWriter, r *http.Request) {
 
 // handleAuditorViolations handles GET /api/v1/repo/rules-violations?scenarioName=X
 func (s *Server) handleAuditorViolations(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}

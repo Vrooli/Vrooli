@@ -67,7 +67,7 @@ type ExecutorConfig struct {
 // StaleThreshold is 5 minutes to allow for slow database updates or long tool calls.
 func DefaultExecutorConfig() ExecutorConfig {
 	return ExecutorConfig{
-		Timeout:            30 * time.Minute,
+		Timeout:            60 * time.Minute,
 		HeartbeatInterval:  15 * time.Second, // More frequent heartbeats for reliability
 		CheckpointInterval: 1 * time.Minute,
 		MaxRetries:         3,
@@ -523,11 +523,18 @@ func (e *RunExecutor) stopHeartbeat() {
 // handleContextError handles context cancellation or timeout.
 func (e *RunExecutor) handleContextError(ctx context.Context, err error) {
 	if err == context.DeadlineExceeded {
+		// Preserve session ID for continuation even on timeout.
+		// The runner returns a valid result with SessionID populated
+		// from stream events received before the process was killed.
+		if e.result != nil && e.result.SessionID != "" {
+			e.run.SessionID = e.result.SessionID
+		}
+
 		e.failWithError(ctx, &domain.RunnerError{
 			RunnerType:  e.getRunnerType(),
 			Operation:   "timeout",
 			Cause:       fmt.Errorf("execution exceeded timeout of %v", e.config.Timeout),
-			IsTransient: false,
+			IsTransient: true, // Timeout is retryable via continuation
 		})
 		e.outcome = domain.RunOutcomeTimeout
 	} else if err == context.Canceled {

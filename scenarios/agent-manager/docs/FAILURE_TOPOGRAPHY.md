@@ -100,7 +100,9 @@ Execute Run (Background)
        │             ┌─────────────────────────────┐
        │             │ RunnerError (timeout)       │
        ├────────────▶│ Graceful: Stop runner,      │
-       │             │ save partial state          │
+       │             │ save partial state,         │
+       │             │ preserve session ID for     │
+       │             │ continuation (retryable)    │
        │             └─────────────────────────────┘
        ▼
 ┌──────────────┐     ┌─────────────────────────────┐

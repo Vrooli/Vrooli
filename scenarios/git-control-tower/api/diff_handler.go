@@ -8,7 +8,7 @@ import (
 
 // [REQ:GCT-OT-P0-003] File diff endpoint
 func (s *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}

@@ -210,8 +210,8 @@ func TestDefaultRunConfig(t *testing.T) {
 		t.Errorf("MaxTurns = %d, want 30", cfg.MaxTurns)
 	}
 
-	if cfg.Timeout != 30*time.Minute {
-		t.Errorf("Timeout = %v, want 30m", cfg.Timeout)
+	if cfg.Timeout != 60*time.Minute {
+		t.Errorf("Timeout = %v, want 60m", cfg.Timeout)
 	}
 
 	if !cfg.RequiresSandbox {

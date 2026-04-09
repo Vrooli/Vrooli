@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -22,7 +21,6 @@ type PeriodicCapture struct {
 	storage      *VisualCaptureStorage
 	repos        *RepoService
 	git          GitRunner
-	repoLock     *RepoLock
 	fs           FileIO
 	mu           sync.Mutex
 	cancel       context.CancelFunc
@@ -37,7 +35,6 @@ func NewPeriodicCapture(
 	storage *VisualCaptureStorage,
 	repos *RepoService,
 	git GitRunner,
-	repoLock *RepoLock,
 ) *PeriodicCapture {
 	if config.Interval == 0 {
 		config.Interval = 1 * time.Hour
@@ -52,7 +49,6 @@ func NewPeriodicCapture(
 		storage:      storage,
 		repos:        repos,
 		git:          git,
-		repoLock:     repoLock,
 		fs:           OSFileIO{},
 	}
 }
@@ -100,19 +96,6 @@ func (p *PeriodicCapture) run(ctx context.Context) {
 	}
 }
 
-// acquireRepoLockIfNeeded acquires the per-repo lock if a RepoLock is configured.
-// Returns the unlock function (may be nil) and any error.
-func (p *PeriodicCapture) acquireRepoLockIfNeeded(ctx context.Context, repoPath string) (func(), error) {
-	if p.repoLock == nil {
-		return nil, nil
-	}
-	unlock, err := p.repoLock.Acquire(ctx, repoPath)
-	if err != nil {
-		return nil, fmt.Errorf("lock acquisition timed out for %s: %w", repoPath, err)
-	}
-	return unlock, nil
-}
-
 // shouldCaptureScope returns true if the scope is a scenario and its last capture
 // is older than the configured interval.
 func (p *PeriodicCapture) shouldCaptureScope(scope string, repoID int64) (string, bool) {
@@ -141,21 +124,10 @@ func (p *PeriodicCapture) tick(ctx context.Context) {
 		return
 	}
 
-	unlock, err := p.acquireRepoLockIfNeeded(ctx, active.Path)
-	if err != nil {
-		log.Printf("periodic capture: %v", err)
-		return
-	}
-
 	status, err := GetRepoStatus(ctx, RepoStatusDeps{
 		Git:     p.git,
 		RepoDir: active.Path,
 	})
-
-	if unlock != nil {
-		unlock()
-	}
-
 	if err != nil {
 		log.Printf("periodic capture: failed to get repo status: %v", err)
 		return

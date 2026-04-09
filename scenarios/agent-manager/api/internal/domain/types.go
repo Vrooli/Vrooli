@@ -589,7 +589,7 @@ func DefaultRunConfig() *RunConfig {
 	return &RunConfig{
 		RunnerType:       RunnerTypeClaudeCode,
 		MaxTurns:         30,
-		Timeout:          30 * time.Minute,
+		Timeout:          60 * time.Minute,
 		RequiresSandbox:  true,
 		RequiresApproval: true,
 		NetworkAccess:    NetworkAccessLocalhost,

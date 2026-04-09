@@ -49,8 +49,9 @@ export async function fetchHealth(): Promise<HealthResponse> {
   return handleResponse<HealthResponse>(res);
 }
 
-export async function fetchRepoStatus(repoId?: string): Promise<RepoStatus> {
-  const url = buildApiUrl("/repo/status", { baseUrl: API_BASE });
+export async function fetchRepoStatus(repoId?: string, hotspots = false): Promise<RepoStatus> {
+  const path = hotspots ? "/repo/status?hotspots=true" : "/repo/status";
+  const url = buildApiUrl(path, { baseUrl: API_BASE });
   const res = await fetch(url, {
     headers: buildRepoHeaders(repoId),
     cache: "no-store"

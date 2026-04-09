@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 )
 
 // FakeGitRunner implements GitRunner without touching the filesystem or running git.
@@ -85,8 +86,9 @@ type FakeGitRunner struct {
 	FileFrequency      map[string]int
 	FileFrequencyError error
 
-	// Call tracking for verification
-	Calls []FakeGitCall
+	// Call tracking for verification (protected by callsMu for concurrent access)
+	callsMu sync.Mutex
+	Calls   []FakeGitCall
 }
 
 // FakeBranchState represents the simulated branch state.
@@ -150,7 +152,9 @@ func NewFakeGitRunner() *FakeGitRunner {
 }
 
 func (f *FakeGitRunner) recordCall(method string, args ...string) {
+	f.callsMu.Lock()
 	f.Calls = append(f.Calls, FakeGitCall{Method: method, Args: args})
+	f.callsMu.Unlock()
 }
 
 // StatusPorcelainV2 returns simulated git status output in porcelain v2 format.

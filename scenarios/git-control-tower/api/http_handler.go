@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -21,55 +22,62 @@ type HandlerContext struct {
 	Cancel  context.CancelFunc
 }
 
-// RepoOperation creates a HandlerContext for repository operations.
-// Returns nil and writes an error response if the repository cannot be resolved.
+// RepoRead creates a HandlerContext for read-only repository operations.
 //
-// When a non-nil RepoLock is provided, the lock for the resolved repository is
-// acquired before returning. The lock is automatically released when Cancel is
-// called (which every handler must defer). This serializes git operations and
-// prevents .git/index.lock contention between concurrent requests and background
-// goroutines.
+// No per-repo lock is acquired because read-only git commands use
+// --no-optional-locks (via readArgs in git_runner_core.go), which prevents
+// them from contending for .git/index.lock. This allows reads to proceed
+// concurrently with each other and with write operations, eliminating the
+// serial bottleneck that caused ~5s latency when polling queries queued
+// behind the lock.
 //
 // DECISION BOUNDARY: This is where we determine if a request has a valid repository context.
-// All repo-dependent handlers should use this to ensure consistent error handling.
-func RepoOperation(w http.ResponseWriter, r *http.Request, git GitRunner, repos *RepoService, repoLock *RepoLock, timeout time.Duration) *HandlerContext {
+// All read-only repo handlers should use this for consistent error handling.
+func RepoRead(w http.ResponseWriter, r *http.Request, git GitRunner, repos *RepoService, timeout time.Duration) *HandlerContext {
 	resp := NewResponse(w)
-
 	ctx, cancel := context.WithTimeout(r.Context(), timeout)
-	// Note: caller must defer cancel() if HandlerContext is returned non-nil
-	// We store cancel in closure for cleanup on error paths
 
-	var repoDir string
-	var repoID int64
-	if repos != nil {
-		resolved, err := repos.Resolve(ctx, r)
-		if err != nil {
-			cancel()
-			repoErr := RepoError{}
-			if errors.As(err, &repoErr) {
-				switch repoErr.Kind {
-				case RepoErrorNotFound:
-					resp.NotFound(repoErr.Error())
-				case RepoErrorInvalid, RepoErrorMissing:
-					resp.BadRequest(repoErr.Error())
-				default:
-					resp.BadRequest(repoErr.Error())
-				}
-			} else {
-				resp.BadRequest(err.Error())
-			}
-			return nil
-		}
-		repoDir = resolved.Path
-		repoID = resolved.ID
-	} else {
-		repoDir = git.ResolveRepoRoot(ctx)
-		if strings.TrimSpace(repoDir) == "" {
-			cancel()
-			resp.BadRequest("repository root could not be resolved")
-			return nil
-		}
+	repoDir, repoID, err := resolveRepo(ctx, git, repos, r)
+	if err != nil {
+		cancel()
+		writeRepoError(resp, err)
+		return nil
 	}
+
+	return &HandlerContext{
+		Git:     git,
+		RepoDir: repoDir,
+		RepoID:  repoID,
+		Ctx:     ctx,
+		Resp:    resp,
+		Cancel:  cancel,
+	}
+}
+
+// RepoWrite creates a HandlerContext for operations that modify the git
+// index or working tree (stage, unstage, commit, checkout, discard, etc.).
+//
+// Acquires a per-repo lock to serialize index-modifying commands and prevent
+// .git/index.lock contention between concurrent requests. Cleans stale lock
+// files before acquiring the application-level lock.
+//
+// DECISION BOUNDARY: This is where we determine if a request has a valid repository context.
+// All index-modifying repo handlers should use this for consistent error handling.
+func RepoWrite(w http.ResponseWriter, r *http.Request, git GitRunner, repos *RepoService, repoLock *RepoLock, timeout time.Duration) *HandlerContext {
+	resp := NewResponse(w)
+	ctx, cancel := context.WithTimeout(r.Context(), timeout)
+
+	repoDir, repoID, err := resolveRepo(ctx, git, repos, r)
+	if err != nil {
+		cancel()
+		writeRepoError(resp, err)
+		return nil
+	}
+
+	// Remove stale .git/index.lock left by crashed git processes before
+	// acquiring our application-level lock. This must happen outside the
+	// lock to avoid blocking other requests while we stat/remove the file.
+	cleanStaleLock(repoDir)
 
 	// Acquire the per-repo lock to serialize git index operations.
 	var unlock func()
@@ -96,6 +104,37 @@ func RepoOperation(w http.ResponseWriter, r *http.Request, git GitRunner, repos 
 				unlock()
 			}
 		},
+	}
+}
+
+// resolveRepo determines the repository path and ID from the request.
+func resolveRepo(ctx context.Context, git GitRunner, repos *RepoService, r *http.Request) (string, int64, error) {
+	if repos != nil {
+		resolved, err := repos.Resolve(ctx, r)
+		if err != nil {
+			return "", 0, err
+		}
+		return resolved.Path, resolved.ID, nil
+	}
+	repoDir := git.ResolveRepoRoot(ctx)
+	if strings.TrimSpace(repoDir) == "" {
+		return "", 0, fmt.Errorf("repository root could not be resolved")
+	}
+	return repoDir, 0, nil
+}
+
+// writeRepoError sends the appropriate HTTP error response for repo resolution failures.
+func writeRepoError(resp *HTTPResponse, err error) {
+	repoErr := RepoError{}
+	if errors.As(err, &repoErr) {
+		switch repoErr.Kind {
+		case RepoErrorNotFound:
+			resp.NotFound(repoErr.Error())
+		default:
+			resp.BadRequest(repoErr.Error())
+		}
+	} else {
+		resp.BadRequest(err.Error())
 	}
 }
 

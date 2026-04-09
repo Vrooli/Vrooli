@@ -110,7 +110,7 @@ type ProcessTerminationSettings struct {
 func DefaultOrchestrationSettings() OrchestrationSettings {
 	return OrchestrationSettings{
 		RunExecution: RunExecutionSettings{
-			RunTimeoutMinutes: 30,
+			RunTimeoutMinutes: 60,
 			MaxConcurrentRuns: 10,
 			MaxTurns:          100,
 		},

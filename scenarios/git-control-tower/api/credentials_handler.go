@@ -11,7 +11,7 @@ import (
 
 // handleListCredentials handles GET /api/v1/credentials
 func (s *Server) handleListCredentials(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -32,7 +32,7 @@ func (s *Server) handleListCredentials(w http.ResponseWriter, r *http.Request) {
 
 // handleSaveCredential handles POST /api/v1/credentials
 func (s *Server) handleSaveCredential(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -89,7 +89,7 @@ func (s *Server) handleDeleteCredential(w http.ResponseWriter, r *http.Request) 
 
 // handleTestCredential handles POST /api/v1/credentials/test
 func (s *Server) handleTestCredential(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 30*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 30*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -115,7 +115,7 @@ func (s *Server) handleTestCredential(w http.ResponseWriter, r *http.Request) {
 
 // handleUpdateRemoteURL handles POST /api/v1/repo/remote/url
 func (s *Server) handleUpdateRemoteURL(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
+	hctx := RepoWrite(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
 	if hctx == nil {
 		return
 	}

@@ -10,7 +10,7 @@ import (
 
 // handleTidinessScore handles GET /api/v1/repo/tidiness-score?scenarioName=X
 func (s *Server) handleTidinessScore(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -38,7 +38,7 @@ func (s *Server) handleTidinessScore(w http.ResponseWriter, r *http.Request) {
 
 // handleTidinessIssues handles GET /api/v1/repo/tidiness-issues?scenarioName=X&file=Y&category=Z&limit=N
 func (s *Server) handleTidinessIssues(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -83,7 +83,7 @@ func (s *Server) handleTidinessIssues(w http.ResponseWriter, r *http.Request) {
 
 // handleTidinessStaleness handles GET /api/v1/repo/tidiness-staleness?scenarioName=X
 func (s *Server) handleTidinessStaleness(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -111,7 +111,7 @@ func (s *Server) handleTidinessStaleness(w http.ResponseWriter, r *http.Request)
 
 // handleTidinessLightScan handles POST /api/v1/repo/tidiness-scan
 func (s *Server) handleTidinessLightScan(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 120*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 120*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -157,7 +157,7 @@ func (s *Server) handleTidinessLightScan(w http.ResponseWriter, r *http.Request)
 
 // handleTidinessScenarioDetail handles GET /api/v1/repo/tidiness-scenario?scenarioName=X
 func (s *Server) handleTidinessScenarioDetail(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
 	if hctx == nil {
 		return
 	}

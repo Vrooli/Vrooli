@@ -51,6 +51,7 @@ type Runner interface {
     Type() domain.RunnerType
     Capabilities() Capabilities
     Execute(ctx context.Context, req ExecuteRequest) (*ExecuteResult, error)
+    Continue(ctx context.Context, req ContinueRequest) (*ExecuteResult, error)
     Stop(ctx context.Context, runID uuid.UUID) error
     IsAvailable(ctx context.Context) (bool, string)
 }

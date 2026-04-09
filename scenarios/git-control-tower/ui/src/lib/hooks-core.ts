@@ -68,7 +68,8 @@ export function useRepoStatus(repoId?: string | null) {
   return useQuery({
     queryKey: queryKeys.repoStatus(repoId),
     queryFn: () => fetchRepoStatus(repoId ?? undefined),
-    refetchInterval: 5000
+    refetchInterval: 15_000,
+    staleTime: 5_000,
   });
 }
 
@@ -139,7 +140,8 @@ export function useSyncStatus(repoId?: string | null) {
   return useQuery({
     queryKey: queryKeys.syncStatus(repoId),
     queryFn: () => fetchSyncStatus(false, repoId ?? undefined),
-    refetchInterval: 5000
+    refetchInterval: 15_000,
+    staleTime: 5_000,
   });
 }
 
@@ -215,7 +217,8 @@ export function useApprovedChanges(repoId?: string | null) {
   return useQuery({
     queryKey: queryKeys.approvedChanges(repoId),
     queryFn: () => fetchApprovedChanges(repoId ?? undefined),
-    refetchInterval: 5000
+    refetchInterval: 15_000,
+    staleTime: 5_000,
   });
 }
 
@@ -230,7 +233,8 @@ export function useProvenance(repoId?: string | null) {
   return useQuery({
     queryKey: queryKeys.provenance(repoId),
     queryFn: () => fetchProvenance(repoId ?? undefined),
-    refetchInterval: 10_000
+    refetchInterval: 30_000,
+    staleTime: 10_000,
   });
 }
 

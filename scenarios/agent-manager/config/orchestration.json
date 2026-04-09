@@ -1,6 +1,6 @@
 {
   "runExecution": {
-    "runTimeoutMinutes": 30,
+    "runTimeoutMinutes": 60,
     "maxConcurrentRuns": 10,
     "maxTurns": 100
   },

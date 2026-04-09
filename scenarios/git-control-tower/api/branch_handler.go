@@ -9,7 +9,7 @@ import (
 )
 
 func (s *Server) handleRepoBranches(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 5*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, 5*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -24,7 +24,7 @@ func (s *Server) handleRepoBranches(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleBranchCreate(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
+	hctx := RepoWrite(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -46,7 +46,7 @@ func (s *Server) handleBranchCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleBranchSwitch(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
+	hctx := RepoWrite(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -68,7 +68,7 @@ func (s *Server) handleBranchSwitch(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleBranchPublish(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 30*time.Second)
+	hctx := RepoWrite(w, r, s.git, s.repos, s.repoLock, 30*time.Second)
 	if hctx == nil {
 		return
 	}

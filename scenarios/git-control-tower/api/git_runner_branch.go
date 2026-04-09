@@ -10,13 +10,12 @@ import (
 )
 
 func (r *ExecGitRunner) Branches(ctx context.Context, repoDir string) ([]byte, error) {
-	args := []string{
-		"-C", repoDir,
+	args := readArgs(repoDir,
 		"for-each-ref",
-		"--format=" + branchRefFormat,
+		"--format="+branchRefFormat,
 		"refs/heads",
 		"refs/remotes",
-	}
+	)
 	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
 	out, err := cmd.Output()
 	if err == nil {
@@ -85,7 +84,7 @@ func (r *ExecGitRunner) CheckRefFormat(ctx context.Context, repoDir string, name
 	if strings.TrimSpace(name) == "" {
 		return fmt.Errorf("branch name is required")
 	}
-	args := []string{"-C", repoDir, "check-ref-format", "--branch", name}
+	args := readArgs(repoDir, "check-ref-format", "--branch", name)
 	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -118,7 +117,7 @@ func (r *ExecGitRunner) SetUpstream(ctx context.Context, repoDir string, branch 
 }
 
 func (r *ExecGitRunner) ListStagedFiles(ctx context.Context, repoDir string) ([]string, error) {
-	args := []string{"-C", repoDir, "diff", "--cached", "--name-only"}
+	args := readArgs(repoDir, "diff", "--cached", "--name-only")
 	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
 	out, err := cmd.Output()
 	if err != nil {
@@ -138,7 +137,7 @@ func (r *ExecGitRunner) ListStagedFiles(ctx context.Context, repoDir string) ([]
 
 func (r *ExecGitRunner) ListTrackedFiles(ctx context.Context, repoDir string) ([]string, error) {
 	// git ls-files --cached returns all tracked files
-	args := []string{"-C", repoDir, "ls-files", "--cached"}
+	args := readArgs(repoDir, "ls-files", "--cached")
 	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
 	out, err := cmd.Output()
 	if err != nil {
@@ -158,7 +157,7 @@ func (r *ExecGitRunner) ListTrackedFiles(ctx context.Context, repoDir string) ([
 
 func (r *ExecGitRunner) ListUntrackedFiles(ctx context.Context, repoDir string) ([]string, error) {
 	// git ls-files --others --exclude-standard returns untracked files (respects .gitignore)
-	args := []string{"-C", repoDir, "ls-files", "--others", "--exclude-standard"}
+	args := readArgs(repoDir, "ls-files", "--others", "--exclude-standard")
 	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
 	out, err := cmd.Output()
 	if err != nil {
@@ -203,7 +202,7 @@ func (r *ExecGitRunner) GrepContent(ctx context.Context, repoDir string, opts Gr
 
 // buildGrepArgs constructs the git grep argument list from options.
 func buildGrepArgs(repoDir string, opts GrepOptions) []string {
-	args := []string{"-C", repoDir, "grep", "-n", "--no-color"}
+	args := readArgs(repoDir, "grep", "-n", "--no-color")
 
 	if !opts.CaseSensitive {
 		args = append(args, "-i")
