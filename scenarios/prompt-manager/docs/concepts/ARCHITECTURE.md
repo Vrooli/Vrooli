@@ -154,7 +154,7 @@ See [STORE-MIGRATION.md](STORE-MIGRATION.md) for migration details.
 
 ## CLI Architecture
 
-The CLI is a thin wrapper over the API, following noun-verb command patterns:
+The CLI is an API-first client with a small amount of contract-aware flag resolution, following noun-verb command patterns:
 
 ```
 cli/

@@ -20,7 +20,7 @@ func TestRetryRun_RetriesHeartbeatRunByTag(t *testing.T) {
 	relationStore := fileStore.Relations()
 
 	ctx := context.Background()
-	if err := teamStore.Create(ctx, &store.Team{ID: "team-1", DisplayName: "Team", Enabled: true}); err != nil {
+	if err := teamStore.Create(ctx, newIndependentTestTeam("team-1", "Team")); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent"}); err != nil {

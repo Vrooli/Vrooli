@@ -9,161 +9,152 @@
 
 import { z } from 'zod'
 
-/**
- * Helper for array fields that may be null (Go nil slice) or undefined (missing).
- */
 const nullableStringArray = z
   .array(z.string())
   .nullable()
   .optional()
   .transform((val) => val ?? [])
 
-/**
- * Team member status values.
- */
 export const TeamMemberStatusSchema = z.enum(['active', 'inactive', 'pending'])
 export type TeamMemberStatus = z.infer<typeof TeamMemberStatusSchema>
 
-/**
- * TeamRole represents a role within a team.
- */
 export const TeamRoleSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string().optional(),
 })
-
 export type TeamRole = z.infer<typeof TeamRoleSchema>
 
-/**
- * TeamMember represents a member of a team.
- */
 export const TeamMemberSchema = z.object({
   agentId: z.string(),
   displayName: z.string(),
   roles: nullableStringArray,
   status: z.string(),
 })
-
 export type TeamMember = z.infer<typeof TeamMemberSchema>
 
-/**
- * Spawn mode for team execution.
- */
-export const SpawnModeSchema = z.enum(['multi-process', 'single-process'])
-export type SpawnMode = z.infer<typeof SpawnModeSchema>
+export const RuntimeModeSchema = z.enum(['multi-process', 'single-process'])
+export type RuntimeMode = z.infer<typeof RuntimeModeSchema>
 
-/**
- * Decision mode for team decision approval.
- */
+export const CoordinationPatternSchema = z.enum(['independent', 'peer', 'leader-led'])
+export type CoordinationPattern = z.infer<typeof CoordinationPatternSchema>
+
+export const ReportingModeSchema = z.enum(['none', 'org-chart', 'leader'])
+export type ReportingMode = z.infer<typeof ReportingModeSchema>
+
+export const MessagingModeSchema = z.enum(['disabled', 'async-inbox', 'in-session'])
+export type MessagingMode = z.infer<typeof MessagingModeSchema>
+
+export const QueuePolicySchema = z.enum(['serialized', 'bounded-parallel'])
+export type QueuePolicy = z.infer<typeof QueuePolicySchema>
+
 export const DecisionModeSchema = z.enum(['yolo', 'approval'])
 export type DecisionMode = z.infer<typeof DecisionModeSchema>
 
-/**
- * Team schema matching the API's Response type (brief version).
- */
+export const CoordinationCapabilitiesSchema = z.object({
+  showOrgContext: z.boolean(),
+  injectInbox: z.boolean(),
+  allowPeerTriggers: z.boolean(),
+  showTaskBoardGuidance: z.boolean(),
+  showDecisionLogGuidance: z.boolean(),
+  showKnowledgeLogGuidance: z.boolean(),
+  requireHandoff: z.boolean(),
+})
+export type CoordinationCapabilities = z.infer<typeof CoordinationCapabilitiesSchema>
+
+export const RuntimeSchema = z.object({
+  mode: RuntimeModeSchema,
+})
+export type Runtime = z.infer<typeof RuntimeSchema>
+
+export const CoordinationSchema = z.object({
+  pattern: CoordinationPatternSchema,
+  leadAgentId: z.string().optional(),
+  reportingMode: ReportingModeSchema,
+  messagingMode: MessagingModeSchema,
+  capabilities: CoordinationCapabilitiesSchema,
+})
+export type Coordination = z.infer<typeof CoordinationSchema>
+
+export const ExecutionSchema = z.object({
+  queuePolicy: QueuePolicySchema,
+  maxConcurrentRuns: z.number().int().min(1),
+})
+export type Execution = z.infer<typeof ExecutionSchema>
+
 export const TeamSchema = z.object({
   id: z.string(),
   displayName: z.string(),
   mission: z.string().optional(),
   enabled: z.boolean().optional().default(false),
-  spawnMode: SpawnModeSchema.optional().default('multi-process'),
+  runtime: RuntimeSchema,
+  coordination: CoordinationSchema,
+  execution: ExecutionSchema,
   decisionMode: DecisionModeSchema.optional().default('yolo'),
   memberCount: z.number().int(),
   createdAt: z.string(),
   updatedAt: z.string(),
 })
-
 export type Team = z.infer<typeof TeamSchema>
 
-/**
- * Array of teams with validation.
- */
 export const TeamArraySchema = z.array(TeamSchema)
 
-/**
- * TeamDetails schema matching the API's TeamDetailsResponse type.
- * Extends Team with full details including roles and members.
- */
 export const TeamDetailsSchema = TeamSchema.extend({
   roles: z.array(TeamRoleSchema).nullable().optional().transform((val) => val ?? []),
   members: z.array(TeamMemberSchema).nullable().optional().transform((val) => val ?? []),
 })
-
 export type TeamDetails = z.infer<typeof TeamDetailsSchema>
 
-/**
- * CreateTeamRequest schema matching the API's CreateRequest type.
- */
 export const CreateTeamRequestSchema = z.object({
   id: z.string().optional(),
   displayName: z.string().min(1, 'Display name is required').max(100, 'Display name must be 100 characters or less'),
   mission: z.string().max(500).optional(),
-  spawnMode: SpawnModeSchema.optional(),
+  runtime: RuntimeSchema,
+  coordination: CoordinationSchema,
+  execution: ExecutionSchema,
   decisionMode: DecisionModeSchema.optional(),
 })
-
 export type CreateTeamRequest = z.infer<typeof CreateTeamRequestSchema>
 
-/**
- * UpdateTeamRequest schema matching the API's UpdateRequest type.
- * All fields are optional since this is a partial update.
- */
 export const UpdateTeamRequestSchema = z.object({
   displayName: z.string().min(1).max(100).optional(),
   mission: z.string().max(500).optional(),
   enabled: z.boolean().optional(),
-  spawnMode: SpawnModeSchema.optional(),
+  runtime: RuntimeSchema.optional(),
+  coordination: CoordinationSchema.optional(),
+  execution: ExecutionSchema.optional(),
   decisionMode: DecisionModeSchema.optional(),
 })
-
 export type UpdateTeamRequest = z.infer<typeof UpdateTeamRequestSchema>
 
-/**
- * AddMemberRequest schema matching the API's AddMemberRequest type.
- */
 export const AddMemberRequestSchema = z.object({
   agentId: z.string().min(1, 'Agent ID is required'),
   roles: z.array(z.string()).optional(),
 })
-
 export type AddMemberRequest = z.infer<typeof AddMemberRequestSchema>
 
-/**
- * UpdateMemberRequest schema matching the API's UpdateMemberRequest type.
- */
 export const UpdateMemberRequestSchema = z.object({
   roles: z.array(z.string()).optional(),
   status: z.string().optional(),
 })
-
 export type UpdateMemberRequest = z.infer<typeof UpdateMemberRequestSchema>
 
-/**
- * SetRolesRequest schema for setting team roles.
- */
 export const SetRolesRequestSchema = z.object({
   roles: z.array(TeamRoleSchema),
 })
-
 export type SetRolesRequest = z.infer<typeof SetRolesRequestSchema>
 
-/**
- * Team shared file schemas for /teams/{id}/shared/files endpoints.
- */
 export const TeamSharedFileEntrySchema = z.object({
   path: z.string(),
   isDir: z.boolean(),
   size: z.number().int().nonnegative().optional(),
 })
-
 export type TeamSharedFileEntry = z.infer<typeof TeamSharedFileEntrySchema>
 
 export const TeamSharedFileListResponseSchema = z.object({
   teamId: z.string(),
   files: z.array(TeamSharedFileEntrySchema),
 })
-
 export type TeamSharedFileListResponse = z.infer<typeof TeamSharedFileListResponseSchema>
 
 export const TeamSharedFileContentResponseSchema = z.object({
@@ -171,13 +162,11 @@ export const TeamSharedFileContentResponseSchema = z.object({
   path: z.string(),
   content: z.string(),
 })
-
 export type TeamSharedFileContentResponse = z.infer<typeof TeamSharedFileContentResponseSchema>
 
 export const TeamSharedFileWriteRequestSchema = z.object({
   content: z.string(),
 })
-
 export type TeamSharedFileWriteRequest = z.infer<typeof TeamSharedFileWriteRequestSchema>
 
 export const TeamSharedFileCreateRequestSchema = z.object({
@@ -185,67 +174,125 @@ export const TeamSharedFileCreateRequestSchema = z.object({
   content: z.string().optional(),
   isDir: z.boolean().optional(),
 })
-
 export type TeamSharedFileCreateRequest = z.infer<typeof TeamSharedFileCreateRequestSchema>
 
 export const TeamSharedFileRenameRequestSchema = z.object({
   from: z.string().min(1),
   to: z.string().min(1),
 })
-
 export type TeamSharedFileRenameRequest = z.infer<typeof TeamSharedFileRenameRequestSchema>
 
-/**
- * Available CC team entry (from GET /teams/import/claude-code/available).
- */
 export const AvailableCCTeamSchema = z.object({
   name: z.string(),
   memberCount: z.number().int(),
 })
-
 export type AvailableCCTeam = z.infer<typeof AvailableCCTeamSchema>
 
-/**
- * Import CC team request.
- */
 export const ImportCCRequestSchema = z.object({
   teamName: z.string().min(1),
 })
-
 export type ImportCCRequest = z.infer<typeof ImportCCRequestSchema>
 
-/**
- * Exclusive member - an agent that only belongs to one team.
- */
 export const ExclusiveMemberSchema = z.object({
   agentId: z.string(),
   displayName: z.string(),
 })
-
 export type ExclusiveMember = z.infer<typeof ExclusiveMemberSchema>
 
-/**
- * Response for GET /teams/{id}/exclusive-members.
- */
 export const ExclusiveMembersResponseSchema = z.object({
   teamId: z.string(),
-  members: z.array(ExclusiveMemberSchema),
+  members: z.array(ExclusiveMemberSchema).nullable().optional().transform((val) => val ?? []),
 })
-
 export type ExclusiveMembersResponse = z.infer<typeof ExclusiveMembersResponseSchema>
 
-/**
- * Export CC team response (tool-agnostic CC config).
- */
-export const ExportCCResponseSchema = z.object({
-  teamName: z.string(),
-  description: z.string().optional(),
-  members: z.array(z.object({
-    name: z.string(),
-    agentType: z.string(),
-    model: z.string().optional(),
-    mode: z.string().optional(),
-  })),
-})
+export const ExportCCResponseSchema = z.unknown()
+export type ExportCCResponse = unknown
 
-export type ExportCCResponse = z.infer<typeof ExportCCResponseSchema>
+// Keep these preset defaults aligned with api/teamconfig/config.go.
+export const DEFAULT_INDEPENDENT_CAPABILITIES: CoordinationCapabilities = {
+  showOrgContext: false,
+  injectInbox: false,
+  allowPeerTriggers: false,
+  showTaskBoardGuidance: true,
+  showDecisionLogGuidance: true,
+  showKnowledgeLogGuidance: true,
+  requireHandoff: true,
+}
+
+export const DEFAULT_PEER_CAPABILITIES: CoordinationCapabilities = {
+  showOrgContext: true,
+  injectInbox: true,
+  allowPeerTriggers: true,
+  showTaskBoardGuidance: true,
+  showDecisionLogGuidance: true,
+  showKnowledgeLogGuidance: true,
+  requireHandoff: true,
+}
+
+export const DEFAULT_LEADER_LED_CAPABILITIES: CoordinationCapabilities = {
+  showOrgContext: true,
+  injectInbox: false,
+  allowPeerTriggers: false,
+  showTaskBoardGuidance: true,
+  showDecisionLogGuidance: true,
+  showKnowledgeLogGuidance: true,
+  requireHandoff: true,
+}
+
+export function buildIndependentCoordination(): Coordination {
+  return {
+    pattern: 'independent',
+    reportingMode: 'none',
+    messagingMode: 'disabled',
+    capabilities: { ...DEFAULT_INDEPENDENT_CAPABILITIES },
+  }
+}
+
+export function buildPeerCoordination(): Coordination {
+  return {
+    pattern: 'peer',
+    reportingMode: 'org-chart',
+    messagingMode: 'async-inbox',
+    capabilities: { ...DEFAULT_PEER_CAPABILITIES },
+  }
+}
+
+export function buildLeaderLedCoordination(
+  leadAgentId: string,
+  runtimeMode: RuntimeMode = 'single-process',
+): Coordination {
+  return {
+    pattern: 'leader-led',
+    leadAgentId,
+    reportingMode: 'leader',
+    messagingMode: runtimeMode === 'single-process' ? 'in-session' : 'async-inbox',
+    capabilities: {
+      ...DEFAULT_LEADER_LED_CAPABILITIES,
+      injectInbox: runtimeMode === 'multi-process',
+    },
+  }
+}
+
+export function buildBoundedParallelExecution(maxConcurrentRuns = 2): Execution {
+  return {
+    queuePolicy: 'bounded-parallel',
+    maxConcurrentRuns,
+  }
+}
+
+export function buildSerializedExecution(): Execution {
+  return {
+    queuePolicy: 'serialized',
+    maxConcurrentRuns: 1,
+  }
+}
+
+export function buildDefaultCreateTeamRequest(displayName: string): CreateTeamRequest {
+  return {
+    displayName,
+    runtime: { mode: 'multi-process' },
+    coordination: buildIndependentCoordination(),
+    execution: buildBoundedParallelExecution(2),
+    decisionMode: 'yolo',
+  }
+}

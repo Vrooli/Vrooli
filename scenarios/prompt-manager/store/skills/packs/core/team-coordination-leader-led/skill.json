@@ -1,0 +1,12 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "team-coordination-leader-led",
+  "name": "Team Coordination (Leader-Led)",
+  "description": "Behavioral guidance for teams with an explicit coordinating lead",
+  "modes": ["agent"],
+  "tags": ["coordination", "team", "leader-led"],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1
+}

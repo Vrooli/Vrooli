@@ -11,7 +11,7 @@ import { AlertTriangle, Check, RefreshCw, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamPromptMatrixEntry } from '@/lib/schemas'
 import * as agentService from '@/services/agentService'
-import { KIND_META, FALLBACK_META, SectionCard } from '../tabs/SectionCard'
+import { SectionCard } from '../tabs/SectionCard'
 
 // ---------------------------------------------------------------------------
 // Section kind display order
@@ -19,12 +19,27 @@ import { KIND_META, FALLBACK_META, SectionCard } from '../tabs/SectionCard'
 
 const SECTION_KIND_ORDER = [
   'agent-file',
+  'team-shared-charter',
   'team-responsibilities',
-  'team-relationships',
+  'team-org-context',
   'team-coordination',
+  'team-durable-state',
   'team-inbox',
+  'last-handoff',
   'heartbeat-task',
 ] as const
+
+const SECTION_KIND_LABELS: Record<string, string> = {
+  'agent-file': 'Files',
+  'team-shared-charter': 'Charter',
+  'team-responsibilities': 'Responsibilities',
+  'team-org-context': 'Org',
+  'team-coordination': 'Coordination',
+  'team-durable-state': 'Durable State',
+  'team-inbox': 'Inbox',
+  'last-handoff': 'Handoff',
+  'heartbeat-task': 'Heartbeat',
+}
 
 // ---------------------------------------------------------------------------
 // Props
@@ -161,13 +176,12 @@ export function TeamPromptMatrixTab({
                 Member
               </th>
               {activeKinds.map((kind) => {
-                const meta = KIND_META[kind] ?? FALLBACK_META
                 return (
                   <th
                     key={kind}
                     className="px-3 py-2 text-center text-xs font-medium text-muted-foreground"
                   >
-                    {meta.badgeLabel === 'Agent file' ? 'Files' : kind.replace('team-', '').replace('heartbeat-', '')}
+                    {SECTION_KIND_LABELS[kind] ?? kind}
                   </th>
                 )
               })}

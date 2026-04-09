@@ -28,8 +28,8 @@ func TestEnqueueWhenIdle_StartsImmediately(t *testing.T) {
 	if status.State != "active" {
 		t.Fatalf("expected state 'active', got %q", status.State)
 	}
-	if status.Running == nil || *status.Running != "agent-1" {
-		t.Fatalf("expected running agent-1, got %v", status.Running)
+	if len(status.RunningAgentIDs) != 1 || status.RunningAgentIDs[0] != "agent-1" {
+		t.Fatalf("expected running [agent-1], got %v", status.RunningAgentIDs)
 	}
 }
 
@@ -116,8 +116,8 @@ func TestDequeueNext_StartsNextMember(t *testing.T) {
 	if status.State != "active" {
 		t.Fatalf("expected state 'active', got %q", status.State)
 	}
-	if status.Running == nil || *status.Running != "agent-2" {
-		t.Fatalf("expected running agent-2, got %v", status.Running)
+	if len(status.RunningAgentIDs) != 1 || status.RunningAgentIDs[0] != "agent-2" {
+		t.Fatalf("expected running [agent-2], got %v", status.RunningAgentIDs)
 	}
 	if len(status.Queue) != 0 {
 		t.Fatalf("expected empty queue, got %d", len(status.Queue))
@@ -140,8 +140,8 @@ func TestDequeueNext_BecomesIdleWhenEmpty(t *testing.T) {
 	if status.State != "idle" {
 		t.Fatalf("expected state 'idle', got %q", status.State)
 	}
-	if status.Running != nil {
-		t.Fatalf("expected running nil, got %v", status.Running)
+	if len(status.RunningAgentIDs) != 0 {
+		t.Fatalf("expected no running agents, got %v", status.RunningAgentIDs)
 	}
 }
 
@@ -175,8 +175,8 @@ func TestQueueOrderIsFIFO(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	status = ctx.Status()
-	if status.Running == nil || *status.Running != "agent-2" {
-		t.Fatalf("expected running agent-2, got %v", status.Running)
+	if len(status.RunningAgentIDs) != 1 || status.RunningAgentIDs[0] != "agent-2" {
+		t.Fatalf("expected running [agent-2], got %v", status.RunningAgentIDs)
 	}
 	if len(status.Queue) != 2 {
 		t.Fatalf("expected 2 remaining in queue, got %d", len(status.Queue))
@@ -213,8 +213,8 @@ func TestPersistAndRecover(t *testing.T) {
 	ctx2.Recover()
 
 	status := ctx2.Status()
-	if status.Running == nil || *status.Running != "agent-1" {
-		t.Fatalf("expected recovered running agent-1, got %v", status.Running)
+	if len(status.RunningAgentIDs) != 1 || status.RunningAgentIDs[0] != "agent-1" {
+		t.Fatalf("expected recovered running [agent-1], got %v", status.RunningAgentIDs)
 	}
 	if len(status.Queue) != 2 {
 		t.Fatalf("expected 2 in recovered queue, got %d", len(status.Queue))
@@ -233,8 +233,8 @@ func TestStatus_ReflectsCurrentState(t *testing.T) {
 	if status.State != "idle" {
 		t.Fatalf("expected initial state 'idle', got %q", status.State)
 	}
-	if status.Running != nil {
-		t.Fatalf("expected initial running nil, got %v", status.Running)
+	if len(status.RunningAgentIDs) != 0 {
+		t.Fatalf("expected initial running to be empty, got %v", status.RunningAgentIDs)
 	}
 	if len(status.Queue) != 0 {
 		t.Fatalf("expected initial empty queue, got %d", len(status.Queue))
@@ -266,7 +266,7 @@ func TestTeamExecutionStore_Recover(t *testing.T) {
 	exec := &captureExecutor{}
 
 	// Create some queue state manually
-	store1 := NewTeamExecutionStore(exec, dir)
+	store1 := NewTeamExecutionStore(nil, exec, dir)
 	if _, err := store1.Enqueue(context.Background(), "team-a", "agent-1", "p1"); err != nil {
 		t.Fatalf("enqueue team-a/agent-1: %v", err)
 	}
@@ -275,7 +275,7 @@ func TestTeamExecutionStore_Recover(t *testing.T) {
 	}
 
 	// Create new store and recover
-	store2 := NewTeamExecutionStore(exec, dir)
+	store2 := NewTeamExecutionStore(nil, exec, dir)
 	store2.Recover(context.Background())
 
 	statusA := store2.Status("team-a")
@@ -292,7 +292,7 @@ func TestTeamExecutionStore_Recover(t *testing.T) {
 // TestTeamExecutionStore_OnComplete routes completion to correct team.
 func TestTeamExecutionStore_OnComplete(t *testing.T) {
 	exec := &captureExecutor{}
-	store := NewTeamExecutionStore(exec, t.TempDir())
+	store := NewTeamExecutionStore(nil, exec, t.TempDir())
 
 	// Enqueue agent on team-1
 	if _, err := store.Enqueue(context.Background(), "team-1", "agent-1", "p"); err != nil {
@@ -308,15 +308,15 @@ func TestTeamExecutionStore_OnComplete(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	status := store.Status("team-1")
-	if status.Running == nil || *status.Running != "agent-2" {
-		t.Fatalf("expected running agent-2 after OnComplete, got %v", status.Running)
+	if len(status.RunningAgentIDs) != 1 || status.RunningAgentIDs[0] != "agent-2" {
+		t.Fatalf("expected running [agent-2] after OnComplete, got %v", status.RunningAgentIDs)
 	}
 }
 
 // TestTeamExecutionStore_StatusUnknownTeam returns idle for unknown teams.
 func TestTeamExecutionStore_StatusUnknownTeam(t *testing.T) {
 	exec := &captureExecutor{}
-	store := NewTeamExecutionStore(exec, t.TempDir())
+	store := NewTeamExecutionStore(nil, exec, t.TempDir())
 
 	status := store.Status("nonexistent")
 	if status.State != "idle" {
@@ -405,10 +405,10 @@ func TestEnqueue_ExecuteFailure_ClearsRunningState(t *testing.T) {
 
 	status := ctx.Status()
 	if status.State != "idle" {
-		t.Fatalf("expected state 'idle' after Execute failure, got %q (running=%v) — queue stuck!", status.State, status.Running)
+		t.Fatalf("expected state 'idle' after Execute failure, got %q (running=%v) - queue stuck!", status.State, status.RunningAgentIDs)
 	}
-	if status.Running != nil {
-		t.Fatalf("expected running nil after Execute failure, got %v", status.Running)
+	if len(status.RunningAgentIDs) != 0 {
+		t.Fatalf("expected no running agents after Execute failure, got %v", status.RunningAgentIDs)
 	}
 
 	// Verify we can enqueue again (not stuck)

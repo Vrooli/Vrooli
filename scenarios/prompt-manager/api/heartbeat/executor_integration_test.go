@@ -28,11 +28,7 @@ func setupExecutorTestEnv(t *testing.T) (
 	relationStore := fileStore.Relations()
 
 	ctx := context.Background()
-	if err := teamStore.Create(ctx, &store.Team{
-		ID:          "team-1",
-		DisplayName: "Team One",
-		Enabled:     true,
-	}); err != nil {
+	if err := teamStore.Create(ctx, newIndependentTestTeam("team-1", "Team One")); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 	if err := agentStore.Create(ctx, &store.Agent{
@@ -155,7 +151,9 @@ func TestExecute_TeamDisabled(t *testing.T) {
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 
 	ctx := context.Background()
-	_ = teamStore.Create(ctx, &store.Team{ID: "team-1", DisplayName: "T", Enabled: false})
+	team := newIndependentTestTeam("team-1", "T")
+	team.Enabled = false
+	_ = teamStore.Create(ctx, team)
 	_ = agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "A"})
 
 	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
@@ -379,7 +377,7 @@ func TestTriggerManual_MissingConfig(t *testing.T) {
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 
 	ctx := context.Background()
-	_ = teamStore.Create(ctx, &store.Team{ID: "team-1", DisplayName: "T", Enabled: true})
+	_ = teamStore.Create(ctx, newIndependentTestTeam("team-1", "T"))
 	_ = agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "A"})
 
 	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
@@ -393,9 +391,9 @@ func TestTriggerManual_MissingConfig(t *testing.T) {
 	}
 }
 
-// setupExecutorTestEnvWithSpawnMode is like setupExecutorTestEnv but allows
-// setting the team's SpawnMode.
-func setupExecutorTestEnvWithSpawnMode(t *testing.T, spawnMode string) (
+// setupExecutorTestEnvWithRuntimeMode is like setupExecutorTestEnv but allows
+// selecting the team's runtime/coordination policy.
+func setupExecutorTestEnvWithRuntimeMode(t *testing.T, runtimeMode string) (
 	*store.FileTeamStore,
 	*store.FileAgentStore,
 	string,
@@ -408,12 +406,13 @@ func setupExecutorTestEnvWithSpawnMode(t *testing.T, spawnMode string) (
 	relationStore := fileStore.Relations()
 
 	ctx := context.Background()
-	if err := teamStore.Create(ctx, &store.Team{
-		ID:          "team-1",
-		DisplayName: "Team One",
-		Enabled:     true,
-		SpawnMode:   spawnMode,
-	}); err != nil {
+	var team *store.Team
+	if runtimeMode == "single-process" {
+		team = newLeaderLedSingleProcessTestTeam("team-1", "Team One", "agent-1")
+	} else {
+		team = newIndependentTestTeam("team-1", "Team One")
+	}
+	if err := teamStore.Create(ctx, team); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 	if err := agentStore.Create(ctx, &store.Agent{
@@ -442,7 +441,7 @@ func setupExecutorTestEnvWithSpawnMode(t *testing.T, spawnMode string) (
 }
 
 func TestExecute_SingleProcessTeam_UsesClaudeCodeProfile(t *testing.T) {
-	teamStore, agentStore, _ := setupExecutorTestEnvWithSpawnMode(t, "single-process")
+	teamStore, agentStore, _ := setupExecutorTestEnvWithRuntimeMode(t, "single-process")
 
 	mockClient := newMockAgentClient().
 		WithCreateTaskResponse(&Task{ID: "task-1", Title: "test"}).
@@ -474,7 +473,7 @@ func TestExecute_SingleProcessTeam_UsesClaudeCodeProfile(t *testing.T) {
 }
 
 func TestExecute_MultiProcessTeam_UsesCodexProfile(t *testing.T) {
-	teamStore, agentStore, _ := setupExecutorTestEnvWithSpawnMode(t, "multi-process")
+	teamStore, agentStore, _ := setupExecutorTestEnvWithRuntimeMode(t, "multi-process")
 
 	mockClient := newMockAgentClient().
 		WithCreateTaskResponse(&Task{ID: "task-1", Title: "test"}).
@@ -500,7 +499,7 @@ func TestExecute_MultiProcessTeam_UsesCodexProfile(t *testing.T) {
 }
 
 func TestExecute_SingleProcessWithCodexProfile_Fails(t *testing.T) {
-	teamStore, agentStore, _ := setupExecutorTestEnvWithSpawnMode(t, "single-process")
+	teamStore, agentStore, _ := setupExecutorTestEnvWithRuntimeMode(t, "single-process")
 
 	mockClient := newMockAgentClient()
 	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
@@ -518,7 +517,7 @@ func TestExecute_SingleProcessWithCodexProfile_Fails(t *testing.T) {
 }
 
 func TestTriggerManual_SingleProcessTeam_DefaultsToClaudeCode(t *testing.T) {
-	teamStore, agentStore, _ := setupExecutorTestEnvWithSpawnMode(t, "single-process")
+	teamStore, agentStore, _ := setupExecutorTestEnvWithRuntimeMode(t, "single-process")
 
 	mockClient := newMockAgentClient().
 		WithCreateTaskResponse(&Task{ID: "task-1"}).

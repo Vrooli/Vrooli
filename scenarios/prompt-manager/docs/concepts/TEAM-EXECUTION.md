@@ -1,10 +1,17 @@
 # Team Execution Model
 
-Team-level execution context that serializes heartbeat execution per team through a bounded FIFO queue.
+Team-level execution contexts enforce each team's runtime and execution policy through a bounded FIFO queue.
 
 ## Overview
 
-Previously, heartbeat triggers fired all members simultaneously with no coordination. The team execution model introduces serialized execution: only one member runs at a time per team, and additional triggers are queued.
+Previously, heartbeat triggers fired all members simultaneously with no coordination. The team execution model now applies the configured execution policy for each team:
+
+- `serialized`: exactly one member runs at a time
+- `bounded-parallel`: up to `maxConcurrentRuns` members run at a time
+
+Additional triggers are queued and deduplicated per member.
+
+For `single-process` + `leader-led` teams, `POST /teams/{teamId}/trigger` targets only the configured lead member. That trigger now validates that the lead is an active team member and has a heartbeat config before work is accepted into the queue.
 
 ## Architecture
 
@@ -24,7 +31,7 @@ Previously, heartbeat triggers fired all members simultaneously with no coordina
 │         │           │  │ Bounded FIFO  │  │             │            │
 │         └──────────▶│  │    Queue      │──┼─────────────┘            │
 │                     │  └───────────────┘  │                          │
-│    Manual Trigger──▶│  running: *agentID  │                          │
+│    Manual Trigger──▶│  running: *agentIDs │                          │
 │    (HTTP handler)   │  state: idle|active │                          │
 │                     └─────────────────────┘                          │
 │                              │                                       │
@@ -44,7 +51,7 @@ Previously, heartbeat triggers fired all members simultaneously with no coordina
               ▼
     ┌──────────────────┐
     │      IDLE        │◄───────────────────────┐
-    │  running: nil    │                        │
+    │  running: []     │                        │
     │  queue: []       │                        │
     └────────┬─────────┘                        │
              │ Enqueue (first member)           │ queue empty after
@@ -52,7 +59,7 @@ Previously, heartbeat triggers fired all members simultaneously with no coordina
              ▼                                  │
     ┌──────────────────┐                        │
     │     ACTIVE       │────────────────────────┘
-    │  running: agentX │
+    │  running: [A...] │
     │  queue: [...]    │◄──┐
     └────────┬─────────┘   │
              │             │ more members enqueue
@@ -65,17 +72,18 @@ Previously, heartbeat triggers fired all members simultaneously with no coordina
 | Current State | Event | New State | Action |
 |--------------|-------|-----------|--------|
 | idle | Enqueue(agentA) | active | Start agentA immediately |
-| active(agentA) | Enqueue(agentB) | active(agentA), queue=[agentB] | Append agentB to queue |
-| active(agentA) | Enqueue(agentA) | — | Return 409 MemberAlreadyQueuedError |
-| active(agentA) | agentA completes, queue=[agentB] | active(agentB) | Pop agentB, start it |
-| active(agentA) | agentA completes, queue=[] | idle | Set running to nil |
+| active | Enqueue(agentB) and capacity available | active | Start agentB immediately |
+| active | Enqueue(agentC) and capacity full | active, queue=[agentC] | Append agentC to queue |
+| active | Enqueue(agentA) while queued/running | — | Return 409 MemberAlreadyQueuedError |
+| active | agent completes, queued work remains and capacity available | active | Pop queued member(s), start next work |
+| active | last running agent completes and queue=[] | idle | Clear running set |
 
 ## Bounded FIFO Queue
 
 The queue enforces these constraints:
 
 - **Max 1 entry per member**: A member cannot appear in the queue more than once. Attempting to enqueue an already-queued or currently-running member returns a `409 Conflict` (`MemberAlreadyQueuedError`).
-- **Size bounded by team size**: Since each member can appear at most once, the queue is naturally bounded by the number of team members.
+- **Size bounded by team size**: Since each member can appear at most once across the running set and queue, the structure is naturally bounded by the number of team members.
 - **FIFO ordering**: Members are dequeued in the order they were enqueued.
 
 ## 409 Conflict Behavior
@@ -102,16 +110,19 @@ store/team-queue-{teamID}.json
 ```json
 {
   "teamId": "my-team",
-  "running": "agent-1",
-  "queue": ["agent-2", "agent-3"],
-  "profiles": {
-    "agent-2": "prompt-manager-heartbeat",
-    "agent-3": "custom-profile"
-  }
+  "queuePolicy": "bounded-parallel",
+  "maxConcurrentRuns": 2,
+  "running": [
+    { "agentId": "agent-1", "profileKey": "prompt-manager-heartbeat" }
+  ],
+  "queue": [
+    { "agentId": "agent-2", "profileKey": "prompt-manager-heartbeat" },
+    { "agentId": "agent-3", "profileKey": "custom-profile" }
+  ]
 }
 ```
 
-On startup, `TeamExecutionStore.Recover()` reads persisted queue files and resumes execution. If the previously-running agent's run is still active (checked via agent-manager), it's kept as running. If terminal, the next queued member is started.
+On startup, `TeamExecutionStore.Recover()` reads persisted queue files and resumes execution. If previously-running agents are still active (checked via agent-manager), they remain in the running set. When capacity becomes available, queued members are started according to FIFO order and the configured queue policy.
 
 ## API Endpoints
 
@@ -127,16 +138,19 @@ Returns the current execution state for a team:
 {
   "teamId": "my-team",
   "state": "active",
-  "running": "agent-1",
-  "queue": ["agent-2"]
+  "runningAgentIds": ["agent-1", "agent-2"],
+  "queue": ["agent-3"],
+  "queuePolicy": "bounded-parallel",
+  "maxConcurrentRuns": 2
 }
 ```
 
 ### Trigger Endpoints (Updated)
 
-`POST /teams/{teamId}/heartbeats/{agentId}/trigger` and `POST /teams/{teamId}/trigger` now route through the team execution queue. New possible response:
+`POST /teams/{teamId}/heartbeats/{agentId}/trigger` and `POST /teams/{teamId}/trigger` now route through the team execution queue. New possible responses:
 
 - **409 Conflict**: Member is already queued or running
+- **400 Bad Request**: A leader-led single-process team does not currently have a valid active lead member or lead heartbeat config
 
 ## Implementation Reference
 

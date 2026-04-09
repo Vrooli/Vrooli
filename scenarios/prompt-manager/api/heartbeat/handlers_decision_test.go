@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"prompt-manager/store"
+	"prompt-manager/teamconfig"
 
 	"github.com/gorilla/mux"
 )
@@ -24,9 +25,7 @@ func setupDecisionTestHandlers(t *testing.T) (*Handlers, *store.FileTeamStore) {
 	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
 
-	if err := teamStore.Create(context.Background(), &store.Team{
-		ID: "team-1", DisplayName: "Test Team", Enabled: true,
-	}); err != nil {
+	if err := teamStore.Create(context.Background(), newIndependentTestTeam("team-1", "Test Team")); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 	return handlers, teamStore
@@ -563,9 +562,9 @@ func setupApprovalTestHandlers(t *testing.T) (*Handlers, *store.FileTeamStore) {
 	ctx := context.Background()
 
 	// Create team in approval mode
-	if err := teamStore.Create(ctx, &store.Team{
-		ID: "team-approval", DisplayName: "Approval Team", Enabled: true, DecisionMode: "approval",
-	}); err != nil {
+	team := newIndependentTestTeam("team-approval", "Approval Team")
+	team.DecisionMode = teamconfig.DecisionModeApproval
+	if err := teamStore.Create(ctx, team); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 

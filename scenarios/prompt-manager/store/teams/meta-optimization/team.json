@@ -5,7 +5,29 @@
   "displayName": "Meta Optimization Team",
   "mission": "Ensure the health of Vrooli's development capability chain and optimize skills, agents, and teams for maximum compound impact.",
   "enabled": false,
-  "spawnMode": "multi-process",
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "meta-lead",
+    "reportingMode": "leader",
+    "messagingMode": "async-inbox",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": true,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": true,
+      "showDecisionLogGuidance": true,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "execution": {
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 3
+  },
+  "decisionMode": "yolo",
   "shared": {
     "path": "shared/",
     "mountHint": "readWrite"

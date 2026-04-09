@@ -55,7 +55,7 @@ Do you need the app to work offline / without a server?
 
 > **Reference Implementation**: The `hello-desktop` scenario demonstrates a complete working bundled desktop build. See [Hello Desktop Tutorial](../tutorials/hello-desktop-walkthrough.md).
 
-> **Logging a bundled build (AppImage)**: For hands-on run/debug steps (rebuilding, running the AppImage with logging flags, finding runtime logs), follow the scenario-to-desktop guide: [`docs/workflows/logging-bundled-desktop.md` in scenario-to-desktop](../../../scenario-to-desktop/docs/workflows/logging-bundled-desktop.md) (available when scenario-to-desktop is implemented).
+> **Logging a bundled build (AppImage)**: For hands-on run/debug steps (rebuilding, running the AppImage with logging flags, finding runtime logs), follow the scenario-to-desktop guide: [`docs/guides/logging-bundled-desktop.md` in scenario-to-desktop](../../../scenario-to-desktop/docs/guides/logging-bundled-desktop.md) (available when scenario-to-desktop is implemented).
 
 ## Prerequisites
 

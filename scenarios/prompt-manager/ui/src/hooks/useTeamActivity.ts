@@ -56,7 +56,7 @@ export function useTeamActivity() {
 
       // 2. Find upcoming teams (heartbeats within threshold)
       const teams = await getTeams()
-      const upcomingTeams = new Map<string, { nextExecution: string; agentId: string }>()
+      const upcomingTeams = new Map<string, { nextExecution: string; agentIds: string[] }>()
       const teamIdSet = new Set(teams.map((team) => team.id))
       const heartbeatCache = heartbeatCacheRef.current
 
@@ -100,8 +100,10 @@ export function useTeamActivity() {
             if (!existing || hb.nextExecution < existing.nextExecution) {
               upcomingTeams.set(team.id, {
                 nextExecution: hb.nextExecution,
-                agentId: hb.agentId,
+                agentIds: [hb.agentId],
               })
+            } else if (hb.nextExecution === existing.nextExecution) {
+              existing.agentIds.push(hb.agentId)
             }
           }
         }
@@ -158,7 +160,7 @@ export function useTeamActivity() {
           memberAgentIds: cached?.memberAgentIds ?? [],
           status: 'upcoming',
           referenceTime: info.nextExecution,
-          heartbeatAgentId: info.agentId,
+          scheduledAgentIds: [...info.agentIds].sort(),
         })
       }
 

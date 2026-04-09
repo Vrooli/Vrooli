@@ -25,9 +25,7 @@ func setupTaskBoardTestHandlers(t *testing.T) (*Handlers, *store.FileTeamStore) 
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
 
 	// Create a test team
-	if err := teamStore.Create(context.Background(), &store.Team{
-		ID: "team-1", DisplayName: "Test Team", Enabled: true,
-	}); err != nil {
+	if err := teamStore.Create(context.Background(), newIndependentTestTeam("team-1", "Test Team")); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 	return handlers, teamStore

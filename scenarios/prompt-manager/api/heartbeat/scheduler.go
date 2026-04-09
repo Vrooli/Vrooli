@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"prompt-manager/store"
+	"prompt-manager/teamconfig"
 
 	"github.com/robfig/cron/v3"
 )
@@ -232,7 +233,7 @@ func (s *Scheduler) executeHeartbeat(ctx context.Context, teamID, agentID string
 	log.Printf("Executing heartbeat for %s/%s", teamID, agentID)
 
 	// Start with empty profileKey; Execute() resolves the default based on
-	// the team's spawn mode when the key is empty.
+	// the team's runtime mode when the key is empty.
 	var profileKey string
 	if s.configStore != nil {
 		config, err := s.configStore.GetHeartbeatConfig(ctx, teamID, agentID)
@@ -251,7 +252,7 @@ func (s *Scheduler) executeHeartbeat(ctx context.Context, teamID, agentID string
 		profileKey = config.ProfileKey
 	}
 
-	// Route through team execution store for serialized execution
+	// Route through the team execution store so the configured queue policy is enforced.
 	if s.teamExecStore != nil {
 		result, err := s.teamExecStore.Enqueue(ctx, teamID, agentID, profileKey)
 		if err != nil {
@@ -285,16 +286,16 @@ func (s *Scheduler) ensureProfile(ctx context.Context) error {
 	}
 
 	profiles := []struct {
-		key       string
-		spawnMode string
+		key         string
+		runtimeMode string
 	}{
-		{DefaultProfileKeyCodex, "multi-process"},
-		{DefaultProfileKeyClaudeCode, "single-process"},
+		{DefaultProfileKeyCodex, teamconfig.RuntimeModeMultiProcess},
+		{DefaultProfileKeyClaudeCode, teamconfig.RuntimeModeSingleProcess},
 	}
 	for _, p := range profiles {
 		req := &EnsureProfileRequest{
 			ProfileKey:     p.key,
-			Defaults:       BuildDefaultProfileForSpawnMode(p.key, p.spawnMode),
+			Defaults:       BuildDefaultProfileForRuntimeMode(p.key, p.runtimeMode),
 			UpdateExisting: false,
 		}
 		resp, err := s.agentClient.EnsureProfile(ctx, req)
@@ -317,11 +318,11 @@ const (
 	DefaultProfileKeyClaudeCode = "prompt-manager-heartbeat-cc"
 )
 
-// DefaultProfileKeyForSpawnMode returns the appropriate default profile key
-// for the given spawn mode. Single-process teams get Claude Code; everything
+// DefaultProfileKeyForRuntimeMode returns the appropriate default profile key
+// for the given runtime mode. Single-process teams get Claude Code; everything
 // else gets Codex.
-func DefaultProfileKeyForSpawnMode(spawnMode string) string {
-	if spawnMode == "single-process" {
+func DefaultProfileKeyForRuntimeMode(runtimeMode string) string {
+	if runtimeMode == teamconfig.RuntimeModeSingleProcess {
 		return DefaultProfileKeyClaudeCode
 	}
 	return DefaultProfileKeyCodex
@@ -329,23 +330,23 @@ func DefaultProfileKeyForSpawnMode(spawnMode string) string {
 
 // BuildDefaultProfile returns the default Codex agent profile for the given key.
 // Exported so the executor can embed defaults in CreateRun requests.
-// For spawn-mode-aware resolution, use BuildDefaultProfileForSpawnMode instead.
+// For runtime-aware resolution, use BuildDefaultProfileForRuntimeMode instead.
 func BuildDefaultProfile(profileKey string) *AgentProfile {
 	return buildCodexProfile(profileKey)
 }
 
-// BuildDefaultProfileForSpawnMode returns the correct default AgentProfile
-// for the given profile key and spawn mode. Known default keys always map to
-// their specific runner; unknown custom keys use the spawn mode as a heuristic.
-func BuildDefaultProfileForSpawnMode(profileKey, spawnMode string) *AgentProfile {
+// BuildDefaultProfileForRuntimeMode returns the correct default AgentProfile
+// for the given profile key and runtime mode. Known default keys always map to
+// their specific runner; unknown custom keys use the runtime mode as a heuristic.
+func BuildDefaultProfileForRuntimeMode(profileKey, runtimeMode string) *AgentProfile {
 	switch profileKey {
 	case DefaultProfileKeyClaudeCode:
 		return buildClaudeCodeProfile(profileKey)
 	case DefaultProfileKeyCodex:
 		return buildCodexProfile(profileKey)
 	default:
-		// Custom keys: fall back to spawn-mode heuristic.
-		if spawnMode == "single-process" {
+		// Custom keys: fall back to runtime-mode heuristic.
+		if runtimeMode == teamconfig.RuntimeModeSingleProcess {
 			return buildClaudeCodeProfile(profileKey)
 		}
 		return buildCodexProfile(profileKey)

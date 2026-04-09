@@ -19,7 +19,7 @@ Each dimension is rated:
 - **F** — Failing. Fundamental problems requiring immediate action.
 
 ## Audit Workflow
-1. **qa-lead** (every 6h): Runs GCT reviews on priority scenarios, creates fix/execute backlog items for failing dimensions, wires depends_on on related items.
+1. **programmatic-qa-runner** (every 6h): Runs GCT reviews on priority scenarios, creates fix/execute backlog items for failing dimensions, wires depends_on on related items.
 2. **quality-auditor** (daily): Picks a scenario + steer skill, investigates structural quality, creates execute backlog items with draft plans and suggested skills.
 3. All findings become Swarm Manager backlog items — the team never modifies target scenario code directly.
 

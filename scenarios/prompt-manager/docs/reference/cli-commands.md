@@ -456,30 +456,39 @@ prompt-manager team show engineering
 Create a new team.
 
 ```bash
-prompt-manager team create <name> [--mission=...] [--spawn-mode=multi-process|single-process] [--decision-mode=yolo|approval] [--json]
+prompt-manager team create <name> [--mission=...] [--runtime-mode=multi-process|single-process] [--coordination-pattern=independent|peer|leader-led] [--decision-mode=yolo|approval] [--json]
 ```
 
 **Options:**
 | Flag | Description |
 |------|-------------|
 | `--mission` | Team mission statement |
-| `--spawn-mode` | How the team is spawned: `multi-process` (default) or `single-process` |
+| `--runtime-mode` | Runtime mode: `multi-process` (default) or `single-process` |
+| `--coordination-pattern` | Coordination pattern: `independent` (default), `peer`, or `leader-led` |
+| `--lead-agent-id` | Required when using `leader-led` coordination |
+| `--reporting-mode` | Reporting mode override: `none`, `org-chart`, or `leader` |
+| `--messaging-mode` | Messaging mode override: `disabled`, `async-inbox`, or `in-session` |
+| `--queue-policy` | Execution queue policy: `bounded-parallel` (default) or `serialized` |
+| `--max-concurrent-runs` | Concurrency limit for `bounded-parallel` execution |
+| `--show-org-context`, `--inject-inbox`, `--allow-peer-triggers`, `--show-task-board-guidance`, `--show-decision-log-guidance`, `--show-knowledge-log-guidance`, `--require-handoff` | Override individual coordination capabilities |
 | `--decision-mode` | Decision policy: `yolo` (default behavior) or `approval` |
 | `--json` | Output as JSON |
 
 **Example:**
 ```bash
 prompt-manager team create "Engineering" --mission="Build and maintain core platform"
-prompt-manager team create "Agent Swarm" --spawn-mode=single-process
-prompt-manager team create "Director Swarm" --spawn-mode=single-process --decision-mode=approval
+prompt-manager team create "Scenario QA" --coordination-pattern=independent --queue-policy=bounded-parallel --max-concurrent-runs=2
+prompt-manager team create "Director Swarm" --runtime-mode=single-process --coordination-pattern=leader-led --lead-agent-id=director --decision-mode=approval
 ```
+
+When you choose `--runtime-mode=single-process`, the CLI resolves the team onto the leader-led serialized preset before sending the request.
 
 ### prompt-manager team update
 
 Update an existing team.
 
 ```bash
-prompt-manager team update <id> [--name=...] [--mission=...] [--enabled=true|false] [--spawn-mode=multi-process|single-process] [--decision-mode=yolo|approval] [--json]
+prompt-manager team update <id> [--name=...] [--mission=...] [--enabled=true|false] [--runtime-mode=multi-process|single-process] [--coordination-pattern=independent|peer|leader-led] [--decision-mode=yolo|approval] [--json]
 ```
 
 **Options:**
@@ -488,9 +497,15 @@ prompt-manager team update <id> [--name=...] [--mission=...] [--enabled=true|fal
 | `--name` | New display name |
 | `--mission` | New mission statement |
 | `--enabled` | Enable or disable the team |
-| `--spawn-mode` | Change spawn mode |
+| `--runtime-mode` | Change runtime mode |
+| `--coordination-pattern` | Change coordination pattern |
+| `--lead-agent-id` | Set or replace the explicit lead agent for leader-led teams |
+| `--reporting-mode`, `--messaging-mode`, `--queue-policy`, `--max-concurrent-runs` | Update policy settings directly |
+| Capability override flags | Update prompt and coordination capabilities individually |
 | `--decision-mode` | Change decision policy |
 | `--json` | Output as JSON |
+
+Enabled leader-led teams require `coordination.leadAgentId` to reference an active team member. The API will reject updates that would enable an invalid lead configuration.
 
 ### prompt-manager team add-member
 
@@ -518,6 +533,8 @@ Update an agent's roles within a team.
 prompt-manager team update-member <team-id> <agent-id> [--roles=role1,role2] [--status=active|inactive]
 ```
 
+For enabled leader-led teams, the configured lead cannot be set inactive until the lead assignment changes or the team is disabled.
+
 ### prompt-manager team remove-member
 
 Remove an agent from a team.
@@ -525,6 +542,8 @@ Remove an agent from a team.
 ```bash
 prompt-manager team remove-member <team-id> <agent-id> [--force]
 ```
+
+For enabled leader-led teams, the configured lead cannot be removed until the lead assignment changes or the team is disabled.
 
 ### prompt-manager team roles
 
@@ -628,9 +647,11 @@ Trigger heartbeats for an entire team.
 prompt-manager team trigger <team-id> [--json]
 ```
 
-Behavior depends on the team's `spawnMode`:
-- **`single-process`**: Triggers only the team lead's heartbeat.
-- **`multi-process`** (default): Triggers all member heartbeats.
+Behavior depends on the team's resolved policy:
+- **`single-process` + `leader-led`**: Triggers only the configured lead heartbeat.
+- **All other team policies**: Triggers all member heartbeats with configs.
+
+Leader-led single-process triggers fail fast if the configured lead is not an active team member or does not have a heartbeat config.
 
 **Example:**
 ```bash

@@ -80,7 +80,7 @@ func TestSchedulerUsesDefaultProfileWhenEmpty(t *testing.T) {
 		t.Fatalf("expected executor to be called once, got %d", len(exec.calls))
 	}
 	// When config.ProfileKey is empty, the scheduler passes an empty string
-	// so that Execute() can resolve the default based on the team's spawn mode.
+	// so that Execute() can resolve the default based on the team's runtime mode.
 	if exec.calls[0].profileKey != "" {
 		t.Fatalf("expected empty profileKey (for Execute to resolve), got %q", exec.calls[0].profileKey)
 	}
@@ -196,7 +196,7 @@ func TestSchedulerRoutesToTeamExecStore(t *testing.T) {
 			ProfileKey: "custom-profile",
 		},
 	}
-	teamExecStore := NewTeamExecutionStore(exec, t.TempDir())
+	teamExecStore := NewTeamExecutionStore(nil, exec, t.TempDir())
 	scheduler := NewScheduler(exec, nil, configStore, teamExecStore)
 
 	scheduler.executeHeartbeat(context.Background(), "team-1", "agent-1")
@@ -206,8 +206,8 @@ func TestSchedulerRoutesToTeamExecStore(t *testing.T) {
 	if status.State != "active" {
 		t.Fatalf("expected team state 'active', got %q", status.State)
 	}
-	if status.Running == nil || *status.Running != "agent-1" {
-		t.Fatalf("expected running agent-1, got %v", status.Running)
+	if len(status.RunningAgentIDs) != 1 || status.RunningAgentIDs[0] != "agent-1" {
+		t.Fatalf("expected running [agent-1], got %v", status.RunningAgentIDs)
 	}
 }
 
@@ -221,7 +221,7 @@ func TestSchedulerHandlesMemberAlreadyQueued(t *testing.T) {
 			Schedule: "0 * * * *",
 		},
 	}
-	teamExecStore := NewTeamExecutionStore(exec, t.TempDir())
+	teamExecStore := NewTeamExecutionStore(nil, exec, t.TempDir())
 	scheduler := NewScheduler(exec, nil, configStore, teamExecStore)
 
 	// First call should succeed

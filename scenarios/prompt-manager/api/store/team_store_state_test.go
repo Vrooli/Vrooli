@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"prompt-manager/teamconfig"
 )
 
 func setupStateTestStore(t *testing.T) *FileTeamStore {
@@ -14,9 +16,11 @@ func setupStateTestStore(t *testing.T) *FileTeamStore {
 	if err := os.MkdirAll(filepath.Join(storeDir, "teams", "team-1", "members", "agent-1"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// Create minimal team.json
-	teamJSON := `{"kind":"team","schemaVersion":1,"id":"team-1","displayName":"Test","enabled":true}`
-	if err := os.WriteFile(filepath.Join(storeDir, "teams", "team-1", "team.json"), []byte(teamJSON), 0o644); err != nil {
+	team := newIndependentTestTeam("team-1", "Test")
+	team.Kind = KindTeam
+	team.SchemaVersion = CurrentSchemaVersion
+	team.Timestamps = NewTimestamps()
+	if err := SaveJSON(filepath.Join(storeDir, "teams", "team-1", "team.json"), team); err != nil {
 		t.Fatal(err)
 	}
 	return NewFileTeamStore(storeDir, nil)
@@ -311,14 +315,19 @@ func TestDeleteTask(t *testing.T) {
 	}
 }
 
-func TestUpdatePersistsSpawnAndDecisionMode(t *testing.T) {
+func TestUpdatePersistsRuntimeAndDecisionMode(t *testing.T) {
 	s := setupStateTestStore(t)
 	ctx := context.Background()
 
-	updates := &Team{
-		SpawnMode:    "single-process",
-		DecisionMode: "approval",
-	}
+	updates := newIndependentTestTeam("ignored", "ignored")
+	updates.Runtime.Mode = teamconfig.RuntimeModeSingleProcess
+	updates.Coordination.Pattern = teamconfig.CoordinationPatternLeaderLed
+	updates.Coordination.LeadAgentID = "lead"
+	updates.Coordination.ReportingMode = teamconfig.ReportingModeLeader
+	updates.Coordination.MessagingMode = teamconfig.MessagingModeInSession
+	updates.Execution.QueuePolicy = teamconfig.QueuePolicySerialized
+	updates.Execution.MaxConcurrentRuns = 1
+	updates.DecisionMode = teamconfig.DecisionModeApproval
 	if err := s.Update(ctx, "team-1", updates); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
@@ -327,11 +336,11 @@ func TestUpdatePersistsSpawnAndDecisionMode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
-	if got.SpawnMode != "single-process" {
-		t.Errorf("expected spawnMode 'single-process', got %q", got.SpawnMode)
+	if got.Runtime.Mode != teamconfig.RuntimeModeSingleProcess {
+		t.Errorf("expected runtime.mode %q, got %q", teamconfig.RuntimeModeSingleProcess, got.Runtime.Mode)
 	}
-	if got.DecisionMode != "approval" {
-		t.Errorf("expected decisionMode 'approval', got %q", got.DecisionMode)
+	if got.DecisionMode != teamconfig.DecisionModeApproval {
+		t.Errorf("expected decisionMode %q, got %q", teamconfig.DecisionModeApproval, got.DecisionMode)
 	}
 }
 

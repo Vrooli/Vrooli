@@ -19,7 +19,7 @@ func TestTriggerHeartbeatRequiresConfig(t *testing.T) {
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
 
-	if err := teamStore.Create(context.Background(), &store.Team{ID: "team-1", DisplayName: "Team"}); err != nil {
+	if err := teamStore.Create(context.Background(), newIndependentTestTeam("team-1", "Team")); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 	if err := agentStore.Create(context.Background(), &store.Agent{ID: "agent-1", DisplayName: "Agent"}); err != nil {
@@ -54,7 +54,7 @@ func TestTriggerHeartbeatRequiresMembership(t *testing.T) {
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
 
-	if err := teamStore.Create(context.Background(), &store.Team{ID: "team-1", DisplayName: "Team"}); err != nil {
+	if err := teamStore.Create(context.Background(), newIndependentTestTeam("team-1", "Team")); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 	if err := agentStore.Create(context.Background(), &store.Agent{ID: "agent-1", DisplayName: "Agent"}); err != nil {
@@ -82,11 +82,7 @@ func TestTriggerHeartbeat_MemberAlreadyQueued(t *testing.T) {
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
 
-	if err := teamStore.Create(context.Background(), &store.Team{
-		ID:          "team-1",
-		DisplayName: "Team",
-		Enabled:     true,
-	}); err != nil {
+	if err := teamStore.Create(context.Background(), newIndependentTestTeam("team-1", "Team")); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 	if err := agentStore.Create(context.Background(), &store.Agent{ID: "agent-1", DisplayName: "Agent"}); err != nil {
@@ -101,7 +97,7 @@ func TestTriggerHeartbeat_MemberAlreadyQueued(t *testing.T) {
 	}
 
 	exec := &captureExecutor{}
-	teamExecStore := NewTeamExecutionStore(exec, t.TempDir())
+	teamExecStore := NewTeamExecutionStore(teamStore, exec, t.TempDir())
 	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, teamExecStore)
 
@@ -136,7 +132,7 @@ func TestTriggerHeartbeat_FullPathWithTeamExecStore(t *testing.T) {
 	relationStore := fileStore.Relations()
 
 	ctx := context.Background()
-	if err := teamStore.Create(ctx, &store.Team{ID: "team-1", DisplayName: "Team", Enabled: true}); err != nil {
+	if err := teamStore.Create(ctx, newIndependentTestTeam("team-1", "Team")); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent"}); err != nil {
@@ -163,7 +159,7 @@ func TestTriggerHeartbeat_FullPathWithTeamExecStore(t *testing.T) {
 	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), registry, nil)
 	executor.OnComplete = func(_, _ string) {}
 
-	teamExecStore := NewTeamExecutionStore(executor, t.TempDir())
+	teamExecStore := NewTeamExecutionStore(teamStore, executor, t.TempDir())
 
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, registry, mockClient, teamExecStore)
 
@@ -213,7 +209,7 @@ func TestTriggerHeartbeat_DirectExecutionFallback(t *testing.T) {
 	relationStore := fileStore.Relations()
 
 	ctx := context.Background()
-	if err := teamStore.Create(ctx, &store.Team{ID: "team-1", DisplayName: "Team", Enabled: true}); err != nil {
+	if err := teamStore.Create(ctx, newIndependentTestTeam("team-1", "Team")); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent"}); err != nil {
@@ -269,11 +265,9 @@ func TestTriggerHeartbeatBlockedWhenTeamDisabled(t *testing.T) {
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
 
-	if err := teamStore.Create(context.Background(), &store.Team{
-		ID:          "team-1",
-		DisplayName: "Team",
-		Enabled:     false,
-	}); err != nil {
+	team := newIndependentTestTeam("team-1", "Team")
+	team.Enabled = false
+	if err := teamStore.Create(context.Background(), team); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 	if err := agentStore.Create(context.Background(), &store.Agent{ID: "agent-1", DisplayName: "Agent"}); err != nil {

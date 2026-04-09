@@ -91,10 +91,10 @@ func TestGetAllPendingDecisions_MultipleTeams(t *testing.T) {
 	ctx := context.Background()
 
 	// Create two teams
-	if err := teamStore.Create(ctx, &store.Team{ID: "team-a", DisplayName: "Team A", Enabled: true}); err != nil {
+	if err := teamStore.Create(ctx, newIndependentTestTeam("team-a", "Team A")); err != nil {
 		t.Fatalf("create team-a: %v", err)
 	}
-	if err := teamStore.Create(ctx, &store.Team{ID: "team-b", DisplayName: "Team B", Enabled: true}); err != nil {
+	if err := teamStore.Create(ctx, newIndependentTestTeam("team-b", "Team B")); err != nil {
 		t.Fatalf("create team-b: %v", err)
 	}
 

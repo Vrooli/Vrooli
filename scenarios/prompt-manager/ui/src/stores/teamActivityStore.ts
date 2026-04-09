@@ -14,8 +14,8 @@ export interface TeamActivity {
   status: 'upcoming' | 'running'
   /** upcoming: nextExecution ISO; running: startedAt ISO */
   referenceTime: string
-  /** Which member's heartbeat triggers */
-  heartbeatAgentId?: string
+  /** Which member heartbeats are scheduled at the reference time */
+  scheduledAgentIds?: string[]
 }
 
 export interface TeamFurnitureAllocation {
@@ -35,7 +35,7 @@ function areActivitiesEqual(a: TeamActivity[], b: TeamActivity[]): boolean {
       left.teamName !== right.teamName ||
       left.status !== right.status ||
       left.referenceTime !== right.referenceTime ||
-      left.heartbeatAgentId !== right.heartbeatAgentId ||
+      (left.scheduledAgentIds?.join(',') ?? '') !== (right.scheduledAgentIds?.join(',') ?? '') ||
       left.memberAgentIds.length !== right.memberAgentIds.length
     ) {
       return false

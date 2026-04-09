@@ -1,9 +1,9 @@
 {
   "kind": "agent",
   "schemaVersion": 1,
-  "id": "qa-lead",
-  "displayName": "QA Lead",
-  "description": "Orchestrates quality assessment across code, tests, and documentation for Vrooli scenarios.",
+  "id": "programmatic-qa-runner",
+  "displayName": "Programmatic QA Runner",
+  "description": "Runs preemptive programmatic QA checks for Vrooli scenarios and creates actionable backlog items from the results.",
   "status": "active",
   "appearance": {
     "body": "#16A34A",
@@ -13,7 +13,8 @@
   "tags": [
     "quality",
     "auditing",
-    "orchestration"
+    "programmatic-qa",
+    "readiness-review"
   ],
   "fileOrder": [
     "SOUL.md",

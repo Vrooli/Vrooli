@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"prompt-manager/store"
+	"prompt-manager/teamconfig"
 	"prompt-manager/validation"
 )
 
@@ -147,7 +148,29 @@ func (c *ClaudeCodeConverter) ToPMTeam(config *ToolTeamConfig) (*PMTeamImport, e
 			DisplayName: config.TeamName,
 			Mission:     config.Description,
 			Enabled:     true,
-			Timestamps:  store.NewTimestamps(),
+			Runtime: teamconfig.Runtime{
+				Mode: teamconfig.RuntimeModeSingleProcess,
+			},
+			Coordination: teamconfig.Coordination{
+				Pattern:       teamconfig.CoordinationPatternLeaderLed,
+				ReportingMode: teamconfig.ReportingModeLeader,
+				MessagingMode: teamconfig.MessagingModeInSession,
+				Capabilities: teamconfig.Capabilities{
+					ShowOrgContext:           true,
+					InjectInbox:              false,
+					AllowPeerTriggers:        false,
+					ShowTaskBoardGuidance:    true,
+					ShowDecisionLogGuidance:  true,
+					ShowKnowledgeLogGuidance: true,
+					RequireHandoff:           true,
+				},
+			},
+			Execution: teamconfig.Execution{
+				QueuePolicy:       teamconfig.QueuePolicySerialized,
+				MaxConcurrentRuns: 1,
+			},
+			DecisionMode: teamconfig.DecisionModeYolo,
+			Timestamps:   store.NewTimestamps(),
 		},
 		Agents:   make([]store.Agent, 0, len(config.Members)),
 		Members:  make([]store.TeamMemberRelation, 0, len(config.Members)),
@@ -187,6 +210,7 @@ func (c *ClaudeCodeConverter) ToPMTeam(config *ToolTeamConfig) (*PMTeamImport, e
 		// First member is the team lead.
 		if i == 0 {
 			leadAgentID = agentID
+			imp.Team.Coordination.LeadAgentID = agentID
 		} else {
 			imp.OrgEdges = append(imp.OrgEdges, store.OrgEdge{
 				ManagerAgentID: leadAgentID,
@@ -208,8 +232,8 @@ func (c *ClaudeCodeConverter) FormatSpawnPrompt(config *ToolTeamConfig, ctx Spaw
 	var b strings.Builder
 
 	// Header
-	b.WriteString("# Team Lead Heartbeat Instructions\n\n")
-	b.WriteString(fmt.Sprintf("You are the team lead for the existing prompt-manager team **%s**.\n\n", config.TeamName))
+	b.WriteString("# Leader-Led Team Heartbeat Instructions\n\n")
+	b.WriteString(fmt.Sprintf("You are the leader for the existing prompt-manager team **%s**.\n\n", config.TeamName))
 	if config.Description != "" {
 		b.WriteString(fmt.Sprintf("**Mission:** %s\n\n", config.Description))
 	}

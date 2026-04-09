@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"prompt-manager/store"
+	"prompt-manager/teamconfig"
 	"prompt-manager/validation"
 
 	"github.com/gorilla/mux"
@@ -178,24 +179,21 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	team := &store.Team{
-		ID:          id,
-		DisplayName: req.DisplayName,
-		Mission:     req.Mission,
+		ID:           id,
+		DisplayName:  req.DisplayName,
+		Mission:      req.Mission,
+		Runtime:      req.Runtime,
+		Coordination: req.Coordination,
+		Execution:    req.Execution,
+		DecisionMode: req.DecisionMode,
 	}
-
-	if req.SpawnMode != "" {
-		if req.SpawnMode != "multi-process" && req.SpawnMode != "single-process" {
-			http.Error(w, "spawnMode must be 'multi-process' or 'single-process'", http.StatusBadRequest)
-			return
-		}
-		team.SpawnMode = req.SpawnMode
+	if err := teamconfig.Validate(team.Contract()); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
-	if req.DecisionMode != "" {
-		if req.DecisionMode != "yolo" && req.DecisionMode != "approval" {
-			http.Error(w, "decisionMode must be 'yolo' or 'approval'", http.StatusBadRequest)
-			return
-		}
-		team.DecisionMode = req.DecisionMode
+	if err := h.validateEnabledTeamState(ctx, team); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	if err := h.teamStore.Create(ctx, team); err != nil {
@@ -243,19 +241,57 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 		updates.Enabled = *req.Enabled
 		updates.EnabledSet = true
 	}
-	if req.SpawnMode != nil {
-		if *req.SpawnMode != "multi-process" && *req.SpawnMode != "single-process" {
-			http.Error(w, "spawnMode must be 'multi-process' or 'single-process'", http.StatusBadRequest)
-			return
-		}
-		updates.SpawnMode = *req.SpawnMode
+	if req.Runtime != nil {
+		updates.Runtime = *req.Runtime
+	}
+	if req.Coordination != nil {
+		updates.Coordination = *req.Coordination
+	}
+	if req.Execution != nil {
+		updates.Execution = *req.Execution
 	}
 	if req.DecisionMode != nil {
-		if *req.DecisionMode != "yolo" && *req.DecisionMode != "approval" {
-			http.Error(w, "decisionMode must be 'yolo' or 'approval'", http.StatusBadRequest)
+		updates.DecisionMode = *req.DecisionMode
+	}
+
+	current, err := h.teamStore.Get(ctx, id)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
-		updates.DecisionMode = *req.DecisionMode
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	merged := *current
+	if updates.DisplayName != "" {
+		merged.DisplayName = updates.DisplayName
+	}
+	if updates.Mission != "" {
+		merged.Mission = updates.Mission
+	}
+	if updates.EnabledSet {
+		merged.Enabled = updates.Enabled
+	}
+	if updates.Runtime.Mode != "" {
+		merged.Runtime = updates.Runtime
+	}
+	if updates.Coordination.Pattern != "" {
+		merged.Coordination = updates.Coordination
+	}
+	if updates.Execution.QueuePolicy != "" {
+		merged.Execution = updates.Execution
+	}
+	if updates.DecisionMode != "" {
+		merged.DecisionMode = updates.DecisionMode
+	}
+	if err := teamconfig.Validate(merged.Contract()); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := h.validateEnabledTeamState(ctx, &merged); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	if err := h.teamStore.Update(ctx, id, updates); err != nil {
@@ -399,12 +435,21 @@ func (h *Handlers) UpdateMember(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Membership not found", http.StatusNotFound)
 		return
 	}
+	team, err := h.teamStore.Get(ctx, teamID)
+	if err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
+		return
+	}
 
 	// Apply updates
 	if req.Roles != nil {
 		membership.Roles = req.Roles
 	}
 	if req.Status != nil {
+		if h.isProtectedLeadMember(team, agentID) && *req.Status != store.MemberStatusActive {
+			http.Error(w, "cannot deactivate the configured lead while the leader-led team is enabled; change coordination.leadAgentId or disable the team first", http.StatusConflict)
+			return
+		}
 		membership.Status = *req.Status
 	}
 
@@ -432,6 +477,15 @@ func (h *Handlers) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	teamID := vars["id"]
 	agentID := vars["agentId"]
+	team, err := h.teamStore.Get(ctx, teamID)
+	if err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
+		return
+	}
+	if h.isProtectedLeadMember(team, agentID) {
+		http.Error(w, "cannot remove the configured lead while the leader-led team is enabled; change coordination.leadAgentId or disable the team first", http.StatusConflict)
+		return
+	}
 
 	h.cleanupMemberData(ctx, teamID, agentID)
 
@@ -924,6 +978,43 @@ func (h *Handlers) cleanupMemberData(ctx context.Context, teamID, agentID string
 	}
 }
 
+func (h *Handlers) validateEnabledTeamState(ctx context.Context, team *store.Team) error {
+	if team == nil || !team.Enabled || team.Coordination.Pattern != teamconfig.CoordinationPatternLeaderLed {
+		return nil
+	}
+	return h.validateActiveLeadMember(ctx, team)
+}
+
+func (h *Handlers) validateActiveLeadMember(ctx context.Context, team *store.Team) error {
+	if h.relationStore == nil {
+		return errors.New("relation store not configured")
+	}
+
+	leadAgentID := strings.TrimSpace(team.Coordination.LeadAgentID)
+	if leadAgentID == "" {
+		return fmt.Errorf("coordination.leadAgentId is required for leader-led teams")
+	}
+
+	membership, err := h.relationStore.GetTeamMember(ctx, team.ID, leadAgentID)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) || strings.Contains(strings.ToLower(err.Error()), "not found") {
+			return fmt.Errorf("coordination.leadAgentId %q must reference an active team member", leadAgentID)
+		}
+		return fmt.Errorf("validating coordination.leadAgentId %q: %w", leadAgentID, err)
+	}
+	if membership.Status != store.MemberStatusActive {
+		return fmt.Errorf("coordination.leadAgentId %q must reference an active team member", leadAgentID)
+	}
+	return nil
+}
+
+func (h *Handlers) isProtectedLeadMember(team *store.Team, agentID string) bool {
+	return team != nil &&
+		team.Enabled &&
+		team.Coordination.Pattern == teamconfig.CoordinationPatternLeaderLed &&
+		team.Coordination.LeadAgentID == agentID
+}
+
 func (h *Handlers) toResponse(ctx context.Context, t *store.Team) Response {
 	memberCount := 0
 	if h.relationStore != nil {
@@ -938,7 +1029,9 @@ func (h *Handlers) toResponse(ctx context.Context, t *store.Team) Response {
 		DisplayName:  t.DisplayName,
 		Mission:      t.Mission,
 		Enabled:      t.Enabled,
-		SpawnMode:    t.SpawnMode,
+		Runtime:      t.Runtime,
+		Coordination: t.Coordination,
+		Execution:    t.Execution,
 		DecisionMode: t.DecisionMode,
 		MemberCount:  memberCount,
 		CreatedAt:    t.CreatedAt,

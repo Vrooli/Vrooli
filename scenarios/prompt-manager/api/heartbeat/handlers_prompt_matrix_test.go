@@ -21,7 +21,7 @@ func TestPreviewPromptMatrixHandler(t *testing.T) {
 	relationStore := fileStore.Relations()
 
 	// Create a team
-	team := &store.Team{ID: "team-1", DisplayName: "Test Team"}
+	team := newIndependentTestTeam("team-1", "Test Team")
 	if err := teamStore.Create(ctx, team); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
@@ -114,7 +114,7 @@ func TestPreviewPromptMatrixEmptyTeam(t *testing.T) {
 	relationStore := fileStore.Relations()
 
 	// Create a team with no members
-	team := &store.Team{ID: "team-empty", DisplayName: "Empty Team"}
+	team := newIndependentTestTeam("team-empty", "Empty Team")
 	if err := teamStore.Create(ctx, team); err != nil {
 		t.Fatalf("create team: %v", err)
 	}

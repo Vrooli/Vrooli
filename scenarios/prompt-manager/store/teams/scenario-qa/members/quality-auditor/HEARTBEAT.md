@@ -44,7 +44,7 @@ If findings warrant action (non-trivial structural improvements identified):
 4. Set `suggested_skills` to `["<skill-id>"]` (the steer skill used)
 5. Set tags: `["deep-audit", "<scenario-name>"]`
 6. Set acceptance_allow: `["scenarios/<scenario>/**"]`
-7. Set priority: 6 (lower than qa-lead's automated findings)
+7. Set priority: 6 (lower than the programmatic QA runner's automated findings)
 8. Write a draft plan.md in the backlog item folder with the investigation findings
    structured as an implementation plan
 

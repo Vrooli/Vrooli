@@ -5,7 +5,29 @@
   "displayName": "Marketing Crew",
   "mission": "Generate authentic marketing content that communicates Vrooli progress, vision, and capabilities.",
   "enabled": false,
-  "spawnMode": "single-process",
+  "runtime": {
+    "mode": "single-process"
+  },
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "marketing-lead",
+    "reportingMode": "leader",
+    "messagingMode": "in-session",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": false,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": true,
+      "showDecisionLogGuidance": true,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "execution": {
+    "queuePolicy": "serialized",
+    "maxConcurrentRuns": 1
+  },
+  "decisionMode": "yolo",
   "shared": {
     "path": "shared/",
     "mountHint": "readWrite"

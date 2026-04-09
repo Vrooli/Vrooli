@@ -30,8 +30,17 @@ export default tseslint.config(
       },
     },
     plugins: {
+      "import": importPlugin,
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
+    },
+    settings: {
+      "import/resolver": {
+        typescript: {
+          alwaysTryTypes: true,
+          project: ["./tsconfig.json", "./tsconfig.node.json"],
+        },
+      },
     },
     rules: {
       // ════════════════════════════════════════════════════════════════════════
@@ -45,17 +54,36 @@ export default tseslint.config(
       // to debug than the lint errors they produce at development time.
       // ════════════════════════════════════════════════════════════════════════
 
+      // CRITICAL: Catches React Error #310 (hook count changes between renders)
+      // Detects early returns before hooks, conditional hook calls, and unstable hook ordering.
       "react-hooks/rules-of-hooks": "error",
+
+      // CRITICAL: Catches stale-closure bugs when dependencies drift from actual usage.
       "react-hooks/exhaustive-deps": "warn",
 
-      // TypeScript safety rules - prevents 'any' type from bypassing type checking
+      // CRITICAL: Prevents explicit 'any' from disabling type safety at UI boundaries.
       "@typescript-eslint/no-explicit-any": "error",
+
+      // CRITICAL: Prevents non-null assertion (!) from bypassing TypeScript null checks.
       "@typescript-eslint/no-non-null-assertion": "error",
+
+      // CRITICAL: Catches unsafe arguments flowing from unchecked values into typed APIs.
       "@typescript-eslint/no-unsafe-argument": "warn",
+
+      // CRITICAL: Catches assigning unchecked values that spread `any` through the codebase.
       "@typescript-eslint/no-unsafe-assignment": "warn",
+
+      // CRITICAL: Catches invoking unchecked values that will crash at runtime.
       "@typescript-eslint/no-unsafe-call": "warn",
+
+      // CRITICAL: Catches member access on unchecked values that will crash at runtime.
       "@typescript-eslint/no-unsafe-member-access": "warn",
+
+      // CRITICAL: Catches returning unchecked values that leak unsafe types to callers.
       "@typescript-eslint/no-unsafe-return": "warn",
+
+      // CRITICAL: Detects circular dependencies that produce initialization-order failures.
+      "import/no-cycle": "error",
 
       // React refresh for HMR
       "react-refresh/only-export-components": [

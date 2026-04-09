@@ -3,6 +3,8 @@ package store
 import (
 	"encoding/json"
 	"time"
+
+	"prompt-manager/teamconfig"
 )
 
 // Skill represents a skill entity from skill.json
@@ -84,15 +86,17 @@ type AgentRuntime struct {
 // Team represents a team entity from team.json
 type Team struct {
 	BaseEntity
-	ID           string           `json:"id"`
-	DisplayName  string           `json:"displayName"`
-	Mission      string           `json:"mission,omitempty"`
-	Enabled      bool             `json:"enabled"`
-	EnabledSet   bool             `json:"-"`
-	SpawnMode    string           `json:"spawnMode,omitempty"`    // "multi-process" or "single-process"
-	DecisionMode string           `json:"decisionMode,omitempty"` // "yolo" (default) or "approval"
-	Shared       *TeamShared      `json:"shared,omitempty"`
-	Retention    *RetentionConfig `json:"retention,omitempty"`
+	ID           string                  `json:"id"`
+	DisplayName  string                  `json:"displayName"`
+	Mission      string                  `json:"mission,omitempty"`
+	Enabled      bool                    `json:"enabled"`
+	EnabledSet   bool                    `json:"-"`
+	Runtime      teamconfig.Runtime      `json:"runtime"`
+	Coordination teamconfig.Coordination `json:"coordination"`
+	Execution    teamconfig.Execution    `json:"execution"`
+	DecisionMode string                  `json:"decisionMode,omitempty"` // "yolo" or "approval"
+	Shared       *TeamShared             `json:"shared,omitempty"`
+	Retention    *RetentionConfig        `json:"retention,omitempty"`
 	Timestamps
 }
 
@@ -147,6 +151,18 @@ func (t *Team) EffectiveRetention() RetentionConfig {
 		r.Knowledge = d.Knowledge
 	}
 	return r
+}
+
+func (t *Team) Contract() teamconfig.Contract {
+	if t == nil {
+		return teamconfig.Contract{}
+	}
+	return teamconfig.Contract{
+		Runtime:      t.Runtime,
+		Coordination: t.Coordination,
+		Execution:    t.Execution,
+		DecisionMode: t.DecisionMode,
+	}
 }
 
 // TeamRoles represents role definitions for a team

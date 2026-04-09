@@ -2,7 +2,7 @@
  * TeamDashboardTab - Consolidated team dashboard with identity, schedule, and activity.
  *
  * Three-section layout:
- * 1. "What" - Team Identity (mission, member roster, spawn mode)
+ * 1. "What" - Team Identity (mission, member roster, runtime + coordination policy)
  * 2. "When" - Schedule (next up, upcoming heartbeats)
  * 3. "What happened" - Activity Feed (stats, filterable log entries)
  *
@@ -11,7 +11,19 @@
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { Clock, Cpu, Target, ExternalLink, ChevronDown } from 'lucide-react'
-import type { TeamDetails, TeamRole, UpdateTeamRequest } from '@/types/team'
+import type {
+  TeamDetails,
+  TeamRole,
+  UpdateTeamRequest,
+  Coordination,
+  CoordinationCapabilities,
+  CoordinationPattern,
+  Execution,
+  MessagingMode,
+  QueuePolicy,
+  ReportingMode,
+  RuntimeMode,
+} from '@/types/team'
 import type { Agent } from '@/types/agent'
 import { cn } from '@/lib/utils'
 import { selectors } from '@/constants/selectors'
@@ -22,6 +34,13 @@ import { AgentColorBadge } from '@/components/shared/AgentColorBadge'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { formatRelativeTime, formatRelativePastTime, formatDate, formatDuration } from '@/lib/timeUtils'
 import { formatScheduleSummary } from '@/lib/scheduleUtils'
+import {
+  buildBoundedParallelExecution,
+  buildIndependentCoordination,
+  buildLeaderLedCoordination,
+  buildPeerCoordination,
+  buildSerializedExecution,
+} from '@/lib/schemas'
 
 interface TeamDashboardTabProps {
   team: TeamDetails
@@ -81,6 +100,198 @@ export function TeamDashboardTab({
     },
     [onUpdate],
   )
+
+  const resolvedLeadAgentId = useMemo(() => {
+    return team.coordination.leadAgentId || team.members[0]?.agentId || ''
+  }, [team.coordination.leadAgentId, team.members])
+
+  const buildCoordinationPreset = useCallback(
+    (pattern: CoordinationPattern, runtimeMode: RuntimeMode): Coordination => {
+      if (pattern === 'leader-led') {
+        return buildLeaderLedCoordination(resolvedLeadAgentId, runtimeMode)
+      }
+      if (pattern === 'peer') {
+        return buildPeerCoordination()
+      }
+      return buildIndependentCoordination()
+    },
+    [resolvedLeadAgentId],
+  )
+
+  const handleRuntimeModeChange = useCallback(
+    (mode: RuntimeMode) => {
+      if (mode === team.runtime.mode) return
+
+      if (mode === 'single-process') {
+        if (!resolvedLeadAgentId) return
+        void onUpdate({
+          runtime: { mode },
+          coordination: buildLeaderLedCoordination(resolvedLeadAgentId, 'single-process'),
+          execution: buildSerializedExecution(),
+        })
+        return
+      }
+
+      const nextPattern = team.coordination.pattern
+      const nextCoordination = buildCoordinationPreset(nextPattern, 'multi-process')
+      const nextExecution =
+        team.execution.queuePolicy === 'serialized'
+          ? buildBoundedParallelExecution(Math.max(2, team.execution.maxConcurrentRuns))
+          : team.execution
+
+      void onUpdate({
+        runtime: { mode },
+        coordination: nextCoordination,
+        execution: nextExecution,
+      })
+    },
+    [buildCoordinationPreset, onUpdate, resolvedLeadAgentId, team.coordination.pattern, team.execution, team.runtime.mode],
+  )
+
+  const handleCoordinationPatternChange = useCallback(
+    (pattern: CoordinationPattern) => {
+      if (pattern === team.coordination.pattern) return
+      if (team.runtime.mode === 'single-process' && pattern !== 'leader-led') return
+
+      if (pattern === 'leader-led' && !resolvedLeadAgentId) return
+
+      const nextCoordination =
+        pattern === 'leader-led'
+          ? buildLeaderLedCoordination(resolvedLeadAgentId, team.runtime.mode)
+          : buildCoordinationPreset(pattern, team.runtime.mode)
+
+      const nextExecution =
+        team.runtime.mode === 'single-process'
+          ? buildSerializedExecution()
+          : team.execution
+
+      void onUpdate({
+        coordination: nextCoordination,
+        execution: nextExecution,
+      })
+    },
+    [buildCoordinationPreset, onUpdate, resolvedLeadAgentId, team.coordination.pattern, team.execution, team.runtime.mode],
+  )
+
+  const handleLeadAgentChange = useCallback(
+    (leadAgentId: string) => {
+      if (!leadAgentId) return
+      void onUpdate({
+        coordination: {
+          ...team.coordination,
+          leadAgentId,
+        },
+      })
+    },
+    [onUpdate, team.coordination],
+  )
+
+  const handleReportingModeChange = useCallback(
+    (reportingMode: ReportingMode) => {
+      void onUpdate({
+        coordination: {
+          ...team.coordination,
+          reportingMode,
+        },
+      })
+    },
+    [onUpdate, team.coordination],
+  )
+
+  const handleMessagingModeChange = useCallback(
+    (messagingMode: MessagingMode) => {
+      const nextCapabilities: CoordinationCapabilities = {
+        ...team.coordination.capabilities,
+      }
+      if (messagingMode !== 'async-inbox') {
+        nextCapabilities.injectInbox = false
+      }
+
+      void onUpdate({
+        coordination: {
+          ...team.coordination,
+          messagingMode,
+          capabilities: nextCapabilities,
+        },
+      })
+    },
+    [onUpdate, team.coordination],
+  )
+
+  const handleCapabilityToggle = useCallback(
+    (key: keyof CoordinationCapabilities, checked: boolean) => {
+      const nextCapabilities: CoordinationCapabilities = {
+        ...team.coordination.capabilities,
+        [key]: checked,
+      }
+      if (key === 'injectInbox' && checked) {
+        nextCapabilities.injectInbox = true
+      }
+      if (key === 'allowPeerTriggers' && checked && team.runtime.mode !== 'multi-process') {
+        return
+      }
+      if (key === 'injectInbox' && checked && team.coordination.messagingMode !== 'async-inbox') {
+        return
+      }
+      void onUpdate({
+        coordination: {
+          ...team.coordination,
+          capabilities: nextCapabilities,
+        },
+      })
+    },
+    [onUpdate, team.coordination, team.runtime.mode],
+  )
+
+  const handleQueuePolicyChange = useCallback(
+    (queuePolicy: QueuePolicy) => {
+      if (team.runtime.mode === 'single-process') return
+
+      const nextExecution: Execution =
+        queuePolicy === 'serialized'
+          ? buildSerializedExecution()
+          : buildBoundedParallelExecution(Math.max(2, team.execution.maxConcurrentRuns))
+
+      void onUpdate({ execution: nextExecution })
+    },
+    [onUpdate, team.execution.maxConcurrentRuns, team.runtime.mode],
+  )
+
+  const handleMaxConcurrentRunsChange = useCallback(
+    (value: string) => {
+      const parsed = Number.parseInt(value, 10)
+      if (!Number.isFinite(parsed) || parsed < 2 || team.execution.queuePolicy !== 'bounded-parallel') {
+        return
+      }
+      void onUpdate({
+        execution: {
+          queuePolicy: 'bounded-parallel',
+          maxConcurrentRuns: parsed,
+        },
+      })
+    },
+    [onUpdate, team.execution.queuePolicy],
+  )
+
+  const runtimeSummary =
+    team.runtime.mode === 'single-process'
+      ? 'One leader session coordinates the team through Claude Code interop.'
+      : 'Each team member runs in its own process with an explicit queue policy.'
+
+  const coordinationSummary = (() => {
+    if (team.coordination.pattern === 'leader-led') {
+      return `Leader-led coordination with ${team.coordination.messagingMode} messaging and ${team.coordination.reportingMode} reporting.`
+    }
+    if (team.coordination.pattern === 'peer') {
+      return `Peer coordination with ${team.coordination.messagingMode} messaging and ${team.coordination.reportingMode} reporting.`
+    }
+    return 'Independent specialists operate without a coordinator by default.'
+  })()
+
+  const executionSummary =
+    team.execution.queuePolicy === 'serialized'
+      ? 'Serialized execution keeps one active heartbeat run at a time.'
+      : `Bounded parallel execution allows up to ${team.execution.maxConcurrentRuns} concurrent runs.`
 
   // --- Upcoming heartbeats ---
   const upcomingHeartbeats = useMemo(() => {
@@ -353,23 +564,25 @@ export function TeamDashboardTab({
         )}
       </section>
 
-      {/* Spawn Mode */}
-      <section data-testid={selectors.teamEditor.spawnMode}>
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Execution Mode</h3>
+      <section data-testid={selectors.teamEditor.runtimeMode}>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Runtime</h3>
         <div className="space-y-3">
           <div className="flex gap-2">
             {(['multi-process', 'single-process'] as const).map((mode) => {
-              const selected = team.spawnMode === mode
+              const selected = team.runtime.mode === mode
+              const disabled = mode === 'single-process' && team.members.length === 0
               return (
                 <button
                   key={mode}
                   type="button"
-                  onClick={() => void onUpdate({ spawnMode: mode })}
+                  disabled={disabled}
+                  onClick={() => handleRuntimeModeChange(mode)}
                   className={cn(
                     'flex-1 px-3 py-2 text-xs font-medium rounded-lg border transition-colors',
                     selected
                       ? 'bg-primary/15 border-primary/40 text-primary'
                       : 'bg-muted border-border text-muted-foreground hover:text-foreground hover:border-foreground/20',
+                    disabled && 'cursor-not-allowed opacity-50',
                   )}
                 >
                   <Cpu className="h-3.5 w-3.5 mx-auto mb-1" />
@@ -378,11 +591,186 @@ export function TeamDashboardTab({
               )
             })}
           </div>
-          <p className="text-xs text-muted-foreground">
-            {team.spawnMode === 'multi-process'
-              ? 'Each member runs as an independent agent process with its own heartbeat.'
-              : 'One team lead agent coordinates all members via Claude Code Teams.'}
-          </p>
+          <p className="text-xs text-muted-foreground">{runtimeSummary}</p>
+          {team.runtime.mode === 'single-process' && team.members.length === 0 && (
+            <p className="text-xs text-amber-600">Add at least one member before enabling single-process runtime.</p>
+          )}
+        </div>
+      </section>
+
+      <section data-testid={selectors.teamEditor.coordinationPattern}>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Coordination</h3>
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            {(['independent', 'peer', 'leader-led'] as const).map((pattern) => {
+              const selected = team.coordination.pattern === pattern
+              const disabled =
+                (pattern === 'leader-led' && team.members.length === 0) ||
+                (team.runtime.mode === 'single-process' && pattern !== 'leader-led')
+              return (
+                <button
+                  key={pattern}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => handleCoordinationPatternChange(pattern)}
+                  className={cn(
+                    'flex-1 px-3 py-2 text-xs font-medium rounded-lg border transition-colors',
+                    selected
+                      ? 'bg-primary/15 border-primary/40 text-primary'
+                      : 'bg-muted border-border text-muted-foreground hover:text-foreground hover:border-foreground/20',
+                    disabled && 'cursor-not-allowed opacity-50',
+                  )}
+                >
+                  {pattern === 'leader-led' ? 'Leader-Led' : pattern === 'peer' ? 'Peer' : 'Independent'}
+                </button>
+              )
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground">{coordinationSummary}</p>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            {team.coordination.pattern === 'leader-led' && (
+              <label className="space-y-1 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">Lead Agent</span>
+                <select
+                  aria-label="Lead Agent"
+                  value={team.coordination.leadAgentId ?? ''}
+                  onChange={(event) => handleLeadAgentChange(event.target.value)}
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
+                >
+                  <option value="" disabled>
+                    Select lead
+                  </option>
+                  {team.members.map((member) => (
+                    <option key={member.agentId} value={member.agentId}>
+                      {member.displayName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+            <label className="space-y-1 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">Reporting Mode</span>
+              <select
+                aria-label="Reporting Mode"
+                value={team.coordination.reportingMode}
+                onChange={(event) => handleReportingModeChange(event.target.value as ReportingMode)}
+                disabled={team.coordination.pattern === 'independent'}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {(['none', 'org-chart', 'leader'] as const).map((mode) => (
+                  <option
+                    key={mode}
+                    value={mode}
+                    disabled={
+                      (team.coordination.pattern === 'independent' && mode !== 'none') ||
+                      (team.coordination.pattern === 'peer' && mode === 'leader') ||
+                      (team.coordination.pattern !== 'leader-led' && mode === 'leader')
+                    }
+                  >
+                    {mode}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="space-y-1 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">Messaging Mode</span>
+              <select
+                aria-label="Messaging Mode"
+                value={team.coordination.messagingMode}
+                onChange={(event) => handleMessagingModeChange(event.target.value as MessagingMode)}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
+              >
+                {(['disabled', 'async-inbox', 'in-session'] as const).map((mode) => (
+                  <option
+                    key={mode}
+                    value={mode}
+                    disabled={
+                      (mode === 'in-session' && team.runtime.mode !== 'single-process') ||
+                      (team.runtime.mode === 'single-process' && mode !== 'in-session')
+                    }
+                  >
+                    {mode}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="grid gap-2 md:grid-cols-2">
+            {(
+              [
+                ['showOrgContext', 'Show org context'],
+                ['injectInbox', 'Inject inbox into prompt'],
+                ['allowPeerTriggers', 'Allow peer triggers'],
+                ['showTaskBoardGuidance', 'Show task board guidance'],
+                ['showDecisionLogGuidance', 'Show decision log guidance'],
+                ['showKnowledgeLogGuidance', 'Show knowledge log guidance'],
+                ['requireHandoff', 'Require handoff'],
+              ] as const
+            ).map(([key, label]) => {
+              const disabled =
+                (key === 'injectInbox' && team.coordination.messagingMode !== 'async-inbox') ||
+                (key === 'allowPeerTriggers' && team.runtime.mode !== 'multi-process')
+              return (
+                <label key={key} className={cn('flex items-center gap-2 text-xs', disabled && 'opacity-50')}>
+                  <input
+                    type="checkbox"
+                    checked={team.coordination.capabilities[key]}
+                    disabled={disabled}
+                    onChange={(event) => handleCapabilityToggle(key, event.target.checked)}
+                    className="h-4 w-4 rounded border-border"
+                  />
+                  <span>{label}</span>
+                </label>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section data-testid={selectors.teamEditor.executionPolicy}>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Execution</h3>
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            {(['serialized', 'bounded-parallel'] as const).map((policy) => {
+              const selected = team.execution.queuePolicy === policy
+              const disabled = team.runtime.mode === 'single-process'
+              return (
+                <button
+                  key={policy}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => handleQueuePolicyChange(policy)}
+                  className={cn(
+                    'flex-1 px-3 py-2 text-xs font-medium rounded-lg border transition-colors',
+                    selected
+                      ? 'bg-primary/15 border-primary/40 text-primary'
+                      : 'bg-muted border-border text-muted-foreground hover:text-foreground hover:border-foreground/20',
+                    disabled && 'cursor-not-allowed opacity-50',
+                  )}
+                >
+                  {policy === 'serialized' ? 'Serialized' : 'Bounded Parallel'}
+                </button>
+              )
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground">{executionSummary}</p>
+
+          <label className="space-y-1 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">Max Concurrent Runs</span>
+            <input
+              aria-label="Max Concurrent Runs"
+              type="number"
+              min={team.execution.queuePolicy === 'serialized' ? 1 : 2}
+              value={team.execution.maxConcurrentRuns}
+              disabled={team.execution.queuePolicy !== 'bounded-parallel' || team.runtime.mode === 'single-process'}
+              onChange={(event) => handleMaxConcurrentRunsChange(event.target.value)}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            />
+          </label>
         </div>
       </section>
 

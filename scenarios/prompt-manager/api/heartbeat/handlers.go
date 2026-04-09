@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"prompt-manager/store"
+	"prompt-manager/teamconfig"
 
 	"github.com/gorilla/mux"
 )
@@ -70,6 +71,41 @@ func (h *Handlers) requireMember(ctx context.Context, teamID, agentID string) er
 		return err
 	}
 	return nil
+}
+
+func (h *Handlers) requireActiveLeadHeartbeatConfig(ctx context.Context, team *store.Team) (*store.HeartbeatConfig, error) {
+	if team == nil {
+		return nil, fmt.Errorf("team not found")
+	}
+	if h.relationStore == nil {
+		return nil, fmt.Errorf("relation store not configured")
+	}
+
+	leadAgentID := strings.TrimSpace(team.Coordination.LeadAgentID)
+	if leadAgentID == "" {
+		return nil, fmt.Errorf("coordination.leadAgentId is required for leader-led single-process teams")
+	}
+
+	membership, err := h.relationStore.GetTeamMember(ctx, team.ID, leadAgentID)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) || strings.Contains(strings.ToLower(err.Error()), "not found") {
+			return nil, fmt.Errorf("coordination.leadAgentId %q must reference an active team member", leadAgentID)
+		}
+		return nil, fmt.Errorf("validating coordination.leadAgentId %q: %w", leadAgentID, err)
+	}
+	if membership.Status != store.MemberStatusActive {
+		return nil, fmt.Errorf("coordination.leadAgentId %q must reference an active team member", leadAgentID)
+	}
+
+	config, err := h.teamStore.GetHeartbeatConfig(ctx, team.ID, leadAgentID)
+	if err != nil {
+		return nil, fmt.Errorf("validating lead heartbeat config: %w", err)
+	}
+	if config == nil {
+		return nil, fmt.Errorf("leader-led single-process teams require a heartbeat config for lead agent %q", leadAgentID)
+	}
+
+	return config, nil
 }
 
 // ListHeartbeats handles GET /teams/{id}/heartbeats - lists all heartbeat configs for a team
@@ -308,10 +344,10 @@ func (h *Handlers) CreateHeartbeat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate profile key compatibility with spawn mode for known defaults.
+	// Validate profile key compatibility with runtime mode for known defaults.
 	if req.ProfileKey != "" {
-		if req.ProfileKey == DefaultProfileKeyCodex && team.SpawnMode == "single-process" {
-			http.Error(w, "profile key "+req.ProfileKey+" uses Codex runner which is incompatible with single-process spawn mode; use "+DefaultProfileKeyClaudeCode+" or a Claude Code profile", http.StatusBadRequest)
+		if req.ProfileKey == DefaultProfileKeyCodex && team.Runtime.Mode == teamconfig.RuntimeModeSingleProcess {
+			http.Error(w, "profile key "+req.ProfileKey+" uses Codex runner which is incompatible with single-process runtime mode; use "+DefaultProfileKeyClaudeCode+" or a Claude Code profile", http.StatusBadRequest)
 			return
 		}
 	}
@@ -433,10 +469,10 @@ func (h *Handlers) UpdateHeartbeat(w http.ResponseWriter, r *http.Request) {
 		config.Enabled = *req.Enabled
 	}
 
-	// Validate profile key compatibility with spawn mode for known defaults.
+	// Validate profile key compatibility with runtime mode for known defaults.
 	if req.ProfileKey != nil && *req.ProfileKey != "" {
-		if *req.ProfileKey == DefaultProfileKeyCodex && team.SpawnMode == "single-process" {
-			http.Error(w, "profile key "+*req.ProfileKey+" uses Codex runner which is incompatible with single-process spawn mode; use "+DefaultProfileKeyClaudeCode+" or a Claude Code profile", http.StatusBadRequest)
+		if *req.ProfileKey == DefaultProfileKeyCodex && team.Runtime.Mode == teamconfig.RuntimeModeSingleProcess {
+			http.Error(w, "profile key "+*req.ProfileKey+" uses Codex runner which is incompatible with single-process runtime mode; use "+DefaultProfileKeyClaudeCode+" or a Claude Code profile", http.StatusBadRequest)
 			return
 		}
 	}
@@ -540,11 +576,11 @@ func (h *Handlers) triggerHeartbeatMember(ctx context.Context, teamID, agentID s
 		return nil, http.StatusInternalServerError, err
 	}
 
-	// Route through team execution store for serialized execution
+	// Route through the team execution store so the configured queue policy is enforced.
 	if h.teamExecStore != nil {
-		// Resolve profile key from heartbeat config; fall back to
-		// spawn-mode-aware default when not explicitly set.
-		profileKey := DefaultProfileKeyForSpawnMode(team.SpawnMode)
+		// Resolve profile key from heartbeat config; fall back to the
+		// runtime-mode default when not explicitly set.
+		profileKey := DefaultProfileKeyForRuntimeMode(team.Runtime.Mode)
 		config, err := h.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
 		if err == nil && config != nil && config.ProfileKey != "" {
 			profileKey = config.ProfileKey
@@ -1157,7 +1193,7 @@ func (h *Handlers) StopRunning(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// TriggerTeam handles POST /teams/{id}/trigger - triggers all or lead heartbeat based on spawnMode.
+// TriggerTeam handles POST /teams/{id}/trigger - triggers the team according to its runtime and coordination policy.
 func (h *Handlers) TriggerTeam(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
@@ -1179,19 +1215,23 @@ func (h *Handlers) TriggerTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if team.SpawnMode == "single-process" {
-		// Find team lead from org chart (agent with no manager)
-		leadAgentID := h.findTeamLead(ctx, teamID)
-		if leadAgentID == "" {
-			http.Error(w, "no team lead found in org chart", http.StatusBadRequest)
+	contract := team.Contract()
+	if teamconfig.TeamTriggerTargetsLead(contract) {
+		leadAgentID := team.Coordination.LeadAgentID
+		config, cfgErr := h.requireActiveLeadHeartbeatConfig(ctx, team)
+		if cfgErr != nil {
+			status := http.StatusBadRequest
+			if strings.Contains(strings.ToLower(cfgErr.Error()), "not configured") {
+				status = http.StatusServiceUnavailable
+			}
+			http.Error(w, cfgErr.Error(), status)
 			return
 		}
 
 		// Route through team execution store if available
 		if h.teamExecStore != nil {
-			profileKey := DefaultProfileKeyForSpawnMode(team.SpawnMode)
-			config, cfgErr := h.teamStore.GetHeartbeatConfig(ctx, teamID, leadAgentID)
-			if cfgErr == nil && config != nil && config.ProfileKey != "" {
+			profileKey := DefaultProfileKeyForRuntimeMode(team.Runtime.Mode)
+			if config.ProfileKey != "" {
 				profileKey = config.ProfileKey
 			}
 
@@ -1208,9 +1248,11 @@ func (h *Handlers) TriggerTeam(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusAccepted)
 			_ = json.NewEncoder(w).Encode(TriggerTeamResponse{
-				TeamID:    teamID,
-				SpawnMode: "single-process",
-				Triggers:  []TriggerHeartbeatResponse{{TeamID: teamID, AgentID: leadAgentID, Status: enqueueResult.Status}},
+				TeamID:              teamID,
+				RuntimeMode:         team.Runtime.Mode,
+				CoordinationPattern: team.Coordination.Pattern,
+				QueuePolicy:         team.Execution.QueuePolicy,
+				Triggers:            []TriggerHeartbeatResponse{{TeamID: teamID, AgentID: leadAgentID, Status: enqueueResult.Status}},
 			})
 			return
 		}
@@ -1224,14 +1266,16 @@ func (h *Handlers) TriggerTeam(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusAccepted)
 		_ = json.NewEncoder(w).Encode(TriggerTeamResponse{
-			TeamID:    teamID,
-			SpawnMode: "single-process",
-			Triggers:  []TriggerHeartbeatResponse{{TeamID: result.TeamID, AgentID: result.AgentID, RunID: result.RunID, Status: result.Status, LogPath: result.LogPath}},
+			TeamID:              teamID,
+			RuntimeMode:         team.Runtime.Mode,
+			CoordinationPattern: team.Coordination.Pattern,
+			QueuePolicy:         team.Execution.QueuePolicy,
+			Triggers:            []TriggerHeartbeatResponse{{TeamID: result.TeamID, AgentID: result.AgentID, RunID: result.RunID, Status: result.Status, LogPath: result.LogPath}},
 		})
 		return
 	}
 
-	// multi-process (default): trigger all member heartbeats
+	// Multi-process teams trigger all member heartbeats with configs.
 	members, err := h.relationStore.ListTeamMembers(ctx, teamID)
 	if err != nil {
 		http.Error(w, "failed to list team members", http.StatusInternalServerError)
@@ -1248,7 +1292,7 @@ func (h *Handlers) TriggerTeam(w http.ResponseWriter, r *http.Request) {
 
 		// Route through team execution store if available
 		if h.teamExecStore != nil {
-			profileKey := DefaultProfileKeyForSpawnMode(team.SpawnMode)
+			profileKey := DefaultProfileKeyForRuntimeMode(team.Runtime.Mode)
 			if config.ProfileKey != "" {
 				profileKey = config.ProfileKey
 			}
@@ -1287,9 +1331,11 @@ func (h *Handlers) TriggerTeam(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
 	_ = json.NewEncoder(w).Encode(TriggerTeamResponse{
-		TeamID:    teamID,
-		SpawnMode: "multi-process",
-		Triggers:  triggers,
+		TeamID:              teamID,
+		RuntimeMode:         team.Runtime.Mode,
+		CoordinationPattern: team.Coordination.Pattern,
+		QueuePolicy:         team.Execution.QueuePolicy,
+		Triggers:            triggers,
 	})
 }
 
@@ -1589,8 +1635,8 @@ func (h *Handlers) GetTeamExecutionStatus(w http.ResponseWriter, r *http.Request
 	vars := mux.Vars(r)
 	teamID := vars["id"]
 
-	// Verify team exists
-	if _, err := h.teamStore.Get(ctx, teamID); err != nil {
+	team, err := h.teamStore.Get(ctx, teamID)
+	if err != nil {
 		http.Error(w, "Team not found", http.StatusNotFound)
 		return
 	}
@@ -1598,9 +1644,12 @@ func (h *Handlers) GetTeamExecutionStatus(w http.ResponseWriter, r *http.Request
 	if h.teamExecStore == nil {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(TeamExecutionStatus{
-			TeamID: teamID,
-			State:  "idle",
-			Queue:  []string{},
+			TeamID:            teamID,
+			State:             "idle",
+			RunningAgentIDs:   []string{},
+			Queue:             []string{},
+			QueuePolicy:       team.Execution.QueuePolicy,
+			MaxConcurrentRuns: team.Execution.MaxConcurrentRuns,
 		})
 		return
 	}
@@ -1651,36 +1700,6 @@ func (h *Handlers) GetMemberContext(w http.ResponseWriter, r *http.Request) {
 		AgentID: agentID,
 		Prompt:  prompt,
 	})
-}
-
-// findTeamLead returns the agent ID of the team lead (agent with no manager in org chart).
-// Falls back to the first member if no org chart is defined.
-func (h *Handlers) findTeamLead(ctx context.Context, teamID string) string {
-	org, err := h.teamStore.GetOrgChart(ctx, teamID)
-	if err == nil && len(org.Edges) > 0 {
-		// Collect all agents that are reports (have a manager)
-		reports := make(map[string]bool, len(org.Edges))
-		managers := make(map[string]bool, len(org.Edges))
-		for _, edge := range org.Edges {
-			reports[edge.ReportAgentID] = true
-			managers[edge.ManagerAgentID] = true
-		}
-		// Find a manager who is not a report to anyone
-		for managerID := range managers {
-			if !reports[managerID] {
-				return managerID
-			}
-		}
-	}
-
-	// Fallback: first member
-	if h.relationStore != nil {
-		members, err := h.relationStore.ListTeamMembers(ctx, teamID)
-		if err == nil && len(members) > 0 {
-			return members[0].AgentID
-		}
-	}
-	return ""
 }
 
 // formatDuration returns a human-readable duration string.

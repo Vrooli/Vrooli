@@ -4,23 +4,23 @@ import (
 	"fmt"
 	"testing"
 
-	"prompt-manager/store"
+	"prompt-manager/teamconfig"
 )
 
-func TestDefaultProfileKeyForSpawnMode(t *testing.T) {
+func TestDefaultProfileKeyForRuntimeMode(t *testing.T) {
 	tests := []struct {
-		spawnMode string
-		want      string
+		runtimeMode string
+		want        string
 	}{
-		{"single-process", DefaultProfileKeyClaudeCode},
-		{"multi-process", DefaultProfileKeyCodex},
+		{teamconfig.RuntimeModeSingleProcess, DefaultProfileKeyClaudeCode},
+		{teamconfig.RuntimeModeMultiProcess, DefaultProfileKeyCodex},
 		{"", DefaultProfileKeyCodex},
 	}
 	for _, tt := range tests {
-		t.Run(fmt.Sprintf("spawnMode=%q", tt.spawnMode), func(t *testing.T) {
-			got := DefaultProfileKeyForSpawnMode(tt.spawnMode)
+		t.Run(fmt.Sprintf("runtimeMode=%q", tt.runtimeMode), func(t *testing.T) {
+			got := DefaultProfileKeyForRuntimeMode(tt.runtimeMode)
 			if got != tt.want {
-				t.Errorf("DefaultProfileKeyForSpawnMode(%q) = %q, want %q", tt.spawnMode, got, tt.want)
+				t.Errorf("DefaultProfileKeyForRuntimeMode(%q) = %q, want %q", tt.runtimeMode, got, tt.want)
 			}
 		})
 	}
@@ -28,20 +28,21 @@ func TestDefaultProfileKeyForSpawnMode(t *testing.T) {
 
 func TestValidateProfileCompatibility(t *testing.T) {
 	tests := []struct {
-		name      string
-		spawnMode string
-		runner    string
-		wantErr   bool
+		name        string
+		runtimeMode string
+		runner      string
+		wantErr     bool
 	}{
-		{"single-process with claude-code", "single-process", "RUNNER_TYPE_CLAUDE_CODE", false},
-		{"single-process with codex", "single-process", "RUNNER_TYPE_CODEX", true},
-		{"multi-process with codex", "multi-process", "RUNNER_TYPE_CODEX", false},
-		{"multi-process with claude-code", "multi-process", "RUNNER_TYPE_CLAUDE_CODE", false},
-		{"empty spawn mode with codex", "", "RUNNER_TYPE_CODEX", false},
+		{"single-process with claude-code", teamconfig.RuntimeModeSingleProcess, "RUNNER_TYPE_CLAUDE_CODE", false},
+		{"single-process with codex", teamconfig.RuntimeModeSingleProcess, "RUNNER_TYPE_CODEX", true},
+		{"multi-process with codex", teamconfig.RuntimeModeMultiProcess, "RUNNER_TYPE_CODEX", false},
+		{"multi-process with claude-code", teamconfig.RuntimeModeMultiProcess, "RUNNER_TYPE_CLAUDE_CODE", false},
+		{"empty runtime mode with codex", "", "RUNNER_TYPE_CODEX", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			team := &store.Team{ID: "test-team", SpawnMode: tt.spawnMode}
+			team := newIndependentTestTeam("test-team", "Test Team")
+			team.Runtime.Mode = tt.runtimeMode
 			profile := &AgentProfile{ProfileKey: "test-key", RunnerType: tt.runner}
 			err := validateProfileCompatibility(team, profile)
 			if (err != nil) != tt.wantErr {
@@ -56,10 +57,10 @@ func TestValidateProfileCompatibility(t *testing.T) {
 
 func TestIsProfileMismatch(t *testing.T) {
 	err := &ProfileMismatchError{
-		TeamID:     "t1",
-		SpawnMode:  "single-process",
-		ProfileKey: "k1",
-		RunnerType: "RUNNER_TYPE_CODEX",
+		TeamID:      "t1",
+		RuntimeMode: teamconfig.RuntimeModeSingleProcess,
+		ProfileKey:  "k1",
+		RunnerType:  "RUNNER_TYPE_CODEX",
 	}
 	if !IsProfileMismatch(err) {
 		t.Error("expected IsProfileMismatch to return true for ProfileMismatchError")

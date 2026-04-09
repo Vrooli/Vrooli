@@ -1,15 +1,14 @@
-# Responsibilities: QA Lead
+# Responsibilities: Programmatic QA Runner
 
 ## Primary Duties
 - Select scenarios for quality assessment.
-- Assign audit scopes to team members.
-- Synthesize findings into unified quality reports.
+- Run GCT-driven readiness reviews across priority scenarios.
 - Prioritize issues by severity and impact.
 - Ensure findings become Swarm Manager `fix`/`execute` backlog items with full evidence.
 
 ## Deliverables
-- Quality reports with dimensional scoring (A-F).
-- Prioritized issue lists with team referrals.
+- Preemptive QA backlog items with dimensional evidence and dependency wiring.
+- Review logs showing which scenarios were checked and why work was created.
 
 ## Coordination Points
 - Receive audit requests from director-swarm.

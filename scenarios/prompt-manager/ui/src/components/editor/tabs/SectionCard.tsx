@@ -23,7 +23,7 @@ import { MarkdownRenderer } from '@/components/markdown/MarkdownRenderer'
 // Constants
 // ---------------------------------------------------------------------------
 
-export const KIND_META: Record<
+const KIND_META: Record<
   string,
   { icon: typeof FileText; color: string; badgeLabel: string }
 > = {
@@ -32,12 +32,17 @@ export const KIND_META: Record<
     color: 'bg-blue-500/15 text-blue-400 border-blue-500/25',
     badgeLabel: 'Agent file',
   },
+  'team-shared-charter': {
+    icon: FileText,
+    color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
+    badgeLabel: 'Team',
+  },
   'team-responsibilities': {
     icon: Users,
     color: 'bg-green-500/15 text-green-400 border-green-500/25',
     badgeLabel: 'Team',
   },
-  'team-relationships': {
+  'team-org-context': {
     icon: GitBranch,
     color: 'bg-purple-500/15 text-purple-400 border-purple-500/25',
     badgeLabel: 'Team',
@@ -52,6 +57,16 @@ export const KIND_META: Record<
     color: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/25',
     badgeLabel: 'Team',
   },
+  'team-durable-state': {
+    icon: Network,
+    color: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/25',
+    badgeLabel: 'Team',
+  },
+  'last-handoff': {
+    icon: GitBranch,
+    color: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/25',
+    badgeLabel: 'History',
+  },
   'heartbeat-task': {
     icon: Heart,
     color: 'bg-red-500/15 text-red-400 border-red-500/25',
@@ -59,7 +74,7 @@ export const KIND_META: Record<
   },
 }
 
-export const FALLBACK_META: { icon: typeof FileText; color: string; badgeLabel: string } = {
+const FALLBACK_META: { icon: typeof FileText; color: string; badgeLabel: string } = {
   icon: FileText,
   color: 'bg-blue-500/15 text-blue-400 border-blue-500/25',
   badgeLabel: 'Agent file',

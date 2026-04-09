@@ -5,6 +5,7 @@
   "description": "Modern React/TypeScript UI for Prompt Manager with stunning visuals",
   "private": true,
   "scripts": {
+    "generate:selectors": "node ./scripts/generate-selector-manifest.mjs",
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
@@ -15,6 +16,9 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
+    "prebuild": "pnpm generate:selectors",
+    "pretest": "pnpm generate:selectors",
+    "pretype-check": "pnpm generate:selectors",
     "serve": "node server-vite.js",
     "serve:dev": "vite",
     "serve:express": "node server-express.js"

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"prompt-manager/store"
+	"prompt-manager/teamconfig"
 )
 
 func TestPromptBuilderAgentOnly(t *testing.T) {
@@ -71,12 +72,12 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 		t.Fatalf("create notes file: %v", err)
 	}
 
-	team := &store.Team{
-		ID:          "team-1",
-		DisplayName: "Team One",
-		Enabled:     true,
-		EnabledSet:  true,
-	}
+	team := newIndependentTestTeam("team-1", "Team One")
+	team.Coordination.Pattern = teamconfig.CoordinationPatternPeer
+	team.Coordination.ReportingMode = teamconfig.ReportingModeOrgChart
+	team.Coordination.MessagingMode = teamconfig.MessagingModeAsyncInbox
+	team.Coordination.Capabilities.ShowOrgContext = true
+	team.Coordination.Capabilities.InjectInbox = true
 	if err := teamStore.Create(ctx, team); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
@@ -88,6 +89,14 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 	}
 	if err := teamStore.SetHeartbeatInstructions(ctx, team.ID, agent.ID, "Ship the update"); err != nil {
 		t.Fatalf("set heartbeat instructions: %v", err)
+	}
+	if err := teamStore.SetOrgChart(ctx, team.ID, &store.OrgChart{
+		TeamID: team.ID,
+		Edges: []store.OrgEdge{
+			{ManagerAgentID: "manager-1", ReportAgentID: agent.ID},
+		},
+	}); err != nil {
+		t.Fatalf("set org chart: %v", err)
 	}
 
 	inbox := &store.TeamInbox{
@@ -115,25 +124,26 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 	agentIndex := strings.Index(prompt, "# Agent Files (Markdown)")
 	teamDocIndex := strings.Index(prompt, "# Team Charter (shared/TEAM.md)")
 	respIndex := strings.Index(prompt, "# Team Responsibilities (RESPONSIBILITIES.md)")
-	relIndex := strings.Index(prompt, "# Team Relationships")
+	orgIndex := strings.Index(prompt, "# Team Org Context")
+	durableIndex := strings.Index(prompt, "# Durable State")
 	inboxIndex := strings.Index(prompt, "# Team Inbox")
 	taskIndex := strings.Index(prompt, "# Heartbeat Task (HEARTBEAT.md)")
 
-	if agentIndex == -1 || teamDocIndex == -1 || respIndex == -1 || relIndex == -1 || inboxIndex == -1 || taskIndex == -1 {
+	if agentIndex == -1 || teamDocIndex == -1 || respIndex == -1 || orgIndex == -1 || durableIndex == -1 || inboxIndex == -1 || taskIndex == -1 {
 		t.Fatalf("expected all heartbeat sections in prompt")
 	}
 
-	if !(agentIndex < teamDocIndex && teamDocIndex < respIndex && respIndex < relIndex && relIndex < inboxIndex && inboxIndex < taskIndex) {
+	if !(agentIndex < teamDocIndex && teamDocIndex < respIndex && respIndex < orgIndex && orgIndex < durableIndex && durableIndex < inboxIndex && inboxIndex < taskIndex) {
 		t.Fatalf("prompt sections are out of order")
 	}
 
-	// Verify coordination skill section is present between relationships and inbox
+	// Verify coordination skill section is present between org context and durable state
 	coordIndex := strings.Index(prompt, "# Team Coordination")
 	if coordIndex == -1 {
 		t.Fatalf("expected coordination skill section in prompt")
 	}
-	if !(relIndex < coordIndex && coordIndex < inboxIndex) {
-		t.Fatalf("coordination skill section should be between relationships and inbox")
+	if !(orgIndex < coordIndex && coordIndex < durableIndex) {
+		t.Fatalf("coordination skill section should be between org context and durable state")
 	}
 }
 
@@ -147,7 +157,7 @@ func TestBuildIncludesCoordinationSkillMultiProcess(t *testing.T) {
 	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent One", Status: store.AgentStatusActive}); err != nil {
 		t.Fatalf("create agent: %v", err)
 	}
-	if err := teamStore.Create(ctx, &store.Team{ID: "team-mp", DisplayName: "MP Team", Enabled: true, SpawnMode: "multi-process"}); err != nil {
+	if err := teamStore.Create(ctx, newIndependentTestTeam("team-mp", "MP Team")); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 	if err := teamStore.SetResponsibilities(ctx, "team-mp", "agent-1", "Do work"); err != nil {
@@ -160,8 +170,8 @@ func TestBuildIncludesCoordinationSkillMultiProcess(t *testing.T) {
 		t.Fatalf("build prompt: %v", err)
 	}
 
-	if !strings.Contains(prompt, "team-coordination-multi-process") {
-		t.Fatalf("expected multi-process coordination skill reference in prompt")
+	if !strings.Contains(prompt, "team-coordination-independent") {
+		t.Fatalf("expected independent coordination skill reference in prompt")
 	}
 }
 
@@ -175,7 +185,7 @@ func TestBuildIncludesCoordinationSkillSingleProcess(t *testing.T) {
 	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent One", Status: store.AgentStatusActive}); err != nil {
 		t.Fatalf("create agent: %v", err)
 	}
-	if err := teamStore.Create(ctx, &store.Team{ID: "team-sp", DisplayName: "SP Team", Enabled: true, SpawnMode: "single-process"}); err != nil {
+	if err := teamStore.Create(ctx, newLeaderLedSingleProcessTestTeam("team-sp", "SP Team", "agent-1")); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 	if err := teamStore.SetResponsibilities(ctx, "team-sp", "agent-1", "Do work"); err != nil {
@@ -188,8 +198,8 @@ func TestBuildIncludesCoordinationSkillSingleProcess(t *testing.T) {
 		t.Fatalf("build prompt: %v", err)
 	}
 
-	if !strings.Contains(prompt, "team-coordination-single-process") {
-		t.Fatalf("expected single-process coordination skill reference in prompt")
+	if !strings.Contains(prompt, "team-coordination-leader-led") {
+		t.Fatalf("expected leader-led coordination skill reference in prompt")
 	}
 }
 
@@ -201,13 +211,9 @@ func TestBuildTeamLeadPromptIncludesApprovalConstraints(t *testing.T) {
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	relationStore := fileStore.Relations()
 
-	if err := teamStore.Create(ctx, &store.Team{
-		ID:           "team-sp",
-		DisplayName:  "SP Team",
-		Enabled:      true,
-		SpawnMode:    "single-process",
-		DecisionMode: "approval",
-	}); err != nil {
+	team := newLeaderLedSingleProcessTestTeam("team-sp", "SP Team", "director")
+	team.DecisionMode = teamconfig.DecisionModeApproval
+	if err := teamStore.Create(ctx, team); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 
@@ -268,7 +274,7 @@ func TestBuildContextOmitsHeartbeatSection(t *testing.T) {
 	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent One", Status: store.AgentStatusActive}); err != nil {
 		t.Fatalf("create agent: %v", err)
 	}
-	if err := teamStore.Create(ctx, &store.Team{ID: "team-1", DisplayName: "Team", Enabled: true}); err != nil {
+	if err := teamStore.Create(ctx, newIndependentTestTeam("team-1", "Team")); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 	if err := teamStore.SetResponsibilities(ctx, "team-1", "agent-1", "Do work"); err != nil {
@@ -364,12 +370,12 @@ func TestBuildStructuredTeamContext(t *testing.T) {
 		t.Fatalf("create notes file: %v", err)
 	}
 
-	team := &store.Team{
-		ID:          "team-1",
-		DisplayName: "Team One",
-		Enabled:     true,
-		EnabledSet:  true,
-	}
+	team := newIndependentTestTeam("team-1", "Team One")
+	team.Coordination.Pattern = teamconfig.CoordinationPatternPeer
+	team.Coordination.ReportingMode = teamconfig.ReportingModeOrgChart
+	team.Coordination.MessagingMode = teamconfig.MessagingModeAsyncInbox
+	team.Coordination.Capabilities.ShowOrgContext = true
+	team.Coordination.Capabilities.InjectInbox = true
 	if err := teamStore.Create(ctx, team); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
@@ -378,6 +384,14 @@ func TestBuildStructuredTeamContext(t *testing.T) {
 	}
 	if err := teamStore.SetHeartbeatInstructions(ctx, team.ID, agent.ID, "Ship the update"); err != nil {
 		t.Fatalf("set heartbeat instructions: %v", err)
+	}
+	if err := teamStore.SetOrgChart(ctx, team.ID, &store.OrgChart{
+		TeamID: team.ID,
+		Edges: []store.OrgEdge{
+			{ManagerAgentID: "manager-1", ReportAgentID: agent.ID},
+		},
+	}); err != nil {
+		t.Fatalf("set org chart: %v", err)
 	}
 
 	inbox := &store.TeamInbox{
@@ -406,8 +420,9 @@ func TestBuildStructuredTeamContext(t *testing.T) {
 	expectedKinds := []string{
 		"agent-file",
 		"team-responsibilities",
-		"team-relationships",
+		"team-org-context",
 		"team-coordination",
+		"team-durable-state",
 		"team-inbox",
 		"heartbeat-task",
 	}
@@ -452,12 +467,12 @@ func TestBuildStructuredMatchesBuild(t *testing.T) {
 		t.Fatalf("create notes file: %v", err)
 	}
 
-	team := &store.Team{
-		ID:          "team-1",
-		DisplayName: "Team One",
-		Enabled:     true,
-		EnabledSet:  true,
-	}
+	team := newIndependentTestTeam("team-1", "Team One")
+	team.Coordination.Pattern = teamconfig.CoordinationPatternPeer
+	team.Coordination.ReportingMode = teamconfig.ReportingModeOrgChart
+	team.Coordination.MessagingMode = teamconfig.MessagingModeAsyncInbox
+	team.Coordination.Capabilities.ShowOrgContext = true
+	team.Coordination.Capabilities.InjectInbox = true
 	if err := teamStore.Create(ctx, team); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
@@ -466,6 +481,14 @@ func TestBuildStructuredMatchesBuild(t *testing.T) {
 	}
 	if err := teamStore.SetHeartbeatInstructions(ctx, team.ID, agent.ID, "Ship the update"); err != nil {
 		t.Fatalf("set heartbeat instructions: %v", err)
+	}
+	if err := teamStore.SetOrgChart(ctx, team.ID, &store.OrgChart{
+		TeamID: team.ID,
+		Edges: []store.OrgEdge{
+			{ManagerAgentID: "manager-1", ReportAgentID: agent.ID},
+		},
+	}); err != nil {
+		t.Fatalf("set org chart: %v", err)
 	}
 
 	inbox := &store.TeamInbox{
@@ -533,7 +556,13 @@ func TestBuildContextIncludesAllOtherSections(t *testing.T) {
 	if err := agentStore.CreateFile(ctx, "agent-1", "NOTES.md", "My notes", false); err != nil {
 		t.Fatalf("create notes file: %v", err)
 	}
-	if err := teamStore.Create(ctx, &store.Team{ID: "team-1", DisplayName: "Team", Enabled: true}); err != nil {
+	team := newIndependentTestTeam("team-1", "Team")
+	team.Coordination.Pattern = teamconfig.CoordinationPatternPeer
+	team.Coordination.ReportingMode = teamconfig.ReportingModeOrgChart
+	team.Coordination.MessagingMode = teamconfig.MessagingModeAsyncInbox
+	team.Coordination.Capabilities.ShowOrgContext = true
+	team.Coordination.Capabilities.InjectInbox = true
+	if err := teamStore.Create(ctx, team); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 	if err := teamStore.SetResponsibilities(ctx, "team-1", "agent-1", "Do work"); err != nil {
@@ -541,6 +570,14 @@ func TestBuildContextIncludesAllOtherSections(t *testing.T) {
 	}
 	if err := teamStore.SetHeartbeatInstructions(ctx, "team-1", "agent-1", "Ship update"); err != nil {
 		t.Fatalf("set heartbeat instructions: %v", err)
+	}
+	if err := teamStore.SetOrgChart(ctx, "team-1", &store.OrgChart{
+		TeamID: "team-1",
+		Edges: []store.OrgEdge{
+			{ManagerAgentID: "manager", ReportAgentID: "agent-1"},
+		},
+	}); err != nil {
+		t.Fatalf("set org chart: %v", err)
 	}
 
 	inbox := &store.TeamInbox{
@@ -569,8 +606,9 @@ func TestBuildContextIncludesAllOtherSections(t *testing.T) {
 	for _, section := range []string{
 		"# Agent Files (Markdown)",
 		"# Team Responsibilities (RESPONSIBILITIES.md)",
-		"# Team Relationships",
+		"# Team Org Context",
 		"# Team Coordination",
+		"# Durable State",
 		"# Team Inbox",
 	} {
 		if !strings.Contains(prompt, section) {

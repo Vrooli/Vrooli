@@ -8,6 +8,7 @@ import (
 
 	"prompt-manager/interop"
 	"prompt-manager/store"
+	"prompt-manager/teamconfig"
 )
 
 // PromptBuildRequest defines the inputs for assembling a heartbeat prompt.
@@ -37,7 +38,7 @@ func (b *PromptBuilder) Build(ctx context.Context, req PromptBuildRequest) (stri
 }
 
 // BuildContext constructs a prompt with all context sections but omits HEARTBEAT.md.
-// Used by the member-context endpoint for single-process spawn mode bootstrapping.
+// Used by the member-context endpoint and single-process leader bootstrapping.
 func (b *PromptBuilder) BuildContext(ctx context.Context, req PromptBuildRequest) (string, error) {
 	return b.buildSections(ctx, req, false)
 }
@@ -93,11 +94,13 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 
 	teamID := strings.TrimSpace(req.TeamID)
 	includeTeam := teamID != ""
+	var team *store.Team
 	if includeTeam {
 		if b.teamStore == nil {
 			return nil, fmt.Errorf("team store is not configured")
 		}
-		if _, err := b.teamStore.Get(ctx, teamID); err != nil {
+		team, err = b.teamStore.Get(ctx, teamID)
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -136,6 +139,8 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 	}
 
 	if includeTeam {
+		contract := team.Contract()
+
 		// 1.5 Team shared charter / operating model
 		if teamDoc, err := b.teamStore.ReadSharedFile(ctx, teamID, "TEAM.md"); err == nil && strings.TrimSpace(teamDoc) != "" {
 			sections = append(sections, PromptSection{
@@ -157,17 +162,19 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 			})
 		}
 
-		// 3. Team relationships + coordination commands
-		if section := b.buildRelationshipSection(ctx, teamID, agentID); section != "" {
-			sections = append(sections, PromptSection{
-				Kind:    "team-relationships",
-				Label:   "Team Relationships",
-				Content: section,
-			})
+		// 3. Team org context
+		if teamconfig.ShouldShowOrgContext(contract) {
+			if section := b.buildOrgContextSection(ctx, team, agentID); section != "" {
+				sections = append(sections, PromptSection{
+					Kind:    "team-org-context",
+					Label:   "Team Org Context",
+					Content: section,
+				})
+			}
 		}
 
-		// 3.5 Coordination skill reference
-		if coordSection := b.buildCoordinationSkillSection(ctx, teamID); coordSection != "" {
+		// 3.5 Coordination guidance
+		if coordSection := b.buildCoordinationSkillSection(team); coordSection != "" {
 			sections = append(sections, PromptSection{
 				Kind:    "team-coordination",
 				Label:   "Team Coordination",
@@ -175,16 +182,27 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 			})
 		}
 
-		// 4. Team inbox messages
-		if section := b.buildInboxSection(ctx, teamID, agentID); section != "" {
+		// 4. Durable state guidance
+		if section := b.buildDurableStateSection(team); section != "" {
 			sections = append(sections, PromptSection{
-				Kind:    "team-inbox",
-				Label:   "Team Inbox",
+				Kind:    "team-durable-state",
+				Label:   "Durable State",
 				Content: section,
 			})
 		}
 
-		// 4.5 Previous handoff from last heartbeat
+		// 5. Team inbox messages
+		if teamconfig.ShouldInjectInbox(contract) {
+			if section := b.buildInboxSection(ctx, teamID, agentID); section != "" {
+				sections = append(sections, PromptSection{
+					Kind:    "team-inbox",
+					Label:   "Team Inbox",
+					Content: section,
+				})
+			}
+		}
+
+		// 6. Previous handoff from last heartbeat
 		if handoff, err := b.teamStore.GetLastHandoff(ctx, teamID, agentID); err == nil && handoff != "" {
 			sections = append(sections, PromptSection{
 				Kind:       "last-handoff",
@@ -194,7 +212,7 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 			})
 		}
 
-		// 5. HEARTBEAT.md (the specific task) - only when includeHeartbeat is true
+		// 7. HEARTBEAT.md (the specific task) - only when includeHeartbeat is true
 		if includeHeartbeat {
 			heartbeatInstructions, err := b.teamStore.GetHeartbeatInstructions(ctx, teamID, agentID)
 			if err == nil && heartbeatInstructions != "" {
@@ -278,53 +296,86 @@ func orderAgentMarkdownFiles(files []store.AgentFileEntry, fileOrder []string) [
 	return append(ordered, remaining...)
 }
 
-func (b *PromptBuilder) buildCoordinationSkillSection(ctx context.Context, teamID string) string {
-	team, err := b.teamStore.Get(ctx, teamID)
-	if err != nil {
+func (b *PromptBuilder) buildCoordinationSkillSection(team *store.Team) string {
+	if team == nil {
 		return ""
 	}
 
-	skillID := "team-coordination-multi-process"
-	if team.SpawnMode == "single-process" {
-		skillID = "team-coordination-single-process"
-	}
+	contract := team.Contract()
+	skillID := teamconfig.CoordinationSkillID(contract)
 	var section strings.Builder
 	section.WriteString("# Team Coordination\n\n")
 	section.WriteString("For team coordination guidance, run:\n```\n")
 	section.WriteString(fmt.Sprintf("prompt-manager skill read %s\n", skillID))
 	section.WriteString("```\n\n")
+	section.WriteString("## Resolved Team Policy\n\n")
+	section.WriteString(fmt.Sprintf("- Runtime mode: `%s`\n", team.Runtime.Mode))
+	section.WriteString(fmt.Sprintf("- Coordination pattern: `%s`\n", team.Coordination.Pattern))
+	section.WriteString(fmt.Sprintf("- Messaging mode: `%s`\n", team.Coordination.MessagingMode))
+	section.WriteString(fmt.Sprintf("- Queue policy: `%s` (max concurrent: %d)\n\n", team.Execution.QueuePolicy, team.Execution.MaxConcurrentRuns))
 	section.WriteString("## Runtime Contract\n\n")
 	section.WriteString("- This prompt-manager team already exists. Do not create or import another team.\n")
-	section.WriteString("- Use prompt-manager CLI commands only for durable state such as tasks, decisions, knowledge, and handoffs.\n")
 	section.WriteString("- Prefer the planning surface named in your team charter or heartbeat instructions before falling back to broad repo scans.\n")
-	section.WriteString("- End your final response with `## HANDOFF` as the last section so prompt-manager can persist continuity automatically.\n")
-	section.WriteString("- After writing the handoff, stop. Do not wait for extra confirmation inside the same run.\n")
+	if teamconfig.MessagingUsesAsyncInbox(contract) {
+		section.WriteString("- Team coordination uses asynchronous inbox messages that survive across heartbeat runs.\n")
+	} else if teamconfig.MessagingUsesInSession(contract) {
+		section.WriteString("- Coordinate with teammates using in-session subagent messaging, not durable inbox messages.\n")
+	} else {
+		section.WriteString("- This team does not use agent-to-agent messaging by default. Stay within your own scope unless the heartbeat task tells you otherwise.\n")
+	}
+	if teamconfig.AllowsPeerTriggers(contract) {
+		section.WriteString(fmt.Sprintf("- Peer triggers are enabled. You may request a teammate run by calling `prompt-manager team heartbeat-trigger %s <agent-id>` when the heartbeat task explicitly benefits from it.\n", team.ID))
+	}
 	if team.DecisionMode == "approval" {
 		section.WriteString("- This team is in `approval` decision mode. Analyze, prioritize, and log pending decisions, but do not deploy teams, trigger external execution, or create external backlog items unless a human has already accepted that decision.\n")
 	}
 	return section.String()
 }
 
-func (b *PromptBuilder) buildRelationshipSection(ctx context.Context, teamID, agentID string) string {
-	org, err := b.teamStore.GetOrgChart(ctx, teamID)
-	if err != nil {
+func (b *PromptBuilder) buildOrgContextSection(ctx context.Context, team *store.Team, agentID string) string {
+	if team == nil {
 		return ""
 	}
 
-	teamName := teamID
-	if team, err := b.teamStore.Get(ctx, teamID); err == nil && team.DisplayName != "" {
+	teamName := team.ID
+	if team.DisplayName != "" {
 		teamName = team.DisplayName
 	}
 
+	contract := team.Contract()
 	var managerID string
 	var reportIDs []string
-	for _, edge := range org.Edges {
-		if edge.ReportAgentID == agentID {
-			managerID = edge.ManagerAgentID
+
+	switch team.Coordination.ReportingMode {
+	case teamconfig.ReportingModeLeader:
+		leadID := team.Coordination.LeadAgentID
+		if leadID == "" {
+			return ""
 		}
-		if edge.ManagerAgentID == agentID {
-			reportIDs = append(reportIDs, edge.ReportAgentID)
+		if agentID != leadID {
+			managerID = leadID
+		} else if members, err := b.teamStore.GetMembers(ctx, team.ID); err == nil {
+			for _, member := range members {
+				if member.AgentID != leadID {
+					reportIDs = append(reportIDs, member.AgentID)
+				}
+			}
 		}
+	case teamconfig.ReportingModeOrgChart:
+		org, err := b.teamStore.GetOrgChart(ctx, team.ID)
+		if err != nil {
+			return ""
+		}
+		for _, edge := range org.Edges {
+			if edge.ReportAgentID == agentID {
+				managerID = edge.ManagerAgentID
+			}
+			if edge.ManagerAgentID == agentID {
+				reportIDs = append(reportIDs, edge.ReportAgentID)
+			}
+		}
+	default:
+		return ""
 	}
 
 	resolveAgentLabel := func(id string) string {
@@ -355,20 +406,78 @@ func (b *PromptBuilder) buildRelationshipSection(ctx context.Context, teamID, ag
 		reportsLabel = strings.Join(labels, ", ")
 	}
 
-	section := "# Team Relationships\n\n"
-	section += fmt.Sprintf("Team: %s (%s)\n", teamName, teamID)
+	section := "# Team Org Context\n\n"
+	section += fmt.Sprintf("Team: %s (%s)\n", teamName, team.ID)
 	section += fmt.Sprintf("Your agent ID: %s\n\n", agentID)
+	section += fmt.Sprintf("- Reporting mode: %s\n", contract.Coordination.ReportingMode)
 	section += fmt.Sprintf("- Reports to: %s\n", managerLabel)
-	section += fmt.Sprintf("- Direct reports: %s\n\n", reportsLabel)
-	section += "## Coordination Commands\n\n"
-	section += fmt.Sprintf("- Send a directive: `prompt-manager team message-send %s <recipient-agent-id> --from=%s --content \"...\"`\n", teamID, agentID)
-	section += fmt.Sprintf("- Check your inbox: `prompt-manager team message-list %s %s`\n", teamID, agentID)
-	section += fmt.Sprintf("- Delete a message: `prompt-manager team message-delete %s %s <message-id>`\n", teamID, agentID)
-	section += fmt.Sprintf("- Clear inbox: `prompt-manager team message-clear %s %s`\n", teamID, agentID)
+	section += fmt.Sprintf("- Direct reports: %s\n", reportsLabel)
 	return section
 }
 
-// BuildTeamLeadPrompt constructs a prompt for single-process spawn mode.
+func (b *PromptBuilder) buildDurableStateSection(team *store.Team) string {
+	if team == nil {
+		return ""
+	}
+
+	contract := team.Contract()
+	var lines []string
+	lines = append(lines, "# Durable State")
+	lines = append(lines, "")
+	lines = append(lines, "Use prompt-manager CLI commands only for state that should survive beyond the current run.")
+	lines = append(lines, "")
+
+	if teamconfig.MessagingUsesAsyncInbox(contract) {
+		lines = append(lines, "## Async Inbox")
+		lines = append(lines, "")
+		lines = append(lines, fmt.Sprintf("- Send a directive: `prompt-manager team message-send %s <recipient-agent-id> --from=<agent-id> --content \"...\"`", team.ID))
+		lines = append(lines, fmt.Sprintf("- List inbox messages: `prompt-manager team message-list %s <agent-id>`", team.ID))
+		lines = append(lines, fmt.Sprintf("- Delete a message: `prompt-manager team message-delete %s <agent-id> <message-id>`", team.ID))
+		lines = append(lines, fmt.Sprintf("- Clear inbox: `prompt-manager team message-clear %s <agent-id>`", team.ID))
+		lines = append(lines, "")
+	}
+
+	if teamconfig.ShouldShowTaskBoardGuidance(contract) {
+		lines = append(lines, "## Task Board")
+		lines = append(lines, "")
+		lines = append(lines, fmt.Sprintf("- Review current work: `prompt-manager team task-list %s`", team.ID))
+		lines = append(lines, fmt.Sprintf("- Add a task: `prompt-manager team task-add %s --by=<agent-id> --title \"...\"`", team.ID))
+		lines = append(lines, fmt.Sprintf("- Update a task: `prompt-manager team task-update %s <task-id> --status=in-progress`", team.ID))
+		lines = append(lines, "")
+	}
+
+	if teamconfig.ShouldShowDecisionLogGuidance(contract) {
+		lines = append(lines, "## Decision Log")
+		lines = append(lines, "")
+		lines = append(lines, fmt.Sprintf("- Review decisions: `prompt-manager team decision-list %s`", team.ID))
+		lines = append(lines, fmt.Sprintf("- Record a pending decision: `prompt-manager team decision-add %s --by=<agent-id> --decision \"...\" --rationale \"...\"`", team.ID))
+		lines = append(lines, "")
+	}
+
+	if teamconfig.ShouldShowKnowledgeLogGuidance(contract) {
+		lines = append(lines, "## Knowledge Log")
+		lines = append(lines, "")
+		lines = append(lines, fmt.Sprintf("- Review team knowledge: `prompt-manager team knowledge-list %s`", team.ID))
+		lines = append(lines, fmt.Sprintf("- Record durable knowledge: `prompt-manager team knowledge-add %s --by=<agent-id> --topic \"...\" --content \"...\"`", team.ID))
+		lines = append(lines, "")
+	}
+
+	if teamconfig.RequiresHandoff(contract) {
+		lines = append(lines, "## Handoff")
+		lines = append(lines, "")
+		lines = append(lines, "- End your final response with `## HANDOFF` as the last section so prompt-manager can persist continuity automatically.")
+		lines = append(lines, "- After writing the handoff, stop. Do not wait for extra confirmation inside the same run.")
+		lines = append(lines, "")
+	}
+
+	if len(lines) <= 4 {
+		return ""
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+// BuildTeamLeadPrompt constructs a prompt for leader-led single-process teams.
 // It loads the full team snapshot, converts to CC config, and generates spawn instructions.
 func (b *PromptBuilder) BuildTeamLeadPrompt(ctx context.Context, teamID, agentID, vrooliRoot string) (string, error) {
 	if b.teamStore == nil {
@@ -425,7 +534,7 @@ func (b *PromptBuilder) BuildTeamLeadPrompt(ctx context.Context, teamID, agentID
 	}
 
 	// Generate spawn prompt
-	additionalCtx := b.buildCoordinationSkillSection(ctx, teamID)
+	additionalCtx := b.buildCoordinationSkillSection(team)
 	if agentID != "" {
 		if leadContext, err := b.Build(ctx, PromptBuildRequest{
 			TeamID:  teamID,

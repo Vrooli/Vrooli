@@ -1,7 +1,7 @@
 {
   "metadata": {
     "name": "member-create",
-    "description": "Validate member creation adds a new member row",
+    "description": "Validate agent creation adds a new agent row",
     "labels": {
       "reset": "none"
     },
@@ -43,90 +43,90 @@
       }
     },
     {
-      "id": "click-members-tab",
+      "id": "click-agents-tab",
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/sidebar.tabMembers"
+          "selector": "@selector/sidebar.tabAgents"
         },
         "metadata": {
-          "label": "Switch to members tab"
+          "label": "Switch to agents tab"
         }
       }
     },
     {
-      "id": "wait-members-list",
+      "id": "wait-agents-list",
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "@selector/members.list",
+          "selector": "@selector/agents.list",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 10000
         },
         "metadata": {
-          "label": "Wait for members list"
+          "label": "Wait for agents list"
         }
       }
     },
     {
-      "id": "count-initial-members",
+      "id": "count-initial-agents",
       "action": {
         "type": "ACTION_TYPE_EVALUATE",
         "evaluate": {
-          "expression": "(() => { const count = document.querySelectorAll('[data-testid=\"member-row\"]').length; window.__basInitialMemberCount = count; return count; })()",
-          "store_result": "initialMemberCount"
+          "expression": "(() => { const count = document.querySelectorAll('[data-testid=\"agent-row\"]').length; window.__basInitialAgentCount = count; return count; })()",
+          "store_result": "initialAgentCount"
         },
         "metadata": {
-          "label": "Count initial members"
+          "label": "Count initial agents"
         }
       }
     },
     {
-      "id": "click-new-member",
+      "id": "click-new-agent",
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/members.newButton"
+          "selector": "@selector/agents.newButton"
         },
         "metadata": {
-          "label": "Create new member"
+          "label": "Create new agent"
         }
       }
     },
     {
-      "id": "wait-member-create",
+      "id": "wait-agent-create",
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
           "duration_ms": 1500
         },
         "metadata": {
-          "label": "Wait for member creation"
+          "label": "Wait for agent creation"
         }
       }
     },
     {
-      "id": "count-final-members",
+      "id": "count-final-agents",
       "action": {
         "type": "ACTION_TYPE_EVALUATE",
         "evaluate": {
-          "expression": "(() => { const count = document.querySelectorAll('[data-testid=\"member-row\"]').length; window.__basFinalMemberCount = count; return count; })()",
-          "store_result": "finalMemberCount"
+          "expression": "(() => { const count = document.querySelectorAll('[data-testid=\"agent-row\"]').length; window.__basFinalAgentCount = count; return count; })()",
+          "store_result": "finalAgentCount"
         },
         "metadata": {
-          "label": "Count final members"
+          "label": "Count final agents"
         }
       }
     },
     {
-      "id": "verify-member-count",
+      "id": "verify-agent-count",
       "action": {
         "type": "ACTION_TYPE_EVALUATE",
         "evaluate": {
-          "expression": "(() => { const initial = Number(window.__basInitialMemberCount || 0); const final = Number(window.__basFinalMemberCount || 0); if (!(final === initial + 1)) { throw new Error('Expected member count to increase by 1 (initial=' + initial + ', final=' + final + ')'); } return true; })()"
+          "expression": "(() => { const initial = Number(window.__basInitialAgentCount || 0); const final = Number(window.__basFinalAgentCount || 0); if (!(final === initial + 1)) { throw new Error('Expected agent count to increase by 1 (initial=' + initial + ', final=' + final + ')'); } return true; })()"
         },
         "metadata": {
-          "label": "Verify member count increased"
+          "label": "Verify agent count increased"
         }
       }
     }
@@ -141,43 +141,43 @@
     {
       "id": "e2",
       "source": "wait-sidebar",
-      "target": "click-members-tab",
+      "target": "click-agents-tab",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e3",
-      "source": "click-members-tab",
-      "target": "wait-members-list",
+      "source": "click-agents-tab",
+      "target": "wait-agents-list",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e4",
-      "source": "wait-members-list",
-      "target": "count-initial-members",
+      "source": "wait-agents-list",
+      "target": "count-initial-agents",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e5",
-      "source": "count-initial-members",
-      "target": "click-new-member",
+      "source": "count-initial-agents",
+      "target": "click-new-agent",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6",
-      "source": "click-new-member",
-      "target": "wait-member-create",
+      "source": "click-new-agent",
+      "target": "wait-agent-create",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7",
-      "source": "wait-member-create",
-      "target": "count-final-members",
+      "source": "wait-agent-create",
+      "target": "count-final-agents",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e8",
-      "source": "count-final-members",
-      "target": "verify-member-count",
+      "source": "count-final-agents",
+      "target": "verify-agent-count",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ]

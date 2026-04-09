@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"prompt-manager/store"
+	"prompt-manager/teamconfig"
 )
 
 // ExecutionResult represents the result of a heartbeat execution
@@ -86,22 +87,24 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 		log.Printf("Warning: prune shared state for %s: %v", teamID, pruneErr)
 	}
 
-	// Resolve default profile key based on spawn mode when not explicitly set.
+	// Resolve default profile key based on runtime mode when not explicitly set.
 	if profileKey == "" {
-		profileKey = DefaultProfileKeyForSpawnMode(team.SpawnMode)
+		profileKey = DefaultProfileKeyForRuntimeMode(team.Runtime.Mode)
 	}
 
-	// Build the resolved profile and validate compatibility with spawn mode.
-	resolvedProfile := BuildDefaultProfileForSpawnMode(profileKey, team.SpawnMode)
+	// Build the resolved profile and validate compatibility with runtime mode.
+	resolvedProfile := BuildDefaultProfileForRuntimeMode(profileKey, team.Runtime.Mode)
 	if err := validateProfileCompatibility(team, resolvedProfile); err != nil {
 		result.Error = fmt.Errorf("profile mismatch: %w", err)
 		result.Status = store.HeartbeatStatusFailed
 		return result, result.Error
 	}
 
-	// Build the prompt (branch on spawnMode for single-process teams)
+	contract := team.Contract()
+
+	// Build the prompt (single-process leader-led teams use Claude Code interop)
 	var prompt string
-	if team.SpawnMode == "single-process" {
+	if teamconfig.UsesSingleProcessInterop(contract) {
 		prompt, err = e.promptBuilder.BuildTeamLeadPrompt(ctx, teamID, agentID, e.vrooliRoot)
 	} else {
 		prompt, err = e.BuildPrompt(ctx, teamID, agentID)
@@ -381,6 +384,6 @@ func (e *Executor) TriggerManual(ctx context.Context, teamID, agentID string) (*
 	}
 
 	// Use config's profile key if set; otherwise pass empty string so
-	// Execute() resolves the default based on the team's spawn mode.
+	// Execute() resolves the default based on the team's runtime mode.
 	return e.Execute(ctx, teamID, agentID, config.ProfileKey)
 }

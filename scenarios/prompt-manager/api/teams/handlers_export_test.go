@@ -16,11 +16,9 @@ import (
 func TestExportClaudeCode_Success(t *testing.T) {
 	handlers, teamStore, agentStore, relationStore := setupTestHandlers()
 
-	teamStore.teams["team-1"] = &store.Team{
-		ID:          "team-1",
-		DisplayName: "Test Team",
-		Mission:     "Test mission",
-	}
+	team := newLeaderLedSingleProcessTestTeam("team-1", "Test Team", "agent-1")
+	team.Mission = "Test mission"
+	teamStore.teams["team-1"] = team
 	teamStore.roles["team-1"] = &store.TeamRoles{TeamID: "team-1", Roles: []store.Role{}}
 	teamStore.orgChart["team-1"] = &store.OrgChart{TeamID: "team-1", Edges: []store.OrgEdge{}}
 
@@ -79,11 +77,9 @@ func TestExportClaudeCode_TeamNotFound(t *testing.T) {
 func TestExportClaudeCode_WithDocReader(t *testing.T) {
 	handlers, teamStore, agentStore, relationStore := setupTestHandlers()
 
-	teamStore.teams["team-docs"] = &store.Team{
-		ID:          "team-docs",
-		DisplayName: "Docs Team",
-		Mission:     "Documentation",
-	}
+	team := newLeaderLedSingleProcessTestTeam("team-docs", "Docs Team", "writer")
+	team.Mission = "Documentation"
+	teamStore.teams["team-docs"] = team
 	teamStore.roles["team-docs"] = &store.TeamRoles{TeamID: "team-docs", Roles: []store.Role{}}
 	teamStore.orgChart["team-docs"] = &store.OrgChart{TeamID: "team-docs", Edges: []store.OrgEdge{}}
 
@@ -131,10 +127,7 @@ func TestExportClaudeCode_WithDocReader(t *testing.T) {
 func TestExportClaudeCode_NoMembers(t *testing.T) {
 	handlers, teamStore, _, _ := setupTestHandlers()
 
-	teamStore.teams["empty-team"] = &store.Team{
-		ID:          "empty-team",
-		DisplayName: "Empty Team",
-	}
+	teamStore.teams["empty-team"] = newLeaderLedSingleProcessTestTeam("empty-team", "Empty Team", "lead")
 	teamStore.roles["empty-team"] = &store.TeamRoles{TeamID: "empty-team", Roles: []store.Role{}}
 	teamStore.orgChart["empty-team"] = &store.OrgChart{TeamID: "empty-team", Edges: []store.OrgEdge{}}
 

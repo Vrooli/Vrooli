@@ -5,7 +5,29 @@
   "displayName": "Revenue Research Team",
   "mission": "Identify and evaluate opportunities for increasing Vrooli revenue and profitability.",
   "enabled": false,
-  "spawnMode": "multi-process",
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "research-lead",
+    "reportingMode": "leader",
+    "messagingMode": "async-inbox",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": true,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": true,
+      "showDecisionLogGuidance": true,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "execution": {
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 3
+  },
+  "decisionMode": "yolo",
   "shared": {
     "path": "shared/",
     "mountHint": "readWrite"

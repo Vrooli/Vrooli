@@ -2,10 +2,5 @@
   "kind": "org-chart",
   "schemaVersion": 1,
   "teamId": "scenario-qa",
-  "edges": [
-    {
-      "managerAgentId": "qa-lead",
-      "reportAgentId": "quality-auditor"
-    }
-  ]
+  "edges": []
 }

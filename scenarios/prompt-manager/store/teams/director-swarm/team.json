@@ -5,7 +5,28 @@
   "displayName": "Director Swarm",
   "mission": "Set strategic direction for Vrooli, prioritize work across all teams, and ensure maximum impact.",
   "enabled": true,
-  "spawnMode": "single-process",
+  "runtime": {
+    "mode": "single-process"
+  },
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "director",
+    "reportingMode": "leader",
+    "messagingMode": "in-session",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": false,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": true,
+      "showDecisionLogGuidance": true,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "execution": {
+    "queuePolicy": "serialized",
+    "maxConcurrentRuns": 1
+  },
   "decisionMode": "approval",
   "shared": {
     "path": "shared/",

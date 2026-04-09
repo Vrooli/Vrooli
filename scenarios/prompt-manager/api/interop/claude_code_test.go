@@ -283,7 +283,7 @@ func TestFormatSpawnPrompt(t *testing.T) {
 	}
 
 	requiredSections := []string{
-		"Team Lead Heartbeat Instructions",
+		"Leader-Led Team Heartbeat Instructions",
 		"Existing Team",
 		"Team Roster",
 		"Spawn Direct Reports",

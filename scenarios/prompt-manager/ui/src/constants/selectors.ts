@@ -55,7 +55,9 @@ const literalSelectors = {
     orgChart: 'team-editor-org-chart',
     memberDetail: 'team-editor-member-detail',
     addMemberButton: 'team-editor-add-member',
-    spawnMode: 'team-editor-spawn-mode',
+    runtimeMode: 'team-editor-runtime-mode',
+    coordinationPattern: 'team-editor-coordination-pattern',
+    executionPolicy: 'team-editor-execution-policy',
     decisionMode: 'team-editor-decision-mode',
   },
   runs: {

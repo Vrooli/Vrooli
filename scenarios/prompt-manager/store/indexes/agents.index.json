@@ -1,6 +1,11 @@
 {
-  "generatedAt": "2026-02-10T03:35:27Z",
+  "generatedAt": "2026-04-09T16:22:53Z",
   "items": [
+    {
+      "id": "agent-24",
+      "displayName": "Agent 24",
+      "status": "active"
+    },
     {
       "id": "agent-optimizer",
       "displayName": "Agent Optimizer",
@@ -87,8 +92,8 @@
       "status": "active"
     },
     {
-      "id": "qa-lead",
-      "displayName": "QA Lead",
+      "id": "programmatic-qa-runner",
+      "displayName": "Programmatic QA Runner",
       "status": "active"
     },
     {
@@ -115,6 +120,6 @@
       "id": "team-optimizer",
       "displayName": "Team Optimizer",
       "status": "active"
-    },
+    }
   ]
 }

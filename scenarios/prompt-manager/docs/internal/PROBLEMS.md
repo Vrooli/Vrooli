@@ -3,7 +3,7 @@
 Agent-maintained document tracking issues, debt, and cleanup history.
 
 ## Last Updated
-2026-02-15
+2026-04-09
 
 ---
 
@@ -48,14 +48,14 @@ _No significant debt identified._
 
 | Package | Coverage | Gaps |
 |---------|----------|------|
-| All | None | No CLI tests yet |
+| `cli/teams` | Targeted | Team policy flag resolution and preset transitions covered; broader command integration tests still needed |
 
 ### Recommended Test Priority
 
 1. `api/skills/handlers_test.go` - Extend existing tests
 2. `api/tags/handlers_test.go` - CRUD tests with mock repository
 3. `api/search/handlers_test.go` - Search logic tests
-4. CLI integration tests with mock API
+4. CLI integration tests with mock API for end-to-end command output
 
 ---
 
@@ -63,7 +63,7 @@ _No significant debt identified._
 
 | Area | Issue | Impact | Recommendation |
 |------|-------|--------|----------------|
-| UI smoke coverage | Smoke tests cover load, scene switching, and new-skill editor open only | Medium | Add BAS cases for skill editing (save/discard), search filtering, and agent creation flows |
+| UI smoke coverage | Smoke tests now cover load, scene switching, new-skill editor open, skill save/discard, and member creation | Low | Add BAS coverage for search filtering and one full team policy edit flow |
 | Requirements linkage | BAS workflows not linked to requirements JSON | Low | Add automation validation entries once requirements are formalized |
 
 ### Missing data-testid attributes in production bundle (Fixed)

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"prompt-manager/store"
+	"prompt-manager/teamconfig"
 
 	"github.com/gorilla/mux"
 )
@@ -41,11 +42,9 @@ func TestTriggerTeam_TeamNotFound(t *testing.T) {
 func TestTriggerTeam_TeamDisabled(t *testing.T) {
 	handlers, teamStore, _, _ := setupTeamTriggerTestHandlers(t)
 
-	if err := teamStore.Create(context.Background(), &store.Team{
-		ID:          "team-1",
-		DisplayName: "Disabled Team",
-		Enabled:     false,
-	}); err != nil {
+	team := newIndependentTestTeam("team-1", "Disabled Team")
+	team.Enabled = false
+	if err := teamStore.Create(context.Background(), team); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 
@@ -60,16 +59,65 @@ func TestTriggerTeam_TeamDisabled(t *testing.T) {
 	}
 }
 
-func TestTriggerTeam_SingleProcessNoLead(t *testing.T) {
-	handlers, teamStore, _, _ := setupTeamTriggerTestHandlers(t)
+func TestTriggerTeam_LeaderLedTargetsExplicitLead(t *testing.T) {
+	handlers, teamStore, _, relationStore := setupTeamTriggerTestHandlers(t)
+	handlers.teamExecStore = NewTeamExecutionStore(teamStore, &captureExecutor{}, t.TempDir())
+	ctx := context.Background()
 
-	if err := teamStore.Create(context.Background(), &store.Team{
-		ID:          "team-sp",
-		DisplayName: "Single Process Team",
-		Enabled:     true,
-		SpawnMode:   "single-process",
-	}); err != nil {
+	if err := teamStore.Create(ctx, newLeaderLedSingleProcessTestTeam("team-sp", "Single Process Team", "lead")); err != nil {
 		t.Fatalf("create team: %v", err)
+	}
+	if err := relationStore.SetTeamMember(ctx, &store.TeamMemberRelation{
+		TeamID: "team-sp", AgentID: "lead", Status: store.MemberStatusActive,
+	}); err != nil {
+		t.Fatalf("set member: %v", err)
+	}
+	if err := teamStore.SetHeartbeatConfig(ctx, "team-sp", "lead", &store.HeartbeatConfig{
+		TeamID:   "team-sp",
+		AgentID:  "lead",
+		Schedule: "0 * * * *",
+		Enabled:  true,
+	}); err != nil {
+		t.Fatalf("set config: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/teams/team-sp/trigger", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team-sp"})
+	w := httptest.NewRecorder()
+
+	handlers.TriggerTeam(w, req)
+
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp TriggerTeamResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.RuntimeMode != teamconfig.RuntimeModeSingleProcess {
+		t.Fatalf("expected runtimeMode %q, got %q", teamconfig.RuntimeModeSingleProcess, resp.RuntimeMode)
+	}
+	if resp.CoordinationPattern != teamconfig.CoordinationPatternLeaderLed {
+		t.Fatalf("expected coordinationPattern %q, got %q", teamconfig.CoordinationPatternLeaderLed, resp.CoordinationPattern)
+	}
+	if len(resp.Triggers) != 1 || resp.Triggers[0].AgentID != "lead" {
+		t.Fatalf("expected one lead trigger, got %+v", resp.Triggers)
+	}
+}
+
+func TestTriggerTeam_LeaderLedRequiresActiveLeadMembership(t *testing.T) {
+	handlers, teamStore, _, relationStore := setupTeamTriggerTestHandlers(t)
+	handlers.teamExecStore = NewTeamExecutionStore(teamStore, &captureExecutor{}, t.TempDir())
+	ctx := context.Background()
+
+	if err := teamStore.Create(ctx, newLeaderLedSingleProcessTestTeam("team-sp", "Single Process Team", "lead")); err != nil {
+		t.Fatalf("create team: %v", err)
+	}
+	if err := relationStore.SetTeamMember(ctx, &store.TeamMemberRelation{
+		TeamID: "team-sp", AgentID: "lead", Status: store.MemberStatusInactive,
+	}); err != nil {
+		t.Fatalf("set member: %v", err)
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-sp/trigger", nil)
@@ -79,18 +127,39 @@ func TestTriggerTeam_SingleProcessNoLead(t *testing.T) {
 	handlers.TriggerTeam(w, req)
 
 	if w.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400 for no team lead, got %d: %s", w.Code, w.Body.String())
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestTriggerTeam_LeaderLedRequiresLeadHeartbeatConfig(t *testing.T) {
+	handlers, teamStore, _, relationStore := setupTeamTriggerTestHandlers(t)
+	handlers.teamExecStore = NewTeamExecutionStore(teamStore, &captureExecutor{}, t.TempDir())
+	ctx := context.Background()
+
+	if err := teamStore.Create(ctx, newLeaderLedSingleProcessTestTeam("team-sp", "Single Process Team", "lead")); err != nil {
+		t.Fatalf("create team: %v", err)
+	}
+	if err := relationStore.SetTeamMember(ctx, &store.TeamMemberRelation{
+		TeamID: "team-sp", AgentID: "lead", Status: store.MemberStatusActive,
+	}); err != nil {
+		t.Fatalf("set member: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/teams/team-sp/trigger", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team-sp"})
+	w := httptest.NewRecorder()
+
+	handlers.TriggerTeam(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
 	}
 }
 
 func TestTriggerTeam_MultiProcessNoConfigs(t *testing.T) {
 	handlers, teamStore, agentStore, relationStore := setupTeamTriggerTestHandlers(t)
 
-	if err := teamStore.Create(context.Background(), &store.Team{
-		ID:          "team-mp",
-		DisplayName: "Multi Process Team",
-		Enabled:     true,
-	}); err != nil {
+	if err := teamStore.Create(context.Background(), newIndependentTestTeam("team-mp", "Multi Process Team")); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 	if err := agentStore.Create(context.Background(), &store.Agent{ID: "agent-1", DisplayName: "Agent"}); err != nil {
@@ -117,8 +186,11 @@ func TestTriggerTeam_MultiProcessNoConfigs(t *testing.T) {
 		t.Fatalf("decode: %v", err)
 	}
 
-	if resp.SpawnMode != "multi-process" {
-		t.Errorf("expected spawnMode 'multi-process', got %q", resp.SpawnMode)
+	if resp.RuntimeMode != teamconfig.RuntimeModeMultiProcess {
+		t.Errorf("expected runtimeMode %q, got %q", teamconfig.RuntimeModeMultiProcess, resp.RuntimeMode)
+	}
+	if resp.CoordinationPattern != teamconfig.CoordinationPatternIndependent {
+		t.Errorf("expected coordinationPattern %q, got %q", teamconfig.CoordinationPatternIndependent, resp.CoordinationPattern)
 	}
 
 	// No heartbeat configs means no triggers
@@ -136,9 +208,7 @@ func TestTriggerTeam_ExecutorNotConfigured(t *testing.T) {
 	// No executor
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, nil, nil, nil, nil)
 
-	if err := teamStore.Create(context.Background(), &store.Team{
-		ID: "team-1", DisplayName: "Team", Enabled: true,
-	}); err != nil {
+	if err := teamStore.Create(context.Background(), newIndependentTestTeam("team-1", "Team")); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 
@@ -161,12 +231,7 @@ func TestTriggerTeam_MemberAlreadyQueued(t *testing.T) {
 	relationStore := fileStore.Relations()
 	ctx := context.Background()
 
-	if err := teamStore.Create(ctx, &store.Team{
-		ID:          "team-q",
-		DisplayName: "Queue Team",
-		Enabled:     true,
-		SpawnMode:   "single-process",
-	}); err != nil {
+	if err := teamStore.Create(ctx, newLeaderLedSingleProcessTestTeam("team-q", "Queue Team", "lead")); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 	for _, id := range []string{"lead", "dev-1"} {
@@ -179,15 +244,16 @@ func TestTriggerTeam_MemberAlreadyQueued(t *testing.T) {
 			t.Fatalf("set member %s: %v", id, err)
 		}
 	}
-	if err := teamStore.SetOrgChart(ctx, "team-q", &store.OrgChart{
-		TeamID: "team-q",
-		Edges:  []store.OrgEdge{{ManagerAgentID: "lead", ReportAgentID: "dev-1"}},
+	if err := teamStore.SetHeartbeatConfig(ctx, "team-q", "lead", &store.HeartbeatConfig{
+		TeamID:   "team-q",
+		AgentID:  "lead",
+		Schedule: "0 * * * *",
+		Enabled:  true,
 	}); err != nil {
-		t.Fatalf("set org chart: %v", err)
+		t.Fatalf("set lead config: %v", err)
 	}
-
 	exec := &captureExecutor{}
-	teamExecStore := NewTeamExecutionStore(exec, t.TempDir())
+	teamExecStore := NewTeamExecutionStore(teamStore, exec, t.TempDir())
 	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, teamExecStore)
 
@@ -212,78 +278,48 @@ func TestTriggerTeam_MemberAlreadyQueued(t *testing.T) {
 	}
 }
 
-// ============== findTeamLead Tests ==============
-
-func TestFindTeamLead_OrgChart(t *testing.T) {
+func TestTriggerTeam_IndependentTriggersConfiguredMembers(t *testing.T) {
 	handlers, teamStore, agentStore, relationStore := setupTeamTriggerTestHandlers(t)
 	ctx := context.Background()
+	handlers.teamExecStore = NewTeamExecutionStore(teamStore, &captureExecutor{}, t.TempDir())
 
-	if err := teamStore.Create(ctx, &store.Team{ID: "team-org", DisplayName: "Org Team"}); err != nil {
+	if err := teamStore.Create(ctx, newIndependentTestTeam("team-independent", "Independent Team")); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
-	for _, id := range []string{"lead", "dev-1", "dev-2"} {
+	for _, id := range []string{"agent-1", "agent-2"} {
 		if err := agentStore.Create(ctx, &store.Agent{ID: id, DisplayName: id}); err != nil {
 			t.Fatalf("create agent %s: %v", id, err)
 		}
 		if err := relationStore.SetTeamMember(ctx, &store.TeamMemberRelation{
-			TeamID: "team-org", AgentID: id, Status: store.MemberStatusActive,
+			TeamID: "team-independent", AgentID: id, Status: store.MemberStatusActive,
 		}); err != nil {
 			t.Fatalf("set member %s: %v", id, err)
 		}
 	}
-	// lead -> dev-1, lead -> dev-2
-	if err := teamStore.SetOrgChart(ctx, "team-org", &store.OrgChart{
-		TeamID: "team-org",
-		Edges: []store.OrgEdge{
-			{ManagerAgentID: "lead", ReportAgentID: "dev-1"},
-			{ManagerAgentID: "lead", ReportAgentID: "dev-2"},
-		},
+	if err := teamStore.SetHeartbeatConfig(ctx, "team-independent", "agent-1", &store.HeartbeatConfig{
+		TeamID:   "team-independent",
+		AgentID:  "agent-1",
+		Schedule: "0 * * * *",
+		Enabled:  true,
 	}); err != nil {
-		t.Fatalf("set org chart: %v", err)
+		t.Fatalf("set config: %v", err)
 	}
 
-	result := handlers.findTeamLead(ctx, "team-org")
-	if result != "lead" {
-		t.Errorf("expected 'lead', got %q", result)
-	}
-}
+	req := httptest.NewRequest(http.MethodPost, "/teams/team-independent/trigger", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team-independent"})
+	w := httptest.NewRecorder()
 
-func TestFindTeamLead_FallbackToFirstMember(t *testing.T) {
-	handlers, teamStore, agentStore, relationStore := setupTeamTriggerTestHandlers(t)
-	ctx := context.Background()
+	handlers.TriggerTeam(w, req)
 
-	if err := teamStore.Create(ctx, &store.Team{ID: "team-flat", DisplayName: "Flat Team"}); err != nil {
-		t.Fatalf("create team: %v", err)
-	}
-	// No org chart, just members
-	for _, id := range []string{"alice", "bob"} {
-		if err := agentStore.Create(ctx, &store.Agent{ID: id, DisplayName: id}); err != nil {
-			t.Fatalf("create agent %s: %v", id, err)
-		}
-		if err := relationStore.SetTeamMember(ctx, &store.TeamMemberRelation{
-			TeamID: "team-flat", AgentID: id, Status: store.MemberStatusActive,
-		}); err != nil {
-			t.Fatalf("set member %s: %v", id, err)
-		}
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d: %s", w.Code, w.Body.String())
 	}
 
-	result := handlers.findTeamLead(ctx, "team-flat")
-	// Should get the first member (order may vary, but should not be empty)
-	if result == "" {
-		t.Error("expected non-empty team lead, got empty string")
+	var resp TriggerTeamResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
 	}
-}
-
-func TestFindTeamLead_NoMembers(t *testing.T) {
-	handlers, teamStore, _, _ := setupTeamTriggerTestHandlers(t)
-	ctx := context.Background()
-
-	if err := teamStore.Create(ctx, &store.Team{ID: "team-empty", DisplayName: "Empty"}); err != nil {
-		t.Fatalf("create team: %v", err)
-	}
-
-	result := handlers.findTeamLead(ctx, "team-empty")
-	if result != "" {
-		t.Errorf("expected empty string for no members, got %q", result)
+	if len(resp.Triggers) != 1 || resp.Triggers[0].AgentID != "agent-1" {
+		t.Fatalf("expected only configured agent to trigger, got %+v", resp.Triggers)
 	}
 }

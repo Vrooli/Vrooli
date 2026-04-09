@@ -58,11 +58,7 @@ func TestListTeamLogs_Aggregation(t *testing.T) {
 	ctx := context.Background()
 
 	// Create team
-	if err := teamStore.Create(ctx, &store.Team{
-		ID:          "team-1",
-		DisplayName: "Test Team",
-		Enabled:     true,
-	}); err != nil {
+	if err := teamStore.Create(ctx, newIndependentTestTeam("team-1", "Test Team")); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 
@@ -141,11 +137,7 @@ func TestListTeamLogs_AgentFilter(t *testing.T) {
 	handlers, teamStore, agentStore, relationStore, storeDir := setupTeamLogsTestHandlers(t)
 	ctx := context.Background()
 
-	if err := teamStore.Create(ctx, &store.Team{
-		ID:          "team-1",
-		DisplayName: "Test Team",
-		Enabled:     true,
-	}); err != nil {
+	if err := teamStore.Create(ctx, newIndependentTestTeam("team-1", "Test Team")); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 
@@ -206,11 +198,7 @@ func TestListTeamLogs_Pagination(t *testing.T) {
 	handlers, teamStore, agentStore, relationStore, storeDir := setupTeamLogsTestHandlers(t)
 	ctx := context.Background()
 
-	if err := teamStore.Create(ctx, &store.Team{
-		ID:          "team-1",
-		DisplayName: "Test Team",
-		Enabled:     true,
-	}); err != nil {
+	if err := teamStore.Create(ctx, newIndependentTestTeam("team-1", "Test Team")); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 

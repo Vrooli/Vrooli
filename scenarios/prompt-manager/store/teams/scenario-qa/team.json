@@ -5,7 +5,28 @@
   "displayName": "Scenario QA Team",
   "mission": "Ensure scenario quality through comprehensive code auditing, test coverage analysis, and documentation verification.",
   "enabled": false,
-  "spawnMode": "multi-process",
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "coordination": {
+    "pattern": "independent",
+    "reportingMode": "none",
+    "messagingMode": "disabled",
+    "capabilities": {
+      "showOrgContext": false,
+      "injectInbox": false,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": false,
+      "showDecisionLogGuidance": false,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "execution": {
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 2
+  },
+  "decisionMode": "yolo",
   "shared": {
     "path": "shared/",
     "mountHint": "readWrite"

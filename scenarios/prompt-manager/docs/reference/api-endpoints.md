@@ -945,16 +945,40 @@ Create a new team.
   "id": "engineering",
   "displayName": "Engineering Team",
   "mission": "Build great software",
-  "spawnMode": "multi-process",
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "coordination": {
+    "pattern": "independent",
+    "reportingMode": "none",
+    "messagingMode": "disabled",
+    "capabilities": {
+      "showOrgContext": false,
+      "injectInbox": false,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": true,
+      "showDecisionLogGuidance": true,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "execution": {
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 2
+  },
   "decisionMode": "approval"
 }
 ```
 
-**Required Fields:** `displayName`
+**Required Fields:** `displayName`, `runtime`, `coordination`, `execution`
 
-**Optional Fields:** `id` (auto-generated from displayName), `mission`, `spawnMode`, `decisionMode`
+**Optional Fields:** `id` (auto-generated from displayName), `mission`, `decisionMode`
 
-**spawnMode Values:** `multi-process` (default) - each member runs as a separate agent-manager process. `single-process` - one Claude Code team lead agent coordinates all members.
+**runtime.mode Values:** `multi-process` - members run as separate heartbeat processes. `single-process` - one Claude Code lead session coordinates the team.
+
+**coordination.pattern Values:** `independent`, `peer`, `leader-led`
+
+**execution.queuePolicy Values:** `serialized`, `bounded-parallel`
 
 **decisionMode Values:** `yolo` (default behavior) - agents can proceed without human approval. `approval` - agents must wait for human acceptance before acting on gated decisions.
 
@@ -970,7 +994,28 @@ Update an existing team.
   "displayName": "Updated Name",
   "mission": "New mission",
   "enabled": true,
-  "spawnMode": "single-process",
+  "runtime": {
+    "mode": "single-process"
+  },
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "director",
+    "reportingMode": "leader",
+    "messagingMode": "in-session",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": false,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": true,
+      "showDecisionLogGuidance": true,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "execution": {
+    "queuePolicy": "serialized",
+    "maxConcurrentRuns": 1
+  },
   "decisionMode": "approval"
 }
 ```
@@ -1243,16 +1288,20 @@ Export a prompt-manager team as a Claude Code team config.
 
 [CODE: api/heartbeat/handlers.go#TriggerTeam]
 
-Trigger heartbeats for an entire team. Behavior depends on `spawnMode`:
+Trigger heartbeats for an entire team. Behavior depends on the resolved runtime and coordination policy:
 
-- **`single-process`**: Triggers only the team lead's heartbeat (the lead agent spawns all members via CC Teams).
-- **`multi-process`** (default): Triggers heartbeats for all members that have heartbeat configs.
+- **`single-process` + `leader-led`**: Triggers only the configured lead agent's heartbeat. The lead session coordinates teammates through Claude Code interop.
+- **All other team policies**: Triggers heartbeats for all members that have heartbeat configs.
+
+Leader-led single-process triggers are validated before enqueueing: the lead must be an active team member and must have a heartbeat config.
 
 **Response:** `202 Accepted`
 ```json
 {
   "teamId": "engineering",
-  "spawnMode": "multi-process",
+  "runtimeMode": "multi-process",
+  "coordinationPattern": "independent",
+  "queuePolicy": "bounded-parallel",
   "triggers": [
     {
       "teamId": "engineering",
@@ -1266,7 +1315,7 @@ Trigger heartbeats for an entire team. Behavior depends on `spawnMode`:
 ```
 
 **Errors:**
-- `400` - No team lead found (single-process mode)
+- `400` - Invalid leader-led single-process configuration, inactive/missing lead member, or missing lead heartbeat config
 - `404` - Team not found
 - `409` - Team is disabled or member already queued/running
 - `503` - Executor not configured

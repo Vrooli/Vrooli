@@ -1,0 +1,12 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "team-coordination-peer",
+  "name": "Team Coordination (Peer)",
+  "description": "Behavioral guidance for peer teams that coordinate laterally without a leader",
+  "modes": ["agent"],
+  "tags": ["coordination", "team", "peer"],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1
+}

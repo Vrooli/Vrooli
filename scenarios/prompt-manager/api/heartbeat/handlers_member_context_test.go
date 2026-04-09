@@ -20,7 +20,8 @@ func TestGetMemberContext_Success(t *testing.T) {
 	relationStore := fileStore.Relations()
 
 	ctx := context.Background()
-	if err := teamStore.Create(ctx, &store.Team{ID: "team-1", DisplayName: "Team", Enabled: true}); err != nil {
+	team := newIndependentTestTeam("team-1", "Team")
+	if err := teamStore.Create(ctx, team); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent"}); err != nil {
@@ -92,7 +93,8 @@ func TestGetMemberContext_MemberNotFound(t *testing.T) {
 	relationStore := fileStore.Relations()
 
 	ctx := context.Background()
-	if err := teamStore.Create(ctx, &store.Team{ID: "team-1", DisplayName: "Team", Enabled: true}); err != nil {
+	team := newIndependentTestTeam("team-1", "Team")
+	if err := teamStore.Create(ctx, team); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent"}); err != nil {
@@ -122,12 +124,13 @@ func TestGetTeamExecutionStatus_Success(t *testing.T) {
 	relationStore := fileStore.Relations()
 
 	ctx := context.Background()
-	if err := teamStore.Create(ctx, &store.Team{ID: "team-1", DisplayName: "Team", Enabled: true}); err != nil {
+	team := newIndependentTestTeam("team-1", "Team")
+	if err := teamStore.Create(ctx, team); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 
 	exec := &captureExecutor{}
-	teamExecStore := NewTeamExecutionStore(exec, storeDir)
+	teamExecStore := NewTeamExecutionStore(teamStore, exec, storeDir)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, nil, nil, nil, teamExecStore)
 
 	req := httptest.NewRequest(http.MethodGet, "/teams/team-1/execution-status", nil)

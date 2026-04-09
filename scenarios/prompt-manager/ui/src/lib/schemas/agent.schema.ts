@@ -229,10 +229,13 @@ export type PromptPreviewResponse = z.infer<typeof PromptPreviewResponseSchema>
 export const PromptSectionSchema = z.object({
   kind: z.enum([
     'agent-file',
+    'team-shared-charter',
     'team-responsibilities',
-    'team-relationships',
+    'team-org-context',
     'team-coordination',
+    'team-durable-state',
     'team-inbox',
+    'last-handoff',
     'heartbeat-task',
   ]),
   label: z.string(),

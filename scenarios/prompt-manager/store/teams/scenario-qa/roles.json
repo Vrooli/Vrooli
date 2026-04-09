@@ -4,14 +4,14 @@
   "teamId": "scenario-qa",
   "roles": [
     {
-      "id": "lead",
-      "name": "Lead",
-      "description": "Runs GCT-driven reviews and creates backlog items for quality issues."
+      "id": "programmatic-qa",
+      "name": "Programmatic QA",
+      "description": "Runs programmatic scenario QA checks and creates backlog items for actionable structural issues."
     },
     {
-      "id": "auditor",
-      "name": "Deep Auditor",
-      "description": "Investigates scenarios through steer-skill lenses for structural quality findings."
+      "id": "architectural-auditor",
+      "name": "Architectural Auditor",
+      "description": "Investigates scenarios through architectural and testing lenses to surface non-programmatic quality findings."
     }
   ]
 }

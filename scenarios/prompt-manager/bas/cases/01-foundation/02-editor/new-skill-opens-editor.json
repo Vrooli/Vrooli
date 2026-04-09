@@ -43,28 +43,28 @@
       }
     },
     {
-      "id": "click-members-tab",
+      "id": "click-agents-tab",
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/sidebar.tabMembers"
+          "selector": "@selector/sidebar.tabAgents"
         },
         "metadata": {
-          "label": "Switch to members tab"
+          "label": "Switch to agents tab"
         }
       }
     },
     {
-      "id": "wait-members-list",
+      "id": "wait-agents-list",
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "@selector/members.list",
+          "selector": "@selector/agents.list",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 10000
         },
         "metadata": {
-          "label": "Wait for members list"
+          "label": "Wait for agents list"
         }
       }
     },
@@ -132,18 +132,18 @@
     {
       "id": "e2",
       "source": "wait-sidebar",
-      "target": "click-members-tab",
+      "target": "click-agents-tab",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e3",
-      "source": "click-members-tab",
-      "target": "wait-members-list",
+      "source": "click-agents-tab",
+      "target": "wait-agents-list",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e4",
-      "source": "wait-members-list",
+      "source": "wait-agents-list",
       "target": "click-skills-tab",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },

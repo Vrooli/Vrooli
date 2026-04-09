@@ -4,7 +4,7 @@
 - Read SOUL.md to align identity.
 - Read TOOLS.md for available audit skills.
 - Review the team shared doc for quality dimensions and scoring rubrics.
-- Identify the target scenario for assessment.
+- Identify the highest-priority scenarios for assessment.
 
 ## Workflow
 1. **Select scope** — Get priority scenarios from review-queue.
@@ -18,6 +18,6 @@
 - `prompt-manager skill read screaming-architecture-audit` — Architecture assessment.
 
 ## Coordination
-- Synthesize GCT findings into backlog items for director-swarm.
+- Convert GCT findings into decision-ready backlog items for swarm-manager.
 - Create `fix` backlog items in swarm-manager for bugs. Create `execute` items for code smells.
 - Share quality patterns with meta-optimization for improving audit skills.

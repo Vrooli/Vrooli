@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"prompt-manager/store"
+	"prompt-manager/teamconfig"
 )
 
 // TeamDisabledError indicates a heartbeat execution was blocked because the team is off.
@@ -35,18 +36,18 @@ func validateTeamEnabled(team *store.Team) error {
 }
 
 // ProfileMismatchError indicates a profile's runner type is incompatible with
-// the team's spawn mode.
+// the team's runtime mode.
 type ProfileMismatchError struct {
 	TeamID     string
-	SpawnMode  string
+	RuntimeMode string
 	ProfileKey string
 	RunnerType string
 }
 
 func (e *ProfileMismatchError) Error() string {
 	return fmt.Sprintf(
-		"profile %q uses runner %s which is incompatible with team %s spawn mode %q; single-process requires RUNNER_TYPE_CLAUDE_CODE",
-		e.ProfileKey, e.RunnerType, e.TeamID, e.SpawnMode,
+		"profile %q uses runner %s which is incompatible with team %s runtime mode %q; single-process requires RUNNER_TYPE_CLAUDE_CODE",
+		e.ProfileKey, e.RunnerType, e.TeamID, e.RuntimeMode,
 	)
 }
 
@@ -57,13 +58,13 @@ func IsProfileMismatch(err error) bool {
 }
 
 // validateProfileCompatibility checks that a resolved profile's runner type
-// is compatible with the team's spawn mode. Single-process teams require
+// is compatible with the team's runtime mode. Single-process teams require
 // RUNNER_TYPE_CLAUDE_CODE. Multi-process teams allow any runner.
 func validateProfileCompatibility(team *store.Team, profile *AgentProfile) error {
-	if team.SpawnMode == "single-process" && profile.RunnerType != "RUNNER_TYPE_CLAUDE_CODE" {
+	if team.Runtime.Mode == teamconfig.RuntimeModeSingleProcess && profile.RunnerType != "RUNNER_TYPE_CLAUDE_CODE" {
 		return &ProfileMismatchError{
 			TeamID:     team.ID,
-			SpawnMode:  team.SpawnMode,
+			RuntimeMode: team.Runtime.Mode,
 			ProfileKey: profile.ProfileKey,
 			RunnerType: profile.RunnerType,
 		}

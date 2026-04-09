@@ -25,6 +25,7 @@ import { useTeamActivity } from '@/hooks/useTeamActivity'
 import { useTeamGathering } from '@/hooks/useTeamGathering'
 import { AgentProvider } from './AgentProvider'
 import { WorldScene, type AgentWithPosition } from './WorldScene'
+import { EnvironmentControls } from './EnvironmentControls'
 import { DisplayPanel } from './DisplayPanel'
 import { AgentOverlay } from './AgentOverlay'
 import { WorldEditorToolbar, ObjectPalette } from './editor'
@@ -472,6 +473,11 @@ export function WorldCanvas({
       <PanelErrorBoundary panelName="World Editor" minimal>
         <WorldEditorToolbar className="absolute top-4 left-1/2 -translate-x-1/2" />
         <ObjectPalette className="absolute top-16 left-4" />
+      </PanelErrorBoundary>
+
+      {/* Environment controls remain directly visible in world view. */}
+      <PanelErrorBoundary panelName="Environment Controls" minimal>
+        <EnvironmentControls className="absolute bottom-4 left-4 z-10" />
       </PanelErrorBoundary>
 
       {/* Furniture context menu */}

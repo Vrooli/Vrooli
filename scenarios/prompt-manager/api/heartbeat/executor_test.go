@@ -18,7 +18,7 @@ func TestExecutorExecuteFailsWhenConfigMissing(t *testing.T) {
 	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent"}); err != nil {
 		t.Fatalf("create agent: %v", err)
 	}
-	if err := teamStore.Create(ctx, &store.Team{ID: "team-1", DisplayName: "Team"}); err != nil {
+	if err := teamStore.Create(ctx, newIndependentTestTeam("team-1", "Team")); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
 

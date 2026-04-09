@@ -19,8 +19,12 @@ func setupPruneTestStore(t *testing.T) (*FileTeamStore, string) {
 	if err := os.MkdirAll(sharedDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	teamJSON := `{"kind":"team","schemaVersion":1,"id":"team-1","displayName":"Test","enabled":true}`
-	if err := os.WriteFile(filepath.Join(teamDir, "team.json"), []byte(teamJSON), 0o644); err != nil {
+	team := newIndependentTestTeam("team-1", "Test")
+	data, err := json.MarshalIndent(team, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(teamDir, "team.json"), data, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	return NewFileTeamStore(storeDir, nil), sharedDir
@@ -36,13 +40,8 @@ func setupPruneTestStoreWithRetention(t *testing.T, retention *RetentionConfig) 
 		t.Fatal(err)
 	}
 
-	team := Team{
-		BaseEntity:  BaseEntity{Kind: KindTeam, SchemaVersion: CurrentSchemaVersion},
-		ID:          "team-1",
-		DisplayName: "Test",
-		Enabled:     true,
-		Retention:   retention,
-	}
+	team := *newIndependentTestTeam("team-1", "Test")
+	team.Retention = retention
 	data, err := json.MarshalIndent(team, "", "  ")
 	if err != nil {
 		t.Fatal(err)

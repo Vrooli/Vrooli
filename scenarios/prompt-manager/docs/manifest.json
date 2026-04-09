@@ -55,7 +55,7 @@
         {
           "path": "concepts/TEAM-EXECUTION.md",
           "title": "Team Execution Model",
-          "description": "Serialized heartbeat execution per team with bounded FIFO queue",
+          "description": "Per-team execution contexts with serialized or bounded-parallel heartbeat queues",
           "audience": ["developers"]
         },
         {
@@ -129,6 +129,19 @@
       ]
     },
     {
+      "id": "plans",
+      "title": "Plans",
+      "icon": "map",
+      "documents": [
+        {
+          "path": "plans/team-coordination-greenfield-redesign-implementation-plan.md",
+          "title": "Team Coordination Greenfield Redesign",
+          "description": "Greenfield implementation plan for decoupling runtime, coordination, and concurrency in Prompt Manager teams",
+          "audience": ["developers"]
+        }
+      ]
+    },
+    {
       "id": "internal",
       "title": "Internal",
       "icon": "lock",
@@ -168,7 +181,7 @@
     }
   ],
   "navigation": {
-    "primary": ["getting-started", "concepts", "guides", "reference"],
+    "primary": ["getting-started", "concepts", "guides", "plans", "reference"],
     "secondary": ["internal"]
   }
 }

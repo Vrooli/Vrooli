@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 	"sync"
+
+	"prompt-manager/store"
 )
 
 // TeamExecutionStore manages TeamExecutionContexts for all teams.
@@ -12,14 +14,16 @@ type TeamExecutionStore struct {
 	contexts   map[string]*TeamExecutionContext
 	executor   HeartbeatExecutor
 	persistDir string
+	teamStore  *store.FileTeamStore
 }
 
 // NewTeamExecutionStore creates a new store for team execution contexts.
-func NewTeamExecutionStore(executor HeartbeatExecutor, persistDir string) *TeamExecutionStore {
+func NewTeamExecutionStore(teamStore *store.FileTeamStore, executor HeartbeatExecutor, persistDir string) *TeamExecutionStore {
 	return &TeamExecutionStore{
 		contexts:   make(map[string]*TeamExecutionContext),
 		executor:   executor,
 		persistDir: persistDir,
+		teamStore:  teamStore,
 	}
 }
 
@@ -47,11 +51,19 @@ func (s *TeamExecutionStore) GetOrCreate(teamID string) *TeamExecutionContext {
 
 // Enqueue delegates to the team's execution context.
 func (s *TeamExecutionStore) Enqueue(ctx context.Context, teamID, agentID, profileKey string) (*EnqueueResult, error) {
-	return s.GetOrCreate(teamID).Enqueue(ctx, agentID, profileKey)
+	tec, err := s.configureContext(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	return tec.Enqueue(ctx, agentID, profileKey)
 }
 
 // Status returns the execution status for a team.
 func (s *TeamExecutionStore) Status(teamID string) TeamExecutionStatus {
+	if tec, err := s.configureContext(context.Background(), teamID); err == nil {
+		return tec.Status()
+	}
+
 	s.mu.RLock()
 	tec, ok := s.contexts[teamID]
 	s.mu.RUnlock()
@@ -108,4 +120,17 @@ func (s *TeamExecutionStore) Recover(_ context.Context) {
 	if len(s.contexts) > 0 {
 		log.Printf("team_execution_store: recovered %d team context(s)", len(s.contexts))
 	}
+}
+
+func (s *TeamExecutionStore) configureContext(ctx context.Context, teamID string) (*TeamExecutionContext, error) {
+	tec := s.GetOrCreate(teamID)
+	if s.teamStore == nil {
+		return tec, nil
+	}
+	team, err := s.teamStore.Get(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	tec.Configure(team.Execution.QueuePolicy, team.Execution.MaxConcurrentRuns)
+	return tec, nil
 }

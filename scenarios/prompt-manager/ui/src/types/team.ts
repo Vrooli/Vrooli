@@ -7,7 +7,15 @@
 // Re-export API types from schemas (these include runtime validation)
 export type {
   DecisionMode,
-  SpawnMode,
+  RuntimeMode,
+  CoordinationPattern,
+  ReportingMode,
+  MessagingMode,
+  QueuePolicy,
+  CoordinationCapabilities,
+  Runtime,
+  Coordination,
+  Execution,
   Team,
   TeamDetails,
   TeamRole,

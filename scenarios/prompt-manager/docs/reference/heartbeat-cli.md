@@ -71,7 +71,7 @@ prompt-manager team heartbeat-enable <team-id> <agent-id> --schedule=<cron> [--p
 | Flag | Required | Description |
 |------|----------|-------------|
 | `--schedule` | Yes | Cron expression for execution schedule |
-| `--profile` | No | Agent-manager profile key (default: `prompt-manager-heartbeat`) |
+| `--profile` | No | Agent-manager profile key override. Defaults to `prompt-manager-heartbeat` for multi-process teams and `prompt-manager-heartbeat-cc` for single-process teams |
 | `--json` | No | Output as JSON |
 
 **Schedule Examples:**
@@ -280,7 +280,7 @@ prompt-manager agent soul agent-1 --file=soul.md
 
 ### prompt-manager team member-context
 
-Get the full context prompt for a team member. This includes agent files, responsibilities, relationships, and inbox but excludes HEARTBEAT.md task instructions. Used by single-process spawn mode for teammate context bootstrapping.
+Get the full context prompt for a team member. This includes agent files, responsibilities, org context, coordination guidance, durable-state guidance, and inbox content when enabled, but excludes HEARTBEAT.md task instructions. Used by leader-led single-process teams for teammate bootstrapping and by operators who want to inspect the resolved prompt context.
 
 ```bash
 prompt-manager team member-context <team-id> <agent-id> [--json]

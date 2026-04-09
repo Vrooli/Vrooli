@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"prompt-manager/teamconfig"
 )
 
 // FileTeamStore implements TeamStore using the file system
@@ -66,6 +68,9 @@ func (s *FileTeamStore) Create(ctx context.Context, team *Team) error {
 	// Check team doesn't already exist
 	if _, err := s.Get(ctx, team.ID); err == nil {
 		return fmt.Errorf("team already exists: %s", team.ID)
+	}
+	if err := teamconfig.Validate(team.Contract()); err != nil {
+		return err
 	}
 
 	// Set up team entity
@@ -131,14 +136,26 @@ func (s *FileTeamStore) Update(ctx context.Context, id string, updates *Team) er
 	if updates.EnabledSet {
 		team.Enabled = updates.Enabled
 	}
-	if updates.SpawnMode != "" {
-		team.SpawnMode = updates.SpawnMode
+	if updates.Runtime.Mode != "" {
+		team.Runtime = updates.Runtime
+	}
+	if updates.Coordination.Pattern != "" {
+		team.Coordination = updates.Coordination
+	}
+	if updates.Execution.QueuePolicy != "" {
+		team.Execution = updates.Execution
 	}
 	if updates.DecisionMode != "" {
 		team.DecisionMode = updates.DecisionMode
 	}
 	if updates.Shared != nil {
 		team.Shared = updates.Shared
+	}
+	if updates.Retention != nil {
+		team.Retention = updates.Retention
+	}
+	if err := teamconfig.Validate(team.Contract()); err != nil {
+		return err
 	}
 
 	team.UpdateTimestamp()
@@ -252,7 +269,14 @@ func (s *FileTeamStore) SetInbox(ctx context.Context, teamID, agentID string, in
 // loadTeam loads a team from the teams directory
 func (s *FileTeamStore) loadTeam(teamID string) (*Team, error) {
 	teamPath := filepath.Join(s.teamsDir(), teamID, "team.json")
-	return LoadJSON[Team](teamPath)
+	team, err := LoadJSON[Team](teamPath)
+	if err != nil {
+		return nil, err
+	}
+	if err := teamconfig.Validate(team.Contract()); err != nil {
+		return nil, err
+	}
+	return team, nil
 }
 
 // memberDir returns the path to a member's directory within a team

@@ -171,20 +171,22 @@ POST /teams/{teamId}/heartbeats/{agentId}/trigger
 
 ### Trigger Team
 
-Trigger heartbeats for an entire team. Behavior depends on the team's `spawnMode`.
+Trigger heartbeats for an entire team. Behavior depends on the team's resolved runtime and coordination policy.
 
 ```
 POST /teams/{teamId}/trigger
 ```
 
-- **`single-process`**: Triggers only the team lead's heartbeat (identified from the org chart).
-- **`multi-process`** (default): Triggers all members that have heartbeat configs.
+- **`single-process` + `leader-led`**: Triggers only the configured lead agent.
+- **All other team policies**: Triggers all members that have heartbeat configs.
 
 **Response:** `202 Accepted`
 ```json
 {
   "teamId": "my-team",
-  "spawnMode": "multi-process",
+  "runtimeMode": "multi-process",
+  "coordinationPattern": "independent",
+  "queuePolicy": "bounded-parallel",
   "triggers": [
     {
       "teamId": "my-team",
@@ -198,9 +200,9 @@ POST /teams/{teamId}/trigger
 ```
 
 **Errors:**
-- `400 Bad Request` - No team lead found (single-process mode)
+- `400 Bad Request` - Invalid leader-led single-process configuration, inactive/missing lead member, or missing lead heartbeat config
 - `404 Not Found` - Team not found
-- `409 Conflict` - Team is disabled
+- `409 Conflict` - Team is disabled, or the requested member is already queued/running
 - `503 Service Unavailable` - Executor not configured
 
 ---
@@ -218,22 +220,26 @@ GET /teams/{teamId}/execution-status
 {
   "teamId": "my-team",
   "state": "active",
-  "running": "agent-1",
-  "queue": ["agent-2"]
+  "runningAgentIds": ["agent-1", "agent-2"],
+  "queue": ["agent-3"],
+  "queuePolicy": "bounded-parallel",
+  "maxConcurrentRuns": 2
 }
 ```
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `state` | string | `"idle"` or `"active"` |
-| `running` | string? | Agent ID currently executing, null if idle |
+| `runningAgentIds` | string[] | Agent IDs currently executing |
 | `queue` | string[] | Agent IDs waiting to execute (FIFO order) |
+| `queuePolicy` | string | `serialized` or `bounded-parallel` |
+| `maxConcurrentRuns` | integer | Concurrency cap for the team execution context |
 
 ---
 
 ### Get Member Context
 
-Get the full context prompt for a team member (excludes HEARTBEAT.md task instructions). Used by single-process spawn mode for teammate bootstrapping.
+Get the full context prompt for a team member (excludes HEARTBEAT.md task instructions). Used by leader-led single-process teams for teammate bootstrapping and by operators who want to inspect the resolved prompt context.
 
 ```
 GET /teams/{teamId}/members/{agentId}/context

@@ -85,13 +85,13 @@ Agent-maintained document tracking development milestones.
 
 ### Phase 8: Team Execution Model & Coordination Skills (2026-02-15)
 - [x] Team-level execution context with bounded FIFO queue
-- [x] One member runs at a time per team; additional triggers queued
+- [x] Policy-aware per-team execution queue with `serialized` and `bounded-parallel` modes
 - [x] Dedup protection: 409 Conflict when member already queued/running
 - [x] Queue persistence to disk with crash recovery
 - [x] Scheduler routes heartbeats through TeamExecutionStore
 - [x] GET /teams/{id}/execution-status endpoint
-- [x] Two coordination skills: `team-coordination-multi-process` and `team-coordination-single-process`
-- [x] PromptBuilder injects coordination skill reference based on team spawnMode
+- [x] Three coordination skills: `team-coordination-independent`, `team-coordination-peer`, and `team-coordination-leader-led`
+- [x] PromptBuilder injects coordination skill reference based on team coordination pattern
 - [x] Member context endpoint: GET /teams/{id}/members/{agentId}/context (excludes HEARTBEAT.md)
 - [x] CLI command: `prompt-manager team member-context <team-id> <agent-id>`
 - [x] Comprehensive test coverage for queue behavior, scheduler integration, prompt builder, and handlers
@@ -142,12 +142,12 @@ Agent-maintained document tracking development milestones.
 - Clear contracts between layers
 - Supports implementation swapping
 
-### ADR-003: CLI as Thin Wrapper
-**Decision:** CLI commands directly map to API endpoints with no business logic
+### ADR-003: CLI as Contract-Aware API Client
+**Decision:** CLI commands remain API-first, but own lightweight contract-aware flag resolution for team policy presets before sending requests
 **Rationale:**
-- Single source of truth (API)
-- Consistent behavior across clients
-- Simpler CLI maintenance
+- API validation remains authoritative
+- CLI can expose ergonomic presets and migrations without duplicating server validation rules
+- Shared `teamconfig` helpers keep API and CLI policy defaults aligned
 
 ---
 
@@ -155,5 +155,6 @@ Agent-maintained document tracking development milestones.
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.1.0 | 2026-04-09 | Team runtime/coordination/execution contract migration, independent/peer/leader-led coordination skills, CLI/API policy alignment |
 | 2.0.0 | 2025-01-25 | Screaming architecture alignment, full CLI coverage |
 | 1.0.0 | 2024-12-01 | Initial release |

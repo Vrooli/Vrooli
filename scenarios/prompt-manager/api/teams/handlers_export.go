@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"prompt-manager/interop"
+	"prompt-manager/teamconfig"
 
 	"github.com/gorilla/mux"
 )
@@ -28,6 +29,10 @@ func (h *Handlers) ExportClaudeCode(w http.ResponseWriter, r *http.Request) {
 	team, err := h.teamStore.Get(ctx, id)
 	if err != nil {
 		http.Error(w, "Team not found", http.StatusNotFound)
+		return
+	}
+	if !teamconfig.UsesSingleProcessInterop(team.Contract()) {
+		http.Error(w, "Claude Code export is only supported for leader-led single-process teams", http.StatusBadRequest)
 		return
 	}
 

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"prompt-manager/store"
+	"prompt-manager/teamconfig"
 
 	"github.com/gorilla/mux"
 )
@@ -109,8 +110,14 @@ func (m *MockTeamStore) Update(ctx context.Context, id string, updates *store.Te
 	if updates.EnabledSet {
 		existing.Enabled = updates.Enabled
 	}
-	if updates.SpawnMode != "" {
-		existing.SpawnMode = updates.SpawnMode
+	if updates.Runtime.Mode != "" {
+		existing.Runtime = updates.Runtime
+	}
+	if updates.Coordination.Pattern != "" {
+		existing.Coordination = updates.Coordination
+	}
+	if updates.Execution.QueuePolicy != "" {
+		existing.Execution = updates.Execution
 	}
 	if updates.DecisionMode != "" {
 		existing.DecisionMode = updates.DecisionMode
@@ -384,6 +391,40 @@ func setupTestHandlers() (*Handlers, *MockTeamStore, *MockAgentStore, *MockRelat
 	return handlers, teamStore, agentStore, relationStore
 }
 
+func independentCreateRequest(displayName string) CreateRequest {
+	return CreateRequest{
+		DisplayName:  displayName,
+		Runtime:      teamconfig.Runtime{Mode: teamconfig.RuntimeModeMultiProcess},
+		Coordination: newIndependentTestTeam("tmp", displayName).Coordination,
+		Execution:    teamconfig.Execution{QueuePolicy: teamconfig.QueuePolicyBoundedParallel, MaxConcurrentRuns: 2},
+		DecisionMode: teamconfig.DecisionModeYolo,
+	}
+}
+
+func leaderLedCreateRequest(displayName, leadAgentID string) CreateRequest {
+	return CreateRequest{
+		DisplayName: displayName,
+		Runtime:     teamconfig.Runtime{Mode: teamconfig.RuntimeModeSingleProcess},
+		Coordination: teamconfig.Coordination{
+			Pattern:       teamconfig.CoordinationPatternLeaderLed,
+			LeadAgentID:   leadAgentID,
+			ReportingMode: teamconfig.ReportingModeLeader,
+			MessagingMode: teamconfig.MessagingModeInSession,
+			Capabilities: teamconfig.Capabilities{
+				ShowOrgContext:           true,
+				InjectInbox:              false,
+				AllowPeerTriggers:        false,
+				ShowTaskBoardGuidance:    true,
+				ShowDecisionLogGuidance:  true,
+				ShowKnowledgeLogGuidance: true,
+				RequireHandoff:           true,
+			},
+		},
+		Execution:    teamconfig.Execution{QueuePolicy: teamconfig.QueuePolicySerialized, MaxConcurrentRuns: 1},
+		DecisionMode: teamconfig.DecisionModeYolo,
+	}
+}
+
 // ============== List Tests ==============
 
 func TestList(t *testing.T) {
@@ -493,8 +534,12 @@ func TestCreate(t *testing.T) {
 	handlers, teamStore, _, _ := setupTestHandlers()
 
 	body := CreateRequest{
-		DisplayName: "New Team",
-		Mission:     "Build great things",
+		DisplayName:  "New Team",
+		Mission:      "Build great things",
+		Runtime:      independentCreateRequest("New Team").Runtime,
+		Coordination: independentCreateRequest("New Team").Coordination,
+		Execution:    independentCreateRequest("New Team").Execution,
+		DecisionMode: independentCreateRequest("New Team").DecisionMode,
 	}
 	bodyBytes, _ := json.Marshal(body)
 
@@ -529,10 +574,8 @@ func TestCreate(t *testing.T) {
 func TestCreateWithCustomID(t *testing.T) {
 	handlers, teamStore, _, _ := setupTestHandlers()
 
-	body := CreateRequest{
-		ID:          "custom-team-id",
-		DisplayName: "Custom ID Team",
-	}
+	body := independentCreateRequest("Custom ID Team")
+	body.ID = "custom-team-id"
 	bodyBytes, _ := json.Marshal(body)
 
 	req := httptest.NewRequest("POST", "/teams", bytes.NewReader(bodyBytes))
@@ -558,13 +601,10 @@ func TestCreateWithCustomID(t *testing.T) {
 	}
 }
 
-func TestCreateWithSpawnMode(t *testing.T) {
+func TestCreateWithRuntimePolicy(t *testing.T) {
 	handlers, teamStore, _, _ := setupTestHandlers()
 
-	body := CreateRequest{
-		DisplayName: "SP Team",
-		SpawnMode:   "single-process",
-	}
+	body := leaderLedCreateRequest("SP Team", "lead-agent")
 	bodyBytes, _ := json.Marshal(body)
 
 	req := httptest.NewRequest("POST", "/teams", bytes.NewReader(bodyBytes))
@@ -581,26 +621,27 @@ func TestCreateWithSpawnMode(t *testing.T) {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
 
-	if response.SpawnMode != "single-process" {
-		t.Errorf("expected spawnMode 'single-process', got %q", response.SpawnMode)
+	if response.Runtime.Mode != teamconfig.RuntimeModeSingleProcess {
+		t.Errorf("expected runtime.mode %q, got %q", teamconfig.RuntimeModeSingleProcess, response.Runtime.Mode)
+	}
+	if response.Coordination.Pattern != teamconfig.CoordinationPatternLeaderLed {
+		t.Errorf("expected coordination.pattern %q, got %q", teamconfig.CoordinationPatternLeaderLed, response.Coordination.Pattern)
 	}
 
 	stored := teamStore.teams["sp-team"]
 	if stored == nil {
 		t.Fatal("team not stored")
 	}
-	if stored.SpawnMode != "single-process" {
-		t.Errorf("stored spawnMode = %q, want 'single-process'", stored.SpawnMode)
+	if stored.Runtime.Mode != teamconfig.RuntimeModeSingleProcess {
+		t.Errorf("stored runtime.mode = %q, want %q", stored.Runtime.Mode, teamconfig.RuntimeModeSingleProcess)
 	}
 }
 
-func TestCreateWithInvalidSpawnMode(t *testing.T) {
+func TestCreateWithInvalidRuntimeMode(t *testing.T) {
 	handlers, _, _, _ := setupTestHandlers()
 
-	body := CreateRequest{
-		DisplayName: "Bad Mode",
-		SpawnMode:   "invalid-mode",
-	}
+	body := independentCreateRequest("Bad Mode")
+	body.Runtime.Mode = "invalid-mode"
 	bodyBytes, _ := json.Marshal(body)
 
 	req := httptest.NewRequest("POST", "/teams", bytes.NewReader(bodyBytes))
@@ -616,10 +657,8 @@ func TestCreateWithInvalidSpawnMode(t *testing.T) {
 func TestCreateWithDecisionMode(t *testing.T) {
 	handlers, teamStore, _, _ := setupTestHandlers()
 
-	body := CreateRequest{
-		DisplayName:  "Approval Team",
-		DecisionMode: "approval",
-	}
+	body := independentCreateRequest("Approval Team")
+	body.DecisionMode = teamconfig.DecisionModeApproval
 	bodyBytes, _ := json.Marshal(body)
 
 	req := httptest.NewRequest("POST", "/teams", bytes.NewReader(bodyBytes))
@@ -652,10 +691,8 @@ func TestCreateWithDecisionMode(t *testing.T) {
 func TestCreateWithInvalidDecisionMode(t *testing.T) {
 	handlers, _, _, _ := setupTestHandlers()
 
-	body := CreateRequest{
-		DisplayName:  "Bad Decision Mode",
-		DecisionMode: "manual",
-	}
+	body := independentCreateRequest("Bad Decision Mode")
+	body.DecisionMode = "manual"
 	bodyBytes, _ := json.Marshal(body)
 
 	req := httptest.NewRequest("POST", "/teams", bytes.NewReader(bodyBytes))
@@ -668,20 +705,36 @@ func TestCreateWithInvalidDecisionMode(t *testing.T) {
 	}
 }
 
-func TestUpdateSpawnMode(t *testing.T) {
+func TestUpdateRuntimePolicy(t *testing.T) {
 	handlers, teamStore, _, _ := setupTestHandlers()
 
-	teamStore.teams["team-1"] = &store.Team{
-		ID:          "team-1",
-		DisplayName: "Original",
-		SpawnMode:   "multi-process",
-	}
+	teamStore.teams["team-1"] = newIndependentTestTeam("team-1", "Original")
 	teamStore.roles["team-1"] = &store.TeamRoles{TeamID: "team-1", Roles: []store.Role{}}
 	teamStore.orgChart["team-1"] = &store.OrgChart{TeamID: "team-1", Edges: []store.OrgEdge{}}
 
-	newMode := "single-process"
 	body := UpdateRequest{
-		SpawnMode: &newMode,
+		Runtime: &RuntimeDTO{
+			Mode: teamconfig.RuntimeModeSingleProcess,
+		},
+		Coordination: &CoordinationDTO{
+			Pattern:       teamconfig.CoordinationPatternLeaderLed,
+			LeadAgentID:   "lead-agent",
+			ReportingMode: teamconfig.ReportingModeLeader,
+			MessagingMode: teamconfig.MessagingModeInSession,
+			Capabilities: teamconfig.Capabilities{
+				ShowOrgContext:           true,
+				InjectInbox:              false,
+				AllowPeerTriggers:        false,
+				ShowTaskBoardGuidance:    true,
+				ShowDecisionLogGuidance:  true,
+				ShowKnowledgeLogGuidance: true,
+				RequireHandoff:           true,
+			},
+		},
+		Execution: &ExecutionDTO{
+			QueuePolicy:       teamconfig.QueuePolicySerialized,
+			MaxConcurrentRuns: 1,
+		},
 	}
 	bodyBytes, _ := json.Marshal(body)
 
@@ -700,26 +753,57 @@ func TestUpdateSpawnMode(t *testing.T) {
 		t.Fatalf("Failed to decode: %v", err)
 	}
 
-	if response.SpawnMode != "single-process" {
-		t.Errorf("expected spawnMode 'single-process', got %q", response.SpawnMode)
+	if response.Runtime.Mode != teamconfig.RuntimeModeSingleProcess {
+		t.Errorf("expected runtime.mode %q, got %q", teamconfig.RuntimeModeSingleProcess, response.Runtime.Mode)
 	}
-
-	if teamStore.teams["team-1"].SpawnMode != "single-process" {
-		t.Errorf("stored spawnMode = %q, want 'single-process'", teamStore.teams["team-1"].SpawnMode)
+	if teamStore.teams["team-1"].Runtime.Mode != teamconfig.RuntimeModeSingleProcess {
+		t.Errorf("stored runtime.mode = %q, want %q", teamStore.teams["team-1"].Runtime.Mode, teamconfig.RuntimeModeSingleProcess)
 	}
 }
 
-func TestUpdateInvalidSpawnMode(t *testing.T) {
-	handlers, teamStore, _, _ := setupTestHandlers()
+func TestUpdateEnabledLeaderLedTeamRequiresActiveLeadMember(t *testing.T) {
+	handlers, teamStore, _, relationStore := setupTestHandlers()
 
-	teamStore.teams["team-1"] = &store.Team{
-		ID:          "team-1",
-		DisplayName: "Team",
+	team := newLeaderLedSingleProcessTestTeam("team-1", "Original", "lead-agent")
+	team.Enabled = false
+	teamStore.teams["team-1"] = team
+	teamStore.roles["team-1"] = &store.TeamRoles{TeamID: "team-1", Roles: []store.Role{}}
+	teamStore.orgChart["team-1"] = &store.OrgChart{TeamID: "team-1", Edges: []store.OrgEdge{}}
+	relationStore.teamMembers["team-1"] = map[string]*store.TeamMemberRelation{
+		"lead-agent": {
+			TeamID:  "team-1",
+			AgentID: "lead-agent",
+			Status:  store.MemberStatusInactive,
+		},
 	}
 
-	invalid := "bad-mode"
+	enable := true
+	body := UpdateRequest{Enabled: &enable}
+	bodyBytes, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("PUT", "/teams/team-1", bytes.NewReader(bodyBytes))
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
+	w := httptest.NewRecorder()
+
+	handlers.Update(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+	if got := w.Body.String(); got == "" || !bytes.Contains(w.Body.Bytes(), []byte("active team member")) {
+		t.Fatalf("expected active team member error, got %q", got)
+	}
+}
+
+func TestUpdateInvalidRuntimeMode(t *testing.T) {
+	handlers, teamStore, _, _ := setupTestHandlers()
+
+	teamStore.teams["team-1"] = newIndependentTestTeam("team-1", "Team")
+
 	body := UpdateRequest{
-		SpawnMode: &invalid,
+		Runtime: &RuntimeDTO{
+			Mode: "bad-mode",
+		},
 	}
 	bodyBytes, _ := json.Marshal(body)
 
@@ -737,15 +821,13 @@ func TestUpdateInvalidSpawnMode(t *testing.T) {
 func TestUpdateDecisionMode(t *testing.T) {
 	handlers, teamStore, _, _ := setupTestHandlers()
 
-	teamStore.teams["team-1"] = &store.Team{
-		ID:           "team-1",
-		DisplayName:  "Original",
-		DecisionMode: "yolo",
-	}
+	team := newIndependentTestTeam("team-1", "Original")
+	team.DecisionMode = teamconfig.DecisionModeYolo
+	teamStore.teams["team-1"] = team
 	teamStore.roles["team-1"] = &store.TeamRoles{TeamID: "team-1", Roles: []store.Role{}}
 	teamStore.orgChart["team-1"] = &store.OrgChart{TeamID: "team-1", Edges: []store.OrgEdge{}}
 
-	newMode := "approval"
+	newMode := teamconfig.DecisionModeApproval
 	body := UpdateRequest{
 		DecisionMode: &newMode,
 	}
@@ -778,10 +860,7 @@ func TestUpdateDecisionMode(t *testing.T) {
 func TestUpdateInvalidDecisionMode(t *testing.T) {
 	handlers, teamStore, _, _ := setupTestHandlers()
 
-	teamStore.teams["team-1"] = &store.Team{
-		ID:          "team-1",
-		DisplayName: "Team",
-	}
+	teamStore.teams["team-1"] = newIndependentTestTeam("team-1", "Team")
 
 	invalid := "manual"
 	body := UpdateRequest{
@@ -819,15 +898,10 @@ func TestCreateMissingDisplayName(t *testing.T) {
 func TestCreateConflict(t *testing.T) {
 	handlers, teamStore, _, _ := setupTestHandlers()
 
-	teamStore.teams["existing-team"] = &store.Team{
-		ID:          "existing-team",
-		DisplayName: "Existing Team",
-	}
+	teamStore.teams["existing-team"] = newIndependentTestTeam("existing-team", "Existing Team")
 
-	body := CreateRequest{
-		ID:          "existing-team",
-		DisplayName: "New Team",
-	}
+	body := independentCreateRequest("New Team")
+	body.ID = "existing-team"
 	bodyBytes, _ := json.Marshal(body)
 
 	req := httptest.NewRequest("POST", "/teams", bytes.NewReader(bodyBytes))
@@ -845,11 +919,9 @@ func TestCreateConflict(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	handlers, teamStore, _, _ := setupTestHandlers()
 
-	teamStore.teams["team-1"] = &store.Team{
-		ID:          "team-1",
-		DisplayName: "Original Name",
-		Mission:     "Original mission",
-	}
+	team := newIndependentTestTeam("team-1", "Original Name")
+	team.Mission = "Original mission"
+	teamStore.teams["team-1"] = team
 	teamStore.roles["team-1"] = &store.TeamRoles{TeamID: "team-1", Roles: []store.Role{}}
 	teamStore.orgChart["team-1"] = &store.OrgChart{TeamID: "team-1", Edges: []store.OrgEdge{}}
 
@@ -1136,6 +1208,44 @@ func TestUpdateMemberNotFound(t *testing.T) {
 	}
 }
 
+func TestUpdateMemberRejectsDeactivatingEnabledLeader(t *testing.T) {
+	handlers, teamStore, agentStore, relationStore := setupTestHandlers()
+
+	team := newLeaderLedSingleProcessTestTeam("team-1", "Test Team", "lead-agent")
+	team.Enabled = true
+	teamStore.teams["team-1"] = team
+
+	agentStore.agents["lead-agent"] = &store.Agent{
+		ID:          "lead-agent",
+		DisplayName: "Lead Agent",
+	}
+
+	relationStore.teamMembers["team-1"] = map[string]*store.TeamMemberRelation{
+		"lead-agent": {
+			TeamID:  "team-1",
+			AgentID: "lead-agent",
+			Status:  store.MemberStatusActive,
+		},
+	}
+
+	newStatus := store.MemberStatusInactive
+	body := UpdateMemberRequest{Status: &newStatus}
+	bodyBytes, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("PUT", "/teams/team-1/members/lead-agent", bytes.NewReader(bodyBytes))
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "lead-agent"})
+	w := httptest.NewRecorder()
+
+	handlers.UpdateMember(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Fatalf("expected 409, got %d: %s", w.Code, w.Body.String())
+	}
+	if got := relationStore.teamMembers["team-1"]["lead-agent"].Status; got != store.MemberStatusActive {
+		t.Fatalf("lead status = %q, want %q", got, store.MemberStatusActive)
+	}
+}
+
 // ============== RemoveMember Tests ==============
 
 func TestRemoveMember(t *testing.T) {
@@ -1186,6 +1296,35 @@ func TestRemoveMemberNotFound(t *testing.T) {
 
 	if w.Code != http.StatusNotFound {
 		t.Errorf("Expected status 404, got %d", w.Code)
+	}
+}
+
+func TestRemoveMemberRejectsEnabledLeaderLead(t *testing.T) {
+	handlers, teamStore, _, relationStore := setupTestHandlers()
+
+	team := newLeaderLedSingleProcessTestTeam("team-1", "Test Team", "lead-agent")
+	team.Enabled = true
+	teamStore.teams["team-1"] = team
+
+	relationStore.teamMembers["team-1"] = map[string]*store.TeamMemberRelation{
+		"lead-agent": {
+			TeamID:  "team-1",
+			AgentID: "lead-agent",
+			Status:  store.MemberStatusActive,
+		},
+	}
+
+	req := httptest.NewRequest("DELETE", "/teams/team-1/members/lead-agent", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "lead-agent"})
+	w := httptest.NewRecorder()
+
+	handlers.RemoveMember(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Fatalf("expected 409, got %d: %s", w.Code, w.Body.String())
+	}
+	if _, ok := relationStore.teamMembers["team-1"]["lead-agent"]; !ok {
+		t.Fatal("expected lead membership to remain intact")
 	}
 }
 

@@ -474,7 +474,11 @@ func main() {
 		runRegistry,
 		nil, // uses default SentinelExtractor
 	)
-	teamExecStore := heartbeat.NewTeamExecutionStore(heartbeatExecutor, absStoreDir)
+	teamExecStore := heartbeat.NewTeamExecutionStore(
+		fileStore.Teams().(*store.FileTeamStore),
+		heartbeatExecutor,
+		absStoreDir,
+	)
 	heartbeatExecutor.OnComplete = teamExecStore.OnComplete
 	heartbeatScheduler := heartbeat.NewScheduler(
 		heartbeatExecutor,

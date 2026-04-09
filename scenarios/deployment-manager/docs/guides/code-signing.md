@@ -21,7 +21,7 @@ For full code signing instructions, including:
 - Configuration via UI or CLI
 - Troubleshooting common issues
 
-**See: [scenario-to-desktop Code Signing Guide](../../../scenario-to-desktop/docs/SIGNING.md)**
+**See: [scenario-to-desktop Code Signing Guide](../../../scenario-to-desktop/docs/guides/code-signing.md)**
 
 ## Quick Reference
 
@@ -98,4 +98,4 @@ To migrate:
 
 - [Desktop Deployment Guide](../DESKTOP-DEPLOYMENT-GUIDE.md) - Full deployment workflow
 - [Auto-Updates Guide](auto-updates.md) - Configure update channels
-- [scenario-to-desktop SIGNING.md](../../../scenario-to-desktop/docs/SIGNING.md) - Complete signing reference
+- [scenario-to-desktop code-signing.md](../../../scenario-to-desktop/docs/guides/code-signing.md) - Complete signing reference

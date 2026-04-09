@@ -140,9 +140,11 @@ type StopAgentResponse struct {
 
 // TriggerTeamResponse is the response for team-level trigger.
 type TriggerTeamResponse struct {
-	TeamID    string                     `json:"teamId"`
-	SpawnMode string                     `json:"spawnMode"`
-	Triggers  []TriggerHeartbeatResponse `json:"triggers"`
+	TeamID              string                     `json:"teamId"`
+	RuntimeMode         string                     `json:"runtimeMode"`
+	CoordinationPattern string                     `json:"coordinationPattern"`
+	QueuePolicy         string                     `json:"queuePolicy"`
+	Triggers            []TriggerHeartbeatResponse `json:"triggers"`
 }
 
 // --- Handoff API models ---

@@ -1,4 +1,4 @@
-# Heartbeat: QA Lead
+# Heartbeat: Programmatic QA Runner
 
 ## Preemptive Scenario Quality Review
 

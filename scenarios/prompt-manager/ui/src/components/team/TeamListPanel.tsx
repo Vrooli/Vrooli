@@ -7,6 +7,7 @@ import { Plus, Users, Trash2, Download, Upload } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTeamData } from '@/hooks/useTeamData'
 import { selectors } from '@/constants/selectors'
+import { buildDefaultCreateTeamRequest } from '@/lib/schemas'
 import * as teamService from '@/services/teamService'
 import { CCTeamImportModal } from './CCTeamImportModal'
 import { TeamContextMenu } from '@/components/team/TeamContextMenu'
@@ -75,9 +76,7 @@ export function TeamListPanel({
 
   const handleCreateTeam = async () => {
     const name = `Team ${teams.length + 1}`
-    const newTeam = await createTeam({
-      displayName: name,
-    })
+    const newTeam = await createTeam(buildDefaultCreateTeamRequest(name))
     // Auto-select the newly created team
     onSelectTeam(newTeam.id)
   }

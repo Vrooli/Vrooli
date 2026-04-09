@@ -38,5 +38,5 @@
 - `documentation-health` — Documentation quality and bidirectional traceability
 
 ## Coordination
-- Works alongside qa-lead: qa-lead handles GCT-driven reviews (programmatic), quality-auditor handles structural analysis (judgment-based).
+- Works alongside the programmatic QA runner: the runner handles GCT-driven reviews, quality-auditor handles structural analysis (judgment-based).
 - All findings feed into the same swarm-manager backlog pipeline.

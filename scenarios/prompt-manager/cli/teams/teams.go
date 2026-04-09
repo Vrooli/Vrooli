@@ -18,19 +18,22 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 
 	"prompt-manager/cli/internal/appctx"
+	"prompt-manager/teamconfig"
 )
 
 // Team represents a team from the API (brief response)
 type Team struct {
-	ID           string `json:"id"`
-	DisplayName  string `json:"displayName"`
-	Mission      string `json:"mission,omitempty"`
-	Enabled      bool   `json:"enabled"`
-	SpawnMode    string `json:"spawnMode,omitempty"`
-	DecisionMode string `json:"decisionMode,omitempty"`
-	MemberCount  int    `json:"memberCount"`
-	CreatedAt    string `json:"createdAt"`
-	UpdatedAt    string `json:"updatedAt"`
+	ID           string       `json:"id"`
+	DisplayName  string       `json:"displayName"`
+	Mission      string       `json:"mission,omitempty"`
+	Enabled      bool         `json:"enabled"`
+	Runtime      Runtime      `json:"runtime"`
+	Coordination Coordination `json:"coordination"`
+	Execution    Execution    `json:"execution"`
+	DecisionMode string       `json:"decisionMode,omitempty"`
+	MemberCount  int          `json:"memberCount"`
+	CreatedAt    string       `json:"createdAt"`
+	UpdatedAt    string       `json:"updatedAt"`
 }
 
 // TeamDetails represents full team details
@@ -100,6 +103,11 @@ type SendTeamMessageRequest struct {
 	FromAgentID string `json:"fromAgentId"`
 	Content     string `json:"content"`
 }
+
+type Runtime = teamconfig.Runtime
+type CoordinationCapabilities = teamconfig.Capabilities
+type Coordination = teamconfig.Coordination
+type Execution = teamconfig.Execution
 
 // HandoffResponse represents a handoff API response.
 type HandoffResponse struct {
@@ -241,20 +249,260 @@ type AddKnowledgeRequest struct {
 
 // CreateTeamRequest is the request body for creating a team
 type CreateTeamRequest struct {
-	ID           string `json:"id,omitempty"`
-	DisplayName  string `json:"displayName"`
-	Mission      string `json:"mission,omitempty"`
-	SpawnMode    string `json:"spawnMode,omitempty"`
-	DecisionMode string `json:"decisionMode,omitempty"`
+	ID           string       `json:"id,omitempty"`
+	DisplayName  string       `json:"displayName"`
+	Mission      string       `json:"mission,omitempty"`
+	Runtime      Runtime      `json:"runtime"`
+	Coordination Coordination `json:"coordination"`
+	Execution    Execution    `json:"execution"`
+	DecisionMode string       `json:"decisionMode,omitempty"`
 }
 
 // UpdateTeamRequest is the request body for updating a team
 type UpdateTeamRequest struct {
-	DisplayName  *string `json:"displayName,omitempty"`
-	Mission      *string `json:"mission,omitempty"`
-	Enabled      *bool   `json:"enabled,omitempty"`
-	SpawnMode    *string `json:"spawnMode,omitempty"`
-	DecisionMode *string `json:"decisionMode,omitempty"`
+	DisplayName  *string       `json:"displayName,omitempty"`
+	Mission      *string       `json:"mission,omitempty"`
+	Enabled      *bool         `json:"enabled,omitempty"`
+	Runtime      *Runtime      `json:"runtime,omitempty"`
+	Coordination *Coordination `json:"coordination,omitempty"`
+	Execution    *Execution    `json:"execution,omitempty"`
+	DecisionMode *string       `json:"decisionMode,omitempty"`
+}
+
+type teamConfigFlagSet struct {
+	runtimeMode              *string
+	coordinationPattern      *string
+	leadAgentID              *string
+	reportingMode            *string
+	messagingMode            *string
+	queuePolicy              *string
+	maxConcurrentRuns        *int
+	showOrgContext           *string
+	injectInbox              *string
+	allowPeerTriggers        *string
+	showTaskBoardGuidance    *string
+	showDecisionLogGuidance  *string
+	showKnowledgeLogGuidance *string
+	requireHandoff           *string
+}
+
+func registerTeamConfigFlags(fs *flag.FlagSet, includeDefaults bool) teamConfigFlagSet {
+	runtimeDefault := ""
+	patternDefault := ""
+	queueDefault := ""
+	maxConcurrentDefault := 0
+	if includeDefaults {
+		runtimeDefault = teamconfig.RuntimeModeMultiProcess
+		patternDefault = teamconfig.CoordinationPatternIndependent
+		queueDefault = teamconfig.QueuePolicyBoundedParallel
+		maxConcurrentDefault = 2
+	}
+
+	return teamConfigFlagSet{
+		runtimeMode:              fs.String("runtime-mode", runtimeDefault, "Runtime mode (multi-process|single-process)"),
+		coordinationPattern:      fs.String("coordination-pattern", patternDefault, "Coordination pattern (independent|peer|leader-led)"),
+		leadAgentID:              fs.String("lead-agent-id", "", "Explicit lead agent ID for leader-led teams"),
+		reportingMode:            fs.String("reporting-mode", "", "Reporting mode (none|org-chart|leader)"),
+		messagingMode:            fs.String("messaging-mode", "", "Messaging mode (disabled|async-inbox|in-session)"),
+		queuePolicy:              fs.String("queue-policy", queueDefault, "Execution queue policy (serialized|bounded-parallel)"),
+		maxConcurrentRuns:        fs.Int("max-concurrent-runs", maxConcurrentDefault, "Maximum concurrent runs for bounded-parallel execution"),
+		showOrgContext:           fs.String("show-org-context", "", "Show org context in prompts (true|false)"),
+		injectInbox:              fs.String("inject-inbox", "", "Inject inbox contents into prompts (true|false)"),
+		allowPeerTriggers:        fs.String("allow-peer-triggers", "", "Allow peer-triggered heartbeats (true|false)"),
+		showTaskBoardGuidance:    fs.String("show-task-board-guidance", "", "Show task board guidance in prompts (true|false)"),
+		showDecisionLogGuidance:  fs.String("show-decision-log-guidance", "", "Show decision log guidance in prompts (true|false)"),
+		showKnowledgeLogGuidance: fs.String("show-knowledge-log-guidance", "", "Show knowledge log guidance in prompts (true|false)"),
+		requireHandoff:           fs.String("require-handoff", "", "Require a final handoff section (true|false)"),
+	}
+}
+
+func parseOptionalBool(raw string) (*bool, error) {
+	if strings.TrimSpace(raw) == "" {
+		return nil, nil
+	}
+	parsed, err := strconv.ParseBool(raw)
+	if err != nil {
+		return nil, err
+	}
+	return &parsed, nil
+}
+
+func buildCoordinationPreset(pattern, runtimeMode, leadAgentID string) (Coordination, error) {
+	coordination, err := teamconfig.BuildCoordinationPreset(pattern, runtimeMode, leadAgentID)
+	if err != nil {
+		if strings.TrimSpace(pattern) == teamconfig.CoordinationPatternLeaderLed &&
+			strings.TrimSpace(leadAgentID) == "" {
+			return Coordination{}, fmt.Errorf("leader-led teams require --lead-agent-id")
+		}
+		return Coordination{}, err
+	}
+	return coordination, nil
+}
+
+func buildExecutionConfig(runtimeMode, queuePolicy string, maxConcurrentRuns int) (Execution, error) {
+	return teamconfig.BuildExecutionConfig(runtimeMode, queuePolicy, maxConcurrentRuns)
+}
+
+func applyCapabilityOverrides(coordination *Coordination, flags teamConfigFlagSet) error {
+	if coordination == nil {
+		return nil
+	}
+
+	overrides := []struct {
+		raw string
+		set func(bool)
+	}{
+		{raw: *flags.showOrgContext, set: func(v bool) { coordination.Capabilities.ShowOrgContext = v }},
+		{raw: *flags.injectInbox, set: func(v bool) { coordination.Capabilities.InjectInbox = v }},
+		{raw: *flags.allowPeerTriggers, set: func(v bool) { coordination.Capabilities.AllowPeerTriggers = v }},
+		{raw: *flags.showTaskBoardGuidance, set: func(v bool) { coordination.Capabilities.ShowTaskBoardGuidance = v }},
+		{raw: *flags.showDecisionLogGuidance, set: func(v bool) { coordination.Capabilities.ShowDecisionLogGuidance = v }},
+		{raw: *flags.showKnowledgeLogGuidance, set: func(v bool) { coordination.Capabilities.ShowKnowledgeLogGuidance = v }},
+		{raw: *flags.requireHandoff, set: func(v bool) { coordination.Capabilities.RequireHandoff = v }},
+	}
+
+	for _, override := range overrides {
+		parsed, err := parseOptionalBool(override.raw)
+		if err != nil {
+			return err
+		}
+		if parsed != nil {
+			override.set(*parsed)
+		}
+	}
+
+	return nil
+}
+
+func resolveCreateTeamConfig(flags teamConfigFlagSet) (Runtime, Coordination, Execution, error) {
+	runtimeMode := strings.TrimSpace(*flags.runtimeMode)
+	pattern := strings.TrimSpace(*flags.coordinationPattern)
+	if runtimeMode == teamconfig.RuntimeModeSingleProcess && pattern == teamconfig.CoordinationPatternIndependent {
+		pattern = teamconfig.CoordinationPatternLeaderLed
+	}
+
+	runtime := Runtime{Mode: runtimeMode}
+	coordination, err := buildCoordinationPreset(pattern, runtimeMode, strings.TrimSpace(*flags.leadAgentID))
+	if err != nil {
+		return Runtime{}, Coordination{}, Execution{}, err
+	}
+	if strings.TrimSpace(*flags.reportingMode) != "" {
+		coordination.ReportingMode = strings.TrimSpace(*flags.reportingMode)
+	}
+	if strings.TrimSpace(*flags.messagingMode) != "" {
+		coordination.MessagingMode = strings.TrimSpace(*flags.messagingMode)
+	}
+	if err := applyCapabilityOverrides(&coordination, flags); err != nil {
+		return Runtime{}, Coordination{}, Execution{}, err
+	}
+	execution, err := buildExecutionConfig(runtimeMode, strings.TrimSpace(*flags.queuePolicy), *flags.maxConcurrentRuns)
+	if err != nil {
+		return Runtime{}, Coordination{}, Execution{}, err
+	}
+	return runtime, coordination, execution, nil
+}
+
+func resolveUpdatedTeamConfig(current TeamDetails, flags teamConfigFlagSet) (*Runtime, *Coordination, *Execution, error) {
+	changed := false
+
+	runtime := current.Runtime
+	if strings.TrimSpace(*flags.runtimeMode) != "" {
+		runtime.Mode = strings.TrimSpace(*flags.runtimeMode)
+		changed = true
+	}
+
+	coordination := current.Coordination
+	if strings.TrimSpace(*flags.runtimeMode) != "" {
+		leadAgentID := firstNonEmpty(strings.TrimSpace(*flags.leadAgentID), coordination.LeadAgentID)
+		if runtime.Mode == teamconfig.RuntimeModeSingleProcess {
+			nextCoordination, err := buildCoordinationPreset(teamconfig.CoordinationPatternLeaderLed, runtime.Mode, leadAgentID)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			coordination = nextCoordination
+			changed = true
+		} else if coordination.Pattern == teamconfig.CoordinationPatternLeaderLed {
+			nextCoordination, err := buildCoordinationPreset(teamconfig.CoordinationPatternLeaderLed, runtime.Mode, leadAgentID)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			coordination = nextCoordination
+			changed = true
+		}
+	}
+
+	if strings.TrimSpace(*flags.coordinationPattern) != "" {
+		pattern := strings.TrimSpace(*flags.coordinationPattern)
+		leadAgentID := coordination.LeadAgentID
+		if strings.TrimSpace(*flags.leadAgentID) != "" {
+			leadAgentID = strings.TrimSpace(*flags.leadAgentID)
+		}
+		nextCoordination, err := buildCoordinationPreset(pattern, runtime.Mode, leadAgentID)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		coordination = nextCoordination
+		changed = true
+	}
+
+	if strings.TrimSpace(*flags.leadAgentID) != "" {
+		coordination.LeadAgentID = strings.TrimSpace(*flags.leadAgentID)
+		changed = true
+	}
+	if strings.TrimSpace(*flags.reportingMode) != "" {
+		coordination.ReportingMode = strings.TrimSpace(*flags.reportingMode)
+		changed = true
+	}
+	if strings.TrimSpace(*flags.messagingMode) != "" {
+		coordination.MessagingMode = strings.TrimSpace(*flags.messagingMode)
+		changed = true
+	}
+	if err := applyCapabilityOverrides(&coordination, flags); err != nil {
+		return nil, nil, nil, err
+	}
+	if strings.TrimSpace(*flags.showOrgContext) != "" ||
+		strings.TrimSpace(*flags.injectInbox) != "" ||
+		strings.TrimSpace(*flags.allowPeerTriggers) != "" ||
+		strings.TrimSpace(*flags.showTaskBoardGuidance) != "" ||
+		strings.TrimSpace(*flags.showDecisionLogGuidance) != "" ||
+		strings.TrimSpace(*flags.showKnowledgeLogGuidance) != "" ||
+		strings.TrimSpace(*flags.requireHandoff) != "" {
+		changed = true
+	}
+
+	execution := current.Execution
+	if strings.TrimSpace(*flags.queuePolicy) != "" || *flags.maxConcurrentRuns > 0 || strings.TrimSpace(*flags.runtimeMode) != "" {
+		nextExecution, err := buildExecutionConfig(runtime.Mode, firstNonEmpty(strings.TrimSpace(*flags.queuePolicy), execution.QueuePolicy), firstPositive(*flags.maxConcurrentRuns, execution.MaxConcurrentRuns))
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		execution = nextExecution
+		changed = true
+	}
+
+	if !changed {
+		return nil, nil, nil, nil
+	}
+
+	return &runtime, &coordination, &execution, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func firstPositive(values ...int) int {
+	for _, value := range values {
+		if value > 0 {
+			return value
+		}
+	}
+	return 0
 }
 
 // AddMemberRequest is the request body for adding a member
@@ -456,7 +704,7 @@ Retention Commands:
 Claude Code Interop Commands:
   import-cc <team-name>                       Import a Claude Code team
   export-cc <team-id>                         Export team as Claude Code config
-  trigger <team-id>                           Trigger team (spawn mode aware)`
+  trigger <team-id>                           Trigger team using the configured team policy`
 }
 
 func cmdList(ctx appctx.Context, args []string) error {
@@ -531,9 +779,14 @@ func cmdShow(ctx appctx.Context, args []string) error {
 		fmt.Printf("Mission: %s\n", team.Mission)
 	}
 	fmt.Printf("Enabled: %v\n", team.Enabled)
-	if team.SpawnMode != "" {
-		fmt.Printf("Spawn Mode: %s\n", team.SpawnMode)
+	fmt.Printf("Runtime: %s\n", team.Runtime.Mode)
+	fmt.Printf("Coordination: %s\n", team.Coordination.Pattern)
+	if team.Coordination.LeadAgentID != "" {
+		fmt.Printf("Lead Agent: %s\n", team.Coordination.LeadAgentID)
 	}
+	fmt.Printf("Reporting Mode: %s\n", team.Coordination.ReportingMode)
+	fmt.Printf("Messaging Mode: %s\n", team.Coordination.MessagingMode)
+	fmt.Printf("Queue Policy: %s (max concurrent: %d)\n", team.Execution.QueuePolicy, team.Execution.MaxConcurrentRuns)
 	if team.DecisionMode != "" {
 		fmt.Printf("Decision Mode: %s\n", team.DecisionMode)
 	}
@@ -589,23 +842,35 @@ func cmdShow(ctx appctx.Context, args []string) error {
 func cmdCreate(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("create", flag.ContinueOnError)
 	mission := fs.String("mission", "", "Team mission statement")
-	spawnMode := fs.String("spawn-mode", "", "Spawn mode (multi-process|single-process)")
 	decisionMode := fs.String("decision-mode", "", "Decision mode (yolo|approval)")
+	configFlags := registerTeamConfigFlags(fs, true)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team create <name> [--mission=...] [--spawn-mode=...] [--decision-mode=...]")
+		return fmt.Errorf("usage: team create <name> [--mission=...] [--runtime-mode=...] [--coordination-pattern=...] [--decision-mode=...]")
 	}
 	name := fs.Arg(0)
+
+	runtime, coordination, execution, err := resolveCreateTeamConfig(configFlags)
+	if err != nil {
+		return err
+	}
+
+	resolvedDecisionMode := strings.TrimSpace(*decisionMode)
+	if resolvedDecisionMode == "" {
+		resolvedDecisionMode = "yolo"
+	}
 
 	req := CreateTeamRequest{
 		DisplayName:  name,
 		Mission:      *mission,
-		SpawnMode:    *spawnMode,
-		DecisionMode: *decisionMode,
+		Runtime:      runtime,
+		Coordination: coordination,
+		Execution:    execution,
+		DecisionMode: resolvedDecisionMode,
 	}
 
 	var team TeamDetails
@@ -628,15 +893,15 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 	name := fs.String("name", "", "New display name")
 	mission := fs.String("mission", "", "New mission statement")
 	enabled := fs.String("enabled", "", "Set team enabled state (true|false)")
-	spawnMode := fs.String("spawn-mode", "", "Spawn mode (multi-process|single-process)")
 	decisionMode := fs.String("decision-mode", "", "Decision mode (yolo|approval)")
+	configFlags := registerTeamConfigFlags(fs, false)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team update <id> [--name=...] [--mission=...] [--enabled=true|false] [--spawn-mode=...] [--decision-mode=...]")
+		return fmt.Errorf("usage: team update <id> [--name=...] [--mission=...] [--enabled=true|false] [--runtime-mode=...] [--coordination-pattern=...] [--decision-mode=...]")
 	}
 	teamID := fs.Arg(0)
 
@@ -654,11 +919,35 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 		}
 		req.Enabled = &parsed
 	}
-	if *spawnMode != "" {
-		req.SpawnMode = spawnMode
-	}
 	if *decisionMode != "" {
 		req.DecisionMode = decisionMode
+	}
+
+	if strings.TrimSpace(*configFlags.runtimeMode) != "" ||
+		strings.TrimSpace(*configFlags.coordinationPattern) != "" ||
+		strings.TrimSpace(*configFlags.leadAgentID) != "" ||
+		strings.TrimSpace(*configFlags.reportingMode) != "" ||
+		strings.TrimSpace(*configFlags.messagingMode) != "" ||
+		strings.TrimSpace(*configFlags.queuePolicy) != "" ||
+		*configFlags.maxConcurrentRuns > 0 ||
+		strings.TrimSpace(*configFlags.showOrgContext) != "" ||
+		strings.TrimSpace(*configFlags.injectInbox) != "" ||
+		strings.TrimSpace(*configFlags.allowPeerTriggers) != "" ||
+		strings.TrimSpace(*configFlags.showTaskBoardGuidance) != "" ||
+		strings.TrimSpace(*configFlags.showDecisionLogGuidance) != "" ||
+		strings.TrimSpace(*configFlags.showKnowledgeLogGuidance) != "" ||
+		strings.TrimSpace(*configFlags.requireHandoff) != "" {
+		var current TeamDetails
+		if err := ctx.Get(fmt.Sprintf("/teams/%s", teamID), &current); err != nil {
+			return fmt.Errorf("failed to load current team config: %w", err)
+		}
+		runtime, coordination, execution, err := resolveUpdatedTeamConfig(current, configFlags)
+		if err != nil {
+			return err
+		}
+		req.Runtime = runtime
+		req.Coordination = coordination
+		req.Execution = execution
 	}
 
 	var team TeamDetails
@@ -1676,9 +1965,11 @@ func cmdExportCC(ctx appctx.Context, args []string) error {
 
 // TriggerTeamResponse matches the heartbeat TriggerTeamResponse.
 type TriggerTeamResponse struct {
-	TeamID    string            `json:"teamId"`
-	SpawnMode string            `json:"spawnMode"`
-	Triggers  []TriggerResponse `json:"triggers"`
+	TeamID              string            `json:"teamId"`
+	RuntimeMode         string            `json:"runtimeMode"`
+	CoordinationPattern string            `json:"coordinationPattern"`
+	QueuePolicy         string            `json:"queuePolicy"`
+	Triggers            []TriggerResponse `json:"triggers"`
 }
 
 func cmdTriggerTeam(ctx appctx.Context, args []string) error {
@@ -1704,7 +1995,13 @@ func cmdTriggerTeam(ctx appctx.Context, args []string) error {
 		return enc.Encode(resp)
 	}
 
-	fmt.Printf("Triggered team %s (mode: %s)\n", teamID, resp.SpawnMode)
+	fmt.Printf(
+		"Triggered team %s (runtime: %s, coordination: %s, queue: %s)\n",
+		teamID,
+		resp.RuntimeMode,
+		resp.CoordinationPattern,
+		resp.QueuePolicy,
+	)
 	for _, t := range resp.Triggers {
 		fmt.Printf("  - %s: run=%s status=%s\n", t.AgentID, t.RunID, t.Status)
 	}
