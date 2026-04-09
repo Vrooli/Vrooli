@@ -4,24 +4,19 @@
   "teamId": "director-swarm",
   "roles": [
     {
-      "id": "director",
-      "name": "Director",
-      "description": "Makes final strategic decisions, sets priorities, allocates resources."
+      "id": "portfolio-manager",
+      "name": "Portfolio Manager",
+      "description": "Maintains portfolio flow in Swarm Manager, applies approved decisions, and proposes bounded corrective actions."
     },
     {
-      "id": "strategist",
-      "name": "Strategist",
-      "description": "Analyzes landscape, identifies options, advises on direction."
+      "id": "outcome-strategy",
+      "name": "Outcome Strategy",
+      "description": "Interprets Command Center metrics and gaps to recommend outcome-driven portfolio shifts."
     },
     {
-      "id": "operations",
-      "name": "Operations",
-      "description": "Translates strategy into team assignments, tracks execution."
-    },
-    {
-      "id": "intelligence",
-      "name": "Intelligence",
-      "description": "Monitors signals and produces intelligence briefings."
+      "id": "vision-walk-prep",
+      "name": "Vision Walk Prep",
+      "description": "Synthesizes a daily structured briefing from all director-swarm outputs and swarm-manager state for the human's morning vision walk."
     }
   ]
 }

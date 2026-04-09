@@ -3,36 +3,35 @@
   "schemaVersion": 1,
   "id": "director-swarm",
   "displayName": "Director Swarm",
-  "mission": "Set strategic direction for Vrooli, prioritize work across all teams, and ensure maximum impact.",
-  "enabled": true,
+  "mission": "Keep Vrooli's initiative portfolio flowing through Swarm Manager and surface outcome-driven strategy as Command Center comes online.",
+  "enabled": false,
   "runtime": {
-    "mode": "single-process"
+    "mode": "multi-process"
   },
   "coordination": {
-    "pattern": "leader-led",
-    "leadAgentId": "director",
-    "reportingMode": "leader",
-    "messagingMode": "in-session",
+    "pattern": "independent",
+    "reportingMode": "none",
+    "messagingMode": "disabled",
     "capabilities": {
-      "showOrgContext": true,
+      "showOrgContext": false,
       "injectInbox": false,
       "allowPeerTriggers": false,
-      "showTaskBoardGuidance": true,
+      "showTaskBoardGuidance": false,
       "showDecisionLogGuidance": true,
       "showKnowledgeLogGuidance": true,
       "requireHandoff": true
     }
   },
   "execution": {
-    "queuePolicy": "serialized",
-    "maxConcurrentRuns": 1
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 2
   },
   "decisionMode": "approval",
   "shared": {
     "path": "shared/",
     "mountHint": "readWrite"
   },
-  "revision": 10,
+  "revision": 12,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-04-03T16:34:33Z"
+  "updatedAt": "2026-04-09T20:25:28Z"
 }

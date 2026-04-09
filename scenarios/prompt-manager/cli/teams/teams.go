@@ -689,7 +689,7 @@ Task Board Commands:
 
 Decision Log Commands:
   decision-add <team-id>                Log a decision (supports --options for multi-option)
-  decision-list <team-id>               List decisions
+  decision-list <team-id>               List decisions (--context, --status, --last)
 
 Knowledge Log Commands:
   knowledge-add <team-id>               Add a knowledge entry
@@ -2582,19 +2582,23 @@ func cmdDecisionAdd(ctx appctx.Context, args []string) error {
 func cmdDecisionList(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("decision-list", flag.ContinueOnError)
 	contextTag := fs.String("context", "", "Filter by context tag")
+	status := fs.String("status", "", "Filter by status (pending|accepted|rejected|running|completed)")
 	last := fs.Int("last", 10, "Number of entries to show")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team decision-list <team-id> [--context=<tag>] [--last=N] [--json]")
+		return fmt.Errorf("usage: team decision-list <team-id> [--context=<tag>] [--status=<status>] [--last=N] [--json]")
 	}
 	teamID := fs.Arg(0)
 
 	query := fmt.Sprintf("/teams/%s/decisions?last=%d", teamID, *last)
 	if *contextTag != "" {
 		query += "&context=" + url.QueryEscape(*contextTag)
+	}
+	if *status != "" {
+		query += "&status=" + url.QueryEscape(*status)
 	}
 
 	var resp DecisionListResponse

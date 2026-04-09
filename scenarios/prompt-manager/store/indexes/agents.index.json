@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-04-09T16:22:53Z",
+  "generatedAt": "2026-04-09T20:12:13Z",
   "items": [
     {
-      "id": "agent-24",
-      "displayName": "Agent 24",
+      "id": "agent-22",
+      "displayName": "Agent 22",
       "status": "active"
     },
     {
@@ -24,11 +24,6 @@
     {
       "id": "contrarian",
       "displayName": "Contrarian",
-      "status": "active"
-    },
-    {
-      "id": "director",
-      "displayName": "Director",
       "status": "active"
     },
     {
@@ -57,11 +52,6 @@
       "status": "active"
     },
     {
-      "id": "intelligence-officer",
-      "displayName": "Intelligence Officer",
-      "status": "active"
-    },
-    {
       "id": "market-researcher",
       "displayName": "Market Researcher",
       "status": "active"
@@ -82,13 +72,18 @@
       "status": "active"
     },
     {
-      "id": "operations-chief",
-      "displayName": "Operations Chief",
+      "id": "opportunity-scout",
+      "displayName": "Opportunity Scout",
       "status": "active"
     },
     {
-      "id": "opportunity-scout",
-      "displayName": "Opportunity Scout",
+      "id": "outcome-strategist",
+      "displayName": "Outcome Strategist",
+      "status": "active"
+    },
+    {
+      "id": "portfolio-manager",
+      "displayName": "Portfolio Manager",
       "status": "active"
     },
     {
@@ -109,11 +104,6 @@
     {
       "id": "skill-optimizer",
       "displayName": "Skill Optimizer",
-      "status": "active"
-    },
-    {
-      "id": "strategist",
-      "displayName": "Strategist",
       "status": "active"
     },
     {

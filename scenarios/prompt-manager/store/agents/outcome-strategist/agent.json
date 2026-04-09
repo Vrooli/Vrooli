@@ -1,0 +1,27 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "outcome-strategist",
+  "displayName": "Outcome Strategist",
+  "description": "Interprets Command Center metrics and dashboard gaps to recommend outcome-driven portfolio adjustments.",
+  "status": "active",
+  "appearance": {
+    "body": "#334155",
+    "head": "#64748B",
+    "accent": "#E2E8F0"
+  },
+  "tags": [
+    "strategy",
+    "outcomes",
+    "metrics",
+    "command-center"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 2,
+  "createdAt": "2026-04-09T19:58:09Z",
+  "updatedAt": "2026-04-09T19:58:09Z"
+}

@@ -1,0 +1,11 @@
+{
+  "kind": "heartbeat-config",
+  "schemaVersion": 1,
+  "teamId": "director-swarm",
+  "agentId": "portfolio-manager",
+  "enabled": true,
+  "schedule": "16 18 * * *",
+  "revision": 2,
+  "createdAt": "2026-04-09T19:58:09Z",
+  "updatedAt": "2026-04-09T19:58:09Z"
+}
