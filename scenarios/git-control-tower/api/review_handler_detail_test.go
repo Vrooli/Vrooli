@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -59,6 +61,37 @@ func TestHandleReviewRun_UnknownCheck(t *testing.T) {
 	}
 	if rr.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d", rr.Code)
+	}
+}
+
+func TestHandleReviewRun_ActiveJobConflictIncludesJobID(t *testing.T) {
+	t.Parallel()
+
+	store := NewReviewJobStore()
+	store.Create("job-1", []string{"tests"}, "my-scenario", 0, DefaultReadinessThresholds())
+	srv := &Server{
+		git:            NewFakeGitRunner(),
+		reviewJobStore: store,
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/review/run", strings.NewReader(`{"scenarioName":"my-scenario"}`))
+	rr := httptest.NewRecorder()
+
+	srv.handleReviewRun(rr, req)
+
+	if rr.Code != http.StatusConflict {
+		t.Fatalf("expected 409, got %d", rr.Code)
+	}
+
+	var resp errorResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp.JobID != "job-1" {
+		t.Fatalf("expected existing job id in conflict response, got %q", resp.JobID)
+	}
+	if !strings.Contains(resp.Error, "already in progress") {
+		t.Fatalf("unexpected error message: %q", resp.Error)
 	}
 }
 

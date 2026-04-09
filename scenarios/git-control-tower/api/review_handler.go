@@ -73,6 +73,7 @@ func (s *Server) handleReviewRun(w http.ResponseWriter, r *http.Request) {
 	if existingID := s.reviewJobStore.ActiveJobForScenario(scenarioName); existingID != "" {
 		hctx.Resp.JSON(http.StatusConflict, errorResponse{
 			Error: "a review run is already in progress for this scenario",
+			JobID: existingID,
 		})
 		return
 	}

@@ -12,24 +12,41 @@ type TidinessScoreResponse struct {
 	Metrics    *TidinessMetricsSummary `json:"metrics,omitempty"`
 }
 
-// TidinessBreakdown categorizes violation counts.
+// TidinessBreakdown exposes per-dimension sub-scores and raw violation counts.
 type TidinessBreakdown struct {
+	// Per-dimension sub-scores (0-100)
+	LintScore         float64 `json:"lint_score"`
+	TypeSafetyScore   float64 `json:"type_safety_score"`
+	ComplexityScore   float64 `json:"complexity_score"`
+	FileLengthScore   float64 `json:"file_length_score"`
+	TestCoverageScore float64 `json:"test_coverage_score"`
+	TechDebtScore     float64 `json:"tech_debt_score"`
+	CommentsScore     float64 `json:"comments_score"`
+	DuplicationScore  float64 `json:"duplication_score"`
+
+	// Raw counts
 	LintIssues        int `json:"lint_issues"`
 	TypeIssues        int `json:"type_issues"`
 	LongFiles         int `json:"long_files"`
 	ComplexFunctions  int `json:"complex_functions"`
 	TechDebtMarkers   int `json:"tech_debt_markers"`
 	DuplicationIssues int `json:"duplication_issues"`
+	TypeSafetyMarkers int `json:"type_safety_markers"`
+	TestedFiles       int `json:"tested_files"`
+	TestableFiles     int `json:"testable_files"`
 }
 
 // TidinessMetricsSummary holds aggregate code metrics.
 type TidinessMetricsSummary struct {
-	TotalFiles     int     `json:"total_files"`
-	TotalLines     int     `json:"total_lines"`
-	AvgFileLength  float64 `json:"avg_file_length"`
-	MaxComplexity  int     `json:"max_complexity"`
-	AvgComplexity  float64 `json:"avg_complexity"`
-	DuplicationPct float64 `json:"duplication_pct"`
+	TotalFiles      int     `json:"total_files"`
+	TotalLines      int     `json:"total_lines"`
+	TotalCodeLines  int     `json:"total_code_lines"`
+	KLOC            float64 `json:"kloc"`
+	AvgFileLength   float64 `json:"avg_file_length"`
+	MaxComplexity   int     `json:"max_complexity"`
+	AvgComplexity   float64 `json:"avg_complexity"`
+	DuplicationPct  float64 `json:"duplication_pct"`
+	TestCoveragePct float64 `json:"test_coverage_pct"`
 }
 
 // TidinessIssue mirrors an issue from the tidiness-manager agent API.
