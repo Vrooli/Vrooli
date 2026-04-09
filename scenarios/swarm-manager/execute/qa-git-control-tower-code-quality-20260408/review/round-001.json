@@ -1,0 +1,107 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-09T01:30:00Z",
+  "execution_id": "1fc9494d5f3d851c",
+  "status": "complete",
+  "agent_assessment": "Substantial refactoring completed across 154 files (commit 84b61bc589). Phase 1 (HTTP client dedup) and Phase 5 (large file splitting) are fully done — main.go dropped 82%, git_runner.go 77%, and all 5 clients use the new BaseClient. Phase 4 (tech debt markers) is complete — 0 TODOs remain in UI. Phase 2 (test refactoring) is partially done — review_handler_test.go halved but most other test files are unchanged. Phase 3 (scanner abstraction) was not implemented. Build passes and all tests pass. However, the critical question is whether the violation counts meet targets (complex_functions <10, long_files <10) — this requires running tidiness-manager which is a runtime dependency. Many test files remain 400-890 lines, which likely still exceed the long_files threshold. The refactoring is architecturally sound but probably does not yet reach the score >=70 target given incomplete Phase 2 and Phase 3.",
+  "classification": "needs_work",
+  "notes": [
+    "Phase 1 DONE: httpclient.go (156 lines) created with BaseClient; 5 client files reduced by 38% total (from 1117 to 693 lines)",
+    "Phase 2 PARTIAL: review_handler_test.go reduced from 1355 to 695 lines (-49%); git_runner_fake_helpers_test.go extracted (125 lines); but diff_service_test.go, agent_manager_client_test.go, sync_status_service_test.go, gitignore_health_service_test.go are UNCHANGED",
+    "Phase 3 NOT DONE: No scan_imports.go abstraction created; golang/scanner.go (60 lines) and python/scanner.go (58 lines) unchanged",
+    "Phase 4 DONE: 0 TODO markers remain in ui/src/",
+    "Phase 5 DONE: All 5 target files successfully split — main.go (241), git_runner.go (260), diff_service.go (344), visual_capture_storage.go (312), agent_manager_model.go (279)",
+    "UI also significantly refactored: api.ts and hooks.ts split into 15+ module files; ScenarioReviewPanel and SettingsTab components extracted",
+    "Build: PASS; Tests: PASS (all packages)",
+    "8 test files still exceed 400 lines (up to 889); these likely still trigger long_files violations",
+    "Cannot confirm final score without running tidiness-manager and GCT review — these are runtime dependencies not available during review"
+  ],
+  "evidence": [
+    {
+      "id": "e1",
+      "type": "cli_output",
+      "title": "go build — compilation passes",
+      "description": "Full API build succeeds with no errors after refactoring, confirming no broken imports or type errors from file splits",
+      "verified": false,
+      "test_results": [
+        {"name": "go build ./...", "passed": true, "output_summary": "Clean build, no errors"}
+      ]
+    },
+    {
+      "id": "e2",
+      "type": "cli_output",
+      "title": "go test — all tests pass",
+      "description": "Full test suite passes, confirming behavioral preservation after refactoring",
+      "verified": false,
+      "test_results": [
+        {"name": "git-control-tower (root)", "passed": true, "output_summary": "ok, 2.363s"},
+        {"name": "git-control-tower/ssh", "passed": true, "output_summary": "ok, 0.003s"}
+      ]
+    },
+    {
+      "id": "e3",
+      "type": "custom",
+      "title": "File size analysis — before vs after",
+      "description": "Comprehensive line count comparison for all files targeted by the plan. Phase 1 clients reduced 38% aggregate, Phase 5 files reduced 52-82%. Test files mostly unchanged except review_handler_test.go (-49%).",
+      "capture_path": "captures/file-sizes-after.txt",
+      "verified": false
+    },
+    {
+      "id": "e4",
+      "type": "custom",
+      "title": "Phase 1 verification — BaseClient struct in httpclient.go",
+      "description": "New httpclient.go (156 lines) provides BaseClient with doGet, doJSON, doJSONAccept, resolveBaseURL, and parseError methods. All 5 service clients embed BaseClient, eliminating duplicated HTTP boilerplate.",
+      "verified": false
+    },
+    {
+      "id": "e5",
+      "type": "custom",
+      "title": "Phase 3 gap — scanner abstraction not implemented",
+      "description": "golang/scanner.go (60 lines) and python/scanner.go (58 lines) remain unchanged. No scan_imports.go or shared abstraction was created. This was a low-impact item (118 total lines, ~2 violations) but was explicitly in the plan.",
+      "verified": false
+    },
+    {
+      "id": "e6",
+      "type": "custom",
+      "title": "Phase 2 gap — most test files unchanged",
+      "description": "Of 8 target test files, only review_handler_test.go was substantially reduced (1355->695). The remaining 7 files (git_runner_fake_test.go, diff_service_test.go, agent_manager_client_test.go, visual_capture_service_test.go, visual_capture_storage_test.go, gitignore_health_service_test.go, sync_status_service_test.go) show minimal or no change. These 8 files total 5194 lines and likely still exceed long_files thresholds.",
+      "verified": false
+    },
+    {
+      "id": "e7",
+      "type": "custom",
+      "title": "Tech debt markers eliminated",
+      "description": "grep for 'TODO:' in ui/src/ returns 0 matches. Both markers from the plan (App.tsx:1320, ScenarioReviewPanel.tsx:665) have been addressed.",
+      "verified": false
+    },
+    {
+      "id": "e8",
+      "type": "custom",
+      "title": "Git commit scope — 154 files, 21K+ insertions",
+      "description": "Commit 84b61bc589 ('git-control-tower refactor p1') touched 154 files with 21,784 insertions and 18,794 deletions. Includes both API Go refactoring and substantial UI TypeScript module extraction (api.ts, hooks.ts, component splits).",
+      "verified": false
+    }
+  ],
+  "request_threads": [],
+  "improvement_suggestions": [
+    {
+      "category": "test_coverage",
+      "description": "Complete Phase 2 test refactoring: convert the 7 remaining large test files (889-407 lines) to table-driven subtests with shared helpers. Priority targets: git_runner_fake_test.go (889), diff_service_test.go (794), agent_manager_client_test.go (791). This is the largest remaining gap to close for long_files <10.",
+      "evidence_id": "e6",
+      "priority": "high"
+    },
+    {
+      "category": "other",
+      "description": "Implement Phase 3 scanner abstraction: extract shared ScanImports helper from golang/scanner.go and python/scanner.go. Low effort (~60 lines to refactor) but was explicitly in the plan. Eliminates 2 duplication violations.",
+      "evidence_id": "e5",
+      "priority": "low"
+    },
+    {
+      "category": "other",
+      "description": "Run tidiness-manager recommend-refactors and GCT review-run after completing remaining phases to get authoritative violation counts and score. Current review cannot confirm whether score >=70 target is met.",
+      "evidence_id": "e3",
+      "priority": "high"
+    }
+  ],
+  "run_id": "a8a999ad-6f63-486a-ada0-523eac661fb1"
+}

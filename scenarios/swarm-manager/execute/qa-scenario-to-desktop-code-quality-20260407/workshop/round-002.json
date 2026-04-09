@@ -2,20 +2,20 @@
   "round": 2,
   "generated_at": "2026-04-08T14:30:00Z",
   "mode": "workshop",
-  "pending_synthesis": false,
+  "pending_synthesis": true,
   "readiness": {
-    "problem_clarity": 3,
-    "scope_defined": 3,
     "approach_solid": 2,
-    "testable": 2,
-    "risk_awareness": 2
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
   },
   "items": [
     {
       "id": "d1",
       "type": "decision",
       "topic": "File length threshold for splitting",
-      "context": "The GCT review flags files >500 lines. We have 46 Go files and 24 TS/TSX files exceeding this. Some files are slightly over (500-600 lines) and splitting them may create unnecessary churn. We need to decide where to draw the line for mandatory splitting vs. leaving alone.",
+      "context": "The GCT review flags files \u003e500 lines. We have 46 Go files and 24 TS/TSX files exceeding this. Some files are slightly over (500-600 lines) and splitting them may create unnecessary churn. We need to decide where to draw the line for mandatory splitting vs. leaving alone.",
       "options": [
         {
           "key": "A",
@@ -34,9 +34,7 @@
           "rationale": "Provide your own threshold or approach"
         }
       ],
-      "selected": "B",
-      "freeform": null,
-      "notes": ""
+      "selected": "B"
     },
     {
       "id": "d2",
@@ -62,7 +60,6 @@
         }
       ],
       "selected": "A",
-      "freeform": null,
       "notes": ""
     },
     {
@@ -93,9 +90,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d4",
@@ -120,9 +115,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "i1",

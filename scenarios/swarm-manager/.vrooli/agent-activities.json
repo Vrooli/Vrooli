@@ -4932,5 +4932,224 @@
       "round_number": "002"
     },
     "updated_at": "2026-04-08T19:32:47Z"
+  },
+  {
+    "activity_id": "fc2f9297c7502594",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "qa-scenario-to-desktop-code-quality-20260407",
+    "owner_title": "Improve scenario-to-desktop code quality",
+    "purpose": "finalize",
+    "interaction_type": "spawn",
+    "task_id": "7e554212-e3d1-4f41-bbcc-00c92072269d",
+    "run_id": "69e927d2-489c-4fb9-8dee-e3f5108de90f",
+    "status": "complete",
+    "requested_at": "2026-04-08T22:27:52Z",
+    "started_at": "2026-04-08T22:27:52Z",
+    "finished_at": "2026-04-08T22:29:42Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "finalize",
+      "skill_id": "swarm-manager-workshop-finalize"
+    },
+    "updated_at": "2026-04-08T22:29:45Z"
+  },
+  {
+    "activity_id": "1f2f2ec9b49874c7",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "qa-scenario-to-desktop-code-quality-20260407",
+    "owner_title": "Improve scenario-to-desktop code quality",
+    "execution_id": "4caac7b4b7f834e2",
+    "purpose": "process",
+    "interaction_type": "spawn",
+    "task_id": "acaf6710-c01c-41e2-a9ab-f1ad985ebfb6",
+    "run_id": "3a19d1b9-72f1-4e76-81fb-2129b40a9918",
+    "status": "failed",
+    "requested_at": "2026-04-08T22:29:52Z",
+    "started_at": "2026-04-08T22:29:52Z",
+    "finished_at": "2026-04-08T22:59:52Z",
+    "failure_reason": "Runner claude-code encountered an error. Please check runner configuration.",
+    "requested_by": "swarm-manager-ui",
+    "metadata": {
+      "entrypoint": "execution.start",
+      "mode": "yolo",
+      "operation": "generator"
+    },
+    "updated_at": "2026-04-08T23:14:25Z"
+  },
+  {
+    "activity_id": "840c78a9bac2eaad",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "qa-scenario-to-desktop-code-quality-20260407",
+    "owner_title": "Improve scenario-to-desktop code quality",
+    "execution_id": "4caac7b4b7f834e2",
+    "purpose": "review",
+    "interaction_type": "spawn",
+    "task_id": "3af0a55e-1746-4fcb-a240-e73451557f78",
+    "run_id": "5407c49a-685f-4055-a1a4-4ad1b56d2a6a",
+    "status": "complete",
+    "requested_at": "2026-04-09T00:53:45Z",
+    "started_at": "2026-04-09T00:53:45Z",
+    "finished_at": "2026-04-09T01:03:09Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "review.start",
+      "round_number": "001"
+    },
+    "updated_at": "2026-04-09T01:03:10Z"
+  },
+  {
+    "activity_id": "3ebcf1808dd57cab",
+    "owner_type": "backlog",
+    "owner_kind": "fix",
+    "owner_name": "qa-prompt-manager-tests-20260407",
+    "owner_title": "Fix prompt-manager test failures",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "b22e13dc-89e4-4e62-91d4-5308af8a4575",
+    "run_id": "647c4e53-6141-4ca5-9eb1-9ecce7ca77bf",
+    "status": "failed",
+    "requested_at": "2026-04-09T01:02:13Z",
+    "started_at": "2026-04-09T01:02:13Z",
+    "finished_at": "2026-04-09T01:20:12Z",
+    "failure_reason": "process terminated unexpectedly (detected by reconciler after 16m59s without heartbeat, tag=swarm-manager:backlog:fix:qa-prompt-manager-tests-20260407:research)",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-09T01:41:23Z"
+  },
+  {
+    "activity_id": "9239bafdcc5d3b25",
+    "owner_type": "backlog",
+    "owner_kind": "fix",
+    "owner_name": "qa-swarm-manager-standards-20260408",
+    "owner_title": "Resolve standards warnings in swarm-manager",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "4c95a6f0-d0f7-4d8c-86a7-10ea21f7f557",
+    "run_id": "27b8a63e-e9de-4b3a-be6f-8e941be061d7",
+    "status": "failed",
+    "requested_at": "2026-04-09T01:02:58Z",
+    "started_at": "2026-04-09T01:02:58Z",
+    "finished_at": "2026-04-09T01:19:42Z",
+    "failure_reason": "process terminated unexpectedly (detected by reconciler after 16m44s without heartbeat, tag=swarm-manager:backlog:fix:qa-swarm-manager-standards-20260408:research)",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-09T01:41:23Z"
+  },
+  {
+    "activity_id": "32ed1076070d007d",
+    "owner_type": "backlog",
+    "owner_kind": "execute",
+    "owner_name": "qa-git-control-tower-code-quality-20260408",
+    "owner_title": "Reduce code quality violations in git-control-tower",
+    "execution_id": "1fc9494d5f3d851c",
+    "purpose": "review",
+    "interaction_type": "spawn",
+    "task_id": "19f206fe-b261-4446-92c5-b3f5973d6259",
+    "run_id": "a8a999ad-6f63-486a-ada0-523eac661fb1",
+    "status": "complete",
+    "requested_at": "2026-04-09T01:04:09Z",
+    "started_at": "2026-04-09T01:04:09Z",
+    "finished_at": "2026-04-09T01:08:27Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "review.start",
+      "round_number": "001"
+    },
+    "updated_at": "2026-04-09T01:41:23Z"
+  },
+  {
+    "activity_id": "486795596900d134",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "release-record-contract-and-history-model",
+    "owner_title": "Define The Release Record And History Model",
+    "execution_id": "e0206ac7304f3ca0",
+    "purpose": "review",
+    "interaction_type": "spawn",
+    "status": "failed",
+    "requested_at": "2026-04-09T01:11:05Z",
+    "finished_at": "2026-04-09T01:11:05Z",
+    "failure_reason": "agent-manager request failed: status 400: {\"code\":\"VALIDATION_FIELD\", \"message\":\"validation error on contextAttachments[0].content: required for note attachments\", \"details\":{\"fields\":{\"field\":{\"string_value\":\"contextAttachments[0].content\"}, \"message\":{\"string_value\":\"required for note attachments\"}, \"recovery\":{\"string_value\":\"fix_input\"}, \"request_id\":{\"string_value\":\"e10d91e9-c8f9-4d88-baff-1c8813da2ecb\"}, \"retryable\":{\"bool_value\":false}, \"user_message\":{\"string_value\":\"Invalid value for contextAttachments[0].content: required for note attachments\"}}}}",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "review.start",
+      "round_number": "001"
+    },
+    "updated_at": "2026-04-09T01:11:05Z"
+  },
+  {
+    "activity_id": "6e8bf0cc085e7a61",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "release-record-contract-and-history-model",
+    "owner_title": "Define The Release Record And History Model",
+    "execution_id": "e0206ac7304f3ca0",
+    "purpose": "review",
+    "interaction_type": "spawn",
+    "status": "failed",
+    "requested_at": "2026-04-09T01:11:16Z",
+    "finished_at": "2026-04-09T01:11:16Z",
+    "failure_reason": "agent-manager request failed: status 400: {\"code\":\"VALIDATION_FIELD\", \"message\":\"validation error on contextAttachments[0].content: required for note attachments\", \"details\":{\"fields\":{\"field\":{\"string_value\":\"contextAttachments[0].content\"}, \"message\":{\"string_value\":\"required for note attachments\"}, \"recovery\":{\"string_value\":\"fix_input\"}, \"request_id\":{\"string_value\":\"ccede139-58a1-4ac7-bc6f-d9ffaa059764\"}, \"retryable\":{\"bool_value\":false}, \"user_message\":{\"string_value\":\"Invalid value for contextAttachments[0].content: required for note attachments\"}}}}",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "review.start",
+      "round_number": "001"
+    },
+    "updated_at": "2026-04-09T01:11:16Z"
+  },
+  {
+    "activity_id": "c1a8f785e450e455",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "release-record-contract-and-history-model",
+    "owner_title": "Define The Release Record And History Model",
+    "execution_id": "e0206ac7304f3ca0",
+    "purpose": "review",
+    "interaction_type": "spawn",
+    "task_id": "0ffe7a85-def8-4bbf-879f-c71e3e56aa18",
+    "run_id": "91507712-d67b-4474-b7c5-af97ad8c0155",
+    "status": "complete",
+    "requested_at": "2026-04-09T01:12:10Z",
+    "started_at": "2026-04-09T01:12:10Z",
+    "finished_at": "2026-04-09T01:12:35Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "review.start",
+      "round_number": "001"
+    },
+    "updated_at": "2026-04-09T01:41:24Z"
+  },
+  {
+    "activity_id": "647300b4b755cce4",
+    "owner_type": "backlog",
+    "owner_kind": "research",
+    "owner_name": "release-record-contract-and-history-model",
+    "owner_title": "Define The Release Record And History Model",
+    "execution_id": "e0206ac7304f3ca0",
+    "purpose": "review",
+    "interaction_type": "spawn",
+    "task_id": "3bb9dd4a-53da-4d92-9780-65c1695fe027",
+    "run_id": "79fa98a7-725b-4da0-b223-9286614bd08b",
+    "status": "running",
+    "requested_at": "2026-04-09T03:12:15Z",
+    "started_at": "2026-04-09T03:12:15Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "review.start",
+      "round_number": "002"
+    },
+    "updated_at": "2026-04-09T03:12:20Z"
   }
 ]

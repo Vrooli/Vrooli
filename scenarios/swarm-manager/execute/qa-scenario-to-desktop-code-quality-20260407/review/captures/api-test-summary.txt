@@ -1,0 +1,52 @@
+ok  	scenario-to-desktop-api	12.301s
+ok  	scenario-to-desktop-api/agentmanager	4.086s
+ok  	scenario-to-desktop-api/build	0.358s
+ok  	scenario-to-desktop-api/bundle	0.042s
+ok  	scenario-to-desktop-api/captures	0.312s
+ok  	scenario-to-desktop-api/deploy	0.011s
+ok  	scenario-to-desktop-api/domain	0.003s
+ok  	scenario-to-desktop-api/generation	0.010s
+ok  	scenario-to-desktop-api/livedesktop	0.073s
+ok  	scenario-to-desktop-api/persistence	0.026s
+--- FAIL: TestIdempotencyKeyWithCompletedPipeline (0.20s)
+--- FAIL: TestRunPipeline_StageFiltering_SingleStage (0.20s)
+--- FAIL: TestRunPipeline_StageFiltering_MultipleStages (0.20s)
+--- FAIL: TestRunPipeline_StageFiltering_PreservesPipelineOrder (0.20s)
+--- FAIL: TestRunPipeline_StageFiltering_EmptyRunsAll (0.20s)
+--- FAIL: TestStopAfterStage (0.20s)
+--- FAIL: TestStopAfterStageSkipped (0.20s)
+--- FAIL: TestResumePipeline (0.20s)
+--- FAIL: TestResumePipelineWithStopAfter (0.20s)
+--- FAIL: TestStageFailure (0.10s)
+FAIL
+FAIL	scenario-to-desktop-api/pipeline	6.456s
+ok  	scenario-to-desktop-api/preflight	1.843s
+ok  	scenario-to-desktop-api/procmetrics	10.409s
+ok  	scenario-to-desktop-api/records	0.029s
+ok  	scenario-to-desktop-api/scenario	0.007s
+ok  	scenario-to-desktop-api/screenrecording	0.208s
+ok  	scenario-to-desktop-api/shared/args	0.004s
+ok  	scenario-to-desktop-api/shared/env	0.004s
+ok  	scenario-to-desktop-api/shared/errors	0.005s
+ok  	scenario-to-desktop-api/shared/http	0.005s
+ok  	scenario-to-desktop-api/shared/packaging	0.003s
+ok  	scenario-to-desktop-api/shared/path	0.003s
+ok  	scenario-to-desktop-api/shared/store	0.555s
+ok  	scenario-to-desktop-api/shared/validation	0.003s
+ok  	scenario-to-desktop-api/signing	3.083s
+ok  	scenario-to-desktop-api/signing/generation	0.005s
+ok  	scenario-to-desktop-api/signing/platforms	0.004s
+ok  	scenario-to-desktop-api/signing/types	0.004s
+ok  	scenario-to-desktop-api/signing/validation	0.004s
+ok  	scenario-to-desktop-api/smoketest	8.029s
+ok  	scenario-to-desktop-api/state	0.009s
+ok  	scenario-to-desktop-api/system	0.027s
+ok  	scenario-to-desktop-api/tasks	0.107s
+ok  	scenario-to-desktop-api/tasks/fix	0.006s
+ok  	scenario-to-desktop-api/tasks/investigate	0.005s
+ok  	scenario-to-desktop-api/tasks/shared	0.003s
+ok  	scenario-to-desktop-api/telemetry	0.005s
+ok  	scenario-to-desktop-api/toolexecution	0.004s
+ok  	scenario-to-desktop-api/toolhandlers	0.003s
+ok  	scenario-to-desktop-api/toolregistry	0.002s
+FAIL

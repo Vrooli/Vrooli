@@ -72,10 +72,10 @@ Key offenders by line count:
 
 ## Implementation Strategy
 
-**Approach:** Batch by violation type (decided in round 1). Process all violations of one type before moving to the next. Run tests after each phase.
+**Approach:** Batch by violation type. Process all violations of one type before moving to the next. Run tests after each phase.
 
 ### Phase 1: Establish Go Linting
-- Create `.golangci.yml` with **moderate strictness** (decided in round 1): go vet, errcheck, unused, gocritic, gocyclo, funlen, revive
+- Create `.golangci.yml` with moderate strictness: go vet, errcheck, unused, gocritic, gocyclo, funlen, revive
   - gocyclo and funlen directly target the GCT violation categories (complex_functions, long_files)
   - Set pragmatic thresholds: funlen max ~500 lines, gocyclo max ~15
 - Run initial lint pass to identify and categorize auto-fixable issues
@@ -84,47 +84,48 @@ Key offenders by line count:
 
 ### Phase 2: Address Long Files (105 violations — highest count)
 
-**Strategy:** Batch by violation type. Split files exceeding the threshold (pending decision d1 on threshold).
+**Splitting threshold:** Mandatory splitting for files over **700 lines**. Files in the 500–700 line range are left for opportunistic cleanup — many will naturally shrink when complex functions are extracted in Phase 3. This focuses effort on the worst offenders and avoids unnecessary churn on borderline files.
 
-**Go files (46 over threshold) — split by cohesive function groups:**
-- `api/shared/errors/errors.go` (1,874 lines) → split into domain-specific error files (pipeline_errors.go, smoketest_errors.go, etc.) per round 1 decision
-- `cli/pipeline/commands.go` (1,581 lines) → split by command group (pending decision d4)
+**Go files (30+ over 700 lines) — split by cohesive function groups:**
+- `api/shared/errors/errors.go` (1,874 lines) → split into domain-specific error files (pipeline_errors.go, smoketest_errors.go, etc.)
+- `cli/pipeline/commands.go` (1,581 lines) → split by command group (commands_run.go, commands_status.go, commands_config.go, etc.). Each CLI command is self-contained, making this a clean structural split.
 - `api/smoketest/service.go` (1,163 lines) → split by operation (create, run, report, etc.)
 - `api/pipeline/orchestrator.go` (898 lines) → split state machine stages into separate files
 - `api/signing/validation/prerequisites.go` (789 lines) → split by validation category
 - `api/preflight/service.go` (782 lines) → split by preflight check type
 - `api/pipeline/handler.go` (752 lines) → split by route group
 - `api/pipeline/types.go` (736 lines) → split by domain (request types, response types, internal types)
-- Remaining Go files over threshold: prioritize by line count descending
+- Remaining Go files over 700 lines: prioritize by line count descending
 
-**Test files — split + extract helpers (decided in round 1):**
+**Test files — split + extract helpers:**
 - `api/smoketest/service_test.go` (2,433 lines) → split by function under test, extract shared setup into `testutil_test.go`
 - `runtime/supervisor_test.go` (1,544 lines) → split by supervisor operation
 - `api/preflight/service_test.go` (1,535 lines) → split by preflight scenario
 - `api/pipeline/orchestrator_test.go` (1,506 lines) → split by pipeline stage
-- Remaining test files: apply same pattern
+- Remaining test files over 700 lines: split by logical grouping + extract common helpers into `*_testutil_test.go`
 
-**Generated files:** Skip `api/smoketest/mocks/mocks.go` (auto-generated, 1,035 lines) per round 1 decision. Exclude from quality metrics.
+**Generated files:** Skip `api/smoketest/mocks/mocks.go` (auto-generated, 1,035 lines). Exclude from quality metrics.
 
-**React/TypeScript files (24 over threshold):**
-- `ui/src/components/generator/GeneratorForm.tsx` (979 lines) → decompose into sub-components (pending decision d2)
-- `ui/src/store/pipelineStore.ts` (878 lines) → extract polling/rate-limiting into utility hooks
-- `ui/src/components/signing/SigningPage.tsx` (687 lines) → extract section sub-components
-- `ui/src/components/sections/preflight/PreflightSection.tsx` (624 lines) → extract sub-sections
-- `ui/src/lib/api/protoAdapters.ts` (600 lines) → split by domain
+**React/TypeScript files (10+ over 700 lines) — extract sub-components and custom hooks:**
+- `ui/src/components/generator/GeneratorForm.tsx` (979 lines) → decompose into section sub-components (GeneratorFormHeader, GeneratorFormConfig, GeneratorFormActions, etc.) and extract form logic into custom hooks
+- `ui/src/store/pipelineStore.ts` (878 lines) → extract polling/rate-limiting logic into separate utility hooks (e.g., `usePolling.ts`, `useRateLimiter.ts`), keep core store slim
+- `ui/src/components/signing/SigningPage.tsx` (687 lines) → extract section sub-components (at 687 lines, borderline — split if naturally decomposable)
+- `ui/src/components/sections/preflight/PreflightSection.tsx` (624 lines) → borderline, opportunistic split
+- `ui/src/lib/api/protoAdapters.ts` (600 lines) → borderline, split by domain if natural groupings exist
 - Test files (useScenarioState.test.ts at 1,388 lines, etc.) → split by test scenario
 
-**Validation:** File count over threshold reduced; `make test` passes after each batch of splits.
+**Validation:** File count over 700-line threshold reduced to zero; `make test` passes after each batch of splits.
 
 ### Phase 3: Reduce Function Complexity (100 violations)
 
-**Strategy:** Apply complexity reduction techniques (pending decision d3) to functions flagged by GCT.
+**Primary technique: Early returns + guard clauses** to flatten nesting. This is the lowest-risk refactor — no new functions to wire up — and is often sufficient alone to drop cyclomatic complexity below threshold.
+
+**Secondary technique: Extract named helper functions** for cohesive blocks that remain complex after flattening. Use clear, descriptive names that convey intent.
+
+**For state-machine functions** in orchestrator: consider table-driven dispatch only where it genuinely improves clarity (not as a blanket pattern).
 
 - Focus areas: `api/pipeline/orchestrator.go`, `api/smoketest/service.go`, `api/preflight/service.go`, handler files
-- Primary technique: early returns + guard clauses to flatten nesting
-- Secondary technique: extract named helper functions for cohesive blocks
-- For state-machine functions in orchestrator: consider table-driven dispatch where it improves clarity
-- **Validation:** `golangci-lint run` with gocyclo threshold passes
+- **Validation:** `golangci-lint run` with gocyclo threshold ≤15 passes; `make test` passes after each batch
 
 ### Phase 4: Validate
 - Re-run GCT code quality review
@@ -146,8 +147,9 @@ No API or CLI contract changes. All refactoring is internal structural improveme
 ## Rollout/Validation Checklist
 
 - [ ] `.golangci.yml` created and `golangci-lint run` passing
-- [ ] Long files split below threshold
-- [ ] Complex functions simplified below gocyclo threshold
+- [ ] Long files split below 700-line threshold
+- [ ] 500-700 line files reviewed; split opportunistically where Phase 3 extractions didn't reduce them enough
+- [ ] Complex functions simplified below gocyclo threshold (≤15)
 - [ ] All existing tests pass (`make test`)
 - [ ] GCT code quality re-review shows score ≥ 1
 - [ ] `vrooli scenario restart scenario-to-desktop` succeeds cleanly
@@ -161,7 +163,8 @@ No API or CLI contract changes. All refactoring is internal structural improveme
 | Refactoring introduces bugs | No logic changes — only structural moves and extractions |
 | Generated files (mocks.go) resist refactoring | Exclude generated files from quality metrics |
 | Large number of files to modify (potentially 100+) | Batch by type, validate per batch, prioritize highest-impact files first |
-| CLI commands.go split breaks subcommand registration | Verify all CLI commands remain registered after split |
+| CLI commands.go split breaks subcommand registration | Verify all CLI commands remain registered after split; Go same-package splitting preserves init() registration |
+| React sub-component extraction breaks prop drilling | Keep extracted components in same directory, co-locate with parent; verify UI renders correctly |
 
 ## Non-goals / Prohibited Patterns
 

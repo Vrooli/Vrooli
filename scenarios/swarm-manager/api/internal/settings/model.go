@@ -153,7 +153,7 @@ func DefaultSettings() Settings {
 		AutoCascadeWorkshop:     true,
 		AutoAdvanceDelaySeconds: 10,
 		AgentMaxTurns:           60,
-		AgentTimeoutSeconds:     900,
+		AgentTimeoutSeconds:     3600,
 		AgentRequiresApproval:   true,
 		SearchDebounceMs:        300,
 		ToastDurationMs:         5000,

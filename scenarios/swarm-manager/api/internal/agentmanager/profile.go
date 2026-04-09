@@ -49,8 +49,8 @@ func DefaultProfileConfig() *ProfileConfig {
 		RunnerType:  domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
 		ModelPreset: domainpb.ModelPreset_MODEL_PRESET_SMART,
 		MaxTurns:    60,
-		// 15 minute timeout for research and implementation prep.
-		TimeoutSeconds: 900,
+		// 60 minute timeout for research and implementation prep.
+		TimeoutSeconds: 3600,
 		AllowedTools: []string{
 			"Read",
 			"Write",

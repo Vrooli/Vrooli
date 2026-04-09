@@ -2,6 +2,7 @@
   "acceptance_allow": [
     "scenarios/scenario-to-desktop/**"
   ],
+  "archived_at": "2026-04-09T01:06:12Z",
   "created": "2026-04-07T22:10:38Z",
   "created_by": {
     "type": "operator"
@@ -10,12 +11,12 @@
   "kind": "execute",
   "name": "qa-scenario-to-desktop-code-quality-20260407",
   "priority": 2,
-  "status": "backlog",
+  "status": "failed",
   "tags": [
     "preemptive-qa",
     "scenario-to-desktop",
     "code-quality"
   ],
   "title": "Improve scenario-to-desktop code quality",
-  "updated": "2026-04-07T22:10:38Z"
+  "updated": "2026-04-09T01:06:12Z"
 }
