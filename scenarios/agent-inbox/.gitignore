@@ -1,2 +1,7 @@
+# Compiled binaries
+api/agent-inbox
+api/agent-inbox-api
+api/scenario-api
+
 # Uploaded files
 api/uploads/

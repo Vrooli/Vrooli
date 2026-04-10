@@ -1,5 +1,6 @@
 # Compiled binaries
 api/*-api
+api/api
 api/accessibility-compliance-hub
 cli/accessibility-compliance-hub
 
